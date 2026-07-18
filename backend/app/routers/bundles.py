@@ -1,0 +1,381 @@
+"""
+Product Bundle Router
+---------------------
+Admin-managed bundles. Each bundle has:
+  - A fixed bundle price (cheaper than sum of individual MRPs)
+  - A list of items [{productId, quantity}]
+  - Stock uses each individual product's own stock; no separate bundle stock counter.
+
+Endpoints:
+  Public / Customer:
+    GET  /api/bundles                        – list active bundles (with product details)
+    GET  /api/bundles/{bundle_id}            – get single bundle with full product details
+    POST /api/bundles/{bundle_id}/add-to-cart – add all bundle items to the user's cart
+
+  Admin only:
+    POST   /api/bundles/admin               – create bundle
+    PUT    /api/bundles/admin/{bundle_id}   – update bundle
+    DELETE /api/bundles/admin/{bundle_id}   – delete bundle
+    GET    /api/bundles/admin/all           – list all bundles including inactive
+"""
+
+import uuid
+from typing import Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from app.repositories.bundle_repository import bundle_repository
+from app.repositories.product_repository import product_repository
+from app.utils.auth import get_current_user, require_super_admin
+from app.utils.cache import cache
+from app.utils.logger import logger
+
+router = APIRouter()
+
+
+# ─── Pydantic schemas ─────────────────────────────────────────────────────────
+
+class BundleItemSchema(BaseModel):
+    productId: str
+    quantity: int  # quantity of that product included in one bundle
+
+
+class CreateBundleRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float           # bundle price (what customer pays for the whole bundle)
+    items: List[BundleItemSchema]
+    imageUrl: Optional[str] = None
+    isActive: bool = True
+    salesCount: Optional[int] = 0
+
+
+class UpdateBundleRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    items: Optional[List[BundleItemSchema]] = None
+    imageUrl: Optional[str] = None
+    isActive: Optional[bool] = None
+    salesCount: Optional[int] = None
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async def _enrich_bundle(bundle: Dict) -> Dict:
+    """
+    Attach product details to each bundle item and compute:
+      - totalMrp  : sum of (item.quantity × product.mrp)
+      - savings   : totalMrp − bundle.price
+      - availability: True only when every product has sufficient stock
+    """
+    enriched_items = []
+    total_mrp = 0.0
+    fully_available = True
+
+    for item in bundle.get("items", []):
+        product = await product_repository.findById(item["productId"])
+        if not product:
+            continue
+        mrp = product.get("mrp") or 0
+        qty = item.get("quantity", 1)
+        line_mrp = mrp * qty
+        total_mrp += line_mrp
+
+        # Available stock (no user to exclude for public endpoint)
+        stock = product.get("stock", 0)
+        if stock < qty:
+            fully_available = False
+
+        enriched_items.append({
+            "productId": item["productId"],
+            "quantity": qty,
+            "product": {
+                "_id": product.get("_id"),
+                "name": product.get("name"),
+                "sku": product.get("sku"),
+                "mrp": mrp,
+                "images": product.get("images", []),
+                "stock": stock,
+            },
+            "lineMrp": line_mrp,
+        })
+
+    bundle_price = bundle.get("price", 0)
+    return {
+        **bundle,
+        "items": enriched_items,
+        "totalMrp": round(total_mrp, 2),
+        "savings": round(total_mrp - bundle_price, 2),
+        "savingsPercent": round((total_mrp - bundle_price) / total_mrp * 100, 1) if total_mrp else 0,
+        "isAvailable": fully_available,
+    }
+
+
+async def _validate_bundle_items(items: List[BundleItemSchema]):
+    """Raise 400 if any product doesn't exist or has qty < 1."""
+    for item in items:
+        if item.quantity < 1:
+            raise HTTPException(status_code=400, detail=f"Quantity for product {item.productId} must be at least 1")
+        product = await product_repository.findById(item.productId)
+        if not product:
+            raise HTTPException(status_code=400, detail=f"Product {item.productId} not found")
+
+
+# ─── Public endpoints ──────────────────────────────────────────────────────────
+
+@router.get("")
+@router.get("/")
+@cache.ttl_cache(ttl=300.0)
+async def list_active_bundles():
+    """List all active bundles with enriched product details (public)."""
+    try:
+        bundles = await bundle_repository.get_active_bundles()
+        enriched = []
+        for b in bundles:
+            try:
+                enriched.append(await _enrich_bundle(b))
+            except Exception as e:
+                logger.warning("Could not enrich bundle %s: %s", b.get("_id"), e)
+        return {"bundles": enriched, "total": len(enriched)}
+    except Exception as e:
+        logger.error("Error listing bundles: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/product/{product_id}")
+@cache.ttl_cache(ttl=300.0)
+async def list_bundles_for_product(product_id: str):
+    """List all active bundles containing a specific product, sorted by salesCount descending."""
+    try:
+        bundles = await bundle_repository.get_bundles_containing_product(product_id)
+        enriched = []
+        for b in bundles:
+            try:
+                enriched.append(await _enrich_bundle(b))
+            except Exception as e:
+                logger.warning("Could not enrich bundle %s: %s", b.get("_id"), e)
+        # Sort by salesCount descending
+        enriched.sort(key=lambda x: x.get("salesCount", 0), reverse=True)
+        return {"bundles": enriched}
+    except Exception as e:
+        logger.error("Error fetching bundles for product %s: %s", product_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/admin/all")
+async def list_all_bundles(current_user: dict = Depends(require_super_admin)):
+    """List ALL bundles (including inactive) for admin management."""
+    try:
+        bundles = await bundle_repository.findAll()
+        enriched = []
+        for b in bundles:
+            try:
+                enriched.append(await _enrich_bundle(b))
+            except Exception as e:
+                logger.warning("Could not enrich bundle %s: %s", b.get("_id"), e)
+                enriched.append(b)
+        return {"bundles": enriched, "total": len(enriched)}
+    except Exception as e:
+        logger.error("Error listing all bundles: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/{bundle_id}")
+@cache.ttl_cache(ttl=300.0)
+async def get_bundle(bundle_id: str):
+    """Get a single active bundle with full product details (public)."""
+    try:
+        bundle = await bundle_repository.findById(bundle_id)
+        if not bundle:
+            raise HTTPException(status_code=404, detail="Bundle not found")
+        if not bundle.get("isActive", True):
+            raise HTTPException(status_code=404, detail="Bundle not found")
+        return await _enrich_bundle(bundle)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error fetching bundle %s: %s", bundle_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.post("/{bundle_id}/add-to-cart")
+async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_current_user)):
+    """
+    Add all items from a bundle to the user's cart.
+    Prices are computed at the individual item level (bundle savings are shown in cart UI).
+    Stock is validated per-product.
+    """
+    try:
+        from app.repositories.cart_repository import cart_repository
+        from app.repositories.stock_reservation_repository import stock_reservation_repository
+        from app.repositories.wishlist_repository import wishlist_repository
+
+        bundle = await bundle_repository.findById(bundle_id)
+        if not bundle or not bundle.get("isActive", True):
+            raise HTTPException(status_code=404, detail="Bundle not found")
+
+        user_id = current_user.get("_id")
+        role = current_user.get("effectiveRole") or current_user.get("role", "customer")
+        ttl_minutes = 30 if role == "wholesaler" else 10
+
+        # Validate stock before touching the cart
+        for item in bundle.get("items", []):
+            product = await product_repository.findById(item["productId"])
+            if not product or not product.get("isActive"):
+                raise HTTPException(status_code=400, detail=f"Product {item['productId']} is no longer available")
+            available = await product_repository.get_available_stock(item["productId"], exclude_user_id=user_id)
+            if available < item["quantity"]:
+                pname = product.get("name", item["productId"])
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock for '{pname}'. Available: {available}, required: {item['quantity']}"
+                )
+
+        cart = await cart_repository.findByUser(user_id)
+        added_product_ids = []
+
+        for item in bundle.get("items", []):
+            pid = item["productId"]
+            qty = item["quantity"]
+
+            new_item = {
+                "_id": str(uuid.uuid4()),
+                "product": pid,
+                "quantity": qty,
+                "sellAsCase": False,
+                "bundleId": bundle_id,        # tag so cart UI can group bundle items visually
+                "bundleName": bundle.get("name"),
+            }
+
+            if cart:
+                existing = next(
+                    (i for i in cart.get("items", [])
+                     if i.get("product") == pid and i.get("bundleId") == bundle_id),
+                    None,
+                )
+                if existing:
+                    items = cart.get("items", [])
+                    for i, it in enumerate(items):
+                        if it.get("_id") == existing["_id"]:
+                            items[i]["quantity"] = existing["quantity"] + qty
+                            break
+                    await cart_repository.createOrUpdate(user_id, items)
+                else:
+                    await cart_repository.addItem(user_id, new_item)
+            else:
+                await cart_repository.addItem(user_id, new_item)
+                cart = await cart_repository.findByUser(user_id)
+
+            # Update stock reservation
+            updated_cart = await cart_repository.findByUser(user_id)
+            final_qty = sum(i.get("quantity", 0) for i in updated_cart.get("items", []) if i.get("product") == pid)
+            await stock_reservation_repository.reserve_stock(
+                product_id=pid,
+                user_id=user_id,
+                quantity=final_qty,
+                ttl_minutes=ttl_minutes,
+            )
+
+            # Remove from wishlist if present
+            await wishlist_repository.removeItem(user_id, pid)
+            added_product_ids.append(pid)
+
+        return {
+            "message": f"Bundle '{bundle.get('name')}' added to cart",
+            "addedProducts": added_product_ids,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error adding bundle to cart: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+# ─── Admin endpoints ───────────────────────────────────────────────────────────
+
+@router.post("/admin")
+async def create_bundle(payload: CreateBundleRequest, current_user: dict = Depends(require_super_admin)):
+    """Admin: create a new product bundle."""
+    try:
+        if payload.price <= 0:
+            raise HTTPException(status_code=400, detail="Bundle price must be greater than zero")
+        if not payload.items:
+            raise HTTPException(status_code=400, detail="Bundle must contain at least one item")
+
+        await _validate_bundle_items(payload.items)
+
+        bundle_data = {
+            "_id": str(uuid.uuid4()),
+            "name": payload.name.strip(),
+            "description": payload.description,
+            "price": payload.price,
+            "items": [{"productId": i.productId, "quantity": i.quantity} for i in payload.items],
+            "imageUrl": payload.imageUrl,
+            "isActive": payload.isActive,
+            "salesCount": payload.salesCount if payload.salesCount is not None else 0,
+        }
+        created = await bundle_repository.create(bundle_data)
+        return {"message": "Bundle created", "bundle": created}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error creating bundle: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.put("/admin/{bundle_id}")
+async def update_bundle(
+    bundle_id: str,
+    payload: UpdateBundleRequest,
+    current_user: dict = Depends(require_super_admin),
+):
+    """Admin: update an existing bundle."""
+    try:
+        bundle = await bundle_repository.findById(bundle_id)
+        if not bundle:
+            raise HTTPException(status_code=404, detail="Bundle not found")
+
+        updates: Dict = {}
+        if payload.name is not None:
+            updates["name"] = payload.name.strip()
+        if payload.description is not None:
+            updates["description"] = payload.description
+        if payload.price is not None:
+            if payload.price <= 0:
+                raise HTTPException(status_code=400, detail="Bundle price must be greater than zero")
+            updates["price"] = payload.price
+        if payload.items is not None:
+            await _validate_bundle_items(payload.items)
+            updates["items"] = [{"productId": i.productId, "quantity": i.quantity} for i in payload.items]
+        if payload.imageUrl is not None:
+            updates["imageUrl"] = payload.imageUrl
+        if payload.isActive is not None:
+            updates["isActive"] = payload.isActive
+        if payload.salesCount is not None:
+            updates["salesCount"] = payload.salesCount
+
+        updated = await bundle_repository.update(bundle_id, updates)
+        return {"message": "Bundle updated", "bundle": updated}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error updating bundle %s: %s", bundle_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.delete("/admin/{bundle_id}")
+async def delete_bundle(bundle_id: str, current_user: dict = Depends(require_super_admin)):
+    """Admin: permanently delete a bundle."""
+    try:
+        bundle = await bundle_repository.findById(bundle_id)
+        if not bundle:
+            raise HTTPException(status_code=404, detail="Bundle not found")
+        await bundle_repository.delete(bundle_id)
+        return {"message": "Bundle deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error deleting bundle %s: %s", bundle_id, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")

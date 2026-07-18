@@ -1,0 +1,18 @@
+[
+  {
+    "total_requests": 42699,
+    "failures": 1,
+    "error_rate_pct": 0.002341975221902152,
+    "rps": 237.3168274657203,
+    "p50_ms": 15.0,
+    "p90_ms": 250.0,
+    "p99_ms": 2100.0,
+    "mean_ms": 0.0,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "profile": "high_load",
+    "html_report": "C:\\Ecommerce app\\backend\\load_tests\\reports\\high_load_20260718_213201.html",
+    "csv_prefix": "C:\\Ecommerce app\\backend\\load_tests\\reports\\high_load_20260718_213201",
+    "returncode": 1
+  }
+]

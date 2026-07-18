@@ -1,0 +1,91 @@
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional
+
+from app.db.storage_factory import get_storage
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+class NotificationRepository:
+    def __init__(self):
+        self.storage = get_storage("notifications")
+
+    def _get_timestamp(self) -> str:
+        """Get current timestamp in ISO format with IST timezone"""
+        return datetime.now(IST).isoformat()
+
+    async def findAll(self, filters: Optional[Dict] = None) -> List[Dict]:
+        filters = filters or {}
+        
+        # Build DB query to offload exact filtering
+        db_query = {}
+        if filters.get("userId"):
+            db_query["userId"] = filters["userId"]
+        if filters.get("isRead") is not None:
+            db_query["isRead"] = filters["isRead"]
+        if filters.get("type"):
+            db_query["type"] = filters["type"]
+
+        notifications = await self.storage.findAll(db_query)
+
+        if filters.get("startDate"):
+            start = datetime.fromisoformat(filters["startDate"].replace("Z", "+00:00"))
+            notifications = [
+                n
+                for n in notifications
+                if datetime.fromisoformat(n.get("createdAt", "").replace("Z", "+00:00")) >= start
+            ]
+        if filters.get("endDate"):
+            end = datetime.fromisoformat(filters["endDate"].replace("Z", "+00:00"))
+            end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
+            notifications = [
+                n for n in notifications if datetime.fromisoformat(n.get("createdAt", "").replace("Z", "+00:00")) <= end
+            ]
+
+        return sorted(notifications, key=lambda x: x.get("createdAt", ""), reverse=True)
+
+    async def findById(self, id: str) -> Optional[Dict]:
+        return await self.storage.findById(id)
+
+    async def create(self, notification_data: Dict) -> Dict:
+        notification = {
+            "_id": self._generate_id(),
+            **notification_data,
+            "isRead": False,
+            "isAcknowledged": False,
+            "createdAt": self._get_timestamp(),
+            "updatedAt": self._get_timestamp(),
+        }
+        return await self.storage.create(notification)
+
+    async def update(self, id: str, update_data: Dict) -> Dict:
+        updates = {**update_data, "updatedAt": self._get_timestamp()}
+        return await self.storage.update(id, updates)
+
+    async def acknowledge(self, id: str) -> Dict:
+        return await self.update(id, {"isAcknowledged": True})
+
+    async def markAsRead(self, id: str) -> Dict:
+        return await self.update(id, {"isRead": True})
+
+    async def markAllAsRead(self) -> int:
+        """Mark all unread notifications as read and acknowledged"""
+        update_data = {
+            "isRead": True,
+            "isAcknowledged": True,
+            "updatedAt": self._get_timestamp()
+        }
+        count1 = await self.storage.updateMany({"isRead": False}, update_data)
+        count2 = await self.storage.updateMany({"isAcknowledged": False}, update_data)
+        return count1 + count2
+
+    async def delete(self, id: str) -> bool:
+        return await self.storage.delete(id)
+
+    def _generate_id(self) -> str:
+        import random
+
+        return datetime.now().strftime("%Y%m%d%H%M%S") + str(random.randint(100000, 999999))
+
+
+notification_repository = NotificationRepository()

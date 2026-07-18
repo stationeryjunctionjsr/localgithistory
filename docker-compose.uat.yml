@@ -1,0 +1,53 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: stationery-backend-uat
+    env_file:
+      - ./backend/.env.uat
+    volumes:
+      - ./backend:/app
+      - /app/.venv  # Keep the container's virtualenv isolated from host
+    ports:
+      - "8000:8000"
+    environment:
+      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,https://uat.stationeryjunction.com
+      - ENVIRONMENT=uat
+      # Set to "true" during scheduled upgrades
+      - MAINTENANCE_MODE=false
+    # Use reload for local dev
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: deps # For local dev, we only need the deps stage and then we run dev
+    container_name: stationery-frontend-uat
+    env_file:
+      - ./frontend/.env.uat
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Keep node_modules isolated from the host
+      - /app/.next # Keep next cache isolated
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=https://api.uat.stationeryjunction.com/api
+    depends_on:
+      - backend
+    # Run dev server inside the container
+    command: npm run dev
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

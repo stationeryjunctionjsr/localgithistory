@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Endpoint Latency Benchmark</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 2rem; }
+  h1 { color: #38bdf8; font-size: 1.5rem; margin-bottom: 0.25rem; }
+  p.meta { color: #94a3b8; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+  th { background: #1e293b; color: #7dd3fc; padding: 10px 14px; text-align: left; border-bottom: 2px solid #334155; }
+  td { padding: 8px 14px; border-bottom: 1px solid #1e293b; }
+  tr:hover td { background: #1e293b44; }
+  .legend { margin-top: 1.5rem; font-size: 0.8rem; color: #64748b; }
+  .legend span { margin-right: 1.5rem; }
+  .pass { color: #4ade80; } .warn { color: #facc15; } .fail { color: #f87171; }
+</style>
+</head>
+<body>
+<h1>📊 Endpoint Latency Benchmark</h1>
+<p class="meta">Generated: 2026-06-04 19:44:53 | Repetitions per endpoint: 20 | Base URL: http://localhost:8000</p>
+<table>
+  <thead>
+    <tr>
+      <th>Endpoint</th><th>Method</th><th>Mean</th><th>P50</th>
+      <th>P90</th><th>P99</th><th>Min</th><th>Max</th><th>Errors</th>
+    </tr>
+  </thead>
+  <tbody>
+<tr><td>Health check</td><td>GET</td><td style='color:orange'>266 ms</td><td style='color:green'>165 ms</td><td style='color:green'>176 ms</td><td style='color:green'>178 ms</td><td>146 ms</td><td>2226 ms</td><td style='color:green'>0</td></tr>
+<tr><td>Products - page 1</td><td>GET</td><td style='color:green'>157 ms</td><td style='color:green'>4 ms</td><td style='color:green'>14 ms</td><td style='color:green'>27 ms</td><td>3 ms</td><td>3038 ms</td><td style='color:green'>0</td></tr>
+<tr><td>Products - page 2</td><td>GET</td><td style='color:green'>56 ms</td><td style='color:green'>5 ms</td><td style='color:green'>5 ms</td><td style='color:green'>6 ms</td><td>3 ms</td><td>1035 ms</td><td style='color:green'>0</td></tr>
+<tr><td>Categories</td><td>GET</td><td style='color:green'>23 ms</td><td style='color:green'>6 ms</td><td style='color:green'>13 ms</td><td style='color:green'>21 ms</td><td>5 ms</td><td>331 ms</td><td style='color:green'>0</td></tr>
+<tr><td>Banners</td><td>GET</td><td style='color:green'>22 ms</td><td style='color:green'>3 ms</td><td style='color:green'>14 ms</td><td style='color:green'>29 ms</td><td>2 ms</td><td>323 ms</td><td style='color:green'>0</td></tr>
+<tr><td>Brands</td><td>GET</td><td style='color:green'>20 ms</td><td style='color:green'>4 ms</td><td style='color:green'>23 ms</td><td style='color:green'>36 ms</td><td>3 ms</td><td>250 ms</td><td style='color:green'>0</td></tr>
+<tr><td>Collections</td><td>GET</td><td style='color:green'>31 ms</td><td style='color:green'>3 ms</td><td style='color:green'>104 ms</td><td style='color:green'>111 ms</td><td>2 ms</td><td>230 ms</td><td style='color:green'>0</td></tr>
+<tr><td>Promo strips</td><td>GET</td><td style='color:green'>19 ms</td><td style='color:green'>4 ms</td><td style='color:green'>6 ms</td><td style='color:green'>6 ms</td><td>3 ms</td><td>301 ms</td><td style='color:green'>0</td></tr>
+<tr><td>Trending recommendations</td><td>GET</td><td style='color:green'>4 ms</td><td style='color:green'>4 ms</td><td style='color:green'>6 ms</td><td style='color:green'>6 ms</td><td>3 ms</td><td>7 ms</td><td style='color:green'>0</td></tr>
+<tr><td>Search tags</td><td>GET</td><td style='color:green'>4 ms</td><td style='color:green'>4 ms</td><td style='color:green'>4 ms</td><td style='color:green'>4 ms</td><td>2 ms</td><td>6 ms</td><td style='color:green'>0</td></tr>
+<tr><td>Pincode lookup</td><td>GET</td><td style='color:green'>17 ms</td><td style='color:green'>4 ms</td><td style='color:green'>4 ms</td><td style='color:green'>5 ms</td><td>3 ms</td><td>278 ms</td><td style='color:green'>0</td></tr>
+<tr><td>App version</td><td>GET</td><td style='color:green'>4 ms</td><td style='color:green'>4 ms</td><td style='color:green'>6 ms</td><td style='color:green'>6 ms</td><td>3 ms</td><td>7 ms</td><td style='color:green'>0</td></tr>
+
+  </tbody>
+</table>
+<div class="legend">
+  <strong>Legend:</strong>
+  <span class="pass">■ Within SLA</span>
+  <span class="warn">■ Near threshold</span>
+  <span class="fail">■ Exceeds SLA</span>
+  &nbsp;|&nbsp; SLA Thresholds — P50: 200 ms | P90: 500 ms | P99: 1500 ms
+</div>
+</body>
+</html>

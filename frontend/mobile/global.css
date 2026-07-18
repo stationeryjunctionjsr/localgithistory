@@ -1,0 +1,226 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Premium Design System - CSS Custom Properties */
+:root {
+  /* Brand colors - Forest Green + Gold */
+  --color-brand-primary: #1a4d33;
+  --color-brand-primary-light: #2d7a52;
+  --color-brand-accent: #d4af37;
+  --color-brand-accent-light: #f4e4bc;
+
+  /* Surfaces */
+  --color-background: #fafafa;
+  --color-background-alt: #fdfbf7;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8f8f8;
+
+  /* Text */
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #666666;
+  --color-text-muted: #999999;
+
+  /* Borders */
+  --color-border: #f0f0f0;
+  --color-border-medium: #e5e5e5;
+  --color-border-focus: #1a4d33;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 4px 12px rgba(26, 77, 51, 0.08);
+  --shadow-glow: 0 4px 16px rgba(212, 175, 55, 0.25);
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Border radius */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Tab bar */
+  --tab-bar-height: 72px;
+  --tab-indicator-width: 48px;
+}
+
+/* Custom utility classes */
+@layer utilities {
+  /* Glass morphism effects */
+  .glass {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .glass-dark {
+    background: rgba(26, 77, 51, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* Premium gradients */
+  .gradient-brand {
+    background: linear-gradient(135deg, #1a4d33 0%, #2d7a52 100%);
+  }
+
+  .gradient-gold {
+    background: linear-gradient(135deg, #d4af37 0%, #f4e4bc 100%);
+  }
+
+  .gradient-sunset {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ffa07a 100%);
+  }
+
+  .gradient-premium {
+    background: linear-gradient(135deg, #1a4d33 0%, #0f3322 50%, #d4af37 100%);
+  }
+
+  /* Text gradients */
+  .text-gradient {
+    background: linear-gradient(135deg, #1a4d33 0%, #d4af37 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Premium shadows */
+  .shadow-card {
+    box-shadow: 0 4px 12px rgba(26, 77, 51, 0.08);
+  }
+
+  .shadow-elevated {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  }
+
+  .shadow-glow {
+    box-shadow: 0 4px 16px rgba(212, 175, 55, 0.25);
+  }
+
+  /* Safe area utilities */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Tap highlight disabled */
+  .tap-highlight-none {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Active state utility */
+  .active-scale {
+    transition: transform 0.15s ease;
+  }
+
+  .active-scale:active {
+    transform: scale(0.98);
+  }
+
+  /* Skeleton loading animation */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Slide up animation */
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.35s ease-out;
+  }
+
+  /* Fade in animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.25s ease-out;
+  }
+
+  /* Badge bounce animation */
+  @keyframes badgeBounce {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+
+    50% {
+      transform: scale(1.2);
+    }
+  }
+
+  .animate-badge {
+    animation: badgeBounce 0.3s ease-out;
+  }
+
+  /* Pulse animation for indicators */
+  @keyframes pulse {
+    0% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.6;
+    }
+
+    100% {
+      opacity: 1;
+    }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 2s ease-in-out infinite;
+  }
+}

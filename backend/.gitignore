@@ -1,0 +1,38 @@
+node_modules/
+
+# ── Secrets & environment variables ──────────────────────────────────────────
+# NEVER commit real env files. Only .env.example is allowed.
+.env
+.env.*
+!.env.example
+
+# OCI Wallet directories (contain TLS certificates and private keys)
+Wallet_*/
+
+# Loose credential / debug files
+correct_env.txt
+*.pem
+*.key
+*.p12
+
+# ── Python artefacts ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+
+# ── Runtime data ──────────────────────────────────────────────────────────────
+app/data/
+uploads/
+logs/
+*.log
+object_storage/
+
+# ── OS noise ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+

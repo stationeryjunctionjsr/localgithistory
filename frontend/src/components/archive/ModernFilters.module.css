@@ -1,0 +1,372 @@
+.modernFilters {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #eaeaec;
+  overflow: hidden;
+  position: sticky;
+  top: 2rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.filtersHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #eaeaec;
+  background: #fafafa;
+}
+
+.filtersTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #282c3f;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.clearAllBtn {
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.clearAllBtn:hover {
+  background: rgba(214, 48, 49, 0.05);
+}
+
+.activeFiltersCount {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.8125rem;
+  color: var(--primary-color, #d63031);
+  font-weight: 500;
+  background: rgba(214, 48, 49, 0.05);
+  border-bottom: 1px solid #eaeaec;
+}
+
+.filterSections {
+  padding: 0.5rem 0;
+}
+
+.filterSection {
+  border-bottom: 1px solid #f5f5f6;
+}
+
+.filterSection:last-child {
+  border-bottom: none;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  user-select: none;
+}
+
+.sectionHeader:hover {
+  background: #fafafa;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #282c3f;
+}
+
+.expandIcon {
+  transition: transform 0.2s ease;
+  color: #94969f;
+}
+
+.expandIcon.expanded {
+  transform: rotate(180deg);
+}
+
+.sectionContent {
+  padding: 0 1.5rem 1rem;
+}
+
+.filterSearch {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #f5f5f6;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid #eaeaec;
+  transition: all 0.2s ease;
+}
+
+.filterSearch:focus-within {
+  background: white;
+  border-color: var(--primary-color, #d63031);
+  box-shadow: 0 0 0 3px rgba(214, 48, 49, 0.1);
+}
+
+.filterSearch svg {
+  width: 16px;
+  height: 16px;
+  color: #94969f;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 0.8125rem;
+  color: #282c3f;
+}
+
+.searchInput::placeholder {
+  color: #94969f;
+}
+
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.optionLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.optionLabel:hover {
+  background: #f5f5f6;
+}
+
+.optionInput {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary-color, #d63031);
+  cursor: pointer;
+}
+
+.optionText {
+  flex: 1;
+  font-size: 0.875rem;
+  color: #282c3f;
+  line-height: 1.4;
+}
+
+.optionCount {
+  font-size: 0.75rem;
+  color: #94969f;
+  font-weight: 500;
+}
+
+.showMoreBtn {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 0.25rem;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.showMoreBtn:hover {
+  background: rgba(214, 48, 49, 0.05);
+}
+
+.priceRange {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.priceInputs {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.priceInput {
+  display: flex;
+  align-items: center;
+  border: 1px solid #eaeaec;
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.priceInput:focus-within {
+  border-color: var(--primary-color, #d63031);
+  box-shadow: 0 0 0 3px rgba(214, 48, 49, 0.1);
+}
+
+.priceNumberInput {
+  border: none;
+  outline: none;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: #282c3f;
+  width: 80px;
+  text-align: center;
+}
+
+.priceNumberInput::placeholder {
+  color: #94969f;
+}
+
+.priceUnit {
+  padding: 0.625rem 0.75rem;
+  background: #f5f5f6;
+  font-size: 0.8125rem;
+  color: #535766;
+  font-weight: 500;
+  border-left: 1px solid #eaeaec;
+}
+
+.priceSeparator {
+  font-size: 0.875rem;
+  color: #94969f;
+  font-weight: 500;
+}
+
+.searchFilter {
+  margin-top: 0.5rem;
+}
+
+/* Custom scrollbar */
+.modernFilters::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modernFilters::-webkit-scrollbar-track {
+  background: #f5f5f6;
+}
+
+.modernFilters::-webkit-scrollbar-thumb {
+  background: #d1d1d1;
+  border-radius: 3px;
+}
+
+.modernFilters::-webkit-scrollbar-thumb:hover {
+  background: #b1b1b1;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 1024px) {
+  .modernFilters {
+    position: static;
+    max-height: none;
+    margin-bottom: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .modernFilters {
+    border-radius: 8px;
+    margin: 0 0 1rem 0;
+  }
+
+  .filtersHeader {
+    padding: 1rem;
+  }
+
+  .filtersTitle {
+    font-size: 0.9375rem;
+  }
+
+  .clearAllBtn {
+    font-size: 0.8125rem;
+  }
+
+  .sectionHeader {
+    padding: 0.75rem 1rem;
+  }
+
+  .sectionTitle {
+    font-size: 0.875rem;
+  }
+
+  .sectionContent {
+    padding: 0 1rem 0.75rem;
+  }
+
+  .optionText {
+    font-size: 0.8125rem;
+  }
+
+  .optionCount {
+    font-size: 0.6875rem;
+  }
+
+  .priceNumberInput {
+    width: 70px;
+    padding: 0.5rem;
+    font-size: 0.8125rem;
+  }
+
+  .priceUnit {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .filtersHeader {
+    padding: 0.75rem;
+  }
+
+  .sectionHeader {
+    padding: 0.625rem 0.75rem;
+  }
+
+  .sectionContent {
+    padding: 0 0.75rem 0.625rem;
+  }
+
+  .filterSearch {
+    padding: 0.375rem;
+  }
+
+  .searchInput {
+    font-size: 0.75rem;
+  }
+
+  .optionLabel {
+    padding: 0.375rem;
+  }
+
+  .optionText {
+    font-size: 0.75rem;
+  }
+
+  .priceNumberInput {
+    width: 60px;
+    padding: 0.375rem;
+    font-size: 0.75rem;
+  }
+
+  .priceUnit {
+    padding: 0.375rem;
+    font-size: 0.6875rem;
+  }
+}

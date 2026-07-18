@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Stationery Junction Mobile",
+    "slug": "stationery-junction-mobile",
+    "sdkVersion": "54.0.0",
+    "version": "0.0.1",
+    "scheme": "stationeryjunction",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["android", "ios", "web"],
+    "assetBundlePatterns": ["**/*"],
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#1a4d33",
+      "androidMode": "default"
+    },
+    "ios": {
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "usesCleartextTraffic": true
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1a4d33"
+        }
+      ]
+    ]
+  }
+}

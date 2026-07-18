@@ -1,0 +1,56 @@
+from typing import Dict, Optional
+
+from app.db.storage_factory import get_storage
+
+
+class ContactRepository:
+    def __init__(self):
+        self.storage = get_storage("contacts")
+
+    async def findAll(self, query: Optional[Dict] = None):
+        return await self.storage.findAll(query or {})
+
+    async def findById(self, id: str):
+        return await self.storage.findById(id)
+
+    async def create(self, contact_data: Dict):
+        # Ensure addresses array has max 2 items
+        addresses = contact_data.get("addresses", [])
+        if len(addresses) > 2:
+            addresses = addresses[:2]
+
+        # Ensure phoneNumbers array has max 3 items
+        phone_numbers = contact_data.get("phoneNumbers", [])
+        if len(phone_numbers) > 3:
+            phone_numbers = phone_numbers[:3]
+
+        contact = {
+            "addresses": addresses,
+            "phoneNumbers": phone_numbers,
+            "email": contact_data.get("email") if contact_data.get("email") is not None else "",
+            "description": contact_data.get("description", ""),
+            "isActive": contact_data.get("isActive", True),
+            "displayOrder": contact_data.get("displayOrder", 0),
+        }
+
+        return await self.storage.create(contact)
+
+    async def update(self, id: str, update_data: Dict):
+        # If email is explicitly None, remove it from the contact
+        if "email" in update_data and update_data["email"] is None:
+            # Get the current contact
+            contact = await self.storage.findById(id)
+            if contact:
+                # Remove email field
+                contact.pop("email", None)
+                update_data = {k: v for k, v in update_data.items() if k != "email"}
+                # Merge with existing contact data
+                updated_contact = {**contact, **update_data}
+                return await self.storage.update(id, updated_contact)
+        return await self.storage.update(id, update_data)
+
+    async def delete(self, id: str):
+        return await self.storage.delete(id)
+
+
+contact_repository = ContactRepository()

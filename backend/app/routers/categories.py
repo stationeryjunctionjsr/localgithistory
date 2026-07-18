@@ -1,0 +1,319 @@
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import BaseModel, Field
+
+from app.repositories.category_repository import CategoryRepository
+from app.utils.auth import require_super_admin
+from app.utils.cache import cache
+from app.utils.logger import logger
+
+router = APIRouter()
+category_repository = CategoryRepository()
+
+
+class CategoryBase(BaseModel):
+    name: str = Field(..., min_length=1)
+    description: Optional[str] = None
+    images: Optional[List[str]] = None
+    subCategories: Optional[List[str]] = None
+    minimumQuantity: int = Field(default=0, ge=0)  # Minimum quantity required for category
+    categoryTag: Optional[str] = None
+    isActive: bool = True
+    showInMobileHomepage: bool = False
+    gst: float = Field(default=0, ge=0, le=100)
+    isReturnable: bool = False
+
+
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1)
+    description: Optional[str] = None
+    images: Optional[List[str]] = None
+    subCategories: Optional[List[str]] = None
+    minimumQuantity: Optional[int] = Field(None, ge=0)
+    categoryTag: Optional[str] = None
+    isActive: Optional[bool] = None
+    showInMobileHomepage: Optional[bool] = None
+    gst: Optional[float] = Field(None, ge=0, le=100)
+    isReturnable: Optional[bool] = None
+
+
+@router.get("/public")
+@cache.ttl_cache(ttl=300.0)
+async def get_public_categories(forHomepage: bool = False):
+    """Get active categories (public endpoint). If forHomepage=true, only categories with display-in-homepage enabled (web & mobile)."""
+    try:
+        categories = await category_repository.findAll()
+        active_categories = []
+        for cat in categories:
+            if cat.get("isActive") is False:
+                continue
+            if forHomepage and not cat.get("showInMobileHomepage"):
+                continue
+            tag = cat.get("categoryTag")
+            tags = cat.get("categoryTags", [])
+            if not tag and tags:
+                tag = tags[0] if isinstance(tags, list) and tags else ""
+            active_categories.append(
+                {**cat, "categoryTag": tag or "", "categoryTags": [tag] if tag else [], "gst": cat.get("gst", 0)}
+            )
+        return active_categories
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/public/tags/{tag_name}/categories")
+@cache.ttl_cache(ttl=300.0)
+async def get_tag_categories(tag_name: str):
+    """Get active categories associated with a specific tag"""
+    try:
+        categories = await category_repository.findAll()
+        target_tag = tag_name.lower()
+        matching_cats = []
+        for cat in categories:
+            if cat.get("isActive") is False:
+                continue
+
+            tag = cat.get("categoryTag")
+            tags = cat.get("categoryTags", [])
+            if not tag and tags:
+                tag = tags[0] if isinstance(tags, list) and tags else ""
+
+            if (tag or "").lower() == target_tag:
+                matching_cats.append(
+                    {**cat, "categoryTag": tag or "", "categoryTags": [tag] if tag else [], "gst": cat.get("gst", 0)}
+                )
+        return matching_cats
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/public/tags/{tag_name}/brands")
+@cache.ttl_cache(ttl=300.0)
+async def get_tag_brands(tag_name: str):
+    """Get brands associated with a specific tag via categories and products"""
+    try:
+        from app.repositories.brand_repository import brand_repository
+        from app.repositories.product_repository import product_repository
+
+        # 1. Get matching categories
+        categories = await category_repository.findAll()
+        target_tag = tag_name.lower()
+        matching_cat_names = [
+            cat["name"]
+            for cat in categories
+            if cat.get("isActive") is not False and (cat.get("categoryTag") or "").lower() == target_tag
+        ]
+
+        # 2. Get all products in these categories
+        products = await product_repository.findAll()
+        associated_brands = set()
+        for p in products:
+            if p.get("isActive", True) and p.get("category") in matching_cat_names:
+                brand_name = p.get("brand")
+                if brand_name:
+                    associated_brands.add(brand_name.lower())
+
+        # 3. Get brand details for matching brand names
+        all_brands = await brand_repository.findAll()
+        matching_brands = [
+            b for b in all_brands if b.get("isActive", True) and b.get("name", "").lower() in associated_brands
+        ]
+
+        return matching_brands
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+def _invalidate_category_caches():
+    cache.invalidate(get_public_categories)
+    cache.invalidate(get_tag_categories)
+    cache.invalidate(get_tag_brands)
+    try:
+        from app.routers.category_tags import get_active_category_tags
+        cache.invalidate(get_active_category_tags)
+    except Exception:
+        pass
+    try:
+        from app.repositories.coupon_repository import coupon_repository
+        coupon_repository.invalidate_cache()
+    except Exception:
+        pass
+
+
+
+@router.get("")
+@router.get("/")
+async def get_categories(current_user: dict = Depends(require_super_admin)):
+    """Get all categories (Super Admin only)"""
+    try:
+        categories = await category_repository.findAll()
+        # Ensure all categories have categoryTags field (for backward compatibility)
+        categories_with_tags = []
+        for cat in categories:
+            # Migration logic for response
+            tag = cat.get("categoryTag")
+            tags = cat.get("categoryTags", [])
+
+            if not tag and tags:
+                tag = tags[0] if isinstance(tags, list) and tags else ""
+
+            cat_with_tags = {
+                **cat,
+                "categoryTag": tag or "",
+                "categoryTags": [tag] if tag else [],
+                "gst": cat.get("gst", 0),
+            }
+            categories_with_tags.append(cat_with_tags)
+        return categories_with_tags
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/{category_id}")
+async def get_category(category_id: str, current_user: dict = Depends(require_super_admin)):
+    """Get category by ID (Super Admin only)"""
+    try:
+        category = await category_repository.findById(category_id)
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
+        category["gst"] = category.get("gst", 0)
+        return category
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.post("/upload-images")
+async def upload_category_images(
+    images: List[UploadFile] = File(...), current_user: dict = Depends(require_super_admin)
+):
+    """Upload category images (Super Admin only). Uses OCI Object Storage when configured."""
+    try:
+        from app.services.oci_storage import upload_image_and_return_path
+
+        image_urls = []
+        for image in images:
+            if not image.content_type or not image.content_type.startswith("image/"):
+                raise HTTPException(status_code=400, detail=f"File {image.filename} is not an image")
+            path = await upload_image_and_return_path(image, "categories", filename_prefix="category")
+            image_urls.append(path)
+        return {"images": image_urls}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("upload_category_images failed: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Server error")
+
+
+@router.post("")
+@router.post("/")
+async def create_category(category: CategoryBase, current_user: dict = Depends(require_super_admin)):
+    """Create a new category (Super Admin only)"""
+    try:
+        # Check if category with same name already exists (case-insensitive)
+        all_categories = await category_repository.findAll()
+        name_lower = category.name.strip().lower()
+        for cat in all_categories:
+            if cat.get("name", "").strip().lower() == name_lower:
+                raise HTTPException(status_code=400, detail="Category with this name already exists")
+
+        category_data = {
+            "name": category.name.strip(),
+            "description": category.description or "",
+            "images": category.images or [],
+            "subCategories": category.subCategories or [],
+            "minimumQuantity": category.minimumQuantity or 0,
+            "categoryTag": category.categoryTag or "",
+            "isActive": category.isActive,
+            "showInMobileHomepage": category.showInMobileHomepage,
+            "gst": category.gst,
+            "isReturnable": category.isReturnable,
+        }
+
+        new_category = await category_repository.create(category_data)
+        _invalidate_category_caches()
+        return new_category
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.put("/{category_id}")
+async def update_category(
+    category_id: str, category_update: CategoryUpdate, current_user: dict = Depends(require_super_admin)
+):
+    """Update a category (Super Admin only)"""
+    try:
+        category = await category_repository.findById(category_id)
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        update_data = {}
+        if category_update.name is not None:
+            # Check if category with same name already exists (excluding current category) (case-insensitive)
+            all_categories = await category_repository.findAll()
+            name_lower = category_update.name.strip().lower()
+            for cat in all_categories:
+                if cat.get("name", "").strip().lower() == name_lower and cat.get("_id") != category_id:
+                    raise HTTPException(status_code=400, detail="Category with this name already exists")
+            update_data["name"] = category_update.name.strip()
+
+        if category_update.description is not None:
+            update_data["description"] = category_update.description
+        if category_update.images is not None:
+            update_data["images"] = category_update.images
+        if category_update.subCategories is not None:
+            update_data["subCategories"] = category_update.subCategories
+        if category_update.minimumQuantity is not None:
+            update_data["minimumQuantity"] = category_update.minimumQuantity
+        # Always update categoryTags if it's provided in the request (even if empty list)
+        if category_update.categoryTag is not None:
+            update_data["categoryTag"] = category_update.categoryTag
+        if category_update.isActive is not None:
+            update_data["isActive"] = category_update.isActive
+        if category_update.showInMobileHomepage is not None:
+            update_data["showInMobileHomepage"] = category_update.showInMobileHomepage
+        if category_update.gst is not None:
+            update_data["gst"] = category_update.gst
+        if category_update.isReturnable is not None:
+            update_data["isReturnable"] = category_update.isReturnable
+
+        # Ensure we have at least one field to update
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        updated_category = await category_repository.update(category_id, update_data)
+        _invalidate_category_caches()
+        return updated_category
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.delete("/{category_id}")
+async def delete_category(category_id: str, current_user: dict = Depends(require_super_admin)):
+    """Delete a category (soft delete) (Super Admin only)"""
+    try:
+        category = await category_repository.findById(category_id)
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        await category_repository.delete(category_id)
+        _invalidate_category_caches()
+        return {"message": "Category deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")

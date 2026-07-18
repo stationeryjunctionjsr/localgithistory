@@ -1,0 +1,122 @@
+import LandingPageClient from '@/components/LandingPageClient';
+import type { Metadata } from 'next';
+
+export const revalidate = 300; // Revalidate every 5 minutes (300 seconds)
+
+export const metadata: Metadata = {
+  title: 'Stationery Junction | Premium Stationery & Art Supplies Online',
+  description:
+    'Shop notebooks, pens, markers, art supplies and more at Stationery Junction. Retail and wholesale stationery delivered across India. Quality brands at best prices.',
+  alternates: { canonical: 'https://www.stationeryjunction.com' },
+  openGraph: {
+    title: 'Stationery Junction | Premium Stationery Online',
+    description:
+      'Shop notebooks, pens, markers, art supplies and more. Wholesale and retail stationery delivered across India.',
+    url: 'https://www.stationeryjunction.com',
+    siteName: 'Stationery Junction',
+    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Stationery Junction' }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Stationery Junction | Premium Stationery Online',
+    description: 'Shop notebooks, pens, markers and art supplies. Wholesale & retail across India.',
+    images: ['/og-image.jpg'],
+  },
+};
+
+export default async function Home() {
+  const baseURL = process.env.NEXT_PUBLIC_API_URL;
+  if (!baseURL) {
+    throw new Error('NEXT_PUBLIC_API_URL is not defined');
+  }
+
+  // Headers for fetching (don't need auth since it's the public guest view)
+  const fetchOptions: RequestInit = {
+    next: { revalidate: 300 }, // 5 minutes cache
+    headers: { 'Content-Type': 'application/json' },
+  };
+
+  // Pre-fetch all data necessary for the landing page concurrently
+  const [
+    productsRes,
+    bannersRes,
+    categoriesRes,
+    categoryTagsRes,
+    brandsRes,
+    collectionsRes,
+    recommendationsRes,
+    googleRatingRes,
+  ] = await Promise.all([
+    fetch(`${baseURL}/products/public?includeFacets=false&skinny=true`, fetchOptions).catch(() => null),
+    fetch(`${baseURL}/banners/public?position=homepage_web&userRole=guest`, fetchOptions).catch(
+      () => null
+    ),
+    fetch(`${baseURL}/categories/public?forHomepage=true`, fetchOptions).catch(() => null),
+    fetch(`${baseURL}/category-tags/active`, fetchOptions).catch(() => null),
+    fetch(`${baseURL}/brands/public?forHomepage=true`, fetchOptions).catch(() => null),
+    fetch(`${baseURL}/collections/public?visiblePage=Home&pageType=Home`, fetchOptions).catch(
+      () => null
+    ),
+    fetch(`${baseURL}/recommendations`, fetchOptions).catch(() => null),
+    fetch(`${baseURL}/google-reviews/rating`, fetchOptions).catch(() => null),
+  ]);
+
+  // Process JSON responses
+  const extractJson = async (res: Response | null) =>
+    res?.ok ? res.json().catch(() => null) : null;
+
+  const [
+    productsRaw,
+    banners,
+    categoriesRaw,
+    categoryTags,
+    brandsRaw,
+    collections,
+    recommendations,
+    googleRating,
+  ] = await Promise.all([
+    extractJson(productsRes),
+    extractJson(bannersRes),
+    extractJson(categoriesRes),
+    extractJson(categoryTagsRes),
+    extractJson(brandsRes),
+    extractJson(collectionsRes),
+    extractJson(recommendationsRes),
+    extractJson(googleRatingRes),
+  ]);
+
+  // Format data
+  const products = productsRaw?.products || productsRaw || [];
+
+  // Format categories
+  let categories: any[] = [];
+  if (categoriesRaw && Array.isArray(categoriesRaw)) {
+    categories = categoriesRaw
+      .filter((cat: any) => cat.isActive !== false)
+      .map((cat: any) => ({
+        name: cat.name,
+        images: cat.images && cat.images.length > 0 ? cat.images : [],
+        description: cat.description || '',
+      }));
+  }
+
+  // Format brands
+  const brands = Array.isArray(brandsRaw) ? brandsRaw : brandsRaw?.brands || [];
+
+  // Format banners
+  const activeBanners = Array.isArray(banners) ? banners.filter((b: any) => b.isActive) : [];
+
+  return (
+    <LandingPageClient
+      initialProducts={products}
+      initialBanners={activeBanners}
+      initialCategories={categories}
+      initialCategoryTags={categoryTags || []}
+      initialBrands={brands}
+      initialCollections={collections || []}
+      initialRecommendations={recommendations || undefined}
+      initialGoogleRating={googleRating || { rating: 0, reviewCount: '' }}
+    />
+  );
+}

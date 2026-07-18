@@ -1,0 +1,50 @@
+[
+  {
+    "total_requests": 15,
+    "failures": 0,
+    "error_rate_pct": 0.0,
+    "rps": 0.522072143099436,
+    "p50_ms": 260.0,
+    "p90_ms": 1100.0,
+    "p99_ms": 1200.0,
+    "mean_ms": 0.0,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "profile": "baseline",
+    "html_report": "C:\\Ecommerce app\\backend\\load_tests\\reports\\baseline_20260718_210944.html",
+    "csv_prefix": "C:\\Ecommerce app\\backend\\load_tests\\reports\\baseline_20260718_210944",
+    "returncode": 0
+  },
+  {
+    "total_requests": 2956,
+    "failures": 0,
+    "error_rate_pct": 0.0,
+    "rps": 24.66623200087187,
+    "p50_ms": 7.0,
+    "p90_ms": 240.0,
+    "p99_ms": 2000.0,
+    "mean_ms": 0.0,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "profile": "load",
+    "html_report": "C:\\Ecommerce app\\backend\\load_tests\\reports\\load_20260718_210944.html",
+    "csv_prefix": "C:\\Ecommerce app\\backend\\load_tests\\reports\\load_20260718_210944",
+    "returncode": 0
+  },
+  {
+    "total_requests": 17461,
+    "failures": 227,
+    "error_rate_pct": 1.300040089341962,
+    "rps": 67.61438799617437,
+    "p50_ms": 720.0,
+    "p90_ms": 1500.0,
+    "p99_ms": 6600.0,
+    "mean_ms": 0.0,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "profile": "high_load",
+    "html_report": "C:\\Ecommerce app\\backend\\load_tests\\reports\\high_load_20260718_210944.html",
+    "csv_prefix": "C:\\Ecommerce app\\backend\\load_tests\\reports\\high_load_20260718_210944",
+    "returncode": 1
+  }
+]

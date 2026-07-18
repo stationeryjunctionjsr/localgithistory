@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2"/>
+  
+  <!-- Pen -->
+  <g transform="translate(25, 20)">
+    <!-- Pen body -->
+    <rect x="0" y="10" width="8" height="50" fill="#FF6B6B" rx="2"/>
+    <!-- Pen tip -->
+    <polygon points="4,60 0,70 8,70" fill="#333"/>
+    <!-- Pen clip -->
+    <rect x="6" y="15" width="3" height="20" fill="#FFD93D" rx="1"/>
+  </g>
+  
+  <!-- Pencil -->
+  <g transform="translate(60, 25)">
+    <!-- Pencil body -->
+    <rect x="0" y="0" width="10" height="45" fill="#FFD93D" rx="1"/>
+    <!-- Pencil tip -->
+    <polygon points="5,45 0,55 10,55" fill="#FFA500"/>
+    <!-- Pencil stripes -->
+    <line x1="2" y1="5" x2="2" y2="40" stroke="#FFA500" stroke-width="1"/>
+    <line x1="8" y1="5" x2="8" y2="40" stroke="#FFA500" stroke-width="1"/>
+    <!-- Pencil eraser -->
+    <rect x="1" y="-3" width="8" height="3" fill="#FF6B6B" rx="1"/>
+  </g>
+  
+  <!-- Decorative stars -->
+  <circle cx="20" cy="75" r="2" fill="#FFD93D"/>
+  <circle cx="80" cy="75" r="2" fill="#FFD93D"/>
+</svg>

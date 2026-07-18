@@ -1,0 +1,159 @@
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import './globals.css';
+import { AuthProvider } from '@/context/AuthContext';
+import { NotificationProvider } from '@/context/NotificationContext';
+import { ThemeProvider } from '@/context/ThemeContext';
+import { WishlistProvider } from '@/context/WishlistContext';
+import { CartProvider } from '@/context/CartContext';
+import CartOverlay from '@/components/CartOverlay';
+import PrivacyConsent from '@/components/PrivacyConsent';
+import ForceUpdateGate from '@/components/ForceUpdateGate';
+import MaintenanceGate from '@/components/MaintenanceGate';
+import SessionAnalytics from '@/components/SessionAnalytics';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
+import FontSwitcher from '@/components/FontSwitcher';
+import { FontProvider } from '@/context/FontContext';
+import LaunchPopup from '@/components/LaunchPopup';
+import FeedbackModal from '@/components/FeedbackModal';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import MSG91Initializer from '@/components/MSG91Initializer';
+import ConsentBasedTracking from '@/components/ConsentBasedTracking';
+import AppChrome from '@/components/AppChrome';
+import { AccessibilityProvider } from '@/context/AccessibilityContext';
+import ToastSetup from '@/components/ToastSetup';
+
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.stationeryjunction.com'),
+  title: 'Stationery Junction | Premium Stationery Online',
+  description: 'Shop notebooks, pens, art supplies and more. Wholesale and retail stationery delivered across India.',
+  openGraph: {
+    siteName: 'Stationery Junction',
+    type: 'website',
+    images: [{ url: '/og-image.jpg', width: 1200, height: 630 }],
+  },
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body
+        className="font-sans"
+        style={{
+          fontFamily: 'var(--app-font-family)',
+          fontWeight: 'var(--app-font-weight)' as any,
+        }}
+      >
+        {/* Auto-recover from chunk load/Webpack 404 errors on server restarts or new deployments */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                if (typeof window === 'undefined') return;
+                window.addEventListener('error', function(event) {
+                  var target = event.target;
+                  var errorText = event.message || '';
+                  var isChunkError = errorText.indexOf('Loading chunk') !== -1 || 
+                                     errorText.indexOf('loading-chunk-failed') !== -1 ||
+                                     errorText.indexOf('CSS chunk') !== -1;
+                  var isResourceError = target && 
+                                        (target.tagName === 'SCRIPT' || target.tagName === 'LINK') && 
+                                        ((target.src && target.src.indexOf('/_next/static/') !== -1) ||
+                                         (target.href && target.href.indexOf('/_next/static/') !== -1));
+                  if (isChunkError || isResourceError) {
+                    var lastReload = sessionStorage.getItem('chunk-error-reload');
+                    var now = Date.now();
+                    if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+                      sessionStorage.setItem('chunk-error-reload', now.toString());
+                      window.location.reload();
+                    }
+                  }
+                }, true);
+              })();
+            `
+          }}
+        />
+
+        {/* Tracking scripts (GTM / GA4 / Clarity) — injected only after cookie consent */}
+        <ConsentBasedTracking />
+
+        {/* Organization + WebSite structured data for Google Knowledge Panel and sitelinks search */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([
+              {
+                '@context': 'https://schema.org',
+                '@type': 'Organization',
+                name: 'Stationery Junction',
+                url: 'https://www.stationeryjunction.com',
+                logo: 'https://www.stationeryjunction.com/logo.png',
+                sameAs: [
+                  process.env.NEXT_PUBLIC_SOCIAL_INSTAGRAM,
+                  process.env.NEXT_PUBLIC_SOCIAL_FACEBOOK,
+                  process.env.NEXT_PUBLIC_SOCIAL_TWITTER,
+                  process.env.NEXT_PUBLIC_SOCIAL_YOUTUBE,
+                  process.env.NEXT_PUBLIC_SOCIAL_LINKEDIN,
+                ].filter(Boolean),
+              },
+              {
+                '@context': 'https://schema.org',
+                '@type': 'WebSite',
+                name: 'Stationery Junction',
+                url: 'https://www.stationeryjunction.com',
+                potentialAction: {
+                  '@type': 'SearchAction',
+                  target: {
+                    '@type': 'EntryPoint',
+                    urlTemplate: 'https://www.stationeryjunction.com/products?search={search_term_string}',
+                  },
+                  'query-input': 'required name=search_term_string',
+                },
+              },
+            ]),
+          }}
+        />
+
+        <a href="#main-content" className="skip-to-content">
+          Skip to main content
+        </a>
+        <AccessibilityProvider>
+          <ThemeProvider>
+            <FontProvider>
+              <AuthProvider>
+                <WishlistProvider>
+                  <CartProvider>
+                    <NotificationProvider>
+                      <AppChrome />
+                      <LaunchPopup />
+                      <FeedbackModal />
+                      <MSG91Initializer />
+                      <ErrorBoundary>
+                        <main id="main-content" tabIndex={-1} style={{ outline: 'none' }}>
+                          {children}
+                        </main>
+                      </ErrorBoundary>
+                      <CartOverlay />
+                      <Suspense fallback={null}>
+                        <SessionAnalytics />
+                      </Suspense>
+                      <PrivacyConsent />
+                      <MaintenanceGate />
+                      <ForceUpdateGate />
+                      <ThemeSwitcher />
+                      <FontSwitcher />
+                      <ToastSetup />
+                      <ToastContainer position="top-right" autoClose={2000} />
+                    </NotificationProvider>
+                  </CartProvider>
+                </WishlistProvider>
+              </AuthProvider>
+            </FontProvider>
+          </ThemeProvider>
+        </AccessibilityProvider>
+      </body>
+    </html>
+  );
+}

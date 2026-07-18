@@ -1,0 +1,51 @@
+graph TD
+    subgraph Users
+        C[Customer B2C]
+        W[Wholesaler B2B]
+        A[Super Admin]
+        V[Valet Delivery]
+    end
+
+    subgraph Authentication & Access
+        Login[Login / OTP via MSG91]
+        RBAC{Role Check}
+        Login --> RBAC
+        C --> Login
+        W --> Login
+        A --> Login
+        V --> Login
+        RBAC --> |Customer| Retail[Retail Access]
+        RBAC --> |Wholesaler| B2B[B2B Access & Credit Limit Check]
+    end
+
+    subgraph Core Engines
+        Search[Search & Catalog Engine]
+        Recs["Recommendations Engine<br/>- Trending Now<br/>- Customer Favourites<br/>- Business Favourites<br/>- Explore<br/>- New Arrivals"]
+        Coupons[Coupon & BXGY Engine]
+    end
+
+    Retail --> Search
+    B2B --> Search
+    Retail --> Recs
+    B2B --> Recs
+
+    Search --> Cart[Cart & Stock Reservation]
+    Recs --> Cart
+    Cart --> Checkout[Checkout Pipeline]
+
+    Checkout --> Coupons
+    Coupons --> Payment{Payment Method}
+    
+    Payment -->|COD| Pending[Pending Order]
+    Payment -->|UPI| UPIVerification[Admin UPI Verification]
+    Payment -->|Credit B2B| CreditCheck[Credit Dues Check]
+
+    UPIVerification --> Processing[Processing Order]
+    CreditCheck --> Processing
+    Pending --> Processing
+
+    Processing --> Fulfillment[Fulfillment & Valet Assignment]
+    Fulfillment --> Delivered[Delivered]
+
+    Delivered --> Returns[Returns Workflow]
+    Delivered --> Reviews[Product Reviews & Ratings]

@@ -1,0 +1,623 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: 'Inter', sans-serif;
+  --font-playfair: 'Playfair Display', serif;
+  --foreground-rgb: 26, 32, 26;
+  --background-start-rgb: 250, 250, 250;
+  --background-end-rgb: 250, 250, 250;
+  --primary-green: #1a4d33;
+  --primary-green-hover: #143b27;
+  --accent-gold: #d4af37;
+  --accent-gold-glow: rgba(212, 175, 55, 0.4);
+  --accent-cream: #fdfbf7;
+  --accent-pink: #f4e4e1;
+  --text-main: #1a1a1a;
+  --text-muted: #6b7280;
+  --border-light: #f0f0f0;
+  --surface-white: #ffffff;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.premium-card {
+  background: var(--surface-white);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.premium-card:hover {
+  box-shadow: 0 8px 30px rgba(26, 77, 51, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: var(--text-main);
+  background: var(--accent-cream);
+  font-family: var(--app-font-family, var(--font-inter), sans-serif);
+  font-weight: var(--app-font-weight, 400);
+  letter-spacing: 0.04em;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-serif {
+  font-family: var(--app-font-family, var(--font-inter), sans-serif);
+  font-weight: var(--app-heading-weight, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bg-primary {
+  background-color: var(--primary-green);
+}
+
+.text-primary {
+  color: var(--primary-green);
+}
+
+.btn-primary {
+  background-color: var(--primary-green);
+  color: white;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-green-hover);
+}
+
+/* Smooth scroll for horizontal carousels on mobile */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ========== PREMIUM ANIMATIONS ========== */
+
+/* Fade in up animation for staggered reveals */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+/* Slide in from left */
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+/* Slide in from right */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+/* Scale in animation */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.4s ease-out forwards;
+}
+
+/* Shimmer effect for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Float animation for decorative elements */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Gradient text utility */
+.text-gradient {
+  background: linear-gradient(135deg, #ff3f6c 0%, #ff6b6b 50%, #ff8e53 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ========== MOBILE-SPECIFIC STYLES ========== */
+
+/* Safe area padding for notched devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Mobile touch feedback */
+@media (max-width: 768px) {
+  button,
+  a,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Smoother scrolling on mobile */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent text selection on interactive elements */
+  button,
+  [role='button'] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Active state for mobile buttons */
+.active\:scale-95:active {
+  transform: scale(0.95);
+}
+
+.active\:bg-gray-100:active {
+  background-color: #f3f4f6;
+}
+
+.active\:opacity-70:active {
+  opacity: 0.7;
+}
+
+/* Custom scrollbar for mobile filter panels */
+@media (max-width: 768px) {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Thin scrollbar for desktop filter panels */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #e5e7eb transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #e5e7eb;
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #d1d5db;
+}
+
+/* Product card hover effect on mobile - uses active instead */
+@media (max-width: 768px) {
+  .group:active .group-hover\:scale-105 {
+    transform: scale(1.02);
+  }
+
+  .group:active .group-hover\:opacity-100 {
+    opacity: 1;
+  }
+}
+
+/* Bottom navigation safe area */
+.bottom-nav-safe {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+/* Mobile skeleton loading */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Slide up animation for mobile modals */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out forwards;
+}
+
+/* Bounce animation for badges */
+@keyframes badge-bounce {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.animate-badge-bounce {
+  animation: badge-bounce 0.3s ease-out;
+}
+
+/* Custom Scrollbar for support chat */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+/* Fade-in slide animation */
+@keyframes support-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-support-fade-in {
+  animation: support-fade-in 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* ========== ACCESSIBILITY (a11y) UTILITIES ========== */
+
+/* Skip to main content link - visually hidden until focused */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 8px;
+  z-index: 9999;
+  padding: 10px 20px;
+  background: #1a4d33;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  border-radius: 0 0 6px 6px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+  white-space: nowrap;
+}
+
+.skip-to-content:focus {
+  top: 0;
+  outline: 3px solid #d4af37;
+  outline-offset: 2px;
+}
+
+/* ---- Focus visible ring for all interactive elements ---- */
+/* Applied when a11y-focus-visible class is on <html> OR via keyboard */
+:focus-visible {
+  outline: 2px solid var(--primary-color, #1a4d33);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* When user has enabled always-on focus ring */
+.a11y-focus-visible *:focus {
+  outline: 3px solid var(--primary-color, #1a4d33) !important;
+  outline-offset: 3px !important;
+  border-radius: 4px !important;
+}
+
+/* Remove focus outline only for mouse users */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ---- Reduced motion ---- */
+/* CSS media query: respect OS-level preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Manual toggle: .a11y-reduced-motion on <html> */
+.a11y-reduced-motion *,
+.a11y-reduced-motion *::before,
+.a11y-reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ---- Text size scaling ---- */
+.a11y-font-large {
+  font-size: 18px !important;
+}
+
+.a11y-font-large body {
+  font-size: 18px;
+}
+
+.a11y-font-xl {
+  font-size: 20px !important;
+}
+
+.a11y-font-xl body {
+  font-size: 20px;
+}
+
+/* ---- Dyslexia-friendly font (Lexend) ---- */
+.a11y-dyslexia-font,
+.a11y-dyslexia-font body,
+.a11y-dyslexia-font h1,
+.a11y-dyslexia-font h2,
+.a11y-dyslexia-font h3,
+.a11y-dyslexia-font h4,
+.a11y-dyslexia-font h5,
+.a11y-dyslexia-font h6,
+.a11y-dyslexia-font p,
+.a11y-dyslexia-font button,
+.a11y-dyslexia-font input,
+.a11y-dyslexia-font label,
+.a11y-dyslexia-font span {
+  font-family: 'Lexend', sans-serif !important;
+  letter-spacing: 0.03em;
+  word-spacing: 0.1em;
+  line-height: 1.7;
+}
+
+/* ---- High contrast mode ---- */
+.a11y-high-contrast {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 255, 255, 255;
+  --background-end-rgb: 255, 255, 255;
+  --text-main: #000000;
+  --text-muted: #333333;
+  --border-light: #000000;
+  --surface-white: #ffffff;
+  --primary-green: #004d22;
+  --primary-green-hover: #003318;
+  --accent-cream: #ffffff;
+}
+
+.a11y-high-contrast body {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+.a11y-high-contrast a {
+  color: #0000cc !important;
+  text-decoration: underline !important;
+}
+
+.a11y-high-contrast button,
+.a11y-high-contrast [role='button'] {
+  border: 2px solid currentColor !important;
+}
+
+/* Remove decorative backgrounds in high contrast */
+.a11y-high-contrast .glass,
+.a11y-high-contrast .premium-card {
+  background: #fff !important;
+  backdrop-filter: none !important;
+  border: 2px solid #000 !important;
+  box-shadow: none !important;
+}
+
+/* Ensure SVG icons are visible */
+.a11y-high-contrast svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+/* ---- Accessibility panel toggle button inside dropdown ---- */
+.a11y-panel-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 0;
+  font-size: 13px;
+  color: #374151;
+  gap: 12px;
+}
+
+.a11y-panel-toggle-row span {
+  flex: 1;
+  text-align: left;
+}
+
+/* Toggle switch */
+.a11y-toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.a11y-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.a11y-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #d1d5db;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.a11y-toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.a11y-toggle-switch input:checked + .a11y-toggle-slider {
+  background: var(--primary-color, #1a4d33);
+}
+
+.a11y-toggle-switch input:checked + .a11y-toggle-slider::before {
+  transform: translateX(16px);
+}
+
+.a11y-toggle-switch input:focus-visible + .a11y-toggle-slider {
+  outline: 2px solid var(--primary-color, #1a4d33);
+  outline-offset: 2px;
+}
+
+/* Font size badge */
+.a11y-font-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 24px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--primary-color, #1a4d33);
+  color: white;
+  cursor: pointer;
+  border: none;
+  letter-spacing: 0.04em;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.a11y-font-badge:hover {
+  opacity: 0.85;
+}
+

@@ -1,0 +1,30 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+GET,/api/recommendations,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",5,2026-07-18T15:34:21Z,2026-07-18T15:34:24Z
+GET,/api/recommendations,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",8,2026-07-18T15:34:29Z,2026-07-18T15:34:48Z
+GET,/api/health,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",5,2026-07-18T15:34:29Z,2026-07-18T15:34:41Z
+GET,/api/promo-strips,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",13,2026-07-18T15:34:29Z,2026-07-18T15:34:50Z
+GET,/api/categories/public,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",18,2026-07-18T15:34:20Z,2026-07-18T15:34:26Z
+GET,/api/products/public?search=,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",30,2026-07-18T15:34:20Z,2026-07-18T15:34:25Z
+GET,/api/collections/public,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",10,2026-07-18T15:34:33Z,2026-07-18T15:34:51Z
+GET,/api/products/public?search=,HTTPError('500 Server Error: Internal Server Error for url: /api/products/public?search='),92,2026-07-18T15:34:27Z,2026-07-18T15:34:49Z
+GET,/api/products/public,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",79,2026-07-18T15:34:20Z,2026-07-18T15:34:25Z
+GET,/api/search-tags,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",5,2026-07-18T15:34:29Z,2026-07-18T15:34:50Z
+GET,/api/products/public?search=,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",32,2026-07-18T15:34:29Z,2026-07-18T15:34:50Z
+GET,/api/products/public?search=,RemoteDisconnected('Remote end closed connection without response'),4,2026-07-18T15:34:46Z,2026-07-18T15:34:50Z
+GET,/api/promo-strips,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",4,2026-07-18T15:34:21Z,2026-07-18T15:34:25Z
+GET,/api/brands/public,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",7,2026-07-18T15:34:29Z,2026-07-18T15:34:49Z
+GET,/api/banners/public,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",21,2026-07-18T15:34:28Z,2026-07-18T15:34:51Z
+GET,/api/app/version,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",3,2026-07-18T15:34:30Z,2026-07-18T15:34:47Z
+GET,/api/health,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",6,2026-07-18T15:34:22Z,2026-07-18T15:34:26Z
+GET,/api/delivery-charges/check-serviceability,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",5,2026-07-18T15:34:22Z,2026-07-18T15:34:25Z
+GET,/api/app/version,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",5,2026-07-18T15:34:20Z,2026-07-18T15:34:25Z
+GET,/api/delivery-charges/check-serviceability,RemoteDisconnected('Remote end closed connection without response'),1,2026-07-18T15:34:41Z,2026-07-18T15:34:41Z
+GET,/api/search-tags,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",5,2026-07-18T15:34:20Z,2026-07-18T15:34:25Z
+GET,/api/products/public,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",80,2026-07-18T15:34:29Z,2026-07-18T15:34:50Z
+GET,/api/promo-strips,RemoteDisconnected('Remote end closed connection without response'),1,2026-07-18T15:34:49Z,2026-07-18T15:34:49Z
+GET,/api/collections/public,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",7,2026-07-18T15:34:21Z,2026-07-18T15:34:25Z
+GET,/api/banners/public,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",10,2026-07-18T15:34:20Z,2026-07-18T15:34:26Z
+GET,/api/brands/public,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",5,2026-07-18T15:34:20Z,2026-07-18T15:34:25Z
+GET,/api/products/public,HTTPError('500 Server Error: Internal Server Error for url: /api/products/public'),257,2026-07-18T15:34:27Z,2026-07-18T15:34:52Z
+GET,/api/products/public,RemoteDisconnected('Remote end closed connection without response'),9,2026-07-18T15:34:41Z,2026-07-18T15:34:51Z
+GET,/api/categories/public,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",19,2026-07-18T15:34:28Z,2026-07-18T15:34:50Z

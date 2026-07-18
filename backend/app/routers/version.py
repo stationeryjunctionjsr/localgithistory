@@ -1,0 +1,38 @@
+from typing import Optional
+
+from fastapi import APIRouter, Query
+
+from app.config import version as config
+from app.config.maintenance import MAINTENANCE_MESSAGE_PARAGRAPHS
+from app.config.settings import settings
+from app.utils.cache import cache
+
+router = APIRouter()
+
+
+@router.get("/version")
+@cache.ttl_cache(ttl=3600.0)
+async def get_version(platform: Optional[str] = Query(None)):
+    """App version info for force-update checks (web / mobile)."""
+    min_versions = {
+        "ios": config.MIN_APP_VERSION_IOS,
+        "android": config.MIN_APP_VERSION_ANDROID,
+        "web": config.MIN_APP_VERSION_WEB,
+    }
+    platform_key = (platform or "web").lower()
+    min_for_platform = min_versions.get(platform_key, config.MIN_APP_VERSION_WEB)
+    return {
+        "current": config.CURRENT_APP_VERSION,
+        "currentVersion": config.CURRENT_APP_VERSION,
+        "min": min_versions,
+        "minVersion": min_for_platform,
+    }
+
+
+@router.get("/maintenance")
+async def get_maintenance_status():
+    """Public status for scheduled upgrade / maintenance screens."""
+    return {
+        "active": settings.maintenance_mode,
+        "message": MAINTENANCE_MESSAGE_PARAGRAPHS,
+    }

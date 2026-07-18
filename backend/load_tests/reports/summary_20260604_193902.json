@@ -1,0 +1,18 @@
+[
+  {
+    "total_requests": 19,
+    "failures": 0,
+    "error_rate_pct": 0.0,
+    "rps": 0.6536125056898657,
+    "p50_ms": 6.0,
+    "p90_ms": 750.0,
+    "p99_ms": 2800.0,
+    "mean_ms": 0.0,
+    "max_ms": 0.0,
+    "min_ms": 0.0,
+    "profile": "baseline",
+    "html_report": "C:\\Ecommerce app\\backend\\load_tests\\reports\\baseline_20260604_193902.html",
+    "csv_prefix": "C:\\Ecommerce app\\backend\\load_tests\\reports\\baseline_20260604_193902",
+    "returncode": 0
+  }
+]

@@ -1,0 +1,601 @@
+﻿
+C:\Ecommerce app\frontend\fix.js
+  4:5  warning  'hasSelfClosing' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\mobile\app\(tabs)\_layout.tsx
+  38:6  warning  React Hook useEffect has missing dependencies: 'iconOpacity' and 'scaleAnim'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\mobile\app\(tabs)\brands.tsx
+  127:6   warning  React Hook useEffect has an unnecessary dependency: 'selectedCategory'. Either exclude it or remove the dependency array. Outer scope values like 'selectedCategory' aren't valid dependencies because mutating them doesn't re-render the component  react-hooks/exhaustive-deps
+  174:6   warning  React Hook useEffect has a missing dependency: 'search'. Either include it or remove the dependency array. Outer scope values like 'selectedCategory' aren't valid dependencies because mutating them doesn't re-render the component                 react-hooks/exhaustive-deps
+  195:13  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                           jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\app\(tabs)\cart.tsx
+  183:13  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images  jsx-a11y/alt-text
+  239:7   warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images  jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\app\(tabs)\categories.tsx
+  180:13  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images  jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\app\(tabs)\home.tsx
+   33:38  warning  'SCREEN_HEIGHT' is assigned a value but never used. Allowed unused vars must match /^_/u                                            unused-imports/no-unused-vars
+  133:9   warning  'bannerScaleAnim' is assigned a value but never used. Allowed unused vars must match /^_/u                                          unused-imports/no-unused-vars
+  180:6   warning  React Hook useEffect has missing dependencies: 'backdropAnim' and 'drawerAnim'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  189:6   warning  React Hook useEffect has a missing dependency: 'searchExpandAnim'. Either include it or remove the dependency array                 react-hooks/exhaustive-deps
+  220:6   warning  React Hook useEffect has a missing dependency: 'fadeAnim'. Either include it or remove the dependency array                         react-hooks/exhaustive-deps
+  324:32  warning  'index' is defined but never used. Allowed unused args must match /^_/u                                                             unused-imports/no-unused-vars
+  342:13  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images                         jsx-a11y/alt-text
+  574:25  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images                         jsx-a11y/alt-text
+  639:21  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images                         jsx-a11y/alt-text
+  685:23  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images                         jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\app\categories\[slug].tsx
+  20:9  warning  'router' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\mobile\app\checkout.tsx
+  172:6   warning  React Hook useEffect has missing dependencies: 'loadSavedAddresses' and 'step'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  415:9   warning  'totalSteps' is assigned a value but never used. Allowed unused vars must match /^_/u                                               unused-imports/no-unused-vars
+  483:17  warning  's' is assigned a value but never used. Allowed unused vars must match /^_/u                                                        unused-imports/no-unused-vars
+  963:25  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images                         jsx-a11y/alt-text
+  996:23  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images                         jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\app\notifications.tsx
+  126:13  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images  jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\app\orders\[id].tsx
+  46:16  warning  'e' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\mobile\app\products\[id].tsx
+  120:6   warning  React Hook useEffect has a missing dependency: 'coachMarks'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  342:17  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images    jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\app\products\index.tsx
+  172:10  warning  'brand' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                          unused-imports/no-unused-vars
+  172:17  warning  'setBrand' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                       unused-imports/no-unused-vars
+  299:6   warning  React Hook useEffect has an unnecessary dependency: 'retryCount'. Either exclude it or remove the dependency array. Outer scope values like 'retryCount' aren't valid dependencies because mutating them doesn't re-render the component  react-hooks/exhaustive-deps
+  494:14  warning  'err' is defined but never used                                                                                                                                                                                                           unused-imports/no-unused-vars
+  552:13  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                               jsx-a11y/alt-text
+  620:13  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                               jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\app\support.tsx
+   78:6   warning  React Hook useEffect has a missing dependency: 'fetchTickets'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  100:14  warning  'e' is defined but never used                                                                                    unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\mobile\app\wishlist.tsx
+   60:14  warning  'e' is defined but never used                                                                                unused-imports/no-unused-vars
+  149:13  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images  jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\src\components\BannerCarousel.tsx
+  84:7  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images  jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\src\components\LaunchPopup.tsx
+  81:13  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images  jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\src\components\SearchOverlay.tsx
+  19:16  warning  'SCREEN_WIDTH' is assigned a value but never used. Allowed unused vars must match /^_/u   unused-imports/no-unused-vars
+  19:38  warning  'SCREEN_HEIGHT' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\mobile\src\components\SessionAnalytics.tsx
+  52:6  warning  React Hook useEffect has a missing dependency: 'pathname'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\mobile\src\components\WholesalerHomeScreen.tsx
+  140:6  warning  React Hook useCallback has a missing dependency: 'fadeAnim'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  272:7  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images    jsx-a11y/alt-text
+  293:7  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images    jsx-a11y/alt-text
+  322:9  warning  Image elements must have an alt prop, either with meaningful text, or an empty string for decorative images    jsx-a11y/alt-text
+
+C:\Ecommerce app\frontend\mobile\src\hooks\useAuth.ts
+   41:6  warning  React Hook useEffect has missing dependencies: 'clearTokens' and 'setUser'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+   62:5  warning  React Hook useCallback has a missing dependency: 'setUser'. Either include it or remove the dependency array                    react-hooks/exhaustive-deps
+  107:6  warning  React Hook useCallback has a missing dependency: 'setUser'. Either include it or remove the dependency array                    react-hooks/exhaustive-deps
+  112:6  warning  React Hook useCallback has a missing dependency: 'setUser'. Either include it or remove the dependency array                    react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\mobile\src\utils\analytics.ts
+  58:12  warning  'err' is defined but never used  unused-imports/no-unused-vars
+  76:12  warning  'err' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\packages\api-client\index.ts
+  129:20  warning  '_' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\public\service-worker.js
+  5:35  warning  'event' is defined but never used. Allowed unused args must match /^_/u  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\admin\analytics\page.tsx
+  46:6  warning  React Hook useEffect has a missing dependency: 'updateDateRange'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  52:6  warning  React Hook useEffect has a missing dependency: 'fetchKPIData'. Either include it or remove the dependency array     react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\app\admin\banners\page.tsx
+   56:10  warning  'imageFile' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                            unused-imports/no-unused-vars
+   88:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  131:16  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  222:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  233:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  407:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  549:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\admin\brands\page.tsx
+  139:14  warning  'err' is defined but never used                                                                                                                                                                                                                                 unused-imports/no-unused-vars
+  280:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  310:34  warning  'err' is defined but never used                                                                                                                                                                                                                                 unused-imports/no-unused-vars
+  414:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\admin\categories\page.tsx
+   83:14  warning  '_error' is defined but never used                                                                                                                                                                                                                              unused-imports/no-unused-vars
+  206:14  warning  '_error' is defined but never used                                                                                                                                                                                                                              unused-imports/no-unused-vars
+  215:14  warning  '_error' is defined but never used                                                                                                                                                                                                                              unused-imports/no-unused-vars
+  256:14  warning  '_error' is defined but never used                                                                                                                                                                                                                              unused-imports/no-unused-vars
+  524:34  warning  '_err' is defined but never used                                                                                                                                                                                                                                unused-imports/no-unused-vars
+  841:27  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\admin\collections\page.tsx
+   57:10  warning  'imageFile' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                            unused-imports/no-unused-vars
+   84:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+   95:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  104:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  124:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  173:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  184:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  344:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  583:27  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  658:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\admin\contacts\page.tsx
+  101:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+  224:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\admin\delivery-charges\page.tsx
+   86:14  warning  '_error' is defined but never used  unused-imports/no-unused-vars
+  102:14  warning  '_error' is defined but never used  unused-imports/no-unused-vars
+  119:14  warning  '_error' is defined but never used  unused-imports/no-unused-vars
+  138:14  warning  '_error' is defined but never used  unused-imports/no-unused-vars
+  158:14  warning  '_error' is defined but never used  unused-imports/no-unused-vars
+  333:14  warning  '_error' is defined but never used  unused-imports/no-unused-vars
+  395:14  warning  '_error' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\admin\feature-flags\page.tsx
+  46:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\admin\feedback\page.tsx
+  40:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\admin\google-reviews\page.tsx
+  23:14  warning  '_e' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\admin\orders\page.tsx
+    96:6   warning  React Hook useEffect has a missing dependency: 'fetchOrders'. Either include it or remove the dependency array                                                                                                                                                  react-hooks/exhaustive-deps
+   158:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+   293:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  1254:31  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\admin\payments\page.tsx
+   47:6   warning  React Hook useEffect has a missing dependency: 'fetchPayments'. Either include it or remove the dependency array                                                                                                                                                react-hooks/exhaustive-deps
+  100:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  291:43  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\admin\products\page.tsx
+    49:6   warning  React Hook useEffect has a missing dependency: 'fetchProductTags'. Either include it or remove the dependency array                                                                                                                                             react-hooks/exhaustive-deps
+   200:10  warning  'videoFiles' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                           unused-imports/no-unused-vars
+   269:14  warning  '_error' is defined but never used                                                                                                                                                                                                                              unused-imports/no-unused-vars
+   605:14  warning  '_error' is defined but never used                                                                                                                                                                                                                              unused-imports/no-unused-vars
+  1100:38  warning  '_error' is defined but never used                                                                                                                                                                                                                              unused-imports/no-unused-vars
+  1119:38  warning  '_error' is defined but never used                                                                                                                                                                                                                              unused-imports/no-unused-vars
+  1662:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\admin\profile\page.tsx
+   20:10  warning  'qrUploading' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                          unused-imports/no-unused-vars
+  279:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\admin\push-notifications\page.tsx
+   72:6   warning  React Hook useEffect has a missing dependency: 'fetchNotifications'. Either include it or remove the dependency array                                                                                                                                           react-hooks/exhaustive-deps
+  242:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  253:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  622:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\admin\reports\page.tsx
+  153:23  warning  'setCustomStart' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+  154:21  warning  'setCustomEnd' is assigned a value but never used. Allowed unused vars must match /^_/u    unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\admin\search-tags\page.tsx
+  95:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\admin\support\page.tsx
+  52:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+  68:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+  82:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+  99:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\customer\cart\page.tsx
+   147:6   warning  React Hook useEffect has missing dependencies: 'fetchCart', 'fetchGiftWrapItems', 'fetchImpulseBuy', 'fetchWishlist', and 'prefillAddress'. Either include them or remove the dependency array                                                                  react-hooks/exhaustive-deps
+   453:12  warning  'data' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                          unused-imports/no-unused-vars
+   485:10  warning  'data' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                          unused-imports/no-unused-vars
+   489:10  warning  'error' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                         unused-imports/no-unused-vars
+   645:15  warning  'isFirstOrder' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                         unused-imports/no-unused-vars
+   681:9   warning  'roleLabel' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                            unused-imports/no-unused-vars
+   860:33  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1115:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1216:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1286:31  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1367:31  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1432:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1484:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1543:29  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  1916:27  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  2383:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  2787:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\customer\orders\page.tsx
+   43:6   warning  React Hook useEffect has a missing dependency: 'fetchOrders'. Either include it or remove the dependency array                                                                                                                                                  react-hooks/exhaustive-deps
+  139:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  507:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  556:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\customer\product\[id]\page.tsx
+  17:12  warning  'e' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\customer\profile\page.tsx
+  135:6  warning  React Hook useEffect has a missing dependency: 'checkPincodeServiceability'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\app\customer\wishlist\page.tsx
+  90:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\retailer\product\[id]\page.tsx
+  24:6   warning  React Hook useEffect has a missing dependency: 'fetchProduct'. Either include it or remove the dependency array                                                                                                                                                 react-hooks/exhaustive-deps
+  88:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  97:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\support\page.tsx
+   83:6   warning  React Hook useEffect has a missing dependency: 'fetchTickets'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  510:44  warning  '_error' is defined but never used                                                                               unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\app\valet\page.tsx
+  83:6  warning  React Hook useEffect has a missing dependency: 'fetchOrders'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\app\valet\product\[id]\page.tsx
+  23:6   warning  React Hook useEffect has a missing dependency: 'fetchProduct'. Either include it or remove the dependency array                                                                                                                                                 react-hooks/exhaustive-deps
+  73:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  82:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\app\wholesaler\product\[id]\page.tsx
+  17:12  warning  'e' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\Admin\AdminLayout.tsx
+  394:6   warning  React Hook useEffect has missing dependencies: 'allTabIds' and 'menuItems'. Either include them or remove the dependency array                                                                                                                                  react-hooks/exhaustive-deps
+  601:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\Admin\CustomerSegments.tsx
+   54:10  warning  'loading' is assigned a value but never used. Allowed unused vars must match /^_/u                                                         unused-imports/no-unused-vars
+   65:10  warning  'availableDistricts' is assigned a value but never used. Allowed unused vars must match /^_/u                                              unused-imports/no-unused-vars
+   88:6   warning  React Hook useEffect has missing dependencies: 'fetchInitialData' and 'fetchSegments'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+   95:14  warning  'e' is defined but never used                                                                                                              unused-imports/no-unused-vars
+  153:14  warning  'e' is defined but never used                                                                                                              unused-imports/no-unused-vars
+  185:14  warning  'e' is defined but never used                                                                                                              unused-imports/no-unused-vars
+  218:14  warning  'e' is defined but never used                                                                                                              unused-imports/no-unused-vars
+  229:14  warning  'e' is defined but never used                                                                                                              unused-imports/no-unused-vars
+  242:9   warning  'handleDelete' is assigned a value but never used. Allowed unused vars must match /^_/u                                                    unused-imports/no-unused-vars
+  248:14  warning  'e' is defined but never used                                                                                                              unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\Admin\DashboardStats.tsx
+  73:6  warning  React Hook useEffect has a missing dependency: 'fetchStats'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Admin\DiscountManagement.tsx
+  182:6   warning  React Hook useEffect has a missing dependency: 'discountCategory'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  193:9   warning  'fetchStates' is assigned a value but never used. Allowed unused vars must match /^_/u                               unused-imports/no-unused-vars
+  197:14  warning  'error' is defined but never used                                                                                    unused-imports/no-unused-vars
+  212:14  warning  'error' is defined but never used                                                                                    unused-imports/no-unused-vars
+  228:14  warning  'error' is defined but never used                                                                                    unused-imports/no-unused-vars
+  238:14  warning  'error' is defined but never used                                                                                    unused-imports/no-unused-vars
+  731:14  warning  'error' is defined but never used                                                                                    unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\Admin\ReferralOptionManagement.tsx
+  34:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+  46:14  warning  'error' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\Analytics\AverageOrderValueChart.tsx
+  32:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\ConversionBreakdown.tsx
+  17:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\ConversionRateChart.tsx
+  27:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\CustomerCohort.tsx
+  17:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  57:9  warning  'maxMonths' is assigned a value but never used. Allowed unused vars must match /^_/u                          unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\Analytics\KPICard.tsx
+  12:49  warning  'trend' is defined but never used. Allowed unused args must match /^_/u  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\Analytics\LegacyReportsComponents.tsx
+   28:6   warning  React Hook useEffect has a missing dependency: 'fetchReports'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  107:14  warning  'error' is defined but never used                                                                                unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\Analytics\MarketingAttribution.tsx
+  22:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\POSStaffSales.tsx
+  18:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\ProductsSellThrough.tsx
+  22:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SalesBreakdown.tsx
+  18:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SalesByChannel.tsx
+  18:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SalesByPOSLocation.tsx
+  22:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SalesByProduct.tsx
+  24:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SalesByReferrer.tsx
+  18:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SalesBySocialReferrer.tsx
+  22:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SalesOverTimeChart.tsx
+  32:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SessionsByDevice.tsx
+  17:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SessionsByLandingPage.tsx
+  17:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SessionsByLocation.tsx
+  17:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\Analytics\SessionsBySocialReferrer.tsx
+  20:6  warning  React Hook useEffect has a missing dependency: 'fetchData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\AuthModal.tsx
+   50:28  warning  'user' is assigned a value but never used. Allowed unused vars must match /^_/u             unused-imports/no-unused-vars
+  126:14  warning  'data' is defined but never used. Allowed unused args must match /^_/u                      unused-imports/no-unused-vars
+  137:23  warning  'response' is assigned a value but never used. Allowed unused vars must match /^_/u         unused-imports/no-unused-vars
+  154:17  warning  'response' is assigned a value but never used. Allowed unused vars must match /^_/u         unused-imports/no-unused-vars
+  197:10  warning  'data' is defined but never used. Allowed unused args must match /^_/u                      unused-imports/no-unused-vars
+  203:10  warning  'error' is defined but never used. Allowed unused args must match /^_/u                     unused-imports/no-unused-vars
+  233:20  warning  'error' is defined but never used. Allowed unused args must match /^_/u                     unused-imports/no-unused-vars
+  241:24  warning  'fallbackError' is defined but never used                                                   unused-imports/no-unused-vars
+  247:18  warning  'e' is defined but never used                                                               unused-imports/no-unused-vars
+  288:14  warning  'data' is defined but never used. Allowed unused args must match /^_/u                      unused-imports/no-unused-vars
+  295:20  warning  'error' is defined but never used. Allowed unused args must match /^_/u                     unused-imports/no-unused-vars
+  297:23  warning  'response' is assigned a value but never used. Allowed unused vars must match /^_/u         unused-imports/no-unused-vars
+  306:24  warning  'e' is defined but never used                                                               unused-imports/no-unused-vars
+  312:18  warning  'sdkError' is defined but never used                                                        unused-imports/no-unused-vars
+  358:10  warning  'data' is defined but never used. Allowed unused args must match /^_/u                      unused-imports/no-unused-vars
+  364:10  warning  'error' is defined but never used. Allowed unused args must match /^_/u                     unused-imports/no-unused-vars
+  394:20  warning  'error' is defined but never used. Allowed unused args must match /^_/u                     unused-imports/no-unused-vars
+  401:24  warning  'e' is defined but never used                                                               unused-imports/no-unused-vars
+  407:18  warning  'e' is defined but never used                                                               unused-imports/no-unused-vars
+  550:15  warning  'confirmPassword' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+  550:32  warning  'emailOrPhone' is assigned a value but never used. Allowed unused vars must match /^_/u     unused-imports/no-unused-vars
+  559:14  warning  'error' is defined but never used                                                           unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\BrandDetailClient.tsx
+   71:6  warning  React Hook useEffect has a missing dependency: 'initialBrandInfo'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   94:6  warning  React Hook useEffect has a missing dependency: 'initialBanners'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+  107:9  warning  'heroBannerUrl' is assigned a value but never used. Allowed unused vars must match /^_/u                             unused-imports/no-unused-vars
+  111:9  warning  'heroBannerLink' is assigned a value but never used. Allowed unused vars must match /^_/u                            unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\BrandsClient.tsx
+  281:27  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\CategoriesClient.tsx
+   24:9   warning  'searchParams' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                         unused-imports/no-unused-vars
+  240:31  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\CategoriesDetailClient.tsx
+  42:23  warning  'setSubCategory' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+  75:9   warning  'subCategories' is assigned a value but never used. Allowed unused vars must match /^_/u   unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\CoachMarksWrapper.tsx
+  15:11  warning  'showCoachMarks' is assigned a value but never used. Allowed unused vars must match /^_/u   unused-imports/no-unused-vars
+  15:27  warning  'markAsCompleted' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+  15:44  warning  'skipCoachMarks' is assigned a value but never used. Allowed unused vars must match /^_/u   unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\CollectionDetailClient.tsx
+  70:6  warning  React Hook useEffect has a missing dependency: 'initialCollectionInfo'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  89:6  warning  React Hook useEffect has a missing dependency: 'initialBanners'. Either include it or remove the dependency array         react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\CustomerClient.tsx
+   42:11  warning  'theme' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                unused-imports/no-unused-vars
+   46:25  warning  'setAuthModalMode' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                     unused-imports/no-unused-vars
+   49:10  warning  'categoryTags' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                         unused-imports/no-unused-vars
+   49:24  warning  'setCategoryTags' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                      unused-imports/no-unused-vars
+  129:6   warning  React Hook useEffect has a missing dependency: 'fetchBanners'. Either include it or remove the dependency array                                                                                                                                                 react-hooks/exhaustive-deps
+  219:6   warning  React Hook useEffect has missing dependencies: 'router' and 'searchParams'. Either include them or remove the dependency array                                                                                                                                  react-hooks/exhaustive-deps
+  219:7   warning  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                        react-hooks/exhaustive-deps
+  506:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  597:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\Header.tsx
+   47:18  warning  'wishlistItems' is assigned a value but never used. Allowed unused vars must match /^_/u                           unused-imports/no-unused-vars
+   49:9   warning  'pathname' is assigned a value but never used. Allowed unused vars must match /^_/u                                unused-imports/no-unused-vars
+   56:10  warning  'brands' is assigned a value but never used. Allowed unused vars must match /^_/u                                  unused-imports/no-unused-vars
+   57:10  warning  'categories' is assigned a value but never used. Allowed unused vars must match /^_/u                              unused-imports/no-unused-vars
+  110:6   warning  React Hook useEffect has a missing dependency: 'fetchCartCount'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  209:9   warning  'getBrandsForTag' is assigned a value but never used. Allowed unused vars must match /^_/u                         unused-imports/no-unused-vars
+  228:14  warning  'error' is defined but never used                                                                                  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\HeroCarousel.tsx
+  136:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\InfiniteCarousel.tsx
+  148:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  162:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\LandingPageClient.tsx
+   43:11  warning  'theme' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                unused-imports/no-unused-vars
+   46:10  warning  'showHamburger' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                        unused-imports/no-unused-vars
+   47:10  warning  'showCategories' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                       unused-imports/no-unused-vars
+   48:10  warning  'expandedCategory' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                     unused-imports/no-unused-vars
+   48:28  warning  'setExpandedCategory' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                  unused-imports/no-unused-vars
+   49:10  warning  'showProfileDropdown' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                  unused-imports/no-unused-vars
+   49:31  warning  'setShowProfileDropdown' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                               unused-imports/no-unused-vars
+   51:25  warning  'setAuthModalMode' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                     unused-imports/no-unused-vars
+   53:22  warning  'setCategories' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                        unused-imports/no-unused-vars
+   59:23  warning  'setNewArrivals' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                       unused-imports/no-unused-vars
+   62:30  warning  'setCustomerFavourites' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                unused-imports/no-unused-vars
+   65:23  warning  'setTrendingNow' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                       unused-imports/no-unused-vars
+   68:24  warning  'setSectionOrder' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                      unused-imports/no-unused-vars
+   74:10  warning  'categoryTags' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                         unused-imports/no-unused-vars
+   74:24  warning  'setCategoryTags' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                      unused-imports/no-unused-vars
+   75:18  warning  'setBrands' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                            unused-imports/no-unused-vars
+   79:20  warning  'setProducts' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                          unused-imports/no-unused-vars
+   80:23  warning  'setCollections' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                       unused-imports/no-unused-vars
+  124:24  warning  'setGoogleRating' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                      unused-imports/no-unused-vars
+  131:6   warning  React Hook useEffect has a missing dependency: 'fetchBanners'. Either include it or remove the dependency array                                                                                                                                                 react-hooks/exhaustive-deps
+  172:6   warning  React Hook useEffect has missing dependencies: 'router' and 'searchParams'. Either include them or remove the dependency array                                                                                                                                  react-hooks/exhaustive-deps
+  172:7   warning  React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked                                                                                                                        react-hooks/exhaustive-deps
+  381:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  470:25  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\LaunchPopup.tsx
+  14:10  warning  'loading' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                              unused-imports/no-unused-vars
+  90:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\MobileComponents\BottomNav.tsx
+  28:16  warning  'e' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\MobileComponents\MobileHeader.tsx
+  46:6   warning  React Hook useEffect has a missing dependency: 'categoryTags.length'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  59:16  warning  'e' is defined but never used                                                                                           unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\MobileNavBar.tsx
+  107:6  warning  React Hook useEffect has a missing dependency: 'fetchCartCount'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\ModernCategoryPage.tsx
+  61:6  warning  React Hook useEffect has a missing dependency: 'fetchProducts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\ModernFilters.tsx
+  41:10  warning  'priceRange' is assigned a value but never used. Allowed unused vars must match /^_/u     unused-imports/no-unused-vars
+  41:22  warning  'setPriceRange' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\ModernHeader.tsx
+  173:9  warning  'pathname' is assigned a value but never used. Allowed unused vars must match /^_/u                                unused-imports/no-unused-vars
+  191:6  warning  React Hook useEffect has a missing dependency: 'fetchCartCount'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\ModernProductCard.tsx
+   25:7   warning  'StarIcon' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+  234:14  warning  'error' is defined but never used                                                    unused-imports/no-unused-vars
+  263:14  warning  'error' is defined but never used                                                    unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\ModernProductCatalog.tsx
+  307:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\Notifications.tsx
+  108:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  120:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  363:6   warning  React Hook useEffect has a missing dependency: 'fetchDetails'. Either include it or remove the dependency array                                                                                                                                                 react-hooks/exhaustive-deps
+  391:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  403:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  413:14  warning  'error' is defined but never used                                                                                                                                                                                                                               unused-imports/no-unused-vars
+  576:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\ProductCarousel.tsx
+  24:3   warning  'basePath' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                      unused-imports/no-unused-vars
+  73:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\ProductCatalog.tsx
+    67:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element               @next/next/no-img-element
+    96:3   warning  'imageUrl' is assigned a value but never used. Allowed unused args must match /^_/u                                                                                                                                                                                          unused-imports/no-unused-vars
+   157:10  warning  'showFilterPanel' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                   unused-imports/no-unused-vars
+   157:27  warning  'setShowFilterPanel' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                unused-imports/no-unused-vars
+   161:10  warning  'categoryTags' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                      unused-imports/no-unused-vars
+   166:10  warning  'priceRange' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                        unused-imports/no-unused-vars
+   166:22  warning  'setPriceRange' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                     unused-imports/no-unused-vars
+   177:9   warning  'productsGridRef' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                   unused-imports/no-unused-vars
+   240:6   warning  React Hook useEffect has missing dependencies: 'tempMaxPrice' and 'tempMinPrice'. Either include them or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setFilters' needs the current value of 'tempMinPrice'             react-hooks/exhaustive-deps
+   243:9   warning  'isWholesalerOrRetailer' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                            unused-imports/no-unused-vars
+   299:6   warning  React Hook useEffect has missing dependencies: 'fetchProducts' and 'trackPageView'. Either include them or remove the dependency array                                                                                                                                       react-hooks/exhaustive-deps
+   324:14  warning  '_error' is defined but never used                                                                                                                                                                                                                                           unused-imports/no-unused-vars
+   342:14  warning  '_error' is defined but never used                                                                                                                                                                                                                                           unused-imports/no-unused-vars
+   614:43  warning  The ref value 'observerTarget.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'observerTarget.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+   617:6   warning  React Hook useEffect has a missing dependency: 'fetchProducts'. Either include it or remove the dependency array                                                                                                                                                             react-hooks/exhaustive-deps
+   640:14  warning  '_error' is defined but never used                                                                                                                                                                                                                                           unused-imports/no-unused-vars
+   699:9   warning  'handleTypeChange' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                  unused-imports/no-unused-vars
+   711:9   warning  'handleValueChange' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                 unused-imports/no-unused-vars
+   722:9   warning  'handleCategoryTagChange' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                           unused-imports/no-unused-vars
+   755:9   warning  'getFilteredProductsForOptions' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                     unused-imports/no-unused-vars
+   808:9   warning  'handleSliderChange' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                unused-imports/no-unused-vars
+   826:9   warning  'minPricePercentage' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                unused-imports/no-unused-vars
+   832:9   warning  'maxPricePercentage' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                unused-imports/no-unused-vars
+   876:9   warning  'newlyAdded' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                        unused-imports/no-unused-vars
+   882:9   warning  'showNewlyAdded' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                    unused-imports/no-unused-vars
+   914:13  warning  'collectionName' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                    unused-imports/no-unused-vars
+   929:17  warning  'pageName' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                          unused-imports/no-unused-vars
+   929:33  warning  'pageLogo' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                          unused-imports/no-unused-vars
+  1635:56  warning  'index' is defined but never used. Allowed unused args must match /^_/u                                                                                                                                                                                                      unused-imports/no-unused-vars
+  1649:27  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element               @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\ProductDetailClient.tsx
+  105:6   warning  React Hook useEffect has missing dependencies: 'fetchProduct' and 'initialProduct'. Either include them or remove the dependency array                                       react-hooks/exhaustive-deps
+  128:6   warning  React Hook useEffect has missing dependencies: 'product.brand', 'product.category', 'product.name', and 'product.price'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  220:14  warning  'e' is defined but never used                                                                                                                                                unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\ProductsClient.tsx
+  12:9   warning  'router' is assigned a value but never used. Allowed unused vars must match /^_/u   unused-imports/no-unused-vars
+  16:10  warning  'loading' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\QuickVariantModal.tsx
+  6:11  warning  'Variant' is defined but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\components\SearchBar.tsx
+  27:9  warning  'router' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                    unused-imports/no-unused-vars
+  53:6  warning  React Hook useEffect has missing dependencies: 'priceRange', 'selectedBrand', 'selectedSort', and 'subCategory'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\WholesalerClient.tsx
+   35:11  warning  'theme' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                unused-imports/no-unused-vars
+   38:10  warning  'showHamburger' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                        unused-imports/no-unused-vars
+   39:10  warning  'showCategories' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                       unused-imports/no-unused-vars
+   40:10  warning  'showProfileDropdown' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                  unused-imports/no-unused-vars
+   40:31  warning  'setShowProfileDropdown' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                               unused-imports/no-unused-vars
+   42:10  warning  'currentBannerIndex' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                   unused-imports/no-unused-vars
+   61:10  warning  'categoryTags' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                         unused-imports/no-unused-vars
+   61:24  warning  'setCategoryTags' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                      unused-imports/no-unused-vars
+   62:19  warning  'setLoading' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                           unused-imports/no-unused-vars
+  114:6   warning  React Hook useEffect has a missing dependency: 'fetchAllData'. Either include it or remove the dependency array                                                                                                                                                 react-hooks/exhaustive-deps
+  159:9   warning  'fetchGoogleRating' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                    unused-imports/no-unused-vars
+  300:9   warning  'handleLogout' is assigned a value but never used. Allowed unused vars must match /^_/u                                                                                                                                                                         unused-imports/no-unused-vars
+  539:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  623:23  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+C:\Ecommerce app\frontend\src\components\wholesaler\BusinessCalculator.tsx
+  51:6  warning  React Hook useEffect has a missing dependency: 'calculateResults'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\components\wholesaler\CheckOffers.tsx
+  20:6  warning  React Hook useEffect has a missing dependency: 'fetchOffers'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\context\AuthContext.tsx
+   76:16  warning  'error' is defined but never used  unused-imports/no-unused-vars
+  215:16  warning  'error' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\context\NotificationContext.tsx
+  56:6  warning  React Hook useEffect has a missing dependency: 'fetchNotifications'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\context\WishlistContext.tsx
+  65:6  warning  React Hook useEffect has a missing dependency: 'fetchWishlist'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Ecommerce app\frontend\src\utils\priceCalculator.ts
+  39:36  warning  'product' is defined but never used. Allowed unused args must match /^_/u            unused-imports/no-unused-vars
+  39:50  warning  'userRole' is defined but never used. Allowed unused args must match /^_/u           unused-imports/no-unused-vars
+  59:3   warning  'quantity' is assigned a value but never used. Allowed unused args must match /^_/u  unused-imports/no-unused-vars
+  60:3   warning  'userRole' is assigned a value but never used. Allowed unused args must match /^_/u  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\utils\pushNotifications.ts
+  17:15  warning  'registration' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\src\utils\recommendationTracking.ts
+  44:12  warning  '_' is defined but never used  unused-imports/no-unused-vars
+
+C:\Ecommerce app\frontend\update_admin_pages.js
+  50:15  warning  'divStart' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+Γ£û 369 problems (0 errors, 369 warnings)
+
+
