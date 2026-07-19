@@ -35,7 +35,7 @@ Ecommerce app/
 *   **Advanced Checkout Pipeline:** Supports Cash on Delivery, UPI (with manual screenshot verification), and Credit (for Wholesalers with automated due-date calculation). Includes an intelligent Coupon & Buy X Get Y (BXGY) distribution system.
 *   **Optimized Search & Catalog:** Weighted search scoring across 9 fields with typo tolerance (fuzzy matching) and real-time facet generation for filters.
 *   **Customer Segmentation:** Automatically buckets users into 16 behavioral cohorts (e.g., `regular_registered`, `downloaded_no_order`) for targeted push notifications and analytics.
-*   **Return & Refund Lifecycle:** Full 4-stage tracking (Pending -> Assigned -> Collected -> Returned) with valet delivery assignment and automated restocking.
+*   **Return & Refund Lifecycle:** Full 4-stage tracking (Pending -> Assigned -> Collected by Valet -> Returned to Warehouse) with automated restocking.
 *   **Review Moderation:** Only verified buyers can submit product reviews, which must be approved by an Admin before impacting the global product score.
 
 ---
