@@ -226,7 +226,7 @@ The system supports a complete flow for managing customer returns, overseen by t
 ### The 4-Stage Return Workflow
 1. **Pending (`PENDING`):** The customer submits the return request. The backend calculates the return delivery charge based on the customer's pincode and notifies the Super Admin.
 2. **Assigned (`ASSIGNED`):** The Super Admin reviews the request and assigns it to a Valet for pickup. 
-3. **Collected (`COLLECTED`):** The Valet physically collects the items from the customer and marks the status as Collected in their mobile app.
+3. **Collected (`COLLECTED`):** The Valet physically collects the items from the customer and marks the status as Collected in their mobile app. This lets the Super Admin know that the physical items have been successfully retrieved from the customer, but they haven't arrived back at the warehouse yet.
 4. **Returned / Completed (`RETURNED`):** The Super Admin receives the items at the warehouse, verifies their condition, and marks the request as Completed. 
    - *Automated Restocking:* Upon completion, the returned quantities are automatically added back to the `product_repository`'s global stock.
    - An email notification is sent to the user confirming the return.
