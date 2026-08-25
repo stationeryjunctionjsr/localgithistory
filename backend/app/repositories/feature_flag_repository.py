@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
@@ -32,15 +32,15 @@ class FeatureFlagRepository:
         new_flag = {
             **flag_data,
             "_id": str(max_id + 1),
-            "createdAt": datetime.utcnow().isoformat() + "Z",
-            "updatedAt": datetime.utcnow().isoformat() + "Z",
+            "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
+            "updatedAt": datetime.now(timezone.utc).isoformat() + "Z",
         }
 
         return await self.storage.create(new_flag)
 
     async def update(self, flag_id: str, update_data: Dict) -> Optional[Dict]:
         """Update a feature flag"""
-        updated_data = {**update_data, "updatedAt": datetime.utcnow().isoformat() + "Z"}
+        updated_data = {**update_data, "updatedAt": datetime.now(timezone.utc).isoformat() + "Z"}
         return await self.storage.update(flag_id, updated_data)
 
     async def delete(self, flag_id: str) -> bool:

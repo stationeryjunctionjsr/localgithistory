@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import HeroBanner from '@/components/HeroBanner';
 import ProductCatalog from '@/components/ProductCatalog';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 export default function ProductsClient() {
   // eslint-disable-next-line unused-imports/no-unused-vars
@@ -36,7 +37,7 @@ export default function ProductsClient() {
         );
         setBanners(activeBanners);
       } catch (e) {
-        console.error('Failed to fetch product banners', e);
+        logger.error('Failed to fetch product banners', e);
       } finally {
         setLoading(false);
       }

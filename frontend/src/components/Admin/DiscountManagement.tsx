@@ -10,6 +10,7 @@ import { formatDateIST } from '@/utils/dateUtils';
 import SearchableSelect from '@/components/SearchableSelect';
 import ReferralOptionManagement from '@/components/Admin/ReferralOptionManagement';
 import RefreshButton from './RefreshButton';
+import { logger } from '@/utils/logger';
 
 interface Discount {
   _id?: string;
@@ -76,6 +77,7 @@ const APPLIES_TO_OPTIONS = [
   { value: 'brands', label: 'Brands' },
   { value: 'collections', label: 'Collections' },
   { value: 'products', label: 'Products' },
+  { value: 'bundles', label: 'Bundles' },
 ] as const;
 
 const MIN_REQUIREMENT_OPTIONS = [
@@ -102,6 +104,7 @@ interface AppliesToSelectorProps {
   brands: Brand[];
   collections: Collection[];
   products: any[];
+  bundles: any[];
   labelTitle?: string;
 }
 
@@ -116,6 +119,7 @@ function AppliesToSelector({
   brands,
   collections,
   products,
+  bundles,
   labelTitle = 'Applies to',
 }: AppliesToSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,6 +134,8 @@ function AppliesToSelector({
       return collections.map((c) => ({ id: c._id, name: c.name }));
     if (appliesToType === 'products')
       return products.map((p) => ({ id: p._id, name: p.name }));
+    if (appliesToType === 'bundles')
+      return bundles.map((b) => ({ id: b._id, name: b.name }));
     return [];
   };
 
@@ -170,7 +176,9 @@ function AppliesToSelector({
                     ? 'brands'
                     : appliesToType === 'products'
                       ? 'products'
-                      : 'collections'}{' '}
+                      : appliesToType === 'bundles'
+                        ? 'bundles'
+                        : 'collections'}{' '}
               *
             </label>
             <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-500">
@@ -356,6 +364,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
   const [brands, setBrands] = useState<Brand[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [bundles, setBundles] = useState<any[]>([]);
   const [retailUsers, setRetailUsers] = useState<UserOption[]>([]);
   const [businessUsers, setBusinessUsers] = useState<UserOption[]>([]);
   const [pageInfo, setPageInfo] = useState<{
@@ -423,6 +432,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
         api.get('/brands').then((r) => setBrands(r.data || [])),
         api.get('/collections').then((r) => setCollections(r.data || [])),
         api.get('/products', { params: { limit: 1000 } }).then((r) => setProducts(r.data?.products || r.data || [])),
+        api.get('/bundles/admin/all').then((r) => setBundles(Array.isArray(r.data) ? r.data : r.data?.bundles || [])),
         api
           .get('/users', { params: { role: 'customer' } })
           .then((r) => setRetailUsers(r.data || [])),
@@ -433,7 +443,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
         api
           .get(`/customer-segments?type=${discountCategory}`)
           .then((r) => setCustomSegments(r.data || [])),
-      ]).catch(() => {});
+      ]).catch((e) => logger.warn("Promise rejected silently:", e));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -443,7 +453,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
       const response = await api.get('/page-info/discount-management');
       setPageInfo(response.data);
     } catch (error) {
-      console.error('Failed to fetch page info:', error);
+      logger.error('Failed to fetch page info:', error);
     }
   };
 
@@ -454,7 +464,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
       setAvailableStates(response.data || []);
     // eslint-disable-next-line unused-imports/no-unused-vars
     } catch (error) {
-      console.error('Failed to fetch states');
+      logger.error('Failed to fetch states');
     }
   };
 
@@ -470,7 +480,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
       setAvailablePincodes([]);
     // eslint-disable-next-line unused-imports/no-unused-vars
     } catch (error) {
-      console.error('Failed to fetch districts');
+      logger.error('Failed to fetch districts');
       setAvailableDistricts([]);
     }
   };
@@ -487,7 +497,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
       setAvailablePincodes(response.data || []);
     // eslint-disable-next-line unused-imports/no-unused-vars
     } catch (error) {
-      console.error('Failed to fetch pincodes');
+      logger.error('Failed to fetch pincodes');
       setAvailablePincodes([]);
     }
   };
@@ -1918,6 +1928,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
                           brands={brands}
                           collections={collections}
                           products={products}
+                          bundles={bundles}
                           labelTitle="Applies to"
                         />
                       </div>
@@ -1958,6 +1969,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
                         brands={brands}
                         collections={collections}
                         products={products}
+                        bundles={bundles}
                         labelTitle="Applies to"
                       />
                     </div>
@@ -2134,6 +2146,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
                             brands={brands}
                             collections={collections}
                             products={products}
+                            bundles={bundles}
                             labelTitle="Applies to"
                           />
                         </div>
@@ -2188,6 +2201,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
                             brands={brands}
                             collections={collections}
                             products={products}
+                            bundles={bundles}
                             labelTitle="Applies to"
                           />
                         </div>

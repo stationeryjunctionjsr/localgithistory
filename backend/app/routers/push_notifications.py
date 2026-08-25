@@ -334,6 +334,7 @@ async def mark_notification_read(
         else:
             # Robust O(N) fallback for legacy notifications: re-calculate inclusion
             from app.services.push_notification_service import push_notification_service
+
             is_targeted = await push_notification_service.is_user_targeted(user_id, notification, user=current_user)
             if not is_targeted:
                 raise HTTPException(status_code=403, detail="Notification not targeted to your account")
@@ -341,7 +342,7 @@ async def mark_notification_read(
         # Device ownership check: Ensure user has at least one registered device to receive push
         user_devices = await push_notification_repository.getDeviceSubscriptionsByUser(user_id)
         if not user_devices:
-             raise HTTPException(status_code=403, detail="No registered devices found for this account")
+            raise HTTPException(status_code=403, detail="No registered devices found for this account")
 
         # Idempotency: Use repository's user-based tracking to avoid double-counting
         await push_notification_repository.updateStats(notification_id, {}, userId=user_id)

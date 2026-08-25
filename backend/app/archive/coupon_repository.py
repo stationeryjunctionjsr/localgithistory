@@ -40,11 +40,7 @@ class CouponRepository:
 
     async def _get_brand_name(self, bid: str) -> Optional[str]:
         now = datetime.utcnow()
-        if (
-            self._brands_map is None
-            or not self._brands_map_time
-            or (now - self._brands_map_time).total_seconds() > 60
-        ):
+        if self._brands_map is None or not self._brands_map_time or (now - self._brands_map_time).total_seconds() > 60:
             brands = await self._brand_storage.findAll()
             self._brands_map = {str(b["_id"]): b.get("name", "") for b in brands if "_id" in b}
             self._brands_map_time = now
@@ -58,7 +54,9 @@ class CouponRepository:
             or (now - self._collections_map_time).total_seconds() > 60
         ):
             cols = await self._collection_storage.findAll()
-            self._collections_map = {str(c["_id"]): [str(pid) for pid in c.get("productIds", [])] for c in cols if "_id" in c}
+            self._collections_map = {
+                str(c["_id"]): [str(pid) for pid in c.get("productIds", [])] for c in cols if "_id" in c
+            }
             self._collections_map_time = now
         return self._collections_map.get(str(cid))
 
@@ -131,12 +129,12 @@ class CouponRepository:
         """Check if user matches discount userBehavior. For 'registered*' consider all users; for 'downloaded*' only app users."""
         if not behavior or behavior == "none":
             return True
-            
+
         if user_behavior_cache is not None:
             cache_key = (user_id, behavior)
             if cache_key in user_behavior_cache:
                 return user_behavior_cache[cache_key]
-                
+
         async def evaluate():
             # Support multiple comma-separated behaviors / segments
             behaviors = [b.strip() for b in behavior.split(",") if b.strip()]
@@ -154,6 +152,7 @@ class CouponRepository:
                 else:
                     # check legacy behavioral segments
                     from app.repositories.order_repository import order_repository
+
                     user_orders = await order_repository.findAll({"user": str(user_id)})
                     order_count = len(user_orders)
 
@@ -452,7 +451,11 @@ class CouponRepository:
 
         if has_specific_users:
             matches_selective = str(user_id) in [str(x) for x in applicable_user_ids]
-            matches_behavior = await self._user_matches_behavior(user_id, user_behavior) if (user_behavior and user_behavior != "none") else False
+            matches_behavior = (
+                await self._user_matches_behavior(user_id, user_behavior)
+                if (user_behavior and user_behavior != "none")
+                else False
+            )
             if not (matches_selective or matches_behavior):
                 return {"valid": False, "message": "Discount not applicable for your account"}
 
@@ -508,9 +511,14 @@ class CouponRepository:
                     qty = item.get("quantity", 0)
                     eligible_quantity += qty
                     sell_as_case = item.get("sellAsCase", False)
-                    ignore_auto = (coupon.get("method") == "discount_code" and coupon.get("couponMode") == "override")
+                    ignore_auto = coupon.get("method") == "discount_code" and coupon.get("couponMode") == "override"
                     item_total = product_repository.calculateTotalPrice(
-                        product, user_role, qty, sell_as_case=sell_as_case, user_id=user_id, ignore_auto_discount=ignore_auto
+                        product,
+                        user_role,
+                        qty,
+                        sell_as_case=sell_as_case,
+                        user_id=user_id,
+                        ignore_auto_discount=ignore_auto,
                     )
                     eligible_subtotal += item_total
                     eligible_item_indices.append(idx)
@@ -585,7 +593,11 @@ class CouponRepository:
 
                 if has_specific_users:
                     matches_selective = str(user_id) in [str(x) for x in applicable_user_ids]
-                    matches_behavior = await self._user_matches_behavior(user_id, user_behavior) if (user_behavior and user_behavior != "none") else False
+                    matches_behavior = (
+                        await self._user_matches_behavior(user_id, user_behavior)
+                        if (user_behavior and user_behavior != "none")
+                        else False
+                    )
                     if not (matches_selective or matches_behavior):
                         continue
                 if payment_method:
@@ -814,13 +826,11 @@ class CouponRepository:
             and (now - self._active_automatic_discounts_cache_time).total_seconds() < 10
         ):
             return self._active_automatic_discounts_cache
-        
-        discounts = await self.storage.findAll({
-            "method": "automatic",
-            "isActive": True,
-            "typeOfDiscount": "product_discount"
-        })
-        
+
+        discounts = await self.storage.findAll(
+            {"method": "automatic", "isActive": True, "typeOfDiscount": "product_discount"}
+        )
+
         valid_discounts = []
         for c in discounts:
             try:
@@ -831,7 +841,7 @@ class CouponRepository:
                     valid_discounts.append(c)
             except Exception:
                 continue
-                
+
         self._active_automatic_discounts_cache = valid_discounts
         self._active_automatic_discounts_cache_time = now
         return valid_discounts
@@ -864,11 +874,11 @@ class CouponRepository:
         """Find other active discounts applicable to this product, excluding the default highest automatic product discount"""
         if all_coupons is None:
             all_coupons = await self.storage.findAll({"isActive": True})
-        
+
         now = datetime.utcnow()
         default_auto_discount = None
         highest_pct = -1.0
-        
+
         # Step 1: Find the default highest automatic product discount
         for c in all_coupons:
             try:
@@ -878,23 +888,31 @@ class CouponRepository:
                     continue
             except Exception:
                 continue
-                
+
             if c.get("method") == "automatic" and c.get("typeOfDiscount") == "product_discount":
                 if role in c.get("applicableRoles", []):
                     is_eligible = await self._product_eligible_async(
-                        product,
-                        c.get("appliesToType", "all"),
-                        c.get("appliesToValueIds"),
-                        c.get("excludedProductIds")
+                        product, c.get("appliesToType", "all"), c.get("appliesToValueIds"), c.get("excludedProductIds")
                     )
                     if is_eligible:
                         applicable_user_ids = c.get("applicableUserIds") or []
-                        if applicable_user_ids and (not user_id or str(user_id) not in [str(x) for x in applicable_user_ids]):
+                        if applicable_user_ids and (
+                            not user_id or str(user_id) not in [str(x) for x in applicable_user_ids]
+                        ):
                             continue
                         behavior = c.get("userBehavior")
-                        if behavior and behavior != "none" and (not user_id or not await self._user_matches_behavior(user_id, behavior, user_behavior_cache=user_behavior_cache)):
+                        if (
+                            behavior
+                            and behavior != "none"
+                            and (
+                                not user_id
+                                or not await self._user_matches_behavior(
+                                    user_id, behavior, user_behavior_cache=user_behavior_cache
+                                )
+                            )
+                        ):
                             continue
-                            
+
                         pct = 0.0
                         if c.get("discountType") == "percentage":
                             pct = float(c.get("discountValue") or 0)
@@ -905,13 +923,13 @@ class CouponRepository:
                         if pct > highest_pct:
                             highest_pct = pct
                             default_auto_discount = c
-                            
+
         # Step 2: Gather all other applicable coupons
         applicable = []
         for c in all_coupons:
             if default_auto_discount and str(c.get("_id")) == str(default_auto_discount.get("_id")):
                 continue
-                
+
             try:
                 valid_from = datetime.fromisoformat(c["validFrom"].replace("Z", "+00:00")).replace(tzinfo=None)
                 valid_until = datetime.fromisoformat(c["validUntil"].replace("Z", "+00:00")).replace(tzinfo=None)
@@ -919,29 +937,33 @@ class CouponRepository:
                     continue
             except Exception:
                 continue
-                
+
             if role not in c.get("applicableRoles", []):
                 continue
-                
+
             applicable_user_ids = c.get("applicableUserIds") or []
             if applicable_user_ids and (not user_id or str(user_id) not in [str(x) for x in applicable_user_ids]):
                 continue
             behavior = c.get("userBehavior")
-            if behavior and behavior != "none" and (not user_id or not await self._user_matches_behavior(user_id, behavior, user_behavior_cache=user_behavior_cache)):
+            if (
+                behavior
+                and behavior != "none"
+                and (
+                    not user_id
+                    or not await self._user_matches_behavior(user_id, behavior, user_behavior_cache=user_behavior_cache)
+                )
+            ):
                 continue
-                
+
             applies = True
             if c.get("typeOfDiscount") in ["product_discount", "buy_x_get_y"]:
                 applies = await self._product_eligible_async(
-                    product,
-                    c.get("appliesToType", "all"),
-                    c.get("appliesToValueIds"),
-                    c.get("excludedProductIds")
+                    product, c.get("appliesToType", "all"), c.get("appliesToValueIds"), c.get("excludedProductIds")
                 )
-                
+
             if applies:
                 applicable.append(c)
-                
+
         return applicable
 
 
@@ -950,7 +972,7 @@ def get_coupon_description(c: Dict) -> str:
     type_of_disc = c.get("typeOfDiscount")
     disc_type = c.get("discountType")
     disc_val = c.get("discountValue")
-    
+
     if type_of_disc == "product_discount":
         val_str = f"{disc_val}%" if disc_type == "percentage" else f"₹{disc_val}"
         return f"{method_lbl}: Get {val_str} off on eligible items."
@@ -959,13 +981,13 @@ def get_coupon_description(c: Dict) -> str:
         gets_qty = c.get("buyXGetYCustomerGetsQuantity") or 1
         gets_type = c.get("buyXGetYCustomerGetsDiscountType")
         gets_val = c.get("buyXGetYCustomerGetsDiscountValue")
-        
+
         gets_desc = "Free"
         if gets_type == "percentage":
             gets_desc = f"{gets_val}% Off"
         elif gets_type == "amount_off":
             gets_desc = f"₹{gets_val} Off"
-            
+
         return f"{method_lbl}: Buy {min_qty} unit(s) and get {gets_qty} unit(s) at {gets_desc}."
     elif type_of_disc == "total_order_discount":
         val_str = f"{disc_val}%" if disc_type == "percentage" else f"₹{disc_val}"

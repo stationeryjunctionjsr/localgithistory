@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from app.db.storage_factory import get_storage
@@ -34,7 +34,6 @@ class OrderRepository:
 
         next_id = max(1, max_id + 1)  # ORDER-RT-1, ORDER-WH-1, etc. (never 0)
         return f"{prefix}{next_id}"
-
 
     async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
         # Delegate all filtering to storage (DAO)
@@ -90,7 +89,7 @@ class OrderRepository:
             "declineReason": order_data.get("declineReason"),
             "cancelledAt": order_data.get("cancelledAt"),
             "cancelledBy": order_data.get("cancelledBy"),
-            "createdAt": order_data.get("createdAt") or datetime.utcnow().isoformat(),
+            "createdAt": order_data.get("createdAt") or datetime.now(timezone.utc).isoformat(),
         }
 
         return await self.storage.create(order)
@@ -99,11 +98,11 @@ class OrderRepository:
         # Handle status-specific updates (only if not already set)
         if update_data.get("status") == "out_for_delivery":
             if "shippedAt" not in update_data:
-                update_data["shippedAt"] = datetime.utcnow().isoformat()
+                update_data["shippedAt"] = datetime.now(timezone.utc).isoformat()
 
         if update_data.get("status") == "delivered":
             if "deliveredAt" not in update_data:
-                update_data["deliveredAt"] = datetime.utcnow().isoformat()
+                update_data["deliveredAt"] = datetime.now(timezone.utc).isoformat()
             # Get order to check payment method
             order = await self.findById(id)
             if order and order.get("paymentMethod") == "cod":
@@ -112,7 +111,7 @@ class OrderRepository:
                 if "codPaymentReceived" not in update_data:
                     update_data["codPaymentReceived"] = True
                 if "codPaymentReceivedAt" not in update_data:
-                    update_data["codPaymentReceivedAt"] = datetime.utcnow().isoformat()
+                    update_data["codPaymentReceivedAt"] = datetime.now(timezone.utc).isoformat()
             # Turnaround time (hours) between createdAt and deliveredAt
             try:
                 created_at_str = order.get("createdAt") if order else None
@@ -126,10 +125,10 @@ class OrderRepository:
                 logger.exception("Error calculating turnaround time for order")
 
         if update_data.get("status") == "shipped" and "shippedAt" not in update_data:
-            update_data["shippedAt"] = datetime.utcnow().isoformat()
+            update_data["shippedAt"] = datetime.now(timezone.utc).isoformat()
 
         if update_data.get("status") == "cancelled" and "cancelledAt" not in update_data:
-            update_data["cancelledAt"] = datetime.utcnow().isoformat()
+            update_data["cancelledAt"] = datetime.now(timezone.utc).isoformat()
 
         return await self.storage.update(id, update_data)
 

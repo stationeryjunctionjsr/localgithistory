@@ -10,11 +10,13 @@ os.chdir(backend_root)
 import asyncio
 from app.repositories.coupon_repository import coupon_repository
 
+
 async def check_db():
     cats = await coupon_repository._category_storage.findAll()
     print("Categories in DB:")
     for c in cats:
         print(f"ID: {c.get('_id')}, Name: {c.get('name')}")
+
 
 if __name__ == "__main__":
     asyncio.run(check_db())

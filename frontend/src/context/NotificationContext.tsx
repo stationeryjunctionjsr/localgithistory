@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import api from '@/utils/api';
 import { toast } from 'react-toastify';
+import { logger } from '@/utils/logger';
 
 interface Notification {
   _id: string;
@@ -50,8 +51,23 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     if (user) {
       fetchNotifications();
       requestNotificationPermission();
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
+
+      let interval: ReturnType<typeof setInterval> | null = setInterval(fetchNotifications, 30000);
+
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          if (interval) { clearInterval(interval); interval = null; }
+        } else {
+          fetchNotifications(); // Immediately refresh on return
+          interval = setInterval(fetchNotifications, 30000);
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        if (interval) clearInterval(interval);
+      };
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -82,7 +98,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
           }
         });
     } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+      logger.error('Failed to fetch notifications:', error);
     }
   };
 
@@ -94,7 +110,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      logger.error('Failed to mark notification as read:', error);
     }
   };
 
@@ -104,7 +120,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error('Failed to mark all as read:', error);
+      logger.error('Failed to mark all as read:', error);
     }
   };
 

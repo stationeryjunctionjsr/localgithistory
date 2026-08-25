@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface SalesByChannelProps {
   startDate: Date | null;
@@ -29,7 +30,7 @@ export default function SalesByChannel({ startDate, endDate, currency }: SalesBy
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch sales by channel:', error);
+      logger.error('Failed to fetch sales by channel:', error);
       setLoading(false);
     }
   };

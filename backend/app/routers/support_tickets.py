@@ -65,7 +65,6 @@ async def populate_ticket(ticket):
 
 
 @router.get("", response_model=List[dict])
-
 @router.get("/", response_model=List[dict])
 async def get_support_tickets(
     status: Optional[str] = None, priority: Optional[str] = None, current_user: dict = Depends(get_current_user)
@@ -100,10 +99,7 @@ async def get_support_ticket(ticket_id: str, current_user: dict = Depends(get_cu
     return populated_ticket
 
 
-
-
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
-
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_support_ticket(
     ticket_data: SupportTicketCreate, current_user: Optional[dict] = Depends(get_optional_user)

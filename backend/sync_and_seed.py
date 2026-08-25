@@ -19,6 +19,7 @@ from app.config.database import get_async_session_factory
 from app.db.product_dao import OracleProductDAO
 from app.repositories.order_repository import order_repository
 
+
 async def sync_and_seed():
     print("--- Syncing Products & Seeding 20 Orders in Oracle DB ---")
     factory = get_async_session_factory()
@@ -57,14 +58,16 @@ async def sync_and_seed():
                     "mrp": lp.get("mrp"),
                     "mrpPerCase": lp.get("mrpPerCase"),
                     "quantityPerCase": lp.get("quantityPerCase"),
-                    "stock": lp.get("stock", 100) if lp.get("stock", 0) > 0 else 100, # ensure we have stock for ordering
+                    "stock": lp.get("stock", 100)
+                    if lp.get("stock", 0) > 0
+                    else 100,  # ensure we have stock for ordering
                     "images": lp.get("images", []),
                     "videos": lp.get("videos", []),
                     "isActive": lp.get("isActive", True),
                     "tags": lp.get("tags", []),
                     "variantAttributes": lp.get("variantAttributes", []),
                     "variantCombinations": lp.get("variantCombinations", []),
-                    "details": lp.get("details", {})
+                    "details": lp.get("details", {}),
                 }
                 created_p = await product_dao.create(prod_data)
                 print(f"Created product in Oracle: {created_p.get('name')} (ID: {created_p.get('_id')})")
@@ -75,18 +78,17 @@ async def sync_and_seed():
     async with factory() as session:
         # Fetch users
         print("Fetching users from sj_users...")
-        res_users = await session.execute(
-            text("SELECT user_id, role, email FROM sj_users WHERE is_active = 1")
-        )
+        res_users = await session.execute(text("SELECT user_id, role, email FROM sj_users WHERE is_active = 1"))
         users = [{"id": str(r[0]), "role": r[1], "email": r[2]} for r in res_users.fetchall()]
         print(f"Found {len(users)} active users in Oracle DB.")
 
         # Fetch products (now loaded)
         print("Fetching products from sj_products...")
-        res_products = await session.execute(
-            text("SELECT id, name, mrp FROM sj_products WHERE is_active = 1")
-        )
-        products = [{"id": str(r[0]), "name": r[1], "mrp": float(r[2]) if r[2] is not None else 10.0} for r in res_products.fetchall()]
+        res_products = await session.execute(text("SELECT id, name, mrp FROM sj_products WHERE is_active = 1"))
+        products = [
+            {"id": str(r[0]), "name": r[1], "mrp": float(r[2]) if r[2] is not None else 10.0}
+            for r in res_products.fetchall()
+        ]
         print(f"Found {len(products)} active products in Oracle DB.")
 
         if not users:
@@ -109,7 +111,7 @@ async def sync_and_seed():
 
         for i in range(20):
             is_wholesale = (i % 2 == 1) and len(wholesale_users) > 0
-            
+
             if is_wholesale:
                 user = wholesale_users[i % len(wholesale_users)]
                 order_type = "wholesale"
@@ -134,13 +136,7 @@ async def sync_and_seed():
             order_data = {
                 "user": user["id"],
                 "userRole": role_for_num,
-                "items": [
-                    {
-                        "product": product["id"],
-                        "quantity": qty,
-                        "price": price
-                    }
-                ],
+                "items": [{"product": product["id"], "quantity": qty, "price": price}],
                 "subtotal": subtotal,
                 "tax": tax,
                 "shipping": shipping,
@@ -150,14 +146,15 @@ async def sync_and_seed():
                 "status": "delivered" if i > 4 else "pending",
                 "paymentStatus": "paid" if i > 4 else "pending",
                 "paymentMethod": payment_method,
-                "createdAt": order_date
+                "createdAt": order_date,
             }
 
-            print(f"Creating order {i+1}/20 for user {user['email']} (type: {order_type})...")
+            print(f"Creating order {i + 1}/20 for user {user['email']} (type: {order_type})...")
             created_order = await order_repository.create(order_data)
             print(f"Created successfully: {created_order.get('orderNumber') if created_order else 'None'}")
 
     print("\n--- Syncing and Seeding Completed! ---")
+
 
 if __name__ == "__main__":
     asyncio.run(sync_and_seed())

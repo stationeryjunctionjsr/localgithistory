@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
@@ -10,7 +10,7 @@ class SearchTagRepository:
         self.storage = get_storage("searchTags")
 
     def _get_timestamp(self) -> str:
-        return datetime.utcnow().isoformat()
+        return datetime.now(timezone.utc).isoformat()
 
     async def findAll(self) -> List[Dict]:
         all_tags = await self.storage.findAll()

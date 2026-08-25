@@ -15,6 +15,10 @@ class ProductRepository:
         self._collections_cache_time = None
         self._cat_gst_map: Optional[Dict[str, float]] = None
         self._cat_gst_map_exp: float = 0.0
+        # Lock prevents thundering herd: only one coroutine rebuilds the
+        # lightweight search catalog at a time; all others wait then serve from cache.
+        self._light_catalog_lock = asyncio.Lock()
+        self._light_catalog_cache: Dict = {}
 
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         if not date_str:
@@ -40,6 +44,7 @@ class ProductRepository:
         "collections": 4,
         "brand": 3,
         "variantAttributes": 3,
+        "price": 6,
         "description": 1,
     }
 
@@ -53,12 +58,30 @@ class ProductRepository:
             for k, v in attrs.items() if isinstance(attrs, dict) else []:
                 parts.append(str(k).lower())
                 parts.append(str(v).lower())
+            if "price" in combo and combo["price"] is not None:
+                p_val = float(combo["price"])
+                parts.append(str(p_val))
+                parts.append(str(int(p_val)))
         return " ".join(parts)
+
+    def _extract_price_text(self, product: Dict) -> str:
+        """Collect text representations of all prices for a product (MRP, case MRP, variant prices)."""
+        parts = []
+        mrp = product.get("mrp")
+        if mrp is not None:
+            fmrp = float(mrp)
+            parts.extend([str(fmrp), str(int(fmrp)), f"rs {int(fmrp)}", f"₹{int(fmrp)}", f"rs.{int(fmrp)}"])
+        mrp_case = product.get("mrpPerCase")
+        if mrp_case is not None:
+            fmrp_case = float(mrp_case)
+            parts.extend([str(fmrp_case), str(int(fmrp_case))])
+        return " ".join(parts).lower()
 
     def _score_product(self, product: Dict, tokens: List[str]) -> float:
         """Score a product against search tokens using weighted field matching.
-        All tokens must match at least one field (AND logic). Score is the sum of field weights."""
+        Supports text matching, price matching, and price range expression matching."""
         score = 0.0
+        price_text = self._extract_price_text(product)
         fields = {
             "name": (product.get("name") or "").lower(),
             "sku": (product.get("sku") or "").lower(),
@@ -69,22 +92,68 @@ class ProductRepository:
             "collections": " ".join(product.get("resolvedCollectionNames") or []).lower(),
             "brand": (product.get("brand") or "").lower(),
             "variantAttributes": self._get_variant_search_text(product),
+            "price": price_text,
             "description": (product.get("description") or "").lower(),
         }
 
+        # Check price range expression patterns across raw query tokens (e.g. 'under 500', 'below 300', '100-500')
+        import re
+
+        full_query = " ".join(tokens).lower()
+        prod_mrp = float(product.get("mrp") or 0.0)
+
+        price_expr_matched = False
+        # Pattern 1: under/below/less than X or <=X
+        match_under = re.search(r"(?:under|below|less\s+than|<=)\s*₹?\s*(\d+(?:\.\d+)?)", full_query)
+        if match_under:
+            limit_val = float(match_under.group(1))
+            if prod_mrp > 0 and prod_mrp <= limit_val:
+                score += self.SEARCH_WEIGHTS["price"] * 2.0
+                price_expr_matched = True
+
+        # Pattern 2: above/over/more than X or >=X
+        match_above = re.search(r"(?:above|over|more\s+than|>=)\s*₹?\s*(\d+(?:\.\d+)?)", full_query)
+        if match_above:
+            limit_val = float(match_above.group(1))
+            if prod_mrp >= limit_val:
+                score += self.SEARCH_WEIGHTS["price"] * 2.0
+                price_expr_matched = True
+
+        # Pattern 3: X to Y or X-Y
+        match_range = re.search(r"(\d+(?:\.\d+)?)\s*(?:to|-)\s*(\d+(?:\.\d+)?)", full_query)
+        if match_range:
+            low_val, high_val = float(match_range.group(1)), float(match_range.group(2))
+            if prod_mrp >= low_val and prod_mrp <= high_val:
+                score += self.SEARCH_WEIGHTS["price"] * 2.0
+                price_expr_matched = True
+
+        price_expr_keywords = {"under", "below", "less", "than", "above", "over", "more", "to"}
+
         for token in tokens:
+            # Clean currency symbols from token (e.g. '₹500' -> '500', 'rs500' -> '500')
+            clean_token = re.sub(r"^(?:rs\.?|₹)", "", token).strip()
+            if not clean_token:
+                clean_token = token
+
             token_matched = False
             for field_name, field_value in fields.items():
-                if token in field_value:
+                if clean_token in field_value or token in field_value:
                     score += self.SEARCH_WEIGHTS[field_name]
                     token_matched = True
+
+            # If token is part of a price expression keyword/value and price expression matched, count token as matched
+            if not token_matched and (price_expr_matched or token in price_expr_keywords):
+                if price_expr_matched:
+                    token_matched = True
+
             if not token_matched:
                 return 0.0  # AND logic: all tokens must match somewhere
         return score
 
-    def _weighted_search(self, products: List[Dict], search_query: str) -> Dict:
+    async def _weighted_search(self, products: List[Dict], search_query: str) -> Dict:
         """Filter and rank products using multi-word tokenized search with weighted relevance scoring.
-        Falls back to fuzzy matching if exact search yields fewer than 5 results."""
+        Falls back to fuzzy matching if exact search yields fewer than 5 results.
+        The CPU-heavy fuzzy search is offloaded to a thread pool to avoid blocking the event loop."""
         tokens = [t.lower() for t in search_query.split() if t.strip()]
         if not tokens:
             return {"products": products, "usedFuzzy": False, "suggestedQuery": None}
@@ -99,9 +168,13 @@ class ProductRepository:
         used_fuzzy = False
         suggested_query = None
 
-        # Fuzzy fallback if too few exact results
+        # Fuzzy fallback if too few exact results — run in thread pool to avoid blocking the event loop
         if len(scored) < 5:
-            fuzzy_results, suggested_query = self._fuzzy_search(products, tokens, already_matched={p.get("_id") for p in scored})
+            already_matched = {p.get("_id") for p in scored}
+            loop = asyncio.get_event_loop()
+            fuzzy_results, suggested_query = await loop.run_in_executor(
+                None, self._fuzzy_search, products, tokens, already_matched
+            )
             if fuzzy_results:
                 scored.extend(fuzzy_results)
                 used_fuzzy = True
@@ -115,7 +188,9 @@ class ProductRepository:
 
         return {"products": scored, "usedFuzzy": used_fuzzy, "suggestedQuery": suggested_query}
 
-    def _fuzzy_search(self, products: List[Dict], tokens: List[str], already_matched: set) -> tuple[List[Dict], Optional[str]]:
+    def _fuzzy_search(
+        self, products: List[Dict], tokens: List[str], already_matched: set
+    ) -> tuple[List[Dict], Optional[str]]:
         """Fuzzy matching fallback using difflib for typo tolerance."""
         from difflib import SequenceMatcher
 
@@ -165,8 +240,14 @@ class ProductRepository:
                 p["_searchScore"] = total_score * 0.8  # Slightly lower than exact matches
                 fuzzy_results.append(p)
                 for token, sugg in product_token_suggestions.items():
-                    if sugg["ratio"] > best_token_suggestions[token]["ratio"] or best_token_suggestions[token]["ratio"] == 1.0:
-                        if best_token_suggestions[token]["ratio"] < 1.0 or sugg["ratio"] > best_token_suggestions[token]["ratio"]:
+                    if (
+                        sugg["ratio"] > best_token_suggestions[token]["ratio"]
+                        or best_token_suggestions[token]["ratio"] == 1.0
+                    ):
+                        if (
+                            best_token_suggestions[token]["ratio"] < 1.0
+                            or sugg["ratio"] > best_token_suggestions[token]["ratio"]
+                        ):
                             best_token_suggestions[token] = sugg
                     if best_token_suggestions[token]["ratio"] == 1.0:
                         best_token_suggestions[token] = sugg
@@ -185,47 +266,62 @@ class ProductRepository:
         return fuzzy_results, suggested_query
 
     async def _get_lightweight_search_catalog(self, role: str, user_id: Optional[str]) -> List[Dict]:
-        import time as _t
-        
         _TTL = 300.0
-        now_m = _t.monotonic()
+        now_m = time_module.monotonic()
         effective_role = "wholesaler" if role == "wholesaler" else "customer"
-        
-        if not hasattr(self, "_light_catalog_cache"):
-            self._light_catalog_cache = {}
-            
+
+        # Fast path: serve from warm cache without acquiring the lock
         entry = self._light_catalog_cache.get(effective_role)
         if entry and now_m < entry["exp"]:
             return entry["data"]
-            
-        raw_products = await self.storage.findAll({"isActive": True})
-        
-        products = await self._attach_category_gst(raw_products)
-        products = await self.add_dynamic_tags(products, effective_role, None)
-        products = await self.resolve_search_tags(products)
-        
-        light_products = []
-        for p in products:
-            light_products.append({
-                "_id": p.get("_id"),
-                "name": p.get("name"),
-                "sku": p.get("sku"),
-                "searchTags": p.get("searchTags"),
-                "category": p.get("category"),
-                "categoryTag": p.get("categoryTag"),
-                "subCategory": p.get("subCategory"),
-                "resolvedCollectionNames": p.get("resolvedCollectionNames"),
-                "brand": p.get("brand"),
-                "variantAttributes": p.get("variantAttributes"),
-                "variantCombinations": p.get("variantCombinations"),
-                "description": p.get("description"),
-            })
-            
-        self._light_catalog_cache[effective_role] = {
-            "data": light_products,
-            "exp": now_m + _TTL
-        }
-        return light_products
+
+        # Slow path: cache is cold or expired — acquire lock so only ONE
+        # coroutine rebuilds it while all others wait, then serve from cache.
+        async with self._light_catalog_lock:
+            # Double-check: another coroutine may have built the cache
+            # while we were waiting for the lock.
+            entry = self._light_catalog_cache.get(effective_role)
+            if entry and now_m < entry["exp"]:
+                return entry["data"]
+
+            # We are genuinely the first — build the cache now.
+            raw_products = await self.storage.findAll({"isActive": True})
+
+            products = await self._attach_category_gst(raw_products)
+            products = await self.add_dynamic_tags(products, effective_role, None)
+            products = await self.resolve_search_tags(products)
+
+            light_products = [
+                {
+                    "_id": p.get("_id"),
+                    "name": p.get("name"),
+                    "sku": p.get("sku"),
+                    "searchTags": p.get("searchTags"),
+                    "category": p.get("category"),
+                    "categoryTag": p.get("categoryTag"),
+                    "subCategory": p.get("subCategory"),
+                    "resolvedCollectionNames": p.get("resolvedCollectionNames"),
+                    "brand": p.get("brand"),
+                    "variantAttributes": p.get("variantAttributes"),
+                    "variantCombinations": p.get("variantCombinations"),
+                    "description": p.get("description"),
+                    # Seller IDs for pincode-based availability filtering in autocomplete
+                    "sellerIds": [
+                        str(s.get("sellerId"))
+                        for s in (p.get("sellers") or [])
+                        if s.get("isActive")
+                        and (s.get("stock") or 0) > 0
+                        and s.get("requestStatus", "approved") == "approved"
+                    ],
+                }
+                for p in products
+            ]
+
+            self._light_catalog_cache[effective_role] = {
+                "data": light_products,
+                "exp": time_module.monotonic() + _TTL,
+            }
+            return light_products
 
     async def _attach_category_gst(self, products: List[Dict]) -> List[Dict]:
         if not products:
@@ -302,7 +398,7 @@ class ProductRepository:
 
         # Apply weighted search AFTER tag resolution
         if search_query:
-            search_res = self._weighted_search(products, search_query)
+            search_res = await self._weighted_search(products, search_query)
             products = search_res["products"]
 
         # Apply popularity filter (new, best_selling, trending; exclusive → Collections)
@@ -419,20 +515,23 @@ class ProductRepository:
 
         return products
 
-    async def get_catalog(self, query: Dict, skip: int = 0, limit: int = 50, sort: str = "newest", include_facets: bool = True):
+    async def get_catalog(
+        self, query: Dict, skip: int = 0, limit: int = 50, sort: str = "newest", include_facets: bool = True
+    ):
         """Orchestrates server-side pagination by calling the DAO."""
         dao_query = query.copy()
         role = query.get("role", "customer")
         user_id = query.get("user_id")
-        
+
         allowed_ids_sets = []
-        
+
         # Handle Popularity
         if query.get("popularity"):
             pop = query["popularity"].lower()
             from app.repositories.recommendation_repository import recommendation_repository as _rec_repo
+
             segment = "wholesaler" if role == "wholesaler" else "customer"
-            
+
             if pop == "best_selling":
                 if role == "wholesaler":
                     bf_ids = await _rec_repo.get_business_favourites_product_ids()
@@ -443,23 +542,25 @@ class ProductRepository:
             elif pop == "trending":
                 trending_ids = await _rec_repo.get_trending_product_ids(segment)
                 allowed_ids_sets.append(set(trending_ids))
-                
+
         # Handle Collection
         if query.get("collection"):
             from app.repositories.collection_repository import collection_repository
+
             collection = await collection_repository.findById(query["collection"])
             if collection:
                 allowed_ids_sets.append(set(str(pid) for pid in collection.get("productIds", [])))
             else:
                 allowed_ids_sets.append(set())
-                
+
         # Handle CategoryTag
         if query.get("categoryTag"):
             target_tag = query["categoryTag"].lower()
             from app.repositories.category_repository import category_repository
+
             categories = await category_repository.findAll()
             matching_cats = [c["name"] for c in categories if (c.get("categoryTag") or "").lower() == target_tag]
-            
+
             if matching_cats:
                 # Merge into existing categories filter if any
                 existing = dao_query.get("categories", "")
@@ -470,6 +571,10 @@ class ProductRepository:
             else:
                 allowed_ids_sets.append(set())
 
+        # Handle Serviceable Sellers (Hyperlocal Pincode)
+        if "allowed_seller_ids" in query:
+            dao_query["seller_ids"] = query["allowed_seller_ids"]
+
         if allowed_ids_sets:
             final_allowed = allowed_ids_sets[0]
             for s in allowed_ids_sets[1:]:
@@ -477,45 +582,47 @@ class ProductRepository:
             dao_query["allowed_ids"] = list(final_allowed)
 
         if hasattr(self.storage, "find_paginated"):
-            paginated_products, total_count = await self.storage.find_paginated(dao_query, skip=skip, limit=limit, sort=sort)
-            
+            paginated_products, total_count = await self.storage.find_paginated(
+                dao_query, skip=skip, limit=limit, sort=sort
+            )
+
             search_query = dao_query.get("search", "").strip()
             used_fuzzy = False
             suggested_query = None
-            
+
             if search_query and total_count < 5:
                 # 1. Fetch lightweight in-memory catalog
                 candidate_products = await self._get_lightweight_search_catalog(role, user_id)
-                
+
                 # 2. Apply python-side fuzzy search
-                search_res = self._weighted_search(candidate_products, search_query)
+                search_res = await self._weighted_search(candidate_products, search_query)
                 matched_products = search_res["products"]
                 used_fuzzy = search_res["usedFuzzy"]
                 suggested_query = search_res["suggestedQuery"]
-                
+
                 matched_ids = [p["_id"] for p in matched_products]
-                
+
                 if matched_ids:
                     # 3. Create a new query bypassing the DB string search but enforcing all other filters
                     fuzzy_dao_query = dao_query.copy()
                     fuzzy_dao_query.pop("search", None)
-                    
+
                     if "allowed_ids" in fuzzy_dao_query:
                         existing_set = set(fuzzy_dao_query["allowed_ids"])
                         new_allowed = list(existing_set.intersection(set(matched_ids)))
                     else:
                         new_allowed = matched_ids
-                        
+
                     fuzzy_dao_query["allowed_ids"] = new_allowed
-                    
+
                     if new_allowed:
                         fuzzy_dao_query["limit"] = 1000  # fetch all matching to sort in python
                         full_products = await self.storage.findAll(fuzzy_dao_query)
-                        
+
                         full_products = await self._attach_category_gst(full_products)
                         full_products = await self.add_dynamic_tags(full_products, role, user_id)
                         full_products = await self.resolve_search_tags(full_products)
-                        
+
                         sort_by = sort or dao_query.get("sort", "relevance")
                         if sort_by == "relevance":
                             order_map = {str(p["_id"]): idx for idx, p in enumerate(matched_products)}
@@ -528,9 +635,9 @@ class ProductRepository:
                             full_products.sort(key=lambda p: p.get("name", "").lower())
                         elif sort_by == "name_desc":
                             full_products.sort(key=lambda p: p.get("name", "").lower(), reverse=True)
-                        
+
                         total_count = len(full_products)
-                        paginated_products = full_products[skip:skip+limit]
+                        paginated_products = full_products[skip : skip + limit]
                     else:
                         paginated_products = []
                         total_count = 0
@@ -542,17 +649,18 @@ class ProductRepository:
                 paginated_products = await self._attach_category_gst(paginated_products)
                 paginated_products = await self.add_dynamic_tags(paginated_products, role, user_id)
                 paginated_products = await self.resolve_search_tags(paginated_products)
-            
+
             if include_facets:
                 facets = await self.storage.get_facets(dao_query)
                 # Collections Facet (Simple fallback: return all non-empty collections)
                 from app.repositories.collection_repository import collection_repository
+
                 all_collections = await collection_repository.findAll()
                 available_collections = [col.get("name") for col in all_collections if col.get("productIds")]
                 facets["collections"] = sorted(list(set(available_collections)))
             else:
                 facets = {"brands": [], "categories": [], "subCategories": [], "collections": []}
-            
+
             return paginated_products, total_count, facets, used_fuzzy, suggested_query
         # FileStorage Fallback — disabled: Oracle is the only supported backend.
         # else:
@@ -610,7 +718,8 @@ class ProductRepository:
                         user_ordered_pids.add(str(item.get("product")))
 
         # Calculate thresholds (Aware)
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timezone
+
         now = datetime.now(timezone.utc)
         thirty_days_ago = now - timedelta(days=30)
 
@@ -661,6 +770,8 @@ class ProductRepository:
             elif role in ["customer", "guest"] and pid in trending_ids["customer"]:
                 final_tags.append("trending")
             p["tags"] = final_tags
+            # Mark products the logged-in user has previously bought (all-time, not time-limited)
+            p["previouslyBought"] = bool(user_id and str(pid) in user_ordered_pids)
 
         return products
 
@@ -798,17 +909,24 @@ class ProductRepository:
         product_ids = collection.get("productIds", [])
         if not product_ids:
             return []
-        all_products = await self.storage.findAll()
-        matched = [p for p in all_products if str(p.get("_id")) in [str(pid) for pid in product_ids] and p.get("isActive") is not False]
-        return await self._attach_category_gst(matched)
+        str_ids = [str(pid) for pid in product_ids]
+        products = await self.storage.findAll({"allowed_ids": str_ids, "isActive": True})
+        return await self._attach_category_gst(products)
 
     async def create(self, product_data: Dict):
-        # Generate incremental product ID starting from 1
-        all_products = await self.storage.findAll()
-        max_id = 0
-        for p in all_products:
-            if p.get("productId") and isinstance(p.get("productId"), int):
-                max_id = max(max_id, p.get("productId", 0))
+        # Use DB-native MAX(id) instead of loading all products into memory
+        factory_fn = self.storage._factory() if hasattr(self.storage, "_factory") else None
+        if factory_fn:
+            from sqlalchemy import text as _text
+
+            async with factory_fn() as _session:
+                row = (await _session.execute(_text(f"SELECT MAX(id) FROM {self.storage.TABLE}"))).fetchone()
+                max_id = int(row[0]) if row and row[0] is not None else 0
+        else:
+            all_products = await self.storage.findAll()
+            max_id = max(
+                (p.get("productId", 0) for p in all_products if isinstance(p.get("productId"), int)), default=0
+            )
         product_id = max_id + 1
         product_id_formatted = f"PDT-{product_id}"
 
@@ -910,9 +1028,12 @@ class ProductRepository:
             updated = (await self._attach_category_gst([updated]))[0]
             if has_stock_transition:
                 from app.repositories.product_notification_repository import product_notification_repository
+
                 # Trigger restock notifications asynchronously
                 asyncio.create_task(
-                    product_notification_repository.trigger_restock_notifications(id, old_product_name or updated.get("name", ""))
+                    product_notification_repository.trigger_restock_notifications(
+                        id, old_product_name or updated.get("name", "")
+                    )
                 )
         return updated
 
@@ -962,6 +1083,7 @@ class ProductRepository:
 
         # Apply automatic product discount if cached and not ignored
         from app.repositories.coupon_repository import coupon_repository
+
         active_discounts = getattr(coupon_repository, "_active_automatic_discounts_cache", None)
         if active_discounts and not ignore_auto_discount:
             auto_discount_pct = 0.0
@@ -986,7 +1108,7 @@ class ProductRepository:
                         if role == "wholesaler" and sell_as_case:
                             if c.get("applicableItemType") == "cases" and product.get("quantityPerCase"):
                                 qty_to_use = quantity // product["quantityPerCase"]
-                        
+
                         sorted_tiers = sorted(c["quantityTiers"], key=lambda x: x.get("quantity", 0), reverse=True)
                         matched_pct = 0.0
                         for tier in sorted_tiers:
@@ -1005,7 +1127,7 @@ class ProductRepository:
                         elif c_discount_type == "fixed":
                             if mrp > 0:
                                 pct = (val / mrp) * 100
-                    
+
                     if pct > auto_discount_pct:
                         auto_discount_pct = pct
                         auto_discount_value = val
@@ -1036,7 +1158,13 @@ class ProductRepository:
                 cases = quantity // qty_per_case
                 return round(float(mrp_case) * cases, 2)
         price_per_piece = self.getPriceForRole(
-            product, role, quantity, selected_attributes, sell_as_case, user_id=user_id, ignore_auto_discount=ignore_auto_discount
+            product,
+            role,
+            quantity,
+            selected_attributes,
+            sell_as_case,
+            user_id=user_id,
+            ignore_auto_discount=ignore_auto_discount,
         )
         return round(price_per_piece * quantity, 2)
 
@@ -1047,8 +1175,106 @@ class ProductRepository:
             return 0
         actual_stock = int(product.get("stock", 0))
         from app.repositories.stock_reservation_repository import stock_reservation_repository
+
         reserved = await stock_reservation_repository.get_reserved_quantity(product_id, exclude_user_id=exclude_user_id)
         return max(0, actual_stock - reserved)
+
+    async def decrement_stock_atomic(
+        self, product_id: str, quantity: int, variant_combinations: list = None, role: str = None
+    ):
+        import json
+        from datetime import datetime
+
+        from sqlalchemy import text
+
+        from app.config.database import get_async_session_factory
+
+        factory = get_async_session_factory()
+        if not factory:
+            return None
+
+        async with factory() as session:
+            result = await session.execute(
+                text(f"SELECT id, doc FROM {self.storage.TABLE} WHERE external_id = :id FOR UPDATE"),
+                {"id": product_id},
+            )
+            row = result.fetchone()
+            if not row or not row.doc:
+                return None
+
+            doc = json.loads(row.doc)
+
+            # Reduce variant stock
+            if variant_combinations and doc.get("variantCombinations"):
+                for vc in variant_combinations:
+                    for i, combo in enumerate(doc["variantCombinations"]):
+                        match = True
+                        for k, v in vc.get("attributes", {}).items():
+                            if combo.get("attributes", {}).get(k) != v:
+                                match = False
+                                break
+                        if match:
+                            doc["variantCombinations"][i]["stock"] = max(
+                                0, doc["variantCombinations"][i].get("stock", 0) - vc["quantity"]
+                            )
+
+            # Reduce overall stock
+            new_stock = max(0, doc.get("stock", 0) - quantity)
+            doc["stock"] = new_stock
+
+            if role == "wholesaler":
+                doc["wholesalerPurchaseCount"] = doc.get("wholesalerPurchaseCount", 0) + 1
+            else:
+                doc["customerPurchaseCount"] = doc.get("customerPurchaseCount", 0) + 1
+
+            doc["updatedAt"] = datetime.now(timezone.utc).isoformat()
+
+            await session.execute(
+                text(f"UPDATE {self.storage.TABLE} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :rid"),
+                {"doc": json.dumps(doc, default=str), "rid": row.id},
+            )
+            await session.commit()
+            return new_stock
+
+    async def increment_stock_atomic(self, product_id: str, quantity: int) -> int:
+        """Atomically restore stock for a cancelled/declined order using SELECT … FOR UPDATE.
+
+        Mirrors decrement_stock_atomic — both use a row-level lock so concurrent
+        cancel + new-order operations cannot race and produce wrong stock counts.
+
+        Returns the new stock value after increment, or -1 if the factory is unavailable.
+        """
+        import json
+        from datetime import datetime
+
+        from sqlalchemy import text
+
+        from app.config.database import get_async_session_factory
+
+        factory = get_async_session_factory()
+        if not factory:
+            return -1
+
+        async with factory() as session:
+            result = await session.execute(
+                text(f"SELECT id, doc FROM {self.storage.TABLE} WHERE external_id = :id FOR UPDATE"),
+                {"id": product_id},
+            )
+            row = result.fetchone()
+            if not row or not row.doc:
+                return -1
+
+            doc = json.loads(row.doc)
+            new_stock = doc.get("stock", 0) + quantity
+            doc["stock"] = new_stock
+            doc["updatedAt"] = datetime.now(timezone.utc).isoformat()
+
+            await session.execute(
+                text(f"UPDATE {self.storage.TABLE} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :rid"),
+                {"doc": json.dumps(doc, default=str), "rid": row.id},
+            )
+            await session.commit()
+            return new_stock
 
 
 product_repository = ProductRepository()

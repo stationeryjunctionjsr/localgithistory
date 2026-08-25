@@ -59,15 +59,14 @@ def _payment_row_to_doc(r, entries: List[Dict]) -> Dict:
 
 
 class OraclePaymentDAO:
-
     @property
     def PAYMENTS_TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_payments{suffix}"
 
     @property
     def ENTRIES_TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_payment_entries{suffix}"
 
     def _factory(self):
@@ -109,14 +108,14 @@ class OraclePaymentDAO:
                 if not allowed_order_ids:
                     where_clauses.append("1=0")
                 else:
-                    chunks = [allowed_order_ids[i:i + 999] for i in range(0, len(allowed_order_ids), 999)]
+                    chunks = [allowed_order_ids[i : i + 999] for i in range(0, len(allowed_order_ids), 999)]
                     chunk_sqls = []
                     for chunk_idx, chunk in enumerate(chunks):
                         id_params = {f"aoid_{chunk_idx}_{i}": oid for i, oid in enumerate(chunk)}
                         params.update(id_params)
                         id_placeholders = ", ".join([f":{k}" for k in id_params.keys()])
                         chunk_sqls.append(f"order_id IN ({id_placeholders})")
-                    
+
                     if len(chunk_sqls) == 1:
                         where_clauses.append(chunk_sqls[0])
                     else:

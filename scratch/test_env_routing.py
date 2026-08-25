@@ -2,6 +2,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 backend_root = Path(__file__).resolve().parent.parent / "backend"
@@ -11,9 +12,10 @@ load_dotenv()
 
 from app.config.settings import settings
 from app.db.storage_factory import get_storage
-from app.repositories.user_repository import user_repository
 from app.repositories.product_repository import product_repository
 from app.repositories.stock_reservation_repository import stock_reservation_repository
+from app.repositories.user_repository import user_repository
+
 
 async def main():
     print("[*] Starting Environment Routing and CRUD Verification...")
@@ -56,13 +58,13 @@ async def main():
     # Test 4: UAT CRUD Operation with Identity Column & Sequence Restart
     print("\n--- Test 4: UAT CRUD / Identity sequence check ---")
     settings.table_suffix = "_UAT"
-    
+
     # Clean up any leftover test product using storage findOne with includeInactive
     existing = await product_repository.storage.findOne({"sku": "UAT-NB-001", "includeInactive": True})
     if existing:
         print("  Cleaning up leftover UAT-NB-001 product...")
         await product_repository.storage.delete(existing["_id"])
-        
+
     # 1. Create a dummy product in UAT
     product_data = {
         "name": "UAT Test Notebook",
@@ -72,30 +74,31 @@ async def main():
         "priceForRetailer": 95.0,
         "priceForWholesaler": 85.0,
         "stock": 100,
-        "isActive": True
+        "isActive": True,
     }
-    
+
     try:
         new_prod = await product_repository.create(product_data)
         print(f"  [+] Created UAT test product: {new_prod['name']} (ID: {new_prod['_id']})")
         assert new_prod["_id"].isdigit(), "New ID should be numeric identity"
-        
+
         # 2. Update it
         updated_prod = await product_repository.update(new_prod["_id"], {"stock": 150})
         print(f"  [+] Updated UAT product stock to: {updated_prod['stock']}")
         assert updated_prod["stock"] == 150, "Update failed"
-        
+
         # 3. Clean up (delete it via storage to hard delete)
         deleted = await product_repository.storage.delete(new_prod["_id"])
         print(f"  [+] Deleted UAT test product: {deleted}")
         assert deleted, "Delete failed"
-        
+
         print("[+] Test 4 passed successfully! Dynamic CRUD and sequence restarts are fully operational!")
     except Exception as e:
         print(f"  [-] CRUD error: {e}")
         sys.exit(1)
 
     print("\n[+] Verification complete. All systems fully functional under UAT suffix routing!")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

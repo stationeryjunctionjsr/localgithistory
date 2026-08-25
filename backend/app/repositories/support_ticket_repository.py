@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from app.db.storage_factory import get_storage
@@ -10,7 +10,7 @@ class SupportTicketRepository:
         self.storage = get_storage("supportTickets")
 
     def generateTicketNumber(self) -> str:
-        return f"TKT-{int(datetime.utcnow().timestamp() * 1000)}-{secrets.token_hex(4).upper()}"
+        return f"TKT-{int(datetime.now(timezone.utc).timestamp() * 1000)}-{secrets.token_hex(4).upper()}"
 
     async def findAll(self, query: Optional[Dict] = None):
         tickets = await self.storage.findAll()
@@ -52,16 +52,16 @@ class SupportTicketRepository:
             "responses": [],
             "resolvedAt": None,
             "closedAt": None,
-            "createdAt": datetime.utcnow().isoformat(),
+            "createdAt": datetime.now(timezone.utc).isoformat(),
         }
 
         return await self.storage.create(ticket)
 
     async def update(self, id: str, update_data: Dict):
         if update_data.get("status") == "resolved" and "resolvedAt" not in update_data:
-            update_data["resolvedAt"] = datetime.utcnow().isoformat()
+            update_data["resolvedAt"] = datetime.now(timezone.utc).isoformat()
         elif update_data.get("status") == "closed" and "closedAt" not in update_data:
-            update_data["closedAt"] = datetime.utcnow().isoformat()
+            update_data["closedAt"] = datetime.now(timezone.utc).isoformat()
 
         return await self.storage.update(id, update_data)
 
@@ -75,7 +75,7 @@ class SupportTicketRepository:
             "message": response_data["message"],
             "attachments": response_data.get("attachments", []),
             "isAdminResponse": response_data.get("isAdminResponse", False),
-            "createdAt": datetime.utcnow().isoformat(),
+            "createdAt": datetime.now(timezone.utc).isoformat(),
         }
 
         ticket["responses"] = ticket.get("responses", [])

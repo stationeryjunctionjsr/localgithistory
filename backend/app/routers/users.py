@@ -13,7 +13,6 @@ router = APIRouter()
 
 
 @router.get("", response_model=List[UserResponse])
-
 @router.get("/", response_model=List[UserResponse])
 async def get_users(
     role: Optional[str] = None,
@@ -305,6 +304,7 @@ async def change_password(
         if not password_data.currentPassword:
             raise HTTPException(status_code=400, detail="currentPassword is required")
         from app.utils.auth import verify_password
+
         stored_hash = user.get("password", "")
         if not stored_hash or not verify_password(password_data.currentPassword, stored_hash):
             raise HTTPException(status_code=400, detail="Current password is incorrect")
@@ -377,9 +377,7 @@ async def verify_email(data: VerifyEmailRequest, request: Request, current_user:
 
     result = await verify_email_otp_async(email, data.code)
     if not result.get("valid"):
-        raise HTTPException(
-            status_code=400, detail=result.get("message", "Invalid or expired verification code.")
-        )
+        raise HTTPException(status_code=400, detail=result.get("message", "Invalid or expired verification code."))
 
     await user_repository.update(user_id, {"isEmailVerified": True})
     return {"message": "Email verified successfully."}

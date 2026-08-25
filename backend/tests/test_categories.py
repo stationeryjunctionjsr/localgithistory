@@ -6,6 +6,7 @@ from app.repositories.category_repository import CategoryRepository
 
 category_repository = CategoryRepository()
 
+
 @pytest.fixture(autouse=True)
 def override_admin():
     app.dependency_overrides[require_super_admin] = lambda: {"role": "super_admin"}
@@ -26,7 +27,7 @@ async def test_category_crud_workflow(client: AsyncClient):
         "description": "Category for testing return feature",
         "minimumQuantity": 5,
         "gst": 12.5,
-        "isReturnable": True
+        "isReturnable": True,
     }
     response = await client.post("/api/categories/", json=payload)
     assert response.status_code == 200, response.text
@@ -44,10 +45,7 @@ async def test_category_crud_workflow(client: AsyncClient):
     assert fetched["isReturnable"] is True
 
     # 3. Update Category (isReturnable -> False, gst -> 18.0)
-    update_payload = {
-        "gst": 18.0,
-        "isReturnable": False
-    }
+    update_payload = {"gst": 18.0, "isReturnable": False}
     response = await client.put(f"/api/categories/{category_id}", json=update_payload)
     assert response.status_code == 200
     updated = response.json()

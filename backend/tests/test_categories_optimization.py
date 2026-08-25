@@ -1,6 +1,7 @@
 import pytest
 from app.repositories.category_repository import category_repository
 
+
 @pytest.fixture(autouse=True)
 async def cleanup_categories():
     yield
@@ -12,23 +13,28 @@ async def cleanup_categories():
     except Exception:
         pass
 
+
 @pytest.mark.asyncio
 async def test_category_optimizations():
     # 1. Create test categories
-    c1 = await category_repository.create({
-        "name": "TEST_CAT_OPT_Pen",
-        "description": "Category for pens",
-        "categoryTag": "stationery",
-        "isActive": True,
-        "isReturnable": True
-    })
-    c2 = await category_repository.create({
-        "name": "TEST_CAT_OPT_Paper",
-        "description": "Category for paper",
-        "categoryTag": "stationery",
-        "isActive": False,
-        "isReturnable": False
-    })
+    c1 = await category_repository.create(
+        {
+            "name": "TEST_CAT_OPT_Pen",
+            "description": "Category for pens",
+            "categoryTag": "stationery",
+            "isActive": True,
+            "isReturnable": True,
+        }
+    )
+    c2 = await category_repository.create(
+        {
+            "name": "TEST_CAT_OPT_Paper",
+            "description": "Category for paper",
+            "categoryTag": "stationery",
+            "isActive": False,
+            "isReturnable": False,
+        }
+    )
 
     # 2. Test exact name lookup
     found_pen = await category_repository.findByName("TEST_CAT_OPT_Pen")

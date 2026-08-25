@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.models.schemas import BrandCreate, BrandUpdate
@@ -56,13 +55,13 @@ def _invalidate_brand_caches():
     cache.invalidate(get_public_brands)
     try:
         from app.routers.categories import get_tag_brands
+
         cache.invalidate(get_tag_brands)
     except Exception:
         pass
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_brand(data: BrandCreate, current_user: dict = Depends(require_super_admin)):
     brand = await brand_repository.create(data.model_dump())

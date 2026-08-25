@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 import {
   getGuestWishlist,
   removeGuestWishlistItem,
@@ -54,25 +55,36 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
         setItems(mapped as any);
       }
     } catch (error) {
-      console.error('Error fetching wishlist:', error);
+      logger.error('Error fetching wishlist:', error);
     } finally {
       setLoading(false);
     }
   };
 
   // Sync wishlist on mount, when user changes, on tab focus (instant), and
-  // every 60s in the background (cross-device sync). Previously 5s.
+  // every 60s when the tab is visible. Poll is paused when the tab is hidden
+  // to avoid unnecessary DB load from inactive users.
   useEffect(() => {
     fetchWishlist();
     const handleSync = () => fetchWishlist();
     window.addEventListener('guest-data-synced', handleSync);
-    const handleFocus = () => fetchWishlist();
-    window.addEventListener('focus', handleFocus);
-    const interval = setInterval(fetchWishlist, 60_000);
+
+    let interval: ReturnType<typeof setInterval> | null = setInterval(fetchWishlist, 60_000);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+      } else {
+        fetchWishlist(); // Immediately refresh on return
+        interval = setInterval(fetchWishlist, 60_000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       window.removeEventListener('guest-data-synced', handleSync);
-      window.removeEventListener('focus', handleFocus);
-      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (interval) clearInterval(interval);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -89,14 +101,14 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
             const res = await api.get(`/products/public/${productId}`);
             productData = res.data;
           } catch (err) {
-            console.error('Failed to fetch product for guest wishlist', err);
+            logger.error('Failed to fetch product for guest wishlist', err);
           }
         }
         addGuestWishlistItem(productId, productData);
         await fetchWishlist();
       }
     } catch (error) {
-      console.error('Error adding to wishlist:', error);
+      logger.error('Error adding to wishlist:', error);
     }
   };
 
@@ -110,7 +122,7 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
         await fetchWishlist();
       }
     } catch (error) {
-      console.error('Error removing from wishlist:', error);
+      logger.error('Error removing from wishlist:', error);
     }
   };
 

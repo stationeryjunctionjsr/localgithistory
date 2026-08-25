@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 import {
   BarChart,
   Bar,
@@ -32,7 +33,7 @@ export default function UserEngagementChart({ startDate, endDate }: UserEngageme
         const response = await api.get('/analytics/all-user-engagement', { params });
         setData(response.data.duration_buckets);
       } catch (error) {
-        console.error('Failed to fetch user engagement data', error);
+        logger.error('Failed to fetch user engagement data', error);
       } finally {
         setLoading(false);
       }

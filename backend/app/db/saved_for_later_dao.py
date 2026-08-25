@@ -24,10 +24,11 @@ def _to_ts(val):
     except Exception:
         return None
 
+
 class OracleSavedForLaterDAO:
     @property
     def TABLE(self) -> str:
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_saved_for_later{suffix}"
 
     def _factory(self):
@@ -58,7 +59,7 @@ class OracleSavedForLaterDAO:
         factory = self._factory()
         if not factory:
             return []
-        
+
         user_id = query.get("user") if query else None
         if user_id:
             items = await self._get_items_for_user(str(user_id))

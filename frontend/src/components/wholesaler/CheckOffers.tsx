@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface CheckOffersProps {
   isOpen: boolean;
@@ -26,7 +27,7 @@ export default function CheckOffers({ isOpen, onClose, product }: CheckOffersPro
       const response = await api.get(`/schemes/applicable/${product._id}`);
       setOffers(response.data || []);
     } catch (err) {
-      console.error('Failed to fetch applicable offers', err);
+      logger.error('Failed to fetch applicable offers', err);
       setOffers([]);
     } finally {
       setLoading(false);

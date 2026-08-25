@@ -11,7 +11,7 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: process.env.NODE_ENV !== 'production' },
 
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
 
   // Image optimisation – serve WebP/AVIF automatically, long CDN TTL
@@ -23,7 +23,12 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       { protocol: 'http', hostname: 'localhost' },
-      { protocol: 'https', hostname: '**' },
+      // OCI Object Storage — restrict to the project's specific namespace/bucket hostname.
+      // Update the hostname below to match your OCI region and namespace, e.g.:
+      //   <namespace>.objectstorage.<region>.oci.customer-oci.com
+      { protocol: 'https', hostname: '*.objectstorage.*.oci.customer-oci.com' },
+      { protocol: 'https', hostname: '*.objectstorage.*.oraclecloud.com' },
+      // Add any other specific CDN / media host here. Avoid wildcards like '**'.
     ],
   },
 
@@ -46,11 +51,11 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*/',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api'}/:path*/`.replace('/api/api/', '/api/'),
+        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*/`.replace('/api/api/', '/api/'),
       },
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api'}/:path*`.replace('/api/api/', '/api/'),
+        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`.replace('/api/api/', '/api/'),
       },
     ];
   },
@@ -63,7 +68,7 @@ const nextConfig = {
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https: http:",
       "connect-src 'self' https://www.google-analytics.com https://www.clarity.ms https://control.msg91.com https://verify.msg91.com " +
-        (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'),
+        (process.env.NEXT_PUBLIC_API_URL),
       "frame-src 'self' https://www.google.com https://www.googletagmanager.com https://verify.msg91.com",
       "object-src 'none'",
       "base-uri 'self'",
@@ -125,7 +130,7 @@ const nextConfig = {
   // },
 
   // Output standalone build for leaner Docker / server deploys (optional)
-  // output: 'standalone',
+  output: 'standalone',
 };
 
 module.exports = nextConfig;

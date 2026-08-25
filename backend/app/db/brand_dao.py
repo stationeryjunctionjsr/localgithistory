@@ -13,10 +13,9 @@ from app.db.oracle_utils import now_utc
 
 
 class OracleBrandDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_brands{suffix}"
 
     def _factory(self):

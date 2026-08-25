@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
@@ -112,7 +112,7 @@ async def check_return_eligibility(order_id: str, current_user: dict = Depends(g
     settings = await return_settings_repository.get_settings()
     return_days = settings.get("returnDays", 7)
 
-    if datetime.utcnow() > delivered_at + timedelta(days=return_days):
+    if datetime.now(timezone.utc) > delivered_at + timedelta(days=return_days):
         return {"eligibleItems": [], "reason": f"Return window of {return_days} days has expired"}
 
     # Check for existing pending/approved returns for this order to avoid duplicates on same items
@@ -314,9 +314,17 @@ async def complete_return(
                     product.get("_id"), {"stock": product.get("stock", 0) + item.get("quantity", 0)}
                 )
         except (ValueError, KeyError, TypeError) as e:
-            logger.warning("Data error restocking product %s for return %s: %s", item.get("productId"), req.get("_id"), str(e))
+            logger.warning(
+                "Data error restocking product %s for return %s: %s", item.get("productId"), req.get("_id"), str(e)
+            )
         except Exception as e:
-            logger.error("Unexpected error restocking product %s for return %s: %s", item.get("productId"), req.get("_id"), str(e), exc_info=True)
+            logger.error(
+                "Unexpected error restocking product %s for return %s: %s",
+                item.get("productId"),
+                req.get("_id"),
+                str(e),
+                exc_info=True,
+            )
 
     populated_req = await populate_return_request(updated)
     email = populated_req.get("user", {}).get("email") if populated_req.get("user") else None

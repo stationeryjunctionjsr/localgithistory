@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as SecureStore from 'expo-secure-store';
-import api, { TOKEN_KEY } from '../../src/api/client';
+import api, { TOKEN_KEY, getImageUrl } from '../../src/api/client';
 import { colors, spacing, typography } from '../../src/theme';
 import { formatDateTimeIST } from '../../src/utils/dateUtils';
 
@@ -975,7 +975,7 @@ const styles = StyleSheet.create({
   },
   chargeAmount: {
     fontSize: 16,
-    fontWeight: '750',
+    fontWeight: '700',
     color: '#991B1B',
   },
   notesInput: {

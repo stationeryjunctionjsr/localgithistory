@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime, timezone, timedelta
 from app.repositories.notification_repository import notification_repository
 
+
 @pytest.fixture(autouse=True)
 async def cleanup_notifications():
     yield
@@ -13,27 +14,19 @@ async def cleanup_notifications():
     except Exception:
         pass
 
+
 @pytest.mark.asyncio
 async def test_notification_optimizations():
     # 1. Create a set of test notifications with distinct attributes
-    n1 = await notification_repository.create({
-        "title": "TEST_OPT_1",
-        "message": "Message 1",
-        "userId": "user_opt_A",
-        "type": "new_order"
-    })
-    n2 = await notification_repository.create({
-        "title": "TEST_OPT_2",
-        "message": "Message 2",
-        "userId": "user_opt_A",
-        "type": "low_stock"
-    })
-    n3 = await notification_repository.create({
-        "title": "TEST_OPT_3",
-        "message": "Message 3",
-        "userId": "user_opt_B",
-        "type": "new_order"
-    })
+    n1 = await notification_repository.create(
+        {"title": "TEST_OPT_1", "message": "Message 1", "userId": "user_opt_A", "type": "new_order"}
+    )
+    n2 = await notification_repository.create(
+        {"title": "TEST_OPT_2", "message": "Message 2", "userId": "user_opt_A", "type": "low_stock"}
+    )
+    n3 = await notification_repository.create(
+        {"title": "TEST_OPT_3", "message": "Message 3", "userId": "user_opt_B", "type": "new_order"}
+    )
 
     # Initially all should be unread and unacknowledged
     assert n1["isRead"] is False
@@ -79,7 +72,7 @@ async def test_notification_optimizations():
     # n2: isRead=True, isAcknowledged=False (needs update)
     # n3: isRead=False, isAcknowledged=True (needs update)
     count = await notification_repository.markAllAsRead()
-    
+
     # Check that it returns the count of updated notifications (at least 3 in this case)
     assert count >= 3
 

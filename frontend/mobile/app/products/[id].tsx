@@ -19,6 +19,7 @@ import * as SecureStore from 'expo-secure-store';
 import { colors } from '../../src/theme';
 import Toast from 'react-native-toast-message';
 import { useAuth } from '../../src/hooks/useAuth';
+import { usePincode } from '../../src/context/PincodeContext';
 import { trackRecommendationEvent } from '../../src/utils/analytics';
 import {
   addGuestCartItem,
@@ -110,6 +111,25 @@ export default function ProductDetail() {
     enabled: !!productId,
   });
 
+  // Fetch bundles containing this product
+  const { data: bundlesData } = useQuery<{ bundles: any[] }>(
+    {
+      queryKey: ['product-bundles', productId],
+      queryFn: async () => {
+        if (!productId) return { bundles: [] };
+        try {
+          const res = await api.get(`/bundles/product/${productId}`);
+          return res.data || { bundles: [] };
+        } catch {
+          return { bundles: [] };
+        }
+      },
+      enabled: !!productId,
+      staleTime: 5 * 60 * 1000,
+    }
+  );
+  const productBundles = bundlesData?.bundles?.filter(b => b.isAvailable !== false) || [];
+
   const { user } = useAuth();
   const [adding, setAdding] = useState(false);
   const [wishlisting, setWishlisting] = useState(false);
@@ -120,6 +140,29 @@ export default function ProductDetail() {
   const [selectedVariant, setSelectedVariant] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [existingCartItem, setExistingCartItem] = useState<any>(null);
+  const [addingBundleId, setAddingBundleId] = useState<string | null>(null);
+  const [cartItemsState, setCartItemsState] = useState<any[]>([]);
+
+  // Pincode Availability
+  const { pincode, serviceableSellers } = usePincode();
+  const [requestAdded, setRequestAdded] = useState(false);
+  const [notifyAdded, setNotifyAdded] = useState(false);
+  const [pincodeActionLoading, setPincodeActionLoading] = useState<'request' | 'notify' | null>(null);
+
+  const isAvailableAtPincode = React.useMemo(() => {
+    if (!pincode) return true; // No pincode set -> optimistic
+    if (!serviceableSellers || serviceableSellers.length === 0) return false;
+    const productSellers: any[] = (product as any)?.sellers || [];
+    if (productSellers.length === 0) return true;
+    const serviceableIds = new Set(serviceableSellers.map((s: any) => String(s.id)));
+    return productSellers.some(
+      (s: any) =>
+        s.isActive &&
+        (s.stock ?? 0) > 0 &&
+        (s.requestStatus === 'approved' || !s.requestStatus) &&
+        serviceableIds.has(String(s.sellerId))
+    );
+  }, [pincode, serviceableSellers, product]);
 
   useEffect(() => {
     if (coachMarks.isReady && !loading && product) {
@@ -155,30 +198,32 @@ export default function ProductDetail() {
     }
   }, [productId, product, slot, strategy]);
 
+  const fetchCartStatus = async () => {
+    if (!productId) return;
+    try {
+      let cartItems = [];
+      if (user) {
+        const res = await api.get('/cart');
+        cartItems = res.data || [];
+      } else {
+        cartItems = await getGuestCart();
+      }
+      setCartItemsState(cartItems);
+      const found = cartItems.find(
+        (item: any) => String(item.productId || item._id) === String(productId)
+      );
+      if (found) {
+        setExistingCartItem(found);
+        setQuantity(found.quantity || 1);
+        setShowGoToCart(true);
+      }
+    } catch (err) {
+      if (__DEV__) console.warn('[PDP] cart fetch failed', err);
+    }
+  };
+
   // Check cart status on mount
   useEffect(() => {
-    if (!productId) return;
-    const fetchCartStatus = async () => {
-      try {
-        let cartItems = [];
-        if (user) {
-          const res = await api.get('/cart');
-          cartItems = res.data || [];
-        } else {
-          cartItems = await getGuestCart();
-        }
-        const found = cartItems.find(
-          (item: any) => String(item.productId || item._id) === String(productId)
-        );
-        if (found) {
-          setExistingCartItem(found);
-          setQuantity(found.quantity || 1);
-          setShowGoToCart(true);
-        }
-      } catch (err) {
-        if (__DEV__) console.warn('[PDP] cart fetch failed', err);
-      }
-    };
     fetchCartStatus();
   }, [user, productId]);
 
@@ -579,6 +624,161 @@ export default function ProductDetail() {
             </View>
           )}
 
+          {/* Available in Bundles */}
+          {productBundles.length > 0 && (
+            <View style={{ marginBottom: 32 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <Ionicons name="gift-outline" size={18} color="#1a4d33" />
+                <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: '700', color: '#111827' }}>
+                  Available in Bundle Deals
+                </Text>
+              </View>
+              {productBundles.map((bundle) => {
+                const addBundleToCart = async (bundleId: string, bundleName: string) => {
+                  if (!user) {
+                    Toast.show({ type: 'info', text1: 'Sign in required', text2: 'Please sign in to add bundles to cart.' });
+                    return;
+                  }
+                  setAddingBundleId(bundleId);
+                  try {
+                    await api.post(`/bundles/${bundleId}/add-to-cart`, {});
+                    Toast.show({ type: 'success', text1: '🎁 Bundle added!', text2: `${bundleName} has been added to your cart.` });
+                    await fetchCartStatus();
+                  } catch (err: any) {
+                    Toast.show({ type: 'error', text1: 'Error', text2: err?.response?.data?.detail || 'Could not add bundle to cart.' });
+                  }
+                  setAddingBundleId(null);
+                };
+                
+                const addingBundle = addingBundleId === bundle._id;
+
+                return (
+                  <View
+                    key={bundle._id}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: '#D1FAE5',
+                      borderRadius: 16,
+                      backgroundColor: '#F0FDF4',
+                      padding: 16,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827', flex: 1, marginRight: 8 }}>
+                        {bundle.name}
+                      </Text>
+                      {bundle.savingsPercent > 0 && (
+                        <View style={{ backgroundColor: '#059669', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
+                          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{bundle.savingsPercent}% OFF</Text>
+                        </View>
+                      )}
+                    </View>
+                    {bundle.description ? (
+                      <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 8 }}>{bundle.description}</Text>
+                    ) : null}
+                    {/* Included Items List - matches web implementation */}
+                    <View style={{ marginBottom: 12, borderTopWidth: 1, borderTopColor: '#D1FAE5', paddingTop: 8 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 6 }}>
+                        INCLUDED ITEMS
+                      </Text>
+                      {bundle.items?.map((bItem: any, idx: number) => (
+                        <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
+                          <Text style={{ fontSize: 12, color: '#374151', flex: 1, paddingRight: 8 }} numberOfLines={1}>
+                            • {bItem.product?.name || 'Product'}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: '#6B7280', fontWeight: '600' }}>×{bItem.quantity}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: 12 }}>
+                      <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>
+                        ₹{Math.round(bundle.price).toLocaleString()}
+                      </Text>
+                      {bundle.savings > 0 && (
+                        <Text style={{ marginLeft: 8, fontSize: 13, color: '#6B7280', textDecorationLine: 'line-through' }}>
+                          ₹{Math.round(bundle.totalMrp).toLocaleString()}
+                        </Text>
+                      )}
+                      {bundle.savings > 0 && (
+                        <Text style={{ marginLeft: 8, fontSize: 12, color: '#059669', fontWeight: '600' }}>
+                          Save ₹{Math.round(bundle.savings).toLocaleString()}
+                        </Text>
+                      )}
+                    </View>
+                    
+                    {(() => {
+                      const bundleCount = cartItemsState.find((item: any) => item.isBundle && item.bundleId === bundle._id)?.quantity || 0;
+                      
+                      const handleBundleDecrement = async () => {
+                        if (!user) return;
+                        setAddingBundleId(bundle._id);
+                        try {
+                          const bundleItem = cartItemsState.find((item: any) => item.isBundle && item.bundleId === bundle._id);
+                          if (bundleItem) {
+                            if (bundleItem.quantity > 1) {
+                              await api.put(`/cart/${bundleItem._id}`, { quantity: bundleItem.quantity - 1 });
+                            } else {
+                              await api.delete(`/cart/${bundleItem._id}`);
+                            }
+                            await fetchCartStatus();
+                          }
+                        } catch (err: any) {
+                          Toast.show({ type: 'error', text1: 'Error', text2: 'Could not update bundle quantity' });
+                        }
+                        setAddingBundleId(null);
+                      };
+
+                      if (bundleCount > 0) {
+                        return (
+                          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 12, borderWidth: 2, borderColor: '#111827', overflow: 'hidden' }}>
+                            <TouchableOpacity
+                              onPress={handleBundleDecrement}
+                              disabled={addingBundle}
+                              style={{ flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: 'white' }}
+                            >
+                              <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827' }}>−</Text>
+                            </TouchableOpacity>
+                            <View style={{ paddingHorizontal: 20, paddingVertical: 12, borderLeftWidth: 2, borderRightWidth: 2, borderColor: '#111827' }}>
+                              <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>{bundleCount}</Text>
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => addBundleToCart(bundle._id, bundle.name)}
+                              disabled={addingBundle}
+                              style={{ flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: 'white' }}
+                            >
+                              <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827' }}>+</Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      }
+
+                      return (
+                        <TouchableOpacity
+                          onPress={() => addBundleToCart(bundle._id, bundle.name)}
+                          disabled={addingBundle || !bundle.isAvailable}
+                          style={{
+                            backgroundColor: (addingBundle || !bundle.isAvailable) ? '#9CA3AF' : '#111827',
+                            borderRadius: 12,
+                            paddingVertical: 10,
+                            alignItems: 'center',
+                            flexDirection: 'row',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons name="cart-outline" size={16} color="white" />
+                          <Text style={{ color: 'white', fontWeight: '700', marginLeft: 6, fontSize: 14 }}>
+                            {addingBundle ? 'Adding...' : bundle.isAvailable ? 'Add Bundle to Cart' : 'Out of Stock'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })()}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
           {/* Quantity Discounts */}
           {product.quantityTiers && product.quantityTiers.length > 0 && (
             <View className="mb-8 rounded-2xl border border-rose-100 bg-rose-50/30 p-4">
@@ -640,6 +840,80 @@ export default function ProductDetail() {
           {/* Tags */}
           {/* Tags removed as requested */}
         </View>
+
+        {/* Pincode Unavailability Banner */}
+        {pincode && !isAvailableAtPincode && (
+          <View className="mx-4 mb-32 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <View className="flex-row items-start">
+              <Ionicons name="location-outline" size={20} color="#b45309" style={{ marginTop: 2 }} />
+              <View className="ml-3 flex-1">
+                <Text className="text-sm font-bold text-amber-800">
+                  Not available at your pincode ({pincode})
+                </Text>
+                <Text className="mt-1 text-xs text-amber-700">
+                  This product is currently not delivered to your area.
+                </Text>
+                
+                <View className="mt-4 flex-row flex-wrap gap-2">
+                  <TouchableOpacity
+                    onPress={async () => {
+                      if (requestAdded || pincodeActionLoading) return;
+                      setPincodeActionLoading('request');
+                      try {
+                        await api.post('/availability-requests', {
+                          productId: product._id || product.id,
+                          productName: product.name,
+                          pincode,
+                        });
+                        setRequestAdded(true);
+                        Toast.show({ type: 'success', text1: 'Requested', text2: 'We\'ll work on bringing this to your pincode.' });
+                      } catch {
+                        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to submit request.' });
+                      } finally {
+                        setPincodeActionLoading(null);
+                      }
+                    }}
+                    disabled={requestAdded || pincodeActionLoading !== null}
+                    className="flex-row items-center justify-center rounded-lg bg-amber-600 px-4 py-2"
+                    style={{ opacity: (requestAdded || pincodeActionLoading !== null) ? 0.6 : 1 }}
+                  >
+                    <Text className="text-sm font-bold text-white">
+                      {pincodeActionLoading === 'request' ? 'Requesting...' : requestAdded ? '✓ Requested' : '+ Request Addition'}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    onPress={async () => {
+                      if (notifyAdded || pincodeActionLoading) return;
+                      setPincodeActionLoading('notify');
+                      try {
+                        await api.post('/tracking/notify-pincode', {
+                          productId: product._id || product.id,
+                          productName: product.name,
+                          pincode,
+                        });
+                        setNotifyAdded(true);
+                        Toast.show({ type: 'success', text1: 'Notified', text2: 'We\'ll notify you when available.' });
+                      } catch {
+                        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to set notification.' });
+                      } finally {
+                        setPincodeActionLoading(null);
+                      }
+                    }}
+                    disabled={notifyAdded || pincodeActionLoading !== null}
+                    className="flex-row items-center justify-center rounded-lg border border-amber-600 px-4 py-2"
+                    style={{ opacity: (notifyAdded || pincodeActionLoading !== null) ? 0.6 : 1 }}
+                  >
+                    <Ionicons name="notifications-outline" size={16} color="#d97706" style={{ marginRight: 6 }} />
+                    <Text className="text-sm font-bold text-amber-700">
+                      {pincodeActionLoading === 'notify' ? 'Setting...' : notifyAdded ? '✓ Notified' : 'Notify Me'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Bottom Action Bar */}
@@ -685,10 +959,10 @@ export default function ProductDetail() {
         ) : (
           <TouchableOpacity
             onPress={addToCart}
-            disabled={adding || !inStock}
+            disabled={adding || !inStock || !isAvailableAtPincode}
             className="h-12 flex-1 transform flex-row items-center justify-center rounded-full shadow-lg transition-transform active:scale-95"
             style={{
-              backgroundColor: !inStock ? '#D1D5DB' : addedToCart ? '#16A34A' : colors.primary,
+              backgroundColor: (!inStock || !isAvailableAtPincode) ? '#D1D5DB' : addedToCart ? '#16A34A' : colors.primary,
             }}
           >
             {addedToCart ? (
@@ -700,7 +974,7 @@ export default function ProductDetail() {
               <>
                 <Ionicons name={existingCartItem ? 'refresh-outline' : 'cart-outline'} size={20} color="white" />
                 <Text className="ml-2 text-base font-bold text-white">
-                  {adding ? (existingCartItem ? 'Updating...' : 'Adding...') : inStock ? (existingCartItem ? 'Update Quantity' : 'Add to Cart') : 'Out of Stock'}
+                  {adding ? (existingCartItem ? 'Updating...' : 'Adding...') : !isAvailableAtPincode ? 'Unavailable at Pincode' : inStock ? (existingCartItem ? 'Update Quantity' : 'Add to Cart') : 'Out of Stock'}
                 </Text>
               </>
             )}

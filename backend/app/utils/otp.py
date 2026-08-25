@@ -1,5 +1,5 @@
 import os
-import random
+import secrets
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -22,7 +22,7 @@ otp_store: Dict[str, Dict[str, Any]] = {}
 
 
 def generate_otp() -> str:
-    return str(random.randint(100000, 999999))
+    return str(secrets.randbelow(900000) + 100000)
 
 
 def normalize_phone(phone: str) -> str:
@@ -48,7 +48,7 @@ def send_otp_via_sms(phone: str, otp: str) -> bool:
     provider = os.getenv("SMS_PROVIDER", "msg91")
 
     if os.getenv("ENVIRONMENT") == "development" and not os.getenv("FORCE_SMS"):
-        logger.info(f"[DEV] Mocking SMS send to {phone}")
+        logger.info(f"[DEV] Mocking SMS send to ***{normalize_phone(phone)[-4:]}")
         return True
 
     target_phone = f"91{normalize_phone(phone)}"
@@ -60,9 +60,9 @@ def send_otp_via_sms(phone: str, otp: str) -> bool:
             if not api_key or not widget_id:
                 logger.error("MSG91_AUTH_KEY or MSG91_WIDGET_ID not found")
                 return False
-            url = f"https://control.msg91.com/api/v5/widget/sendOtp?authkey={api_key}"
+            url = "https://control.msg91.com/api/v5/widget/sendOtp"
             try:
-                payload = {"identifier": target_phone, "widgetId": widget_id, "otp": otp}
+                payload = {"authkey": api_key, "identifier": target_phone, "widgetId": widget_id, "otp": otp}
                 response = requests.post(url, json=payload, timeout=10)
                 res_data = response.json()
                 if (
@@ -70,7 +70,7 @@ def send_otp_via_sms(phone: str, otp: str) -> bool:
                     or res_data.get("message") == "success"
                     or res_data.get("status") == "success"
                 ):
-                    logger.info(f"OTP sent via MSG91 to {target_phone}")
+                    logger.info(f"OTP sent via MSG91 to ***{target_phone[-4:]}")
                     return True
                 else:
                     logger.error(f"MSG91 Send Error: {res_data}")
@@ -170,12 +170,16 @@ def verify_otp_via_msg91_headless(phone: str, otp: str) -> Tuple[bool, Dict[str,
     if not api_key or not widget_id:
         return False, {"message": "Server configuration error"}
     target_phone = f"91{normalize_phone(phone)}"
-    url = f"https://control.msg91.com/api/v5/widget/verifyOtp?authkey={api_key}&mobile={target_phone}&otp={otp}&widgetId={widget_id}"
+    url = "https://control.msg91.com/api/v5/widget/verifyOtp"
     try:
-        response = requests.post(url, timeout=10)
+        response = requests.post(
+            url,
+            json={"authkey": api_key, "mobile": target_phone, "otp": otp, "widgetId": widget_id},
+            timeout=10,
+        )
         res_data = response.json()
         if res_data.get("status") == "success":
-            logger.info(f"OTP verified via MSG91 Headless API for {target_phone}")
+            logger.info(f"OTP verified via MSG91 Headless API for ***{target_phone[-4:]}")
             return True, res_data
         else:
             logger.error(f"MSG91 Headless Verify Error: {res_data}")
@@ -245,11 +249,11 @@ async def _db_verify_otp(
     if not stored:
         return {"valid": False, "message": "OTP not found or expired"}
 
-    if stored["verify_attempts"] >= 5:
+    await otp_dao.increment_attempts(stored["id"])
+
+    if stored["verify_attempts"] + 1 >= 5:
         await otp_dao.delete_otp(stored["id"])
         return {"valid": False, "message": "Too many attempts. Please request a new OTP"}
-
-    await otp_dao.increment_attempts(stored["id"])
 
     if str(stored["otp"]) == str(provided_otp):
         if delete_on_success:
@@ -368,11 +372,11 @@ def _mem_verify_otp(
         return {"valid": False, "message": "OTP not found or expired"}
 
     verify_attempts = int(stored.get("verify_attempts") or 0)
-    if verify_attempts >= 5:
+    stored["verify_attempts"] = verify_attempts + 1
+
+    if verify_attempts + 1 >= 5:
         user_record.get("devices", {}).pop(device_key, None)
         return {"valid": False, "message": "Too many attempts. Please request a new OTP"}
-
-    stored["verify_attempts"] = verify_attempts + 1
 
     if str(stored.get("otp")) == str(provided_otp):
         if delete_on_success:
@@ -407,7 +411,6 @@ def request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[str, Any]]:
 
         loop = asyncio.get_event_loop()
         if loop.is_running():
-
             # We're already in an async context; use a helper
             raise RuntimeError("Use request_otp_async in async context")
         return loop.run_until_complete(_db_request_otp(user_key, device_key))

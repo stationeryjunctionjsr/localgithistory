@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface SessionsByLandingPageProps {
   startDate: Date | null;
@@ -28,7 +29,7 @@ export default function SessionsByLandingPage({ startDate, endDate }: SessionsBy
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch sessions by landing page:', error);
+      logger.error('Failed to fetch sessions by landing page:', error);
       setLoading(false);
     }
   };

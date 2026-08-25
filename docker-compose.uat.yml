@@ -16,8 +16,14 @@ services:
       - ENVIRONMENT=uat
       # Set to "true" during scheduled upgrades
       - MAINTENANCE_MODE=false
-    # Use reload for local dev
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      # WORKERS, DB_POOL_SIZE, DB_MAX_OVERFLOW come from env_file: ./backend/.env.uat above
+    # Use run.py so Uvicorn backlog, workers, and pre-flight tasks apply consistently
+    command: python run.py
+    # Raise the OS TCP accept-queue to match Uvicorn's backlog=2048 setting.
+    # Without this the Linux kernel caps it at its default (128 on many base images),
+    # causing connection drops during sudden traffic spikes.
+    sysctls:
+      net.core.somaxconn: 2048
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 30s

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface SalesByPOSLocationProps {
   startDate: Date | null;
@@ -33,7 +34,7 @@ export default function SalesByPOSLocation({
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch sales by POS location:', error);
+      logger.error('Failed to fetch sales by POS location:', error);
       setLoading(false);
     }
   };

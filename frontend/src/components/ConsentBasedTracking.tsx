@@ -49,7 +49,8 @@ export default function ConsentBasedTracking() {
         <>
           <noscript>
             <iframe
-              src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
+              src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID
+}`}
               height="0"
               width="0"
               style={{ display: 'none', visibility: 'hidden' }}
@@ -69,7 +70,8 @@ export default function ConsentBasedTracking() {
       {GA_ID && (
         <>
           <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID
+}`}
             strategy="afterInteractive"
           />
           <Script id="ga-script" strategy="afterInteractive">
@@ -87,7 +89,8 @@ export default function ConsentBasedTracking() {
         // (if GA4 is present, Google Ads should be configured through GTM / linked account)
         <>
           <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`}
+            src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID
+}`}
             strategy="afterInteractive"
           />
           <Script id="google-ads-script" strategy="afterInteractive">

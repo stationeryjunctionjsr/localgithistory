@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -6,6 +6,7 @@ import { recordBeacon, recordEvent, trackError, trackWebAdClick, getSessionId } 
 import { useAuth } from '@/context/AuthContext';
 import api from '@/utils/api';
 import Cookies from 'js-cookie';
+import { logger } from '@/utils/logger';
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -45,7 +46,7 @@ export default function SessionAnalytics() {
           isReturning: hasReturned,
         });
       } catch (e) {
-        console.error('Failed to track session start in backend', e);
+        logger.error('Failed to track session start in backend', e);
       }
 
       recordEvent({
@@ -102,7 +103,7 @@ export default function SessionAnalytics() {
       api.post('/tracking/page-view', {
         page: pathname,
         sessionId: sid,
-      }).catch(() => {});
+      }).catch((e) => logger.warn("Background task failed", e));
     }
   }, [pathname]);
 

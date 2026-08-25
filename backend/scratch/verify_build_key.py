@@ -17,11 +17,11 @@ try:
         settings.environment = env
         key = build_key(prefix="products", filename="test_image.png", entity_id="123")
         print(f"Environment: {env:<15} -> Key: {key}")
-        
+
         # Test uploads prefix
         uploads_key = build_key(prefix="uploads", filename="another.png")
         print(f"Environment: {env:<15} -> Uploads Key: {uploads_key}")
-        
+
 finally:
     # Restore environment
     settings.environment = original_env

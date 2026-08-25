@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     allowed_origins: str = ""
 
     # ── Database ──────────────────────────────────────────────────────────────
-    database_url: str = ""            # Oracle connection string; empty = use JSON file storage
+    database_url: str = ""  # Oracle connection string; empty = use JSON file storage
     mongodb_uri: str = ""
     table_suffix: str = ""
 
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
 
     # ── Observability ─────────────────────────────────────────────────────────
     slow_request_threshold_ms: float = 500.0
-    sentry_dsn: str = ""          # Leave empty to disable Sentry entirely
+    sentry_dsn: str = ""  # Leave empty to disable Sentry entirely
 
     # ── Derived helpers ───────────────────────────────────────────────────────
     @property
@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
-        extra = "ignore"            # silently ignore unknown env vars
+        extra = "ignore"  # silently ignore unknown env vars
 
 
 settings = Settings()
@@ -80,11 +80,13 @@ settings = Settings()
 _PLACEHOLDER_FRAGMENTS = ("generate_a_secure", "generate_another", "changeme", "secret_here", "your_secret")
 _MIN_KEY_LENGTH = 32  # 32 bytes hex-encoded = 64 chars; reject anything shorter
 
+
 def _is_weak_key(key: str) -> bool:
     if not key or len(key) < _MIN_KEY_LENGTH:
         return True
     key_lower = key.lower()
     return any(frag in key_lower for frag in _PLACEHOLDER_FRAGMENTS)
+
 
 _non_dev_envs = {"production", "uat", "staging"}
 if settings.environment.lower() in _non_dev_envs:
@@ -100,4 +102,3 @@ if settings.environment.lower() in _non_dev_envs:
             f"ENVIRONMENT={settings.environment!r}. "
             "Set a cryptographically random 64-byte hex key before starting the server."
         )
-

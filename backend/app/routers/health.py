@@ -18,11 +18,7 @@ class HealthResponse(BaseModel):
 @router.get("/health/live")
 async def check_liveness():
     """Lightweight liveness check (no DB). Returns 200 if the process is running."""
-    return {
-        "status": "ok",
-        "uptime_seconds": round(time.time() - APP_START_TIME, 2),
-        "timestamp": time.time()
-    }
+    return {"status": "ok", "uptime_seconds": round(time.time() - APP_START_TIME, 2), "timestamp": time.time()}
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -55,6 +51,7 @@ async def check_health():
             from pathlib import Path
 
             from app.utils.file_storage import DATA_DIR
+
             data_path = Path(DATA_DIR)
             if not data_path.exists():
                 db_status = "data_dir_missing"

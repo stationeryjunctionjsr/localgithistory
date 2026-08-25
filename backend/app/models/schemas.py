@@ -699,7 +699,6 @@ class ReferralPublicSchemeResponse(BaseModel):
     discountValue: float
 
 
-
 # Return Feature Schemas
 class ReturnSettingsBase(BaseModel):
     returnDays: int = 7
@@ -755,6 +754,8 @@ class ReturnRequestResponse(BaseModel):
     updatedAt: str
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
 class ProductResponse(ProductBase):
     id: str = Field(alias="_id")
     productId: Optional[int] = None

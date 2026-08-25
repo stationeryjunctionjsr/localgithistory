@@ -18,7 +18,12 @@ class ReferralRepository:
             default_settings = {
                 "_id": "1",
                 "retail": {"segment": "retail", "discountType": "percentage", "discountValue": 0, "isActive": False},
-                "business": {"segment": "business", "discountType": "percentage", "discountValue": 0, "isActive": False},
+                "business": {
+                    "segment": "business",
+                    "discountType": "percentage",
+                    "discountValue": 0,
+                    "isActive": False,
+                },
             }
             # Note: storage.create will add its own _id if we don't pass one,
             # but FileStorage helper _get_next_id will handle it if we pass one.
@@ -30,7 +35,12 @@ class ReferralRepository:
         if "retail" not in doc:
             doc["retail"] = {"segment": "retail", "discountType": "percentage", "discountValue": 0, "isActive": False}
         if "business" not in doc:
-            doc["business"] = {"segment": "business", "discountType": "percentage", "discountValue": 0, "isActive": False}
+            doc["business"] = {
+                "segment": "business",
+                "discountType": "percentage",
+                "discountValue": 0,
+                "isActive": False,
+            }
         return doc
 
     async def update_settings(self, update_data: Dict) -> Dict:

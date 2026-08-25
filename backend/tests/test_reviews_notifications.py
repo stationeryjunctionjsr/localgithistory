@@ -16,7 +16,7 @@ async def cleanup_db():
         notifs = await product_notification_repository.storage.findAll()
         for n in notifs:
             await product_notification_repository.storage.delete(n["_id"])
-        
+
         # Delete test reviews
         reviews = await product_review_repository.storage.findAll()
         for r in reviews:
@@ -28,19 +28,13 @@ async def cleanup_db():
 @pytest.mark.asyncio
 async def test_notify_me_registration_guest(client: AsyncClient):
     # 1. Create a test product with stock = 0
-    product = await product_repository.create({
-        "name": "Guest Out of Stock Pen",
-        "mrp": 10.0,
-        "category": "Stationery",
-        "stock": 0
-    })
+    product = await product_repository.create(
+        {"name": "Guest Out of Stock Pen", "mrp": 10.0, "category": "Stationery", "stock": 0}
+    )
     product_id = product["_id"]
 
     # 2. Register for notification as guest
-    response = await client.post(
-        f"/api/products/{product_id}/notify-me",
-        json={"email": "guest@test.com"}
-    )
+    response = await client.post(f"/api/products/{product_id}/notify-me", json={"email": "guest@test.com"})
     assert response.status_code == 200
     assert response.json()["email"] == "guest@test.com"
 
@@ -55,6 +49,7 @@ async def test_notify_me_registration_guest(client: AsyncClient):
 
     # Wait for status to change to 'notified' (asynchronous task execution)
     import asyncio
+
     for _ in range(100):  # Wait up to 10 seconds
         notifs_updated = await product_notification_repository.storage.findAll({"productId": product_id})
         if notifs_updated and notifs_updated[0]["status"] == "notified":
@@ -70,20 +65,13 @@ async def test_notify_me_registration_guest(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_notify_me_registration_auth(client: AsyncClient, user_auth):
     # 1. Create a test product with stock = 0
-    product = await product_repository.create({
-        "name": "Auth Out of Stock Pen",
-        "mrp": 12.0,
-        "category": "Stationery",
-        "stock": 0
-    })
+    product = await product_repository.create(
+        {"name": "Auth Out of Stock Pen", "mrp": 12.0, "category": "Stationery", "stock": 0}
+    )
     product_id = product["_id"]
 
     # 2. Register for notification as auth user
-    response = await client.post(
-        f"/api/products/{product_id}/notify-me",
-        json={},
-        headers=user_auth
-    )
+    response = await client.post(f"/api/products/{product_id}/notify-me", json={}, headers=user_auth)
     assert response.status_code == 200
     # Should automatically pick up user_auth's email
     assert "@test.com" in response.json()["email"]
@@ -100,12 +88,9 @@ async def test_notify_me_registration_auth(client: AsyncClient, user_auth):
 @pytest.mark.asyncio
 async def test_reviews_submission_validation(client: AsyncClient, user_auth):
     # 1. Create test product
-    product = await product_repository.create({
-        "name": "Reviewable Notepad",
-        "mrp": 25.0,
-        "category": "Stationery",
-        "stock": 10
-    })
+    product = await product_repository.create(
+        {"name": "Reviewable Notepad", "mrp": 25.0, "category": "Stationery", "stock": 10}
+    )
     product_id = product["_id"]
 
     # 2. Verify classifications pre-populated
@@ -116,13 +101,8 @@ async def test_reviews_submission_validation(client: AsyncClient, user_auth):
     # Try reviewing product without buying it (should fail)
     response = await client.post(
         "/api/reviews/",
-        json={
-            "productId": product_id,
-            "rating": 5,
-            "comment": "Super clean notepad!",
-            "classification": class_name
-        },
-        headers=user_auth
+        json={"productId": product_id, "rating": 5, "comment": "Super clean notepad!", "classification": class_name},
+        headers=user_auth,
     )
     assert response.status_code == 400
     assert "successfully delivered to you" in response.json()["detail"]

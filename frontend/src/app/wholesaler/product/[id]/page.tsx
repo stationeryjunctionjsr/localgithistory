@@ -3,6 +3,7 @@ import ProductDetailClient from '@/components/ProductDetailClient';
 import { Metadata } from 'next';
 
 export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL;
 const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://api.stationeryjunction.com';
@@ -20,15 +21,16 @@ async function getProduct(id: string) {
   }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const product = await getProduct(params.id);
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const product = await getProduct(id);
   if (!product) return { title: 'Product Not Found | Stationery Junction' };
 
   const firstImage = product.images?.[0] ? 
     (product.images[0].startsWith('http') ? product.images[0] : `${apiBase}${product.images[0]}`) 
     : 'https://www.stationeryjunction.com/og-image.jpg';
 
-  const canonicalUrl = `https://www.stationeryjunction.com/wholesaler/product/${params.id}`;
+  const canonicalUrl = `https://www.stationeryjunction.com/wholesaler/product/${id}`;
   return {
     title: `Wholesale - ${product.name} | ${product.brand || 'Stationery Junction'}`,
     description: product.description?.substring(0, 160) || `Buy wholesale ${product.name} at Stationery Junction`,
@@ -51,8 +53,9 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-export default async function WholesalerProductPage({ params }: { params: { id: string } }) {
-  const product = await getProduct(params.id);
+export default async function WholesalerProductPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const product = await getProduct(id);
 
   if (!product) {
     notFound();
@@ -72,7 +75,7 @@ export default async function WholesalerProductPage({ params }: { params: { id: 
     },
     offers: {
       '@type': 'Offer',
-      url: `https://www.stationeryjunction.com/wholesaler/product/${params.id}`,
+      url: `https://www.stationeryjunction.com/wholesaler/product/${id}`,
       priceCurrency: 'INR',
       price: product.price,
       itemCondition: 'https://schema.org/NewCondition',

@@ -9,8 +9,10 @@ try:
 
     from app.config.database import use_oracle
 except ImportError:
+
     def use_oracle():
         return False
+
 
 # Global state for throttling (in-memory)
 # Format: { error_hash: { last_sent: datetime, users: set(), created_at: datetime } }
@@ -80,6 +82,7 @@ class EmailLogHandler(logging.Handler):
 
             # Send alert
             from app.services.email_service import email_service
+
             if email_service.send_error_alert(subject, body):
                 error_data["last_sent"] = now
                 # IMPORTANT: Reset users count for the next batch after sending
@@ -97,23 +100,20 @@ def check_system_resources():
         # CPU Usage
         cpu_p = psutil.cpu_percent(interval=1)
         if cpu_p > 80:
-            resource_logger.critical(
-                "System Resource Alert: High CPU Usage (>80%%). Current: %.1f%%", cpu_p
-            )
+            resource_logger.critical("System Resource Alert: High CPU Usage (>80%%). Current: %.1f%%", cpu_p)
 
         # Memory Usage
         mem = psutil.virtual_memory()
         if mem.percent > 80:
-            resource_logger.critical(
-                "System Resource Alert: High Memory Usage (>80%%). Current: %.1f%%", mem.percent
-            )
+            resource_logger.critical("System Resource Alert: High Memory Usage (>80%%). Current: %.1f%%", mem.percent)
 
         # Disk Usage — check the filesystem where the app data/logs live
         import shutil
+
         disk = shutil.disk_usage("/")
         disk_pct = disk.used / disk.total * 100
         if disk_pct > 85:
-            disk_free_gb = disk.free / (1024 ** 3)
+            disk_free_gb = disk.free / (1024**3)
             resource_logger.critical(
                 "System Resource Alert: High Disk Usage (>85%%). Used: %.1f%%, Free: %.2f GB",
                 disk_pct,

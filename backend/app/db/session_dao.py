@@ -23,10 +23,9 @@ def _to_ts(value: Optional[str]) -> Optional[datetime]:
 
 
 class OracleSessionDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_sessions{suffix}"
 
     def _factory(self):

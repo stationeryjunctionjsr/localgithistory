@@ -34,6 +34,19 @@ const mobileAdapter: ApiAdapter = {
   getSessionId: async () => {
     return (await SecureStore.getItemAsync(SESSION_KEY)) || null;
   },
+  getPincode: async () => {
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const data = await AsyncStorage.getItem('@sj_mobile_pincode_data');
+      if (data) {
+        const parsed = JSON.parse(data);
+        return parsed?.pincode || null;
+      }
+    } catch (e) {
+      console.error('[API Client] Error reading pincode:', e);
+    }
+    return null;
+  },
   clearTokens: async () => {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await SecureStore.deleteItemAsync(REFRESH_KEY);

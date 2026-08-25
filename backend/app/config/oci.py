@@ -29,6 +29,7 @@ def use_oci_storage() -> bool:
         return False
     try:
         from cryptography.hazmat.primitives import serialization
+
         key_content = OCI_PRIVATE_KEY.strip().strip('"').strip("'").strip()
         if "\\n" in key_content:
             key_content = key_content.replace("\\n", "\n")

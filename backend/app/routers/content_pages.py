@@ -15,6 +15,7 @@ router = APIRouter()
 
 # ── FAQ Models ──────────────────────────────────────────────────────────
 
+
 class FAQItem(BaseModel):
     question: str
     answer: str
@@ -35,6 +36,7 @@ class FAQSectionUpdate(BaseModel):
 
 
 # ── Content Page Models ─────────────────────────────────────────────────
+
 
 class ContentSection(BaseModel):
     title: str
@@ -60,6 +62,7 @@ class PrivacyPolicyUpdate(BaseModel):
 # ═══════════════════════════════════════════════════════════════════════
 # FAQ Endpoints
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @router.get("/faq/public")
 @cache.ttl_cache(ttl=3600.0)
@@ -97,6 +100,7 @@ async def delete_faq_section(section_id: str, user: dict = Depends(require_super
 # About Us Endpoints
 # ═══════════════════════════════════════════════════════════════════════
 
+
 @router.get("/about/public")
 @cache.ttl_cache(ttl=3600.0)
 async def get_public_about():
@@ -118,6 +122,7 @@ async def update_about(data: AboutUsUpdate, user: dict = Depends(require_super_a
 # ═══════════════════════════════════════════════════════════════════════
 # Privacy Policy Endpoints
 # ═══════════════════════════════════════════════════════════════════════
+
 
 @router.get("/privacy/public")
 @cache.ttl_cache(ttl=3600.0)
@@ -206,8 +211,6 @@ async def _notify_all_users_of_privacy_update(last_updated: str, version: str) -
             if i + batch_size < len(recipients):
                 await asyncio.sleep(1)
 
-        logger.info(
-            "Privacy policy notification complete — sent: %d, failed: %d", sent, failed
-        )
+        logger.info("Privacy policy notification complete — sent: %d, failed: %d", sent, failed)
     except Exception as exc:
         logger.error("Privacy policy notification task crashed: %s", exc, exc_info=True)

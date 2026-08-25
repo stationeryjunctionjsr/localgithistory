@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface SalesByProductProps {
   startDate: Date | null;
@@ -35,7 +36,7 @@ export default function SalesByProduct({
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch sales by product:', error);
+      logger.error('Failed to fetch sales by product:', error);
       setLoading(false);
     }
   };

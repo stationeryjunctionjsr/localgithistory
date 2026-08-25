@@ -12,6 +12,7 @@ import {
   Legend,
 } from 'recharts';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface SalesOverTimeChartProps {
   startDate: Date | null;
@@ -43,7 +44,7 @@ export default function SalesOverTimeChart({
       setData(response.data || []);
       setLoading(false);
     } catch (error: any) {
-      console.error('Failed to fetch sales over time:', error);
+      logger.error('Failed to fetch sales over time:', error);
       setLoading(false);
       setData([]); // Ensure data is empty array on error
     }

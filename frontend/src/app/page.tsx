@@ -1,6 +1,8 @@
 import LandingPageClient from '@/components/LandingPageClient';
 import type { Metadata } from 'next';
 
+export const dynamic = 'force-dynamic';
+
 export const revalidate = 300; // Revalidate every 5 minutes (300 seconds)
 
 export const metadata: Metadata = {
@@ -63,8 +65,16 @@ export default async function Home() {
   ]);
 
   // Process JSON responses
-  const extractJson = async (res: Response | null) =>
-    res?.ok ? res.json().catch(() => null) : null;
+  const extractJson = async (res: Response | null, critical: boolean = false) => {
+    if (!res || !res.ok) {
+      if (critical) throw new Error(`API failed with status ${res?.status}`);
+      return null;
+    }
+    return res.json().catch((e) => {
+      if (critical) throw e;
+      return null;
+    });
+  };
 
   const [
     productsRaw,
@@ -76,11 +86,11 @@ export default async function Home() {
     recommendations,
     googleRating,
   ] = await Promise.all([
-    extractJson(productsRes),
+    extractJson(productsRes, true),
     extractJson(bannersRes),
-    extractJson(categoriesRes),
-    extractJson(categoryTagsRes),
-    extractJson(brandsRes),
+    extractJson(categoriesRes, true),
+    extractJson(categoryTagsRes, true),
+    extractJson(brandsRes, true),
     extractJson(collectionsRes),
     extractJson(recommendationsRes),
     extractJson(googleRatingRes),

@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import InfoButton from '@/components/InfoButton';
 import SearchableSelect from '@/components/SearchableSelect';
 import RefreshButton from './RefreshButton';
+import { logger } from '@/utils/logger';
 
 interface Segment {
   _id?: string;
@@ -145,7 +146,7 @@ export default function CustomerSegments({ segmentType }: CustomerSegmentsProps)
       setFilteredUsers(usersRes.data || []);
       setAvailableStates(statesRes.data || []);
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     }
   };
 

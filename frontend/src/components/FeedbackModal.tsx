@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { usePathname } from 'next/navigation';
 import api from '@/utils/api';
 import { toast } from 'react-toastify';
+import { logger } from '@/utils/logger';
 
 export default function FeedbackModal() {
   const { user } = useAuth();
@@ -37,7 +38,7 @@ export default function FeedbackModal() {
           }
         }
       } catch (error) {
-        console.error('Failed to check feedback eligibility', error);
+        logger.error('Failed to check feedback eligibility', error);
       }
     };
 

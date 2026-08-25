@@ -19,7 +19,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import api, { getImageUrl } from '../api/client';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
+import { usePincode } from '../context/PincodeContext';
 import { BannerCarousel, BannerItem } from './BannerCarousel';
+import UnserviceableLocationCard from './UnserviceableLocationCard';
 import { colors, spacing, borderRadius, shadows, typography } from '../theme';
 import { formatDateIST } from '../utils/dateUtils';
 
@@ -153,6 +155,7 @@ export default function WholesalerHomeScreen() {
     }
   }, [loading]);
 
+  const { pincode, city, isServiceable, openModal } = usePincode();
   const companyName = user?.companyName || user?.name || 'Business Partner';
   const firstName = (user?.name || '').split(' ')[0] || 'there';
 
@@ -186,10 +189,34 @@ export default function WholesalerHomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
-      {/* Wholesale badge */}
-      <View style={styles.wholesaleBadge}>
-        <Ionicons name="business-outline" size={12} color={colors.accent} />
-        <Text style={styles.wholesaleBadgeText}>Business Account</Text>
+      {/* Badges row: Wholesale badge & Delivery Location */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <View style={styles.wholesaleBadge}>
+          <Ionicons name="business-outline" size={12} color={colors.accent} />
+          <Text style={styles.wholesaleBadgeText}>Business Account</Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => openModal(false)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            paddingVertical: 4,
+            paddingHorizontal: 10,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.25)',
+          }}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="location-outline" size={12} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }} numberOfLines={1}>
+            Deliver to: {pincode || 'Select Pincode'}{city ? ` (${city})` : ''}
+          </Text>
+          <Ionicons name="chevron-down" size={10} color="#fff" />
+        </TouchableOpacity>
       </View>
     </LinearGradient>
   );
@@ -349,6 +376,9 @@ export default function WholesalerHomeScreen() {
     images?: string[];
     isExclusive?: boolean;
     discountPercentage?: number;
+    isNew?: boolean;
+    bestSeller?: boolean;
+    previouslyBought?: boolean;
   }
 
   const ProductCard = ({ item, slot, strategy }: { item: Product; slot: string; strategy: string }) => {
@@ -397,6 +427,25 @@ export default function WholesalerHomeScreen() {
               <Text style={styles.discountText}>{discountPct}% OFF</Text>
             </View>
           )}
+
+          {/* Dynamic Badges */}
+          <View style={{ position: 'absolute', bottom: 4, left: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingRight: 4 }}>
+            {item.isNew && (
+              <View style={{ backgroundColor: '#3B82F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>NEW</Text>
+              </View>
+            )}
+            {item.bestSeller && (
+              <View style={{ backgroundColor: '#F59E0B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>BESTSELLER</Text>
+              </View>
+            )}
+            {item.previouslyBought && (
+              <View style={{ backgroundColor: '#8B5CF6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>BOUGHT BEFORE</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.productInfo}>
@@ -579,17 +628,21 @@ export default function WholesalerHomeScreen() {
         {/* Header */}
         {renderHeader()}
 
-        {/* Wholesaler Banners */}
-        {banners.length > 0 && (
-          <View style={styles.section}>
-            <BannerCarousel banners={banners} height={200} />
-          </View>
-        )}
+        {isServiceable === false ? (
+          <UnserviceableLocationCard />
+        ) : (
+          <>
+            {/* Wholesaler Banners */}
+            {banners.length > 0 && (
+              <View style={styles.section}>
+                <BannerCarousel banners={banners} height={200} />
+              </View>
+            )}
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          {renderQuickActions()}
-        </View>
+            {/* Quick Actions */}
+            <View style={styles.section}>
+              {renderQuickActions()}
+            </View>
 
         {/* Active Schemes Preview */}
         {schemes.length > 0 && (
@@ -670,6 +723,8 @@ export default function WholesalerHomeScreen() {
             </LinearGradient>
           </TouchableOpacity>
         </View>
+          </>
+        )}
       </ScrollView>
     </Animated.View>
   );

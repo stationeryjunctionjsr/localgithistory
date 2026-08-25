@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import InfoButton from '@/components/InfoButton';
 import api from '@/utils/api';
 import RefreshButton from './RefreshButton';
+import { logger } from '@/utils/logger';
 
 interface DashboardStats {
   totalProducts: number;
@@ -79,7 +80,7 @@ export default function DashboardStats() {
       const response = await api.get('/page-info/dashboard');
       setPageInfo(response.data);
     } catch (error) {
-      console.error('Failed to fetch page info:', error);
+      logger.error('Failed to fetch page info:', error);
     }
   };
 
@@ -148,7 +149,7 @@ export default function DashboardStats() {
       setMostSearched(data.mostSearched || []);
       setMostViewed(data.mostViewed || []);
     } catch (error) {
-      console.error('Failed to fetch dashboard data', error);
+      logger.error('Failed to fetch dashboard data', error);
     } finally {
       setLoading(false);
     }

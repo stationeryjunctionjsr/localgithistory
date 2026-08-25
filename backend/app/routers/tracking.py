@@ -210,9 +210,10 @@ async def track_cart_item_add(
     return {"message": "Cart item addition tracked"}
 
 
-
 @router.post("/filter-click")
-async def track_filter_click(request: TrackFilterClickRequest, current_user: Optional[dict] = Depends(get_optional_user)):
+async def track_filter_click(
+    request: TrackFilterClickRequest, current_user: Optional[dict] = Depends(get_optional_user)
+):
     await tracking_repository.trackFilterClick(
         current_user.get("_id") if current_user else None, request.filterType, request.filterValue, request.sessionId
     )

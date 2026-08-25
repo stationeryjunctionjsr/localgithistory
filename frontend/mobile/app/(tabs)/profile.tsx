@@ -251,6 +251,15 @@ export default function Profile() {
             />
             <View style={styles.menuDivider} />
             <MenuItem
+              icon="eye-outline"
+              label="Accessibility Options"
+              subtitle="Display & readability settings"
+              onPress={() => router.push('/accessibility')}
+              iconBg="#F3E5F5"
+              iconColor="#8E24AA"
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
               icon="chatbubble-ellipses-outline"
               label="Give Feedback"
               subtitle="Help us improve your experience"
@@ -293,6 +302,24 @@ export default function Profile() {
 
           {/* Guest Menu */}
           <View style={[styles.menuSection, shadows.sm]}>
+            <MenuItem
+              icon="heart-outline"
+              label="Wishlist"
+              subtitle="View saved items"
+              onPress={() => router.push('/wishlist')}
+              iconBg="#FCE4EC"
+              iconColor="#E91E63"
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="eye-outline"
+              label="Accessibility Options"
+              subtitle="Display & readability settings"
+              onPress={() => router.push('/accessibility')}
+              iconBg="#F3E5F5"
+              iconColor="#8E24AA"
+            />
+            <View style={styles.menuDivider} />
             <MenuItem
               icon="headset-outline"
               label="Customer Support"

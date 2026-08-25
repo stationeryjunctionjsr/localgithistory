@@ -16,10 +16,9 @@ from app.db.oracle_utils import json_dumps, json_loads, now_utc
 
 
 class OracleBannerDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_banners{suffix}"
 
     def _factory(self):

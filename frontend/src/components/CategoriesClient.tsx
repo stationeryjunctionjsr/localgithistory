@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/Header';
 import HeroBanner from '@/components/HeroBanner';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
+import { logger } from '@/utils/logger';
 // Add carousel import if missing
 
 export interface CategoriesClientProps {
@@ -100,7 +101,7 @@ export default function CategoriesClient({
         );
         setBanners(activeBanners);
       } catch (e) {
-        console.error('Failed to fetch categories or banners', e);
+        logger.error('Failed to fetch categories or banners', e);
         setCategories([]);
       } finally {
         setLoading(false);

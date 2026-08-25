@@ -4,18 +4,19 @@ from app.utils.logger import logger
 from app.db.storage_factory import get_storage
 from app.repositories.tracking_repository import tracking_repository
 
+
 async def run_events_sync_job_async():
     logger.info("Starting daily events synchronization job...")
     try:
         events_store = get_storage("events")
         tracking_store = get_storage("tracking")
-        
+
         events = await events_store.findAll()
         existing_tracking = await tracking_store.findAll()
         existing_keys = set()
         for t in existing_tracking:
             existing_keys.add((t.get("type"), t.get("sessionId"), t.get("timestamp")))
-            
+
         migrated_count = 0
         for e in events:
             event_type = e.get("type")
@@ -23,7 +24,7 @@ async def run_events_sync_job_async():
             user_id = e.get("userId")
             timestamp = e.get("timestamp")
             payload = e.get("payload") or {}
-            
+
             # Translate event_type to tracking type
             tracking_type = None
             if event_type == "session_start":
@@ -46,14 +47,14 @@ async def run_events_sync_job_async():
                 tracking_type = "page_view"
             elif event_type == "session_end":
                 tracking_type = "session_end"
-                
+
             if not tracking_type:
                 continue
-                
+
             key = (tracking_type, session_id, timestamp)
             if key in existing_keys:
                 continue
-                
+
             # Build tracking document
             doc = {
                 "type": tracking_type,
@@ -61,7 +62,7 @@ async def run_events_sync_job_async():
                 "sessionId": session_id,
                 "timestamp": timestamp,
             }
-            
+
             if event_type == "session_start":
                 doc["isReturning"] = payload.get("returning", False)
                 doc["pageViews"] = 1
@@ -92,13 +93,14 @@ async def run_events_sync_job_async():
                 doc["page"] = "/checkout/complete"
             elif event_type == "session_end":
                 doc["reason"] = payload.get("reason", "unknown")
-                
+
             await tracking_repository.create(doc)
             migrated_count += 1
-            
+
         logger.info("Daily events synchronization job finished. Synced %d events.", migrated_count)
     except Exception as e:
         logger.error("Error in run_events_sync_job_async: %s", str(e), exc_info=True)
+
 
 def run_events_sync_job():
     """
@@ -109,6 +111,7 @@ def run_events_sync_job():
         asyncio.run(run_events_sync_job_async())
     except Exception as e:
         logger.error("Error in run_events_sync_job: %s", str(e), exc_info=True)
+
 
 if __name__ == "__main__":
     run_events_sync_job()

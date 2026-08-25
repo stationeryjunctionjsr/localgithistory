@@ -9,7 +9,6 @@ router = APIRouter()
 
 
 @router.get("", response_model=ReturnSettingsResponse)
-
 @router.get("/", response_model=ReturnSettingsResponse)
 @cache.ttl_cache(ttl=3600.0)
 async def get_return_settings():
@@ -19,7 +18,6 @@ async def get_return_settings():
 
 
 @router.put("", response_model=ReturnSettingsResponse)
-
 @router.put("/", response_model=ReturnSettingsResponse)
 async def update_return_settings(settings_update: ReturnSettingsUpdate, admin=Depends(require_super_admin)):
     """Update global return settings (Super Admin only)"""

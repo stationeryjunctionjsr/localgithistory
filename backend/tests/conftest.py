@@ -7,6 +7,7 @@ from app.main import app
 from app.repositories.user_repository import user_repository
 from app.repositories.session_repository import session_repository
 
+
 @pytest.fixture(scope="session")
 def event_loop():
     """Create a session-scoped event loop for the async tests to share connections."""
@@ -15,10 +16,12 @@ def event_loop():
     yield loop
     loop.close()
 
+
 @pytest.fixture(autouse=True)
 def mock_email_service(monkeypatch):
     """Globally mock email service to avoid real SMTP calls and delays in tests."""
     from app.services.email_service import email_service
+
     monkeypatch.setattr(email_service, "send_email", lambda *args, **kwargs: True)
     monkeypatch.setattr(email_service, "send_email_with_attachment", lambda *args, **kwargs: True)
     monkeypatch.setattr(email_service, "send_verification_email", lambda *args, **kwargs: True)
@@ -27,11 +30,13 @@ def mock_email_service(monkeypatch):
     monkeypatch.setattr(email_service, "send_privacy_policy_update_email", lambda *args, **kwargs: True)
     monkeypatch.setattr(email_service, "send_order_returned_email", lambda *args, **kwargs: True)
 
+
 @pytest.fixture
 async def client():
     """Async HTTP client wired directly to the FastAPI app (no network required)."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
 
 @pytest.fixture
 async def user_auth(client: AsyncClient):

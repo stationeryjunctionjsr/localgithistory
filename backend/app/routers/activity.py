@@ -19,6 +19,7 @@ async def optional_user(request: Request):
         return await verify_token(token)
     except Exception as e:
         from app.utils.logger import logger
+
         logger.warning("Optional auth token verification failed in activity logging: %s", str(e))
         return None
 

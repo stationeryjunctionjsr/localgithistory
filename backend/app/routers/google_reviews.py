@@ -23,4 +23,3 @@ async def refresh_google_rating():
     except Exception as e:
         logger.error("refresh_google_rating failed: %s", str(e), exc_info=True)
         raise HTTPException(status_code=503, detail="Service unavailable")
-

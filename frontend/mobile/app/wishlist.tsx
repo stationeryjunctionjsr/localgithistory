@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   StyleSheet,
   StatusBar,
   Alert,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -66,11 +68,32 @@ export default function Wishlist() {
     }
   }, [user]);
 
+  // Track current interval so AppState listener can clear/restart it
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       fetchWishlist();
-      const interval = setInterval(fetchWishlist, 5000);
-      return () => clearInterval(interval);
+      // 60s interval (was 5s). useFocusEffect stops this when the screen loses focus.
+      intervalRef.current = setInterval(fetchWishlist, 60_000);
+
+      // AppState guard: pause polling when app is backgrounded
+      const handleAppStateChange = (nextState: AppStateStatus) => {
+        if (nextState === 'active') {
+          fetchWishlist(); // Immediately refresh when foregrounded
+          if (!intervalRef.current) {
+            intervalRef.current = setInterval(fetchWishlist, 60_000);
+          }
+        } else {
+          if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+        }
+      };
+
+      const subscription = AppState.addEventListener('change', handleAppStateChange);
+      return () => {
+        subscription.remove();
+        if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+      };
     }, [fetchWishlist])
   );
 

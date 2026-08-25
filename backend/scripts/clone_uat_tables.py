@@ -16,17 +16,57 @@ from app.config.database import get_async_session_factory
 
 # List of independent tables (for priority creation, though retry loop handles it too)
 TABLES_TO_CLONE = [
-    "SJ_ABOUT_US", "SJ_ACTIVITIES", "SJ_BANNERS", "SJ_BRANDS", "SJ_BUNDLES",
-    "SJ_CARTS", "SJ_CATEGORIES", "SJ_CATEGORY_TAGS", "SJ_COACH_MARKS", "SJ_COLLECTIONS",
-    "SJ_CONTACTS", "SJ_COUPONS", "SJ_CUSTOMER_SEGMENTS", "SJ_DELIVERY_CHARGES", "SJ_DELIVERY_CHARGE_DEFAULTS",
-    "SJ_DEVICE_SUBSCRIPTIONS", "SJ_EMAIL_OTPS", "SJ_EMAIL_OTP_SEND_LOG", "SJ_EVENTS", "SJ_FAQ_SECTIONS",
-    "SJ_FEATURE_FLAGS", "SJ_GOOGLE_REVIEWS", "SJ_NOTIFICATIONS", "SJ_ORDERS", "SJ_ORDER_FEEDBACK",
-    "SJ_ORDER_ITEMS", "SJ_OTPS", "SJ_OTP_SEND_LOG", "SJ_PAYMENTS", "SJ_PAYMENT_ENTRIES",
-    "SJ_PRIVACY_POLICY", "SJ_PRODUCTS", "SJ_PRODUCT_NOTIFICATIONS", "SJ_PRODUCT_REVIEWS", "SJ_PROMO_STRIPS",
-    "SJ_PUSH_NOTIFICATIONS", "SJ_REFERRAL_SETTINGS", "SJ_RETURN_REQUESTS", "SJ_RETURN_SETTINGS", "SJ_REVIEW_CLASSIFICATIONS",
-    "SJ_SAVED_FOR_LATER", "SJ_SCHEMES", "SJ_SEARCH_TAGS", "SJ_SESSIONS", "SJ_STOCK_RESERVATIONS",
-    "SJ_SUPPORT_TICKETS", "SJ_TRACKING", "SJ_USERS", "SJ_WISHLISTS"
+    "SJ_ABOUT_US",
+    "SJ_ACTIVITIES",
+    "SJ_BANNERS",
+    "SJ_BRANDS",
+    "SJ_BUNDLES",
+    "SJ_CARTS",
+    "SJ_CATEGORIES",
+    "SJ_CATEGORY_TAGS",
+    "SJ_COACH_MARKS",
+    "SJ_COLLECTIONS",
+    "SJ_CONTACTS",
+    "SJ_COUPONS",
+    "SJ_CUSTOMER_SEGMENTS",
+    "SJ_DELIVERY_CHARGES",
+    "SJ_DELIVERY_CHARGE_DEFAULTS",
+    "SJ_DEVICE_SUBSCRIPTIONS",
+    "SJ_EMAIL_OTPS",
+    "SJ_EMAIL_OTP_SEND_LOG",
+    "SJ_EVENTS",
+    "SJ_FAQ_SECTIONS",
+    "SJ_FEATURE_FLAGS",
+    "SJ_GOOGLE_REVIEWS",
+    "SJ_NOTIFICATIONS",
+    "SJ_ORDERS",
+    "SJ_ORDER_FEEDBACK",
+    "SJ_ORDER_ITEMS",
+    "SJ_OTPS",
+    "SJ_OTP_SEND_LOG",
+    "SJ_PAYMENTS",
+    "SJ_PAYMENT_ENTRIES",
+    "SJ_PRIVACY_POLICY",
+    "SJ_PRODUCTS",
+    "SJ_PRODUCT_NOTIFICATIONS",
+    "SJ_PRODUCT_REVIEWS",
+    "SJ_PROMO_STRIPS",
+    "SJ_PUSH_NOTIFICATIONS",
+    "SJ_REFERRAL_SETTINGS",
+    "SJ_RETURN_REQUESTS",
+    "SJ_RETURN_SETTINGS",
+    "SJ_REVIEW_CLASSIFICATIONS",
+    "SJ_SAVED_FOR_LATER",
+    "SJ_SCHEMES",
+    "SJ_SEARCH_TAGS",
+    "SJ_SESSIONS",
+    "SJ_STOCK_RESERVATIONS",
+    "SJ_SUPPORT_TICKETS",
+    "SJ_TRACKING",
+    "SJ_USERS",
+    "SJ_WISHLISTS",
 ]
+
 
 async def main():
     factory = get_async_session_factory()
@@ -36,9 +76,19 @@ async def main():
 
     async with factory() as session:
         # Enable clean metadata DDL formatting
-        await session.execute(text("BEGIN DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'PRETTY', true); END;"))
-        await session.execute(text("BEGIN DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', true); END;"))
-        await session.execute(text("BEGIN DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SEGMENT_ATTRIBUTES', false); END;"))
+        await session.execute(
+            text("BEGIN DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'PRETTY', true); END;")
+        )
+        await session.execute(
+            text(
+                "BEGIN DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SQLTERMINATOR', true); END;"
+            )
+        )
+        await session.execute(
+            text(
+                "BEGIN DBMS_METADATA.SET_TRANSFORM_PARAM(DBMS_METADATA.SESSION_TRANSFORM, 'SEGMENT_ATTRIBUTES', false); END;"
+            )
+        )
         await session.commit()
 
         # Step 1: Drop existing UAT tables to start fresh
@@ -60,15 +110,15 @@ async def main():
             try:
                 res = await session.execute(text(f"SELECT DBMS_METADATA.GET_DDL('TABLE', '{table}') FROM DUAL"))
                 ddl = res.scalar()
-                
+
                 # Transform the DDL for UAT
                 # 1. Remove schema prefix e.g. "ADMIN"."SJ_USERS" -> "SJ_USERS"
                 ddl = re.sub(r'"[A-Za-z0-9_]+"\."(SJ_[A-Za-z0-9_]+)"', r'"\1"', ddl)
-                
+
                 # 2. Rename all SJ_ tables to SJ_..._UAT
                 for t in TABLES_TO_CLONE:
                     ddl = re.sub(rf'"{t}"', f'"{t}_UAT"', ddl)
-                    ddl = re.sub(rf'\b{t}\b', f'{t}_UAT', ddl)
+                    ddl = re.sub(rf"\b{t}\b", f"{t}_UAT", ddl)
 
                 # 3. Rename constraint names to append _UAT
                 ddl = re.sub(r'CONSTRAINT\s+"([^"]+)"', r'CONSTRAINT "\1_UAT"', ddl)
@@ -94,7 +144,7 @@ async def main():
             attempts += 1
             print(f"    Attempt {attempts} to create pending tables (remaining: {len(pending_tables)})...")
             created_in_this_loop = []
-            
+
             for table in pending_tables:
                 uat_table = f"{table}_UAT"
                 ddl = table_ddls[table]
@@ -108,11 +158,11 @@ async def main():
                     # Print error for debugging in last attempt or if needed
                     # E.g. parent table might not exist yet
                     pass
-            
+
             if not created_in_this_loop:
                 print("    [-] Deadlock or syntax error detected. No tables created in this iteration.")
                 break
-                
+
             for table in created_in_this_loop:
                 pending_tables.remove(table)
 
@@ -154,14 +204,16 @@ async def main():
                 # Find if table has an identity column
                 res = await session.execute(
                     text("SELECT column_name FROM user_tab_identity_cols WHERE table_name = :tname"),
-                    {"tname": uat_table}
+                    {"tname": uat_table},
                 )
                 row = res.fetchone()
                 if row:
                     col_name = row[0]
                     # Reset the sequence start to max(col) + 1 (or 1 if empty)
                     await session.execute(
-                        text(f"ALTER TABLE {uat_table} MODIFY ({col_name} GENERATED BY DEFAULT AS IDENTITY (START WITH LIMIT VALUE))")
+                        text(
+                            f"ALTER TABLE {uat_table} MODIFY ({col_name} GENERATED BY DEFAULT AS IDENTITY (START WITH LIMIT VALUE))"
+                        )
                     )
                     await session.commit()
                     print(f"    Reset identity sequence on {uat_table}.{col_name}")
@@ -181,13 +233,13 @@ async def main():
             )
             indexes = res.fetchall()
             print(f"    Found {len(indexes)} user-defined indexes to clone.")
-            
+
             for idx_row in indexes:
                 idx_name = idx_row[0]
                 tbl_name = idx_row[1]
                 uat_idx_name = f"{idx_name}_UAT"
                 uat_tbl_name = f"{tbl_name}_UAT"
-                
+
                 try:
                     # Drop existing UAT index if any
                     try:
@@ -197,23 +249,25 @@ async def main():
                         await session.rollback()
 
                     # Get original index DDL
-                    idx_res = await session.execute(text(f"SELECT DBMS_METADATA.GET_DDL('INDEX', '{idx_name}') FROM DUAL"))
+                    idx_res = await session.execute(
+                        text(f"SELECT DBMS_METADATA.GET_DDL('INDEX', '{idx_name}') FROM DUAL")
+                    )
                     idx_ddl = idx_res.scalar()
-                    
+
                     # Transform the DDL for UAT
                     # 1. Remove schema prefix
                     idx_ddl = re.sub(r'"[A-Za-z0-9_]+"\."([A-Za-z0-9_]+)"', r'"\1"', idx_ddl)
                     # 2. Rename index name
                     idx_ddl = re.sub(rf'"{idx_name}"', f'"{uat_idx_name}"', idx_ddl)
-                    idx_ddl = re.sub(rf'\b{idx_name}\b', uat_idx_name, idx_ddl)
+                    idx_ddl = re.sub(rf"\b{idx_name}\b", uat_idx_name, idx_ddl)
                     # 3. Rename table name
                     idx_ddl = re.sub(rf'"{tbl_name}"', f'"{uat_tbl_name}"', idx_ddl)
-                    idx_ddl = re.sub(rf'\b{tbl_name}\b', uat_tbl_name, idx_ddl)
-                    
+                    idx_ddl = re.sub(rf"\b{tbl_name}\b", uat_tbl_name, idx_ddl)
+
                     idx_ddl = idx_ddl.strip()
                     if idx_ddl.endswith(";"):
                         idx_ddl = idx_ddl[:-1]
-                        
+
                     await session.execute(text(idx_ddl))
                     await session.commit()
                     print(f"      Created index {uat_idx_name} on {uat_tbl_name}")
@@ -224,6 +278,7 @@ async def main():
             print(f"[-] Error querying indexes: {e}")
 
         print("\n[+] Database cloning completed successfully!")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

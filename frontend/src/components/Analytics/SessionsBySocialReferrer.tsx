@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface SessionsBySocialReferrerProps {
   startDate: Date | null;
@@ -31,7 +32,7 @@ export default function SessionsBySocialReferrer({
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch sessions by social referrer:', error);
+      logger.error('Failed to fetch sessions by social referrer:', error);
       setLoading(false);
     }
   };

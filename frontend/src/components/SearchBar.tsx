@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/utils/api';
 import { recordEvent } from '@/utils/analytics';
+import { logger } from '@/utils/logger';
 
 interface SearchBarProps {
   onSearch?: (searchTerm: string) => void;
@@ -73,7 +74,7 @@ export default function SearchBar({ onSearch, onCategoryChange, onSortChange }: 
       setBrands(uniqueBrands);
       setSubCategories(uniqueSubCategories);
     } catch (error) {
-      console.error('Failed to fetch brands and subcategories', error);
+      logger.error('Failed to fetch brands and subcategories', error);
     }
   };
 
@@ -100,7 +101,7 @@ export default function SearchBar({ onSearch, onCategoryChange, onSortChange }: 
         <input
           type="text"
           className="w-full max-w-md rounded border border-gray-300 px-4 py-3 text-sm md:max-w-sm md:text-base"
-          placeholder="Search products..."
+          placeholder="Search products by name, tag, or price (e.g. 500, under 500)..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />

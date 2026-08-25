@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'react-toastify';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -183,7 +184,7 @@ export default function AuthModal({
               setSendingOTP(false);
             },
             async (error: any) => {
-              console.warn('MSG91 Frontend Error, falling back to backend:', error);
+              logger.warn('MSG91 Frontend Error, falling back to backend:', error);
               // Fallback to backend API
               try {
                 // eslint-disable-next-line unused-imports/no-unused-vars
@@ -203,7 +204,7 @@ export default function AuthModal({
             }
           );
         } catch (sdkError: any) {
-          console.warn('MSG91 SDK threw error, falling back to backend:', sdkError);
+          logger.warn('MSG91 SDK threw error, falling back to backend:', sdkError);
           // eslint-disable-next-line unused-imports/no-unused-vars
           const response = await api.post('/auth/send-otp', {
             phone: cleanPhone,
@@ -294,7 +295,7 @@ export default function AuthModal({
             },
             // eslint-disable-next-line unused-imports/no-unused-vars
             async (error: any) => {
-              console.warn('MSG91 Verification error, trying backend...');
+              logger.warn('MSG91 Verification error, trying backend...');
               try {
                 const clean = formData.phone.replace(/\D/g, '').slice(-10);
                 await api.post('/auth/verify-otp', { phone: clean, otp });
@@ -310,7 +311,7 @@ export default function AuthModal({
           );
         // eslint-disable-next-line unused-imports/no-unused-vars
         } catch (e: any) {
-          console.warn('SDK Verify error, falling back...');
+          logger.warn('SDK Verify error, falling back...');
           await api.post('/auth/verify-otp', { phone: formData.phone, otp });
           setOtpVerified(true);
           toast.success('Phone number verified');
@@ -603,12 +604,12 @@ export default function AuthModal({
             router.replace('/valet');
             break;
           default:
-            console.warn('Unknown role:', userRole, 'User data:', userData);
+            logger.warn('Unknown role:', userRole, 'User data:', userData);
             router.replace('/');
         }
       }
     } catch (error: any) {
-      console.error('Login error in AuthModal:', error);
+      logger.error('Login error in AuthModal:', error);
       // Error is already handled by AuthContext with toast
     } finally {
       setLoading(false);
@@ -648,9 +649,7 @@ export default function AuthModal({
         onSuccess();
       }
     // eslint-disable-next-line unused-imports/no-unused-vars
-    } catch (error) {
-      // Error handled by AuthContext
-    } finally {
+    } catch (e) { logger.warn("Silent catch block:", e); /* Error handled by AuthContext */ } finally {
       setLoading(false);
     }
   };

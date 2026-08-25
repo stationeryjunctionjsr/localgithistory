@@ -108,8 +108,17 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      await login(emailOrPhone, password);
-      router.replace('/(tabs)/home');
+      const user = await login(emailOrPhone, password);
+      
+      if (user?.role === 'admin' || user?.role === 'super_admin') {
+        router.replace('/admin');
+      } else if (user?.role === 'seller') {
+        router.replace('/seller');
+      } else if (user?.role === 'valet') {
+        router.replace('/valet');
+      } else {
+        router.replace('/(tabs)/home');
+      }
     } catch (e: any) {
       const data = e?.response?.data;
       const errorMsg =
@@ -187,13 +196,13 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
       <KeyboardAvoidingView
-        className="flex-1"
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          className="flex-1"
+          style={{ flex: 1 }}
           contentContainerStyle={{ flexGrow: 1, padding: 24 }}
           keyboardShouldPersistTaps="handled"
         >

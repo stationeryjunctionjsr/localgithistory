@@ -10,7 +10,7 @@ from app.repositories.user_repository import user_repository
 async def test_email_verification_flow(client: AsyncClient, user_auth):
     # Set TESTING env var to allow fetching the code in response
     os.environ["TESTING"] = "true"
-    
+
     # 1. Check profile is initially unverified
     res = await client.get("/api/users/profile", headers=user_auth)
     assert res.status_code == 200
@@ -60,6 +60,7 @@ async def test_email_verification_reset_on_email_change(client: AsyncClient, use
 
     # Update profile with different email (should reset to false)
     import uuid
+
     new_email = f"new_verified_email_{uuid.uuid4().hex[:8]}@test.com"
     res = await client.put(f"/api/users/{user_id}", json={"email": new_email}, headers=user_auth)
     assert res.status_code == 200

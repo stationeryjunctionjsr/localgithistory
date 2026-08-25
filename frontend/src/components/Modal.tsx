@@ -95,7 +95,6 @@ export default function Modal({
     <div
       className="fixed inset-0 z-[110] flex animate-fade-in items-start justify-center bg-black bg-opacity-50 p-4 pt-24"
       onClick={onClose}
-      aria-hidden="true"
     >
       <div
         ref={modalRef}

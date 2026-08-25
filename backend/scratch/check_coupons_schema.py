@@ -13,6 +13,7 @@ load_dotenv()
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 
+
 async def check_coupons():
     factory = get_async_session_factory()
     if not factory:
@@ -26,6 +27,7 @@ async def check_coupons():
         print(f"Total coupons: {len(rows)}")
         for row in rows:
             print(dict(row._mapping))
+
 
 if __name__ == "__main__":
     asyncio.run(check_coupons())

@@ -19,7 +19,6 @@ router = APIRouter()
 
 
 @router.get("", response_model=List[DeliveryChargeResponse])
-
 @router.get("/", response_model=List[DeliveryChargeResponse])
 async def get_delivery_charges(current_user: dict = Depends(require_super_admin)):
     charges = await delivery_charge_repository.findAll()
@@ -47,24 +46,24 @@ async def get_delivery_charge_by_location(
     result = await delivery_charge_repository.getChargeForLocation(
         state, city, district, pincode, userRole, orderAmount
     )
-    
+
     # Calculate delivery GST and total charge
     charge = result.get("charge", 0.0) or 0.0
     gst_percentage = 18.0
     gst_amount = 0.0
     total_charge = charge
-    
+
     default_charge = await delivery_charge_repository.getDefaultCharge()
     if default_charge and default_charge.get("deliveryChargeGst"):
         gst_percentage = default_charge.get("deliveryChargeGstPercentage", 18.0)
         if charge > 0:
             gst_amount = round(charge * (gst_percentage / 100), 2)
             total_charge = round(charge + gst_amount, 2)
-            
+
     result["gstPercentage"] = gst_percentage
     result["gstAmount"] = gst_amount
     result["totalCharge"] = total_charge
-    
+
     return result
 
 
@@ -86,6 +85,7 @@ async def get_serviceable_pincodes(current_user: dict = Depends(require_super_ad
 async def check_serviceability(pincode: str = Query(...), userRole: Optional[str] = Query("customer")):
     """Check if a pincode is serviceable for a user role. Also returns slot booking availability."""
     from app.db.storage_factory import get_storage
+
     is_serviceable = await delivery_charge_repository.isPincodeServiceable(pincode, userRole)
 
     # Check if delivery slots are available for this pincode + segment
@@ -93,16 +93,17 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
     segment = "wholesale" if userRole == "wholesaler" else "retail"
     import asyncio
     from datetime import date as dt_date, timedelta
+
     today = dt_date.today()
     dates_to_check = [(today + timedelta(days=i)).isoformat() for i in range(7)]
-    
+
     # Execute all 7 date checks concurrently to avoid sequential latency
     tasks = [
         slot_storage.findAll({"date": check_date, "segment": segment, "isActive": True})
         for check_date in dates_to_check
     ]
     results = await asyncio.gather(*tasks)
-    
+
     available_dates = []
     for check_date, configs in zip(dates_to_check, results):
         for config in configs:
@@ -139,7 +140,6 @@ async def get_delivery_charge(charge_id: str, current_user: dict = Depends(requi
 
 
 @router.post("", response_model=DeliveryChargeResponse, status_code=status.HTTP_201_CREATED)
-
 @router.post("/", response_model=DeliveryChargeResponse, status_code=status.HTTP_201_CREATED)
 async def create_delivery_charge(charge_data: DeliveryChargeCreate, current_user: dict = Depends(require_super_admin)):
     if not charge_data.pincode or not charge_data.state or not charge_data.district:
@@ -173,6 +173,8 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
         raise HTTPException(status_code=400, detail="File must be a CSV file")
 
     contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:  # 5 MB cap
+        raise HTTPException(status_code=413, detail="CSV file exceeds the 5 MB size limit")
     csv_content = contents.decode("utf-8")
     csv_reader = csv.DictReader(io.StringIO(csv_content))
 
@@ -183,11 +185,11 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
         try:
             serviceable_for_customer = row.get("serviceableForCustomer", "true").lower() == "true"
             urgent_delivery_available = row.get("urgentDeliveryAvailable", "false").lower() == "true"
-            
+
             # Based on the retail serviceable yes or no, the urgent delivery values will be set.
             if not serviceable_for_customer:
                 urgent_delivery_available = False
-                
+
             charge_data = {
                 "pincode": row.get("pincode", "").strip() or None,
                 "state": row.get("state", "").strip(),
@@ -198,7 +200,9 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
                 "isActive": row.get("isActive", "true").lower() == "true",
                 "serviceableForCustomer": serviceable_for_customer,
                 "urgentDeliveryAvailable": urgent_delivery_available,
-                "urgentDeliveryCharge": float(row.get("urgentDeliveryCharge")) if row.get("urgentDeliveryCharge", "").strip() else None,
+                "urgentDeliveryCharge": float(row.get("urgentDeliveryCharge"))
+                if row.get("urgentDeliveryCharge", "").strip()
+                else None,
             }
 
             if not charge_data["state"] or not charge_data["city"] or not charge_data["district"]:

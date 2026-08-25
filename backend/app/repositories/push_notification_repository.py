@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
@@ -58,14 +58,14 @@ class PushNotificationRepository:
             "userSegment": notification_data.get("userSegment", "all"),
             "userBehavior": notification_data.get("userBehavior", "none"),
             "createdBy": notification_data.get("createdBy"),
-            "createdAt": datetime.utcnow().isoformat(),
-            "updatedAt": datetime.utcnow().isoformat(),
+            "createdAt": datetime.now(timezone.utc).isoformat(),
+            "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
         return await self.storage.create(notification)
 
     async def update(self, id: str, update_data: Dict):
         """Update a push notification"""
-        update_data["updatedAt"] = datetime.utcnow().isoformat()
+        update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str):
@@ -94,7 +94,7 @@ class PushNotificationRepository:
                 # Fallback for manual updates or legacy logic
                 notification["readCount"] = stats.get("readCount", notification.get("readCount", 0))
 
-            notification["updatedAt"] = datetime.utcnow().isoformat()
+            notification["updatedAt"] = datetime.now(timezone.utc).isoformat()
             return await self.storage.update(id, notification)
         return None
 
@@ -121,7 +121,7 @@ class PushNotificationRepository:
                 existing_device["keys"] = subscription.get("keys", {})
             if expoToken is not None:
                 existing_device["expoToken"] = expoToken
-            existing_device["updatedAt"] = datetime.utcnow().isoformat()
+            existing_device["updatedAt"] = datetime.now(timezone.utc).isoformat()
             return await self.device_storage.update(existing_device["_id"], existing_device)
         else:
             # Create new device
@@ -131,8 +131,8 @@ class PushNotificationRepository:
                 "keys": subscription.get("keys", {}) if subscription else {},
                 "subscription": subscription or {},
                 "expoToken": expoToken,
-                "createdAt": datetime.utcnow().isoformat(),
-                "updatedAt": datetime.utcnow().isoformat(),
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+                "updatedAt": datetime.now(timezone.utc).isoformat(),
             }
             return await self.device_storage.create(device)
 

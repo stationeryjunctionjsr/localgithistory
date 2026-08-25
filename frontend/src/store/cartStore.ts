@@ -1,5 +1,5 @@
-/**
- * STANDBY — not wired into the application yet.
+﻿/**
+ * STANDBY â€” not wired into the application yet.
  *
  * Zustand-based replacement for CartContext. Provides the same public API
  * (same method names, same state shape) so migration is a drop-in swap:
@@ -10,7 +10,7 @@
  *
  * Migration steps when ready:
  *   1. Add <CartStoreSync /> inside <AuthProvider> in layout.tsx
- *      (bridges AuthContext user → store's setUser)
+ *      (bridges AuthContext user â†’ store's setUser)
  *   2. Remove <CartProvider> from layout.tsx
  *   3. Replace `useCart()` calls with selector imports from this store
  */
@@ -27,6 +27,7 @@ import {
 } from '@/utils/guestStore';
 import { trackBackendCartAdd } from '@/utils/analytics';
 import type { Cart, CartItem } from '@sj/api-client';
+import { logger } from '@/utils/logger';
 
 export type { Cart, CartItem };
 
@@ -37,12 +38,12 @@ interface CartState {
   duesInfo: any;
 
   /**
-   * Auth bridge — set by <CartStoreSync /> component (not from AuthContext
+   * Auth bridge â€” set by <CartStoreSync /> component (not from AuthContext
    * directly, to keep this store free of React context dependencies).
    */
   _user: any | null;
 
-  // ── Actions ──────────────────────────────────────────────────────────────
+  // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   setUser: (user: any | null) => void;
   setIsCartOpen: (open: boolean) => void;
   openCart: () => void;
@@ -130,7 +131,7 @@ export const useCartStore = create<CartState>()(
           });
         }
       } catch (error) {
-        console.error('Error fetching cart:', error);
+        logger.error('Error fetching cart:', error);
       } finally {
         set({ loading: false });
       }
@@ -181,7 +182,7 @@ export const useCartStore = create<CartState>()(
           await api.post('/cart', { productId, quantity, variantAttributes, sellAsCase, sessionId });
         } else {
           addGuestCartItem(productId, quantity, product);
-          trackBackendCartAdd(productId, quantity).catch(() => {});
+          trackBackendCartAdd(productId, quantity).catch((e) => logger.warn("Background task failed", e));
         }
         await get().fetchCart();
         set({ isCartOpen: true });
@@ -258,8 +259,8 @@ export const useCartStore = create<CartState>()(
 );
 
 /**
- * STANDBY — Drop this component inside <AuthProvider> in layout.tsx when
- * activating the store. It bridges AuthContext → cartStore without coupling
+ * STANDBY â€” Drop this component inside <AuthProvider> in layout.tsx when
+ * activating the store. It bridges AuthContext â†’ cartStore without coupling
  * the store itself to React context.
  *
  * Usage in layout.tsx:

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
@@ -11,6 +11,7 @@ import {
   saveGuestCart,
 } from '@/utils/guestStore';
 import { trackBackendCartAdd } from '@/utils/analytics';
+import { logger } from '@/utils/logger';
 
 export interface CartItem {
   _id: string; // Product ID for guest, item ID for logged in
@@ -70,7 +71,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         const response = await api.get('/payments/dues');
         setDuesInfo(response.data);
       } catch (error) {
-        console.error('Error fetching wholesaler dues:', error);
+        logger.error('Error fetching wholesaler dues:', error);
         setDuesInfo(null);
       }
     } else {
@@ -97,7 +98,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 product: res.data,
               };
             } catch (err) {
-              console.error(`Failed to refresh price for product ${g.productId}`, err);
+              logger.error(`Failed to refresh price for product ${g.productId}`, err);
               return g;
             }
           })
@@ -125,23 +126,32 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         });
       }
     } catch (error) {
-      console.error('Error fetching cart in context:', error);
+      logger.error('Error fetching cart in context:', error);
     } finally {
       setLoading(false);
     }
   };
 
   // Sync cart on mount, when user changes, on tab focus (instant), and
-  // every 60s in the background (cross-device sync). Previously 5s which
-  // generated excessive traffic — 60s is sufficient for multi-device use.
+  // every 60s when the tab is visible. Poll is paused when the tab is hidden
+  // to avoid unnecessary DB load from inactive users.
   useEffect(() => {
     fetchCart();
-    const handleFocus = () => fetchCart();
-    window.addEventListener('focus', handleFocus);
-    const interval = setInterval(fetchCart, 60_000);
+    let interval: ReturnType<typeof setInterval> | null = setInterval(fetchCart, 60_000);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+      } else {
+        fetchCart(); // Immediately refresh on return
+        interval = setInterval(fetchCart, 60_000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (interval) clearInterval(interval);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -199,12 +209,12 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         });
       } else {
         addGuestCartItem(productId, quantity, product);
-        trackBackendCartAdd(productId, quantity).catch(() => {});
+        trackBackendCartAdd(productId, quantity).catch((e) => logger.warn("Background task failed", e));
       }
       await fetchCart();
       setIsCartOpen(true); // Automatically slide open overlay
     } catch (error) {
-      console.error('Error adding item to cart in context:', error);
+      logger.error('Error adding item to cart in context:', error);
       await fetchCart(); // revert optimistic update
       throw error;
     }
@@ -235,7 +245,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       }
       await fetchCart();
     } catch (error) {
-      console.error('Error updating cart item quantity in context:', error);
+      logger.error('Error updating cart item quantity in context:', error);
       await fetchCart(); // revert optimistic update
       throw error;
     }
@@ -263,7 +273,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       }
       await fetchCart();
     } catch (error) {
-      console.error('Error removing item from cart in context:', error);
+      logger.error('Error removing item from cart in context:', error);
       await fetchCart(); // revert optimistic update
       throw error;
     }

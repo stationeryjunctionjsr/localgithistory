@@ -29,15 +29,14 @@ def _to_ts(value: Optional[str]) -> Optional[datetime]:
 
 
 class OracleOrderDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_orders{suffix}"
 
     @property
     def ITEMS_TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_order_items{suffix}"
 
     def _factory(self):
@@ -136,7 +135,9 @@ class OracleOrderDAO:
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         return where_sql, params
 
-    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[Dict]:
+    async def findAll(
+        self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None
+    ) -> List[Dict]:
         factory = self._factory()
         if not factory:
             return []
@@ -462,13 +463,9 @@ class OracleOrderDAO:
             return 0
         where_sql, params = self._build_query_conditions(query)
         async with factory() as session:
-            result = await session.execute(
-                text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"),
-                params
-            )
+            result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"), params)
             return int(result.scalar() or 0)
 
     find_all = findAll
     find_by_id = findById
     find_one = findOne
-

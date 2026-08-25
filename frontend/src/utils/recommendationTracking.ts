@@ -8,6 +8,7 @@
  */
 import api from '@/utils/api';
 import Cookies from 'js-cookie';
+import { logger } from '@/utils/logger';
 
 const RECOMMENDATION_SLOT = 'home_recommendations';
 
@@ -43,9 +44,7 @@ export async function trackRecommendationEventBackend(
     await api.post('/recommendations/events', body, {
       headers: { 'X-Session-Id': sessionId },
     });
-  } catch (_) {
-    // Non-blocking; avoid breaking UX
-  }
+  } catch (e) { logger.warn("Silent catch block:", e); /* Non-blocking; avoid breaking UX */ }
 }
 
 export const DEFAULT_RECOMMENDATION_SLOT = RECOMMENDATION_SLOT;

@@ -13,10 +13,9 @@ from app.db.oracle_utils import json_dumps, json_loads, now_utc
 
 
 class OracleCartDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_carts{suffix}"
 
     def _factory(self):
@@ -35,7 +34,7 @@ class OracleCartDAO:
         factory = self._factory()
         if not factory:
             return []
-        
+
         where_clauses = []
         params = {}
         if query:
@@ -55,7 +54,7 @@ class OracleCartDAO:
         async with factory() as session:
             result = await session.execute(
                 text(f"SELECT id, external_id, user_id, items, created_at, updated_at FROM {self.TABLE}{where_sql}"),
-                params
+                params,
             )
             rows = result.fetchall()
         docs = [self._row_to_doc(r) for r in rows]

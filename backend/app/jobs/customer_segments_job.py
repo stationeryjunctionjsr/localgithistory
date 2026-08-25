@@ -8,7 +8,7 @@ from app.utils.logger import logger
 
 async def run_customer_segments_refresh_job():
     """Daily job to refresh all active customer segments."""
-    logger.info("[%s] Starting customer segments refresh job...", datetime.datetime.utcnow().isoformat())
+    logger.info("[%s] Starting customer segments refresh job...", datetime.datetime.now(timezone.utc).isoformat())
 
     segments = await customer_segments_repository.get_all()
     active_segments = [s for s in segments if s.get("isActive", True)]
@@ -28,12 +28,12 @@ async def run_customer_segments_refresh_job():
             user_ids = [str(u.get("_id", u.get("id"))) for u in users]
 
             await customer_segments_repository.update(
-                segment_id, {"userIds": user_ids, "lastRefreshedAt": datetime.datetime.utcnow().isoformat()}
+                segment_id, {"userIds": user_ids, "lastRefreshedAt": datetime.datetime.now(timezone.utc).isoformat()}
             )
         except Exception as e:
             logger.error("Failed to refresh segment %s: %s", segment_id, str(e), exc_info=True)
 
-    logger.info("[%s] Customer segments refresh job completed.", datetime.datetime.utcnow().isoformat())
+    logger.info("[%s] Customer segments refresh job completed.", datetime.datetime.now(timezone.utc).isoformat())
 
 
 def run_customer_segments_refresh_job_sync():

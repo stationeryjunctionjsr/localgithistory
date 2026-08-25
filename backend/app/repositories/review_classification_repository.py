@@ -27,6 +27,7 @@ class ReviewClassificationRepository:
             await self._prepopulate_defaults()
             return
         from app.config.settings import settings
+
         suffix = getattr(settings, "table_suffix", "")
         table_name_upper = f"SJ_REVIEW_CLASSIFICATIONS{suffix}".upper()
         table_name_lower = f"sj_review_classifications{suffix}".lower()
@@ -38,8 +39,7 @@ class ReviewClassificationRepository:
         async with factory() as session:
             try:
                 result = await session.execute(
-                    text("SELECT table_name FROM user_tables WHERE table_name = :tname"),
-                    {"tname": table_name_upper}
+                    text("SELECT table_name FROM user_tables WHERE table_name = :tname"), {"tname": table_name_upper}
                 )
                 row = result.fetchone()
                 if not row:
@@ -69,10 +69,7 @@ class ReviewClassificationRepository:
             if not all_classes:
                 defaults = ["Quality", "Price", "Delivery", "Other"]
                 for name in defaults:
-                    await self.storage.create({
-                        "name": name,
-                        "isActive": True
-                    })
+                    await self.storage.create({"name": name, "isActive": True})
                 logger.info("Pre-populated default review classifications: %s", defaults)
         except Exception as e:
             logger.error("Failed to pre-populate default classifications: %s", str(e))

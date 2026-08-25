@@ -1,3 +1,5 @@
+import { logger } from '@/utils/logger';
+import { toast } from 'react-toastify';
 import api from './api';
 import { getGuestCart, getGuestWishlist, clearGuestCart, clearGuestWishlist } from './guestStore';
 
@@ -16,7 +18,7 @@ export async function syncGuestDataToBackend(): Promise<void> {
     try {
       const raw = localStorage.getItem('guestCart');
       if (raw) legacyCart = JSON.parse(raw);
-    } catch {}
+    } catch (e) { logger.warn("Failed to parse legacy cart/wishlist", e); }
     const allCartItems = [
       ...guestCart,
       ...legacyCart.map((l: any) => ({ productId: l.productId, quantity: l.quantity || 1 })),
@@ -24,16 +26,17 @@ export async function syncGuestDataToBackend(): Promise<void> {
     for (const item of allCartItems) {
       try {
         await api.post('/cart', { productId: item.productId, quantity: item.quantity });
-      } catch {
-        // silently skip items that fail
+      } catch (e) {
+        logger.error("Failed to sync cart item", e);
+        toast.warn("Some cart items could not be synced");
       }
     }
     if (allCartItems.length > 0) {
       clearGuestCart();
       localStorage.removeItem('guestCart');
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    logger.error("Cart sync failed entirely", e);
   }
 
   // ── Wishlist ──────────────────────────────────────────────────────
@@ -44,7 +47,7 @@ export async function syncGuestDataToBackend(): Promise<void> {
     try {
       const raw = localStorage.getItem('guestWishlist');
       if (raw) legacyWishlist = JSON.parse(raw);
-    } catch {}
+    } catch (e) { logger.warn("Failed to parse legacy cart/wishlist", e); }
     const allWishlistItems = [
       ...guestWishlist,
       ...legacyWishlist
@@ -54,16 +57,16 @@ export async function syncGuestDataToBackend(): Promise<void> {
     for (const item of allWishlistItems) {
       try {
         await api.post('/wishlist', { productId: item.productId });
-      } catch {
-        // silently skip
+      } catch (e) {
+        logger.error("Failed to sync wishlist item", e);
       }
     }
     if (allWishlistItems.length > 0) {
       clearGuestWishlist();
       localStorage.removeItem('guestWishlist');
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    logger.error("Cart sync failed entirely", e);
   }
 
   if (typeof window !== 'undefined') {

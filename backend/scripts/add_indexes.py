@@ -1,8 +1,10 @@
 import asyncio
 from dotenv import load_dotenv
+
 load_dotenv()
 from sqlalchemy import text
 from app.config.database import get_async_engine
+
 
 async def add_indexes():
     engine = get_async_engine()
@@ -27,6 +29,7 @@ async def add_indexes():
                     print("Index already exists.")
                 else:
                     print(f"Error: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(add_indexes())

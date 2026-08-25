@@ -16,7 +16,7 @@ class NotificationRepository:
 
     async def findAll(self, filters: Optional[Dict] = None) -> List[Dict]:
         filters = filters or {}
-        
+
         # Build DB query to offload exact filtering
         db_query = {}
         if filters.get("userId"):
@@ -70,11 +70,7 @@ class NotificationRepository:
 
     async def markAllAsRead(self) -> int:
         """Mark all unread notifications as read and acknowledged"""
-        update_data = {
-            "isRead": True,
-            "isAcknowledged": True,
-            "updatedAt": self._get_timestamp()
-        }
+        update_data = {"isRead": True, "isAcknowledged": True, "updatedAt": self._get_timestamp()}
         count1 = await self.storage.updateMany({"isRead": False}, update_data)
         count2 = await self.storage.updateMany({"isAcknowledged": False}, update_data)
         return count1 + count2

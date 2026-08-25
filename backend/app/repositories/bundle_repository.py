@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from sqlalchemy import text
@@ -32,6 +32,7 @@ class BundleRepository:
             self._initialized = True
             return
         from app.config.settings import settings
+
         suffix = getattr(settings, "table_suffix", "")
         table_name_upper = f"SJ_BUNDLES{suffix}".upper()
         table_name_lower = f"sj_bundles{suffix}".lower()
@@ -43,8 +44,7 @@ class BundleRepository:
         async with factory() as session:
             try:
                 result = await session.execute(
-                    text("SELECT table_name FROM user_tables WHERE table_name = :tname"),
-                    {"tname": table_name_upper}
+                    text("SELECT table_name FROM user_tables WHERE table_name = :tname"), {"tname": table_name_upper}
                 )
                 row = result.fetchone()
                 if not row:
@@ -81,13 +81,13 @@ class BundleRepository:
 
     async def create(self, data: Dict) -> Dict:
         await self.ensure_table_exists()
-        data["createdAt"] = datetime.utcnow().isoformat()
-        data["updatedAt"] = datetime.utcnow().isoformat()
+        data["createdAt"] = datetime.now(timezone.utc).isoformat()
+        data["updatedAt"] = datetime.now(timezone.utc).isoformat()
         return await self.storage.create(data)
 
     async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
         await self.ensure_table_exists()
-        update_data["updatedAt"] = datetime.utcnow().isoformat()
+        update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str) -> bool:

@@ -55,45 +55,45 @@ SLA = {
     "p90_ms": 500,
     "p99_ms": 1500,
     # Error rate
-    "error_rate_pct": 1.0,       # max 1 % errors under normal load
-    "stress_error_rate_pct": 5.0, # max 5 % errors under stress
+    "error_rate_pct": 1.0,  # max 1 % errors under normal load
+    "stress_error_rate_pct": 5.0,  # max 5 % errors under stress
     # Throughput
-    "min_rps": 10,               # minimum requests/second under load
+    "min_rps": 10,  # minimum requests/second under load
 }
 
 # ── Endpoints tested by benchmark_endpoints.py ────────────────────────────────
 PUBLIC_ENDPOINTS = [
-    ("GET",  "/api/health",                                           "Health check"),
-    ("GET",  "/api/products/public?page=1&limit=20",                  "Products - page 1"),
-    ("GET",  "/api/products/public?page=2&limit=20",                  "Products - page 2"),
-    ("GET",  "/api/categories/public",                                "Categories"),
-    ("GET",  "/api/banners/public",                                   "Banners"),
-    ("GET",  "/api/brands/public",                                    "Brands"),
-    ("GET",  "/api/collections/public",                               "Collections"),
-    ("GET",  "/api/promo-strips",                                     "Promo strips"),
-    ("GET",  "/api/recommendations",                                  "Trending recommendations"),
-    ("GET",  "/api/search-tags",                                      "Search tags"),
-    ("GET",  "/api/delivery-charges/check-serviceability?pincode=831001", "Pincode lookup"),
-    ("GET",  "/api/app/version",                                      "App version"),
+    ("GET", "/api/health", "Health check"),
+    ("GET", "/api/products/public?page=1&limit=20", "Products - page 1"),
+    ("GET", "/api/products/public?page=2&limit=20", "Products - page 2"),
+    ("GET", "/api/categories/public", "Categories"),
+    ("GET", "/api/banners/public", "Banners"),
+    ("GET", "/api/brands/public", "Brands"),
+    ("GET", "/api/collections/public", "Collections"),
+    ("GET", "/api/promo-strips", "Promo strips"),
+    ("GET", "/api/recommendations", "Trending recommendations"),
+    ("GET", "/api/search-tags", "Search tags"),
+    ("GET", "/api/delivery-charges/check-serviceability?pincode=831001", "Pincode lookup"),
+    ("GET", "/api/app/version", "App version"),
 ]
 
 AUTH_ENDPOINTS = [
     # Requires a valid Bearer token — populated at runtime
-    ("GET",  "/api/cart",                        "Cart fetch"),
-    ("GET",  "/api/wishlist",                    "Wishlist fetch"),
-    ("GET",  "/api/orders?page=1&limit=10",      "Orders - customer"),
-    ("GET",  "/api/notifications",               "Notifications"),
+    ("GET", "/api/cart", "Cart fetch"),
+    ("GET", "/api/wishlist", "Wishlist fetch"),
+    ("GET", "/api/orders?page=1&limit=10", "Orders - customer"),
+    ("GET", "/api/notifications", "Notifications"),
 ]
 
 ADMIN_ENDPOINTS = [
     # Requires admin token — populated at runtime
-    ("GET",  "/api/orders?page=1&limit=20",                 "Orders - admin list"),
-    ("GET",  "/api/analytics/dashboard",                    "Analytics dashboard"),
-    ("GET",  "/api/users?page=1&limit=20",                  "Users list"),
-    ("GET",  "/api/products?page=1&limit=20&role=admin",    "Products - admin"),
+    ("GET", "/api/orders?page=1&limit=20", "Orders - admin list"),
+    ("GET", "/api/analytics/dashboard", "Analytics dashboard"),
+    ("GET", "/api/users?page=1&limit=20", "Users list"),
+    ("GET", "/api/products?page=1&limit=20&role=admin", "Products - admin"),
 ]
 
 # ── Test data ─────────────────────────────────────────────────────────────────
 # Override with real credentials via env vars when running auth/admin tests
 TEST_CUSTOMER_TOKEN = os.getenv("TEST_CUSTOMER_TOKEN", "")
-TEST_ADMIN_TOKEN    = os.getenv("TEST_ADMIN_TOKEN", "")
+TEST_ADMIN_TOKEN = os.getenv("TEST_ADMIN_TOKEN", "")

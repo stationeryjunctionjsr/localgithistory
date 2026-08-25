@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import Toast from 'react-native-toast-message';
 import api, { TOKEN_KEY, REFRESH_KEY, SESSION_KEY } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { setSessionRevokedHandler } from '@sj/api-client';
@@ -76,7 +77,14 @@ export function useAuth() {
       if (sessionId) await SecureStore.setItemAsync(SESSION_KEY, sessionId);
       if (userData) setUser(userData);
       // Sync guest cart/wishlist to backend after login
-      syncGuestDataToBackend().catch(() => {});
+      syncGuestDataToBackend().catch(() => {
+        Toast.show({
+          type: 'error',
+          text1: 'Cart not restored',
+          text2: "We couldn't restore your cart. Please add your items again.",
+          visibilityTime: 4000,
+        });
+      });
       // Register Expo push token after login
       registerExpoPushToken().catch(() => {});
       return userData;

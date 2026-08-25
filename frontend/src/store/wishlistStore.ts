@@ -23,6 +23,7 @@ import {
   removeGuestWishlistItem,
 } from '@/utils/guestStore';
 import type { WishlistItem } from '@sj/api-client';
+import { logger } from '@/utils/logger';
 
 export type { WishlistItem };
 
@@ -71,7 +72,7 @@ export const useWishlistStore = create<WishlistState>()(
           });
         }
       } catch (error) {
-        console.error('Error fetching wishlist:', error);
+        logger.error('Error fetching wishlist:', error);
       } finally {
         set({ loading: false });
       }
@@ -89,15 +90,13 @@ export const useWishlistStore = create<WishlistState>()(
             try {
               const res = await api.get(`/products/public/${productId}`);
               productData = res.data;
-            } catch {
-              // keep productData undefined
-            }
+            } catch (e) { logger.warn("Silent catch block:", e); /* keep productData undefined */ }
           }
           addGuestWishlistItem(productId, productData);
           await get().fetchWishlist();
         }
       } catch (error) {
-        console.error('Error adding to wishlist:', error);
+        logger.error('Error adding to wishlist:', error);
       }
     },
 
@@ -112,7 +111,7 @@ export const useWishlistStore = create<WishlistState>()(
           await get().fetchWishlist();
         }
       } catch (error) {
-        console.error('Error removing from wishlist:', error);
+        logger.error('Error removing from wishlist:', error);
       }
     },
 

@@ -192,9 +192,9 @@ export default function Register() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
       <ScrollView
-        className="flex-1"
+        style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1, padding: 20 }}
         keyboardShouldPersistTaps="handled"
       >

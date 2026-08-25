@@ -227,7 +227,7 @@ export default function DeliverySlotsPage() {
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
           <h2 className="mb-1 text-base font-semibold text-amber-900">⚡ Urgent Delivery Settings</h2>
           <p className="mb-3 text-xs text-amber-700">
-            Set the flat surcharge applied when a customer books a slot marked as "Urgent". This
+            Set the flat surcharge applied when a customer books a slot marked as &quot;Urgent&quot;. This
             charge is applied on top of the standard delivery charge.
           </p>
           <div className="flex flex-wrap items-end gap-3">

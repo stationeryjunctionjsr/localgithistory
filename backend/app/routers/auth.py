@@ -155,7 +155,7 @@ async def verify_otp_endpoint(data: VerifyOTPRequest, request: Request):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a valid 10-digit phone number")
 
         device_key = (data.deviceId or "default").strip() or "default"
-        logger.info(f"[VERIFY-OTP] phone={normalized_phone} otp={data.otp} device_key={device_key}")
+        logger.info(f"[VERIFY-OTP] phone=***{normalized_phone[-4:]} device_key={device_key}")
         result = await verify_otp_async(normalized_phone, data.otp, device_key=device_key, delete_on_success=False)
         logger.info(f"[VERIFY-OTP] result={result}")
         if not result["valid"]:
@@ -242,7 +242,7 @@ async def register(user_data: RegisterRequest, request: Request):
         # Check if user already exists as guest
         user = await user_repository.findByPhone(normalized_phone)
         if user:
-            logger.info(f"[REGISTER] User already exists for phone={normalized_phone}")
+            logger.info(f"[REGISTER] User already exists for phone=***{normalized_phone[-4:]}")
             raise HTTPException(status_code=400, detail="User with this phone number already exists")
 
         if user_data.msg91Token:
@@ -253,7 +253,7 @@ async def register(user_data: RegisterRequest, request: Request):
                 raise HTTPException(status_code=400, detail="Invalid verification token")
             verified_phone = extract_phone_from_msg91_payload(res_data)
             if not verified_phone or verified_phone != normalized_phone:
-                logger.warning(f"[REGISTER] Phone mismatch: verified={verified_phone} expected={normalized_phone}")
+                logger.warning(f"[REGISTER] Phone mismatch: verified=***{(verified_phone or '')[-4:]} expected=***{normalized_phone[-4:]}")
                 raise HTTPException(
                     status_code=400,
                     detail="Verified phone number does not match the submitted phone number",
@@ -266,11 +266,13 @@ async def register(user_data: RegisterRequest, request: Request):
                     detail="Phone verification is required before registration",
                 )
             device_key = (user_data.deviceId or "default").strip() or "default"
-            logger.info(f"[REGISTER] Verifying OTP in DB: phone={normalized_phone} otp={user_data.otp} device_key={device_key}")
+            logger.info(
+                f"[REGISTER] Verifying OTP in DB: phone=***{normalized_phone[-4:]} device_key={device_key}"
+            )
             otp_result = await verify_otp_async(
                 normalized_phone, user_data.otp, device_key=device_key, delete_on_success=False
             )
-            logger.info(f"[REGISTER] OTP verify result: {otp_result}")
+            logger.info(f"[REGISTER] OTP verify result: valid={otp_result.get('valid')}")
             if not otp_result.get("valid"):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -281,9 +283,7 @@ async def register(user_data: RegisterRequest, request: Request):
 
         # Only delete the OTP after the user is successfully created in the DB
         if not user_data.msg91Token:
-            await verify_otp_async(
-                normalized_phone, user_data.otp, device_key=device_key, delete_on_success=True
-            )
+            await verify_otp_async(normalized_phone, user_data.otp, device_key=device_key, delete_on_success=True)
         # Create session and tokens
         device = parse_device(request, default_type="web")
         refresh_id = str(uuid4())

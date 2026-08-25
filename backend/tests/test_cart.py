@@ -2,6 +2,7 @@
 
 Fixtures (client, user_auth) come from conftest.py.
 """
+
 import pytest
 
 
@@ -9,9 +10,7 @@ import pytest
 async def test_get_cart_authenticated(client, user_auth):
     """Authenticated user can fetch their cart (returns 200 with a list/dict, not 500)."""
     response = await client.get("/api/cart/", headers=user_auth)
-    assert response.status_code == 200, (
-        f"Expected 200 for empty cart, got {response.status_code}"
-    )
+    assert response.status_code == 200, f"Expected 200 for empty cart, got {response.status_code}"
 
 
 @pytest.mark.asyncio

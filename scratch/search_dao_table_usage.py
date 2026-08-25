@@ -1,5 +1,4 @@
 import os
-import re
 
 backend_dir = "backend"
 matches = []

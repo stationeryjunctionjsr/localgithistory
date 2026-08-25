@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import api from '@/utils/api';
 import Header from '@/components/Header';
 import HoverProductCard from '@/components/HoverProductCard';
+import { logger } from '@/utils/logger';
 
 interface FavouritesPageClientProps {
   type: 'customer' | 'business';
@@ -81,7 +82,7 @@ export default function FavouritesPageClient({ type }: FavouritesPageClientProps
         setFilters(data.filters);
       }
     } catch (err) {
-      console.error('Failed to fetch favourites', err);
+      logger.error('Failed to fetch favourites', err);
     } finally {
       setLoading(false);
     }

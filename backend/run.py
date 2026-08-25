@@ -9,6 +9,7 @@ import asyncio
 # default ProactorEventLoop no longer has the SSL issues, so falling back silently is safe.
 if sys.platform == "win32":
     import warnings
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         try:
@@ -39,13 +40,14 @@ if __name__ == "__main__":
 
     port = int(os.getenv("PORT", 8000))
     print(f"Starting server on port {port}...")
-    
+
     # Auto-whitelist IP for Oracle Autonomous DB
     import subprocess
+
     try:
         print("Checking/updating IP whitelist for Oracle DB...", flush=True)
         subprocess.run([sys.executable, "whitelist_current_ip.py"], check=True)
     except Exception as e:
         print(f"Warning: Failed to auto-whitelist IP (this may cause connection errors): {e}")
-        
+
     uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False, workers=4, loop="asyncio")

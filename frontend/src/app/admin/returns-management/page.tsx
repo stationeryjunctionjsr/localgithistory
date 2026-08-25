@@ -1,10 +1,11 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/utils/api';
 import { toast } from 'react-toastify';
 import { formatDateTimeIST } from '@/utils/dateUtils';
+
 
 export default function ReturnsManagement() {
   const { user } = useAuth();
@@ -186,6 +187,11 @@ export default function ReturnsManagement() {
                       <td className="px-6 py-4">
                         <div className="font-mono text-xs font-semibold text-slate-700">RET: #{ret._id?.slice(-8)}</div>
                         <div className="font-mono text-[10px] text-slate-400 mt-1">ORD: #{ret.orderId?.slice(-8)}</div>
+                        {ret.createdAt && (
+                          <div className="text-[10px] text-slate-400 mt-1">
+                            {formatDateTimeIST(ret.createdAt)}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-medium text-slate-800">{ret.user?.name || 'Customer'}</div>
@@ -203,7 +209,7 @@ export default function ReturnsManagement() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-slate-700 font-semibold">
-                        ₹{ret.deliveryCharge || 0}
+                        â‚¹{ret.deliveryCharge || 0}
                         <div className="text-[10px] text-slate-400 font-normal uppercase mt-0.5">{ret.paymentMethod}</div>
                         {ret.upiPaymentScreenshot && (
                           <a

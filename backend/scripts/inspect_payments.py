@@ -12,6 +12,7 @@ load_dotenv()
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 
+
 async def run():
     factory = get_async_session_factory()
     if not factory:
@@ -26,6 +27,7 @@ async def run():
             print(f"Total payments in DB: {count}")
     except Exception as e:
         print(f"Error querying sj_payments: {e}")
+
 
 if __name__ == "__main__":
     if sys.platform == "win32":

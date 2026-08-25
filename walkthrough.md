@@ -629,3 +629,60 @@ No visual redesigns -- only bug fixes, code quality improvements, and missing fe
   3. Implemented split-action categories in the drawer menu: tapping the category name text directly navigates the user straight to that category's product list, while tapping the chevron icon on the right toggles the expansion of its subcategories. Added corresponding layout styles (`drawerSubItemRow`, `drawerSubItemTextButton`, `drawerChevronButton`, `drawerChevronPlaceholder`).
 
 
+---
+
+## Phase 13: Marketplace Bug Fixes & Architectural Hardening
+
+### Architecture Notes — Seller Discount Isolation (`update_coupon`)
+
+#### Q: What are the "dangerous fields" in `update_coupon`, and why strip them?
+
+The `update_coupon` endpoint strips `sellerId` and `discountScope` from any seller's update payload before saving, regardless of what the seller sends.
+
+**Why these two fields:**
+- `sellerId` on a coupon = "this coupon applies only to this seller's products in the cart"
+- `discountScope` = "this coupon is seller-scoped (not platform-wide)"
+
+If either were changed by the seller:
+- `sellerId → null` → discount applies to *any* seller's cart items (seller A discounts seller B's products)
+- `discountScope → "platform"` → same effect, discount is no longer isolated
+
+The `.pop()` is **not** because the UI shows these fields — it doesn't. It's server-side defence against raw API calls (curl, Postman, etc. that bypass the UI entirely). The UI is the guard rail; the `.pop()` is the lock on the back door.
+
+#### Q: The seller doesn't select their sellerId — it's auto-set. Shouldn't the UI only show allowed options?
+
+Correct on both counts:
+
+1. **sellerId is auto-injected**: On `create_coupon`, the backend forces `sellerId = current_user._id` — the seller has no input. The `.pop()` on update is purely defensive against raw API callers.
+
+2. **UI already shows only allowed options** (confirmed as of this session):
+   - Type dropdown: only `product_discount` and `bxgy` — `total_order_discount`, `shipping_discount`, `referral` removed
+   - Method: no dropdown at all — hardcoded to `automatic`, info banner shown
+   - Coupon code field: completely removed
+
+The two layers (UI restriction + backend strip/reject) work together. The UI prevents normal users from sending invalid values; the backend rejects them even if someone bypasses the UI.
+
+---
+
+## Phase 14: Database Full Normalization (Option 1)
+
+### Architecture Update
+The hybrid storage model (combining native columns with a `doc` JSON blob) was originally designed to emulate a NoSQL Document Store (like MongoDB) in MySQL. We have now fully normalized the `sj_sub_orders` and `sj_seller_availability` tables to strictly adhere to Third Normal Form (3NF) and removed the `doc` columns entirely.
+
+### Changes Implemented
+1. **Schema Updates (`backend/scripts/schema_mysql.sql`)**:
+   - `sj_seller_availability`: Flattened `reason`, `created_by`, and `cancelled_at` into native columns.
+   - `sj_sub_orders`: 
+     - Extracted 20+ fields (subtotals, delivery slots, notes, discounts, coupon details) into native scalar columns.
+     - Flattened nested address objects (`shippingAddress` and `billingAddress`) into native columns (e.g., `shipping_line1`, `billing_city`).
+   - `sj_sub_order_items`: Created a new child table to store the array of items, mapped via foreign key `sub_order_id`.
+
+2. **Data Migration Script (`backend/scripts/migrate_option1.py` & `migrate_option1.sql`)**:
+   - Created a standalone SQL migration script to safely add the new scalar columns and the new `sj_sub_order_items` table.
+   - Created a Python migration script to execute the SQL DDL, extract existing JSON data, flatten the addresses, iterate over the `items` arrays to populate `sj_sub_order_items`, and finally drop the `doc` columns from both tables.
+
+3. **DAO Rewrites**:
+   - `MySQLSellerAvailabilityDAO`: Refactored to operate solely on scalar columns.
+   - `MySQLSubOrderDAO`: Completely rewritten. It now performs SQL `JOIN`s against `sj_sub_order_items` during read operations to reconstruct the nested dictionary expected by the Python application layer, ensuring the rest of the codebase continues to function without changes while strictly adhering to 3NF.
+
+

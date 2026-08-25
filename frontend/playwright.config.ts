@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
   },
   projects: [
@@ -17,10 +17,10 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'powershell -ExecutionPolicy Bypass -File ./start-all.ps1',
+  webServer: process.env.PLAYWRIGHT_TEST_BASE_URL ? undefined : {
+    command: 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     cwd: './',
   },
 });

@@ -3,14 +3,16 @@ import { Metadata } from 'next';
 import { Suspense } from 'react';
 
 export const revalidate = 300; // 5 minutes caching
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const decodedSlug = decodeURIComponent(params.slug);
-  const canonicalUrl = `https://www.stationeryjunction.com/brands/${encodeURIComponent(params.slug)}`;
+  const { slug } = await params;
+  const decodedSlug = decodeURIComponent(slug);
+  const canonicalUrl = `https://www.stationeryjunction.com/brands/${encodeURIComponent(slug)}`;
   return {
     title: `${decodedSlug} | Brands | Stationery Junction`,
     description: `Shop authentic products from ${decodedSlug}.`,
@@ -24,12 +26,13 @@ export async function generateMetadata({
   };
 }
 
-export default async function BrandDetailPage({ params }: { params: { slug: string } }) {
+export default async function BrandDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const baseURL = process.env.NEXT_PUBLIC_API_URL;
   if (!baseURL) {
     throw new Error('NEXT_PUBLIC_API_URL is not defined');
   }
-  const slug = decodeURIComponent(params.slug);
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug);
   const fetchOptions: RequestInit = {
     next: { revalidate: 300 },
     headers: { 'Content-Type': 'application/json' },
@@ -43,11 +46,19 @@ export default async function BrandDetailPage({ params }: { params: { slug: stri
     ).catch(() => null),
   ]);
 
-  const extractJson = async (res: Response | null) =>
-    res?.ok ? res.json().catch(() => null) : null;
+  const extractJson = async (res: Response | null, critical: boolean = false) => {
+    if (!res || !res.ok) {
+      if (critical) throw new Error(`API failed with status ${res?.status}`);
+      return null;
+    }
+    return res.json().catch((e) => {
+      if (critical) throw e;
+      return null;
+    });
+  };
 
   const [brandsRaw, bannersRaw] = await Promise.all([
-    extractJson(brandsRes),
+    extractJson(brandsRes, true),
     extractJson(bannersRes),
   ]);
 

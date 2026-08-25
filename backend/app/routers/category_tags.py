@@ -64,6 +64,7 @@ async def create_category_tag(tag: CategoryTagBase, current_user: dict = Depends
         cache.invalidate(get_active_category_tags)
         try:
             from app.routers.categories import get_public_categories, get_tag_categories, get_tag_brands
+
             cache.invalidate(get_public_categories)
             cache.invalidate(get_tag_categories)
             cache.invalidate(get_tag_brands)
@@ -108,6 +109,7 @@ async def update_category_tag(
         cache.invalidate(get_active_category_tags)
         try:
             from app.routers.categories import get_public_categories, get_tag_categories, get_tag_brands
+
             cache.invalidate(get_public_categories)
             cache.invalidate(get_tag_categories)
             cache.invalidate(get_tag_brands)
@@ -133,6 +135,7 @@ async def hide_category_tag(tag_id: str, current_user: dict = Depends(require_su
         cache.invalidate(get_active_category_tags)
         try:
             from app.routers.categories import get_public_categories, get_tag_categories, get_tag_brands
+
             cache.invalidate(get_public_categories)
             cache.invalidate(get_tag_categories)
             cache.invalidate(get_tag_brands)

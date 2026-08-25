@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface SessionsByDeviceProps {
   startDate: Date | null;
@@ -28,7 +29,7 @@ export default function SessionsByDevice({ startDate, endDate }: SessionsByDevic
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch sessions by device:', error);
+      logger.error('Failed to fetch sessions by device:', error);
       setLoading(false);
     }
   };

@@ -24,31 +24,22 @@ logger = logging.getLogger(__name__)
 PRODUCT_INDEXES = [
     # Filtering by is_active (every query uses this unless includeInactive=True)
     "CREATE INDEX IF NOT EXISTS idx_sj_products_is_active ON sj_products(is_active)",
-
     # Filtering by category (most common filter in the listing page)
     "CREATE INDEX IF NOT EXISTS idx_sj_products_category ON sj_products(category)",
-
     # Filtering by brand
     "CREATE INDEX IF NOT EXISTS idx_sj_products_brand ON sj_products(LOWER(brand))",
-
     # Filtering by sub_category
     "CREATE INDEX IF NOT EXISTS idx_sj_products_sub_category ON sj_products(sub_category)",
-
     # Sorting by price (price_asc / price_desc sort options)
     "CREATE INDEX IF NOT EXISTS idx_sj_products_mrp ON sj_products(mrp)",
-
     # Sorting by newest (default sort)
     "CREATE INDEX IF NOT EXISTS idx_sj_products_created_at ON sj_products(created_at DESC)",
-
     # Exact SKU lookup (used in search)
     "CREATE INDEX IF NOT EXISTS idx_sj_products_sku ON sj_products(sku)",
-
     # Composite: active + category — the most common combined filter
     "CREATE INDEX IF NOT EXISTS idx_sj_products_active_category ON sj_products(is_active, category)",
-
     # Composite: active + brand
     "CREATE INDEX IF NOT EXISTS idx_sj_products_active_brand ON sj_products(is_active, LOWER(brand))",
-
     # Composite: active + created_at — default listing query
     "CREATE INDEX IF NOT EXISTS idx_sj_products_active_created ON sj_products(is_active, created_at DESC)",
 ]
@@ -77,7 +68,7 @@ async def create_indexes():
         logger.warning("Oracle not configured — skipping index creation.")
         return
 
-    suffix = getattr(settings, 'table_suffix', '')
+    suffix = getattr(settings, "table_suffix", "")
     table_name = f"sj_products{suffix}"
     indexes_to_create = [
         f"CREATE INDEX idx_sj_products_is_active{suffix} ON {table_name}(is_active)",
@@ -114,7 +105,7 @@ async def create_indexes():
         except Exception as e:
             err_str = str(e)
             if (
-                "ORA-00955" in err_str   # index name already used by another object
+                "ORA-00955" in err_str  # index name already used by another object
                 or "ORA-01408" in err_str  # column list is already covered by an existing index
                 or "already exists" in err_str.lower()
                 or "already indexed" in err_str.lower()
@@ -125,10 +116,7 @@ async def create_indexes():
                 logger.error("  ✗ Failed to create index %s: %s", index_name, err_str)
                 failed += 1
 
-    logger.info(
-        "Index creation complete: %d created, %d already existed, %d failed.",
-        created, skipped, failed
-    )
+    logger.info("Index creation complete: %d created, %d already existed, %d failed.", created, skipped, failed)
 
 
 if __name__ == "__main__":

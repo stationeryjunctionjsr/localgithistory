@@ -18,7 +18,7 @@ class TrackingRepository:
     def _get_current_timestamp(self):
         from datetime import datetime
 
-        return datetime.utcnow().isoformat()
+        return datetime.now(timezone.utc).isoformat()
 
     async def trackSearch(
         self,
@@ -320,8 +320,9 @@ class TrackingRepository:
         self, limit: int = 50, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
         abandonments = await self.findAll({"type": "cart_abandonment"})
-        
+
         from app.db.storage_factory import get_storage
+
         product_storage = get_storage("products")
         products = await product_storage.findAll()
         product_map = {p.get("_id"): p for p in products}
@@ -333,15 +334,20 @@ class TrackingRepository:
                 continue
             if end_date and ts and ts > end_date:
                 continue
-                
+
             for item in a.get("cartItems", []):
                 pid = item.get("product") or item.get("productId")
                 if not pid:
                     continue
-                    
+
                 if pid not in abandoned_products:
-                    abandoned_products[pid] = {"productId": pid, "abandonCount": 0, "quantityAbandoned": 0, "valueLost": 0.0}
-                    
+                    abandoned_products[pid] = {
+                        "productId": pid,
+                        "abandonCount": 0,
+                        "quantityAbandoned": 0,
+                        "valueLost": 0.0,
+                    }
+
                 q = item.get("quantity", 1)
                 abandoned_products[pid]["abandonCount"] += 1
                 abandoned_products[pid]["quantityAbandoned"] += q
@@ -350,20 +356,20 @@ class TrackingRepository:
         result = []
         for pid, stats in abandoned_products.items():
             product = product_map.get(pid, {})
-            result.append({
-                "productId": pid,
-                "productName": product.get("name", "Unknown"),
-                "category": product.get("category", "Uncategorized"),
-                "abandonCount": stats["abandonCount"],
-                "quantityAbandoned": stats["quantityAbandoned"],
-                "valueLost": round(stats["valueLost"], 2)
-            })
-            
+            result.append(
+                {
+                    "productId": pid,
+                    "productName": product.get("name", "Unknown"),
+                    "category": product.get("category", "Uncategorized"),
+                    "abandonCount": stats["abandonCount"],
+                    "quantityAbandoned": stats["quantityAbandoned"],
+                    "valueLost": round(stats["valueLost"], 2),
+                }
+            )
+
         return sorted(result, key=lambda x: x["abandonCount"], reverse=True)[:limit]
 
-    async def clearRecentSearches(
-        self, user_id: Optional[str] = None, session_id: Optional[str] = None
-    ) -> None:
+    async def clearRecentSearches(self, user_id: Optional[str] = None, session_id: Optional[str] = None) -> None:
         """
         Soft-clear: insert a marker record so that searches before this moment
         are hidden for this user/session. No tracking data is deleted.

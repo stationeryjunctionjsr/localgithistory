@@ -10,6 +10,7 @@ sys.path.insert(0, str(backend_root))
 os.chdir(str(backend_root))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from sqlalchemy import text
@@ -17,6 +18,7 @@ from app.config.database import get_async_session_factory
 from app.db.oracle_utils import json_dumps, now_utc
 
 NOW = now_utc()
+
 
 async def create_product():
     factory = get_async_session_factory()
@@ -42,7 +44,7 @@ async def create_product():
             "tags": ["notebook", "test", "premium", "ruled"],
             "va": [],
             "vc": [],
-            "details": {"Color": "Black", "Pages": "200", "Material": "Premium Paper"}
+            "details": {"Color": "Black", "Pages": "200", "Material": "Premium Paper"},
         }
 
         await session.execute(
@@ -62,10 +64,16 @@ async def create_product():
                 )
             """),
             {
-                "eid": eid, "name": product["name"], "desc": product["description"],
-                "sku": product["sku"], "cat": product["category"], "sub": product["sub_category"],
-                "brand": product["brand"], "mrp": product["mrp"],
-                "mrp_per_case": product["mrp_per_case"], "quantity_per_case": product["quantity_per_case"],
+                "eid": eid,
+                "name": product["name"],
+                "desc": product["description"],
+                "sku": product["sku"],
+                "cat": product["category"],
+                "sub": product["sub_category"],
+                "brand": product["brand"],
+                "mrp": product["mrp"],
+                "mrp_per_case": product["mrp_per_case"],
+                "quantity_per_case": product["quantity_per_case"],
                 "stock": product["stock"],
                 "images": json_dumps(product["images"]),
                 "videos": json_dumps(product["videos"]),
@@ -77,12 +85,15 @@ async def create_product():
             },
         )
         await session.commit()
-        
+
         # Get the ID to return
-        r = await session.execute(text("SELECT id, external_id FROM SJ_PRODUCTS WHERE sku = :sku"), {"sku": product["sku"]})
+        r = await session.execute(
+            text("SELECT id, external_id FROM SJ_PRODUCTS WHERE sku = :sku"), {"sku": product["sku"]}
+        )
         row = r.fetchone()
         product_id = row[0]
         print(f"Test product created! ID: {product_id}, SKU: {product['sku']}")
+
 
 if __name__ == "__main__":
     if sys.platform == "win32":

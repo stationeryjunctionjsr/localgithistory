@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
@@ -58,13 +58,13 @@ class ReturnRequestRepository:
             "status": data.get("status", "pending"),
             "valetId": data.get("valetId"),
             "deliveryCharge": data.get("deliveryCharge", 0),
-            "createdAt": datetime.utcnow().isoformat(),
-            "updatedAt": datetime.utcnow().isoformat(),
+            "createdAt": datetime.now(timezone.utc).isoformat(),
+            "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
         return await self.storage.create(request)
 
     async def update(self, id: str, update_data: Dict) -> Dict:
-        update_data["updatedAt"] = datetime.utcnow().isoformat()
+        update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str) -> Dict:

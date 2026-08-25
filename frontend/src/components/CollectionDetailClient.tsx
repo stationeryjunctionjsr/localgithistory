@@ -8,6 +8,7 @@ import HeroBanner from '@/components/HeroBanner';
 import ProductCatalog from '@/components/ProductCatalog';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/utils/logger';
 
 interface CollectionInfo {
   _id?: string;
@@ -82,9 +83,7 @@ export default function CollectionDetailClient({
           },
         });
         setBanners(res.data || []);
-      } catch {
-        // No banners available
-      }
+      } catch (e) { logger.warn("Silent catch block:", e); /* No banners available */ }
     };
     fetchBanners();
   // eslint-disable-next-line react-hooks/exhaustive-deps

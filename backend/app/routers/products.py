@@ -47,7 +47,7 @@ async def upload_product_images(
         logger.error("upload_product_images failed: %s", str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while uploading images: {str(e)}"
+            detail=f"An error occurred while uploading images: {str(e)}",
         )
 
 
@@ -62,6 +62,8 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
 
     try:
         contents = await file.read()
+        if len(contents) > 5 * 1024 * 1024:  # 5 MB cap
+            raise HTTPException(status_code=413, detail="CSV file exceeds the 5 MB size limit")
         csv_data = list(csv.DictReader(io.StringIO(contents.decode("utf-8"))))
 
         # Group rows by product name
@@ -197,10 +199,14 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                     await product_repository.create(product_data)
                     results.append({"product": product_data["name"], "action": "created"})
             except (ValueError, TypeError, KeyError) as e:
-                errors.append({"row": main_row.get("_row_number", "N/A"), "product": name, "error": f"Data error: {str(e)}"})
+                errors.append(
+                    {"row": main_row.get("_row_number", "N/A"), "product": name, "error": f"Data error: {str(e)}"}
+                )
             except Exception as e:
                 logger.error("Unexpected error processing product %s in CSV: %s", name, str(e), exc_info=True)
-                errors.append({"row": main_row.get("_row_number", "N/A"), "product": name, "error": f"Internal error: {str(e)}"})
+                errors.append(
+                    {"row": main_row.get("_row_number", "N/A"), "product": name, "error": f"Internal error: {str(e)}"}
+                )
 
         _invalidate_product_caches()
         return {
@@ -235,15 +241,20 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
         "mrpPerCase",
         "quantityPerCase",
         "stock",
-        "Attribute 1", "Variant 1",
-        "Attribute 2", "Variant 2",
-        "Attribute 3", "Variant 3",
-        "Attribute 4", "Variant 4",
-        "Attribute 5", "Variant 5",
+        "Attribute 1",
+        "Variant 1",
+        "Attribute 2",
+        "Variant 2",
+        "Attribute 3",
+        "Variant 3",
+        "Attribute 4",
+        "Variant 4",
+        "Attribute 5",
+        "Variant 5",
         "images",
         "videos",
         "isActive",
-        "productId"
+        "productId",
     ]
 
     output = io.StringIO()
@@ -267,7 +278,9 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
         videos = ",".join(videos_list) if isinstance(videos_list, list) else (videos_list or "")
 
         is_active = "true" if p.get("isActive", True) else "false"
-        product_id = p.get("productIdFormatted") or (f"PDT-{p.get('productId')}" if p.get("productId") is not None else "")
+        product_id = p.get("productIdFormatted") or (
+            f"PDT-{p.get('productId')}" if p.get("productId") is not None else ""
+        )
 
         combinations = p.get("variantCombinations", []) or []
         if combinations:
@@ -296,25 +309,10 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
                         images,
                         videos,
                         is_active,
-                        product_id
+                        product_id,
                     ]
                 else:
-                    row = [
-                        name,
-                        "",
-                        "",
-                        "",
-                        "",
-                        combo_mrp,
-                        "",
-                        "",
-                        combo_stock,
-                        *attr_cols,
-                        "",
-                        "",
-                        "",
-                        ""
-                    ]
+                    row = [name, "", "", "", "", combo_mrp, "", "", combo_stock, *attr_cols, "", "", "", ""]
                 writer.writerow(row)
         else:
             attr_cols = [""] * 10
@@ -332,7 +330,7 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
                 images,
                 videos,
                 is_active,
-                product_id
+                product_id,
             ]
             writer.writerow(row)
 
@@ -340,7 +338,7 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
     return StreamingResponse(
         io.BytesIO(output.getvalue().encode("utf-8")),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=products.csv"}
+        headers={"Content-Disposition": "attachment; filename=products.csv"},
     )
 
 
@@ -368,16 +366,19 @@ async def get_search_suggestions(q: str = "", limit: int = 8):
 
     return {"suggestions": suggestions}
 
-async def populate_product_discounts(products_list: List[dict], role: str, user_id: Optional[str] = None, skinny: bool = False):
+
+async def populate_product_discounts(
+    products_list: List[dict], role: str, user_id: Optional[str] = None, skinny: bool = False
+):
     from app.repositories.coupon_repository import coupon_repository, get_coupon_description
-    
+
     # Pre-fetch cache of active automatic product discounts
     active_discounts = await coupon_repository.get_active_automatic_product_discounts()
-    
+
     # Pre-fetch all active coupons once to pass to bulk checks
     all_coupons = await coupon_repository.get_active_coupons()
     user_behavior_cache = {}
-    
+
     # Filter applicable ones for the current role and user (behavior matched)
     applicable_discounts = []
     for c in active_discounts:
@@ -389,20 +390,22 @@ async def populate_product_discounts(products_list: List[dict], role: str, user_
                 continue
         behavior = c.get("userBehavior")
         if behavior and behavior != "none":
-            if not user_id or not await coupon_repository._user_matches_behavior(user_id, behavior, user_behavior_cache=user_behavior_cache):
+            if not user_id or not await coupon_repository._user_matches_behavior(
+                user_id, behavior, user_behavior_cache=user_behavior_cache
+            ):
                 continue
         applicable_discounts.append(c)
-        
+
     for p in products_list:
         mrp = float(p.get("mrp") or 0)
         p["originalPrice"] = mrp
-        
+
         # Check automatic product discounts
         auto_discount_pct = 0.0
         auto_discount_value = 0.0
         auto_discount_type = "percentage"
         default_coupon = None
-        
+
         pid = str(p.get("_id", ""))
         for c in applicable_discounts:
             affected = c.get("_affected_product_ids") or set()
@@ -419,17 +422,17 @@ async def populate_product_discounts(products_list: List[dict], role: str, user_
                     auto_discount_value = val
                     auto_discount_type = c.get("discountType")
                     default_coupon = c
-                    
+
         # Apply default discount to price
         final_price = product_repository.getPriceForRole(p, role, 1, user_id=user_id)
         p["price"] = final_price
-        
+
         if default_coupon:
             p["defaultDiscountPercentage"] = round(auto_discount_pct, 2)
-            
+
         if mrp > 0 and final_price < mrp:
             p["discountPercentage"] = round(((mrp - final_price) / mrp) * 100)
-            
+
         # Fast path for list endpoints
         if skinny:
             p["applicableDiscounts"] = []
@@ -439,7 +442,7 @@ async def populate_product_discounts(products_list: List[dict], role: str, user_
         other_coupons = await coupon_repository.get_applicable_discounts_for_product(
             p, role, user_id, all_coupons=all_coupons, user_behavior_cache=user_behavior_cache
         )
-        
+
         # Find active quantity-based coupon if any
         qty_coupon = None
         if default_coupon and default_coupon.get("minRequirementType") == "quantity_based":
@@ -449,26 +452,30 @@ async def populate_product_discounts(products_list: List[dict], role: str, user_
                 if oc.get("minRequirementType") == "quantity_based":
                     qty_coupon = oc
                     break
-        
+
         if qty_coupon:
             p["quantityTiers"] = qty_coupon.get("quantityTiers") or []
             p["quantityItemType"] = qty_coupon.get("applicableItemType") or "units"
-            
+
         app_discs = []
         if default_coupon and default_coupon.get("minRequirementType") == "quantity_based":
-            app_discs.append({
-                "type": default_coupon.get("typeOfDiscount"),
-                "code": default_coupon.get("code"),
-                "description": get_coupon_description(default_coupon),
-            })
-            
+            app_discs.append(
+                {
+                    "type": default_coupon.get("typeOfDiscount"),
+                    "code": default_coupon.get("code"),
+                    "description": get_coupon_description(default_coupon),
+                }
+            )
+
         for oc in other_coupons:
-            app_discs.append({
-                "type": oc.get("typeOfDiscount"),
-                "code": oc.get("code"),
-                "description": get_coupon_description(oc),
-            })
-            
+            app_discs.append(
+                {
+                    "type": oc.get("typeOfDiscount"),
+                    "code": oc.get("code"),
+                    "description": get_coupon_description(oc),
+                }
+            )
+
         p["applicableDiscounts"] = app_discs
 
 
@@ -479,11 +486,13 @@ def _invalidate_product_caches():
     cache.invalidate(get_product)
     try:
         from app.routers.categories import get_tag_brands
+
         cache.invalidate(get_tag_brands)
     except Exception:
         pass
     try:
         from app.repositories.coupon_repository import coupon_repository
+
         coupon_repository.invalidate_cache()
     except Exception:
         pass
@@ -619,7 +628,6 @@ async def get_public_product(product_id: str, role: str = "customer", response: 
 
 
 @router.get("", response_model=PaginatedProductResponse)
-
 @router.get("/", response_model=PaginatedProductResponse)
 @cache.ttl_cache(ttl=60.0)
 async def get_products(
@@ -674,11 +682,11 @@ async def get_products(
         query["availability"] = availability
     if sort:
         query["sort"] = sort
-    if status == 'active':
+    if status == "active":
         query["isActive"] = True
-    elif status == 'inactive':
+    elif status == "inactive":
         query["isActive"] = False
-    elif status == 'all':
+    elif status == "all":
         query["includeInactive"] = True
 
     query["role"] = effective_role
@@ -762,7 +770,6 @@ async def get_product(product_id: str, current_user: dict = Depends(get_current_
 
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(product_data: ProductCreate, current_user: dict = Depends(require_super_admin)):
     try:
@@ -900,8 +907,7 @@ async def notify_me(
 
     if not email or "@" not in email:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A valid email address is required for notification."
+            status_code=status.HTTP_400_BAD_REQUEST, detail="A valid email address is required for notification."
         )
 
     # Check if product exists
@@ -910,5 +916,6 @@ async def notify_me(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
     from app.repositories.product_notification_repository import product_notification_repository
+
     await product_notification_repository.create_notification(product_id, email, user_id)
     return {"message": "Notification registered successfully", "email": email}

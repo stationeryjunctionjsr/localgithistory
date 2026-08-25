@@ -1,4 +1,4 @@
-services:
+﻿services:
   backend:
     build:
       context: ./backend
@@ -14,8 +14,19 @@ services:
       - ENVIRONMENT=production
       # Set to "true" during scheduled upgrades
       - MAINTENANCE_MODE=false
-    # Use reload for local dev
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      # HA Configuration (Total DB Connections = WORKERS * (POOL_SIZE + MAX_OVERFLOW))
+      # Values are read from the root .env file â€” change them there when switching databases.
+      - WORKERS=${WORKERS:-4}
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-5}
+      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-2}
+      - MYSQL_DATABASE_URL=${MYSQL_DATABASE_URL}
+    # Run via run.py to execute pre-flight tasks (IP whitelist) and use WORKERS env var
+    command: python run.py
+    # Raise the OS TCP accept-queue to match Uvicorn's backlog=2048 setting.
+    # Without this the Linux kernel caps it at its default (128 on many base images),
+    # causing connection drops during sudden production traffic spikes.
+    sysctls:
+      net.core.somaxconn: 2048
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 30s

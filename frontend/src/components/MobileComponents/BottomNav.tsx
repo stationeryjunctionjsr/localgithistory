@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 export default function BottomNav() {
   const router = useRouter();
@@ -26,9 +27,7 @@ export default function BottomNav() {
         const items = res.data?.items || res.data || [];
         setCartCount(items.length);
       // eslint-disable-next-line unused-imports/no-unused-vars
-      } catch (e) {
-        // Silent fail
-      }
+      } catch (e) { logger.warn("Silent catch block:", e); /* Silent fail */ }
     };
     fetchCartCount();
   }, [user]);

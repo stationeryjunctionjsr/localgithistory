@@ -5,7 +5,7 @@ All queries are parameterized. Uses numeric PK internally; API sees only externa
 
 from app.config.settings import settings
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from sqlalchemy import text
@@ -70,7 +70,7 @@ class OracleUserDAO:
 
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_users{suffix}"
 
     def _factory(self):
@@ -79,19 +79,19 @@ class OracleUserDAO:
     def _build_query_conditions(self, query: Dict) -> tuple[str, Dict]:
         where_clauses = []
         params = {}
-        
+
         if "role" in query:
             where_clauses.append("role = :role")
             params["role"] = query["role"]
-            
+
         if "email" in query:
             where_clauses.append("LOWER(email) = :email")
             params["email"] = query["email"].lower()
-            
+
         if "phone" in query:
             where_clauses.append("phone = :phone")
             params["phone"] = query["phone"]
-            
+
         if "referralCode" in query:
             where_clauses.append("UPPER(referral_code) = :referralCode")
             params["referralCode"] = query["referralCode"].upper()
@@ -105,19 +105,19 @@ class OracleUserDAO:
                 if not id_list:
                     where_clauses.append("1=0")
                 else:
-                    chunks = [id_list[i:i + 999] for i in range(0, len(id_list), 999)]
+                    chunks = [id_list[i : i + 999] for i in range(0, len(id_list), 999)]
                     chunk_sqls = []
                     for chunk_idx, chunk in enumerate(chunks):
                         id_params = {f"aid_{chunk_idx}_{i}": aid for i, aid in enumerate(chunk)}
                         params.update(id_params)
                         id_placeholders = ", ".join([f":{k}" for k in id_params.keys()])
                         chunk_sqls.append(f"user_id IN ({id_placeholders})")
-                    
+
                     if len(chunk_sqls) == 1:
                         where_clauses.append(chunk_sqls[0])
                     else:
                         where_clauses.append("(" + " OR ".join(chunk_sqls) + ")")
-                        
+
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         return where_sql, params
 
@@ -125,9 +125,9 @@ class OracleUserDAO:
         factory = self._factory()
         if not factory:
             return []
-        
+
         where_sql, params = self._build_query_conditions(query or {})
-        
+
         async with factory() as session:
             result = await session.execute(
                 text(
@@ -141,7 +141,7 @@ class OracleUserDAO:
                     ORDER BY user_id ASC
                     """
                 ),
-                params
+                params,
             )
             rows = result.fetchall()
         docs = [_row_to_doc(r) for r in rows]
@@ -273,7 +273,7 @@ class OracleUserDAO:
         import json
 
         external_id = secrets.token_hex(16)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Resolve userId / userIdFormatted from existing max
         factory = self._factory()
@@ -351,7 +351,7 @@ class OracleUserDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Merge existing with update; only send changed columns to avoid CLOB overwrite
         merged = {**existing, **update_data}

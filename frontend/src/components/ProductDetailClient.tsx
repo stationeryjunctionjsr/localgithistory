@@ -25,6 +25,8 @@ import ProductCarousel from '@/components/ProductCarousel';
 import styles from '@/app/customer/product/[id]/ProductDetail.module.css';
 import { toast } from 'react-toastify';
 import AuthModal from '@/components/AuthModal';
+import { usePincode } from '@/context/PincodeContext';
+import { logger } from '@/utils/logger';
 
 // Icons
 const StarIcon = () => (
@@ -69,15 +71,17 @@ const ShareIcon = () => (
 
 export interface ProductDetailClientProps {
   initialProduct?: any;
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
-export default function ProductDetailClient({ initialProduct }: ProductDetailClientProps) {
+export default function ProductDetailClient({ initialProduct, searchParams }: ProductDetailClientProps) {
   const { id } = useParams();
   const router = useRouter();
   const { user } = useAuth();
   const { theme } = useTheme();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const { cart, addToCart, updateQuantity, fetchCart, openCart } = useCart();
+  const { cart, addToCart, updateQuantity, removeFromCart, fetchCart, openCart } = useCart();
+  const { pincode, serviceableSellers } = usePincode();
   const { share } = useShare();
   const [product, setProduct] = useState<any>(initialProduct || null);
   const [loading, setLoading] = useState(!initialProduct);
@@ -88,6 +92,44 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [bundles, setBundles] = useState<any[]>([]);
+  // Pincode availability state
+  const [requestAdded, setRequestAdded] = useState(false);
+  const [notifyAdded, setNotifyAdded] = useState(false);
+  const [pincodeActionLoading, setPincodeActionLoading] = useState<'request' | 'notify' | null>(null);
+
+  // Computes how many full copies of a bundle are currently in the cart.
+  // Each bundle item is tagged with bundleId; we find the minimum ratio of
+  // (cart item quantity / bundle item quantity) across all bundle items.
+  const getBundleCartCount = (bundle: any): number => {
+    if (!cart?.items?.length || !bundle?.items?.length) return 0;
+    const counts = bundle.items.map((bItem: any) => {
+      const cartItem = cart.items.find(
+        (i: any) => i.bundleId === bundle._id && (i.product?._id || i.product) === bItem.productId
+      );
+      if (!cartItem) return 0;
+      return Math.floor(cartItem.quantity / bItem.quantity);
+    });
+    return Math.min(...counts);
+  };
+
+  // Decrements one full copy of the bundle from the cart.
+  const handleBundleDecrement = async (bundle: any) => {
+    try {
+      for (const bItem of bundle.items) {
+        const cartItem = cart?.items?.find(
+          (i: any) => i.bundleId === bundle._id && (i.product?._id || i.product) === bItem.productId
+        );
+        if (!cartItem) continue;
+        const newQty = cartItem.quantity - bItem.quantity;
+        if (newQty <= 0) {
+          await removeFromCart(cartItem._id);
+        } else {
+          await updateQuantity(cartItem._id, newQty);
+        }
+      }
+      await fetchCart();
+    } catch (e) { logger.warn("Silent catch block:", e); /* silent — fetchCart will re-sync state */ }
+  };
   const [selectedClassification, setSelectedClassification] = useState<string>('All');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingWishlistAction, setPendingWishlistAction] = useState(false);
@@ -210,7 +252,7 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
         }));
         setRecommendations(mapped);
       } catch (error) {
-        console.error('Failed to fetch recommendations', error);
+        logger.error('Failed to fetch recommendations', error);
       }
     };
 
@@ -224,7 +266,7 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
         const response = await api.get(`/bundles/product/${id}`);
         setBundles(response.data.bundles || []);
       } catch (error) {
-        console.error('Failed to fetch bundles for product', error);
+        logger.error('Failed to fetch bundles for product', error);
       }
     };
 
@@ -237,7 +279,7 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
       const res = await api.get(`/reviews/product/${id}`);
       setReviewsList(res.data || []);
     } catch (err) {
-      console.error('Failed to fetch reviews', err);
+      logger.error('Failed to fetch reviews', err);
     }
   };
 
@@ -269,7 +311,7 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
 
       setLoading(false);
     } catch (error) {
-      console.error('Product not found', error);
+      logger.error('Product not found', error);
       toast.error('Product could not be loaded. Please try again.');
       router.push('/customer');
       setLoading(false);
@@ -369,6 +411,24 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
     return !product?.stock || product?.stock <= 0;
   }, [product, currentCombination]);
 
+  // Hyperlocal availability check: is this product available at user's pincode?
+  // True when: no pincode set (can't check), OR at least one of the product's
+  // active+stocked sellers serves the user's pincode.
+  const isAvailableAtPincode = useMemo(() => {
+    if (!pincode) return true; // No pincode set — optimistic
+    if (!serviceableSellers || serviceableSellers.length === 0) return false;
+    const productSellers: any[] = product?.sellers || [];
+    if (productSellers.length === 0) return true; // No seller restriction info — optimistic
+    const serviceableIds = new Set(serviceableSellers.map((s: any) => String(s.id)));
+    return productSellers.some(
+      (s: any) =>
+        s.isActive &&
+        (s.stock ?? 0) > 0 &&
+        (s.requestStatus === 'approved' || !s.requestStatus) &&
+        serviceableIds.has(String(s.sellerId))
+    );
+  }, [pincode, serviceableSellers, product]);
+
   const handleVariantSelect = (attr: string, value: string) => {
     const newSelections = { ...selectedVariants, [attr]: value };
     setSelectedVariants(newSelections);
@@ -454,35 +514,48 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
     }
   };
 
-  // Build breadcrumb parts dynamically
+  // Build breadcrumb parts dynamically based on where the user came from
   const breadcrumbParts: { label: string; href?: string }[] = [
     { label: 'Home', href: getHomePath() },
   ];
 
-  // Add categoryTag if exists
-  if (product.categoryTag) {
-    breadcrumbParts.push({
-      label: product.categoryTag
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (c: string) => c.toUpperCase()),
-      href: `${getListingPath()}?categoryTag=${product.categoryTag}`,
-    });
-  }
+  const refBrand = searchParams?.refBrand as string | undefined;
+  const refCollection = searchParams?.refCollection as string | undefined;
 
-  // Add category if exists
-  if (product.category) {
+  if (refBrand) {
+    // If they came from a Brand page or filtered by Brand
     breadcrumbParts.push({
-      label: product.category,
-      href: `${getListingPath()}?category=${encodeURIComponent(product.category)}`,
+      label: 'Brands',
+      href: '/brands',
     });
-  }
-
-  // Add subCategory if exists
-  if (product.subCategory) {
     breadcrumbParts.push({
-      label: product.subCategory,
-      href: `${getListingPath()}?category=${encodeURIComponent(product.category)}&subCategory=${encodeURIComponent(product.subCategory)}`,
+      label: refBrand,
+      href: `/brands/${encodeURIComponent(refBrand)}`,
     });
+  } else if (refCollection) {
+    // If they came from a Collection
+    breadcrumbParts.push({
+      label: 'Collections',
+      href: '/collections', // if we had a collections page, otherwise maybe just list it
+    });
+    breadcrumbParts.push({
+      label: refCollection,
+      href: `/collections/${encodeURIComponent(refCollection)}`,
+    });
+  } else {
+    // Default category fallback
+    if (product.category) {
+      breadcrumbParts.push({
+        label: product.category,
+        href: `${getListingPath()}?category=${encodeURIComponent(product.category)}`,
+      });
+    }
+    if (product.subCategory) {
+      breadcrumbParts.push({
+        label: product.subCategory,
+        href: `${getListingPath()}?category=${encodeURIComponent(product.category)}&subCategory=${encodeURIComponent(product.subCategory)}`,
+      });
+    }
   }
 
   // Add product name as active page (no href)
@@ -756,6 +829,84 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
                 )}
               </div>
 
+              {/* Pincode Unavailability Banner */}
+              {pincode && !isAvailableAtPincode && (
+                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-4">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                        Not available at your pincode ({pincode})
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                        This product is currently not delivered to your area.
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <button
+                          onClick={async () => {
+                            if (requestAdded || pincodeActionLoading) return;
+                            setPincodeActionLoading('request');
+                            try {
+                              await api.post('/availability-requests', {
+                                productId: product._id || product.id,
+                                productName: product.name,
+                                pincode,
+                              });
+                              setRequestAdded(true);
+                              toast.success('Request submitted! We\'ll work on bringing this to your pincode.');
+                            } catch {
+                              toast.error('Failed to submit request. Please try again.');
+                            } finally {
+                              setPincodeActionLoading(null);
+                            }
+                          }}
+                          disabled={requestAdded || pincodeActionLoading !== null}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                        >
+                          {pincodeActionLoading === 'request' ? (
+                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : requestAdded ? '✓ Requested' : '+ Request Addition'}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (notifyAdded || pincodeActionLoading) return;
+                            setPincodeActionLoading('notify');
+                            try {
+                              await api.post('/tracking/notify-pincode', {
+                                productId: product._id || product.id,
+                                productName: product.name,
+                                pincode,
+                              });
+                              setNotifyAdded(true);
+                              toast.success('We\'ll notify you when this product is available at your pincode!');
+                            } catch {
+                              toast.error('Failed to set notification. Please try again.');
+                            } finally {
+                              setPincodeActionLoading(null);
+                            }
+                          }}
+                          disabled={notifyAdded || pincodeActionLoading !== null}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-amber-600 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                        >
+                          {pincodeActionLoading === 'notify' ? (
+                            <span className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                          ) : notifyAdded ? '✓ Notified' : (
+                            <>
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                              </svg>
+                              Notify Me
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className={styles.actionGroup}>
                 {isOutOfStock ? (
@@ -811,9 +962,9 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
                 ) : (
                   <button
                     onClick={isSameAsCart ? () => openCart() : (cartItem ? handleUpdateCart : handleAddToCart)}
-                    disabled={isOutOfStock && !isSameAsCart}
-                    className={`${styles.addToCartBtn} ${(isOutOfStock && !isSameAsCart) ? 'cursor-not-allowed opacity-50' : ''}`}
-                    style={{ background: (isOutOfStock && !isSameAsCart) ? '#a0a0a0' : theme.primary }}
+                    disabled={(isOutOfStock || !isAvailableAtPincode) && !isSameAsCart}
+                    className={`${styles.addToCartBtn} ${((isOutOfStock || !isAvailableAtPincode) && !isSameAsCart) ? 'cursor-not-allowed opacity-50' : ''}`}
+                    style={{ background: ((isOutOfStock || !isAvailableAtPincode) && !isSameAsCart) ? '#a0a0a0' : theme.primary }}
                   >
                     <svg
                       width="20"
@@ -833,7 +984,7 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
                         </>
                       )}
                     </svg>
-                    {isSameAsCart ? 'GO TO CART' : (cartItem ? 'UPDATE CART' : 'ADD TO CART')}
+                    {isSameAsCart ? 'GO TO CART' : (!isAvailableAtPincode ? 'UNAVAILABLE AT PINCODE' : (cartItem ? 'UPDATE CART' : 'ADD TO CART'))}
                   </button>
                 )}
                 <button
@@ -1118,32 +1269,71 @@ export default function ProductDetailClient({ initialProduct }: ProductDetailCli
                         <span className="text-xs font-bold text-green-600">Save ₹{bundle.savings}</span>
                       </div>
                       
-                      <button
-                        onClick={async () => {
-                          if (!user) {
-                            setPendingWishlistAction(false);
-                            setShowAuthModal(true);
-                            return;
-                          }
-                          try {
-                            await api.post(`/bundles/${bundle._id}/add-to-cart`);
-                            toast.success(`Bundle "${bundle.name}" added to cart!`);
-                            await fetchCart();
-                            openCart();
-                          } catch (err: any) {
-                            const msg = err.response?.data?.detail || 'Failed to add bundle to cart';
-                            toast.error(msg);
-                          }
-                        }}
-                        disabled={!bundle.isAvailable}
-                        className={`w-full rounded-xl py-3 text-center text-sm font-bold text-white transition-all shadow-sm ${
-                          bundle.isAvailable 
-                            ? 'bg-violet-600 hover:bg-violet-700 active:scale-95' 
-                            : 'bg-gray-300 cursor-not-allowed'
-                        }`}
-                      >
-                        {bundle.isAvailable ? 'Add Bundle to Cart' : 'Out of Stock'}
-                      </button>
+                      {(() => {
+                        const bundleCount = getBundleCartCount(bundle);
+                        if (!bundle.isAvailable) {
+                          return (
+                            <button
+                              disabled
+                              className="w-full rounded-xl py-3 text-center text-sm font-bold text-white bg-gray-300 cursor-not-allowed"
+                            >
+                              Out of Stock
+                            </button>
+                          );
+                        }
+                        if (bundleCount > 0) {
+                          return (
+                            <div className="flex items-center overflow-hidden rounded-xl border-2 border-gray-900 bg-white">
+                              <button
+                                onClick={() => handleBundleDecrement(bundle)}
+                                className="flex-1 py-3 text-lg font-bold text-gray-900 transition-colors hover:bg-gray-100 active:scale-95"
+                              >
+                                −
+                              </button>
+                              <div className="border-x-2 border-gray-900 px-5 py-3 text-sm font-bold text-gray-900">
+                                {bundleCount}
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  if (!user) { setPendingWishlistAction(false); setShowAuthModal(true); return; }
+                                  try {
+                                    await api.post(`/bundles/${bundle._id}/add-to-cart`);
+                                    await fetchCart();
+                                  } catch (err: any) {
+                                    toast.error(err.response?.data?.detail || 'Failed to add bundle to cart');
+                                  }
+                                }}
+                                className="flex-1 py-3 text-lg font-bold text-gray-900 transition-colors hover:bg-gray-100 active:scale-95"
+                              >
+                                +
+                              </button>
+                            </div>
+                          );
+                        }
+                        return (
+                          <button
+                            onClick={async () => {
+                              if (!user) {
+                                setPendingWishlistAction(false);
+                                setShowAuthModal(true);
+                                return;
+                              }
+                              try {
+                                await api.post(`/bundles/${bundle._id}/add-to-cart`);
+                                toast.success(`"${bundle.name}" added to cart!`);
+                                await fetchCart();
+                                openCart();
+                              } catch (err: any) {
+                                const msg = err.response?.data?.detail || 'Failed to add bundle to cart';
+                                toast.error(msg);
+                              }
+                            }}
+                            className="w-full rounded-xl py-3 text-center text-sm font-bold text-white transition-all shadow-sm bg-gray-900 hover:bg-gray-800 active:scale-95"
+                          >
+                            Add to Cart
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}

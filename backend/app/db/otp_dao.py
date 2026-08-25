@@ -14,15 +14,14 @@ from app.db.oracle_utils import now_utc
 
 
 class OracleOtpDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_otps{suffix}"
 
     @property
     def SEND_LOG_TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_otp_send_log{suffix}"
 
     def _factory(self):
@@ -42,7 +41,7 @@ class OracleOtpDAO:
                     WHERE phone = :phone AND device_key = :device_key
                       AND expires_at > :now
                     ORDER BY created_at DESC
-                    FETCH FIRST 1 ROWS ONLY
+                    LIMIT 1
                 """),
                 {"phone": phone, "device_key": device_key, "now": now},
             )

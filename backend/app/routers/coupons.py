@@ -11,7 +11,6 @@ router = APIRouter()
 
 
 @router.get("", response_model=List[CouponResponse])
-
 @router.get("/", response_model=List[CouponResponse])
 async def get_coupons(isActive: Optional[bool] = None, current_user: dict = Depends(require_super_admin)):
     query = {}
@@ -92,7 +91,6 @@ async def get_coupon(coupon_id: str, current_user: dict = Depends(require_super_
 
 
 @router.post("", response_model=CouponResponse, status_code=status.HTTP_201_CREATED)
-
 @router.post("/", response_model=CouponResponse, status_code=status.HTTP_201_CREATED)
 async def create_coupon(
     coupon_data: CouponCreate,

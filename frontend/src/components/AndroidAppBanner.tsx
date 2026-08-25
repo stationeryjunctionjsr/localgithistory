@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { logger } from '@/utils/logger';
 
 const PLAY_STORE_URL =
   process.env.NEXT_PUBLIC_PLAY_STORE_URL ||
@@ -40,7 +41,7 @@ export default function AndroidAppBanner() {
     setDismissed(true);
     try {
       localStorage.setItem('android_app_banner_dismissed', 'true');
-    } catch {}
+    } catch (e) { logger.warn("Silent catch block:", e);  }
   };
 
   const handleDownload = () => {
@@ -52,7 +53,8 @@ export default function AndroidAppBanner() {
       typeof window !== 'undefined' ? window.location.pathname + window.location.search : '';
     const pathPart = path.replace(/^\//, '');
     // Intent URL: opens app if installed, else can fall back to Play Store
-    const intentUrl = `intent://${pathPart}#Intent;scheme=${APP_SCHEME};package=${ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(PLAY_STORE_URL)};end`;
+    const intentUrl = `intent://${pathPart
+}#Intent;scheme=${APP_SCHEME};package=${ANDROID_PACKAGE};S.browser_fallback_url=${encodeURIComponent(PLAY_STORE_URL)};end`;
     window.location.href = intentUrl;
   };
 

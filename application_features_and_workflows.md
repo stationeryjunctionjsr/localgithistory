@@ -38,11 +38,24 @@ The system enforces strict role-based access control (RBAC) across all endpoints
   - During checkout (`orders.py`), the backend scans all previous credit payments. It calculates the `effective_due = totalAmount - verified_paid`.
   - If any `effective_due > 0` and the order date is older than `paymentTerms` days, a `HTTP 400` error is thrown: *"You have overdue bills. Please clear your pending dues to continue placing orders."*
 
+### Seller Admin (Vendor / Marketplace Merchant)
+- **Capabilities:** 
+  - Manage individual vendor store profiles, brand identity, and service area pincodes.
+  - Create and manage their own product listings and stock inventories.
+  - Review and dispatch incoming sub-orders (`/orders/{id}/dispatch`) belonging to their store.
+  - Configure seller-level delivery options (e.g., toggling urgent delivery permissions via `sellerPermissions`).
+  - View commission breakdowns, unrealized vs. realized earnings, and payout statements.
+
 ### Valet (Delivery Agent)
-- **Capabilities:** Limited to viewing assigned orders (`assignedValet == current_user._id`). Can update order status (e.g., to "Delivered").
+- **Capabilities:** 
+  - Schedule pre-shift availability up to 7 days in advance (`full_day` or `custom` time slots).
+  - Toggle live on-duty status (`isOnDuty`) and define serviceable delivery pincodes (`serviceAreaPincodes`).
+  - Receive real-time push notifications for assigned delivery requests with automated acceptance windows (5 min for Urgent, 20 min for Standard).
+  - Accept or decline assigned orders (`/valet-response`), triggering automated cascading on decline or timeout.
+  - Update delivery fulfillment status (e.g., "Out for Delivery", "Delivered") and execute physical return collections from customers.
 
 ### Super Admin
-- **Capabilities:** Full control over product catalogs, category mapping, coupon generation, delivery rules, user approval, payment verification, and dynamic content.
+- **Capabilities:** Full control over product catalogs, seller approvals and commission tiers, category mapping, coupon generation, delivery rules, user approval, payment verification, dynamic content, and system-wide overrides.
 
 ---
 
@@ -59,35 +72,100 @@ The recommendation engine structures products into specific targeted sections ba
 ### Role-Specific Slot Contents & Fallbacks
 
 #### A. New Arrivals
-- **Criteria:** Fetches all products created within the last 30 days, sorted by newest first.
-- **Retail Exclusions:** If a retail user is logged in, the system scans their entire order history and automatically hides products they have already purchased, ensuring the section only shows *unbought* new products.
-- **Limit:** Displays the top 10 products.
+- **Criteria:** Fetches all products **and bundles** created within the last 30 days, sorted by newest first.
+- **Retail Exclusions:** If a retail user is logged in, the system scans their entire order history and automatically hides products they have already purchased, ensuring the section only shows *unbought* new items.
+- **Cart Exclusions:** Products currently in the user's active cart are also excluded from this section.
+- **Limit:** The backend returns up to 24 items. The frontend applies responsive section visibility and expansion rules — see **UI Expansion** below.
 
 #### B. Trending Now (Conversion Based)
-Calculated via a complex journey mapping: `Conversion Rate = Converted Sales Count / Search Count`.
-- To qualify, a product must have been searched at least 10 times (`min_search_count = 10`) in the last 7 days.
-- A "Converted Sale" only counts if the exact same user/session searched for the product *and then bought it* within those 7 days.
-- Takes the top 5 products per subcategory.
+Calculated via a dynamic percentile-based journey mapping: `Conversion Rate = Converted Sales Count / Search Count`.
+- Every product with at least **1 search** in the last 7 days is scored.
+- A "Converted Sale" only counts if the exact same user/session searched for the product *and then bought it* within the window.
+- **Dynamic Cutoff:** Computes the 70th-percentile (top 30%) cutoff score dynamically across all scored products. The bar rises when many products convert well and falls when traffic is thin.
+- Products below the cutoff are discarded. The remainder is sorted descending by score and capped at the requested limit (e.g. 24). Subcategory limits have been removed — all products compete in a global pool.
+- **Bundles in Trending:** Bundles are scored using `salesCount / max_salesCount` normalised to [0, 1] and must pass the same top-30% cutoff. See Section F for why `salesCount` is the proxy.
 - **For Retail/Guest:** Uses only retail orders.
 - **For Wholesalers:** Uses only wholesaler orders (`ORDER-WH-` prefix).
-- **Exclusions:** Automatically excludes products already in the user's cart, purchased in the last 60 days, or shown in the *Customer Favourites* section.
+- **Exclusions:** Automatically excludes items already in the user's cart, purchased in the last 60 days, or shown in the *Customer Favourites* section.
+- **UI Expansion:** Follows the responsive row tiering rules — see below.
 
 #### C. Customer Favourites (Weighted Score)
 - **Formula:** `(0.7 * Order Frequency) + (0.3 * Total Quantity Sold)`.
 - Pulls from Retail Orders (`ORDER-RT-` prefix) over the last 60 days.
 - Picks the single best product (Rank 1) per subcategory.
+- **Bundles in Customer Favourites:** Qualifying bundles (`salesCount > 0`) are appended after products, ranked by `salesCount` descending.
+- **Exclusions:** Automatically excludes items already in the user's cart or purchased in the last 60 days.
+- **UI Expansion:** Follows the responsive row tiering rules — see below. (A dedicated "View All" page is also available to Wholesalers to view the un-capped list).
 - Highly cached (TTL based) due to heavy calculation.
 
 #### D. Business Favourites
-- Same formula as Customer Favourites, but strictly calculates using Wholesaler orders.
+- Same formula as Customer Favourites, but strictly calculates using Wholesaler orders (`ORDER-WH-` prefix).
 - Displayed only to Wholesalers.
+- **Bundles in Business Favourites:** Same scoring as Customer Favourites — qualifying bundles not already in Customer Favourites are appended, ranked by `salesCount` descending.
+- **Exclusions:** Also automatically excludes items already in the user's cart or purchased in the last 60 days. Products already shown in Customer Favourites are also removed from this section.
+- **UI Expansion:** Follows the responsive row tiering rules — see below (with a dedicated "View All" page for the un-capped list).
 
 #### E. Explore (User-Centric Discovery)
-- Looks at the logged-in user's purchase history over the last 60 days.
-- Identifies the 5 subcategories the user has bought the *least* from.
-- Recommends the #1 best-selling product from each of those neglected subcategories.
+Explore is fully dynamic — it adapts both the number of subcategories and the number of products per subcategory to the individual user's purchase breadth.
+
+**Algorithm (step by step):**
+1. Scan the logged-in user's orders from the **last 60 days**. Count total units purchased per `subCategory` (falls back to `category` if a product has no subCategory) → yields **n** distinct subcategories.
+2. If `n = 0` (brand-new user with no history), the Explore section is hidden entirely.
+3. **Neglected count** = `max(1, round(n / 3))` — picks the bottom third of the user's subcategories (those with the fewest purchases).
+4. **Products per subcategory** = `max(1, round(24 / neglected_count))` — dynamically sized so the total stays close to 24.
+5. For each neglected subcategory, pick the top `products_per_subcat` **best-selling products all-time** (by total quantity sold across all orders) not in the exclude set.
+   - Explore stays strictly within the `n/3` neglected subcategories — no refill from other subcategories.
+
+**Exclusions — what is filtered out before Explore picks:**
+- Products in the user's **cart**
+- Products purchased by the user in the **last 60 days**
+- Products **already placed in New Arrivals, Trending Now, Customer Favourites, or Business Favourites** for this same API response (true cross-section deduplication — no product appears in two sections)
+
+**Example:** A user who bought from 9 subcategories → neglected_count = 3, products_per_subcat = 8 → up to 24 unique products, all from their 3 least-explored subcategories.
+
+- **UI Expansion:** Follows the responsive row tiering rules — see below.
+
+#### F. Bundles in Recommendations
+Bundles are treated as **first-class items** in every recommendation section. They are fetched once as product-like dicts (`isBundle=True`), merged into the shared product map, and scored against the same criteria as regular products. **No hardcoded caps, no artificial slots** — a bundle either qualifies or it doesn't.
+
+> [!NOTE]
+> **Why `salesCount` is used as the scoring proxy for bundles:** When a user adds a bundle to the cart, it is unpacked into its individual component products (each tagged with a `bundleId`). This means the bundle's own ID **never appears in order line items** — only the component product IDs do. As a result, the standard order-based scoring (conversion rate, weighted frequency/quantity) cannot be computed for a bundle directly. `salesCount` — which is incremented by the backend each time a bundle is successfully ordered — is the only reliable all-time purchase signal available at the bundle level.
+
+| Section | How a bundle qualifies |
+|---|---|
+| New Arrivals | `createdAt` within the last 30 days, sorted newest first |
+| Customer / Business Favourites | `salesCount > 0`, ranked descending by `salesCount` |
+| Trending Now | `salesCount / max_salesCount` normalised to [0, 1]; only bundles at or above the same **top-30% percentile cutoff** as products qualify |
+| Explore | Bundle's `subCategory` (or `category` fallback) must be one of the user's bottom-third neglected subcategories, ranked by `salesCount` descending |
+
+Bundles that do not meet the section threshold simply do not appear — exactly like any product that fails the score cutoff.
 
 ---
+
+### UI Expansion — Responsive Show-More Tiering (all sections)
+
+The number of products shown per row (`R`) adapts to the current viewport:
+
+| Viewport width | Grid columns (R) |
+|---|---|
+| < 640 px (mobile) | 2 |
+| ≥ 640 px (sm) | 3 |
+| ≥ 768 px (md) | 4 |
+| ≥ 1024 px (lg) | 5 |
+| ≥ 1280 px (xl) | 6 |
+
+Once `R` is known, each section applies the following rules based on its product count:
+
+| Product count | Visible initially | "Show more" available? | Expanded shows |
+|---|---|---|---|
+| < R | Section hidden entirely | — | — |
+| R ≤ count < 2R | 1 row (R) | No | — |
+| 2R ≤ count < 3R | 1 row (R) | Yes | 2 rows (2R) |
+| 3R ≤ count < 4R | 1 row (R) | Yes | 3 rows (3R) |
+| count ≥ 4R | 1 row (R) | Yes | 4 rows (4R) |
+
+This logic lives in [`useProductsPerRow.ts`](file:///c:/Ecommerce%20app/frontend/src/hooks/useProductsPerRow.ts) and is shared by both `CustomerClient.tsx` and `WholesalerClient.tsx`. To update the breakpoints, edit only that file.
+
 
 ## 3. The Exhaustive Checkout Pipeline (`orders.py` & `cart.py`)
 
@@ -151,11 +229,15 @@ The final step diverges significantly based on the chosen payment method.
   3. The Super Admin reviews the screenshot.
   4. Once verified by the Admin, the payment ledger entry is updated. If the outstanding dues are cleared, any automatic blocks on the wholesaler's account are lifted, allowing them to place new orders.
 
-### Step 7: Post-Checkout Actions (All Methods)
+### Step 7: Post-Checkout Actions & Split-Cart Sub-Order Generation
 - Stock reservations (`stock_reservation_repository`) are cleared and permanently deducted from the main product inventory.
 - The user's cart is emptied.
-- A PDF invoice is dynamically generated (`invoice_generator.py`) and saved to cloud storage.
-- The Super Admin receives an instant push notification via `notification_repository` regarding the new order.
+- **Split-Cart Sub-Orders:** If the cart contains products from multiple sellers (or a mix of platform products and marketplace vendors), the checkout pipeline creates a master Parent Order and splits it into independent **Sub-Orders** (`sub_order_repository`):
+  - Each sub-order receives a distinct identifier (e.g., `ORD-001-A`, `ORD-001-B`) mapped to its respective `sellerId`.
+  - Independent delivery charge calculations, urgent delivery flags, and delivery slot bookings (`deliverySlotId`, `deliverySlotDate`) are attached to each sub-order.
+  - Sellers independently receive notifications and manage the fulfillment lifecycle of their own sub-orders without interfering with other vendors in the same cart.
+- A PDF invoice is dynamically generated (`invoice_generator.py`) and saved to cloud storage (OCI).
+- The Super Admin and associated Seller Admins receive instant push notifications regarding the new order.
 
 ### Step 8: Order Cancellation & Decline Rules
 The system enforces strict rules on when an order can be cancelled by a user or declined by an Admin:
@@ -173,24 +255,28 @@ The system enforces strict rules on when an order can be cancelled by a user or 
 
 The search API (`products.py` & `product_repository.py`) uses a highly optimized hybrid approach for speed and typo-tolerance.
 
-### The Search Algorithm (Tokenized & Weighted)
+### The Search Algorithm (Tokenized, Weighted & Price-Aware)
 1. **Tokenization:** The user's search query is split into individual lowercase words (tokens).
-2. **AND Logic Constraint:** Every single token in the search query *must* match at least one field in a product, otherwise the product is completely discarded (Score = 0).
-3. **Relevance Scoring:** If all tokens match, a `_searchScore` is calculated by summing the weights of the matched fields. The fields and their exact weights are:
+2. **Price Expression Recognition:** The system scans the full query for patterns like `under ₹500`, `above 300`, or `100 to 500`. If a product's price (MRP or case price) mathematically satisfies the expression, the expression tokens are marked as matched and the product receives a **doubled price weight bonus**.
+3. **AND Logic Constraint:** Every single token in the search query *must* match at least one field in a product (or be part of a satisfied price expression), otherwise the product is completely discarded (Score = 0).
+4. **Relevance Scoring:** If all tokens match, a `_searchScore` is calculated by summing the weights of the matched fields. The fields and their exact weights are:
    - `name`: 10
    - `sku`: 8
    - `searchTags`: 7 (Includes dynamically resolved tags)
+   - `price`: 6 (Matches textual representations like "500", "rs 500")
    - `category`: 5
    - `subCategory`: 4
    - `collections`: 4
    - `brand`: 3
-   - `variantAttributes`: 3 (Flattens all variant keys and values into a searchable string)
+   - `variantAttributes`: 3 (Flattens all variant keys, values, and variant prices)
    - `description`: 1
-4. **Sorting:** Products are sorted descending by `_searchScore`.
+5. **Sorting:** Products are sorted descending by `_searchScore`.
+- **Performance:** To prevent thundering herds on concurrent heavy queries, building the lightweight catalog uses an `asyncio.Lock()`.
 
 ### Fuzzy Fallback (Typo Tolerance)
 If the exact weighted search yields **fewer than 5 results**, the system automatically triggers a Fuzzy Search fallback.
 - It uses Python's `difflib.SequenceMatcher` to compare tokens against product fields.
+- **Thread Pool Offloading:** Because fuzzy matching is CPU-heavy, it is executed via `loop.run_in_executor` to avoid blocking the async event loop during high loads.
 - **Threshold:** A word must have a similarity ratio of at least `0.7` (70%) to be considered a match.
 - **Penalty:** If a match is fuzzy rather than exact, its score is multiplied by `0.8`.
 - **"Did you mean?":** The system tracks the best fuzzy matches for misspelled words and returns a `suggestedQuery` string to the frontend.
@@ -203,7 +289,25 @@ If the exact weighted search yields **fewer than 5 results**, the system automat
 - Catalog responses strip out backend fields (like cost price).
 - The `calculateTotalPrice` function computes the exact user-facing price on the fly depending on if the requester is a Guest, Retail Customer, or Wholesaler.
 
+### Dynamic Product Tags & Previously Bought Indicator
+The backend's `add_dynamic_tags()` method enriches every product in catalog responses with contextual signals rendered as visual badges on product cards. This runs for any **authenticated** user across all listing pages (Categories, Collections, Brands, Search, All Products).
+
+| Signal | Badge Colour | Description |
+|---|---|---|
+| `isNew` | 🟢 Emerald | Product created in the last 30 days and never ordered by this user. |
+| `bestSeller` | 🟡 Amber | Top-ranked product in its subcategory by weighted sales score. |
+| `previouslyBought` | 🔵 Indigo | The logged-in user has **ever** purchased this product (all-time, no date cutoff). |
+
+**How `previouslyBought` Works:**
+1. When an authenticated user hits any product listing endpoint, the backend fetches all order history for that user (all-time).
+2. It builds a set of all product IDs the user has ever bought and stamps `previouslyBought: true/false` onto every product in the response via the `ProductResponse` schema.
+3. The frontend renders a subtle **"Previously Bought"** indigo pill badge on the product card image — visible in both `ProductCatalog` (grid view) and `HoverProductCard`.
+
+> [!NOTE]
+> Unlike recommendation exclusions (which hide purchased products using a 60-day window), `previouslyBought` is purely **informational**. Products still appear in all listings; the badge simply helps users instantly recognise items they have bought before.
+
 ---
+
 
 ## 5. Dynamic Content (Headless CMS)
 
@@ -306,7 +410,12 @@ Admins do not need to select individual users. The system hooks directly into th
 
 ## 10. Product Bundles (Curated Kits)
 
-The application supports Admin-managed custom bundles (`bundles.py`), allowing multiple products to be sold together at a fixed discount price.
+The application supports Admin-managed custom bundles (`bundles.py`), allowing multiple products to be sold together at a fixed discount price. Bundles now natively store metadata like `category`, `subCategory`, `brand`, and `searchTags`.
+
+### Bundle Search Engine
+Bundles can be natively searched via a dedicated endpoint.
+- Supports text searching (name, description, tags) as well as the exact same price-expression matching as the product search (e.g. `under 500`).
+- **Dynamic Facet Resolution:** If a bundle does not have an admin-set category or brand, the search engine dynamically infers them by aggregating the categories and brands of its component products.
 
 ### Bundle Stock Engine
 Unlike individual products, bundles do not have their own stock counter in the database. Instead:
@@ -318,6 +427,7 @@ When a user adds a bundle to their cart, the system does not add it as a single 
 - It unpacks the bundle into its constituent products.
 - Each product is added to the cart normally, but tagged with a hidden `bundleId`.
 - This ensures that stock deduction and returns can be handled at the individual product level while visually grouping them as a bundle in the frontend UI.
+- *Note:* Unlike normal cart additions, unpacking a bundle into the cart **no longer removes** those items from the user's wishlist, preserving them for future intent.
 
 ---
 
@@ -325,12 +435,12 @@ When a user adds a bundle to their cart, the system does not add it as a single 
 
 The Authentication system (`auth.py`) is protected by rate limiters and external webhook verification to prevent spam.
 
-### Registration Flow & Phone Verification
-- The user submits their phone number. A rate-limited (`5/minute`) endpoint triggers an OTP via the external SMS provider (MSG91).
+### Registration Flow & Phone/Email Verification
+- The user submits their phone number or email address. A rate-limited (`5/minute`) endpoint triggers an OTP via the external SMS provider (MSG91) or email system.
 - The system can verify the OTP in two ways:
   1. **Direct OTP input:** Validated against the internal database.
   2. **MSG91 Widget Token:** A third-party token is sent to the backend, which verifies it directly with MSG91 servers (`verify_msg91_widget_token`).
-- Registration is blocked if the phone number already exists in the `user_repository`.
+- Registration is blocked if the phone/email already exists in the `user_repository`.
 
 ### Wholesaler Role Elevation
 - A wholesaler can register via the app, but they are initially forced into an `approvalStatus = "pending"`.
@@ -387,3 +497,75 @@ The application manages customer feedback through a moderated review workflow (`
 2. **Admin Action:** A Super Admin reviews the text. They can click `Approve` or `Remove`.
 3. **Live Recalculation:** If approved, the backend instantly intercepts the action. It recalculates the mathematical average of all approved ratings for that product and strictly updates the `rating` and `reviews` (count) fields on the root `product_repository`.
 4. **Classification System:** Admins map reviews into pre-defined tags (e.g., "Quality", "Delivery Speed") stored dynamically in the `review_classification_repository`. Users are forced to choose an active classification tag before submitting their review.
+
+---
+
+## 15. Multi-Vendor Marketplace & Commission Engine
+
+The platform operates a full multi-vendor marketplace model (`commission.py`, `sub_order_repository.py`), allowing third-party merchants to sell alongside platform inventory.
+
+### Multi-Vendor Inventory & Sub-Orders
+- Products in the catalog can belong to the platform (`sellerId = None`) or specific third-party vendors (`sellerId = <user_id>`).
+- Customers enjoy a unified cart experience. If items from multiple vendors are purchased together, the system automatically creates a parent order and splits it into independent sub-orders for each seller upon checkout.
+- Sellers can independently view, accept, pack, and dispatch their assigned sub-orders.
+- **Valet Multi-Pickup:** A valet assigned to a multi-vendor order must visit each seller to collect their respective items. The valet triggers `ConfirmPickup` for each sub-order. Only when *all* sibling sub-orders are picked up does the parent order transition to `out_for_delivery`, triggering a notification to the customer.
+
+### Commission Configuration & Hierarchy
+The platform computes marketplace commission on every delivered order item:
+1. **Seller-Level Override:** Super Admins can configure a fixed commission percentage for a specific seller (`PUT /api/commission/sellers/{id}/override`). If set, this override takes absolute precedence.
+2. **Global Value-Based Tiers:** If no seller-level override is defined, the system evaluates global commission tiers (`GET/PUT /api/commission/tiers`) based on the order's subtotal value (e.g., ₹0–₹500: 8%, ₹501–₹2000: 6%, ₹2001+: 4%).
+3. **Default Fallback:** If no tier matches, a global default commission rate (default 5.0%) is applied.
+
+### Commission Lifecycle & Realization
+To protect against returns and refunds, commission follows a strict two-stage realization lifecycle:
+- **`pending` / `processing` / `shipped`:** No commission is recorded yet.
+- **`delivered`:** The commission percentage and total commission amount are calculated. The sub-order status is stamped with `commissionStatus = "unrealized"`. The funds are held in escrow.
+- **`delivered + returnDays elapsed`:** Once the statutory return window (default 7 days after delivery) closes without a return, the commission status transitions to `commissionStatus = "realized"`. Net seller earnings are then finalized and made available for vendor payout settlement.
+
+---
+
+## 16. Valet Scheduling, Matching & Auto-Cascade Dispatch Engine
+
+The platform features an automated, intelligent logistics engine (`valet_availability.py`, `valet_timeout_job.py`, `orders.py`) to manage local delivery fulfillment.
+
+### 1. Valet Pre-Shift Availability & Duty Status
+- **Shift Scheduling:** Valets can schedule their availability up to 7 days in advance via the mobile app (`POST /valet-availability`), choosing either `full_day` or specific time slots (`custom`).
+- **Live Duty Status:** Valets toggle `isOnDuty: True/False` in real-time. Only on-duty valets can receive new order dispatches.
+- **Service Areas:** Each valet is configured with a list of serviceable pincodes (`serviceAreaPincodes`).
+
+### 2. 4-Step Valet Eligibility Matcher
+When an Admin or Seller triggers a dispatch (`PUT /orders/{id}/dispatch`), the backend executes a 4-step eligibility algorithm to select the best delivery agent:
+1. **On-Duty Check:** `role == 'valet'` and `isOnDuty == True`.
+2. **Pincode Match:** The seller's pickup pincode must be included in the valet's `serviceAreaPincodes`.
+3. **Availability & Slot Check:** The valet must have marked availability for the order date and matching time slot.
+4. **Capacity Sorting:** Eligible valets are ranked by their active delivery load (ascending). The order is dispatched to the least busy valet.
+
+### 3. Acceptance Window & Auto-Cascade Engine
+- **Dispatch Offer (`pending_valet`):** The selected valet receives an instant push notification. The order enters `pending_valet` status with an assigned countdown window:
+  - **Urgent Delivery:** **5 minutes** acceptance window.
+  - **Standard Delivery:** **20 minutes** acceptance window.
+- **Valet Response (`PUT /orders/{id}/valet-response`):**
+  - **Accept:** Status moves to **`shipped`**, `assignedValet` is permanently stamped, the seller is notified, and B2B invoices are auto-generated.
+  - **Decline:** The valet's ID is appended to `valetDeclineHistory`, `valetCascadeCount` increments, and the system immediately cascades the offer to the next best eligible valet.
+- **Background Timeout Watchdog (`valet_timeout_job.py`):**
+  - Runs every **1 minute**.
+  - Scans all orders in `pending_valet` whose acceptance window has expired without a response.
+  - Automatically logs the timeout into `valetDeclineHistory` and cascades the order to the next available valet.
+  - **Fallback when all valets are exhausted:** If no eligible valets remain, the order status safely reverts back to **`processing`** (`pendingValetId = None`) and an urgent push notification is dispatched to the Seller/Admin requesting manual reassignment.
+  - Note: The exact same 20-minute auto-cascade engine governs Return pickups (using `PENDING_VALET` status), dynamically finding the next eligible valet to collect physical returns.
+
+---
+
+## 17. Delivery Slots Engine
+
+The platform allows customers to select precise fulfillment windows (Delivery Slots) during checkout or when scheduling returns.
+
+### Slot Configuration
+- **Platform vs Seller Slots:** Slots can be configured globally by the Super Admin or scoped directly to a specific `sellerId`.
+- **Constraint Matrix:** A configuration object (`DeliverySlotConfig`) restricts slots to specific dates, segments (Retail vs B2B), and target `pincodes`.
+- **Capacity & Expiry:** Each slot has a strict `capacity` limit. Once `bookedCount >= capacity`, the slot is locked. 
+- **Urgent Delivery Rules:** Slots can be marked as `isUrgent` (which triggers the Urgent Delivery surcharge at checkout). They are governed by `cutoffHours` and `urgentCutoffHours`, preventing users from booking a slot if the current time exceeds the configured window.
+
+### Checkout & Return Slot Booking
+- During checkout, the customer retrieves available slots. If buying from a specific seller who has defined slots, the engine strictly offers those; otherwise, it gracefully falls back to the Platform-wide slots.
+- When an order or return is finalized, the engine automatically increments the `bookedCount` for the chosen `deliverySlotId` within a transaction-safe flow to prevent double booking.

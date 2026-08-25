@@ -60,6 +60,7 @@ const ProfileIcon: React.FC = () => (
     />
     <path
       d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z"
+
       stroke="currentColor"
       strokeWidth="2"
     />
@@ -67,9 +68,11 @@ const ProfileIcon: React.FC = () => (
 );
 import ThemeSwitcher from './ThemeSwitcher';
 import GeneralFeedbackModal from './GeneralFeedbackModal';
-import AccessibilityPanel from './AccessibilityPanel';
+import AccessibilityModal from './AccessibilityModal';
+import CustomerNotificationsModal from './CustomerNotificationsModal';
 import api from '@/utils/api';
 import styles from './MobileNavBar.module.css';
+import { logger } from '@/utils/logger';
 
 interface MobileNavBarProps {
   basePath?: string;
@@ -83,7 +86,10 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
   const { items: wishlistItems } = useWishlist();
   const [cartCount, setCartCount] = useState(0);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -101,9 +107,35 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
 
   useEffect(() => {
     fetchCartCount();
-    const interval = setInterval(fetchCartCount, 5000);
-    return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    let interval: ReturnType<typeof setInterval> | null = setInterval(fetchCartCount, 60_000);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+      } else {
+        fetchCartCount();
+        interval = setInterval(fetchCartCount, 60_000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (interval) clearInterval(interval);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      const fetchUnreadCount = async () => {
+        try {
+          const res = await api.get('/push-notifications/inbox');
+          const data = res.data || [];
+          setUnreadNotifCount(data.filter((n: any) => !n.isRead).length);
+        } catch (e) { logger.warn("Silent catch block:", e);  }
+      };
+      fetchUnreadCount();
+    }
   }, [user]);
 
   useEffect(() => {
@@ -144,7 +176,7 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
         setCartCount(getGuestCartCount());
       }
     } catch (error) {
-      console.error('Error fetching cart count:', error);
+      logger.error('Error fetching cart count:', error);
       setCartCount(0);
     }
   };
@@ -190,22 +222,17 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
 
   return (
     <>
-      {/* Mobile Navigation Bar */}
       <div className={styles.mobileNavBar}>
         <div className={styles.navContent}>
-          {/* Logo */}
           <div className={styles.logo} onClick={() => router.push(userBasePath)}>
             <h1 style={{ color: theme.primary }}>Stationery Junction</h1>
           </div>
 
-          {/* Right Icons */}
           <div className={styles.navIcons}>
-            {/* Theme Switcher */}
             <div className={styles.themeSwitcherWrapper}>
               <ThemeSwitcher />
             </div>
 
-            {/* Cart */}
             <button
               className={styles.iconButton}
               onClick={() => router.push(`${userBasePath}/cart`)}
@@ -214,7 +241,6 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
               <MyCartIcon cartCount={cartCount} />
             </button>
 
-            {/* Wishlist */}
             <button
               className={styles.iconButton}
               onClick={() => router.push(`${userBasePath}/wishlist`)}
@@ -223,7 +249,6 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
               <WishlistIcon count={wishlistItems.length} />
             </button>
 
-            {/* Profile */}
             <div className={styles.profileWrapper} ref={profileDropdownRef}>
               <button
                 className={styles.iconButton}
@@ -252,6 +277,30 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
                         }}
                       >
                         My Profile
+                      </button>
+                      <button
+                        className={styles.dropdownItem}
+                        onClick={() => {
+                          setShowProfileDropdown(false);
+                          setShowNotificationsModal(true);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                      >
+                        <span>Notifications</span>
+                        {unreadNotifCount > 0 && (
+                          <span style={{
+                            background: '#EF4444',
+                            color: 'white',
+                            borderRadius: '9999px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            minWidth: '18px',
+                            textAlign: 'center',
+                          }}>
+                            {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+                          </span>
+                        )}
                       </button>
                       <button
                         className={styles.dropdownItem}
@@ -292,6 +341,15 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
                         }}
                       >
                         Give Feedback
+                      </button>
+                      <button
+                        className={styles.dropdownItem}
+                        onClick={() => {
+                          setShowProfileDropdown(false);
+                          setShowAccessibilityModal(true);
+                        }}
+                      >
+                        Accessibility Settings
                       </button>
                       <button
                         className={styles.dropdownItem}
@@ -350,7 +408,6 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
                       >
                         Logout
                       </button>
-                      <AccessibilityPanel />
                     </>
                   ) : (
                     <>
@@ -380,6 +437,15 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
                         }}
                       >
                         Register
+                      </button>
+                      <button
+                        className={styles.dropdownItem}
+                        onClick={() => {
+                          setShowProfileDropdown(false);
+                          setShowAccessibilityModal(true);
+                        }}
+                      >
+                        Accessibility Settings
                       </button>
                       <button
                         className={styles.dropdownItem}
@@ -417,14 +483,12 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
                       >
                         Privacy Policy
                       </button>
-                      <AccessibilityPanel />
                     </>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Mobile Menu Toggle */}
             <button className={styles.menuToggle} onClick={toggleMenu} aria-label="Toggle menu">
               <span className={`${styles.hamburger} ${isMenuOpen ? styles.open : ''}`}>
                 <span></span>
@@ -436,7 +500,6 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
         </div>
       </div>
 
-      {/* Mobile Menu Overlay */}
       {isMenuOpen && (
         <>
           <div className={styles.menuOverlay} onClick={closeMenu} />
@@ -469,6 +532,15 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
       <GeneralFeedbackModal
         isOpen={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
+      />
+      <CustomerNotificationsModal
+        isOpen={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+        onUnreadCountChange={setUnreadNotifCount}
+      />
+      <AccessibilityModal
+        isOpen={showAccessibilityModal}
+        onClose={() => setShowAccessibilityModal(false)}
       />
     </>
   );

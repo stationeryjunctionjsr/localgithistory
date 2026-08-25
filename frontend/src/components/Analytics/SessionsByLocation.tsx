@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface SessionsByLocationProps {
   startDate: Date | null;
@@ -28,7 +29,7 @@ export default function SessionsByLocation({ startDate, endDate }: SessionsByLoc
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch sessions by location:', error);
+      logger.error('Failed to fetch sessions by location:', error);
       setLoading(false);
     }
   };

@@ -1,5 +1,5 @@
 import os
-import random
+import secrets
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -18,7 +18,7 @@ email_otp_store: Dict[str, Dict[str, Any]] = {}
 
 
 def generate_email_otp() -> str:
-    return "".join([str(random.randint(0, 9)) for _ in range(EMAIL_OTP_LENGTH)])
+    return "".join([str(secrets.randbelow(10)) for _ in range(EMAIL_OTP_LENGTH)])
 
 
 def send_verification_email_sync(email: str, otp_code: str) -> bool:
@@ -41,7 +41,10 @@ async def _db_request_otp(email: str, device_key: str = "default") -> Tuple[bool
     email_lower = email.lower()
     send_count = await email_otp_dao.count_sends_in_window(email_lower, EMAIL_SEND_WINDOW_SECONDS)
     if send_count >= EMAIL_MAX_SENDS_PER_HOUR:
-        return False, {"message": "Maximum verification attempts reached. Please try again in 1 hour.", "retry_after_seconds": 3600}
+        return False, {
+            "message": "Maximum verification attempts reached. Please try again in 1 hour.",
+            "retry_after_seconds": 3600,
+        }
 
     existing = await email_otp_dao.find_active_otp(email_lower, device_key)
 
@@ -155,7 +158,10 @@ def _mem_request_otp(email: str, device_key: str = "default") -> Tuple[bool, Dic
     if len(send_timestamps) >= EMAIL_MAX_SENDS_PER_HOUR:
         oldest_in_window = min(send_timestamps)
         retry_after = int(max(0, (oldest_in_window + EMAIL_SEND_WINDOW_SECONDS) - now))
-        return False, {"message": "Maximum verification attempts reached. Please try again in 1 hour.", "retry_after_seconds": retry_after}
+        return False, {
+            "message": "Maximum verification attempts reached. Please try again in 1 hour.",
+            "retry_after_seconds": retry_after,
+        }
 
     device_record = _get_device_record(user_record, device_key, now=now)
 
@@ -192,7 +198,12 @@ def _mem_request_otp(email: str, device_key: str = "default") -> Tuple[bool, Dic
     sent_ok = send_verification_email_sync(email_lower, otp_code)
     if not sent_ok:
         return False, {"message": "Failed to send verification email. Please check configuration."}
-    return True, {"otp": otp_code, "expires_at": expires_at, "resend_available_in_seconds": EMAIL_RESEND_COOLDOWN_SECONDS, "sent": True}
+    return True, {
+        "otp": otp_code,
+        "expires_at": expires_at,
+        "resend_available_in_seconds": EMAIL_RESEND_COOLDOWN_SECONDS,
+        "sent": True,
+    }
 
 
 def _mem_verify_otp(

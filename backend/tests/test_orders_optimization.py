@@ -6,14 +6,17 @@ from app.repositories.user_repository import user_repository
 from app.repositories.payment_repository import payment_repository
 from app.routers.orders import populate_orders, populate_order
 
+
 async def clean_database():
     try:
         # Delete test orders
         orders = await order_repository.storage.findAll()
         for o in orders:
-            if o.get("notes", "").startswith("TEST_ORDER_OPT_") or o.get("notes", "").startswith("Referral Code Applied: TEST_ORDER_OPT_"):
+            if o.get("notes", "").startswith("TEST_ORDER_OPT_") or o.get("notes", "").startswith(
+                "Referral Code Applied: TEST_ORDER_OPT_"
+            ):
                 await order_repository.storage.delete(o["_id"])
-        
+
         # Delete test payments
         payments = await payment_repository.storage.findAll()
         for p in payments:
@@ -34,51 +37,51 @@ async def clean_database():
     except Exception:
         pass
 
+
 @pytest.fixture(autouse=True)
 async def cleanup_orders():
     await clean_database()
     yield
     await clean_database()
 
+
 @pytest.mark.asyncio
 async def test_orders_optimization_logic():
     # 1. Create a test user, product, and payment
-    user = await user_repository.create({
-        "name": "TEST_ORDER_OPT_User",
-        "email": "opt_user@test.com",
-        "password": "Password123",
-        "role": "customer"
-    })
-    
-    product = await product_repository.create({
-        "name": "TEST_ORDER_OPT_Product",
-        "sku": "SKU-OPT-123",
-        "mrp": 100.0,
-        "category": "Stationery"
-    })
+    user = await user_repository.create(
+        {"name": "TEST_ORDER_OPT_User", "email": "opt_user@test.com", "password": "Password123", "role": "customer"}
+    )
+
+    product = await product_repository.create(
+        {"name": "TEST_ORDER_OPT_Product", "sku": "SKU-OPT-123", "mrp": 100.0, "category": "Stationery"}
+    )
 
     # 2. Create order
-    order = await order_repository.create({
-        "user": user["_id"],
-        "userRole": "customer",
-        "items": [{"product": product["_id"], "quantity": 2, "price": 100.0}],
-        "subtotal": 200.0,
-        "total": 200.0,
-        "orderType": "b2c",
-        "paymentMethod": "cod",
-        "shippingAddress": {"zipCode": "110001"},
-        "notes": "TEST_ORDER_OPT_Note"
-    })
+    order = await order_repository.create(
+        {
+            "user": user["_id"],
+            "userRole": "customer",
+            "items": [{"product": product["_id"], "quantity": 2, "price": 100.0}],
+            "subtotal": 200.0,
+            "total": 200.0,
+            "orderType": "b2c",
+            "paymentMethod": "cod",
+            "shippingAddress": {"zipCode": "110001"},
+            "notes": "TEST_ORDER_OPT_Note",
+        }
+    )
 
     # Create associated payment
-    payment = await payment_repository.create({
-        "orderId": order["_id"],
-        "userId": user["_id"],
-        "customerName": "TEST_ORDER_OPT_User",
-        "paymentMethod": "cod",
-        "totalAmount": 200.0,
-        "paymentEntries": [{"entryId": 1, "amount": 200.0, "verified": False}]
-    })
+    payment = await payment_repository.create(
+        {
+            "orderId": order["_id"],
+            "userId": user["_id"],
+            "customerName": "TEST_ORDER_OPT_User",
+            "paymentMethod": "cod",
+            "totalAmount": 200.0,
+            "paymentEntries": [{"entryId": 1, "amount": 200.0, "verified": False}],
+        }
+    )
 
     # 3. Test populate_orders batch loader
     populated = await populate_orders([order])
@@ -102,54 +105,54 @@ async def test_orders_optimization_logic():
 @pytest.mark.asyncio
 async def test_orders_pagination_and_counting_logic():
     # 1. Create a test user and product
-    user = await user_repository.create({
-        "name": "TEST_ORDER_OPT_User",
-        "email": "opt_user@test.com",
-        "password": "Password123",
-        "role": "customer"
-    })
-    
-    product = await product_repository.create({
-        "name": "TEST_ORDER_OPT_Product",
-        "sku": "SKU-OPT-123",
-        "mrp": 100.0,
-        "category": "Stationery"
-    })
+    user = await user_repository.create(
+        {"name": "TEST_ORDER_OPT_User", "email": "opt_user@test.com", "password": "Password123", "role": "customer"}
+    )
+
+    product = await product_repository.create(
+        {"name": "TEST_ORDER_OPT_Product", "sku": "SKU-OPT-123", "mrp": 100.0, "category": "Stationery"}
+    )
 
     # 2. Create 3 test orders with unique notes and payment methods
-    o1 = await order_repository.create({
-        "user": user["_id"],
-        "userRole": "customer",
-        "items": [{"product": product["_id"], "quantity": 1, "price": 100.0}],
-        "subtotal": 100.0,
-        "total": 100.0,
-        "orderType": "b2c",
-        "paymentMethod": "cod",
-        "shippingAddress": {"zipCode": "110001"},
-        "notes": "TEST_ORDER_OPT_1"
-    })
-    o2 = await order_repository.create({
-        "user": user["_id"],
-        "userRole": "customer",
-        "items": [{"product": product["_id"], "quantity": 1, "price": 100.0}],
-        "subtotal": 100.0,
-        "total": 100.0,
-        "orderType": "b2c",
-        "paymentMethod": "upi",
-        "shippingAddress": {"zipCode": "110001"},
-        "notes": "TEST_ORDER_OPT_2"
-    })
-    o3 = await order_repository.create({
-        "user": user["_id"],
-        "userRole": "customer",
-        "items": [{"product": product["_id"], "quantity": 1, "price": 100.0}],
-        "subtotal": 100.0,
-        "total": 100.0,
-        "orderType": "b2c",
-        "paymentMethod": "cod",
-        "shippingAddress": {"zipCode": "110001"},
-        "notes": "TEST_ORDER_OPT_3"
-    })
+    o1 = await order_repository.create(
+        {
+            "user": user["_id"],
+            "userRole": "customer",
+            "items": [{"product": product["_id"], "quantity": 1, "price": 100.0}],
+            "subtotal": 100.0,
+            "total": 100.0,
+            "orderType": "b2c",
+            "paymentMethod": "cod",
+            "shippingAddress": {"zipCode": "110001"},
+            "notes": "TEST_ORDER_OPT_1",
+        }
+    )
+    o2 = await order_repository.create(
+        {
+            "user": user["_id"],
+            "userRole": "customer",
+            "items": [{"product": product["_id"], "quantity": 1, "price": 100.0}],
+            "subtotal": 100.0,
+            "total": 100.0,
+            "orderType": "b2c",
+            "paymentMethod": "upi",
+            "shippingAddress": {"zipCode": "110001"},
+            "notes": "TEST_ORDER_OPT_2",
+        }
+    )
+    o3 = await order_repository.create(
+        {
+            "user": user["_id"],
+            "userRole": "customer",
+            "items": [{"product": product["_id"], "quantity": 1, "price": 100.0}],
+            "subtotal": 100.0,
+            "total": 100.0,
+            "orderType": "b2c",
+            "paymentMethod": "cod",
+            "shippingAddress": {"zipCode": "110001"},
+            "notes": "TEST_ORDER_OPT_3",
+        }
+    )
 
     # 3. Test count directly
     total_count = await order_repository.count({"user": user["_id"]})
@@ -177,7 +180,7 @@ async def test_orders_pagination_and_counting_logic():
     # (since the newest order is created last, it should be first in results)
     ids_p1 = [o["_id"] for o in p1]
     ids_p2 = [o["_id"] for o in p2]
-    
+
     assert o3["_id"] in ids_p1
     assert o2["_id"] in ids_p1
     assert o1["_id"] in ids_p2

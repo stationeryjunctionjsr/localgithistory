@@ -22,9 +22,10 @@ async def seed_data():
         print("\n1. Creating Super Admin...")
         import os
         import secrets
+
         email = os.getenv("TEST_ADMIN_EMAIL", "admin@stationery.com")
         password = os.getenv("TEST_ADMIN_PASSWORD")
-        
+
         existing_admin = await user_repository.findOne({"role": "super_admin"})
         if existing_admin:
             print("   ✓ Super Admin already exists")
@@ -35,7 +36,7 @@ async def seed_data():
             if not password:
                 password = secrets.token_urlsafe(12)
                 print(f"[*] TEST_ADMIN_PASSWORD not set. Generated secure random password: {password}")
-            
+
             user_data = {
                 "name": "Super Admin",
                 "email": email,

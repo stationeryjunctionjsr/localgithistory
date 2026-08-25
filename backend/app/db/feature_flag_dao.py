@@ -15,10 +15,9 @@ from app.db.oracle_utils import now_utc
 
 
 class OracleFeatureFlagDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_feature_flags{suffix}"
 
     def _factory(self):

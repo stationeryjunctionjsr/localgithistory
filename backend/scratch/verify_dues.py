@@ -17,9 +17,10 @@ from app.routers.payments import get_wholesaler_dues
 from fastapi import HTTPException
 from datetime import datetime, timezone, timedelta
 
+
 async def run_verification():
     print("--- Starting Dues Block Verification Script ---")
-    
+
     # 1. Create a dummy wholesaler user
     email = f"verify_wholesaler@example.com"
     user_data = {
@@ -29,16 +30,16 @@ async def run_verification():
         "role": "wholesaler",
         "paymentTerms": "30",
         "creditLimit": 10000.0,
-        "creditUsed": 0.0
+        "creditUsed": 0.0,
     }
     # Check if user already exists
     existing = await user_repository.findOne({"email": email})
     if existing:
         await user_repository.storage.delete(existing["_id"])
-        
+
     user = await user_repository.create(user_data)
     print(f"Created wholesaler user: ID {user['_id']}, Name: {user['name']}")
-    
+
     payment = None
     try:
         # Test 1: Fetch dues of a fresh user
@@ -48,7 +49,7 @@ async def run_verification():
         print(f"  totalDues: {dues['totalDues']} (expected: 0)")
         assert dues["hasOverdueBills"] is False
         assert dues["totalDues"] == 0
-        
+
         # Test 2: Create a credit payment that is overdue (35 days old)
         order_date = datetime.now(timezone.utc) - timedelta(days=35)
         payment_data = {
@@ -63,7 +64,7 @@ async def run_verification():
         }
         payment = await payment_repository.create(payment_data)
         print(f"Created credit payment of 850.0 dated {payment_data['orderDate']}")
-        
+
         # Test 3: Fetch dues with overdue credit payment
         dues = await get_wholesaler_dues(current_user=user)
         print("Dues with overdue bill:")
@@ -80,7 +81,7 @@ async def run_verification():
         print("Verifying order placement block logic...")
         # Get latest user doc
         user_doc = await user_repository.findById(user["_id"])
-        
+
         # Run block check logic
         has_overdue = False
         user_payments = await payment_repository.findAll({"userId": user_doc.get("userId")})
@@ -88,28 +89,30 @@ async def run_verification():
         for p in user_payments:
             if p.get("paymentMethod") == "credit":
                 verified_paid = sum(
-                    entry.get("amount", 0.0)
-                    for entry in p.get("paymentEntries", [])
-                    if entry.get("verified")
+                    entry.get("amount", 0.0) for entry in p.get("paymentEntries", []) if entry.get("verified")
                 )
                 effective_due = p.get("totalAmount", 0.0) - verified_paid
                 if effective_due > 0:
                     order_date_str = p.get("orderDate") or p.get("createdAt")
                     if order_date_str:
-                        order_date = datetime.fromisoformat(order_date_str.replace("Z", "+00:00")).astimezone(timezone.utc).replace(tzinfo=None)
+                        order_date = (
+                            datetime.fromisoformat(order_date_str.replace("Z", "+00:00"))
+                            .astimezone(timezone.utc)
+                            .replace(tzinfo=None)
+                        )
                         due_date = order_date + timedelta(days=30)
                         if now > due_date:
                             has_overdue = True
                             break
         print(f"  Block condition check: has_overdue = {has_overdue} (expected: True)")
         assert has_overdue is True
-        
+
         # Test 5: Add a payment entry but keep it unverified
         print("Submitting settlement screenshot (verified = False)...")
         updated_payment = await payment_repository.addPaymentEntry(
             payment["_id"], {"amount": 850.0, "image": "screenshot.png", "verified": False}
         )
-        
+
         # Fetch dues again. Because the entry is not verified, it should STILL be overdue!
         dues = await get_wholesaler_dues(current_user=user)
         print("Dues after submitting settlement screenshot (unverified):")
@@ -117,13 +120,13 @@ async def run_verification():
         print(f"  totalDues: {dues['totalDues']} (expected: 850.0)")
         assert dues["hasOverdueBills"] is True
         assert dues["totalDues"] == 850.0
-        
+
         # Test 6: Verify the payment entry (simulating admin verification)
         print("Verifying payment entry (simulating admin action)...")
         entries = updated_payment.get("paymentEntries", [])
         entry_id = entries[0]["entryId"]
         await payment_repository.updatePaymentEntry(payment["_id"], entry_id, {"verified": True})
-        
+
         # Fetch dues again. Now the overdue block should be lifted!
         dues = await get_wholesaler_dues(current_user=user)
         print("Dues after admin verification:")
@@ -131,9 +134,9 @@ async def run_verification():
         print(f"  totalDues: {dues['totalDues']} (expected: 0.0)")
         assert dues["hasOverdueBills"] is False
         assert dues["totalDues"] == 0.0
-        
+
         print("\n=== ALL BACKEND VERIFICATIONS PASSED SUCCESSFULLY! ===")
-        
+
     finally:
         # Cleanup user and payment
         print("Cleaning up database entries...")
@@ -141,6 +144,7 @@ async def run_verification():
         if payment:
             await payment_repository.delete(payment["_id"])
         print("Cleanup done.")
+
 
 if __name__ == "__main__":
     asyncio.run(run_verification())

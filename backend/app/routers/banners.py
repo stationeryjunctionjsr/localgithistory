@@ -54,7 +54,6 @@ async def get_public_banners(
 
 
 @router.get("", response_model=List[BannerResponse])
-
 @router.get("/", response_model=List[BannerResponse])
 async def get_banners(
     isActive: Optional[bool] = None,
@@ -97,7 +96,6 @@ async def get_banner(banner_id: str, current_user: dict = Depends(require_super_
 
 
 @router.post("", response_model=BannerResponse, status_code=status.HTTP_201_CREATED)
-
 @router.post("/", response_model=BannerResponse, status_code=status.HTTP_201_CREATED)
 async def create_banner(banner_data: BannerCreate, current_user: dict = Depends(require_super_admin)):
     banner = await banner_repository.create(banner_data.dict())

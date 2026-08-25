@@ -124,7 +124,7 @@ class AnalyticsRepository:
 
             if period_key not in sales_by_period:
                 sales_by_period[period_key] = {"sales": 0.0, "orderCount": 0}
-                
+
             sales_by_period[period_key]["sales"] += order.get("total", 0)
             sales_by_period[period_key]["orderCount"] += 1
 
@@ -286,7 +286,7 @@ class AnalyticsRepository:
         sessions_tracking = await self.tracking_storage.findAll({"type": "session"})
         sessions_tracking = self._filter_by_date_range(sessions_tracking, start_date, end_date, "timestamp")
         session_count = len(set(s.get("sessionId") for s in sessions_tracking if s.get("sessionId")))
-        
+
         # Fallback to estimated sessions if zero tracking traffic exists
         if session_count == 0:
             session_count = len(orders) * 10 if orders else 10
@@ -295,7 +295,7 @@ class AnalyticsRepository:
         cart_add_tracking = await self.tracking_storage.findAll({"type": "cart_add"})
         cart_add_tracking = self._filter_by_date_range(cart_add_tracking, start_date, end_date, "timestamp")
         added_to_cart_count = len(set(c.get("sessionId") for c in cart_add_tracking if c.get("sessionId")))
-        
+
         # Fallback if no cart additions tracked
         if added_to_cart_count == 0:
             carts = await self.cart_storage.findAll()
@@ -309,11 +309,15 @@ class AnalyticsRepository:
         checkout_tracking = await self.tracking_storage.findAll({"type": "page_view", "page": "/checkout/step1"})
         checkout_tracking = self._filter_by_date_range(checkout_tracking, start_date, end_date, "timestamp")
         reached_checkout_count = len(set(c.get("sessionId") for c in checkout_tracking if c.get("sessionId")))
-        
+
         # Fallback if zero tracking events exist
         if reached_checkout_count == 0:
             reached_checkout_count = len(
-                [o for o in orders if o.get("status") in ["pending", "confirmed", "processing", "dispatched", "delivered", "completed"]]
+                [
+                    o
+                    for o in orders
+                    if o.get("status") in ["pending", "confirmed", "processing", "dispatched", "delivered", "completed"]
+                ]
             )
 
         reached_checkout_count = min(added_to_cart_count, reached_checkout_count)
@@ -321,7 +325,7 @@ class AnalyticsRepository:
         # 4. Completed purchases (unique sessions with order placement)
         completed_orders_list = [o for o in orders if o.get("status") not in ["cancelled"]]
         completed_count = len(set(o.get("sessionId") for o in completed_orders_list if o.get("sessionId")))
-        
+
         if completed_count == 0:
             completed_count = len(completed_orders_list)
 
@@ -399,7 +403,9 @@ class AnalyticsRepository:
         drop_cart_to_step1 = ((cart_sessions - step1_sessions) / cart_sessions * 100) if cart_sessions > 0 else 0
         drop_step1_to_step2 = ((step1_sessions - step2_sessions) / step1_sessions * 100) if step1_sessions > 0 else 0
         drop_step2_to_step3 = ((step2_sessions - step3_sessions) / step2_sessions * 100) if step2_sessions > 0 else 0
-        drop_step3_to_complete = ((step3_sessions - completed_sessions) / step3_sessions * 100) if step3_sessions > 0 else 0
+        drop_step3_to_complete = (
+            ((step3_sessions - completed_sessions) / step3_sessions * 100) if step3_sessions > 0 else 0
+        )
 
         return {
             "cart": make_stage(cart_sessions, cart_sessions),
@@ -407,9 +413,8 @@ class AnalyticsRepository:
             "review": {**make_stage(step2_sessions, cart_sessions), "drop_percentage": drop_step1_to_step2},
             "payment": {**make_stage(step3_sessions, cart_sessions), "drop_percentage": drop_step2_to_step3},
             "completed": {**make_stage(completed_sessions, cart_sessions), "drop_percentage": drop_step3_to_complete},
-            "overall_checkout_conversion": (completed_sessions / cart_sessions * 100) if cart_sessions > 0 else 0
+            "overall_checkout_conversion": (completed_sessions / cart_sessions * 100) if cart_sessions > 0 else 0,
         }
-
 
     @cache.ttl_cache(ttl=300)
     async def get_sessions_by_device_type(
@@ -579,7 +584,7 @@ class AnalyticsRepository:
             if not start_dt:
                 continue
             if not end_dt:
-                end_dt = datetime.utcnow()
+                end_dt = datetime.now(timezone.utc)
             start_naive = self._to_naive_utc(start_dt)
             end_naive = self._to_naive_utc(end_dt)
             if start_naive and end_naive:
@@ -668,7 +673,7 @@ class AnalyticsRepository:
             if not start_dt:
                 continue
             if not end_dt:
-                end_dt = datetime.utcnow()
+                end_dt = datetime.now(timezone.utc)
             delta = (end_dt - start_dt).total_seconds()
             if delta >= 0:
                 session_durations_sec.append(delta)
@@ -793,7 +798,7 @@ class AnalyticsRepository:
             user_orders_map[uid].append(order)
 
         result = []
-        now = datetime.utcnow().replace(tzinfo=None)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         for uid, u_orders in user_orders_map.items():
             user = user_map.get(uid)
@@ -1165,21 +1170,21 @@ class AnalyticsRepository:
             # We only count completed/delivered/shipped orders
             if order.get("status") not in ["delivered", "completed", "shipped", "dispatched"]:
                 continue
-            
+
             shipping = order.get("shippingAddress") or {}
             city = shipping.get("city")
             state = shipping.get("state")
-            
+
             if not city and not state:
                 location = "Unknown"
             elif city and state:
                 location = f"{city}, {state}"
             else:
                 location = city or state
-                
+
             if location not in location_stats:
                 location_stats[location] = {"location": location, "revenue": 0.0, "orderCount": 0, "quantity": 0}
-            
+
             location_stats[location]["revenue"] += order.get("total", 0)
             location_stats[location]["orderCount"] += 1
             for item in order.get("items", []):
@@ -1203,32 +1208,32 @@ class AnalyticsRepository:
             user_id = order.get("user")
             if user_id:
                 user_total_orders[user_id] += 1
-        
+
         # Now filter for the period
         period_orders = self._filter_by_date_range(orders, start_date, end_date)
-        
+
         stats = {
             "New Customers": {"customerType": "New Customers", "revenue": 0.0, "orderCount": 0},
-            "Returning Customers": {"customerType": "Returning Customers", "revenue": 0.0, "orderCount": 0}
+            "Returning Customers": {"customerType": "Returning Customers", "revenue": 0.0, "orderCount": 0},
         }
-        
+
         for order in period_orders:
             # We only count active orders
             if order.get("status") in ["cancelled", "declined"]:
                 continue
-                
+
             user_id = order.get("user")
             if not user_id:
                 continue
-            
+
             ctype = "New Customers" if user_total_orders[user_id] == 1 else "Returning Customers"
             stats[ctype]["revenue"] += order.get("total", 0)
             stats[ctype]["orderCount"] += 1
-            
+
         result = [stats["New Customers"], stats["Returning Customers"]]
         for item in result:
             item["revenue"] = round(item["revenue"], 2)
-            
+
         return result
 
     @cache.ttl_cache(ttl=300)
@@ -1238,45 +1243,53 @@ class AnalyticsRepository:
         """Market basket analysis: find pairs of products frequently bought together."""
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
-        
+
         products = await self.product_storage.findAll()
         product_map = {p.get("_id"): p for p in products}
-        
+
         pair_counts = defaultdict(int)
-        
+
         for order in orders:
             # We only count active orders
             if order.get("status") in ["cancelled", "declined"]:
                 continue
-                
+
             items = order.get("items", [])
             # Extract unique product IDs in this order
-            product_ids = list(set(item.get("product") or item.get("productId") for item in items if (item.get("product") or item.get("productId"))))
-            
+            product_ids = list(
+                set(
+                    item.get("product") or item.get("productId")
+                    for item in items
+                    if (item.get("product") or item.get("productId"))
+                )
+            )
+
             # Generate all unique pairs
             for i in range(len(product_ids)):
                 for j in range(i + 1, len(product_ids)):
                     # Sort to ensure (A,B) is the same as (B,A)
                     pair = tuple(sorted([product_ids[i], product_ids[j]]))
                     pair_counts[pair] += 1
-                    
+
         result = []
         for pair, count in pair_counts.items():
             product_a = product_map.get(pair[0], {})
             product_b = product_map.get(pair[1], {})
-            
+
             # Skip if products are deleted/missing
             if not product_a or not product_b:
                 continue
-                
-            result.append({
-                "productAId": pair[0],
-                "productAName": product_a.get("name", "Unknown"),
-                "productBId": pair[1],
-                "productBName": product_b.get("name", "Unknown"),
-                "frequency": count
-            })
-            
+
+            result.append(
+                {
+                    "productAId": pair[0],
+                    "productAName": product_a.get("name", "Unknown"),
+                    "productBId": pair[1],
+                    "productBName": product_b.get("name", "Unknown"),
+                    "frequency": count,
+                }
+            )
+
         return sorted(result, key=lambda x: x["frequency"], reverse=True)[:limit]
 
     @cache.ttl_cache(ttl=300)
@@ -1289,38 +1302,38 @@ class AnalyticsRepository:
         # Let's see if orders have sessionId
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
-        
+
         sessions = await self.session_storage.findAll()
         session_map = {s.get("sessionId"): s for s in sessions}
-        
+
         stats = {
             "desktop": {"deviceType": "desktop", "revenue": 0.0, "orderCount": 0},
             "mobile": {"deviceType": "mobile", "revenue": 0.0, "orderCount": 0},
             "tablet": {"deviceType": "tablet", "revenue": 0.0, "orderCount": 0},
             "unknown": {"deviceType": "unknown", "revenue": 0.0, "orderCount": 0},
         }
-        
+
         for order in orders:
             if order.get("status") in ["cancelled", "declined"]:
                 continue
-                
+
             session_id = order.get("sessionId")
             device_type = "unknown"
             if session_id and session_id in session_map:
                 device_type = session_map[session_id].get("deviceType", "unknown").lower()
-                
+
             if device_type not in stats:
                 device_type = "unknown"
-                
+
             stats[device_type]["revenue"] += order.get("total", 0)
             stats[device_type]["orderCount"] += 1
-            
+
         result = list(stats.values())
         # Filter out zeroes
         result = [r for r in result if r["orderCount"] > 0]
         for item in result:
             item["revenue"] = round(item["revenue"], 2)
-            
+
         return sorted(result, key=lambda x: x["revenue"], reverse=True)
 
     @cache.ttl_cache(ttl=300)
@@ -1329,11 +1342,12 @@ class AnalyticsRepository:
     ) -> List[Dict]:
         """Find products that are returned the most."""
         from app.repositories.return_request_repository import return_request_repository
+
         returns = await return_request_repository.findAll()
-        
+
         products = await self.product_storage.findAll()
         product_map = {p.get("_id"): p for p in products}
-        
+
         product_returns = {}
         for req in returns:
             created = self._parse_date(req.get("createdAt", ""))
@@ -1341,57 +1355,64 @@ class AnalyticsRepository:
                 continue
             if end_date and created and created > end_date:
                 continue
-                
+
             for item in req.get("items", []):
                 pid = item.get("product") or item.get("productId")
                 if not pid:
                     continue
-                
+
                 if pid not in product_returns:
-                    product_returns[pid] = {"productId": pid, "returnCount": 0, "quantityReturned": 0, "revenueLost": 0.0}
-                    
+                    product_returns[pid] = {
+                        "productId": pid,
+                        "returnCount": 0,
+                        "quantityReturned": 0,
+                        "revenueLost": 0.0,
+                    }
+
                 product_returns[pid]["returnCount"] += 1
                 q = item.get("quantity", 1)
                 product_returns[pid]["quantityReturned"] += q
                 product_returns[pid]["revenueLost"] += q * item.get("price", 0)
-                
+
         result = []
         for pid, stats in product_returns.items():
             product = product_map.get(pid, {})
-            result.append({
-                "productId": pid,
-                "productName": product.get("name", "Unknown"),
-                "category": product.get("category", "Uncategorized"),
-                "returnCount": stats["returnCount"],
-                "quantityReturned": stats["quantityReturned"],
-                "revenueLost": round(stats["revenueLost"], 2)
-            })
-            
+            result.append(
+                {
+                    "productId": pid,
+                    "productName": product.get("name", "Unknown"),
+                    "category": product.get("category", "Uncategorized"),
+                    "returnCount": stats["returnCount"],
+                    "quantityReturned": stats["quantityReturned"],
+                    "revenueLost": round(stats["revenueLost"], 2),
+                }
+            )
+
         return sorted(result, key=lambda x: x["returnCount"], reverse=True)[:limit]
 
     @cache.ttl_cache(ttl=300)
     async def get_inventory_value_by_category(self) -> List[Dict]:
         """Calculate total tied up capital in inventory grouped by category."""
         products = await self.product_storage.findAll()
-        
+
         category_stats = {}
         for p in products:
             cat = p.get("category", "Uncategorized") or "Uncategorized"
             if cat not in category_stats:
                 category_stats[cat] = {"category": cat, "totalStock": 0, "inventoryValue": 0.0, "productCount": 0}
-                
+
             stock = p.get("stock", 0) or 0
             # Assuming price is the value or mrp. If costPrice is absent, use price
             price = p.get("price", 0) or p.get("mrp", 0) or 0
-            
+
             category_stats[cat]["totalStock"] += stock
             category_stats[cat]["inventoryValue"] += stock * price
             category_stats[cat]["productCount"] += 1
-            
+
         result = list(category_stats.values())
         for item in result:
             item["inventoryValue"] = round(item["inventoryValue"], 2)
-            
+
         return sorted(result, key=lambda x: x["inventoryValue"], reverse=True)
 
     async def get_dashboard_data(

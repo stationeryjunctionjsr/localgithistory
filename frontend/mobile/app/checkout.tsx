@@ -177,9 +177,13 @@ export default function Checkout() {
   // Pincode lookup spinner (separate from serviceability check)
   const [pincodeLoading, setPincodeLoading] = useState(false);
 
-  // ─── Delivery Slot ────────────────────────────────────────────────
-  const [deliveryOptions, setDeliveryOptions] = useState<{ slotBookingAvailable: boolean; availableDates: string[] } | null>(null);
-  const [selectedDeliveryType, setSelectedDeliveryType] = useState<'standard' | 'slot'>('standard');
+  // ─── Delivery Option ─────────────────────────────────────────────
+  const [deliveryOptions, setDeliveryOptions] = useState<{
+    slotBookingAvailable: boolean;
+    availableDates: string[];
+    urgentAvailable?: boolean;
+  } | null>(null);
+  const [selectedDeliveryType, setSelectedDeliveryType] = useState<'standard' | 'urgent'>('standard');
   const [selectedSlotDate, setSelectedSlotDate] = useState('');
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
@@ -553,12 +557,13 @@ export default function Checkout() {
           ? `We deliver to this pincode. Delivery charge: ₹${charge}`
           : 'We deliver to this pincode. Free delivery!';
         Toast.show({ type: 'success', text1: 'Serviceable', text2: msg });
-        // Populate delivery slot options
+        // Populate delivery options
         setDeliveryOptions({
           slotBookingAvailable: res.data.slotBookingAvailable ?? false,
           availableDates: res.data.availableDates ?? [],
+          urgentAvailable: res.data.urgentDeliveryAvailable ?? false,
         });
-        // Reset slot selection when pincode changes
+        // Reset delivery selection when pincode changes
         setSelectedDeliveryType('standard');
         setSelectedSlot(null);
         setSelectedSlotDate('');
@@ -619,11 +624,13 @@ export default function Checkout() {
         notes: notes || null,
         printedBill,
         couponCode: appliedCoupon?.code || null,
-        // Delivery slot fields
-        isUrgentDelivery: selectedSlot?.isUrgent ?? false,
-        deliverySlotId: selectedSlot?.slotId ?? null,
-        deliverySlotConfigId: selectedSlot?.configId ?? null,
-        deliverySlotDate: selectedSlot ? selectedSlotDate : null,
+        // Delivery option fields
+        isUrgentDelivery: selectedDeliveryType === 'urgent',
+        deliverySlotId: selectedDeliveryType === 'standard' ? (selectedSlot?.slotId ?? null) : null,
+        deliverySlotConfigId: selectedDeliveryType === 'standard' ? (selectedSlot?.configId ?? null) : null,
+        deliverySlotDate: selectedDeliveryType === 'urgent'
+          ? new Date().toISOString().split('T')[0]
+          : (selectedSlot ? selectedSlotDate : null),
       };
       if (paymentMethod === 'upi') {
         orderData.upiPaymentScreenshot = upiScreenshot || null;
@@ -658,7 +665,7 @@ export default function Checkout() {
       } catch (e) {
         if (__DEV__) console.warn('[checkout] store review request failed', e);
       }
-      // Reset slot state
+      // Reset delivery state
       setSelectedDeliveryType('standard');
       setSelectedSlot(null);
       setSelectedSlotDate('');
@@ -697,7 +704,7 @@ export default function Checkout() {
 
   if (isValet) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-50">
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
         <View
           className="flex-row items-center border-b border-slate-100 bg-white px-4 py-4"
           style={shadows.sm}
@@ -731,7 +738,7 @@ export default function Checkout() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
 
       {/* Header */}
       <View
@@ -781,11 +788,11 @@ export default function Checkout() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
         <ScrollView
           ref={scrollRef}
-          className="flex-1"
+          style={{ flex: 1 }}
           contentContainerStyle={{ padding: 16 }}
           keyboardShouldPersistTaps="handled"
         >
@@ -1248,136 +1255,140 @@ export default function Checkout() {
 
               {/* ── Delivery Option Selector ──────────────────────────────── */}
               {deliveryOptions && (
-                <View
-                  className="mt-2 mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4"
-                >
+                <View className="mt-2 mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <Text className="mb-3 text-sm font-semibold text-slate-800">🚚 Delivery Option</Text>
 
-                  {/* Standard */}
+                  {/* Standard Delivery */}
                   <TouchableOpacity
-                    className={`mb-2 flex-row items-center rounded-xl border p-3 ${selectedDeliveryType === 'standard' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-white'}`}
+                    className={`mb-2 flex-row items-start rounded-xl border p-3 ${selectedDeliveryType === 'standard' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-white'}`}
                     onPress={() => {
                       setSelectedDeliveryType('standard');
                       setSelectedSlot(null);
+                      if (deliveryOptions.slotBookingAvailable && deliveryOptions.availableDates.length > 0) {
+                        const firstDate = deliveryOptions.availableDates[0];
+                        setSelectedSlotDate(firstDate);
+                        fetchSlotsForDate(firstDate);
+                      }
                     }}
                     activeOpacity={0.8}
                   >
                     <View
-                      className={`mr-3 h-5 w-5 items-center justify-center rounded-full border-2 ${selectedDeliveryType === 'standard' ? 'border-indigo-500' : 'border-slate-300'}`}
+                      className={`mr-3 mt-0.5 h-5 w-5 items-center justify-center rounded-full border-2 ${selectedDeliveryType === 'standard' ? 'border-indigo-500' : 'border-slate-300'}`}
                     >
                       {selectedDeliveryType === 'standard' && (
                         <View className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
                       )}
                     </View>
-                    <Text className="flex-1 text-sm font-medium text-slate-700">Standard Delivery (Free)</Text>
+                    <View className="flex-1">
+                      <Text className="text-sm font-medium text-slate-700">📅 Standard Delivery</Text>
+
+                      {/* Slot picker — only shown when standard is selected and slots are available */}
+                      {selectedDeliveryType === 'standard' && deliveryOptions.slotBookingAvailable && (
+                        <View className="mt-3">
+                          <Text className="mb-2 text-xs font-medium text-slate-600">Select Date</Text>
+                          <View className="mb-3 flex-row flex-wrap gap-2">
+                            {deliveryOptions.availableDates.map((d) => (
+                              <TouchableOpacity
+                                key={d}
+                                onPress={() => {
+                                  setSelectedSlotDate(d);
+                                  fetchSlotsForDate(d);
+                                }}
+                                className={`rounded-lg border px-3 py-2 ${
+                                  selectedSlotDate === d
+                                    ? 'border-indigo-500 bg-indigo-500'
+                                    : 'border-slate-300 bg-white'
+                                }`}
+                              >
+                                <Text
+                                  className={`text-xs font-semibold ${
+                                    selectedSlotDate === d ? 'text-white' : 'text-slate-600'
+                                  }`}
+                                >
+                                  {d}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+
+                          {selectedSlotDate && (
+                            <View>
+                              <Text className="mb-2 text-xs font-medium text-slate-600">Select Time Slot</Text>
+                              {loadingSlots ? (
+                                <ActivityIndicator size="small" color={colors.primary} />
+                              ) : availableSlots.filter(s => !s.isUrgent).length === 0 ? (
+                                <Text className="text-xs text-slate-400">No standard slots available for this date.</Text>
+                              ) : (
+                                <View className="gap-2">
+                                  {/* Anytime option */}
+                                  <TouchableOpacity
+                                    onPress={() => setSelectedSlot({ slotId: 'anytime', isFullDay: true, isUrgent: false })}
+                                    className={`flex-row items-center justify-between rounded-xl border px-3 py-3 ${
+                                      selectedSlot?.slotId === 'anytime'
+                                        ? 'border-indigo-500 bg-indigo-50'
+                                        : 'border-slate-200 bg-white'
+                                    }`}
+                                  >
+                                    <Text className="text-sm font-medium text-slate-700">Anytime</Text>
+                                    {selectedSlot?.slotId === 'anytime' && (
+                                      <Ionicons name="checkmark-circle" size={18} color="#6366F1" />
+                                    )}
+                                  </TouchableOpacity>
+                                  {availableSlots.filter(s => !s.isUrgent).map((slot) => (
+                                    <TouchableOpacity
+                                      key={slot.slotId}
+                                      onPress={() => setSelectedSlot(slot)}
+                                      className={`flex-row items-center justify-between rounded-xl border px-3 py-3 ${
+                                        selectedSlot?.slotId === slot.slotId
+                                          ? 'border-indigo-500 bg-indigo-50'
+                                          : 'border-slate-200 bg-white'
+                                      }`}
+                                    >
+                                      <Text className={`text-sm font-medium ${
+                                        selectedSlot?.slotId === slot.slotId ? 'text-slate-800' : 'text-slate-700'
+                                      }`}>
+                                        {slot.isFullDay ? 'Full Day' : `${slot.startTime} – ${slot.endTime}`}
+                                      </Text>
+                                      {selectedSlot?.slotId === slot.slotId && (
+                                        <Ionicons name="checkmark-circle" size={18} color="#6366F1" />
+                                      )}
+                                    </TouchableOpacity>
+                                  ))}
+                                </View>
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
                   </TouchableOpacity>
 
-                  {/* Schedule a slot */}
-                  {deliveryOptions.slotBookingAvailable && (
+                  {/* Urgent Delivery — only shown when available for this pincode */}
+                  {deliveryOptions.urgentAvailable && (
                     <TouchableOpacity
-                      className={`flex-row items-start rounded-xl border p-3 ${selectedDeliveryType === 'slot' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-white'}`}
+                      className={`flex-row items-start rounded-xl border p-3 ${selectedDeliveryType === 'urgent' ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white'}`}
                       onPress={() => {
-                        setSelectedDeliveryType('slot');
+                        setSelectedDeliveryType('urgent');
                         setSelectedSlot(null);
-                        if (deliveryOptions.availableDates.length > 0) {
-                          const firstDate = deliveryOptions.availableDates[0];
-                          setSelectedSlotDate(firstDate);
-                          fetchSlotsForDate(firstDate);
-                        }
+                        setSelectedSlotDate(new Date().toISOString().split('T')[0]);
                       }}
                       activeOpacity={0.8}
                     >
                       <View
-                        className={`mr-3 mt-0.5 h-5 w-5 items-center justify-center rounded-full border-2 ${selectedDeliveryType === 'slot' ? 'border-indigo-500' : 'border-slate-300'}`}
+                        className={`mr-3 mt-0.5 h-5 w-5 items-center justify-center rounded-full border-2 ${selectedDeliveryType === 'urgent' ? 'border-amber-500' : 'border-slate-300'}`}
                       >
-                        {selectedDeliveryType === 'slot' && (
-                          <View className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
+                        {selectedDeliveryType === 'urgent' && (
+                          <View className="h-2.5 w-2.5 rounded-full bg-amber-500" />
                         )}
                       </View>
                       <View className="flex-1">
-                        <Text className="text-sm font-medium text-slate-700">📅 Schedule a Delivery Slot</Text>
-
-                        {selectedDeliveryType === 'slot' && (
-                          <View className="mt-3">
-                            {/* Date selector */}
-                            <Text className="mb-2 text-xs font-medium text-slate-600">Select Date</Text>
-                            <View className="mb-3 flex-row flex-wrap gap-2">
-                              {deliveryOptions.availableDates.map((d) => (
-                                <TouchableOpacity
-                                  key={d}
-                                  onPress={() => {
-                                    setSelectedSlotDate(d);
-                                    fetchSlotsForDate(d);
-                                  }}
-                                  className={`rounded-lg border px-3 py-2 ${
-                                    selectedSlotDate === d
-                                      ? 'border-indigo-500 bg-indigo-500'
-                                      : 'border-slate-300 bg-white'
-                                  }`}
-                                >
-                                  <Text
-                                    className={`text-xs font-semibold ${
-                                      selectedSlotDate === d ? 'text-white' : 'text-slate-600'
-                                    }`}
-                                  >
-                                    {d}
-                                  </Text>
-                                </TouchableOpacity>
-                              ))}
-                            </View>
-
-                            {/* Slot list */}
-                            {selectedSlotDate && (
-                              <View>
-                                <Text className="mb-2 text-xs font-medium text-slate-600">Select Time Slot</Text>
-                                {loadingSlots ? (
-                                  <ActivityIndicator size="small" color={colors.primary} />
-                                ) : availableSlots.length === 0 ? (
-                                  <Text className="text-xs text-slate-400">No slots available for this date.</Text>
-                                ) : (
-                                  <View className="gap-2">
-                                    {availableSlots.map((slot) => (
-                                      <TouchableOpacity
-                                        key={slot.slotId}
-                                        onPress={() => setSelectedSlot(slot)}
-                                        className={`flex-row items-center justify-between rounded-xl border px-3 py-3 ${
-                                          selectedSlot?.slotId === slot.slotId
-                                            ? slot.isUrgent
-                                              ? 'border-amber-500 bg-amber-50'
-                                              : 'border-indigo-500 bg-indigo-50'
-                                            : 'border-slate-200 bg-white'
-                                        }`}
-                                      >
-                                        <View className="flex-row items-center gap-2">
-                                          {slot.isUrgent && (
-                                            <View className="rounded-full bg-amber-500 px-2 py-0.5">
-                                              <Text className="text-[10px] font-bold text-white">⚡ Urgent</Text>
-                                            </View>
-                                          )}
-                                          <Text className={`text-sm font-medium ${
-                                            selectedSlot?.slotId === slot.slotId ? 'text-slate-800' : 'text-slate-700'
-                                          }`}>
-                                            {slot.startTime} – {slot.endTime}
-                                          </Text>
-                                        </View>
-                                        {selectedSlot?.slotId === slot.slotId && (
-                                          <Ionicons name="checkmark-circle" size={18} color={slot.isUrgent ? '#F59E0B' : '#6366F1'} />
-                                        )}
-                                      </TouchableOpacity>
-                                    ))}
-                                  </View>
-                                )}
-                              </View>
-                            )}
-
-                            {/* Urgent surcharge warning */}
-                            {selectedSlot?.isUrgent && (
-                              <View className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                                <Text className="text-xs text-amber-800">
-                                  ⚡ <Text className="font-bold">Urgent delivery surcharge</Text> will apply for this slot.
-                                </Text>
-                              </View>
-                            )}
+                        <Text className="text-sm font-medium text-slate-700">⚡ Urgent Delivery</Text>
+                        {selectedDeliveryType === 'urgent' && (
+                          <View className="mt-2 rounded-lg border border-amber-200 bg-amber-100 px-3 py-2">
+                            <Text className="text-xs text-amber-800">
+                              Delivered as soon as possible. An{' '}
+                              <Text className="font-bold">urgent surcharge</Text> will apply.
+                            </Text>
                           </View>
                         )}
                       </View>
@@ -1385,6 +1396,7 @@ export default function Checkout() {
                   )}
                 </View>
               )}
+
 
               {/* Save address checkbox */}
               {user && showNewAddress && (
@@ -1807,10 +1819,11 @@ export default function Checkout() {
       {/* ── Success overlay ── */}
       {orderSuccess && (
         <Animated.View
-          style={{ opacity: successOpacity }}
-          className="absolute inset-0 items-center justify-center bg-white/95"
+          style={[{ opacity: successOpacity }, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 255, 255, 0.95)' }]}
         >
-          <Animated.View style={{ transform: [{ scale: successScale }] }} className="items-center px-8">
+          <Animated.View
+            style={[{ transform: [{ scale: successScale }] }, { alignItems: 'center', paddingHorizontal: 32 }]}
+          >
             <View
               className="mb-6 h-24 w-24 items-center justify-center rounded-full"
               style={{ backgroundColor: `${colors.primary}20` }}

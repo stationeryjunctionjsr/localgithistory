@@ -12,6 +12,7 @@ import { SearchIcon, ProfileIcon, CloseIcon } from '../Icons/HeaderIcons';
 import { MyCartIcon, WishlistIcon } from '../Icons/CartWishlistIcons';
 import api from '@/utils/api';
 import styles from './ModernHeader.module.css';
+import { logger } from '@/utils/logger';
 
 interface Category {
   id: string;
@@ -250,7 +251,7 @@ export default function ModernHeader() {
         setCartCount(totalQuantity);
       }
     } catch (error) {
-      console.error('Error fetching cart count:', error);
+      logger.error('Error fetching cart count:', error);
     }
   };
 
@@ -277,7 +278,7 @@ export default function ModernHeader() {
           setSearchSuggestions(suggestions);
           setShowSearchSuggestions(suggestions.length > 0);
         } catch (error) {
-          console.error('Suggest API failed:', error);
+          logger.error('Suggest API failed:', error);
           setShowSearchSuggestions(false);
         }
       }, 300);

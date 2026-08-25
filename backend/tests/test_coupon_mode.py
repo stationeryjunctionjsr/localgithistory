@@ -3,13 +3,14 @@ import uuid
 from app.repositories.product_repository import product_repository
 from app.repositories.coupon_repository import coupon_repository
 
+
 @pytest.mark.asyncio
 async def test_coupon_override_and_stacking():
     # Pre-test cleanup: delete product/coupons if they already exist
     existing_product = await product_repository.findBySku("SKU-TEST-COUPON-MODE")
     if existing_product:
         await product_repository.storage.delete(existing_product["_id"])
-        
+
     existing_override = await coupon_repository.findByCode("OVERRIDE10")
     if existing_override:
         await coupon_repository.storage.delete(existing_override["_id"])
@@ -24,7 +25,7 @@ async def test_coupon_override_and_stacking():
         "category": "Test Category",
         "mrp": 100.0,
         "sku": "SKU-TEST-COUPON-MODE",
-        "isActive": True
+        "isActive": True,
     }
     product = await product_repository.create(product_data)
     product_id = str(product["_id"])
@@ -41,7 +42,7 @@ async def test_coupon_override_and_stacking():
         "applicableRoles": ["customer"],
         "appliesToType": "products",
         "appliesToValueIds": [product_id],
-        "force": True
+        "force": True,
     }
     auto_coupon = await coupon_repository.create(auto_discount_data)
 
@@ -59,7 +60,7 @@ async def test_coupon_override_and_stacking():
         "applicableRoles": ["customer"],
         "appliesToType": "products",
         "appliesToValueIds": [product_id],
-        "force": True
+        "force": True,
     }
     override_coupon = await coupon_repository.create(override_coupon_data)
 
@@ -77,7 +78,7 @@ async def test_coupon_override_and_stacking():
         "applicableRoles": ["customer"],
         "appliesToType": "products",
         "appliesToValueIds": [product_id],
-        "force": True
+        "force": True,
     }
     extra_coupon = await coupon_repository.create(extra_coupon_data)
 
@@ -98,7 +99,7 @@ async def test_coupon_override_and_stacking():
             0.0,
             "test_user",
             cart_items=[{"product": product_id, "quantity": 1}],
-            product_repository=product_repository
+            product_repository=product_repository,
         )
         assert validation_override["valid"] is True
         assert validation_override["discount"] == 10.0
@@ -110,7 +111,7 @@ async def test_coupon_override_and_stacking():
             0.0,
             "test_user",
             cart_items=[{"product": product_id, "quantity": 1}],
-            product_repository=product_repository
+            product_repository=product_repository,
         )
         assert validation_extra["valid"] is True
         assert validation_extra["discount"] == 8.5

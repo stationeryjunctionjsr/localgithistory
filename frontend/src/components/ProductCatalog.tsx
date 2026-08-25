@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,12 +10,15 @@ import api from '@/utils/api';
 import { recordEvent, trackBackendProductClick, trackBackendFilterClick, getSessionId, trackEcommerceEvent } from '@/utils/analytics';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import AuthModal from '@/components/AuthModal';
+import { usePincode } from '@/context/PincodeContext';
+import UnserviceableLocationBanner from '@/components/UnserviceableLocationBanner';
+import { logger } from '@/utils/logger';
 
 // pageMode controls what appears as chips (on the page) vs. filters (in sidebar):
-//   'category'    → sub-categories as chips on page, brands in filters (no categories, no sub-categories in sidebar)
-//   'brand'       → categories as chips on page, sub-categories in filters, NO brands in sidebar
-//   'collection'  → categories as chips on page, sub-categories & brands in sidebar
-//   'general'     → categories in sidebar, sub-categories & brands in sidebar (default)
+//   'category'    â†’ sub-categories as chips on page, brands in filters (no categories, no sub-categories in sidebar)
+//   'brand'       â†’ categories as chips on page, sub-categories in filters, NO brands in sidebar
+//   'collection'  â†’ categories as chips on page, sub-categories & brands in sidebar
+//   'general'     â†’ categories in sidebar, sub-categories & brands in sidebar (default)
 type PageMode = 'category' | 'brand' | 'collection' | 'general';
 
 /** Server page size for catalog requests (matches admin-style discrete pages, not infinite scroll). */
@@ -50,7 +53,7 @@ function PopularProductsFallback() {
         const res = await api.get('/products/public?sort=popular&limit=8');
         setPopularProducts((res.data?.products || res.data || []).slice(0, 8));
       } catch (error) {
-        console.error('Failed to fetch popular products:', error);
+        logger.error('Failed to fetch popular products:', error);
       }
     };
     fetchPopular();
@@ -77,7 +80,7 @@ function PopularProductsFallback() {
           )}
           <p className="line-clamp-2 text-xs font-medium text-gray-900">{product.name}</p>
           <p className="mt-0.5 text-xs text-gray-500">
-            ₹{(product.price || product.mrp || 0).toLocaleString()}
+            â‚¹{(product.price || product.mrp || 0).toLocaleString()}
           </p>
         </button>
       ))}
@@ -122,6 +125,7 @@ export default function ProductCatalog({
     };
   }, []);
 
+  const { isServiceable, pincode } = usePincode();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
@@ -186,10 +190,11 @@ export default function ProductCatalog({
   const productsGridRef = useRef<HTMLElement>(null);
   const router = useRouter();
   const { user } = useAuth();
-  const { addToCart, cart, updateQuantity, removeFromCart } = useCart();
+  const { addToCart, cart, updateQuantity, removeFromCart, fetchCart } = useCart();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [pendingWishlistProductId, setPendingWishlistProductId] = useState<string | null>(null);
   const [pendingWishlistProductName, setPendingWishlistProductName] = useState<string | null>(null);
+  const [bundleItems, setBundleItems] = useState<any[]>([]);
 
   // Back to top scroll detection - only show when scrolling down
   useEffect(() => {
@@ -283,7 +288,7 @@ export default function ProductCatalog({
         const items = res.data?.items || res.data || [];
         const ids = new Set<string>(items.map((w: any) => w.product?._id || w.productId).filter(Boolean));
         setWishlistedIds(ids);
-      }).catch(() => {});
+      }).catch((e) => logger.warn("Background task failed", e));
     }
   }, [user]);
 
@@ -295,7 +300,7 @@ export default function ProductCatalog({
         const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
         setAllCollections(data);
       } catch (e) {
-        console.error('Error fetching collections', e);
+        logger.error('Error fetching collections', e);
       }
     };
     fetchCollections();
@@ -315,7 +320,34 @@ export default function ProductCatalog({
     propCategoryTag,
     propCollection,
     selectedCategories,
+    pincode,
+    isServiceable,
   ]);
+
+  // Fetch bundles in parallel with products when filters are active
+  useEffect(() => {
+    const fetchBundles = async () => {
+      const hasFilter = !!(searchTerm || category || propCategoryTag || filters.brand.length > 0);
+      if (!hasFilter) {
+        setBundleItems([]);
+        return;
+      }
+      try {
+        const params = new URLSearchParams();
+        if (searchTerm) params.set('q', searchTerm);
+        if (category) params.set('category', category);
+        if (filters.brand.length > 0) params.set('brand', filters.brand[0]);
+        params.set('limit', '6');
+        const res = await api.get(`/bundles/search?${params.toString()}`);
+        const bundles = (res.data?.bundles || []).filter((b: any) => b.isAvailable);
+        setBundleItems(bundles);
+      } catch {
+        setBundleItems([]);
+      }
+    };
+    fetchBundles();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, category, filters.brand, propCategoryTag]);
 
   // Reset price range bounds when category or search changes
   useEffect(() => {
@@ -384,7 +416,7 @@ export default function ProductCatalog({
             sessionId: getSessionId() || undefined,
             productIds: productIds.length ? productIds : undefined,
           })
-          .catch(() => {});
+          .catch((e) => logger.warn("Background task failed", e));
       }
 
       const availableBrands = response.data.brands || [];
@@ -554,7 +586,7 @@ export default function ProductCatalog({
       ) as string[];
       setCategoryTags(newTags);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      logger.error('Error fetching products:', error);
       setProducts([]);
       if (pageNumber === 1) setFetchError(true);
     } finally {
@@ -564,7 +596,14 @@ export default function ProductCatalog({
 
   const handleProductClick = (product: any) => {
     trackBackendProductClick(product._id, product.name, 'catalog_grid');
-    const productUrl = `${basePath}/product/${product._id}`;
+    
+    // Pass browsing context to the product detail page so breadcrumbs can adapt
+    const queryParams = new URLSearchParams();
+    if (propBrand) queryParams.set('refBrand', propBrand);
+    if (propCollection) queryParams.set('refCollection', propCollection);
+    
+    const queryString = queryParams.toString();
+    const productUrl = `${basePath}/product/${product._id}${queryString ? `?${queryString}` : ''}`;
     router.push(productUrl);
   };
 
@@ -617,7 +656,7 @@ export default function ProductCatalog({
 
       toast.success(`${productName} added to cart!`);
     } catch (error) {
-      console.error('Error adding to cart:', error);
+      logger.error('Error adding to cart:', error);
       toast.error('Failed to add to cart');
     }
   };
@@ -639,7 +678,7 @@ export default function ProductCatalog({
         toast.success(`We will notify you at ${trimmedEmail} once ${productName} is restocked!`);
       }
     } catch (err: any) {
-      console.error('Failed to register notification', err);
+      logger.error('Failed to register notification', err);
       toast.error(err.response?.data?.detail || 'Failed to register restock notification');
     }
   };
@@ -826,6 +865,10 @@ export default function ProductCatalog({
         100
       : 0;
 
+  if (isServiceable === false) {
+    return <UnserviceableLocationBanner />;
+  }
+
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8">
@@ -864,6 +907,23 @@ export default function ProductCatalog({
 
   const filteredProducts = products;
   const totalPages = Math.max(1, Math.ceil(totalProducts / PRODUCTS_PAGE_SIZE));
+
+  // Merge bundles into product list: insert 1 bundle after every 8 products, append remainder at end
+  const displayItems: any[] = (() => {
+    if (!bundleItems.length) return filteredProducts;
+    const merged: any[] = [];
+    let bundleIdx = 0;
+    filteredProducts.forEach((product: any, i: number) => {
+      merged.push(product);
+      if ((i + 1) % 8 === 0 && bundleIdx < bundleItems.length) {
+        merged.push({ ...bundleItems[bundleIdx++], isBundle: true });
+      }
+    });
+    while (bundleIdx < bundleItems.length) {
+      merged.push({ ...bundleItems[bundleIdx++], isBundle: true });
+    }
+    return merged;
+  })();
 
   const handleCatalogPageChange = (newPage: number) => {
     if (loading || newPage < 1 || newPage > totalPages) return;
@@ -959,20 +1019,6 @@ export default function ProductCatalog({
               </svg>
               Home
             </Link>
-            {propCategoryTag && (
-              <>
-                <svg
-                  className="h-3 w-3 text-gray-300"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-                <span className="text-gray-600">{propCategoryTag}</span>
-              </>
-            )}
             {category && (
               <>
                 <svg
@@ -984,7 +1030,17 @@ export default function ProductCatalog({
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
-                <span className="text-gray-600">{category}</span>
+                {/* If a subCategory is also active, make the category crumb a navigable link */}
+                {subCategory ? (
+                  <Link
+                    href={`/categories/${encodeURIComponent(category)}`}
+                    className="transition-colors hover:text-gray-900"
+                  >
+                    {category}
+                  </Link>
+                ) : (
+                  <span className="font-semibold text-gray-800">{category}</span>
+                )}
               </>
             )}
             {subCategory && (
@@ -998,7 +1054,7 @@ export default function ProductCatalog({
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
-                <span className="text-gray-600">{subCategory}</span>
+                <span className="font-semibold text-gray-800">{subCategory}</span>
               </>
             )}
             {propBrand && (
@@ -1363,8 +1419,8 @@ export default function ProductCatalog({
                     </h4>
                     <div className="px-2">
                       <div className="mb-4 flex justify-between text-xs font-bold text-gray-500">
-                        <span>₹{priceRangeBounds.min}</span>
-                        <span>₹{priceRangeBounds.max}</span>
+                        <span>â‚¹{priceRangeBounds.min}</span>
+                        <span>â‚¹{priceRangeBounds.max}</span>
                       </div>
                       <div className="range-slider relative h-8">
                         <div className="slider-track absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-gray-200"></div>
@@ -1404,7 +1460,7 @@ export default function ProductCatalog({
                                 }}
                               >
                                 <div className="slider-value absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-1.5 py-0.5 text-[10px] text-white">
-                                  ₹
+                                  â‚¹
                                   {isDraggingMin
                                     ? tempMinPrice
                                     : filters.minPrice || priceRangeBounds.min}
@@ -1424,7 +1480,7 @@ export default function ProductCatalog({
                                 }}
                               >
                                 <div className="slider-value absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-1.5 py-0.5 text-[10px] text-white">
-                                  ₹
+                                  â‚¹
                                   {isDraggingMax
                                     ? tempMaxPrice
                                     : filters.maxPrice || priceRangeBounds.max}
@@ -1658,17 +1714,33 @@ export default function ProductCatalog({
               <>
                 {/* Product Grid */}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
-                  {filteredProducts.map((product: any, _index: number) => {
+                  {displayItems.map((product: any, _index: number) => {
+                    // â”€â”€ Bundle card variables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    const isBundle = !!product.isBundle;
+                    const bundleCopiesInCart = isBundle
+                      ? (() => {
+                          if (!cart?.items?.length || !product.items?.length) return 0;
+                          const counts = product.items.map((bItem: any) => {
+                            const ci = cart.items.find(
+                              (i: any) =>
+                                i.bundleId === product._id &&
+                                (i.product?._id || i.product) === bItem.productId
+                            );
+                            return ci ? Math.floor(ci.quantity / (bItem.quantity || 1)) : 0;
+                          });
+                          return Math.min(...counts);
+                        })()
+                      : 0;
                     const discountPercent =
-                      product.mrp && product.mrp > product.price
+                      !isBundle && product.mrp && product.mrp > product.price
                         ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
                         : 0;
 
                     return (
                       <div
                         key={product._id}
-                        onClick={() => handleProductClick(product)}
-                        className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border border-gray-100 bg-white transition-all duration-200 hover:border-gray-200 hover:shadow-lg active:scale-[0.98] sm:rounded-xl"
+                        onClick={() => { if (!isBundle) handleProductClick(product); }}
+                        className={`group flex ${isBundle ? 'cursor-default' : 'cursor-pointer'} flex-col overflow-hidden rounded-lg border bg-white transition-all duration-200 hover:shadow-lg active:scale-[0.98] sm:rounded-xl border-gray-100 hover:border-gray-200`}
                       >
                         {/* Image Container */}
                         <div className="relative aspect-square overflow-hidden bg-gray-50">
@@ -1680,32 +1752,37 @@ export default function ProductCatalog({
                             loading="lazy"
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                             style={{
-                              opacity: !product.stock || product.stock === 0 ? 0.5 : 1,
-                              filter:
-                                !product.stock || product.stock === 0 ? 'grayscale(50%)' : 'none',
+                              opacity: !isBundle && (!product.stock || product.stock === 0) ? 0.5 : 1,
+                              filter: !isBundle && (!product.stock || product.stock === 0) ? 'grayscale(50%)' : 'none',
                             }}
                           />
 
                           {/* Badges */}
                           <div className="absolute left-2 top-2 flex flex-col gap-1">
-                            {(!product.stock || product.stock === 0) && (
+                            {!isBundle && (!product.stock || product.stock === 0) && (
                               <span className="rounded bg-gray-900/90 px-2 py-0.5 text-[9px] font-bold uppercase text-white backdrop-blur-sm">
                                 Sold Out
                               </span>
                             )}
-                            {product.bestSeller && product.stock > 0 && (
+                            {!isBundle && product.bestSeller && product.stock > 0 && (
                               <span className="rounded bg-amber-400 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-900">
                                 Bestseller
                               </span>
                             )}
-                            {product.isNew && product.stock > 0 && (
+                            {!isBundle && product.isNew && product.stock > 0 && (
                               <span className="rounded bg-emerald-500 px-2 py-0.5 text-[9px] font-bold uppercase text-white">
                                 New
                               </span>
                             )}
+                            {!isBundle && product.previouslyBought && (
+                              <span className="rounded bg-indigo-100 px-2 py-0.5 text-[9px] font-bold uppercase text-indigo-700">
+                                Previously Bought
+                              </span>
+                            )}
                           </div>
 
-                          {/* Wishlist Button */}
+                          {/* Wishlist Button â€” hidden for bundles */}
+                          {!isBundle && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1727,63 +1804,140 @@ export default function ProductCatalog({
                               />
                             </svg>
                           </button>
+                          )}
 
                            {/* Quick Add Button / Quantity Selector */}
-                           {product.stock > 0 && (() => {
-                             const cartItem = cart?.items?.find((item: any) => {
-                               const pId = item.product?._id || item.product || item._id;
-                               return pId === product._id;
-                             });
-                             const quantityInCart = cartItem ? cartItem.quantity : 0;
+                           {(isBundle ? true : product.stock > 0) && (() => {
+                             // â”€â”€ Bundle counter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                             if (isBundle) {
+                               if (bundleCopiesInCart > 0) {
+                                 return (
+                                   <div
+                                     onClick={(e) => e.stopPropagation()}
+                                     className="absolute bottom-0 left-0 right-0 flex items-stretch bg-gray-900/95 backdrop-blur-sm"
+                                   >
+                                     <button
+                                       onClick={async (e) => {
+                                         e.stopPropagation();
+                                         // Decrement all bundle items by their spec quantity
+                                         for (const bItem of (product.items || [])) {
+                                           const ci = cart?.items?.find(
+                                             (i: any) =>
+                                               i.bundleId === product._id &&
+                                               (i.product?._id || i.product) === bItem.productId
+                                           );
+                                           if (!ci) continue;
+                                           const newQty = ci.quantity - (bItem.quantity || 1);
+                                           try {
+                                             if (newQty <= 0) await removeFromCart(ci._id);
+                                             else await updateQuantity(ci._id, newQty);
+                                           } catch { /* silent */ }
+                                         }
+                                       }}
+                                       className="flex w-10 flex-shrink-0 items-center justify-center py-2.5 text-lg font-bold text-white hover:bg-white/10 transition-colors sm:w-12"
+                                       aria-label="Remove one bundle"
+                                     >
+                                       âˆ’
+                                     </button>
+                                     <span className="flex flex-1 items-center justify-center text-sm font-bold text-white">{bundleCopiesInCart}</span>
+                                     <button
+                                       onClick={async (e) => {
+                                         e.stopPropagation();
+                                         try {
+                                           await api.post(`/bundles/${product._id}/add-to-cart`);
+                                           await fetchCart();
+                                           toast.success('Bundle added!');
+                                         } catch (err: any) {
+                                           toast.error(err?.response?.data?.detail || 'Could not add bundle');
+                                         }
+                                       }}
+                                       className="flex w-10 flex-shrink-0 items-center justify-center py-2.5 text-lg font-bold text-white active:bg-white/20 hover:bg-white/10 transition-colors sm:w-12"
+                                       aria-label="Add one bundle"
+                                     >
+                                       +
+                                     </button>
+                                   </div>
+                                 );
+                               }
+                               // First-time add for bundle
+                               return (
+                                 <button
+                                   onClick={async (e) => {
+                                     e.stopPropagation();
+                                     try {
+                                       await api.post(`/bundles/${product._id}/add-to-cart`);
+                                       await fetchCart();
+                                       toast.success('Bundle added to cart!');
+                                     } catch (err: any) {
+                                       toast.error(err?.response?.data?.detail || 'Could not add bundle');
+                                     }
+                                   }}
+                                   className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1 bg-gray-900/95 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 backdrop-blur-sm transition-all duration-300 sm:text-xs md:translate-y-full md:group-hover:translate-y-0"
+                                 >
+                                   <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                   </svg>
+                                   <span className="hidden xs:inline sm:hidden md:inline">Add to Cart</span>
+                                   <span className="xs:hidden sm:inline md:hidden">Add</span>
+                                 </button>
+                               );
+                             }
 
-                             if (quantityInCart > 0) {
-                                return (
-                                  <div
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="absolute bottom-0 left-0 right-0 flex items-stretch bg-gray-900/95 backdrop-blur-sm"
-                                  >
-                                    <button
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        if (!cartItem) return;
-                                        try {
-                                          if (quantityInCart === 1) {
-                                            await removeFromCart(cartItem!._id);
-                                          } else {
-                                            await updateQuantity(cartItem!._id, quantityInCart - 1);
-                                          }
-                                        } catch (_error) {
-                                          toast.error('Failed to update quantity');
-                                        }
-                                      }}
-                                      className="flex w-10 flex-shrink-0 items-center justify-center py-2.5 text-lg font-bold text-white active:bg-white/20 hover:bg-white/10 transition-colors sm:w-12"
-                                      aria-label="Decrease quantity"
-                                    >
-                                      −
-                                    </button>
-                                    <span className="flex flex-1 items-center justify-center text-sm font-bold text-white">
-                                      {quantityInCart}
-                                    </span>
-                                    <button
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        if (!cartItem) return;
-                                        try {
-                                          await updateQuantity(cartItem!._id, quantityInCart + 1);
-                                        } catch (_error) {
-                                          toast.error('Failed to update quantity');
-                                        }
-                                      }}
-                                      className="flex w-10 flex-shrink-0 items-center justify-center py-2.5 text-lg font-bold text-white active:bg-white/20 hover:bg-white/10 transition-colors sm:w-12"
-                                      aria-label="Increase quantity"
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-                                );
-                              }
+                             // â”€â”€ Regular product counter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                              const cartItem = cart?.items?.find((item: any) => {
+                                const pId = item.product?._id || item.product || item._id;
+                                return pId === product._id;
+                              });
+                              const quantityInCart = cartItem ? cartItem.quantity : 0;
 
-                             return (
+                              if (quantityInCart > 0) {
+                                 return (
+                                   <div
+                                     onClick={(e) => e.stopPropagation()}
+                                     className="absolute bottom-0 left-0 right-0 flex items-stretch bg-gray-900/95 backdrop-blur-sm"
+                                   >
+                                     <button
+                                       onClick={async (e) => {
+                                         e.stopPropagation();
+                                         if (!cartItem) return;
+                                         try {
+                                           if (quantityInCart === 1) {
+                                             await removeFromCart(cartItem!._id);
+                                           } else {
+                                             await updateQuantity(cartItem!._id, quantityInCart - 1);
+                                           }
+                                         } catch (_error) {
+                                           toast.error('Failed to update quantity');
+                                         }
+                                       }}
+                                       className="flex w-10 flex-shrink-0 items-center justify-center py-2.5 text-lg font-bold text-white active:bg-white/20 hover:bg-white/10 transition-colors sm:w-12"
+                                       aria-label="Decrease quantity"
+                                     >
+                                       âˆ’
+                                     </button>
+                                     <span className="flex flex-1 items-center justify-center text-sm font-bold text-white">
+                                       {quantityInCart}
+                                     </span>
+                                     <button
+                                       onClick={async (e) => {
+                                         e.stopPropagation();
+                                         if (!cartItem) return;
+                                         try {
+                                           await updateQuantity(cartItem!._id, quantityInCart + 1);
+                                         } catch (_error) {
+                                           toast.error('Failed to update quantity');
+                                         }
+                                       }}
+                                       className="flex w-10 flex-shrink-0 items-center justify-center py-2.5 text-lg font-bold text-white active:bg-white/20 hover:bg-white/10 transition-colors sm:w-12"
+                                       aria-label="Increase quantity"
+                                     >
+                                       +
+                                     </button>
+                                   </div>
+                                 );
+                               }
+
+                              return (
                                <button
                                  onClick={(e) => {
                                    e.stopPropagation();
@@ -1807,10 +1961,10 @@ export default function ProductCatalog({
                                  <span className="hidden xs:inline sm:hidden md:inline">Add to Cart</span>
                                  <span className="xs:hidden sm:inline md:hidden">Add</span>
                                </button>
-                             );
+                              );
                            })()}
  
-                           {(!product.stock || product.stock <= 0) && (
+                           {(!isBundle && (!product.stock || product.stock <= 0)) && (
                              <button
                                onClick={(e) => {
                                  e.stopPropagation();
@@ -1838,9 +1992,9 @@ export default function ProductCatalog({
 
                         {/* Product Info */}
                         <div className="flex flex-1 flex-col p-2 sm:p-3">
-                          {/* Brand */}
+                          {/* Brand / Bundle label */}
                           <p className="mb-0.5 truncate text-[9px] font-medium uppercase tracking-wide text-gray-400 sm:mb-1 sm:text-[10px]">
-                            {product.brand || 'Stationery Junction'}
+                            {isBundle ? (product.brand || 'Bundle') : (product.brand || 'Stationery Junction')}
                           </p>
 
                           {/* Name */}
@@ -1851,12 +2005,22 @@ export default function ProductCatalog({
                           {/* Price */}
                           <div className="flex flex-wrap items-baseline gap-1 sm:gap-2">
                             <span className="text-sm font-bold text-gray-900 sm:text-base">
-                              ₹{(product.price || product.mrp || 0).toLocaleString()}
+                              â‚¹{(product.price || product.mrp || 0).toLocaleString()}
                             </span>
-                            {product.mrp && product.mrp > product.price && (
+                            {isBundle && product.totalMrp && product.totalMrp > product.price && (
                               <>
                                 <span className="text-[10px] text-gray-400 line-through sm:text-xs">
-                                  ₹{product.mrp.toLocaleString()}
+                                  â‚¹{product.totalMrp.toLocaleString()}
+                                </span>
+                                <span className="text-[10px] font-semibold text-emerald-600 sm:text-xs">
+                                  Save {product.savingsPercent}%
+                                </span>
+                              </>
+                            )}
+                            {!isBundle && product.mrp && product.mrp > product.price && (
+                              <>
+                                <span className="text-[10px] text-gray-400 line-through sm:text-xs">
+                                  â‚¹{product.mrp.toLocaleString()}
                                 </span>
                                 <span className="text-[10px] font-semibold text-emerald-600 sm:text-xs">
                                   {discountPercent}%

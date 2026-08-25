@@ -65,3 +65,21 @@ docker-compose.override.yml
 # ── Secrets & Wallets ─────────────────────────────────────────────────────────
 backend/Wallet_*/
 backend/object_storage/
+
+/load-test-reports/
+
+# Root logs and test reports
+/logs/
+/playwright-report/
+/test-results/
+/load-test-reports/
+
+# Nested test reports
+backend/load_tests/reports/
+frontend/playwright-report/
+frontend/test-results/
+
+# Load testing tools
+k6*/
+k6.zip
+

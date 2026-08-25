@@ -26,8 +26,15 @@ from locust import TaskSet, between, task
 CUSTOMER_TOKEN = os.getenv("TEST_CUSTOMER_TOKEN", "")
 
 SEARCH_TERMS = [
-    "notebook", "pen", "pencil", "stapler", "file",
-    "eraser", "marker", "highlighter", "ruler",
+    "notebook",
+    "pen",
+    "pencil",
+    "stapler",
+    "file",
+    "eraser",
+    "marker",
+    "highlighter",
+    "ruler",
 ]
 
 COUPON_CODES = ["WELCOME10", "SAVE20", "FIRST", "TEST123"]
@@ -43,9 +50,7 @@ class CustomerShopping(TaskSet):
         self._token = CUSTOMER_TOKEN
         self._product_ids = []
         self._has_auth = bool(self._token)
-        self._auth_headers = (
-            {"Authorization": f"Bearer {self._token}"} if self._has_auth else {}
-        )
+        self._auth_headers = {"Authorization": f"Bearer {self._token}"} if self._has_auth else {}
         self._warm_up()
 
     def _warm_up(self):

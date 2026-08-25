@@ -23,29 +23,26 @@ export default function AccessibilityPanel() {
   return (
     <div
       style={{
-        padding: '10px 20px 6px',
-        borderTop: '1px solid #f3f4f6',
+        padding: '0',
       }}
       role="group"
       aria-label="Accessibility settings"
     >
       {/* Section header */}
-      <p
+      <h3
         style={{
-          fontSize: '10px',
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
+          fontSize: '20px',
+          fontWeight: 800,
           color: theme.primary,
-          margin: '0 0 8px 0',
+          margin: '0 0 20px 0',
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
+          gap: '8px',
         }}
       >
         <svg
-          width="13"
-          height="13"
+          width="24"
+          height="24"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -58,8 +55,8 @@ export default function AccessibilityPanel() {
           <circle cx="12" cy="12" r="10" />
           <path d="M12 8v4M12 16h.01" />
         </svg>
-        Accessibility
-      </p>
+        Accessibility Options
+      </h3>
 
       {/* High Contrast */}
       <div className="a11y-panel-toggle-row">

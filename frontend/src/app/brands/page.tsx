@@ -3,6 +3,8 @@ import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { BrandsPageSkeleton } from '@/components/PageSkeletons';
 
+export const dynamic = 'force-dynamic';
+
 export const revalidate = 300; // 5 minutes caching
 
 export const metadata: Metadata = {
@@ -36,10 +38,18 @@ export default async function BrandsPage() {
     ).catch(() => null),
   ]);
 
-  const extractJson = async (res: Response | null) =>
-    res?.ok ? res.json().catch(() => null) : null;
+  const extractJson = async (res: Response | null, critical: boolean = false) => {
+    if (!res || !res.ok) {
+      if (critical) throw new Error(`API failed with status ${res?.status}`);
+      return null;
+    }
+    return res.json().catch((e) => {
+      if (critical) throw e;
+      return null;
+    });
+  };
   const [brandsRaw, catsRaw, bannerRaw] = await Promise.all([
-    extractJson(brandsRes),
+    extractJson(brandsRes, true),
     extractJson(catsRes),
     extractJson(bannerRes),
   ]);

@@ -19,7 +19,7 @@ export const useCoachMarks = (pageId: string, steps: any[]) => {
           setShowCoachMarks(true);
         }
       } catch (error) {
-        console.error('Error loading coach marks:', error);
+        logger.error('Error loading coach marks:', error);
       }
     } else if (steps && steps.length > 0) {
       setShowCoachMarks(true);

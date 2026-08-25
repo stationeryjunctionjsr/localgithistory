@@ -27,21 +27,17 @@ class EmailService:
         self.admin_emails = [email.strip() for email in admin_emails_raw.split(",")] if admin_emails_raw else []
 
     def _resolve_to_emails(self, to_emails: Any) -> list[str]:
-        import sys
-        is_test = (os.getenv("TESTING") == "true") or ("pytest" in sys.modules)
-        if is_test:
-            return ["dilawari.resham.29@gmail.com"]
-
-        if to_emails is None:
+        if not to_emails:
             return self.admin_emails
         if isinstance(to_emails, str):
             return [to_emails.strip()]
-        return [str(email).strip() for email in to_emails]
+        return [str(email).strip() for email in to_emails if email]
 
     def send_email(self, to_emails: Any, subject: str, body: str, html_body: str = None) -> bool:
         """Sends an HTML or plain-text email to one or more recipients."""
+        from app.utils.logger import logger
+
         if not all([self.smtp_host, self.smtp_user, self.smtp_pass]):
-            from app.utils.logger import logger
             logger.warning("Email configuration missing. Skipping email sending.")
             return False
 
@@ -70,16 +66,17 @@ class EmailService:
             server.send_message(msg)
             server.quit()
 
+            logger.info("Email sent successfully to %s with subject: %s", to_list, subject)
             return True
         except Exception as e:
-            from app.utils.logger import logger
             logger.error("Failed to send email: %s", str(e), exc_info=True)
             return False
 
     def send_email_with_attachment(self, to_emails: Any, subject: str, body: str, attachment_path: str):
         """Sends an email with an attachment to one or more recipients."""
+        from app.utils.logger import logger
+
         if not all([self.smtp_host, self.smtp_user, self.smtp_pass]):
-            from app.utils.logger import logger
             logger.warning("Email configuration missing. Skipping email sending.")
             return False
 
@@ -115,15 +112,18 @@ class EmailService:
             server.send_message(msg)
             server.quit()
 
+            logger.info("Email with attachment sent successfully to %s with subject: %s", to_list, subject)
             return True
         except Exception as e:
-            from app.utils.logger import logger
             logger.error("Failed to send email with attachment: %s", str(e), exc_info=True)
             return False
 
     def send_error_alert(self, subject: str, body: str, to_emails: Any = None):
         """Simple text-only email for system alerts to one or more recipients."""
+        from app.utils.logger import logger
+        
         if not all([self.smtp_host, self.smtp_user, self.smtp_pass]):
+            logger.warning("Email configuration missing. Skipping error alert sending.")
             return False
 
         to_list = self._resolve_to_emails(to_emails)
@@ -148,9 +148,10 @@ class EmailService:
             server.login(self.smtp_user, self.smtp_pass)
             server.send_message(msg)
             server.quit()
+            
+            logger.info("Error alert email sent successfully to %s with subject: %s", to_list, subject)
             return True
         except Exception as e:
-            from app.utils.logger import logger
             logger.error("Failed to send error alert: %s", str(e), exc_info=True)
             return False
 
@@ -180,7 +181,7 @@ class EmailService:
     def send_order_placed_email(self, to_email: str, order: dict) -> bool:
         order_num = order.get("orderNumber") or order.get("_id")
         subject = f"Order Confirmation - {order_num} - Stationery Junction"
-        
+
         # Build items rows for HTML
         items_html = ""
         items_text = ""
@@ -196,9 +197,9 @@ class EmailService:
             </tr>
             """
             items_text += f"- {prod_name} x {qty}: ₹{subtotal:.2f}\n"
-            
+
         body = f"Thank you for your order! Your order {order_num} has been placed successfully.\n\nItems:\n{items_text}\nTotal: ₹{order.get('total', 0):.2f}"
-        
+
         html_body = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
             <div style="text-align: center; border-bottom: 2px solid #10b981; padding-bottom: 10px;">
@@ -223,12 +224,12 @@ class EmailService:
                     <tfoot>
                         <tr>
                             <td colspan="2" style="padding: 8px; font-weight: bold; text-align: right;">Shipping:</td>
-                            <td style="padding: 8px; text-align: right;">₹{order.get('shipping', 0):.2f}</td>
+                            <td style="padding: 8px; text-align: right;">₹{order.get("shipping", 0):.2f}</td>
                         </tr>
-                        {f'<tr><td colspan="2" style="padding: 8px; font-weight: bold; text-align: right;">Discount:</td><td style="padding: 8px; text-align: right; color: #ef4444;">-₹{order.get("discount"):.2f}</td></tr>' if order.get("discount", 0) > 0 else ''}
+                        {f'<tr><td colspan="2" style="padding: 8px; font-weight: bold; text-align: right;">Discount:</td><td style="padding: 8px; text-align: right; color: #ef4444;">-₹{order.get("discount"):.2f}</td></tr>' if order.get("discount", 0) > 0 else ""}
                         <tr style="font-size: 18px; font-weight: bold;">
                             <td colspan="2" style="padding: 8px; text-align: right; border-top: 2px solid #e0e0e0;">Total:</td>
-                            <td style="padding: 8px; text-align: right; border-top: 2px solid #e0e0e0; color: #10b981;">₹{order.get('total', 0):.2f}</td>
+                            <td style="padding: 8px; text-align: right; border-top: 2px solid #e0e0e0; color: #10b981;">₹{order.get("total", 0):.2f}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -240,12 +241,12 @@ class EmailService:
             </div>
         </div>
         """
-        
+
         # Attach invoice PDF if generated
         invoice_path = order.get("invoicePath")
         if invoice_path and os.path.exists(invoice_path):
             return self.send_email_with_attachment(to_email, subject, body, invoice_path)
-        
+
         return self.send_email(to_email, subject, body, html_body)
 
     def send_order_delivered_email(self, to_email: str, order: dict) -> bool:
@@ -272,7 +273,9 @@ class EmailService:
         """
         return self.send_email(to_email, subject, body, html_body)
 
-    def send_privacy_policy_update_email(self, to_email: str, last_updated: str, policy_url: str, version: str = "1.0") -> bool:
+    def send_privacy_policy_update_email(
+        self, to_email: str, last_updated: str, policy_url: str, version: str = "1.0"
+    ) -> bool:
         """Notify a user that the Privacy Policy has been updated."""
         subject = f"Important: Our Privacy Policy Has Been Updated (Version {version}) - Stationery Junction"
         body = (

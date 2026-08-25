@@ -13,6 +13,7 @@ load_dotenv()
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 
+
 async def main():
     factory = get_async_session_factory()
     if not factory:
@@ -44,6 +45,7 @@ async def main():
         except Exception as e:
             print(f"Error creating table/index: {e}")
             await session.rollback()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import HeroBanner from '@/components/HeroBanner';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/utils/logger';
 
 interface Brand {
   _id?: string;
@@ -105,7 +106,7 @@ export default function BrandsClient({
         const eligibleBrands = res.data.brands || [];
         setFilteredBrandNames(new Set(eligibleBrands));
       } catch (error) {
-        console.error('Error filtering brands', error);
+        logger.error('Error filtering brands', error);
         setFilteredBrandNames(new Set()); // No results on error
       } finally {
         setLoadingFilter(false);

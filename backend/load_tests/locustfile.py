@@ -42,12 +42,14 @@ from load_tests.scenarios.guest_scenario import GuestBrowsing
 
 # ── User Classes ──────────────────────────────────────────────────────────────
 
+
 class GuestUser(HttpUser):
     """
     Unauthenticated visitor — no credentials required.
     Represents ~60 % of real traffic (browsing, search).
     Think time: 0.5–2 s (fast mobile-ish browsing).
     """
+
     weight = 6
     wait_time = between(0.5, 2.0)
     tasks = [GuestBrowsing]
@@ -63,6 +65,7 @@ class CustomerUser(HttpUser):
     Represents ~30 % of real traffic.
     Think time: 1–3 s (browsing + adding to cart).
     """
+
     weight = 3
     wait_time = between(1.0, 3.0)
     tasks = [CustomerShopping]
@@ -77,6 +80,7 @@ class AdminUser(HttpUser):
     Represents ~10 % of real traffic.
     Think time: 0.3–1 s (fast dashboard polling).
     """
+
     weight = 1
     wait_time = between(0.3, 1.0)
     tasks = [AdminOperations]

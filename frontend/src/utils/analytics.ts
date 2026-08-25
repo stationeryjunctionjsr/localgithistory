@@ -1,10 +1,11 @@
-/**
+﻿/**
  * Unified Analytics Utility
  * Handles events for GTM DataLayer and Google Analytics GTag.
  */
 import { trackRecommendationEventBackend } from '@/utils/recommendationTracking';
 import api from '@/utils/api';
 import Cookies from 'js-cookie';
+import { logger } from '@/utils/logger';
 
 export const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
 export const GA_ID = process.env.NEXT_PUBLIC_GA_ID || '';
@@ -32,7 +33,7 @@ export const trackBackendCartAdd = async (productId: string, quantity: number) =
       sessionId: getSessionId(),
     });
   } catch (e) {
-    console.error('Tracking error', e);
+    logger.error('Tracking error', e);
   }
 };
 
@@ -44,7 +45,7 @@ export const trackBackendCartRemove = async (productId: string, quantity: number
       sessionId: getSessionId(),
     });
   } catch (e) {
-    console.error('Tracking error', e);
+    logger.error('Tracking error', e);
   }
 };
 
@@ -61,7 +62,7 @@ export const trackBackendProductClick = async (
       sessionId: getSessionId(),
     });
   } catch (e) {
-    console.error('Tracking error', e);
+    logger.error('Tracking error', e);
   }
 };
 
@@ -73,7 +74,7 @@ export const trackBackendProductView = async (productId: string, productName: st
       sessionId: getSessionId(),
     });
   } catch (e) {
-    console.error('Tracking error', e);
+    logger.error('Tracking error', e);
   }
 };
 
@@ -85,7 +86,7 @@ export const trackBackendFilterClick = async (filterType: string, filterValue: s
       sessionId: getSessionId(),
     });
   } catch (e) {
-    console.error('Tracking error', e);
+    logger.error('Tracking error', e);
   }
 };
 
@@ -201,7 +202,7 @@ export const trackError = async (error: {
     });
   } catch (e) {
     // Fail silently to avoid infinite error loops
-    console.error('Error reporting failed', e);
+    logger.error('Error reporting failed', e);
   }
 };
 
@@ -264,7 +265,7 @@ export const trackRecommendationSectionView = (recommendationSlot: Recommendatio
     type: 'recommendation_section_view',
     payload: { recommendationSlot },
   });
-  trackRecommendationEventBackend('section_view', { slot: recommendationSlot }).catch(() => {});
+  trackRecommendationEventBackend('section_view', { slot: recommendationSlot }).catch((e) => logger.warn("Background task failed", e));
 };
 
 /**
@@ -291,7 +292,7 @@ export const trackRecommendationProductClick = (payload: {
     productId: payload.productId,
     productName: payload.productName,
     strategy: payload.strategy as 'trending' | 'user_favorites' | 'explore' | undefined,
-  }).catch(() => {});
+  }).catch((e) => logger.warn("Background task failed", e));
 };
 
 /**
@@ -325,7 +326,7 @@ export const trackRecommendationAddToCart = (payload: {
     productId: payload.productId,
     productName: payload.productName,
     strategy: payload.strategy as 'trending' | 'user_favorites' | 'explore' | undefined,
-  }).catch(() => {});
+  }).catch((e) => logger.warn("Background task failed", e));
 };
 
 // --- Ad Management Tracking ---
@@ -343,7 +344,7 @@ export const trackWebAdClick = async (adId: string, url: string, platform: strin
       session_id: getSessionId(),
     });
   } catch (e) {
-    console.error('Failed to track ad click', e);
+    logger.error('Failed to track ad click', e);
   }
 };
 
@@ -367,6 +368,6 @@ export const trackWebAdConversion = async (
       session_id: getSessionId(),
     });
   } catch (e) {
-    console.error('Failed to track ad conversion', e);
+    logger.error('Failed to track ad conversion', e);
   }
 };

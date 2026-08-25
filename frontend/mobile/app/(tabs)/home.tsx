@@ -27,10 +27,12 @@ import api, { getImageUrl } from '../../src/api/client';
 import { useRouter } from 'expo-router';
 import { colors, shadows, borderRadius } from '../../src/theme';
 import { useAuth } from '../../src/hooks/useAuth';
+import { usePincode } from '../../src/context/PincodeContext';
 import { SearchOverlay } from '../../src/components/SearchOverlay';
 import { LaunchPopup } from '../../src/components/LaunchPopup';
 import { BannerCarousel } from '../../src/components/BannerCarousel';
 import WholesalerHomeScreen from '../../src/components/WholesalerHomeScreen';
+import UnserviceableLocationCard from '../../src/components/UnserviceableLocationCard';
 import { trackRecommendationEvent } from '../../src/utils/analytics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -47,6 +49,9 @@ interface Product {
   salesCount?: number;
   isExclusive?: boolean;
   discountPercentage?: number;
+  isNew?: boolean;
+  bestSeller?: boolean;
+  previouslyBought?: boolean;
 }
 
 interface Brand {
@@ -102,6 +107,7 @@ function HomeInner() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { pincode, city, isServiceable, openModal } = usePincode();
 
   // State
   const [showMenu, setShowMenu] = useState(false);
@@ -170,7 +176,17 @@ function HomeInner() {
     queryFn: async () => {
       try {
         const res = await api.get('/recommendations');
-        return res.data;
+        const data = res.data || {};
+        const filterActive = (arr: any[]) =>
+          (arr || []).filter((p: any) => p && p.isActive !== false && p.stock > 0);
+          
+        return {
+          newArrivals: filterActive(data.newArrivals),
+          customerFavourites: filterActive(data.customerFavourites),
+          trendingNow: filterActive(data.trendingNow),
+          explore: filterActive(data.explore),
+          sectionOrder: data.sectionOrder,
+        };
       } catch (err) {
         return null;
       }
@@ -393,6 +409,25 @@ function HomeInner() {
               <Ionicons name="star" size={10} color={colors.accent} />
             </View>
           )}
+
+          {/* Dynamic Badges */}
+          <View style={{ position: 'absolute', bottom: 4, left: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingRight: 4 }}>
+            {item.isNew && (
+              <View style={{ backgroundColor: '#3B82F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>NEW</Text>
+              </View>
+            )}
+            {item.bestSeller && (
+              <View style={{ backgroundColor: '#F59E0B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>BESTSELLER</Text>
+              </View>
+            )}
+            {item.previouslyBought && (
+              <View style={{ backgroundColor: '#8B5CF6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>BOUGHT BEFORE</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.productInfo}>
@@ -624,6 +659,20 @@ function HomeInner() {
           </View>
         </View>
 
+        {/* Hyperlocal Delivery Location Bar */}
+        <TouchableOpacity
+          onPress={() => openModal(false)}
+          style={styles.locationBar}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="location" size={14} color="#1a4d33" />
+          <Text style={styles.locationText} numberOfLines={1}>
+            Deliver to: <Text style={styles.locationBold}>{pincode || 'Select Pincode'}</Text>
+            {city ? ` (${city})` : ''}
+          </Text>
+          <Ionicons name="chevron-down" size={12} color="#1a4d33" />
+        </TouchableOpacity>
+
         {/* Expandable Search Bar */}
         <Animated.View
           style={[
@@ -687,8 +736,12 @@ function HomeInner() {
             />
           }
         >
-          {/* Premium Banner Carousel */}
-          <BannerCarousel banners={banners} />
+          {isServiceable === false ? (
+            <UnserviceableLocationCard />
+          ) : (
+            <>
+              {/* Premium Banner Carousel */}
+              <BannerCarousel banners={banners} />
 
           {/* Stats Counter */}
           {(products.length > 0 || brands.length > 0) && (
@@ -869,6 +922,8 @@ function HomeInner() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
           </TouchableOpacity>
+            </>
+          )}
 
           <View style={{ height: 32 }} />
         </Animated.ScrollView>
@@ -1120,6 +1175,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  locationBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E8F5E9',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+  },
+  locationText: {
+    fontSize: 12,
+    color: '#1a4d33',
+    maxWidth: SCREEN_WIDTH - 80,
+  },
+  locationBold: {
+    fontWeight: '700',
+    color: '#1a4d33',
   },
   menuButton: {
     width: 40,

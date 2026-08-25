@@ -1,4 +1,5 @@
 """Maintenance / scheduled upgrade mode tests."""
+
 import pytest
 
 from app.config.settings import settings

@@ -14,15 +14,14 @@ from app.db.oracle_utils import now_utc
 
 
 class OracleEmailOtpDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_email_otps{suffix}"
 
     @property
     def SEND_LOG_TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_email_otp_send_log{suffix}"
 
     def _factory(self):

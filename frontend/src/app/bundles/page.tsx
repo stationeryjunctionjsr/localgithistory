@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/utils/api';
 import { toast } from 'react-toastify';
@@ -34,7 +34,7 @@ interface Bundle {
   isAvailable: boolean;
 }
 
-export default function BundlesPage() {
+function BundlesContent() {
   const { user } = useAuth();
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -264,5 +264,13 @@ export default function BundlesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function BundlesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50" />}>
+      <BundlesContent />
+    </Suspense>
   );
 }

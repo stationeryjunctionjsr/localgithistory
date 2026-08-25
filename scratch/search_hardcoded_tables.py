@@ -6,7 +6,13 @@ matches = []
 
 for root, dirs, files in os.walk(backend_dir):
     # Skip app/db directory, tests, cache directories
-    if "app\\db" in root or "app/db" in root or ".pytest_cache" in root or ".ruff_cache" in root or "__pycache__" in root:
+    if (
+        "app\\db" in root
+        or "app/db" in root
+        or ".pytest_cache" in root
+        or ".ruff_cache" in root
+        or "__pycache__" in root
+    ):
         continue
     for file in files:
         if file.endswith(".py") or file.endswith(".sql"):

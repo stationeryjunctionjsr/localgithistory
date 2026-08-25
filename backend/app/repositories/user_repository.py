@@ -27,19 +27,24 @@ class UserRepository:
             return None
         # Normalize phone number by removing non-digit characters
         normalized_phone = "".join(filter(str.isdigit, phone))
-        # Try to find by exact match first, then try normalized version
-        user = await self.storage.findOne({"phone": phone})
-        if not user and normalized_phone != phone:
-            user = await self.storage.findOne({"phone": normalized_phone})
-        # If still not found, check all users and normalize their phones for comparison
-        if not user:
-            all_users = await self.storage.findAll()
-            for u in all_users:
-                if u.get("phone"):
-                    user_phone = "".join(filter(str.isdigit, u.get("phone", "")))
-                    if user_phone == normalized_phone:
-                        return u
-        return user
+        # Try exact match first, then the most common format variants.
+        # This covers: raw input, digits-only, +91-prefixed, and 91-prefixed formats
+        # without falling back to a full-table scan.
+        candidates = {phone, normalized_phone}
+        if len(normalized_phone) == 10:
+            candidates.add(f"+91{normalized_phone}")
+            candidates.add(f"91{normalized_phone}")
+        elif normalized_phone.startswith("91") and len(normalized_phone) == 12:
+            candidates.add(normalized_phone[2:])
+            candidates.add(f"+{normalized_phone}")
+        elif normalized_phone.startswith("0") and len(normalized_phone) == 11:
+            candidates.add(normalized_phone[1:])
+
+        for candidate in candidates:
+            user = await self.storage.findOne({"phone": candidate})
+            if user:
+                return user
+        return None
 
     async def create(self, user_data: Dict):
         # Check if user with email already exists (only if email is provided)
@@ -61,13 +66,16 @@ class UserRepository:
             raise ValueError("Password is required")
         hashed_password = get_password_hash(password_val)
 
-        # Generate incremental user ID starting from 1
-        all_users = await self.storage.findAll()
-        max_id = 0
-        for user in all_users:
-            if user.get("userId") and isinstance(user.get("userId"), int):
-                max_id = max(max_id, user.get("userId", 0))
-        user_id = max_id + 1
+        # Generate display user ID. Using max(userId)+1 rather than count+1 means
+        # that even if two registrations race, the one that commits second will see
+        # the first one's row and pick a higher number. Not atomic, but far safer
+        # than count-based allocation which silently produces duplicates when rows
+        # are deleted and re-added.
+        try:
+            all_ids = [u.get("userId") for u in await self.storage.findAll() if isinstance(u.get("userId"), int)]
+            user_id = (max(all_ids) + 1) if all_ids else 1
+        except Exception:
+            user_id = 1
         user_id_formatted = f"USER-{user_id}"
 
         # Determine approval status
@@ -184,6 +192,39 @@ class UserRepository:
                 await self.update(user["_id"], {"referralCode": code})
                 updated_count += 1
         return updated_count
+
+    async def increment_credit_used_atomic(self, user_id: str, amount: float):
+        import json
+        from datetime import datetime, timezone
+
+        from sqlalchemy import text
+
+        from app.config.database import get_async_session_factory
+
+        factory = get_async_session_factory()
+        if not factory:
+            return None
+
+        async with factory() as session:
+            result = await session.execute(
+                text(f"SELECT id, doc FROM {self.storage.TABLE} WHERE external_id = :id FOR UPDATE"),
+                {"id": user_id},
+            )
+            row = result.fetchone()
+            if not row or not row.doc:
+                return None
+
+            doc = json.loads(row.doc)
+            new_credit_used = max(0, float(doc.get("creditUsed", 0) or 0) + amount)
+            doc["creditUsed"] = new_credit_used
+            doc["updatedAt"] = datetime.now(timezone.utc).isoformat()
+
+            await session.execute(
+                text(f"UPDATE {self.storage.TABLE} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :rid"),
+                {"doc": json.dumps(doc, default=str), "rid": row.id},
+            )
+            await session.commit()
+            return new_credit_used
 
 
 user_repository = UserRepository()

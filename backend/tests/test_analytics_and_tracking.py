@@ -8,6 +8,7 @@ from app.repositories.analytics_repository import analytics_repository
 from app.repositories.user_repository import user_repository
 from app.repositories.session_repository import session_repository
 
+
 @pytest.fixture
 async def admin_auth(client: AsyncClient):
     """Create a temporary admin user, log in, yield auth headers, and clean up."""
@@ -40,82 +41,112 @@ async def test_web_tracking_endpoints(client: AsyncClient):
     product_name = "Web Test Product"
 
     # 1. Search
-    res = await client.post("/api/tracking/search", json={
-        "searchTerm": "fountain pen",
-        "resultsCount": 10,
-        "sessionId": session_id,
-    })
+    res = await client.post(
+        "/api/tracking/search",
+        json={
+            "searchTerm": "fountain pen",
+            "resultsCount": 10,
+            "sessionId": session_id,
+        },
+    )
     assert res.status_code == 200
 
     # 2. View
-    res = await client.post("/api/tracking/view", json={
-        "productId": product_id,
-        "productName": product_name,
-        "sessionId": session_id,
-    })
+    res = await client.post(
+        "/api/tracking/view",
+        json={
+            "productId": product_id,
+            "productName": product_name,
+            "sessionId": session_id,
+        },
+    )
     assert res.status_code == 200
 
     # 3. Click
-    res = await client.post("/api/tracking/click", json={
-        "productId": product_id,
-        "productName": product_name,
-        "source": "homepage_banner",
-        "sessionId": session_id,
-    })
+    res = await client.post(
+        "/api/tracking/click",
+        json={
+            "productId": product_id,
+            "productName": product_name,
+            "source": "homepage_banner",
+            "sessionId": session_id,
+        },
+    )
     assert res.status_code == 200
 
     # 4. Cart Abandonment
-    res = await client.post("/api/tracking/cart-abandonment", json={
-        "cartItems": [{"productId": product_id, "quantity": 2, "price": 499.0}],
-        "cartValue": 998.0,
-        "sessionId": session_id,
-    })
+    res = await client.post(
+        "/api/tracking/cart-abandonment",
+        json={
+            "cartItems": [{"productId": product_id, "quantity": 2, "price": 499.0}],
+            "cartValue": 998.0,
+            "sessionId": session_id,
+        },
+    )
     assert res.status_code == 200
 
     # 5. Session
-    res = await client.post("/api/tracking/session", json={
-        "sessionId": session_id,
-        "isReturning": True,
-    })
+    res = await client.post(
+        "/api/tracking/session",
+        json={
+            "sessionId": session_id,
+            "isReturning": True,
+        },
+    )
     assert res.status_code == 200
 
     # 6. Page View
-    res = await client.post("/api/tracking/page-view", json={
-        "page": "/products/details",
-        "sessionId": session_id,
-    })
+    res = await client.post(
+        "/api/tracking/page-view",
+        json={
+            "page": "/products/details",
+            "sessionId": session_id,
+        },
+    )
     assert res.status_code == 200
 
     # 7. Drop off
-    res = await client.post("/api/tracking/drop-off", json={
-        "page": "/checkout/step2",
-        "reason": "payment_failed",
-        "sessionId": session_id,
-    })
+    res = await client.post(
+        "/api/tracking/drop-off",
+        json={
+            "page": "/checkout/step2",
+            "reason": "payment_failed",
+            "sessionId": session_id,
+        },
+    )
     assert res.status_code == 200
 
     # 8. Cart Add
-    res = await client.post("/api/tracking/cart-add", json={
-        "productId": product_id,
-        "quantity": 1,
-        "sessionId": session_id,
-    })
+    res = await client.post(
+        "/api/tracking/cart-add",
+        json={
+            "productId": product_id,
+            "quantity": 1,
+            "sessionId": session_id,
+        },
+    )
     assert res.status_code == 200
 
     # 9. Cart Remove
-    res = await client.post("/api/tracking/cart-remove", json={
-        "productId": product_id,
-        "quantity": 1,
-        "sessionId": session_id,
-    })
+    res = await client.post(
+        "/api/tracking/cart-remove",
+        json={
+            "productId": product_id,
+            "quantity": 1,
+            "sessionId": session_id,
+        },
+    )
     assert res.status_code == 200
 
     # 10. Filter Click
-    res = await client.post("/api/tracking/filter-click", json={
-        "filterType": "category",
-        "filterValue": "Pens",
-        "sessionId": session_id,
-    })
+    res = await client.post(
+        "/api/tracking/filter-click",
+        json={
+            "filterType": "category",
+            "filterValue": "Pens",
+            "sessionId": session_id,
+        },
+    )
     assert res.status_code == 200
 
     # Retrieve all logged events for this session from tracking storage
@@ -154,12 +185,41 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
     mobile_events = [
         {"type": "session_start", "sessionId": session_id, "payload": {"returning": True, "testRunId": session_id}},
         {"type": "page_view", "sessionId": session_id, "page": "/mobile/home", "payload": {"testRunId": session_id}},
-        {"type": "product_view", "sessionId": session_id, "payload": {"productId": product_id, "productName": product_name, "testRunId": session_id}},
-        {"type": "product_click", "sessionId": session_id, "payload": {"productId": product_id, "productName": product_name, "source": "search_results", "testRunId": session_id}},
-        {"type": "add_to_cart", "sessionId": session_id, "payload": {"productId": product_id, "quantity": 3, "testRunId": session_id}},
-        {"type": "remove_from_cart", "sessionId": session_id, "payload": {"productId": product_id, "quantity": 1, "testRunId": session_id}},
-        {"type": "search", "sessionId": session_id, "payload": {"query": "notebook", "resultsCount": 5, "testRunId": session_id}},
-        {"type": "add_to_wishlist", "sessionId": session_id, "payload": {"productId": product_id, "testRunId": session_id}},
+        {
+            "type": "product_view",
+            "sessionId": session_id,
+            "payload": {"productId": product_id, "productName": product_name, "testRunId": session_id},
+        },
+        {
+            "type": "product_click",
+            "sessionId": session_id,
+            "payload": {
+                "productId": product_id,
+                "productName": product_name,
+                "source": "search_results",
+                "testRunId": session_id,
+            },
+        },
+        {
+            "type": "add_to_cart",
+            "sessionId": session_id,
+            "payload": {"productId": product_id, "quantity": 3, "testRunId": session_id},
+        },
+        {
+            "type": "remove_from_cart",
+            "sessionId": session_id,
+            "payload": {"productId": product_id, "quantity": 1, "testRunId": session_id},
+        },
+        {
+            "type": "search",
+            "sessionId": session_id,
+            "payload": {"query": "notebook", "resultsCount": 5, "testRunId": session_id},
+        },
+        {
+            "type": "add_to_wishlist",
+            "sessionId": session_id,
+            "payload": {"productId": product_id, "testRunId": session_id},
+        },
         {"type": "begin_checkout", "sessionId": session_id, "payload": {"testRunId": session_id}},
         {"type": "purchase", "sessionId": session_id, "payload": {"testRunId": session_id}},
         {"type": "session_end", "sessionId": session_id, "payload": {"reason": "app_closed", "testRunId": session_id}},
@@ -174,7 +234,7 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
     all_event_records = await analytics_repository.event_storage.findAll()
     event_records = [r for r in all_event_records if r.get("payload", {}).get("testRunId") == session_id]
     assert len(event_records) == len(mobile_events)
-    
+
     # Verify replication/syncing in the tracking database
     tracking_records = await tracking_repository.storage.findAll({"sessionId": session_id})
     # begin_checkout translates to page_view (/checkout/step1)
@@ -222,21 +282,30 @@ async def test_analytics_reports_incorporate_events(client: AsyncClient, admin_a
     session_id = f"session_test_rep_{uuid.uuid4().hex[:8]}"
 
     # Inject some events (both direct tracking and replicated mobile events)
-    await client.post("/api/tracking/session", json={
-        "sessionId": session_id,
-        "isReturning": False,
-    })
-    await client.post("/api/tracking/page-view", json={
-        "page": "/products/details",
-        "sessionId": session_id,
-    })
+    await client.post(
+        "/api/tracking/session",
+        json={
+            "sessionId": session_id,
+            "isReturning": False,
+        },
+    )
+    await client.post(
+        "/api/tracking/page-view",
+        json={
+            "page": "/products/details",
+            "sessionId": session_id,
+        },
+    )
     # Mobile page view should also sync
-    await client.post("/api/analytics/events", json={
-        "type": "page_view",
-        "sessionId": session_id,
-        "page": "/mobile/home",
-        "payload": {"testRunId": session_id}
-    })
+    await client.post(
+        "/api/analytics/events",
+        json={
+            "type": "page_view",
+            "sessionId": session_id,
+            "page": "/mobile/home",
+            "payload": {"testRunId": session_id},
+        },
+    )
 
     # Call analytics dashboard/KPI endpoints
     res = await client.get("/api/analytics/kpi", headers=admin_auth)

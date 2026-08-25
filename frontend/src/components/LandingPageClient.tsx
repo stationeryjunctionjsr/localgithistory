@@ -17,6 +17,7 @@ import HoverProductCard from '@/components/HoverProductCard';
 import { getImageUrlWithFallback, getImageUrl } from '@/utils/imageUrl';
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { logger } from '@/utils/logger';
 
 export interface LandingPageClientProps {
   initialProducts?: any[];
@@ -201,7 +202,7 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
       const activeBanners = (response.data || []).filter((b: any) => b.isActive);
       setBanners(activeBanners);
     } catch (error) {
-      console.error('Failed to fetch banners', error);
+      logger.error('Failed to fetch banners', error);
     }
   };
 
@@ -224,7 +225,10 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
       {!selectedCategory && !selectedCategoryTag && !selectedCollection && !searchTerm && (
         <>
           <HeroCarousel banners={banners} />
-          <StatsCounter />
+          <StatsCounter 
+            productCount={products.length} 
+            brandCount={brands.length} 
+          />
         </>
       )}
 

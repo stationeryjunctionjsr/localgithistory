@@ -4,12 +4,14 @@ from app.main import app
 from app.utils.auth import require_super_admin
 from app.repositories.referral_repository import referral_repository
 
+
 @pytest.fixture(autouse=True)
 def override_super_admin():
     # Override super admin authorization check for testing
     app.dependency_overrides[require_super_admin] = lambda: {"role": "super_admin"}
     yield
     app.dependency_overrides.clear()
+
 
 @pytest.mark.asyncio
 async def test_referral_settings_get_and_put(client: AsyncClient):
@@ -19,11 +21,11 @@ async def test_referral_settings_get_and_put(client: AsyncClient):
     # 1. Test GET endpoint: should successfully fetch and initialize settings with both segments
     response = await client.get("/api/referrals/settings")
     assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.text}"
-    
+
     data = response.json()
     assert "retail" in data
     assert "business" in data
-    
+
     assert data["retail"]["segment"] == "retail"
     assert data["retail"]["discountType"] == "percentage"
     assert data["retail"]["discountValue"] == 0
@@ -36,27 +38,20 @@ async def test_referral_settings_get_and_put(client: AsyncClient):
 
     # 2. Test PUT endpoint: should update and save settings successfully
     update_payload = {
-        "retail": {
-            "segment": "retail",
-            "discountType": "fixed",
-            "discountValue": 10.0,
-            "isActive": True
-        },
-        "business": {
-            "segment": "business",
-            "discountType": "percentage",
-            "discountValue": 5.0,
-            "isActive": False
-        }
+        "retail": {"segment": "retail", "discountType": "fixed", "discountValue": 10.0, "isActive": True},
+        "business": {"segment": "business", "discountType": "percentage", "discountValue": 5.0, "isActive": False},
     }
     put_response = await client.put("/api/referrals/settings", json=update_payload)
-    assert put_response.status_code == 200, f"Expected 200, got {put_response.status_code}. Response: {put_response.text}"
-    
+    assert put_response.status_code == 200, (
+        f"Expected 200, got {put_response.status_code}. Response: {put_response.text}"
+    )
+
     updated_data = put_response.json()
     assert updated_data["retail"]["discountType"] == "fixed"
     assert updated_data["retail"]["discountValue"] == 10.0
     assert updated_data["retail"]["isActive"] is True
     assert updated_data["business"]["discountValue"] == 5.0
+
 
 @pytest.mark.asyncio
 async def test_referral_settings_missing_business_populated(client: AsyncClient):
@@ -64,14 +59,14 @@ async def test_referral_settings_missing_business_populated(client: AsyncClient)
     await referral_repository.storage.delete("1")
     legacy_settings = {
         "_id": "1",
-        "retail": {"segment": "retail", "discountType": "percentage", "discountValue": 12.5, "isActive": True}
+        "retail": {"segment": "retail", "discountType": "percentage", "discountValue": 12.5, "isActive": True},
     }
     await referral_repository.storage.create(legacy_settings)
 
     # Fetch via API, should populate business automatically
     response = await client.get("/api/referrals/settings")
     assert response.status_code == 200, f"Expected 200, got {response.status_code}. Response: {response.text}"
-    
+
     data = response.json()
     assert "retail" in data
     assert "business" in data
@@ -89,18 +84,8 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
     # 1. Set retail referral settings to active
     await referral_repository.storage.delete("1")
     settings_payload = {
-        "retail": {
-            "segment": "retail",
-            "discountType": "percentage",
-            "discountValue": 10.0,
-            "isActive": True
-        },
-        "business": {
-            "segment": "business",
-            "discountType": "percentage",
-            "discountValue": 0.0,
-            "isActive": False
-        }
+        "retail": {"segment": "retail", "discountType": "percentage", "discountValue": 10.0, "isActive": True},
+        "business": {"segment": "business", "discountType": "percentage", "discountValue": 0.0, "isActive": False},
     }
     await referral_repository.update_settings(settings_payload)
 
@@ -113,7 +98,7 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
         "charge": 50.0,
         "minCartValue": 500.0,
         "serviceableForCustomer": True,
-        "isActive": True
+        "isActive": True,
     }
     existing_pincode = await delivery_charge_repository.storage.findOne({"pincode": "831001"})
     if not existing_pincode:
@@ -129,6 +114,7 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
 
     # 3. Create another user to get a referral code
     import uuid
+
     referrer_data = {
         "name": "Referrer User",
         "email": f"referrer_{uuid.uuid4().hex[:8]}@test.com",
@@ -155,11 +141,12 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
     # 6. Verify own code (should fail)
     # Get current user's profile to find their own referral code
     from app.utils.auth import verify_token
+
     token = user_auth["Authorization"].split(" ")[1]
     curr_user_claims = await verify_token(token)
     curr_user = await user_repository.findById(curr_user_claims["_id"])
     own_code = curr_user.get("referralCode")
-    
+
     self_verify = await client.post("/api/referrals/verify", json={"code": own_code}, headers=user_auth)
     assert self_verify.status_code == 400
 
@@ -179,7 +166,7 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
         "stock": 10,
         "isActive": True,
         "gst": 18,
-        "category": "Test Category"
+        "category": "Test Category",
     }
     existing_product = await product_repository.findBySku("SKU-REF-TEST")
     if existing_product:
@@ -201,12 +188,12 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
             "state": "Jharkhand",
             "district": "East Singhbhum",
             "zipCode": "831001",
-            "country": "India"
+            "country": "India",
         },
         "paymentMethod": "cod",
         "notes": "My test order",
         "items": [{"productId": str(product["_id"]), "quantity": 1}],
-        "referralCode": ref_code
+        "referralCode": ref_code,
     }
     order_resp = await client.post("/api/orders/", json=order_payload, headers=user_auth)
     assert order_resp.status_code == 201
@@ -234,19 +221,9 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
 
     # Restore active retail settings to 12.5%
     await referral_repository.storage.delete("1")
-    await referral_repository.update_settings({
-        "retail": {
-            "segment": "retail",
-            "discountType": "percentage",
-            "discountValue": 12.5,
-            "isActive": True
-        },
-        "business": {
-            "segment": "business",
-            "discountType": "percentage",
-            "discountValue": 0.0,
-            "isActive": False
+    await referral_repository.update_settings(
+        {
+            "retail": {"segment": "retail", "discountType": "percentage", "discountValue": 12.5, "isActive": True},
+            "business": {"segment": "business", "discountType": "percentage", "discountValue": 0.0, "isActive": False},
         }
-    })
-
-
+    )

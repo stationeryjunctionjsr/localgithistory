@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/utils/api';
 import { getImageUrl } from '@/utils/imageUrl';
+import { logger } from '@/utils/logger';
 
 const POPUP_SHOWN_KEY = 'launch_popup_shown_date';
 
@@ -44,7 +45,7 @@ export default function LaunchPopup() {
           localStorage.setItem(POPUP_SHOWN_KEY, today);
         }
       } catch (error) {
-        console.error('Error fetching launch popup:', error);
+        logger.error('Error fetching launch popup:', error);
       } finally {
         setLoading(false);
       }

@@ -14,10 +14,12 @@ from app.repositories.user_repository import user_repository
 
 async def fix_super_admin_password():
     import os
+
     email = sys.argv[1] if len(sys.argv) > 1 else os.getenv("TEST_ADMIN_EMAIL", "stationeryjunction.jsr@gmail.com")
     password = sys.argv[2] if len(sys.argv) > 2 else os.getenv("TEST_ADMIN_PASSWORD")
     if not password:
         import secrets
+
         password = secrets.token_urlsafe(12)
         print(f"[*] TEST_ADMIN_PASSWORD not set. Generated secure random password: {password}")
 

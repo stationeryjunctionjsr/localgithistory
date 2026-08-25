@@ -101,12 +101,12 @@ class BannerRepository:
         return await self.storage.findById(id)
 
     async def findActive(self, query: Optional[Dict] = None):
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         banners = await self.findAll({**(query or {}), "isActive": True, "isPublished": True})
 
         # Filter by date range
         active_banners = []
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         for banner in banners:
             start_date = banner.get("startDate")
             end_date = banner.get("endDate")
@@ -150,7 +150,7 @@ class BannerRepository:
 
         start_date = banner_data.get("startDate")
         if not start_date or not str(start_date).strip():
-            start_date = datetime.utcnow().isoformat()
+            start_date = datetime.now(timezone.utc).isoformat()
 
         banner = {
             "title": banner_data.get("title", ""),

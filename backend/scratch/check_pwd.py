@@ -5,10 +5,12 @@ import os
 sys.path.append(os.getcwd())
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from app.repositories.user_repository import user_repository
 from app.utils.auth import verify_password, get_password_hash
+
 
 async def check():
     email = "stationeryjunction.jsr@gmail.com"
@@ -31,6 +33,7 @@ async def check():
     new_hash = get_password_hash(test_pwd)
     print("Newly generated hash:", repr(new_hash))
     print("Verification of new hash:", verify_password(test_pwd, new_hash))
+
 
 if __name__ == "__main__":
     asyncio.run(check())

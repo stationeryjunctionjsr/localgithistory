@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models.schemas import OrderFeedbackCreate, OrderFeedbackResponse
@@ -11,7 +10,6 @@ router = APIRouter()
 
 
 @router.post("", response_model=OrderFeedbackResponse, status_code=status.HTTP_201_CREATED)
-
 @router.post("/", response_model=OrderFeedbackResponse, status_code=status.HTTP_201_CREATED)
 async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: dict = Depends(get_current_user)):
     # Only validate order if it's order feedback

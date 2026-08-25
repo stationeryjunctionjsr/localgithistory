@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useProductsPerRow, getSectionDisplayConfig } from '@/hooks/useProductsPerRow';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -16,6 +17,9 @@ import StatsCounter from '@/components/StatsCounter';
 import HoverProductCard from '@/components/HoverProductCard';
 import { getImageUrl, getImageUrlWithFallback } from '@/utils/imageUrl';
 import { useRecommendationSectionView } from '@/hooks/useRecommendationSectionView';
+import { usePincode } from '@/context/PincodeContext';
+import UnserviceableLocationBanner from '@/components/UnserviceableLocationBanner';
+import { logger } from '@/utils/logger';
 
 export interface WholesalerClientProps {
   initialCategories?: any[];
@@ -33,6 +37,7 @@ export default function WholesalerClient({
   initialStats,
 }: WholesalerClientProps) {
   const { user, loading: authLoading, logout } = useAuth();
+  const { isServiceable, pincode } = usePincode();
   // eslint-disable-next-line unused-imports/no-unused-vars
   const { theme } = useTheme();
   const router = useRouter();
@@ -72,6 +77,7 @@ export default function WholesalerClient({
   // eslint-disable-next-line unused-imports/no-unused-vars
   const [loading, setLoading] = useState(false); // Start false initially
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const productsPerRow = useProductsPerRow();
   const [googleRating, setGoogleRating] = useState(
     initialStats?.googleRating || { rating: 0, reviewCount: '' }
   );
@@ -146,7 +152,7 @@ export default function WholesalerClient({
       const res = await api.get('/payments/dues');
       setDuesInfo(res.data);
     } catch (err) {
-      console.error('Failed to fetch dues info:', err);
+      logger.error('Failed to fetch dues info:', err);
     }
   };
 
@@ -155,7 +161,7 @@ export default function WholesalerClient({
       const res = await api.get('/payments/upi-details');
       setUpiDetails(res.data);
     } catch (err) {
-      console.error('Failed to fetch UPI details:', err);
+      logger.error('Failed to fetch UPI details:', err);
     }
   };
 
@@ -231,7 +237,7 @@ export default function WholesalerClient({
       );
       setBanners(activeBanners);
     } catch (error) {
-      console.error('Failed to fetch banners', error);
+      logger.error('Failed to fetch banners', error);
     }
   };
 
@@ -241,7 +247,7 @@ export default function WholesalerClient({
       const res = await api.get('/google-reviews/rating');
       if (res.data) setGoogleRating(res.data);
     } catch (e) {
-      console.error('Failed to fetch google rating', e);
+      logger.error('Failed to fetch google rating', e);
     }
   };
 
@@ -252,7 +258,7 @@ export default function WholesalerClient({
       });
       setCollections(response.data || []);
     } catch (error) {
-      console.error('Failed to fetch collections', error);
+      logger.error('Failed to fetch collections', error);
     }
   };
 
@@ -270,7 +276,7 @@ export default function WholesalerClient({
           }));
         setCategories(activeCategories);
       } catch (categoryError) {
-        console.warn('Category API not available, falling back to products', categoryError);
+        logger.warn('Category API not available, falling back to products', categoryError);
         const response = await api.get('/products/public');
         const products = response.data.products || response.data || [];
         const uniqueCategoryNames: string[] = Array.from(
@@ -285,7 +291,7 @@ export default function WholesalerClient({
         );
       }
     } catch (error) {
-      console.error('Failed to fetch categories', error);
+      logger.error('Failed to fetch categories', error);
       setCategories([]);
     }
   };
@@ -314,7 +320,7 @@ export default function WholesalerClient({
             ]
       );
     } catch (error) {
-      console.error('Failed to fetch recommendations', error);
+      logger.error('Failed to fetch recommendations', error);
     }
   };
 
@@ -323,7 +329,7 @@ export default function WholesalerClient({
       const response = await api.get('/brands/public');
       setBrands(Array.isArray(response.data) ? response.data : response.data?.brands || []);
     } catch (error) {
-      console.error('Error fetching brands:', error);
+      logger.error('Error fetching brands:', error);
     }
   };
 
@@ -415,16 +421,75 @@ export default function WholesalerClient({
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      {showHomeSections && (
+      {isServiceable === false ? (
+        <main className="w-full px-4 py-12 md:px-8 xl:px-12">
+          {duesInfo && duesInfo.currentOverdue > 0 && (
+            <div
+              className={`mb-8 p-6 rounded-2xl border transition-all duration-300 ${duesInfo.hasOverdueBills ? 'bg-red-50/95 border-red-200 shadow-[0_4px_20px_rgba(239,68,68,0.1)] text-red-900' : 'bg-blue-50/95 border-blue-200 shadow-[0_4px_20px_rgba(59,130,246,0.1)] text-blue-900'}`}
+              style={{
+                backdropFilter: 'blur(8px)',
+                animation: 'slideDown 0.4s ease-out',
+              }}
+            >
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-xl ${duesInfo.hasOverdueBills ? 'bg-red-500 text-white animate-pulse' : 'bg-blue-500 text-white'}`}>
+                    {duesInfo.hasOverdueBills ? (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                    ) : (
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 16v-4" />
+                        <path d="M12 8h.01" />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">
+                      Credit Statement Alert
+                    </h3>
+                    {duesInfo.hasOverdueBills ? (
+                      <div className="text-sm mt-1 space-y-0.5">
+                        <div>• <strong>Current overdue:</strong> ₹{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
+                        <div>• <strong>Minimum overdue (date has crossed):</strong> ₹{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
+                        <div className="font-semibold text-red-600 animate-pulse">• Pay the minimum amount to continue placing orders.</div>
+                      </div>
+                    ) : (
+                      <div className="text-sm mt-1 space-y-0.5">
+                        <div>• <strong>Current overdue:</strong> ₹{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
+                        <div>• <strong>Minimum overdue (cutoff date is nearest):</strong> ₹{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
+                        <div>• <strong>Cutoff date:</strong> {new Date(duesInfo.nearestDueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (before which minimum overdue has to be paid)</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDuesModal(true)}
+                  className={`px-6 py-2.5 rounded-full font-bold text-sm tracking-wide text-white transition-all transform active:scale-95 whitespace-nowrap shadow-sm hover:shadow-md ${duesInfo.hasOverdueBills ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                  Clear Dues
+                </button>
+              </div>
+            </div>
+          )}
+          <UnserviceableLocationBanner />
+        </main>
+      ) : (
         <>
-          <HeroCarousel banners={banners} />
-          <StatsCounter />
-        </>
-      )}
+          {showHomeSections && (
+            <>
+              <HeroCarousel banners={banners} />
+              <StatsCounter productCount={initialStats?.productCount} brandCount={initialStats?.brandCount} />
+            </>
+          )}
 
-      {/* Main Content */}
-      <main className="w-full px-4 py-8 md:px-8 xl:px-12">
-        {duesInfo && duesInfo.totalOverdue > 0 && (
+          {/* Main Content */}
+          <main className="w-full px-4 py-8 md:px-8 xl:px-12">
+        {duesInfo && duesInfo.currentOverdue > 0 && (
           <div
             className={`mb-8 p-6 rounded-2xl border transition-all duration-300 ${duesInfo.hasOverdueBills ? 'bg-red-50/95 border-red-200 shadow-[0_4px_20px_rgba(239,68,68,0.1)] text-red-900' : 'bg-blue-50/95 border-blue-200 shadow-[0_4px_20px_rgba(59,130,246,0.1)] text-blue-900'}`}
             style={{
@@ -455,13 +520,13 @@ export default function WholesalerClient({
                   </h3>
                   {duesInfo.hasOverdueBills ? (
                     <div className="text-sm mt-1 space-y-0.5">
-                      <div>• <strong>Total overdue:</strong> ₹{duesInfo.totalOverdue.toLocaleString('en-IN')}</div>
+                      <div>• <strong>Current overdue:</strong> ₹{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
                       <div>• <strong>Minimum overdue (date has crossed):</strong> ₹{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
                       <div className="font-semibold text-red-600 animate-pulse">• Pay the minimum amount to continue placing orders.</div>
                     </div>
                   ) : (
                     <div className="text-sm mt-1 space-y-0.5">
-                      <div>• <strong>Total overdue:</strong> ₹{duesInfo.totalOverdue.toLocaleString('en-IN')}</div>
+                      <div>• <strong>Current overdue:</strong> ₹{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
                       <div>• <strong>Minimum overdue (cutoff date is nearest):</strong> ₹{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
                       <div>• <strong>Cutoff date:</strong> {new Date(duesInfo.nearestDueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (before which minimum overdue has to be paid)</div>
                     </div>
@@ -499,7 +564,7 @@ export default function WholesalerClient({
               slot: string;
               color: string;
             }[] = [];
-            if (recNewArrivals.length > 0)
+            if (!getSectionDisplayConfig(recNewArrivals.length, productsPerRow).hide)
               allSections.push({
                 key: 'new_arrivals',
                 title: 'New Arrivals',
@@ -510,7 +575,7 @@ export default function WholesalerClient({
                 slot: 'new_arrivals',
                 color: 'from-[#1a4d33] to-[#D4AF37]',
               });
-            if (recCustomerFavourites.length > 0)
+            if (!getSectionDisplayConfig(recCustomerFavourites.length, productsPerRow).hide)
               allSections.push({
                 key: 'customer_favourites',
                 title: recCityName ? `Customer Favourites (Popular in ${recCityName})` : 'Customer Favourites',
@@ -523,7 +588,7 @@ export default function WholesalerClient({
                 slot: 'customer_favourites',
                 color: 'from-emerald-800 to-teal-600',
               });
-            if (recTrendingNow.length > 0)
+            if (!getSectionDisplayConfig(recTrendingNow.length, productsPerRow).hide)
               allSections.push({
                 key: 'trending_now',
                 title: 'Trending Now',
@@ -534,7 +599,7 @@ export default function WholesalerClient({
                 slot: 'trending_now',
                 color: 'from-orange-600 to-red-600',
               });
-            if (recExplore.length > 0)
+            if (!getSectionDisplayConfig(recExplore.length, productsPerRow).hide)
               allSections.push({
                 key: 'explore',
                 title: 'Explore More',
@@ -545,7 +610,7 @@ export default function WholesalerClient({
                 slot: 'explore',
                 color: 'from-purple-800 to-fuchsia-600',
               });
-            if (recBusinessFavourites.length > 0)
+            if (!getSectionDisplayConfig(recBusinessFavourites.length, productsPerRow).hide)
               allSections.push({
                 key: 'business_favourites',
                 title: recCityName ? `Business Favourites (Popular in ${recCityName})` : 'Business Favourites',
@@ -609,64 +674,54 @@ export default function WholesalerClient({
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5 xl:grid-cols-6">
-                  {sec.items.slice(0, expandedSections[sec.key] ? 24 : 6).map((p, index) => (
-                    <div
-                      key={p._id}
-                      className="animate-fade-in-up opacity-0"
-                      style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
-                    >
-                      <HoverProductCard
-                        product={{ ...p, isNew: false, bestSeller: false }}
-                        onClick={() => handleProductClick(p)}
-                      />
-                    </div>
-                  ))}
-                </div>
+                  {(() => {
+                    const cfg = getSectionDisplayConfig(sec.items.length, productsPerRow);
+                    const isExpanded = expandedSections[sec.key];
+                    return (
+                      <>
+                        {sec.items.slice(0, isExpanded ? cfg.expanded : cfg.visible).map((p, index) => (
+                          <div
+                            key={p._id}
+                            className="animate-fade-in-up opacity-0"
+                            style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
+                          >
+                            <HoverProductCard
+                              product={{ ...p, isNew: false, bestSeller: false }}
+                              onClick={() => handleProductClick(p)}
+                            />
+                          </div>
+                        ))}
 
-                {sec.items.length > 6 && (
-                  <div className="relative mt-12 flex justify-center border-t border-gray-100 pt-8">
-                    <button
-                      onClick={() => handleToggleSection(sec.key)}
-                      className="absolute -top-6 flex items-center gap-2 rounded-full border border-gray-200 bg-white px-8 py-3 font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md"
-                    >
-                      {expandedSections[sec.key] ? (
-                        <>
-                          Show less
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 15l7-7 7 7"
-                            />
-                          </svg>
-                        </>
-                      ) : (
-                        <>
-                          Show more
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
+                        {cfg.showButton && (
+                          <div className="col-span-full">
+                            <div className="relative mt-12 flex justify-center border-t border-gray-100 pt-8">
+                              <button
+                                onClick={() => handleToggleSection(sec.key)}
+                                className="absolute -top-6 flex items-center gap-2 rounded-full border border-gray-200 bg-white px-8 py-3 font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md"
+                              >
+                                {isExpanded ? (
+                                  <>
+                                    Show less
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                    </svg>
+                                  </>
+                                ) : (
+                                  <>
+                                    Show more
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </section>
             ));
           })()}
@@ -933,6 +988,8 @@ export default function WholesalerClient({
           </div>
         )}
       </main>
+        </>
+      )}
 
       {/* Dues Modal */}
       {showDuesModal && duesInfo && (
@@ -950,13 +1007,13 @@ export default function WholesalerClient({
               <div className="mb-6 p-4 rounded-xl bg-gray-50 border border-gray-200">
                 {duesInfo.hasOverdueBills ? (
                   <div className="text-sm space-y-1 text-gray-700">
-                    <div>• <strong>Total overdue:</strong> ₹{duesInfo.totalOverdue.toLocaleString('en-IN')}</div>
+                    <div>• <strong>Current overdue:</strong> ₹{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
                     <div>• <strong>Minimum overdue (date has crossed):</strong> ₹{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
                     <div className="font-semibold text-red-600">• Pay the minimum amount to continue placing orders.</div>
                   </div>
                 ) : (
                   <div className="text-sm space-y-1 text-gray-700">
-                    <div>• <strong>Total overdue:</strong> ₹{duesInfo.totalOverdue.toLocaleString('en-IN')}</div>
+                    <div>• <strong>Current overdue:</strong> ₹{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
                     <div>• <strong>Minimum overdue (cutoff date is nearest):</strong> ₹{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
                     <div>• <strong>Cutoff date:</strong> {new Date(duesInfo.nearestDueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (before which minimum overdue has to be paid)</div>
                   </div>

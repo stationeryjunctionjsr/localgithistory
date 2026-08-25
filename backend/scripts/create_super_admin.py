@@ -17,8 +17,11 @@ async def create_super_admin():
     password = sys.argv[2] if len(sys.argv) > 2 else os.getenv("TEST_ADMIN_PASSWORD")
     if not password:
         import secrets
+
         password = secrets.token_urlsafe(12)
-        print(f"[*] TEST_ADMIN_PASSWORD not set in environment or arguments. Generated secure random password: {password}")
+        print(
+            f"[*] TEST_ADMIN_PASSWORD not set in environment or arguments. Generated secure random password: {password}"
+        )
     name = sys.argv[3] if len(sys.argv) > 3 else os.getenv("TEST_ADMIN_NAME", "Super Admin")
 
     try:

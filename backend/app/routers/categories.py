@@ -134,15 +134,16 @@ def _invalidate_category_caches():
     cache.invalidate(get_tag_brands)
     try:
         from app.routers.category_tags import get_active_category_tags
+
         cache.invalidate(get_active_category_tags)
     except Exception:
         pass
     try:
         from app.repositories.coupon_repository import coupon_repository
+
         coupon_repository.invalidate_cache()
     except Exception:
         pass
-
 
 
 @router.get("")

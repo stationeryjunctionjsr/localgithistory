@@ -240,8 +240,8 @@ class RecommendationRepository:
         # Use database-side filtering to only fetch relevant orders
         query = {"user": user_id}
         orders = await self.order_storage.findAll(query)
-        
-        cutoff = datetime.utcnow() - timedelta(days=days)
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         out = set()
         for order in orders:
             dt = _parse_order_date(order)
@@ -281,7 +281,7 @@ class RecommendationRepository:
             dt = _parse_order_date(order)
             if not dt:
                 continue
-            cutoff = datetime.utcnow() - timedelta(days=days)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             if dt < cutoff:
                 continue
             for item in order.get("items", []):
@@ -420,9 +420,7 @@ class RecommendationRepository:
         )
         return set(ids)
 
-    async def get_customer_favourites_by_subcategory(
-        self, days: int = 60, city: Optional[str] = None
-    ) -> List[str]:
+    async def get_customer_favourites_by_subcategory(self, days: int = 60, city: Optional[str] = None) -> List[str]:
         """
         Tag-based Customer Favourites: top 1 product per subcategory by weighted score.
         Score = frequency_weight * order_count + quantity_weight * quantity (from config).
@@ -508,9 +506,7 @@ class RecommendationRepository:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    async def get_business_favourites_by_subcategory(
-        self, days: int = 60, city: Optional[str] = None
-    ) -> List[str]:
+    async def get_business_favourites_by_subcategory(self, days: int = 60, city: Optional[str] = None) -> List[str]:
         """
         Business Favourites: top 1 product per subcategory by weighted score from
         wholesaler orders (ORDER-WH-) only, last `days`.
@@ -675,10 +671,7 @@ class RecommendationRepository:
 
         # Score and rank
         ranked = sorted(
-            [
-                (pid, w_freq * order_count[pid] + w_qty * quantity_map.get(pid, 0))
-                for pid in order_count
-            ],
+            [(pid, w_freq * order_count[pid] + w_qty * quantity_map.get(pid, 0)) for pid in order_count],
             key=lambda x: x[1],
             reverse=True,
         )
@@ -690,7 +683,6 @@ class RecommendationRepository:
         }
 
     async def get_new_arrivals(self, user_id: Optional[str], role: Optional[str], limit: int = 10) -> List[str]:
-
         """New Arrivals: products created in last 30 days. For retail, exclude products user already bought (any time)."""
         _load_config()
         days_new = 30  # same as add_dynamic_tags "new" tag
@@ -785,7 +777,7 @@ class RecommendationRepository:
         For guest (user_id None), uses global rewards only.
         """
         strategies = applicable_strategies or BANDIT_STRATEGIES
-        
+
         # Bandit mechanism disabled as per request
         return list(strategies)
 
@@ -815,7 +807,7 @@ class RecommendationRepository:
 
     async def get_most_bought_by_wholesalers(self, user_id: str, limit: int = 10, days: int = 5) -> List[str]:
         """Products most frequently bought by other wholesalers. Used only when caller is wholesaler."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         users = await self.user_storage.findAll()
         wholesaler_ids = {u.get("_id") for u in users if u.get("role") == "wholesaler" and u.get("_id") != user_id}
         if not wholesaler_ids:
@@ -837,7 +829,7 @@ class RecommendationRepository:
 
     async def get_most_bought_by_user(self, user_id: str, limit: int = 5, days: int = 60) -> List[str]:
         """Top products bought by same user in last `days` days (for wholesaler 'your favourites')."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         orders = await self.order_storage.findAll()
         product_counts: Dict[str, int] = {}
         for order in orders:
@@ -857,7 +849,7 @@ class RecommendationRepository:
         self, user_id: str, limit: int = 5, days: int = 60
     ) -> List[str]:
         """Best selling products from categories this user bought least from (Explore – based on logged-in user orders)."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         # Fetch orders and products once each (avoids duplicate full-table scans)
         orders, products = await asyncio.gather(
             self.order_storage.findAll(),
@@ -940,7 +932,7 @@ class RecommendationRepository:
         config = _load_config()
         days = config.get("engagement_days", 30)
         weights = config.get("engagement_weights", {"product_view": 1, "add_to_cart": 3})
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         pid_set = set(product_ids)
         scores: Dict[str, float] = {pid: 0.0 for pid in product_ids}
 
@@ -989,7 +981,9 @@ class RecommendationRepository:
                 if p:
                     p_copy = dict(p)
                     # Convert to skinny payload to reduce size (keep images array since hover card cycles images)
-                    p_copy["displayImage"] = p_copy.get("displayImage") or (p_copy.get("images")[0] if p_copy.get("images") else None)
+                    p_copy["displayImage"] = p_copy.get("displayImage") or (
+                        p_copy.get("images")[0] if p_copy.get("images") else None
+                    )
                     p_copy.pop("description", None)
                     p_copy.pop("variantCombinations", None)
                     p_copy.pop("videos", None)
@@ -1098,9 +1092,7 @@ class RecommendationRepository:
 
         # Customer Favourites: city-scoped when city provided, else use global cache / compute
         if city_normalised:
-            cf_ids = await self.get_customer_favourites_by_subcategory(
-                days=cf_days_config, city=city_normalised
-            )
+            cf_ids = await self.get_customer_favourites_by_subcategory(days=cf_days_config, city=city_normalised)
         elif cf_ids_cached is not None:
             cf_ids = list(cf_ids_cached)
         else:
@@ -1108,9 +1100,7 @@ class RecommendationRepository:
 
         # Business Favourites: city-scoped when city provided, else use global cache / compute
         if city_normalised:
-            bf_ids_raw = await self.get_business_favourites_by_subcategory(
-                days=bf_days, city=city_normalised
-            )
+            bf_ids_raw = await self.get_business_favourites_by_subcategory(days=bf_days, city=city_normalised)
         else:
             bf_cache = _read_business_favourites_cache()
             bf_ids_raw = bf_cache.get("product_ids") if isinstance(bf_cache.get("product_ids"), list) else None

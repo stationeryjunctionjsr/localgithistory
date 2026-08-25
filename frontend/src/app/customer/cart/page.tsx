@@ -3853,13 +3853,13 @@ export default function Cart() {
                 <div style={{ marginBottom: '16px', padding: '16px', borderRadius: '12px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
                   {duesInfo.hasOverdueBills ? (
                     <div style={{ fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#334155' }}>
-                      <div>• <strong>Total overdue:</strong> ₹{duesInfo.totalOverdue.toLocaleString('en-IN')}</div>
+                      <div>• <strong>Current overdue:</strong> ₹{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
                       <div>• <strong>Minimum overdue (date has crossed):</strong> ₹{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
                       <div style={{ fontWeight: '600', color: '#dc2626' }}>• Pay the minimum amount to continue placing orders.</div>
                     </div>
                   ) : (
                     <div style={{ fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '6px', color: '#334155' }}>
-                      <div>• <strong>Total overdue:</strong> ₹{duesInfo.totalOverdue.toLocaleString('en-IN')}</div>
+                      <div>• <strong>Current overdue:</strong> ₹{duesInfo.currentOverdue.toLocaleString('en-IN')}</div>
                       <div>• <strong>Minimum overdue (cutoff date is nearest):</strong> ₹{duesInfo.minimumOverdue.toLocaleString('en-IN')}</div>
                       <div>• <strong>Cutoff date:</strong> {new Date(duesInfo.nearestDueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} (before which minimum overdue has to be paid)</div>
                     </div>

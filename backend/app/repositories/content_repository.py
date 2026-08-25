@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
@@ -11,7 +11,7 @@ class ContentRepository:
         self.storage = get_storage(collection_name)
 
     def _ts(self) -> str:
-        return datetime.utcnow().isoformat()
+        return datetime.now(timezone.utc).isoformat()
 
     async def get(self) -> Optional[Dict]:
         docs = await self.storage.findAll()
@@ -100,7 +100,7 @@ class FAQRepository:
         self.storage = get_storage("faqSections")
 
     def _ts(self) -> str:
-        return datetime.utcnow().isoformat()
+        return datetime.now(timezone.utc).isoformat()
 
     async def find_all(self) -> List[Dict]:
         sections = await self.storage.findAll()

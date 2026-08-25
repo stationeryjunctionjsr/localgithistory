@@ -3,6 +3,7 @@
 These run quickly with no auth required and should always pass in CI.
 Fixtures (client) come from conftest.py.
 """
+
 import pytest
 
 
@@ -21,9 +22,7 @@ async def test_health_ok(client):
 async def test_version_endpoint(client):
     """Version endpoint returns 200 with a version string."""
     response = await client.get("/api/app/version")
-    assert response.status_code == 200, (
-        f"Expected 200 for /api/app/version, got {response.status_code}"
-    )
+    assert response.status_code == 200, f"Expected 200 for /api/app/version, got {response.status_code}"
     data = response.json()
     assert "current" in data, "Version response must contain 'current' key"
     assert isinstance(data["current"], str), "Version must be a string"

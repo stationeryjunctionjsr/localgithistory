@@ -12,6 +12,7 @@ import { trackAddToWishlist, trackRemoveFromWishlist, getSessionId } from '@/uti
 import styles from './ModernProductCatalog.module.css';
 import AuthModal from '@/components/AuthModal';
 import { toast } from 'react-toastify';
+import { logger } from '@/utils/logger';
 
 interface Product {
   _id: string;
@@ -123,7 +124,7 @@ export default function ModernProductCatalog({
       const response = await api.get('/products');
       setProducts(response.data.products || response.data || []);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      logger.error('Error fetching products:', error);
     } finally {
       setLoading(false);
     }
@@ -138,7 +139,7 @@ export default function ModernProductCatalog({
         addGuestCartItem(productId, 1, product);
       }
     } catch (error) {
-      console.error('Error adding to cart:', error);
+      logger.error('Error adding to cart:', error);
     }
   };
 
@@ -158,7 +159,7 @@ export default function ModernProductCatalog({
         await addToWishlist(productId, getSessionId());
       }
     } catch (error) {
-      console.error('Error toggling wishlist:', error);
+      logger.error('Error toggling wishlist:', error);
     }
   };
 

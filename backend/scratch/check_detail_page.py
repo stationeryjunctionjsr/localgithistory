@@ -8,4 +8,4 @@ lines = content.splitlines()
 print("Occurrences of quantityTiers in ProductDetailClient.tsx:")
 for idx, line in enumerate(lines):
     if "quantityTiers" in line or "tier" in line.lower():
-        print(f"Line {idx+1}: {line.strip()}")
+        print(f"Line {idx + 1}: {line.strip()}")

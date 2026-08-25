@@ -28,17 +28,13 @@ async def test_products_filtering_integration(client):
 @pytest.mark.asyncio
 async def test_products_fuzzy_search_typo_tolerance(client):
     from app.repositories.product_repository import product_repository
-    
+
     # 1. Create a product with a distinct name
-    product = await product_repository.create({
-        "name": "SuperFuzzyWidget",
-        "mrp": 100.0,
-        "category": "Gadgets",
-        "stock": 10,
-        "isActive": True
-    })
+    product = await product_repository.create(
+        {"name": "SuperFuzzyWidget", "mrp": 100.0, "category": "Gadgets", "stock": 10, "isActive": True}
+    )
     product_id = product["_id"]
-    
+
     try:
         # 2. Search using typo (similarity ratio >= 0.7)
         # "SuperFuzzyWidget" has 16 characters. "SprFuzyWdget" has 12 characters.
@@ -48,13 +44,13 @@ async def test_products_fuzzy_search_typo_tolerance(client):
         assert response.status_code == 200
         data = response.json()
         results = data["products"]
-        
+
         # Verify that our test product is in the fuzzy search results and response includes fuzzy metadata
         matched_ids = [str(p["_id"]) for p in results]
         assert str(product_id) in matched_ids
         assert data["usedFuzzy"] is True
         assert data["suggestedQuery"] == "superfuzzywidget"
-        
+
     finally:
         # 3. Clean up
         await product_repository.storage.delete(product_id)

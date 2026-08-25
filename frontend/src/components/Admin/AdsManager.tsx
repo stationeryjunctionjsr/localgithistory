@@ -334,7 +334,8 @@ export default function AdsManager() {
                                 let target = ad.target_url || '';
                                 if (!/^https?:\/\//i.test(target)) {
                                   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-                                  target = `${baseUrl.replace(/\/$/, '')}/${target.replace(/^\//, '')}`;
+                                  target = `${baseUrl.replace(/\/$/, '')}/${target.replace(/^\//, '')
+}`;
                                 }
                                 const url = new URL(target);
                                 url.searchParams.set('ad_id', ad.id);
@@ -496,7 +497,8 @@ export default function AdsManager() {
               {inp('budget_total', 'Total Budget (₹)', 'number')}
               {inp('start_date', 'Start Date', 'date')}
               {inp('end_date', 'End Date', 'date')}
-              {inp('target_url', 'Landing Page URL', 'url', 'https://')}
+              {inp('target_url', 'Landing Page URL', 'url', 'https://')
+}
               {inp('headline', 'Ad Headline')}
               {inp('description', 'Ad Description')}
               {inp('image_url', 'Creative Image URL', 'url')}
@@ -555,7 +557,8 @@ export default function AdsManager() {
                           if (!target) return '';
                           if (!/^https?:\/\//i.test(target)) {
                             const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://www.stationeryjunction.com');
-                            target = `${baseUrl.replace(/\/$/, '')}/${target.replace(/^\//, '')}`;
+                            target = `${baseUrl.replace(/\/$/, '')}/${target.replace(/^\//, '')
+}`;
                           }
                           const url = new URL(target);
                           url.searchParams.set('ad_id', editAd?.id || 'CAMPAIGN_ID_AUTO_GENERATED');

@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { usePincode } from '@/context/PincodeContext';
 import api from '@/utils/api';
 import Link from 'next/link';
+import { logger } from '@/utils/logger';
 
 interface CategoryTag {
   _id?: string;
@@ -25,11 +27,23 @@ interface Brand {
   name?: string;
 }
 
+/** Reads search params safely inside a Suspense boundary. */
+function SearchParamsReader({ onRead }: { onRead: (tag: string | null) => void }) {
+  const searchParams = useSearchParams();
+  const tag = searchParams.get('categoryTag') || null;
+  useEffect(() => { onRead(tag); }, [tag, onRead]);
+  return null;
+}
+
 export default function MobileHeader() {
   const router = useRouter();
   const pathname = usePathname() || '';
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { pincode, city, openPincodeModal } = usePincode();
+
+  // Track which category tag is currently active from the URL (for scoped search)
+  const [activeCategoryTag, setActiveCategoryTag] = useState<string | null>(null);
 
   const isCartPage = pathname.includes('/cart');
   const isWishlistPage = pathname.includes('/wishlist');
@@ -71,6 +85,15 @@ export default function MobileHeader() {
   const [expandedTag, setExpandedTag] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  // State for search suggestions panel on mobile
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [popularTerms, setPopularTerms] = useState<string[]>([]);
+  const [recentProducts, setRecentProducts] = useState<{ productId: string; productName: string; displayImage?: string; price?: number }[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [liveAutocomplete, setLiveAutocomplete] = useState<{ products: { productId: string; name: string }[]; brands: string[]; categories: string[] }>({ products: [], brands: [], categories: [] });
+  const [loadingAutocomplete, setLoadingAutocomplete] = useState(false);
+
 
   useEffect(() => {
     if (isMenuOpen && categoryTags.length === 0) {
@@ -91,9 +114,7 @@ export default function MobileHeader() {
         const items = res.data?.items || res.data || [];
         setCartCount(items.length);
       // eslint-disable-next-line unused-imports/no-unused-vars
-      } catch (e) {
-        // Silent fail
-      }
+      } catch (e) { logger.warn("Silent catch block:", e); /* Silent fail */ }
     };
     fetchCartCount();
   }, [user]);
@@ -104,7 +125,7 @@ export default function MobileHeader() {
       const tagsRes = await api.get('/category-tags/active');
       setCategoryTags((tagsRes.data || []).filter((t: any) => t.name));
     } catch (e) {
-      console.error('Failed to load menu data', e);
+      logger.error('Failed to load menu data', e);
     } finally {
       setLoading(false);
     }
@@ -125,7 +146,7 @@ export default function MobileHeader() {
         },
       }));
     } catch (error) {
-      console.error(`Error fetching data for tag ${tagName}:`, error);
+      logger.error(`Error fetching data for tag ${tagName}:`, error);
     }
   };
 
@@ -163,14 +184,63 @@ export default function MobileHeader() {
     setIsMenuOpen(false);
   };
 
+  const fetchMobileSuggestions = async () => {
+    setLoadingSuggestions(true);
+    try {
+      const sessionId = typeof localStorage !== 'undefined' ? localStorage.getItem('sessionId') : null;
+      const [recentRes, suggestionsRes, recentProductsRes] = await Promise.all([
+        api.get('/tracking/recent', { params: { sessionId, limit: 5 } }),
+        api.get('/tracking/suggestions', { params: { limit: 6 } }),
+        api.get('/tracking/recent-products', { params: { sessionId, limit: 4 } }),
+      ]);
+      setRecentSearches(recentRes.data || []);
+      setPopularTerms(suggestionsRes.data?.popularTerms || []);
+      setRecentProducts(recentProductsRes.data || []);
+    } catch (e) { logger.warn("Silent catch block:", e); /* fail silently */ } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`${getUserBasePath()}?searchTerm=${encodeURIComponent(searchQuery.trim())}`);
+      // Scope search to active department if user is browsing one
+      const searchUrl = activeCategoryTag
+        ? `${getUserBasePath()}?searchTerm=${encodeURIComponent(searchQuery.trim())}&categoryTag=${encodeURIComponent(activeCategoryTag)}`
+        : `${getUserBasePath()}?searchTerm=${encodeURIComponent(searchQuery.trim())}`;
+      router.push(searchUrl);
       setShowSearch(false);
+      setShowSuggestions(false);
       setSearchQuery('');
     }
   };
+
+  // Debounced live autocomplete
+  useEffect(() => {
+    if (!showSearch) return; // only run if search is open
+    if (searchQuery.trim().length < 2) {
+      setLiveAutocomplete({ products: [], brands: [], categories: [] });
+      return;
+    }
+    setLoadingAutocomplete(true);
+    const timer = setTimeout(async () => {
+      try {
+        const params: Record<string, string> = { q: searchQuery.trim(), limit: '8' };
+        if (activeCategoryTag) params.categoryTag = activeCategoryTag;
+        if (pincode) params.pincode = pincode;
+        const res = await api.get('/products/suggest', { params });
+        setLiveAutocomplete({
+          products: res.data?.products || [],
+          brands: res.data?.brands || [],
+          categories: res.data?.categories || [],
+        });
+      } catch (e) { logger.warn("Silent catch block:", e); /* silent */ } finally {
+        setLoadingAutocomplete(false);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, activeCategoryTag, showSearch]);
 
   // Smart back navigation — falls back to a sensible route if there is no browser history
   const getBackFallback = () => {
@@ -190,6 +260,9 @@ export default function MobileHeader() {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <SearchParamsReader onRead={setActiveCategoryTag} />
+      </Suspense>
       {/* Main Header */}
       <header
         className="sticky top-0 z-50 border-b border-gray-100 bg-white md:hidden"
@@ -327,48 +400,268 @@ export default function MobileHeader() {
           </div>
         </div>
 
-        {/* Search Bar - Expandable */}
+        {/* Hyperlocal Delivery Location Pill Bar */}
+        <div className="flex items-center justify-between border-t border-gray-100/80 bg-emerald-50/50 px-4 py-1.5 text-xs text-emerald-900">
+          <button
+            onClick={() => openPincodeModal(false)}
+            className="flex items-center gap-1.5 text-left font-medium hover:opacity-80 transition-opacity"
+            type="button"
+          >
+            <svg className="h-3.5 w-3.5 text-emerald-700 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="truncate">
+              Deliver to: <span className="font-bold">{pincode || 'Select Pincode'}</span>
+              {city ? ` (${city})` : ''}
+            </span>
+            <svg className="h-3 w-3 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Search Bar - Expandable with scope chip and suggestions */}
         {showSearch && (
           <div className="animate-in slide-in-from-top-2 px-4 pb-3 duration-200">
             <form onSubmit={handleSearch} className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products..."
-                autoFocus
-                className="h-10 w-full rounded-full bg-gray-100 pl-10 pr-4 text-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
-              <svg
-                className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-gray-400"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
+              {/* Scope chip — shown when user is browsing a department */}
+              {activeCategoryTag && (
+                <div className="mb-1.5 flex items-center">
+                  <span
+                    style={{ backgroundColor: `${theme.primary}15`, color: theme.primary, borderColor: `${theme.primary}40` }}
+                    className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
                   >
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
+                    in {activeCategoryTag}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${activeCategoryTag} scope`}
+                      onClick={() => router.push(getUserBasePath())}
+                      className="ml-0.5 opacity-60 hover:opacity-100"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </div>
               )}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={activeCategoryTag ? `Search in ${activeCategoryTag}...` : 'Search products...'}
+                  autoFocus
+                  onFocus={() => {
+                    setShowSuggestions(true);
+                    fetchMobileSuggestions();
+                  }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  className="h-10 w-full rounded-full bg-gray-100 pl-10 pr-4 text-sm transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <svg
+                  className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-gray-400"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                )}
+              </div>
             </form>
+
+            {/* Suggestions panel */}
+            {showSuggestions && (
+              <div className="mt-2 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl">
+                {loadingSuggestions ? (
+                  <div className="flex items-center gap-2 p-4 text-sm text-gray-400">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3V4a10 10 0 100 20v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
+                    </svg>
+                    Loading…
+                  </div>
+                ) : (
+                  <>
+                    {/* Recently browsed products — shown when no query */}
+                    {recentProducts.length > 0 && !searchQuery && (
+                      <div className="border-b border-gray-50 p-3">
+                        <h4 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Recently Browsed</h4>
+                        <div className="grid grid-cols-4 gap-2">
+                          {recentProducts.map((product) => (
+                            <button
+                              key={product.productId}
+                              onMouseDown={() => {
+                                router.push(`${getUserBasePath()}/product/${product.productId}`);
+                                setShowSearch(false);
+                              }}
+                              className="flex flex-col items-center gap-1 rounded-lg p-1.5 text-center hover:bg-gray-50"
+                            >
+                              <div className="h-12 w-12 overflow-hidden rounded-lg bg-gray-100">
+                                {product.displayImage ? (
+                                  <img src={product.displayImage} alt={product.productName} className="h-full w-full object-contain" />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center">
+                                    <svg className="h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" /></svg>
+                                  </div>
+                                )}
+                              </div>
+                              <span className="line-clamp-2 text-[9px] leading-tight text-gray-600">{product.productName}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Live autocomplete — server-side product/brand/category suggestions as user types */}
+                    {searchQuery.trim().length >= 2 && (
+                      <div className="border-b border-gray-50">
+                        {loadingAutocomplete ? (
+                          <div className="flex items-center gap-2 p-4 text-xs text-gray-400">
+                            <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3V4a10 10 0 100 20v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
+                            </svg>
+                            Searching…
+                          </div>
+                        ) : (liveAutocomplete.products.length > 0 || liveAutocomplete.brands.length > 0 || liveAutocomplete.categories.length > 0) ? (
+                          <div className="p-2">
+                            {/* Product name matches */}
+                            {liveAutocomplete.products.map((p) => (
+                              <button
+                                key={p.productId}
+                                onMouseDown={() => {
+                                  setShowSearch(false);
+                                  router.push(`${getUserBasePath()}/product/${p.productId}`);
+                                }}
+                                className="group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-gray-50"
+                              >
+                                <svg className="h-4 w-4 shrink-0 text-gray-300 group-hover:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                </svg>
+                                <span className="text-sm text-gray-700 group-hover:text-gray-900">{p.name}</span>
+                              </button>
+                            ))}
+                            {/* Brand matches */}
+                            {liveAutocomplete.brands.map((brand) => (
+                              <button
+                                key={brand}
+                                onMouseDown={() => {
+                                  setShowSearch(false);
+                                  router.push(`/brands/${encodeURIComponent(brand)}`);
+                                }}
+                                className="group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-gray-50"
+                              >
+                                <svg className="h-4 w-4 shrink-0 text-blue-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                                <span className="text-sm text-gray-700 group-hover:text-gray-900">{brand} <span className="text-xs text-gray-400">Brand</span></span>
+                              </button>
+                            ))}
+                            {/* Category matches */}
+                            {liveAutocomplete.categories.map((cat) => (
+                              <button
+                                key={cat}
+                                onMouseDown={() => {
+                                  setShowSearch(false);
+                                  router.push(`/categories/${encodeURIComponent(cat)}`);
+                                }}
+                                className="group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-gray-50"
+                              >
+                                <svg className="h-4 w-4 shrink-0 text-green-300 group-hover:text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                </svg>
+                                <span className="text-sm text-gray-700 group-hover:text-gray-900">{cat} <span className="text-xs text-gray-400">Category</span></span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          /* Fallback: client-side match against recently browsed products */
+                          (() => {
+                            const q = searchQuery.toLowerCase();
+                            const matches = recentProducts.filter(p => p.productName.toLowerCase().includes(q));
+                            if (!matches.length) return null;
+                            return (
+                              <div className="p-3">
+                                <h4 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Recently Browsed</h4>
+                                <div className="space-y-1">
+                                  {matches.map((product) => (
+                                    <button
+                                      key={product.productId}
+                                      onMouseDown={() => { setShowSearch(false); router.push(`${getUserBasePath()}/product/${product.productId}`); }}
+                                      className="group flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-gray-50"
+                                    >
+                                      <div className="h-8 w-8 shrink-0 overflow-hidden rounded bg-gray-100">
+                                        {product.displayImage && <img src={product.displayImage} alt={product.productName} className="h-full w-full object-contain" />}
+                                      </div>
+                                      <span className="text-sm text-gray-700 group-hover:text-gray-900">{product.productName}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()
+                        )}
+                      </div>
+                    )}
+                    {recentSearches.length > 0 && (
+                      <div className="border-b border-gray-50 p-3">
+                        <h4 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Recent Searches</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {recentSearches.map((term) => (
+                            <button
+                              key={term}
+                              onMouseDown={() => {
+                                setSearchQuery(term);
+                                router.push(`${getUserBasePath()}?searchTerm=${encodeURIComponent(term.trim())}`);
+                                setShowSearch(false);
+                              }}
+                              className="rounded-full bg-gray-50 px-3 py-1 text-xs text-gray-600 hover:bg-gray-100"
+                            >
+                              {term}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {popularTerms.length > 0 && (
+                      <div className="p-3">
+                        <h4 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Popular Now</h4>
+                        <div className="space-y-1">
+                          {popularTerms.map((term) => (
+                            <button
+                              key={term}
+                              onMouseDown={() => {
+                                router.push(`${getUserBasePath()}?searchTerm=${encodeURIComponent(term.trim())}`);
+                                setShowSearch(false);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              <svg className="h-3.5 w-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                              </svg>
+                              {term}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
       </header>

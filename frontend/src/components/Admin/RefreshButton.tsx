@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { logger } from '@/utils/logger';
 
 interface RefreshButtonProps {
   onRefresh?: () => Promise<any> | any;
@@ -17,7 +18,7 @@ export default function RefreshButton({ onRefresh }: RefreshButtonProps) {
       try {
         await Promise.resolve(onRefresh());
       } catch (err) {
-        console.error('Failed to run onRefresh:', err);
+        logger.error('Failed to run onRefresh:', err);
       }
     } else {
       router.refresh();

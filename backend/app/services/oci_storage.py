@@ -100,6 +100,7 @@ def _get_client():
         except Exception as e:
             # Fall back to file config or return error later
             from app.utils.logger import logger
+
             logger.warning("OCI environment config validation failed, falling back to file config: %s", str(e))
 
     try:
@@ -107,10 +108,12 @@ def _get_client():
         config = oci.config.from_file()
     except Exception as e:
         from app.utils.logger import logger
+
         logger.warning("OCI fallback config file load failed: %s", str(e))
         return None
     if not config:
         from app.utils.logger import logger
+
         logger.warning("OCI fallback config file loaded but is empty")
         return None
     return oci.object_storage.ObjectStorageClient(config)
@@ -131,6 +134,7 @@ def build_key(
     - banners/{uuid}/{filename}, etc.
     """
     from app.config.settings import settings
+
     env = settings.environment.lower()
     if env == "production":
         env_folder = "SJ_PROD"
@@ -266,6 +270,7 @@ async def upload_image_and_return_path(
 
     # Local fallback
     from app.config.settings import settings
+
     env = settings.environment.lower()
     if env == "production":
         env_folder = "SJ_PROD"
@@ -329,6 +334,7 @@ async def upload_base64_image_and_return_path(
 
     # Local fallback
     from app.config.settings import settings
+
     env = settings.environment.lower()
     if env == "production":
         env_folder = "SJ_PROD"

@@ -75,7 +75,8 @@ export const FontProvider = ({ children }: { children: React.ReactNode }) => {
       const weights = Array.from(
         new Set([config.weight, config.headingWeight, '400', '700', '900'])
       ).sort();
-      link.href = `https://fonts.googleapis.com/css2?family=${familyParam}:wght@${weights.join(';')}&display=swap`;
+      link.href = `https://fonts.googleapis.com/css2?family=${familyParam
+}:wght@${weights.join(';')}&display=swap`;
 
       // Apply to root
       const root = document.documentElement;

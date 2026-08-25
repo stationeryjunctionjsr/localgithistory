@@ -25,7 +25,6 @@ async def get_public_collections(
 
 
 @router.get("", response_model=List[CollectionResponse])
-
 @router.get("/", response_model=List[CollectionResponse])
 async def get_collections(current_user: dict = Depends(require_super_admin)):
     """All collections (super_admin only)."""
@@ -76,13 +75,13 @@ def _invalidate_collection_caches():
     cache.invalidate(get_collection_products)
     try:
         from app.routers.products import get_public_products
+
         cache.invalidate(get_public_products)
     except Exception:
         pass
 
 
 @router.post("", response_model=CollectionResponse, status_code=status.HTTP_201_CREATED)
-
 @router.post("/", response_model=CollectionResponse, status_code=status.HTTP_201_CREATED)
 async def create_collection(data: CollectionCreate, current_user: dict = Depends(require_super_admin)):
     collection = await collection_repository.create(data.model_dump())

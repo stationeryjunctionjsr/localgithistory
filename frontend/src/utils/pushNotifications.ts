@@ -1,5 +1,6 @@
 // Push Notifications Utility for Next.js
 import api from './api';
+import { logger } from '@/utils/logger';
 
 class PushNotificationService {
   private permission: NotificationPermission | null = null;
@@ -26,7 +27,7 @@ class PushNotificationService {
           await this.subscribeToPush();
         }
       } catch (error) {
-        console.error('Push notification initialization failed:', error);
+        logger.error('Push notification initialization failed:', error);
       }
     }
   }
@@ -34,7 +35,7 @@ class PushNotificationService {
   async subscribeToPush() {
     try {
       if (!this.registration) {
-        console.warn('Service worker not ready');
+        logger.warn('Service worker not ready');
         return;
       }
 
@@ -43,7 +44,7 @@ class PushNotificationService {
       const vapidPublicKey = response.data.publicKey;
 
       if (!vapidPublicKey) {
-        console.warn('VAPID public key not available');
+        logger.warn('VAPID public key not available');
         return;
       }
 
@@ -59,7 +60,7 @@ class PushNotificationService {
       // Register device with backend
       await this.registerDevice(this.subscription);
     } catch (error) {
-      console.error('Failed to subscribe to push notifications:', error);
+      logger.error('Failed to subscribe to push notifications:', error);
     }
   }
 
@@ -82,7 +83,7 @@ class PushNotificationService {
         subscription: subscriptionData,
       });
     } catch (error) {
-      console.error('Failed to register device:', error);
+      logger.error('Failed to register device:', error);
     }
   }
 
@@ -132,7 +133,7 @@ class PushNotificationService {
 
   showNotification(title: string, options: NotificationOptions = {}) {
     if (this.permission !== 'granted') {
-      console.warn('Notification permission not granted');
+      logger.warn('Notification permission not granted');
       return;
     }
 

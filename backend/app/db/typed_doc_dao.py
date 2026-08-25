@@ -14,14 +14,16 @@ from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.oracle_utils import json_dumps, json_loads, now_utc
 
+
 def _q(col: str) -> str:
-    if col.lower() == 'date':
+    if col.lower() == "date":
         return '"DATE"'
     return col
 
+
 def _param(col: str) -> str:
-    if col.lower() == 'date':
-        return 'p_date'
+    if col.lower() == "date":
+        return "p_date"
     return col
 
 
@@ -103,7 +105,13 @@ class TypedDocDAO:
                 continue
             if api_key in self.bool_api_keys and isinstance(val, bool):
                 params[col] = 1 if val else 0
-            elif isinstance(val, str) and (col.endswith("_at") or col.endswith("_updated") or col.endswith("_on") or "date" in col.lower() or "timestamp" in col):
+            elif isinstance(val, str) and (
+                col.endswith("_at")
+                or col.endswith("_updated")
+                or col.endswith("_on")
+                or "date" in col.lower()
+                or "timestamp" in col
+            ):
                 params[col] = _to_ts(val) or val
             else:
                 params[col] = val
@@ -125,7 +133,7 @@ class TypedDocDAO:
         factory = self._factory()
         if not factory:
             return []
-        
+
         where_clauses = []
         params = {}
         if query:
@@ -142,14 +150,13 @@ class TypedDocDAO:
                     else:
                         params[p] = v
                 # Note: CLOB filtering not supported here (requires JSON_VALUE/JSON_EXISTS)
-        
+
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         cols = ", ".join(self._all_columns())
-        
+
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT {cols} FROM {self.table_name} WHERE {where_sql} ORDER BY id ASC"),
-                params
+                text(f"SELECT {cols} FROM {self.table_name} WHERE {where_sql} ORDER BY id ASC"), params
             )
             rows = result.fetchall()
         return [self._row_to_doc(r) for r in rows]
@@ -180,14 +187,14 @@ class TypedDocDAO:
         params = self._doc_to_params(data, now)
         skip = {"id"}
         cols = [k for k in params if k not in skip]
-        
+
         bind_params = {}
         placeholders = []
         for k in cols:
             p = _param(k)
             placeholders.append(":" + p)
             bind_params[p] = params[k]
-            
+
         cols_str = ", ".join(_q(k) for k in cols)
         async with factory() as session:
             await session.execute(
@@ -219,7 +226,7 @@ class TypedDocDAO:
         params = self._doc_to_params(merged, now)
         params["id"] = int(id) if str(id).isdigit() else 0
         params["updated_at"] = now
-        
+
         bind_params = {"id": params["id"]}
         set_parts = []
         for k in params:
@@ -227,7 +234,7 @@ class TypedDocDAO:
                 p = _param(k)
                 set_parts.append(f"{_q(k)} = :{p}")
                 bind_params[p] = params[k]
-                
+
         async with factory() as session:
             await session.execute(
                 text(f"UPDATE {self.table_name} SET {', '.join(set_parts)} WHERE id = :id"),
@@ -261,7 +268,7 @@ class TypedDocDAO:
         factory = self._factory()
         if not factory:
             return 0
-        
+
         where_clauses = []
         params = {}
         if query:
@@ -277,13 +284,13 @@ class TypedDocDAO:
                         params[p] = 1 if v else 0
                     else:
                         params[p] = v
-        
+
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        
+
         now = now_utc()
         set_parts = ["updated_at = :updated_at"]
         params["updated_at"] = now
-        
+
         for k, v in update_data.items():
             if k in self.scalar_map:
                 col = self.scalar_map[k]
@@ -298,7 +305,7 @@ class TypedDocDAO:
                 param_key = f"u_{_param(col)}"
                 set_parts.append(f"{_q(col)} = :{param_key}")
                 params[param_key] = json_dumps(v) if v is not None else None
-                
+
         async with factory() as session:
             result = await session.execute(
                 text(f"UPDATE {self.table_name} SET {', '.join(set_parts)} WHERE {where_sql}"),

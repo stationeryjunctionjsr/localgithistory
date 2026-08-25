@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -37,7 +37,7 @@ async def record_event(
         # Never trust a client-supplied userId for unauthenticated requests —
         # only attach the verified userId from the session token.
         "userId": user_info.get("_id") if user_info else None,
-        "timestamp": event.get("timestamp") or datetime.utcnow().isoformat(),
+        "timestamp": event.get("timestamp") or datetime.now(timezone.utc).isoformat(),
     }
 
     try:
@@ -87,12 +87,9 @@ async def record_event(
                     await tracking_repository.trackWishlistAdd(user_id, product_id, session_id)
             elif event_type == "session_end":
                 reason = payload.get("reason", "unknown")
-                await tracking_repository.create({
-                    "type": "session_end",
-                    "userId": user_id,
-                    "sessionId": session_id,
-                    "reason": reason
-                })
+                await tracking_repository.create(
+                    {"type": "session_end", "userId": user_id, "sessionId": session_id, "reason": reason}
+                )
             elif event_type == "begin_checkout":
                 await tracking_repository.trackPageView(user_id, "/checkout/step1", session_id)
             elif event_type == "purchase":
@@ -121,6 +118,8 @@ async def get_kpi_metrics(
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
 @router.get("/dashboard-data", response_model=Dict)
 async def get_dashboard_data(
     start_date: Optional[str] = Query(None),
@@ -135,7 +134,6 @@ async def get_dashboard_data(
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
-
 
 
 @router.get("/sales-over-time", response_model=List[Dict])
@@ -268,7 +266,6 @@ async def get_checkout_funnel(
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
-
 
 
 @router.get("/sessions-by-device", response_model=List[Dict])

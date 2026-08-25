@@ -134,7 +134,9 @@ class PushNotificationService:
             for u_id in downloaded_user_ids:
                 user = user_map.get(u_id)
                 user_orders = orders_per_user.get(u_id, [])
-                if await self.is_user_targeted(u_id, notification, user=user, user_orders=user_orders, reference_date=reference_date):
+                if await self.is_user_targeted(
+                    u_id, notification, user=user, user_orders=user_orders, reference_date=reference_date
+                ):
                     targeted_user_ids.add(u_id)
 
             targeted_guest_match = False
@@ -194,10 +196,7 @@ class PushNotificationService:
             delivered_count += self._send_expo_push(expo_tokens, notification)
 
             # Update stats and persist targeted user list for strict ownership validation
-            update_data = {
-                "deliveredCount": delivered_count,
-                "targetedUserIds": list(targeted_user_ids)
-            }
+            update_data = {"deliveredCount": delivered_count, "targetedUserIds": list(targeted_user_ids)}
             await push_notification_repository.updateStats(notification.get("_id"), update_data)
 
             return {"deliveredCount": delivered_count, "totalDevices": len(targeted_devices)}
@@ -246,8 +245,14 @@ class PushNotificationService:
             logger.error("Error sending push notification to user: %s", str(e), exc_info=True)
             raise
 
-
-    async def is_user_targeted(self, user_id: str, notification: Dict, user: Optional[Dict] = None, user_orders: Optional[List[Dict]] = None, reference_date: Optional[datetime] = None) -> bool:
+    async def is_user_targeted(
+        self,
+        user_id: str,
+        notification: Dict,
+        user: Optional[Dict] = None,
+        user_orders: Optional[List[Dict]] = None,
+        reference_date: Optional[datetime] = None,
+    ) -> bool:
         """Check if a specific user satisfies the targeting criteria of a notification."""
         target_segment = notification.get("userSegment", "all")
         target_behavior = notification.get("userBehavior", "none")
@@ -257,7 +262,9 @@ class PushNotificationService:
             if reference_date_str:
                 reference_date = datetime.fromisoformat(reference_date_str.replace("Z", "+00:00"))
             else:
-                reference_date = datetime.fromisoformat(notification.get("createdAt", datetime.now().isoformat()).replace("Z", "+00:00"))
+                reference_date = datetime.fromisoformat(
+                    notification.get("createdAt", datetime.now().isoformat()).replace("Z", "+00:00")
+                )
 
         if not user:
             user = await user_repository.findById(user_id)
@@ -278,6 +285,7 @@ class PushNotificationService:
                 if single_behavior.startswith("segment_"):
                     seg_id = single_behavior[len("segment_") :]
                     from app.repositories.customer_segments_repository import customer_segments_repository
+
                     seg = await customer_segments_repository.get_by_id(seg_id)
                     if seg and "userIds" in seg and str(user_id) in [str(x) for x in seg["userIds"]]:
                         matched_any = True
@@ -292,7 +300,12 @@ class PushNotificationService:
                                 if o_date <= reference_date:
                                     user_orders.append(order)
                             except Exception as exc:
-                                logger.warning("Failed to parse createdAt for order %s of user %s: %s", order.get("_id"), user_id, exc)
+                                logger.warning(
+                                    "Failed to parse createdAt for order %s of user %s: %s",
+                                    order.get("_id"),
+                                    user_id,
+                                    exc,
+                                )
                                 continue
 
                     order_count = len(user_orders)
@@ -306,8 +319,11 @@ class PushNotificationService:
                     elif single_behavior == "behavior3":
                         three_months_ago = reference_date - timedelta(days=90)
                         recent_orders = [
-                            o for o in user_orders
-                            if three_months_ago <= datetime.fromisoformat(o.get("createdAt").replace("Z", "+00:00")) <= reference_date
+                            o
+                            for o in user_orders
+                            if three_months_ago
+                            <= datetime.fromisoformat(o.get("createdAt").replace("Z", "+00:00"))
+                            <= reference_date
                         ]
                         if len(recent_orders) >= 12:
                             matched_any = True
@@ -315,8 +331,11 @@ class PushNotificationService:
                     elif single_behavior == "behavior4":
                         three_months_ago = reference_date - timedelta(days=90)
                         recent_orders = [
-                            o for o in user_orders
-                            if three_months_ago <= datetime.fromisoformat(o.get("createdAt").replace("Z", "+00:00")) <= reference_date
+                            o
+                            for o in user_orders
+                            if three_months_ago
+                            <= datetime.fromisoformat(o.get("createdAt").replace("Z", "+00:00"))
+                            <= reference_date
                         ]
                         if 3 < len(recent_orders) <= 9:
                             matched_any = True

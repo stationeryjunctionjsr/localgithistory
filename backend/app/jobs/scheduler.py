@@ -17,6 +17,7 @@ IST = "Asia/Kolkata"
 
 async def _google_reviews_job():
     from app.repositories.google_review_repository import google_review_repository
+
     try:
         await google_review_repository.fetch_and_update()
         logger.info("Google reviews refreshed successfully via scheduled job")
@@ -94,4 +95,6 @@ def start_recommendation_scheduler():
         id="resource_monitoring_job",
     )
     scheduler.start()
-    logger.info("Recommendation scheduler started (IST): trending 12 AM/PM, favorites 12 AM, google reviews 12 AM, events sync 12 AM")
+    logger.info(
+        "Recommendation scheduler started (IST): trending 12 AM/PM, favorites 12 AM, google reviews 12 AM, events sync 12 AM"
+    )

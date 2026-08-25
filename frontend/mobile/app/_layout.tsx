@@ -24,6 +24,8 @@ import * as Linking from 'expo-linking';
 import { storeDeepLinkAttribution } from '../src/utils/mobileAnalytics';
 
 import { CoachMarkProvider } from '../src/context/CoachMarkContext';
+import { PincodeProvider } from '../src/context/PincodeContext';
+import { PincodeModal } from '../src/components/PincodeModal';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient({
@@ -146,7 +148,7 @@ const eb = StyleSheet.create({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function RootLayout() {
-  const { sessionRevokedDetail, clearSessionRevoked } = useAuth();
+  const { sessionRevokedDetail, clearSessionRevoked, user, loading } = useAuth();
   const router = useRouter();
   const responseListenerRef = useRef<Notifications.Subscription | null>(null);
 
@@ -186,22 +188,32 @@ export default function RootLayout() {
     };
   }, [router]);
 
+  // Redirect valet users to their dedicated dashboard
+  useEffect(() => {
+    if (!loading && user && (user.role === 'valet' || (user as any).effectiveRole === 'valet')) {
+      router.replace('/valet');
+    }
+  }, [user, loading, router]);
+
 
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <CoachMarkProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-          <MaintenanceGate />
-          <ForceUpdateGate />
-          <SessionAnalytics />
-          <SessionRevokedModal
-            detail={sessionRevokedDetail}
-            onCancel={() => clearSessionRevoked()}
-            onSignIn={() => clearSessionRevoked('login')}
-          />
-          <Toast />
-        </CoachMarkProvider>
+        <PincodeProvider>
+          <CoachMarkProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+            <PincodeModal />
+            <MaintenanceGate />
+            <ForceUpdateGate />
+            <SessionAnalytics />
+            <SessionRevokedModal
+              detail={sessionRevokedDetail}
+              onCancel={() => clearSessionRevoked()}
+              onSignIn={() => clearSessionRevoked('login')}
+            />
+            <Toast />
+          </CoachMarkProvider>
+        </PincodeProvider>
       </SafeAreaProvider>
     </QueryClientProvider>
   );

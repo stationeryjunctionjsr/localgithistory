@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useCoachMarks } from '@/hooks/useCoachMarks';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface CoachMarksWrapperProps {
   pageId: string;
@@ -30,7 +31,7 @@ export default function CoachMarksWrapper({ pageId }: CoachMarksWrapperProps) {
           setSteps(response.data.steps);
         }
       } catch (error) {
-        console.error('Failed to fetch coach marks:', error);
+        logger.error('Failed to fetch coach marks:', error);
       }
     };
 

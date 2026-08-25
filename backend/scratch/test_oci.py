@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 import oci

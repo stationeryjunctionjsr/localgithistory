@@ -1,6 +1,6 @@
 import json
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -54,6 +54,7 @@ class FileStorage:
                 mtime = self.file_path.stat().st_mtime
             except Exception as exc:
                 from app.utils.logger import logger
+
                 logger.warning("Failed to stat file %s: %s", self.file_path, exc)
                 mtime = 0
 
@@ -69,6 +70,7 @@ class FileStorage:
             mtime = self.file_path.stat().st_mtime
         except Exception as exc:
             from app.utils.logger import logger
+
             logger.warning("Failed to stat file %s after initialization: %s", self.file_path, exc)
             mtime = 0
 
@@ -154,8 +156,8 @@ class FileStorage:
         new_doc = {
             "_id": supplied_id,
             **data_without_id,
-            "createdAt": data.get("createdAt", datetime.utcnow().isoformat()),
-            "updatedAt": data.get("updatedAt", datetime.utcnow().isoformat()),
+            "createdAt": data.get("createdAt", datetime.now(timezone.utc).isoformat()),
+            "updatedAt": data.get("updatedAt", datetime.now(timezone.utc).isoformat()),
         }
 
         documents.append(new_doc)
@@ -172,7 +174,7 @@ class FileStorage:
         if index is None:
             return None
 
-        documents[index] = {**documents[index], **update_data, "updatedAt": datetime.utcnow().isoformat()}
+        documents[index] = {**documents[index], **update_data, "updatedAt": datetime.now(timezone.utc).isoformat()}
 
         self.file_path.write_text(json.dumps(documents, indent=2, default=str), encoding="utf-8")
         self._invalidate_cache()
@@ -199,15 +201,10 @@ class FileStorage:
         documents = await self.findAll()
         original_count = len(documents)
 
-        filtered = []
-        for doc in documents:
-            match = False
-            for key, value in query.items():
-                if doc.get(key) == value:
-                    match = True
-                    break
-            if not match:
-                filtered.append(doc)
+        filtered = [
+            doc for doc in documents
+            if not all(doc.get(key) == value for key, value in query.items())
+        ]
 
         deleted_count = original_count - len(filtered)
         self.file_path.write_text(json.dumps(filtered, indent=2, default=str), encoding="utf-8")
@@ -218,10 +215,10 @@ class FileStorage:
         """Update many documents matching query. Returns count of updated documents."""
         self._initialize()
         documents = await self.findAll()
-        
+
         count = 0
-        now_str = datetime.utcnow().isoformat()
-        
+        now_str = datetime.now(timezone.utc).isoformat()
+
         for doc in documents:
             match = True
             if query:
@@ -236,11 +233,11 @@ class FileStorage:
             if match:
                 doc.update({**update_data, "updatedAt": now_str})
                 count += 1
-                
+
         if count > 0:
             self.file_path.write_text(json.dumps(documents, indent=2, default=str), encoding="utf-8")
             self._invalidate_cache()
-            
+
         return count
 
     async def count(self, query: Optional[Dict] = None) -> int:

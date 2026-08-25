@@ -11,9 +11,11 @@ interface HoverProductCardProps {
   onAddToCart?: (e: React.MouseEvent) => void;
   onIncrement?: (e: React.MouseEvent) => void;
   onDecrement?: (e: React.MouseEvent) => void;
+  isWishlisted?: boolean;
+  onWishlistClick?: (e: React.MouseEvent) => void;
 }
 
-export default function HoverProductCard({ product, onClick, cartQuantity = 0, onAddToCart, onIncrement, onDecrement }: HoverProductCardProps) {
+export default function HoverProductCard({ product, onClick, cartQuantity = 0, onAddToCart, onIncrement, onDecrement, isWishlisted = false, onWishlistClick }: HoverProductCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -112,7 +114,40 @@ export default function HoverProductCard({ product, onClick, cartQuantity = 0, o
               New
             </div>
           )}
+          {product.previouslyBought && (
+            <div className="rounded-full bg-indigo-100 px-2.5 py-1 text-[9px] font-bold uppercase text-indigo-700 shadow-lg">
+              Previously Bought
+            </div>
+          )}
         </div>
+
+        {/* Wishlist button */}
+        {onWishlistClick && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onWishlistClick(e);
+            }}
+            className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-white"
+            aria-label="Wishlist"
+          >
+            <svg
+              className={`h-4 w-4 transition-colors ${
+                isWishlisted ? 'text-rose-500' : 'text-gray-600 hover:text-rose-500'
+              }`}
+              fill={isWishlisted ? 'currentColor' : 'none'}
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={isWishlisted ? 0 : 2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
+          </button>
+        )}
 
         {/* Discount badge - Hidden for cleaner look */}
         {/* {discountPercentage > 0 && (

@@ -13,10 +13,9 @@ from app.db.oracle_utils import json_dumps, json_loads, now_utc
 
 
 class OracleProductDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_products{suffix}"
 
     def _factory(self):
@@ -66,15 +65,15 @@ class OracleProductDAO:
             elif pf.isdigit():
                 where_clauses.append("id = :productIdFormattedVal")
                 params["productIdFormattedVal"] = int(pf)
-        
+
         if "category" in query and query["category"]:
             where_clauses.append("category = :category")
             params["category"] = query["category"]
-            
+
         if "sku" in query and query["sku"]:
             where_clauses.append("sku = :sku")
             params["sku"] = query["sku"]
-            
+
         if "categories" in query and query["categories"]:
             cats = [c.strip() for c in query["categories"].split(",") if c.strip()]
             if cats:
@@ -82,11 +81,11 @@ class OracleProductDAO:
                 params.update(cat_params)
                 cat_placeholders = ", ".join([f":{k}" for k in cat_params.keys()])
                 where_clauses.append(f"category IN ({cat_placeholders})")
-            
+
         if "subCategory" in query and query["subCategory"]:
             where_clauses.append("sub_category = :subCategory")
             params["subCategory"] = query["subCategory"]
-            
+
         if "brand" in query and query["brand"]:
             brands = [b.strip().lower() for b in query["brand"].split(",") if b.strip()]
             if brands:
@@ -94,7 +93,7 @@ class OracleProductDAO:
                 params.update(brand_params)
                 brand_placeholders = ", ".join([f":{k}" for k in brand_params.keys()])
                 where_clauses.append(f"LOWER(brand) IN ({brand_placeholders})")
-            
+
         if "search" in query and query["search"]:
             term = query["search"].strip().lower()
             tokens = [t for t in term.split() if t.strip()]
@@ -115,34 +114,34 @@ class OracleProductDAO:
                         f"(LOWER(name) LIKE :search_{idx} OR LOWER(brand) LIKE :search_{idx} OR LOWER(category) LIKE :search_{idx} OR LOWER(sku) LIKE :search_{idx})"
                     )
                     params[f"search_{idx}"] = term_like
-            
+
         if "allowed_ids" in query:
             allowed_ids = query["allowed_ids"]
             if not allowed_ids:
-                where_clauses.append("1=0") # No match possible
+                where_clauses.append("1=0")  # No match possible
             else:
                 # Handle Oracle IN clause limit of 1000
                 id_list = [int(aid) for aid in allowed_ids]
-                chunks = [id_list[i:i + 999] for i in range(0, len(id_list), 999)]
+                chunks = [id_list[i : i + 999] for i in range(0, len(id_list), 999)]
                 chunk_sqls = []
                 for chunk_idx, chunk in enumerate(chunks):
                     id_params = {f"aid_{chunk_idx}_{i}": aid for i, aid in enumerate(chunk)}
                     params.update(id_params)
                     id_placeholders = ", ".join([f":{k}" for k in id_params.keys()])
                     chunk_sqls.append(f"id IN ({id_placeholders})")
-                
+
                 if len(chunk_sqls) == 1:
                     where_clauses.append(chunk_sqls[0])
                 else:
                     where_clauses.append("(" + " OR ".join(chunk_sqls) + ")")
-            
+
         if "isActive" in query:
             is_active = 1 if query["isActive"] else 0
             where_clauses.append("is_active = :isActive")
             params["isActive"] = is_active
         elif query.get("includeInactive") is not True:
             where_clauses.append("is_active = 1")
-            
+
         if "minPrice" in query and query["minPrice"]:
             where_clauses.append("mrp >= :minPrice")
             params["minPrice"] = float(query["minPrice"])
@@ -163,9 +162,9 @@ class OracleProductDAO:
         factory = self._factory()
         if not factory:
             return [], 0
-            
+
         where_sql, params = self._build_query_conditions(query)
-        
+
         sort_sql = "ORDER BY created_at DESC"
         if sort == "price_asc":
             sort_sql = "ORDER BY mrp ASC NULLS LAST"
@@ -175,9 +174,9 @@ class OracleProductDAO:
             sort_sql = "ORDER BY name ASC"
         elif sort == "name_desc":
             sort_sql = "ORDER BY name DESC"
-            
+
         params_with_pagination = {**params, "skip": skip, "limit": limit}
-        
+
         # Single round-trip: COUNT via window function avoids a separate query.
         query_sql = f"""
             SELECT id, external_id, name, description, sku, category, sub_category, brand,
@@ -193,7 +192,7 @@ class OracleProductDAO:
         async with factory() as session:
             result = await session.execute(text(query_sql), params_with_pagination)
             rows = result.fetchall()
-            
+
         if not rows:
             return [], 0
         total_count = rows[0].total_count
@@ -204,9 +203,9 @@ class OracleProductDAO:
         factory = self._factory()
         if not factory:
             return {"brands": [], "categories": [], "subCategories": []}
-            
+
         where_sql, params = self._build_query_conditions(query)
-        
+
         # Single round-trip for all three facets via UNION ALL.
         facet_sql = f"""
             SELECT 'brand' AS facet_type, brand AS val FROM {self.TABLE}
@@ -234,14 +233,13 @@ class OracleProductDAO:
         facets["subCategories"].sort()
         return facets
 
-
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         factory = self._factory()
         if not factory:
             return []
-            
+
         where_sql, params = self._build_query_conditions(query or {})
-        
+
         async with factory() as session:
             result = await session.execute(
                 text(
@@ -255,7 +253,7 @@ class OracleProductDAO:
                     ORDER BY id ASC
                     """
                 ),
-                params
+                params,
             )
             rows = result.fetchall()
         return [self._row_to_doc(r) for r in rows]

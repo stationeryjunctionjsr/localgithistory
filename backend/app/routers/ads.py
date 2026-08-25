@@ -27,6 +27,7 @@ router = APIRouter()
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -51,6 +52,7 @@ def _find_ad(ads: List[Dict], ad_id: str) -> Optional[Dict]:
 
 
 # ── Pydantic models ──────────────────────────────────────────────────────────
+
 
 class AdCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
@@ -130,6 +132,7 @@ class AdEventRecord(BaseModel):
 
 # ── Internal helper ───────────────────────────────────────────────────────────
 
+
 def _compute_stats(ad_events: List[Dict]) -> Dict:
     impressions = sum(1 for e in ad_events if e.get("event_type") == "impression")
     clicks = sum(1 for e in ad_events if e.get("event_type") == "click")
@@ -154,10 +157,13 @@ def _compute_stats(ad_events: List[Dict]) -> Dict:
 
 # ── Admin CRUD ───────────────────────────────────────────────────────────────
 
+
 @router.get("/summary")
 async def get_ads_summary(_: dict = Depends(require_super_admin)):
     # File-based ad storage disabled. TODO: implement Oracle-backed ad storage.
-    raise HTTPException(status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled.")
+    raise HTTPException(
+        status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled."
+    )
     # ads = _load(ADS_FILE)
     # events = _load(AD_EVENTS_FILE)
     # summary = {
@@ -186,7 +192,9 @@ async def list_ads(
     _: dict = Depends(require_super_admin),
 ):
     # File-based ad storage disabled. TODO: implement Oracle-backed ad storage.
-    raise HTTPException(status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled.")
+    raise HTTPException(
+        status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled."
+    )
     # ads = _load(ADS_FILE)
     # if platform:
     #     ads = [a for a in ads if a.get("platform") == platform or a.get("platform") == "both"]
@@ -201,11 +209,12 @@ async def list_ads(
 
 
 @router.post("", status_code=201)
-
 @router.post("/", status_code=201)
 async def create_ad(payload: AdCreate, _: dict = Depends(require_super_admin)):
     # File-based ad storage disabled. TODO: implement Oracle-backed ad storage.
-    raise HTTPException(status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled.")
+    raise HTTPException(
+        status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled."
+    )
     # ads = _load(ADS_FILE)
     # ad_id = str(uuid.uuid4())
     # now = _now()
@@ -217,7 +226,9 @@ async def create_ad(payload: AdCreate, _: dict = Depends(require_super_admin)):
 @router.get("/{ad_id}")
 async def get_ad(ad_id: str, _: dict = Depends(require_super_admin)):
     # File-based ad storage disabled. TODO: implement Oracle-backed ad storage.
-    raise HTTPException(status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled.")
+    raise HTTPException(
+        status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled."
+    )
     # ads = _load(ADS_FILE)
     # ad = _find_ad(ads, ad_id)
     # if not ad:
@@ -232,7 +243,9 @@ async def get_ad(ad_id: str, _: dict = Depends(require_super_admin)):
 @router.put("/{ad_id}")
 async def update_ad(ad_id: str, payload: AdUpdate, _: dict = Depends(require_super_admin)):
     # File-based ad storage disabled. TODO: implement Oracle-backed ad storage.
-    raise HTTPException(status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled.")
+    raise HTTPException(
+        status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled."
+    )
     # ads = _load(ADS_FILE)
     # ad = _find_ad(ads, ad_id)
     # if not ad:
@@ -247,7 +260,9 @@ async def update_ad(ad_id: str, payload: AdUpdate, _: dict = Depends(require_sup
 @router.patch("/{ad_id}/status")
 async def update_ad_status(ad_id: str, payload: AdStatusUpdate, _: dict = Depends(require_super_admin)):
     # File-based ad storage disabled. TODO: implement Oracle-backed ad storage.
-    raise HTTPException(status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled.")
+    raise HTTPException(
+        status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled."
+    )
     # ads = _load(ADS_FILE)
     # ad = _find_ad(ads, ad_id)
     # if not ad:
@@ -266,7 +281,9 @@ async def update_ad_status(ad_id: str, payload: AdStatusUpdate, _: dict = Depend
 @router.delete("/{ad_id}", status_code=204)
 async def delete_ad(ad_id: str, _: dict = Depends(require_super_admin)):
     # File-based ad storage disabled. TODO: implement Oracle-backed ad storage.
-    raise HTTPException(status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled.")
+    raise HTTPException(
+        status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled."
+    )
     # ads = _load(ADS_FILE)
     # new_ads = [a for a in ads if a["id"] != ad_id]
     # if len(new_ads) == len(ads):
@@ -277,6 +294,7 @@ async def delete_ad(ad_id: str, _: dict = Depends(require_super_admin)):
 
 # ── Engagement / Conversion events ──────────────────────────────────────────
 
+
 @router.post("/events/record")
 async def record_ad_event(
     payload: AdEventRecord,
@@ -284,7 +302,9 @@ async def record_ad_event(
 ):
     """Record an ad engagement/conversion event fired by front-end tracking pixels."""
     # File-based ad event storage disabled. TODO: implement Oracle-backed ad storage.
-    raise HTTPException(status_code=501, detail="Ad event storage not yet implemented in Oracle. JSON file storage has been disabled.")
+    raise HTTPException(
+        status_code=501, detail="Ad event storage not yet implemented in Oracle. JSON file storage has been disabled."
+    )
     # events = _load(AD_EVENTS_FILE)
     # event = {
     #     "id": str(uuid.uuid4()),
@@ -308,7 +328,9 @@ async def record_ad_event(
 @router.get("/{ad_id}/stats")
 async def get_ad_stats(ad_id: str, _: dict = Depends(require_super_admin)):
     # File-based ad event storage disabled. TODO: implement Oracle-backed ad storage.
-    raise HTTPException(status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled.")
+    raise HTTPException(
+        status_code=501, detail="Ad storage not yet implemented in Oracle. JSON file storage has been disabled."
+    )
     # events = _load(AD_EVENTS_FILE)
     # ad_events = [e for e in events if e.get("ad_id") == ad_id]
     # return _compute_stats(ad_events)

@@ -12,6 +12,7 @@ load_dotenv()
 from app.config.database import get_async_session_factory
 from sqlalchemy import text
 
+
 async def main():
     fac = get_async_session_factory()
     async with fac() as s:
@@ -23,6 +24,7 @@ async def main():
             print("Successfully synced identity sequence.")
         except Exception as e:
             print("Error syncing sequence:", e)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -2,7 +2,7 @@
 Invoice PDF Generator for Orders
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from typing import Dict
@@ -142,7 +142,7 @@ async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) ->
     elements.append(Spacer(1, 20))
 
     # Invoice Details
-    invoice_date = datetime.fromisoformat(order.get("createdAt", datetime.utcnow().isoformat()).replace("Z", "+00:00"))
+    invoice_date = datetime.fromisoformat(order.get("createdAt", datetime.now(timezone.utc).isoformat()).replace("Z", "+00:00"))
     invoice_details = [
         ["Invoice Number:", order.get("orderNumber", order.get("_id", "N/A"))],
         ["Invoice Date:", invoice_date.strftime("%d/%m/%Y")],
@@ -168,7 +168,9 @@ async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) ->
     elements.append(Spacer(1, 20))
 
     # Items Table Header
-    items_data = [["S.No.", "Item Description", "HSN/SAC", "Qty", "Unit Price", "Taxable", "GST %", "GST Amount", "Total"]]
+    items_data = [
+        ["S.No.", "Item Description", "HSN/SAC", "Qty", "Unit Price", "Taxable", "GST %", "GST Amount", "Total"]
+    ]
 
     # Items
     # Determine if Intra-state (CGST/SGST) or Inter-state (IGST)
@@ -181,22 +183,22 @@ async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) ->
 
     for idx, item in enumerate(order.get("items", []), 1):
         product = item.get("product", {})
-        
+
         # Read new single unit fields with fallbacks to old fields
         single_unit_price = item.get("singleUnitPrice", item.get("price", 0))
         num_units = item.get("numberOfSingleUnits", item.get("quantity", 0))
         gst_percent = item.get("gst", 0)
-        
+
         item_total = item.get("subtotal", single_unit_price * num_units)
         taxable_value = item.get("taxableValue", 0)
         if not taxable_value:
             taxable_value = item_total / (1 + gst_percent / 100) if gst_percent > 0 else item_total
-            
+
         cgst = item.get("cgst", 0)
         sgst = item.get("sgst", 0)
         item_tax_total = cgst + sgst
         if item_tax_total == 0 and gst_percent > 0:
-             item_tax_total = item_total - taxable_value
+            item_tax_total = item_total - taxable_value
 
         total_taxable += taxable_value
         total_gst += item_tax_total
@@ -205,7 +207,7 @@ async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) ->
         qty_str = f"{item.get('quantity', 0)}"
         if item.get("sellAsCase"):
             qty_str += " Case(s)"
-            
+
         desc = f"{product.get('name', 'N/A')} (Ordered: {qty_str})"
 
         items_data.append(
@@ -335,11 +337,10 @@ async def save_invoice_pdf(pdf_buffer: BytesIO, order_id: str) -> str:
     invoices_dir = Path(DATA_DIR).parent / "uploads" / env_folder / "invoices"
     invoices_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = f"invoice-{order_id}-{int(datetime.utcnow().timestamp() * 1000)}.pdf"
+    filename = f"invoice-{order_id}-{int(datetime.now(timezone.utc).timestamp() * 1000)}.pdf"
     file_path = invoices_dir / filename
 
     with open(file_path, "wb") as f:
         f.write(pdf_buffer.getvalue())
 
     return f"/uploads/{env_folder}/invoices/{filename}"
-

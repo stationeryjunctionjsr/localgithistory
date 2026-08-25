@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface CheckoutFunnelChartProps {
   startDate: Date | null;
@@ -51,7 +52,7 @@ export default function CheckoutFunnelChart({ startDate, endDate }: CheckoutFunn
       const d = response.data;
       setData(d && typeof d === 'object' && !Array.isArray(d) ? d : null);
     } catch (error) {
-      console.error('Failed to fetch checkout funnel:', error);
+      logger.error('Failed to fetch checkout funnel:', error);
     } finally {
       setLoading(false);
     }

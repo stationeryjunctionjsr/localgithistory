@@ -2,6 +2,8 @@ import CustomerClient from '@/components/CustomerClient';
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 
+export const dynamic = 'force-dynamic';
+
 export const revalidate = 60; // 1 minute caching for the dashboard so inventory feels fresh but layout is fast
 
 export const metadata: Metadata = {
@@ -52,24 +54,29 @@ export default async function CustomerDashboardPage() {
     fetch(`${baseURL}/google-reviews/rating`, fetchOptions).catch(() => null), // Short TTL or public metric
   ]);
 
-  const extractJson = async (res: Response | null, label: string) => {
+  const extractJson = async (res: Response | null, label: string, critical: boolean = false) => {
     if (res === null) {
-      console.error(`[customer/page] fetch failed (network error): ${label}`);
+      console.error(`[fetch] network error: ${label}`);
+      if (critical) throw new Error(`Network error: ${label}`);
       return null;
     }
     if (!res.ok) {
-      console.error(`[customer/page] fetch failed (${res.status}): ${label}`);
+      console.error(`[fetch] status ${res.status}: ${label}`);
+      if (critical) throw new Error(`API failed with status ${res.status}: ${label}`);
       return null;
     }
-    return res.json().catch(() => null);
+    return res.json().catch((e) => {
+      if (critical) throw e;
+      return null;
+    });
   };
 
   const [productsRaw, categoriesRaw, tagsRaw, brandsRaw, colRaw, bannersRaw, googleRatingRaw] =
     await Promise.all([
-      extractJson(productsRes, 'products/public'),
-      extractJson(categoriesRes, 'categories/public'),
-      extractJson(tagsRes, 'category-tags/active'),
-      extractJson(brandsRes, 'brands/public'),
+      extractJson(productsRes, 'products/public', true),
+      extractJson(categoriesRes, 'categories/public', true),
+      extractJson(tagsRes, 'category-tags/active', true),
+      extractJson(brandsRes, 'brands/public', true),
       extractJson(collectionsRes, 'collections/public'),
       extractJson(bannersRes, 'banners/public'),
       extractJson(googleRatingRes, 'google-reviews/rating'),
@@ -126,12 +133,12 @@ export default async function CustomerDashboardPage() {
           We&apos;re having trouble reaching our servers. Please check your connection and refresh
           the page.
         </p>
-        <a
-          href="/"
+        <button
+          onClick={() => window.location.reload()}
           className="mt-2 rounded-full bg-emerald-800 px-6 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900"
         >
           Refresh
-        </a>
+        </button>
       </div>
     );
   }

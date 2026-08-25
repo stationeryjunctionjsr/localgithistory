@@ -1,10 +1,10 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 
 def now_utc() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc)
 
 
 def json_dumps(value: Any) -> Optional[str]:

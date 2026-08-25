@@ -9,6 +9,7 @@ import InfoButton from '@/components/InfoButton';
 import { formatDateIST } from '@/utils/dateUtils';
 import SearchableSelect from '@/components/SearchableSelect';
 import ReferralOptionManagement from '@/components/Admin/ReferralOptionManagement';
+import { logger } from '@/utils/logger';
 
 interface Discount {
   _id?: string;
@@ -172,7 +173,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
         api
           .get(`/customer-segments?type=${discountCategory}`)
           .then((r) => setCustomSegments(r.data || [])),
-      ]).catch(() => {});
+      ]).catch((e) => logger.warn("Promise rejected silently:", e));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -182,7 +183,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
       const response = await api.get('/page-info/discount-management');
       setPageInfo(response.data);
     } catch (error) {
-      console.error('Failed to fetch page info:', error);
+      logger.error('Failed to fetch page info:', error);
     }
   };
 
@@ -193,7 +194,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
       setAvailableStates(response.data || []);
     // eslint-disable-next-line unused-imports/no-unused-vars
     } catch (error) {
-      console.error('Failed to fetch states');
+      logger.error('Failed to fetch states');
     }
   };
 
@@ -209,7 +210,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
       setAvailablePincodes([]);
     // eslint-disable-next-line unused-imports/no-unused-vars
     } catch (error) {
-      console.error('Failed to fetch districts');
+      logger.error('Failed to fetch districts');
       setAvailableDistricts([]);
     }
   };
@@ -226,7 +227,7 @@ export default function DiscountManagement({ discountCategory }: DiscountManagem
       setAvailablePincodes(response.data || []);
     // eslint-disable-next-line unused-imports/no-unused-vars
     } catch (error) {
-      console.error('Failed to fetch pincodes');
+      logger.error('Failed to fetch pincodes');
       setAvailablePincodes([]);
     }
   };

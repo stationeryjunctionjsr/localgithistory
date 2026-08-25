@@ -13,6 +13,7 @@ load_dotenv()
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 
+
 async def alter_table():
     factory = get_async_session_factory()
     if not factory:
@@ -28,6 +29,7 @@ async def alter_table():
         except Exception as e:
             print(f"Error or column already exists: {e}")
             await session.rollback()
+
 
 if __name__ == "__main__":
     asyncio.run(alter_table())

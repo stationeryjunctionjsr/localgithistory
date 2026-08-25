@@ -10,6 +10,7 @@ import ModernProductCard from './ModernProductCard';
 import { SortIcon } from '../Icons/HeaderIcons';
 import api from '@/utils/api';
 import styles from './ModernCategoryPage.module.css';
+import { logger } from '@/utils/logger';
 
 interface Product {
   _id: string;
@@ -122,7 +123,7 @@ export default function ModernCategoryPage() {
         setProducts(list);
         setTotalCount(response.data.totalCount ?? list.length);
       } catch (error) {
-        console.error('Error fetching products:', error);
+        logger.error('Error fetching products:', error);
         setProducts([]);
         setTotalCount(0);
       } finally {

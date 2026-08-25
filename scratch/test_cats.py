@@ -1,5 +1,5 @@
-import urllib.request
 import json
+import urllib.request
 
 try:
     url = "http://localhost:8000/api/categories/public"

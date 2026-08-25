@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { CartScreenSkeleton } from '../../src/components/SkeletonLoader';
 import {
   View,
@@ -9,7 +9,14 @@ import {
   StyleSheet,
   StatusBar,
   Alert,
+  AppState,
+  AppStateStatus,
+  Modal,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +30,7 @@ import {
   removeGuestCartItem,
   addGuestCartItem,
   saveGuestCart,
+  addGuestWishlistItem,
 } from '../../src/services/guestStore';
 
 interface CartItem {
@@ -41,8 +49,16 @@ export default function Cart() {
   const [giftWrap, setGiftWrap] = useState<any[]>([]);
   const [wishlist, setWishlist] = useState<any[]>([]);
   const [impulse, setImpulse] = useState<any[]>([]);
+  const [savingForLaterId, setSavingForLaterId] = useState<string | null>(null);
   const { user } = useAuth();
   const router = useRouter();
+
+  const [duesInfo, setDuesInfo] = useState<any>(null);
+  const [showDuesModal, setShowDuesModal] = useState(false);
+  const [duesSettleAmount, setDuesSettleAmount] = useState('');
+  const [duesSettleImage, setDuesSettleImage] = useState<string | null>(null);
+  const [settlingDuesPayment, setSettlingDuesPayment] = useState(false);
+  const [selectedBillForSettle, setSelectedBillForSettle] = useState<any>(null);
 
   const fetchCart = useCallback(async () => {
     setLoading(true);
@@ -119,21 +135,50 @@ export default function Cart() {
       if (user) {
         const wRes = await api.get('/wishlist').catch(() => null);
         if (wRes) setWishlist((wRes.data.items || []).slice(0, 5));
+
+        if ((user as any).role === 'wholesaler' || (user as any).effectiveRole === 'wholesaler') {
+          const duesRes = await api.get('/payments/dues').catch(() => null);
+          if (duesRes) setDuesInfo(duesRes.data);
+        } else {
+          setDuesInfo(null);
+        }
       }
     } catch (e) {
       if (__DEV__) console.log('Fetch Extras Error:', e);
     }
   }, [user]);
 
+  // Track current interval so AppState listener can clear/restart it
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       fetchCart();
       fetchExtras();
-      const interval = setInterval(() => {
+      // 60s interval (was 5s). useFocusEffect stops this when the screen loses focus.
+      intervalRef.current = setInterval(() => {
         fetchCart();
         fetchExtras();
-      }, 5000);
-      return () => clearInterval(interval);
+      }, 60_000);
+
+      // AppState guard: pause polling when app is backgrounded
+      const handleAppStateChange = (nextState: AppStateStatus) => {
+        if (nextState === 'active') {
+          fetchCart();
+          fetchExtras();
+          if (!intervalRef.current) {
+            intervalRef.current = setInterval(() => { fetchCart(); fetchExtras(); }, 60_000);
+          }
+        } else {
+          if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+        }
+      };
+
+      const subscription = AppState.addEventListener('change', handleAppStateChange);
+      return () => {
+        subscription.remove();
+        if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+      };
     }, [fetchCart, fetchExtras])
   );
 
@@ -192,23 +237,67 @@ export default function Cart() {
     }
   };
 
+  const saveForLater = async (item: CartItem) => {
+    const productId = item?.product?._id || item?.productId;
+    const cartItemId = item._id;
+    if (!productId) return;
+
+    const key = cartItemId || productId;
+    setSavingForLaterId(key);
+    try {
+      if (user) {
+        // Save to wishlist via backend endpoint, then remove from cart
+        await api.post('/cart/save-for-later', { productId });
+        if (cartItemId) await api.delete(`/cart/${cartItemId}`);
+      } else {
+        // Guest: add to local wishlist + remove from local cart
+        await addGuestWishlistItem(productId, item.product);
+        await removeGuestCartItem(productId);
+      }
+      Toast.show({
+        type: 'success',
+        text1: 'Saved for Later ♥',
+        text2: `${item.product?.name || 'Item'} moved to your Wishlist`,
+      });
+      fetchCart();
+    } catch {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not save for later. Please try again.' });
+    } finally {
+      setSavingForLaterId(null);
+    }
+  };
+
   const totalPrice = items.reduce((sum, item) => {
     const subtotal = item.subtotal !== undefined ? item.subtotal : (item.product?.price || 0) * (item.quantity || 1);
     return sum + subtotal;
   }, 0);
 
+  // MRP total for discount savings line (matches web cart)
+  const totalMrp = items.reduce((sum, item) => {
+    const mrp = item.product?.mrp || item.product?.price || item.price || 0;
+    return sum + mrp * (item.quantity || 1);
+  }, 0);
+  const totalSavings = Math.max(0, totalMrp - totalPrice);
+
   const itemCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+
+  // Items with no stock — block checkout
+  const hasOOSItems = items.some(
+    (item) => (item.product?.stock ?? 1) <= 0 || item.product?.outOfStock === true
+  );
 
   const renderCartItem = ({ item }: { item: CartItem }) => {
     const name = item?.product?.name || 'Item';
     const qty = item?.quantity || 1;
     const price = item?.price !== undefined ? item.price : (item?.product?.price || 0);
+    const mrp = item?.product?.mrp || price;
     const itemSubtotal = item?.subtotal !== undefined ? item.subtotal : (price * qty);
     const rawImg = item?.product?.displayImage || item?.product?.images?.[0];
     const img = rawImg ? getImageUrl(rawImg) : null;
+    const isOOS = (item.product?.stock ?? 1) <= 0 || item.product?.outOfStock === true;
 
     return (
-      <View style={[styles.cartItem, shadows.card]}>
+      <View style={[styles.cartItem, shadows.card, isOOS && { opacity: 0.7 }]}>
         <TouchableOpacity
           style={styles.cartItemImage}
           onPress={() =>
@@ -223,40 +312,81 @@ export default function Cart() {
               <Ionicons name="cube-outline" size={24} color={colors.neutral[300]} />
             </View>
           )}
+          {/* Out-of-stock overlay on image */}
+          {isOOS && (
+            <View style={{
+              position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)',
+              borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>OUT OF STOCK</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <View style={styles.cartItemInfo}>
-          <Text style={styles.itemName} numberOfLines={2}>
-            {name}
-          </Text>
-          <Text style={styles.itemPrice}>₹{price.toLocaleString()}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+            <Text style={styles.itemName} numberOfLines={2}>
+              {name}
+            </Text>
+            {isOOS && (
+              <View style={{ backgroundColor: '#FEE2E2', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#DC2626' }}>OUT OF STOCK</Text>
+              </View>
+            )}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <Text style={styles.itemPrice}>₹{price.toLocaleString()}</Text>
+            {mrp > price && (
+              <Text style={{ fontSize: 12, color: colors.textMuted, textDecorationLine: 'line-through' }}>
+                ₹{mrp.toLocaleString()}
+              </Text>
+            )}
+          </View>
 
           <View style={styles.quantityRow}>
-            <View style={styles.quantityControls}>
+            <View style={[styles.quantityControls, isOOS && { opacity: 0.4 }]}>
               <TouchableOpacity
                 style={styles.quantityButton}
-                onPress={() => updateQty(item, Math.max(1, qty - 1))}
-                activeOpacity={0.7}
+                onPress={() => !isOOS && updateQty(item, Math.max(1, qty - 1))}
+                activeOpacity={isOOS ? 1 : 0.7}
+                disabled={isOOS}
               >
                 <Ionicons name="remove" size={16} color={colors.textPrimary} />
               </TouchableOpacity>
               <Text style={styles.quantityText}>{qty}</Text>
               <TouchableOpacity
                 style={styles.quantityButton}
-                onPress={() => updateQty(item, qty + 1)}
-                activeOpacity={0.7}
+                onPress={() => !isOOS && updateQty(item, qty + 1)}
+                activeOpacity={isOOS ? 1 : 0.7}
+                disabled={isOOS}
               >
                 <Ionicons name="add" size={16} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              style={styles.removeButton}
-              onPress={() => removeItem(item)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={18} color={colors.error} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {/* Save for Later — heart icon, moves item to wishlist */}
+              <TouchableOpacity
+                style={styles.saveForLaterButton}
+                onPress={() => saveForLater(item)}
+                disabled={savingForLaterId === (item._id || item.productId)}
+                activeOpacity={0.7}
+              >
+                {savingForLaterId === (item._id || item.productId) ? (
+                  <ActivityIndicator size="small" color="#EC4899" />
+                ) : (
+                  <Ionicons name="heart-outline" size={18} color="#EC4899" />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => removeItem(item)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.error} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -291,6 +421,57 @@ export default function Cart() {
       </View>
     </TouchableOpacity>
   );
+
+  const handleDuesFileUpload = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setDuesSettleImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (e) {
+      if (__DEV__) console.warn('Image picker error', e);
+    }
+  };
+
+  const handleSettleDues = async () => {
+    const settleAmt = parseFloat(duesSettleAmount);
+    if (!selectedBillForSettle) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Please select a bill to settle.' });
+      return;
+    }
+    if (isNaN(settleAmt) || settleAmt <= 0 || settleAmt > selectedBillForSettle.amountRemaining) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Enter a valid amount to settle.' });
+      return;
+    }
+    if (!duesSettleImage) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Please upload a payment screenshot.' });
+      return;
+    }
+    setSettlingDuesPayment(true);
+    try {
+      await api.post(`/orders/${selectedBillForSettle.orderId}/settle-credit`, {
+        amount: settleAmt,
+        paymentImage: duesSettleImage,
+        upiPaymentScreenshot: duesSettleImage,
+      });
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Dues payment submitted successfully! Awaiting admin verification.' });
+      setShowDuesModal(false);
+      setDuesSettleAmount('');
+      setDuesSettleImage(null);
+      setSelectedBillForSettle(null);
+      fetchExtras(); // Refresh dues
+    } catch (error: any) {
+      const msg = error.response?.data?.detail || error.response?.data?.error || 'Failed to submit dues settlement.';
+      Toast.show({ type: 'error', text1: 'Error', text2: msg });
+    } finally {
+      setSettlingDuesPayment(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -441,6 +622,21 @@ export default function Cart() {
           <View style={[styles.footer, shadows.lg]}>
             <View style={styles.footerContent}>
               <View style={styles.footerSummary}>
+                {/* MRP Subtotal row — only when there are savings (matches web) */}
+                {totalSavings > 0 && (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Price (MRP)</Text>
+                    <Text style={[styles.summaryValue, { textDecorationLine: 'line-through', color: colors.textMuted }]}>
+                      ₹{totalMrp.toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+                {totalSavings > 0 && (
+                  <View style={styles.summaryRow}>
+                    <Text style={[styles.summaryLabel, { color: '#059669' }]}>Discount</Text>
+                    <Text style={[styles.summaryValue, { color: '#059669' }]}>-₹{totalSavings.toLocaleString()}</Text>
+                  </View>
+                )}
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Subtotal</Text>
                   <Text style={styles.summaryValue}>₹{totalPrice.toLocaleString()}</Text>
@@ -453,13 +649,40 @@ export default function Cart() {
                   <Text style={styles.footerTotal}>₹{totalPrice.toLocaleString()}</Text>
                 </View>
               </View>
+
+              {/* OOS warning banner */}
+              {hasOOSItems && (
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  backgroundColor: '#FEF2F2', borderColor: '#FECACA',
+                  borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 10,
+                }}>
+                  <Ionicons name="alert-circle-outline" size={16} color="#DC2626" style={{ marginRight: 6 }} />
+                  <Text style={{ fontSize: 12, color: '#DC2626', fontWeight: '600', flex: 1 }}>
+                    Some items are out of stock. Please remove them before checkout.
+                  </Text>
+                </View>
+              )}
+
               <TouchableOpacity
-                style={styles.checkoutButton}
-                onPress={() => router.push('/checkout')}
-                activeOpacity={0.9}
+                style={[styles.checkoutButton, hasOOSItems && { opacity: 0.5 }]}
+                onPress={() => {
+                  if (hasOOSItems) {
+                    Toast.show({ type: 'error', text1: 'Out of stock items', text2: 'Remove out-of-stock items before proceeding.' });
+                    return;
+                  }
+                  if (user && ((user as any).role === 'wholesaler' || (user as any).effectiveRole === 'wholesaler') && duesInfo?.hasOverdueBills) {
+                    setShowDuesModal(true);
+                    return;
+                  }
+                  router.push('/checkout');
+                }}
+                activeOpacity={hasOOSItems ? 1 : 0.9}
               >
-                <View style={styles.checkoutGradient}>
-                  <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
+                <View style={[styles.checkoutGradient, duesInfo?.hasOverdueBills && { backgroundColor: '#EF4444' }]}>
+                  <Text style={styles.checkoutButtonText}>
+                    {duesInfo?.hasOverdueBills ? 'Clear Dues to Checkout' : 'Proceed to Checkout'}
+                  </Text>
                   <Ionicons name="arrow-forward" size={18} color={colors.surface} />
                 </View>
               </TouchableOpacity>
@@ -467,6 +690,83 @@ export default function Cart() {
           </View>
         </>
       )}
+
+      {/* Dues Modal */}
+      <Modal visible={showDuesModal} transparent={true} animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Outstanding Dues</Text>
+              <TouchableOpacity onPress={() => setShowDuesModal(false)} style={styles.modalClose}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              <View style={styles.duesWarningBox}>
+                <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                <Text style={styles.duesWarningText}>
+                  You have overdue bills. Please clear a minimum of ₹{duesInfo?.minimumAmountToUnblock?.toLocaleString()} to proceed to checkout.
+                </Text>
+              </View>
+
+              <Text style={styles.modalSubtitle}>Select Bill to Settle</Text>
+              {duesInfo?.bills?.filter((b: any) => b.status === 'overdue').map((bill: any) => (
+                <TouchableOpacity
+                  key={bill.orderId}
+                  style={[
+                    styles.billCard,
+                    selectedBillForSettle?.orderId === bill.orderId && styles.billCardSelected,
+                  ]}
+                  onPress={() => setSelectedBillForSettle(bill)}
+                >
+                  <View style={styles.billHeader}>
+                    <Text style={styles.billOrderRef}>{bill.orderRef}</Text>
+                    <Text style={styles.billOverdueBadge}>OVERDUE</Text>
+                  </View>
+                  <Text style={styles.billAmount}>Remaining: ₹{bill.amountRemaining?.toLocaleString()}</Text>
+                  <Text style={styles.billDueDate}>Due Date: {new Date(bill.dueDate).toLocaleDateString()}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {selectedBillForSettle && (
+                <View style={styles.settleForm}>
+                  <Text style={styles.formLabel}>Amount to Settle (₹)</Text>
+                  <TextInput
+                    style={styles.inputField}
+                    keyboardType="numeric"
+                    placeholder="Enter amount"
+                    value={duesSettleAmount}
+                    onChangeText={setDuesSettleAmount}
+                  />
+
+                  <Text style={styles.formLabel}>Payment Screenshot</Text>
+                  <TouchableOpacity style={styles.uploadButton} onPress={handleDuesFileUpload}>
+                    <Ionicons name="cloud-upload-outline" size={20} color={colors.primary} />
+                    <Text style={styles.uploadButtonText}>
+                      {duesSettleImage ? 'Change Screenshot' : 'Upload Screenshot'}
+                    </Text>
+                  </TouchableOpacity>
+                  {duesSettleImage && (
+                    <Image source={{ uri: duesSettleImage }} style={styles.uploadedImagePreview} />
+                  )}
+
+                  <TouchableOpacity
+                    style={styles.submitButton}
+                    onPress={handleSettleDues}
+                    disabled={settlingDuesPayment}
+                  >
+                    {settlingDuesPayment ? (
+                      <ActivityIndicator color={colors.surface} />
+                    ) : (
+                      <Text style={styles.submitButtonText}>Submit Settlement</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -608,6 +908,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     minWidth: 20,
     textAlign: 'center',
+  },
+  saveForLaterButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FDF2F8',
+    borderRadius: borderRadius.md,
   },
   removeButton: {
     width: 36,
@@ -785,5 +1093,154 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1E40AF',
     flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '80%',
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  modalClose: {
+    padding: 4,
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  duesWarningBox: {
+    flexDirection: 'row',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+  },
+  duesWarningText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#DC2626',
+    fontWeight: '500',
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  billCard: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    backgroundColor: colors.surface,
+  },
+  billCardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: '#EFF6FF',
+  },
+  billHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  billOrderRef: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  billOverdueBadge: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#DC2626',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  billAmount: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  billDueDate: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  settleForm: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingBottom: 40,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  inputField: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    marginBottom: 20,
+    backgroundColor: colors.backgroundAlt,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+  },
+  uploadButtonText: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  uploadedImagePreview: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  submitButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.surface,
   },
 });

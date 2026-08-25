@@ -11,7 +11,6 @@ router = APIRouter()
 
 
 @router.get("", response_model=List[CoachMarkResponse])
-
 @router.get("/", response_model=List[CoachMarkResponse])
 @cache.ttl_cache(ttl=3600.0)
 async def get_all_coach_marks():
@@ -28,7 +27,6 @@ async def get_coach_mark(id: str):
 
 
 @router.post("", response_model=CoachMarkResponse)
-
 @router.post("/", response_model=CoachMarkResponse)
 async def create_coach_mark(mark: CoachMarkCreate, current_user: dict = Depends(require_super_admin)):
     return await coach_mark_repository.create(mark.model_dump())

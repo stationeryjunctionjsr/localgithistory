@@ -1,21 +1,24 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
   TextInput,
-  Modal,
-  ActivityIndicator,
+  TouchableOpacity,
+  Text,
   StyleSheet,
+  Modal,
   Platform,
+  ScrollView,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
-import api, { SESSION_KEY } from '../api/client';
+import { router } from 'expo-router';
+import api from '../api/client';
 import { colors, borderRadius, shadows } from '../theme';
 
-
+const SESSION_KEY = 'sj_session_id';
+const PINCODE_KEY = 'sj_user_pincode';
 
 interface SearchOverlayProps {
   visible: boolean;
@@ -33,26 +36,30 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
   const [query, setQuery] = useState(initialQuery);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [popularTerms, setPopularTerms] = useState<string[]>([]);
+  const [recentProducts, setRecentProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchSuggestions = useCallback(async () => {
+  // Live autocomplete
+  const [liveAutocomplete, setLiveAutocomplete] = useState<{ products: any[]; brands: string[]; categories: string[] }>({ products: [], brands: [], categories: [] });
+  const [loadingAutocomplete, setLoadingAutocomplete] = useState(false);
+
+  const fetchInitialData = useCallback(async () => {
     setLoading(true);
     try {
       const sessionId = await SecureStore.getItemAsync(SESSION_KEY);
 
-      // Fetch recent searches
-      const recentRes = await api.get('/tracking/recent', {
-        params: { sessionId, limit: 5 },
-      });
-      setRecentSearches(recentRes.data || []);
+      // Parallel fetch for recent searches, popular terms, and recent products
+      const [recentRes, suggestionsRes, productsRes] = await Promise.all([
+        api.get('/tracking/recent', { params: { sessionId, limit: 5 } }),
+        api.get('/tracking/suggestions', { params: { limit: 8 } }),
+        api.get('/tracking/recent-products', { params: { sessionId, limit: 10 } }).catch(() => ({ data: [] })),
+      ]);
 
-      // Fetch popular suggestions
-      const suggestionsRes = await api.get('/tracking/suggestions', {
-        params: { limit: 8 },
-      });
+      setRecentSearches(recentRes.data || []);
       setPopularTerms(suggestionsRes.data?.popularTerms || []);
+      setRecentProducts(productsRes.data || []);
     } catch (error) {
-      if (__DEV__) console.error('Error fetching search suggestions:', error);
+      if (__DEV__) console.error('Error fetching search initial data:', error);
     } finally {
       setLoading(false);
     }
@@ -60,10 +67,41 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
 
   useEffect(() => {
     if (visible) {
-      fetchSuggestions();
+      fetchInitialData();
       setQuery(initialQuery);
     }
-  }, [visible, initialQuery, fetchSuggestions]);
+  }, [visible, initialQuery, fetchInitialData]);
+
+  // Debounced live autocomplete
+  useEffect(() => {
+    if (!visible) return;
+    if (query.trim().length < 2) {
+      setLiveAutocomplete({ products: [], brands: [], categories: [] });
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setLoadingAutocomplete(true);
+      try {
+        const pincode = await SecureStore.getItemAsync(PINCODE_KEY);
+        const params: any = { q: query.trim(), limit: '8' };
+        if (pincode) params.pincode = pincode;
+        
+        const res = await api.get('/products/suggest', { params });
+        setLiveAutocomplete({
+          products: res.data?.products || [],
+          brands: res.data?.brands || [],
+          categories: res.data?.categories || [],
+        });
+      } catch (err) {
+        if (__DEV__) console.error('Autocomplete error', err);
+      } finally {
+        setLoadingAutocomplete(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [query, visible]);
 
   const handleSearchSubmit = async (text: string) => {
     if (!text.trim()) return;
@@ -122,10 +160,82 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
         </View>
 
         <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-          {loading ? (
+          {loading || loadingAutocomplete ? (
             <ActivityIndicator style={styles.loader} color={colors.primary} />
+          ) : query.length >= 2 ? (
+            <>
+              {liveAutocomplete.products.length > 0 || liveAutocomplete.brands.length > 0 || liveAutocomplete.categories.length > 0 ? (
+                <View style={styles.section}>
+                  {liveAutocomplete.products.map((p, i) => (
+                    <TouchableOpacity
+                      key={`prod-${i}`}
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        onClose();
+                        router.push(`/products/${p.productId}`);
+                      }}
+                    >
+                      <Ionicons name="search" size={20} color={colors.textMuted} style={{ marginRight: 12 }} />
+                      <Text style={styles.suggestionText} numberOfLines={1}>{p.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                  {liveAutocomplete.brands.map((brand, i) => (
+                    <TouchableOpacity
+                      key={`brand-${i}`}
+                      style={styles.suggestionItem}
+                      onPress={() => handleSearchSubmit(brand)}
+                    >
+                      <Ionicons name="pricetag" size={20} color={colors.primary} style={{ marginRight: 12 }} />
+                      <Text style={styles.suggestionText}>
+                        <Text style={{ fontWeight: 'bold' }}>Brand:</Text> {brand}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  {liveAutocomplete.categories.map((cat, i) => (
+                    <TouchableOpacity
+                      key={`cat-${i}`}
+                      style={styles.suggestionItem}
+                      onPress={() => handleSearchSubmit(cat)}
+                    >
+                      <Ionicons name="grid" size={20} color={colors.primary} style={{ marginRight: 12 }} />
+                      <Text style={styles.suggestionText}>
+                        <Text style={{ fontWeight: 'bold' }}>Category:</Text> {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="search-outline" size={48} color={colors.textMuted} />
+                  <Text style={styles.emptyStateTitle}>No matches found</Text>
+                  <Text style={styles.emptyStateText}>Try checking for typos or using different keywords</Text>
+                </View>
+              )}
+            </>
           ) : (
             <>
+              {/* Recently Browsed Products */}
+              {recentProducts.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Recently Browsed</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recentProductsScroll}>
+                    {recentProducts.map((p, index) => (
+                      <TouchableOpacity
+                        key={`rp-${index}`}
+                        style={styles.recentProductCard}
+                        onPress={() => {
+                          onClose();
+                          router.push(`/products/${p.productId}`);
+                        }}
+                      >
+                        <Image source={{ uri: p.displayImage }} style={styles.recentProductImage} />
+                        <Text style={styles.recentProductName} numberOfLines={2}>{p.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
               {/* Recent Searches */}
               {recentSearches.length > 0 && (
                 <View style={styles.section}>
@@ -168,16 +278,6 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                   </View>
                 </View>
               )}
-
-              {/* Quick Categories from popularTerms fallback — only shown when no other content */}
-              {popularTerms.length === 0 && recentSearches.length === 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Search Tips</Text>
-                  <Text style={[styles.tagText, { marginLeft: 0, color: colors.textMuted }]}>
-                    Try searching by product name, brand, or category.
-                  </Text>
-                </View>
-              )}
             </>
           )}
         </ScrollView>
@@ -187,6 +287,51 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
 };
 
 const styles = StyleSheet.create({
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  suggestionText: {
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginTop: 16,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginTop: 8,
+  },
+  recentProductsScroll: {
+    paddingVertical: 8,
+  },
+  recentProductCard: {
+    width: 100,
+    marginRight: 16,
+  },
+  recentProductImage: {
+    width: 100,
+    height: 100,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.backgroundAlt,
+  },
+  recentProductName: {
+    fontSize: 12,
+    color: colors.textPrimary,
+    marginTop: 8,
+    lineHeight: 16,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.surface,

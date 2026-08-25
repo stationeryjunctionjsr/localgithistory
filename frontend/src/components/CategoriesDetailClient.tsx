@@ -8,6 +8,7 @@ import HeroBanner from '@/components/HeroBanner';
 import ProductCatalog from '@/components/ProductCatalog';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/utils/logger';
 
 interface CategoryInfo {
   _id?: string;
@@ -93,7 +94,7 @@ export default function CategoriesDetailClient({
         });
         setBanners(res.data || []);
       } catch (err) {
-        console.error('Banner fetch error:', err);
+        logger.error('Banner fetch error:', err);
       }
     };
     fetchBanners();

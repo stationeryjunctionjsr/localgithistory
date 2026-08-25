@@ -11,6 +11,7 @@ import asyncio
 from app.repositories.coupon_repository import coupon_repository
 from app.models.schemas import CouponResponse
 
+
 async def test_direct():
     # 1. Create a coupon first
     coupon_data = {
@@ -24,28 +25,29 @@ async def test_direct():
         "validUntil": "2026-12-31T23:59:59",
         "applicableRoles": ["customer"],
         "appliesToType": "all",
-        "force": True
+        "force": True,
     }
-    
+
     # Pre-cleanup
     existing = await coupon_repository.findByCode("TESTID10")
     if existing:
         await coupon_repository.delete(existing["_id"])
-        
+
     created = await coupon_repository.create(coupon_data)
     print("Created coupon:", created)
-    
+
     # Check repository findOne
     retrieved = await coupon_repository.findByCode("TESTID10")
     print("Retrieved coupon:", retrieved)
-    
+
     # Validate the Pydantic serialization
     response_model = CouponResponse(**retrieved)
     print("CouponResponse dict():", response_model.dict())
     print("CouponResponse dict(by_alias=True):", response_model.dict(by_alias=True))
-    
+
     # Cleanup
     await coupon_repository.delete(created["_id"])
+
 
 if __name__ == "__main__":
     asyncio.run(test_direct())

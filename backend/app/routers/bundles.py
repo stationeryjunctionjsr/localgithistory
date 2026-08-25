@@ -36,6 +36,7 @@ router = APIRouter()
 
 # ─── Pydantic schemas ─────────────────────────────────────────────────────────
 
+
 class BundleItemSchema(BaseModel):
     productId: str
     quantity: int  # quantity of that product included in one bundle
@@ -44,7 +45,7 @@ class BundleItemSchema(BaseModel):
 class CreateBundleRequest(BaseModel):
     name: str
     description: Optional[str] = None
-    price: float           # bundle price (what customer pays for the whole bundle)
+    price: float  # bundle price (what customer pays for the whole bundle)
     items: List[BundleItemSchema]
     imageUrl: Optional[str] = None
     isActive: bool = True
@@ -62,6 +63,7 @@ class UpdateBundleRequest(BaseModel):
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
 
 async def _enrich_bundle(bundle: Dict) -> Dict:
     """
@@ -88,19 +90,21 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
         if stock < qty:
             fully_available = False
 
-        enriched_items.append({
-            "productId": item["productId"],
-            "quantity": qty,
-            "product": {
-                "_id": product.get("_id"),
-                "name": product.get("name"),
-                "sku": product.get("sku"),
-                "mrp": mrp,
-                "images": product.get("images", []),
-                "stock": stock,
-            },
-            "lineMrp": line_mrp,
-        })
+        enriched_items.append(
+            {
+                "productId": item["productId"],
+                "quantity": qty,
+                "product": {
+                    "_id": product.get("_id"),
+                    "name": product.get("name"),
+                    "sku": product.get("sku"),
+                    "mrp": mrp,
+                    "images": product.get("images", []),
+                    "stock": stock,
+                },
+                "lineMrp": line_mrp,
+            }
+        )
 
     bundle_price = bundle.get("price", 0)
     return {
@@ -124,6 +128,7 @@ async def _validate_bundle_items(items: List[BundleItemSchema]):
 
 
 # ─── Public endpoints ──────────────────────────────────────────────────────────
+
 
 @router.get("")
 @router.get("/")
@@ -230,7 +235,7 @@ async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_cu
                 pname = product.get("name", item["productId"])
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Insufficient stock for '{pname}'. Available: {available}, required: {item['quantity']}"
+                    detail=f"Insufficient stock for '{pname}'. Available: {available}, required: {item['quantity']}",
                 )
 
         cart = await cart_repository.findByUser(user_id)
@@ -245,14 +250,13 @@ async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_cu
                 "product": pid,
                 "quantity": qty,
                 "sellAsCase": False,
-                "bundleId": bundle_id,        # tag so cart UI can group bundle items visually
+                "bundleId": bundle_id,  # tag so cart UI can group bundle items visually
                 "bundleName": bundle.get("name"),
             }
 
             if cart:
                 existing = next(
-                    (i for i in cart.get("items", [])
-                     if i.get("product") == pid and i.get("bundleId") == bundle_id),
+                    (i for i in cart.get("items", []) if i.get("product") == pid and i.get("bundleId") == bundle_id),
                     None,
                 )
                 if existing:
@@ -294,6 +298,7 @@ async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_cu
 
 
 # ─── Admin endpoints ───────────────────────────────────────────────────────────
+
 
 @router.post("/admin")
 async def create_bundle(payload: CreateBundleRequest, current_user: dict = Depends(require_super_admin)):

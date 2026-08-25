@@ -26,6 +26,7 @@ class ProductReviewRepository:
             self._initialized = True
             return
         from app.config.settings import settings
+
         suffix = getattr(settings, "table_suffix", "")
         table_name_upper = f"SJ_PRODUCT_REVIEWS{suffix}".upper()
         table_name_lower = f"sj_product_reviews{suffix}".lower()
@@ -37,8 +38,7 @@ class ProductReviewRepository:
         async with factory() as session:
             try:
                 result = await session.execute(
-                    text("SELECT table_name FROM user_tables WHERE table_name = :tname"),
-                    {"tname": table_name_upper}
+                    text("SELECT table_name FROM user_tables WHERE table_name = :tname"), {"tname": table_name_upper}
                 )
                 row = result.fetchone()
                 if not row:

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface SalesByReferrerProps {
   startDate: Date | null;
@@ -29,7 +30,7 @@ export default function SalesByReferrer({ startDate, endDate, currency }: SalesB
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch sales by referrer:', error);
+      logger.error('Failed to fetch sales by referrer:', error);
       setLoading(false);
     }
   };

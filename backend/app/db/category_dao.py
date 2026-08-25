@@ -13,10 +13,9 @@ from app.db.oracle_utils import json_dumps, json_loads, now_utc
 
 
 class OracleCategoryDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_categories{suffix}"
 
     def _factory(self):
@@ -87,7 +86,7 @@ class OracleCategoryDAO:
                     WHERE {where_sql}
                     """
                 ),
-                params
+                params,
             )
             rows = result.fetchall()
         docs = [self._row_to_doc(r) for r in rows]

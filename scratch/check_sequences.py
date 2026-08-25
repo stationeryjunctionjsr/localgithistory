@@ -2,6 +2,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 backend_root = Path(__file__).resolve().parent.parent / "backend"
@@ -9,8 +10,9 @@ sys.path.insert(0, str(backend_root))
 os.chdir(backend_root)
 load_dotenv()
 
-from sqlalchemy import text
 from app.config.database import get_async_session_factory
+from sqlalchemy import text
+
 
 async def main():
     factory = get_async_session_factory()
@@ -24,6 +26,7 @@ async def main():
         print(f"Sequences found: {len(rows)}")
         for row in rows:
             print(f"  Sequence: {row.sequence_name}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

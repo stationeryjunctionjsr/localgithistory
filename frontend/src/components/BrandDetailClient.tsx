@@ -8,6 +8,7 @@ import HeroBanner from '@/components/HeroBanner';
 import ProductCatalog from '@/components/ProductCatalog';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/utils/logger';
 
 interface BrandInfo {
   _id?: string;
@@ -88,7 +89,7 @@ export default function BrandDetailClient({
         const activeBanners = (res.data || []).filter((b: any) => b.isActive);
         setBanners(activeBanners);
       } catch (error) {
-        console.error('Failed to fetch brand banners', error);
+        logger.error('Failed to fetch brand banners', error);
       }
     };
     if (brandInfo?.name || slug) fetchBanners();

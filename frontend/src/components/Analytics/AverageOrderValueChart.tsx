@@ -12,6 +12,7 @@ import {
   Legend,
 } from 'recharts';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface AverageOrderValueChartProps {
   startDate: Date | null;
@@ -43,7 +44,7 @@ export default function AverageOrderValueChart({
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch average order value:', error);
+      logger.error('Failed to fetch average order value:', error);
       setLoading(false);
     }
   };

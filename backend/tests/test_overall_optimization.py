@@ -6,6 +6,7 @@ from app.repositories.cart_repository import cart_repository
 from app.repositories.user_repository import user_repository
 from app.db.storage_factory import get_storage
 
+
 async def clean_database():
     try:
         # Delete test user's wishlist, cart and sessions first to satisfy foreign key constraints
@@ -15,6 +16,7 @@ async def clean_database():
                 await wishlist_repository.storage.deleteMany({"user": u["_id"]})
                 await cart_repository.storage.deleteMany({"user": u["_id"]})
                 from app.repositories.session_repository import session_repository
+
                 await session_repository.storage.deleteMany({"user": u["_id"]})
                 await user_repository.storage.delete(u["_id"])
 
@@ -26,17 +28,19 @@ async def clean_database():
     except Exception as e:
         print(f"CLEANUP ERROR: {e}")
 
+
 @pytest.fixture(autouse=True)
 async def cleanup_database():
     await clean_database()
     yield
     await clean_database()
 
+
 @pytest.mark.asyncio
 async def test_oracle_doc_store_filtering():
     # Test JSON_VALUE query filtering on DocStore
     store = get_storage("stockReservations")
-    
+
     # Clean up test reservations first
     all_res = await store.findAll()
     for res in all_res:
@@ -44,20 +48,24 @@ async def test_oracle_doc_store_filtering():
             await store.delete(res["_id"])
 
     # Create dummy reservations
-    r1 = await store.create({
-        "productId": "9991",
-        "userId": "TEST_GEN_OPT_USER_ID",
-        "quantity": 5,
-        "status": "active",
-        "expiresAt": "2026-06-04T12:00:00Z"
-    })
-    r2 = await store.create({
-        "productId": "9992",
-        "userId": "TEST_GEN_OPT_USER_ID",
-        "quantity": 10,
-        "status": "expired",
-        "expiresAt": "2026-06-04T12:00:00Z"
-    })
+    r1 = await store.create(
+        {
+            "productId": "9991",
+            "userId": "TEST_GEN_OPT_USER_ID",
+            "quantity": 5,
+            "status": "active",
+            "expiresAt": "2026-06-04T12:00:00Z",
+        }
+    )
+    r2 = await store.create(
+        {
+            "productId": "9992",
+            "userId": "TEST_GEN_OPT_USER_ID",
+            "quantity": 10,
+            "status": "expired",
+            "expiresAt": "2026-06-04T12:00:00Z",
+        }
+    )
 
     # Query with filter
     active_res = await store.findAll({"userId": "TEST_GEN_OPT_USER_ID", "status": "active"})
@@ -68,38 +76,28 @@ async def test_oracle_doc_store_filtering():
     await store.delete(r1["_id"])
     await store.delete(r2["_id"])
 
+
 @pytest.mark.asyncio
 async def test_wishlist_and_cart_bulk_populating(client):
     # 1. Create a test user and product
-    user = await user_repository.create({
-        "name": "TEST_GEN_OPT_User",
-        "email": "gen_opt_user@test.com",
-        "password": "Password123",
-        "role": "customer"
-    })
-    
-    product = await product_repository.create({
-        "name": "TEST_GEN_OPT_Product",
-        "sku": "SKU-GEN-OPT",
-        "mrp": 150.0,
-        "category": "Stationery"
-    })
+    user = await user_repository.create(
+        {"name": "TEST_GEN_OPT_User", "email": "gen_opt_user@test.com", "password": "Password123", "role": "customer"}
+    )
+
+    product = await product_repository.create(
+        {"name": "TEST_GEN_OPT_Product", "sku": "SKU-GEN-OPT", "mrp": 150.0, "category": "Stationery"}
+    )
 
     # Add to wishlist
     await wishlist_repository.addItem(user["_id"], {"product": product["_id"], "quantity": 1})
 
     # Add to cart
-    await cart_repository.addItem(user["_id"], {
-        "product": product["_id"],
-        "quantity": 2,
-        "sellAsCase": False
-    })
+    await cart_repository.addItem(user["_id"], {"product": product["_id"], "quantity": 2, "sellAsCase": False})
 
     # Perform login via endpoint to get auth token
-    login_resp = await client.post("/api/auth/login", json={
-        "email": "gen_opt_user@test.com",
-        "password": "Password123"
-    })
+    login_resp = await client.post(
+        "/api/auth/login", json={"email": "gen_opt_user@test.com", "password": "Password123"}
+    )
     assert login_resp.status_code == 200
     token = login_resp.json()["token"]
     headers = {"Authorization": f"Bearer {token}", "x-session-id": "test-session-opt"}

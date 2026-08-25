@@ -45,11 +45,24 @@ TIMEOUT = 15.0  # seconds per request
 
 
 # ── Colour helpers ────────────────────────────────────────────────────────────
-def _green(s):  return f"\033[92m{s}\033[0m"
-def _yellow(s): return f"\033[93m{s}\033[0m"
-def _red(s):    return f"\033[91m{s}\033[0m"
-def _bold(s):   return f"\033[1m{s}\033[0m"
-def _cyan(s):   return f"\033[96m{s}\033[0m"
+def _green(s):
+    return f"\033[92m{s}\033[0m"
+
+
+def _yellow(s):
+    return f"\033[93m{s}\033[0m"
+
+
+def _red(s):
+    return f"\033[91m{s}\033[0m"
+
+
+def _bold(s):
+    return f"\033[1m{s}\033[0m"
+
+
+def _cyan(s):
+    return f"\033[96m{s}\033[0m"
 
 
 def _color_ms(value_ms: float, warn_ms: float, fail_ms: float) -> str:
@@ -62,6 +75,7 @@ def _color_ms(value_ms: float, warn_ms: float, fail_ms: float) -> str:
 
 
 # ── Core benchmark function ───────────────────────────────────────────────────
+
 
 def benchmark_endpoint(
     client: httpx.Client,
@@ -107,25 +121,26 @@ def benchmark_endpoint(
         return sorted_t[idx]
 
     return {
-        "label":    label,
-        "method":   method,
-        "path":     path,
-        "reps":     reps,
-        "mean_ms":  statistics.mean(timings_ms),
+        "label": label,
+        "method": method,
+        "path": path,
+        "reps": reps,
+        "mean_ms": statistics.mean(timings_ms),
         "median_ms": statistics.median(timings_ms),
-        "p50_ms":   percentile(50),
-        "p90_ms":   percentile(90),
-        "p99_ms":   percentile(99),
-        "min_ms":   min(timings_ms),
-        "max_ms":   max(timings_ms),
+        "p50_ms": percentile(50),
+        "p90_ms": percentile(90),
+        "p99_ms": percentile(99),
+        "min_ms": min(timings_ms),
+        "max_ms": max(timings_ms),
         "stdev_ms": statistics.stdev(timings_ms) if n > 1 else 0,
-        "errors":   errors,
+        "errors": errors,
         "error_count": len(errors),
         "error_rate_pct": (len(errors) / reps) * 100,
     }
 
 
 # ── Reporting ─────────────────────────────────────────────────────────────────
+
 
 def print_results_table(results: list[dict]):
     col_w = [40, 8, 8, 8, 8, 8, 8, 6]
@@ -141,7 +156,7 @@ def print_results_table(results: list[dict]):
     all_passed = True
     for r in results:
         if "error" in r:
-            label_str = r["label"][:col_w[0]].ljust(col_w[0])
+            label_str = r["label"][: col_w[0]].ljust(col_w[0])
             print(f"  {label_str}  {_red('ALL FAILED')}")
             all_passed = False
             continue
@@ -153,14 +168,14 @@ def print_results_table(results: list[dict]):
         if not (p50_ok and p90_ok and p99_ok):
             all_passed = False
 
-        label_str = r["label"][:col_w[0]].ljust(col_w[0])
-        mean_s = _color_ms(r["mean_ms"],   SLA["p50_ms"], SLA["p90_ms"])
-        p50_s  = _color_ms(r["p50_ms"],    SLA["p50_ms"], SLA["p90_ms"])
-        p90_s  = _color_ms(r["p90_ms"],    SLA["p90_ms"], SLA["p99_ms"])
-        p99_s  = _color_ms(r["p99_ms"],    SLA["p99_ms"], SLA["p99_ms"] * 2)
-        min_s  = f"{r['min_ms']:.0f} ms"
-        max_s  = f"{r['max_ms']:.0f} ms"
-        err_s  = _red(str(r["error_count"])) if r["error_count"] else _green("0")
+        label_str = r["label"][: col_w[0]].ljust(col_w[0])
+        mean_s = _color_ms(r["mean_ms"], SLA["p50_ms"], SLA["p90_ms"])
+        p50_s = _color_ms(r["p50_ms"], SLA["p50_ms"], SLA["p90_ms"])
+        p90_s = _color_ms(r["p90_ms"], SLA["p90_ms"], SLA["p99_ms"])
+        p99_s = _color_ms(r["p99_ms"], SLA["p99_ms"], SLA["p99_ms"] * 2)
+        min_s = f"{r['min_ms']:.0f} ms"
+        max_s = f"{r['max_ms']:.0f} ms"
+        err_s = _red(str(r["error_count"])) if r["error_count"] else _green("0")
 
         row = f"  {label_str}  {mean_s:<8}  {p50_s:<8}  {p90_s:<8}  {p99_s:<8}  {min_s:<8}  {max_s:<8}  {err_s}"
         print(row)
@@ -187,20 +202,17 @@ def save_html_report(results: list[dict], title: str, filepath: str):
             f"<tr>"
             f"<td>{r['label']}</td>"
             f"<td>{r['method']}</td>"
-            f"{cell(r['mean_ms'],   SLA['p50_ms'], SLA['p90_ms'])}"
-            f"{cell(r['p50_ms'],    SLA['p50_ms'], SLA['p90_ms'])}"
-            f"{cell(r['p90_ms'],    SLA['p90_ms'], SLA['p99_ms'])}"
-            f"{cell(r['p99_ms'],    SLA['p99_ms'], SLA['p99_ms']*2)}"
+            f"{cell(r['mean_ms'], SLA['p50_ms'], SLA['p90_ms'])}"
+            f"{cell(r['p50_ms'], SLA['p50_ms'], SLA['p90_ms'])}"
+            f"{cell(r['p90_ms'], SLA['p90_ms'], SLA['p99_ms'])}"
+            f"{cell(r['p99_ms'], SLA['p99_ms'], SLA['p99_ms'] * 2)}"
             f"<td>{r['min_ms']:.0f} ms</td>"
             f"<td>{r['max_ms']:.0f} ms</td>"
             f"<td style='color:{err_color}'>{r['error_count']}</td>"
             f"</tr>\n"
         )
 
-    sla_note = (
-        f"SLA Thresholds — P50: {SLA['p50_ms']} ms | "
-        f"P90: {SLA['p90_ms']} ms | P99: {SLA['p99_ms']} ms"
-    )
+    sla_note = f"SLA Thresholds — P50: {SLA['p50_ms']} ms | P90: {SLA['p90_ms']} ms | P99: {SLA['p99_ms']} ms"
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -253,10 +265,23 @@ def save_html_report(results: list[dict], title: str, filepath: str):
 def save_csv_report(results: list[dict], filepath: str):
     """Save results as CSV for further analysis."""
     import csv
+
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    fieldnames = ["label", "method", "path", "reps", "mean_ms", "p50_ms",
-                  "p90_ms", "p99_ms", "min_ms", "max_ms", "stdev_ms",
-                  "error_count", "error_rate_pct"]
+    fieldnames = [
+        "label",
+        "method",
+        "path",
+        "reps",
+        "mean_ms",
+        "p50_ms",
+        "p90_ms",
+        "p99_ms",
+        "min_ms",
+        "max_ms",
+        "stdev_ms",
+        "error_count",
+        "error_rate_pct",
+    ]
     with open(filepath, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
@@ -267,6 +292,7 @@ def save_csv_report(results: list[dict], filepath: str):
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+
 
 def main():
     print(_bold(_cyan("\n======================================================")))
@@ -320,7 +346,8 @@ def main():
     # ── Summary ──────────────────────────────────────────────────────────────
     total = len(all_results)
     passed = sum(
-        1 for r in all_results
+        1
+        for r in all_results
         if "error" not in r
         and r["p50_ms"] <= SLA["p50_ms"]
         and r["p90_ms"] <= SLA["p90_ms"]
@@ -338,7 +365,7 @@ def main():
     # ── Save reports ──────────────────────────────────────────────────────────
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     html_path = os.path.join(REPORTS_DIR, f"benchmark_{ts}.html")
-    csv_path  = os.path.join(REPORTS_DIR, f"benchmark_{ts}.csv")
+    csv_path = os.path.join(REPORTS_DIR, f"benchmark_{ts}.csv")
     save_html_report(all_results, "Endpoint Latency Benchmark", html_path)
     save_csv_report(all_results, csv_path)
 

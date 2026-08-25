@@ -19,7 +19,7 @@ c = {
     "validUntil": "2026-12-31T23:59:59",
     "usedCount": 0,
     "createdAt": "2026-01-01T00:00:00",
-    "updatedAt": "2026-01-01T00:00:00"
+    "updatedAt": "2026-01-01T00:00:00",
 }
 resp = CouponResponse(**c)
 encoded = jsonable_encoder(resp)

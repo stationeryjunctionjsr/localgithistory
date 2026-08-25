@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface SalesBreakdownProps {
   startDate: Date | null;
@@ -29,7 +30,7 @@ export default function SalesBreakdown({ startDate, endDate, currency }: SalesBr
       setData(response.data);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch sales breakdown:', error);
+      logger.error('Failed to fetch sales breakdown:', error);
       setLoading(false);
     }
   };

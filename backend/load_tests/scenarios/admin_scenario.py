@@ -34,9 +34,7 @@ class AdminOperations(TaskSet):
     def on_start(self):
         self._token = ADMIN_TOKEN
         self._has_auth = bool(self._token)
-        self._auth_headers = (
-            {"Authorization": f"Bearer {self._token}"} if self._has_auth else {}
-        )
+        self._auth_headers = {"Authorization": f"Bearer {self._token}"} if self._has_auth else {}
 
     # ── Dashboard & Analytics ─────────────────────────────────────────────────
 

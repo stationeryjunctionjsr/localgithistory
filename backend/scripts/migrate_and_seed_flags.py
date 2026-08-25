@@ -10,6 +10,7 @@ sys.path.insert(0, str(backend_root))
 os.chdir(backend_root)
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from sqlalchemy import text
@@ -26,7 +27,7 @@ OBSOLETE_FLAGS = [
     "enable_customer_support",
     "enable_credit_orders",
     "enable_gst_calculation",
-    "retail_enable_credit"
+    "retail_enable_credit",
 ]
 
 NEW_FLAGS = [
@@ -35,51 +36,52 @@ NEW_FLAGS = [
         "name": "Retail COD",
         "description": "Enable Cash on Delivery for Retail customers",
         "enabled": 1,
-        "category": "payments"
+        "category": "payments",
     },
     {
         "flag_id": "retail_enable_upi",
         "name": "Retail UPI",
         "description": "Enable UPI payment for Retail customers",
         "enabled": 1,
-        "category": "payments"
+        "category": "payments",
     },
     {
         "flag_id": "retail_enable_gst",
         "name": "Retail GST",
         "description": "Enable GST calculation for Retail customers",
         "enabled": 1,
-        "category": "payments"
+        "category": "payments",
     },
     {
         "flag_id": "wholesale_enable_cod",
         "name": "Wholesale COD",
         "description": "Enable Cash on Delivery for Wholesale customers",
         "enabled": 1,
-        "category": "payments"
+        "category": "payments",
     },
     {
         "flag_id": "wholesale_enable_upi",
         "name": "Wholesale UPI",
         "description": "Enable UPI payment for Wholesale customers",
         "enabled": 1,
-        "category": "payments"
+        "category": "payments",
     },
     {
         "flag_id": "wholesale_enable_credit",
         "name": "Wholesale Credit",
         "description": "Enable Credit orders for Wholesale customers",
         "enabled": 1,
-        "category": "payments"
+        "category": "payments",
     },
     {
         "flag_id": "wholesale_enable_gst",
         "name": "Wholesale GST",
         "description": "Enable GST calculation for Wholesale customers",
         "enabled": 1,
-        "category": "payments"
-    }
+        "category": "payments",
+    },
 ]
+
 
 async def main():
     print("Connecting to Oracle...")
@@ -94,17 +96,13 @@ async def main():
         # 1. Clean up obsolete flags
         for flag_id in OBSOLETE_FLAGS:
             print(f"Removing obsolete flag: {flag_id}")
-            await session.execute(
-                text("DELETE FROM sj_feature_flags WHERE flag_id = :flag_id"),
-                {"flag_id": flag_id}
-            )
+            await session.execute(text("DELETE FROM sj_feature_flags WHERE flag_id = :flag_id"), {"flag_id": flag_id})
 
         # 2. Add or update segment-based flags
         for f in NEW_FLAGS:
             # Check if it already exists
             r = await session.execute(
-                text("SELECT id FROM sj_feature_flags WHERE flag_id = :flag_id"),
-                {"flag_id": f["flag_id"]}
+                text("SELECT id FROM sj_feature_flags WHERE flag_id = :flag_id"), {"flag_id": f["flag_id"]}
             )
             exists = r.fetchone()
             if exists:
@@ -123,8 +121,8 @@ async def main():
                         "name": f["name"],
                         "description": f["description"],
                         "category": f["category"],
-                        "updated_at": now
-                    }
+                        "updated_at": now,
+                    },
                 )
             else:
                 print(f"Creating new flag: {f['flag_id']}")
@@ -143,12 +141,13 @@ async def main():
                         "enabled": f["enabled"],
                         "category": f["category"],
                         "created_at": now,
-                        "updated_at": now
-                    }
+                        "updated_at": now,
+                    },
                 )
 
         await session.commit()
         print("Migration and seeding complete!")
+
 
 if __name__ == "__main__":
     if sys.platform == "win32":

@@ -26,9 +26,21 @@ CATEGORY_IDS_SAMPLE = [
 ]
 
 SEARCH_TERMS = [
-    "notebook", "pen", "pencil", "stapler", "file", "folder",
-    "eraser", "sharpener", "marker", "highlighter", "ruler",
-    "calculator", "sticky", "tape", "scissors",
+    "notebook",
+    "pen",
+    "pencil",
+    "stapler",
+    "file",
+    "folder",
+    "eraser",
+    "sharpener",
+    "marker",
+    "highlighter",
+    "ruler",
+    "calculator",
+    "sticky",
+    "tape",
+    "scissors",
 ]
 
 PINCODES = ["831001", "831002", "831003", "110001", "400001", "560001"]

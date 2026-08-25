@@ -49,6 +49,7 @@ export default function ReturnsScreen() {
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'pending':
+      case 'pending_valet':
         return '#B45309'; // amber-700
       case 'assigned':
         return '#1D4ED8'; // blue-700
@@ -66,6 +67,7 @@ export default function ReturnsScreen() {
   const getStatusBg = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'pending':
+      case 'pending_valet':
         return '#FEF3C7'; // amber-100
       case 'assigned':
         return '#DBEAFE'; // blue-100

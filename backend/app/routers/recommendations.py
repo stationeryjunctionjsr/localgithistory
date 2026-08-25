@@ -31,6 +31,7 @@ class RecommendationEventBody(BaseModel):
     productName: Optional[str] = None
     strategy: Optional[str] = None  # 'trending' | 'user_favorites' | 'explore' for bandit reward update
 
+
 @router.get("")
 @router.get("/")
 async def get_recommendations(current_user: Optional[dict] = Depends(get_optional_user)):
@@ -51,13 +52,13 @@ async def get_recommendations(current_user: Optional[dict] = Depends(get_optiona
             entry = _guest_rec_cache.get("guest")
             if entry and now < entry[1]:
                 return entry[0]
-            
+
             async with _guest_rec_lock:
                 # Re-check after acquiring lock
                 entry = _guest_rec_cache.get("guest")
                 if entry and now < entry[1]:
                     return entry[0]
-                
+
                 result = await recommendation_repository.get_recommendation_components(user_id=None, role=None)
                 _guest_rec_cache["guest"] = (result, _time.monotonic() + _GUEST_REC_TTL)
                 return result
@@ -81,9 +82,7 @@ async def get_recommendations(current_user: Optional[dict] = Depends(get_optiona
         if cached_res:
             return cached_res
 
-        result = await recommendation_repository.get_recommendation_components(
-            user_id=user_id, role=role, city=city
-        )
+        result = await recommendation_repository.get_recommendation_components(user_id=user_id, role=role, city=city)
         cache.set(user_cache_key, result, ttl=180.0)
         return result
     except Exception as e:
@@ -99,7 +98,7 @@ async def get_favourites_page(
     category: Optional[str] = None,
     sub_category: Optional[str] = None,
     brand: Optional[str] = None,
-    available: Optional[str] = None,   # "true" | "false"
+    available: Optional[str] = None,  # "true" | "false"
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     days: int = 60,
@@ -143,12 +142,13 @@ async def get_favourites_page(
         logger.error("get_favourites_ranked failed: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
-    ranked_ids: list = ranked_data["ranked_ids"]   # [(pid, score), ...]
+    ranked_ids: list = ranked_data["ranked_ids"]  # [(pid, score), ...]
     all_states: list = ranked_data["states"]
     all_cities: list = ranked_data["cities"]
 
     # Fetch all products once and build a lookup map
     from app.db.storage_factory import get_storage as _get_storage
+
     product_storage = _get_storage("products")
     all_products = await product_storage.findAll()
     product_map: dict = {p["_id"]: p for p in all_products if p.get("_id")}
@@ -232,12 +232,12 @@ async def get_recommendation_metrics(days: int = 30, current_user: dict = Depend
     Use this to see if the section is viewed, and if product views / add-to-cart are healthy.
     Helps decide whether to tune the algorithm (e.g. change strategy_limits or engagement_weights).
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     from app.db.storage_factory import get_storage
 
     storage = get_storage("activities")
-    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     section_views = 0
     product_views = 0
     add_to_carts = 0

@@ -1,18 +1,22 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCart } from '@/context/CartContext';
+import { usePincode } from '@/context/PincodeContext';
 import AuthModal from './AuthModal';
 import GeneralFeedbackModal from './GeneralFeedbackModal';
 import api from '@/utils/api';
 import Link from 'next/link';
 import styles from './Header.module.css';
 import { trackBackendFilterClick } from '@/utils/analytics';
-import AccessibilityPanel from './AccessibilityPanel';
+import { getImageUrlWithFallback } from '@/utils/imageUrl';
+import CustomerNotificationsModal from './CustomerNotificationsModal';
+import AccessibilityModal from './AccessibilityModal';
+import { logger } from '@/utils/logger';
 
 interface CategoryTag {
   _id: string;
@@ -42,19 +46,31 @@ interface PromoStrip {
   isActive: boolean;
 }
 
+/** Inner component that safely reads search params inside a Suspense boundary. */
+function SearchParamsReader({ onRead }: { onRead: (tag: string | null) => void }) {
+  const searchParams = useSearchParams();
+  const tag = searchParams.get('categoryTag') || null;
+  useEffect(() => { onRead(tag); }, [tag, onRead]);
+  return null;
+}
+
 export default function Header() {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
   // eslint-disable-next-line unused-imports/no-unused-vars
   const { items: wishlistItems } = useWishlist();
   const { cart, openCart } = useCart();
+  const { pincode, city, openPincodeModal } = usePincode();
   const router = useRouter();
   // eslint-disable-next-line unused-imports/no-unused-vars
   const pathname = usePathname();
+  const [activeCategoryTag, setActiveCategoryTag] = useState<string | null>(null);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const cartCount = cart?.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0;
   const [categoryTags, setCategoryTags] = useState<CategoryTag[]>([]);
   // eslint-disable-next-line unused-imports/no-unused-vars
@@ -72,10 +88,15 @@ export default function Header() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [popularTerms, setPopularTerms] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [recentProducts, setRecentProducts] = useState<{ productId: string; productName: string; displayImage?: string; price?: number }[]>([]);
+  // Live autocomplete results fetched from /products/suggest while user types
+  const [liveAutocomplete, setLiveAutocomplete] = useState<{ products: { productId: string; name: string }[]; brands: string[]; categories: string[] }>({ products: [], brands: [], categories: [] });
+  const [loadingAutocomplete, setLoadingAutocomplete] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -88,6 +109,45 @@ export default function Header() {
     fetchCategories();
     fetchPromoStrips();
   }, []);
+
+  // Debounced live autocomplete — fires 250ms after the user stops typing
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setLiveAutocomplete({ products: [], brands: [], categories: [] });
+      return;
+    }
+    setLoadingAutocomplete(true);
+    const timer = setTimeout(async () => {
+      try {
+        const params: Record<string, string> = { q: searchQuery.trim(), limit: '8' };
+        if (activeCategoryTag) params.categoryTag = activeCategoryTag;
+        if (pincode) params.pincode = pincode;
+        const res = await api.get('/products/suggest', { params });
+        setLiveAutocomplete({
+          products: res.data?.products || [],
+          brands: res.data?.brands || [],
+          categories: res.data?.categories || [],
+        });
+      } catch (e) { logger.warn("Silent catch block:", e); /* fail silently */ } finally {
+        setLoadingAutocomplete(false);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, activeCategoryTag]);
+
+  useEffect(() => {
+    if (user) {
+      const fetchUnreadCount = async () => {
+        try {
+          const res = await api.get('/push-notifications/inbox');
+          const data = res.data || [];
+          setUnreadNotifCount(data.filter((n: any) => !n.isRead).length);
+        } catch (e) { logger.warn("Silent catch block:", e); /* fail silently */ }
+      };
+      fetchUnreadCount();
+    }
+  }, [user]);
 
   // Rotate promo strips seamlessly
   useEffect(() => {
@@ -130,14 +190,16 @@ export default function Header() {
     setLoadingSuggestions(true);
     try {
       const sessionId = localStorage.getItem('sessionId');
-      const [recentRes, suggestionsRes] = await Promise.all([
+      const [recentRes, suggestionsRes, recentProductsRes] = await Promise.all([
         api.get('/tracking/recent', { params: { sessionId, limit: 5 } }),
         api.get('/tracking/suggestions', { params: { limit: 8 } }),
+        api.get('/tracking/recent-products', { params: { sessionId, limit: 4 } }),
       ]);
       setRecentSearches(recentRes.data || []);
       setPopularTerms(suggestionsRes.data?.popularTerms || []);
+      setRecentProducts(recentProductsRes.data || []);
     } catch (e) {
-      console.error('Failed to fetch suggestions', e);
+      logger.error('Failed to fetch suggestions', e);
     } finally {
       setLoadingSuggestions(false);
     }
@@ -160,7 +222,7 @@ export default function Header() {
       const tags = response.data || [];
       setCategoryTags(tags.filter((t: CategoryTag) => t.name));
     } catch (error) {
-      console.error('Error fetching category tags:', error);
+      logger.error('Error fetching category tags:', error);
     }
   };
 
@@ -170,7 +232,7 @@ export default function Header() {
       const brandList = response.data?.brands || response.data || [];
       setBrands(brandList.filter((b: Brand) => b.name));
     } catch (error) {
-      console.error('Error fetching brands:', error);
+      logger.error('Error fetching brands:', error);
     }
   };
 
@@ -180,7 +242,7 @@ export default function Header() {
       const cats = response.data?.categories || response.data || [];
       setCategories(cats.filter((c: Category) => c.name));
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      logger.error('Error fetching categories:', error);
     }
   };
 
@@ -218,10 +280,12 @@ export default function Header() {
     e.preventDefault();
     if (searchQuery.trim()) {
       setIsSearching(true);
-      router.push(`${getBasePath()}?searchTerm=${encodeURIComponent(searchQuery.trim())}`);
-      // Assuming Next.js router.push resolves or completes, we should reset.
-      // But Next.js app router doesn't return a promise on push.
-      // Resetting after a short delay or letting the new page mount is typical.
+      // If the user is currently browsing a category tag, scope the search to that department
+      const scopedTag = activeCategoryTag;
+      const searchUrl = scopedTag
+        ? `${getBasePath()}?searchTerm=${encodeURIComponent(searchQuery.trim())}&categoryTag=${encodeURIComponent(scopedTag)}`
+        : `${getBasePath()}?searchTerm=${encodeURIComponent(searchQuery.trim())}`;
+      router.push(searchUrl);
       setTimeout(() => {
         setIsSearching(false);
         setShowSuggestions(false);
@@ -250,6 +314,9 @@ export default function Header() {
 
   return (
     <header className={`${styles.header} hidden md:block`}>
+      <Suspense fallback={null}>
+        <SearchParamsReader onRead={setActiveCategoryTag} />
+      </Suspense>
       {/* Top Banner - Sliding Promo Strip */}
       {promoStrips.length > 0 && (
         <div className={styles.bannerContainer} style={{ background: theme.gradient }}>
@@ -279,12 +346,33 @@ export default function Header() {
       <div className={styles.mainHeader}>
         <div className={styles.container}>
           {/* Logo - Goes to role-based dashboard, landing page for guests */}
-          <Link
-            href={getBasePath() === '/customer' ? '/customer?reset=true' : getBasePath()}
-            className={styles.logo}
-          >
-            <span style={{ color: theme.primary }}>Stationery Junction</span>
-          </Link>
+          <div className="flex items-center gap-3 shrink-0">
+            <Link
+              href={getBasePath() === '/customer' ? '/customer?reset=true' : getBasePath()}
+              className={styles.logo}
+            >
+              <span style={{ color: theme.primary }}>Stationery Junction</span>
+            </Link>
+
+            {/* Delivery Location Selector */}
+            <button
+              onClick={() => openPincodeModal(false)}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-700/20 bg-emerald-50/70 hover:bg-emerald-100/80 text-emerald-900 transition-colors text-xs font-semibold shrink-0 cursor-pointer shadow-sm"
+              title="Change delivery location"
+              type="button"
+            >
+              <svg className="h-3.5 w-3.5 text-emerald-700 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="max-w-[140px] truncate">
+                {pincode ? `Deliver to ${pincode}${city ? ` (${city})` : ''}` : 'Select Pincode'}
+              </span>
+              <svg className="h-3 w-3 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
 
           {/* Navigation - Category Tags from Super Admin */}
           <nav className={styles.nav} ref={navRef} aria-label="Main navigation">
@@ -292,10 +380,32 @@ export default function Header() {
               <div
                 key={tag._id}
                 className={`${styles.navItem} ${activeCategory === tag._id ? styles.active : ''}`}
+                tabIndex={0}
+                role="button"
+                aria-expanded={activeCategory === tag._id}
+                aria-haspopup="true"
                 onMouseEnter={() => {
                   setActiveCategory(tag._id);
                 }}
                 onMouseLeave={() => setActiveCategory(null)}
+                onFocus={() => setActiveCategory(tag._id)}
+                onBlur={(e) => {
+                  // Only close if focus leaves the entire nav item (including mega menu children)
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setActiveCategory(null);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setActiveCategory(activeCategory === tag._id ? null : tag._id);
+                  } else if (e.key === 'Escape') {
+                    setActiveCategory(null);
+                  } else if (e.key === 'Enter' && activeCategory === tag._id) {
+                    trackBackendFilterClick('category_tag', tag.name);
+                    router.push(`${getBasePath()}?categoryTag=${encodeURIComponent(tag.name)}`);
+                  }
+                }}
                 onClick={() => {
                   trackBackendFilterClick('category_tag', tag.name);
                   router.push(`${getBasePath()}?categoryTag=${encodeURIComponent(tag.name)}`);
@@ -310,12 +420,14 @@ export default function Header() {
                 </span>
 
                 {activeCategory === tag._id && (
-                  <div className={styles.megaMenu} style={{ borderTopColor: theme.primary }}>
+                  <div className={styles.megaMenu} style={{ borderTopColor: theme.primary }} role="menu">
                     <div className={styles.megaMenuContent}>
                       {getCategoriesForTag(tag.name).map((cat: Category) => (
                         <div key={cat._id} className={styles.megaMenuCol}>
                           <h4
                             style={{ color: theme.primary }}
+                            tabIndex={0}
+                            role="menuitem"
                             onClick={(e) => {
                               e.stopPropagation();
                               trackBackendFilterClick('category', cat.name);
@@ -323,6 +435,15 @@ export default function Header() {
                                 `/categories/${encodeURIComponent(cat.slug || cat.name)}`
                               );
                               setActiveCategory(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                trackBackendFilterClick('category', cat.name);
+                                router.push(`/categories/${encodeURIComponent(cat.slug || cat.name)}`);
+                                setActiveCategory(null);
+                              }
                             }}
                           >
                             {cat.name}
@@ -332,6 +453,8 @@ export default function Header() {
                               cat.subCategories.map((sub: string) => (
                                 <li
                                   key={sub}
+                                  tabIndex={0}
+                                  role="menuitem"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     trackBackendFilterClick('subcategory', sub);
@@ -340,6 +463,15 @@ export default function Header() {
                                     );
                                     setActiveCategory(null);
                                   }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      trackBackendFilterClick('subcategory', sub);
+                                      router.push(`/categories/${encodeURIComponent(cat.slug || cat.name)}?subCategory=${encodeURIComponent(sub)}`);
+                                      setActiveCategory(null);
+                                    }
+                                  }}
                                 >
                                   {sub}
                                 </li>
@@ -347,6 +479,8 @@ export default function Header() {
                             ) : (
                               <li
                                 style={{ color: '#94969f', fontStyle: 'italic', fontSize: '11px' }}
+                                tabIndex={0}
+                                role="menuitem"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   trackBackendFilterClick('category', cat.name);
@@ -354,6 +488,15 @@ export default function Header() {
                                     `/categories/${encodeURIComponent(cat.slug || cat.name)}`
                                   );
                                   setActiveCategory(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    trackBackendFilterClick('category', cat.name);
+                                    router.push(`/categories/${encodeURIComponent(cat.slug || cat.name)}`);
+                                    setActiveCategory(null);
+                                  }
                                 }}
                               >
                                 All {cat.name}
@@ -374,6 +517,7 @@ export default function Header() {
                 )}
               </div>
             ))}
+
 
             {/* More dropdown for overflow tags */}
             {overflowTags.length > 0 && (
@@ -445,12 +589,29 @@ export default function Header() {
                   </svg>
                 )}
               </div>
+              {/* Category scope chip — shown when user is browsing a department */}
+              {activeCategoryTag && (
+                <span
+                  style={{ backgroundColor: `${theme.primary}15`, color: theme.primary, borderColor: `${theme.primary}40` }}
+                  className="flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+                >
+                  in {activeCategoryTag}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${activeCategoryTag} scope`}
+                    onClick={() => router.push(getBasePath())}
+                    className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
               <input
                 type="text"
                 id="header-search-input"
-                placeholder="Search for products, brands and more"
+                placeholder={activeCategoryTag ? `Search in ${activeCategoryTag}...` : 'Search for products, brands and more'}
                 value={searchQuery}
-                aria-label="Search for products, brands and more"
+                aria-label={activeCategoryTag ? `Search in ${activeCategoryTag}` : 'Search for products, brands and more'}
                 aria-autocomplete="list"
                 aria-expanded={showSuggestions}
                 role="combobox"
@@ -478,8 +639,144 @@ export default function Header() {
                       </svg>
                       Loading suggestions…
                     </div>
-                  ) : (recentSearches.length > 0 || popularTerms.length > 0) ? (
+                  ) : (recentProducts.length > 0 || recentSearches.length > 0 || popularTerms.length > 0) ? (
                     <>
+                      {/* Recently Browsed Products — shown when no query is typed yet */}
+                      {recentProducts.length > 0 && !searchQuery && (
+                        <div className="border-b border-gray-50 p-4">
+                          <h4 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                            Recently Browsed
+                          </h4>
+                          <div className="grid grid-cols-4 gap-2">
+                            {recentProducts.map((product) => (
+                              <button
+                                key={product.productId}
+                                onClick={() => {
+                                  setShowSuggestions(false);
+                                  router.push(`${getBasePath()}/product/${product.productId}`);
+                                }}
+                                className="group flex flex-col items-center gap-1.5 rounded-lg p-2 text-center transition-colors hover:bg-gray-50"
+                              >
+                                <div className="h-14 w-14 overflow-hidden rounded-lg bg-gray-100">
+                                  {product.displayImage ? (
+                                    <img
+                                      src={getImageUrlWithFallback(product.displayImage)}
+                                      alt={product.productName}
+                                      className="h-full w-full object-contain"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center">
+                                      <svg className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="line-clamp-2 text-[10px] leading-tight text-gray-600 group-hover:text-gray-900">
+                                  {product.productName}
+                                </span>
+                                {product.price && (
+                                  <span className="text-[10px] font-semibold" style={{ color: theme.primary }}>
+                                    ₹{product.price.toLocaleString()}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Autocomplete: match recently browsed product names against typed query */}
+                      {/* Live autocomplete — server-side product/brand/category suggestions as user types */}
+                      {searchQuery.trim().length >= 2 && (
+                        <div className="border-b border-gray-50">
+                          {loadingAutocomplete ? (
+                            <div className="flex items-center gap-2 px-4 py-3 text-xs text-gray-400">
+                              <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3V4a10 10 0 100 20v-4l-3 3 3 3v-4a8 8 0 01-8-8z" />
+                              </svg>
+                              Searching…
+                            </div>
+                          ) : (liveAutocomplete.products.length > 0 || liveAutocomplete.brands.length > 0 || liveAutocomplete.categories.length > 0) ? (
+                            <div className="p-2">
+                              {/* Product name matches */}
+                              {liveAutocomplete.products.map((p) => (
+                                <button
+                                  key={p.productId}
+                                  onClick={() => {
+                                    setShowSuggestions(false);
+                                    router.push(`${getBasePath()}/product/${p.productId}`);
+                                  }}
+                                  className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-gray-50"
+                                >
+                                  <svg className="h-4 w-4 shrink-0 text-gray-300 group-hover:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                  </svg>
+                                  <span className="text-sm text-gray-700 group-hover:text-gray-900">{p.name}</span>
+                                </button>
+                              ))}
+                              {/* Brand matches */}
+                              {liveAutocomplete.brands.map((brand) => (
+                                <button
+                                  key={brand}
+                                  onClick={() => {
+                                    setShowSuggestions(false);
+                                    router.push(`/brands/${encodeURIComponent(brand)}`);
+                                  }}
+                                  className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-gray-50"
+                                >
+                                  <svg className="h-4 w-4 shrink-0 text-blue-300 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                  </svg>
+                                  <span className="text-sm text-gray-700 group-hover:text-gray-900">{brand} <span className="text-xs text-gray-400">Brand</span></span>
+                                </button>
+                              ))}
+                              {/* Category matches */}
+                              {liveAutocomplete.categories.map((cat) => (
+                                <button
+                                  key={cat}
+                                  onClick={() => {
+                                    setShowSuggestions(false);
+                                    router.push(`/categories/${encodeURIComponent(cat)}`);
+                                  }}
+                                  className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-gray-50"
+                                >
+                                  <svg className="h-4 w-4 shrink-0 text-green-300 group-hover:text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                  </svg>
+                                  <span className="text-sm text-gray-700 group-hover:text-gray-900">{cat} <span className="text-xs text-gray-400">Category</span></span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            /* Fallback: client-side match against recently browsed products */
+                            (() => {
+                              const q = searchQuery.toLowerCase();
+                              const matches = recentProducts.filter(p => p.productName.toLowerCase().includes(q));
+                              if (!matches.length) return null;
+                              return (
+                                <div className="p-4">
+                                  <h4 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">Recently Browsed</h4>
+                                  <div className="space-y-1">
+                                    {matches.map((product) => (
+                                      <button
+                                        key={product.productId}
+                                        onClick={() => { setShowSuggestions(false); router.push(`${getBasePath()}/product/${product.productId}`); }}
+                                        className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-gray-50"
+                                      >
+                                        <div className="h-8 w-8 shrink-0 overflow-hidden rounded bg-gray-100">
+                                          {product.displayImage && <img src={getImageUrlWithFallback(product.displayImage)} alt={product.productName} className="h-full w-full object-contain" />}
+                                        </div>
+                                        <span className="text-sm text-gray-700 group-hover:text-gray-900">{product.productName}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()
+                          )}
+                        </div>
+                      )}
                       {recentSearches.length > 0 && (
                         <div className="border-b border-gray-50 p-4">
                           <h4 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
@@ -612,6 +909,35 @@ export default function Header() {
                           </svg>
                           <span>{user.role === 'valet' ? 'Dashboard' : 'My Orders'}</span>
                         </button>
+                        <button
+                          onClick={() => {
+                            setShowProfileDropdown(false);
+                            setShowNotificationsModal(true);
+                          }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                          </svg>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            Notifications
+                            {unreadNotifCount > 0 && (
+                              <span style={{
+                                background: '#EF4444',
+                                color: 'white',
+                                borderRadius: '9999px',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                minWidth: '18px',
+                                textAlign: 'center',
+                                lineHeight: '16px',
+                              }}>
+                                {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+                              </span>
+                            )}
+                          </span>
+                        </button>
                         {(user.role === 'wholesaler' || user.effectiveRole === 'wholesaler') && (
                           <button
                             onClick={() => {
@@ -681,6 +1007,8 @@ export default function Header() {
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                           >
                             <circle cx="12" cy="12" r="10" />
                             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -701,6 +1029,8 @@ export default function Header() {
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                           >
                             <circle cx="12" cy="12" r="10" />
                             <line x1="12" y1="16" x2="12" y2="12" />
@@ -721,6 +1051,8 @@ export default function Header() {
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                           >
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                           </svg>
@@ -767,6 +1099,25 @@ export default function Header() {
                         )}
                         <button
                           onClick={() => {
+                            setShowAccessibilityModal(true);
+                            setShowProfileDropdown(false);
+                          }}
+                        >
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 8v4M12 16h.01" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <span>Accessibility</span>
+                        </button>
+                        <button
+                          onClick={() => {
                             logout();
                             router.push('/');
                             setShowProfileDropdown(false);
@@ -788,7 +1139,6 @@ export default function Header() {
                           <span>Logout</span>
                         </button>
                       </div>
-                      <AccessibilityPanel />
                     </>
                   ) : (
                     <>
@@ -887,7 +1237,6 @@ export default function Header() {
                           router.push('/faq');
                           setShowProfileDropdown(false);
                         }}
-                        className="flex items-center gap-3 px-5 py-2.5 text-left text-sm text-gray-700 hover:bg-[#1a4d33]/5 w-full"
                       >
                         <svg
                           width="18"
@@ -896,6 +1245,8 @@ export default function Header() {
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         >
                           <circle cx="12" cy="12" r="10" />
                           <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
@@ -908,7 +1259,6 @@ export default function Header() {
                           router.push('/about');
                           setShowProfileDropdown(false);
                         }}
-                        className="flex items-center gap-3 px-5 py-2.5 text-left text-sm text-gray-700 hover:bg-[#1a4d33]/5 w-full"
                       >
                         <svg
                           width="18"
@@ -917,6 +1267,8 @@ export default function Header() {
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         >
                           <circle cx="12" cy="12" r="10" />
                           <line x1="12" y1="16" x2="12" y2="12" />
@@ -929,7 +1281,6 @@ export default function Header() {
                           router.push('/privacy-policy');
                           setShowProfileDropdown(false);
                         }}
-                        className="flex items-center gap-3 px-5 py-2.5 text-left text-sm text-gray-700 hover:bg-[#1a4d33]/5 w-full"
                       >
                         <svg
                           width="18"
@@ -938,13 +1289,35 @@ export default function Header() {
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
                         >
                           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                         </svg>
                         <span>Privacy Policy</span>
                       </button>
+                      <button
+                        onClick={() => {
+                          setShowAccessibilityModal(true);
+                          setShowProfileDropdown(false);
+                        }}
+                      >
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 8v4M12 16h.01" />
+                        </svg>
+                        <span>Accessibility</span>
+                      </button>
                       </div>
-                      <AccessibilityPanel />
                     </>
                   )}
                 </div>
@@ -990,6 +1363,15 @@ export default function Header() {
       <GeneralFeedbackModal
         isOpen={showFeedbackModal}
         onClose={() => setShowFeedbackModal(false)}
+      />
+      <CustomerNotificationsModal
+        isOpen={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+        onUnreadCountChange={setUnreadNotifCount}
+      />
+      <AccessibilityModal
+        isOpen={showAccessibilityModal}
+        onClose={() => setShowAccessibilityModal(false)}
       />
     </header>
   );

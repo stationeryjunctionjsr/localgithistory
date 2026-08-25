@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from app.db.storage_factory import get_storage
@@ -15,7 +15,7 @@ class PaymentRepository:
 
         # Date filtering (since CLOB/Date filters are handled post-query)
         if query.get("startDate") or query.get("endDate"):
-            from datetime import datetime
+            from datetime import datetime, timezone
 
             filtered_payments = []
             for payment in payments:
@@ -62,14 +62,14 @@ class PaymentRepository:
             "userId": payment_data.get("userId") or payment_data.get("customerId"),  # Use userId instead of customerId
             "userIdFormatted": payment_data.get("userIdFormatted"),
             "customerName": payment_data["customerName"],
-            "orderDate": payment_data.get("orderDate", datetime.utcnow().isoformat()),
+            "orderDate": payment_data.get("orderDate", datetime.now(timezone.utc).isoformat()),
             "paymentMethod": payment_data["paymentMethod"],  # 'cod', 'upi', 'credit'
             "amountPaid": payment_data.get("amountPaid", 0),
             "amountRemaining": payment_data.get("amountRemaining", payment_data.get("totalAmount", 0)),
             "totalAmount": payment_data.get("totalAmount", 0),
             "paymentEntries": payment_data.get("paymentEntries", []),
-            "createdAt": datetime.utcnow().isoformat(),
-            "updatedAt": datetime.utcnow().isoformat(),
+            "createdAt": datetime.now(timezone.utc).isoformat(),
+            "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
 
         # Generate incremental payment ID in PYMT-X format
@@ -91,7 +91,7 @@ class PaymentRepository:
         return await self.storage.create(payment)
 
     async def update(self, id: str, update_data: Dict):
-        update_data["updatedAt"] = datetime.utcnow().isoformat()
+        update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
 
     async def addPaymentEntry(self, payment_id: str, entry_data: Dict):
@@ -104,11 +104,11 @@ class PaymentRepository:
             "entryId": len(entries) + 1,
             "amount": entry_data.get("amount", 0),
             "paymentMethod": entry_data.get("paymentMethod", payment.get("paymentMethod", "cod")),
-            "paidAt": entry_data.get("paidAt", datetime.utcnow().isoformat()),
+            "paidAt": entry_data.get("paidAt", datetime.now(timezone.utc).isoformat()),
             "image": entry_data.get("image"),  # Payment screenshot (optional)
             "notes": entry_data.get("notes", ""),
             "verified": entry_data.get("verified", False),
-            "createdAt": datetime.utcnow().isoformat(),
+            "createdAt": datetime.now(timezone.utc).isoformat(),
         }
 
         entries.append(entry)

@@ -1,37 +1,36 @@
 import re
-import os
 
-with open('src/components/Admin/DiscountManagement.tsx', 'r', encoding='utf-8') as f:
+with open("src/components/Admin/DiscountManagement.tsx", "r", encoding="utf-8") as f:
     content = f.read()
 
 # 1. Add fields to Discount interface
 content = re.sub(
-    r'applicableItemType\?: \'units\' \| \'cases\'\n\}',
-    r'''applicableItemType?: 'units' | 'cases'
+    r"applicableItemType\?: \'units\' \| \'cases\'\n\}",
+    r"""applicableItemType?: 'units' | 'cases'
   buyXGetYCustomerGetsQuantity?: number | null
   buyXGetYCustomerGetsAppliesToType?: string
   buyXGetYCustomerGetsAppliesToValueIds?: string[]
   buyXGetYCustomerGetsDiscountType?: string
   buyXGetYCustomerGetsDiscountValue?: number | null
-}''',
-    content
+}""",
+    content,
 )
 
 # 2. Add fields to formData
 content = re.sub(
-    r'    applicableItemType: \'units\' as \'units\' \| \'cases\',\n    isActive: true',
-    r'''    applicableItemType: 'units' as 'units' | 'cases',
+    r"    applicableItemType: \'units\' as \'units\' \| \'cases\',\n    isActive: true",
+    r"""    applicableItemType: 'units' as 'units' | 'cases',
     isActive: true,
     buyXGetYCustomerGetsQuantity: '' as string,
     buyXGetYCustomerGetsAppliesToType: 'all' as string,
     buyXGetYCustomerGetsAppliesToValueIds: [] as string[],
     buyXGetYCustomerGetsDiscountType: 'percentage' as string,
-    buyXGetYCustomerGetsDiscountValue: '' as string''',
-    content
+    buyXGetYCustomerGetsDiscountValue: '' as string""",
+    content,
 )
 
 # 3. Add handleGets fields, and renderAppliesToSelector helper
-helper_str = r'''
+helper_str = r"""
   const handleGetsAppliesToTypeChange = (value: string) => {
     setFormData({ ...formData, buyXGetYCustomerGetsAppliesToType: value, buyXGetYCustomerGetsAppliesToValueIds: [] })
   }
@@ -94,23 +93,27 @@ helper_str = r'''
     )
   }
 
-  const showUserBehaviour = true'''
+  const showUserBehaviour = true"""
 
-content = content.replace('  const showUserBehaviour = true', helper_str)
+content = content.replace("  const showUserBehaviour = true", helper_str)
 
 # 4. Add to submitData
-submit_data_replace = r'''        applicableItemType: discountCategory === 'business' ? formData.applicableItemType : undefined,
+submit_data_replace = r"""        applicableItemType: discountCategory === 'business' ? formData.applicableItemType : undefined,
         isActive: formData.isActive,
         buyXGetYCustomerGetsQuantity: formData.buyXGetYCustomerGetsQuantity ? parseInt(formData.buyXGetYCustomerGetsQuantity, 10) : null,
         buyXGetYCustomerGetsAppliesToType: formData.buyXGetYCustomerGetsAppliesToType,
         buyXGetYCustomerGetsAppliesToValueIds: formData.buyXGetYCustomerGetsAppliesToValueIds,
         buyXGetYCustomerGetsDiscountType: formData.buyXGetYCustomerGetsDiscountType,
         buyXGetYCustomerGetsDiscountValue: formData.buyXGetYCustomerGetsDiscountValue ? parseFloat(formData.buyXGetYCustomerGetsDiscountValue) : null
-      }'''
-content = re.sub(r'        applicableItemType: discountCategory === \'business\' \? formData\.applicableItemType : undefined,\n        isActive: formData\.isActive\n      \}', submit_data_replace, content)
+      }"""
+content = re.sub(
+    r"        applicableItemType: discountCategory === \'business\' \? formData\.applicableItemType : undefined,\n        isActive: formData\.isActive\n      \}",
+    submit_data_replace,
+    content,
+)
 
 # 5. Add to resetForm
-reset_form_replace = r'''      userBehavior: 'none',
+reset_form_replace = r"""      userBehavior: 'none',
       applicableItemType: 'units',
       isActive: true,
       buyXGetYCustomerGetsQuantity: '',
@@ -118,11 +121,15 @@ reset_form_replace = r'''      userBehavior: 'none',
       buyXGetYCustomerGetsAppliesToValueIds: [],
       buyXGetYCustomerGetsDiscountType: 'percentage',
       buyXGetYCustomerGetsDiscountValue: ''
-    })'''
-content = re.sub(r'      userBehavior: \'none\',\n      applicableItemType: \'units\',\n      isActive: true\n    \}\)', reset_form_replace, content)
+    })"""
+content = re.sub(
+    r"      userBehavior: \'none\',\n      applicableItemType: \'units\',\n      isActive: true\n    \}\)",
+    reset_form_replace,
+    content,
+)
 
 # 6. Add to handleEdit
-edit_form_replace = r'''      userBehavior: behavior,
+edit_form_replace = r"""      userBehavior: behavior,
       applicableItemType: d.applicableItemType || 'units',
       isActive: d.isActive !== false,
       buyXGetYCustomerGetsQuantity: d.buyXGetYCustomerGetsQuantity?.toString() || '',
@@ -130,8 +137,12 @@ edit_form_replace = r'''      userBehavior: behavior,
       buyXGetYCustomerGetsAppliesToValueIds: d.buyXGetYCustomerGetsAppliesToValueIds || [],
       buyXGetYCustomerGetsDiscountType: d.buyXGetYCustomerGetsDiscountType || 'percentage',
       buyXGetYCustomerGetsDiscountValue: d.buyXGetYCustomerGetsDiscountValue?.toString() || ''
-    })'''
-content = re.sub(r'      userBehavior: behavior,\n      applicableItemType: d\.applicableItemType \|\| \'units\',\n      isActive: d\.isActive !== false\n    \}\)', edit_form_replace, content)
+    })"""
+content = re.sub(
+    r"      userBehavior: behavior,\n      applicableItemType: d\.applicableItemType \|\| \'units\',\n      isActive: d\.isActive !== false\n    \}\)",
+    edit_form_replace,
+    content,
+)
 
 # 7. Form UI adjustments
 # Move generic "applicableItemType" right below "typeOfDiscount" for business
@@ -139,11 +150,12 @@ content = re.sub(r'      userBehavior: behavior,\n      applicableItemType: d\.a
 # Show Applies To in Customer Buys if buy_x_get_y
 # Show Customer Gets if buy_x_get_y
 
+
 def replace_form(s):
-    form_start = s.find('{/* Type of discount - first field */}')
-    form_end = s.find('{/* Maximum discount uses */}')
-    
-    new_form_content = '''{/* Type of discount - first field */}
+    form_start = s.find("{/* Type of discount - first field */}")
+    form_end = s.find("{/* Maximum discount uses */}")
+
+    new_form_content = """{/* Type of discount - first field */}
               <div>
                 <label className="block text-sm font-medium mb-1 inline-flex items-baseline gap-1">
                   Type of discount *
@@ -270,11 +282,11 @@ def replace_form(s):
                       <input type="number" name="buyXGetYCustomerGetsQuantity" value={formData.buyXGetYCustomerGetsQuantity} onChange={handleChange} min="1" required className="w-full border rounded px-3 py-2" />
                       <small className="text-gray-500 text-xs block">Customers must add the quantity of items specified above to their cart.</small>
                     </div>
-                    
+
                     <div className="text-gray-700 bg-gray-50 p-4 border rounded">
                       {renderAppliesToSelector(formData.buyXGetYCustomerGetsAppliesToType, formData.buyXGetYCustomerGetsAppliesToValueIds, handleGetsAppliesToTypeChange, toggleGetsAppliesToValue, 'Any items from')}
                     </div>
-                    
+
                     <div className="pt-3">
                       <label className="block text-sm font-medium mb-3 font-semibold text-gray-700">At a discounted value</label>
                       <div className="space-y-4">
@@ -330,12 +342,12 @@ def replace_form(s):
                 </div>
               )}
 
-              '''
-    
+              """
+
     return s[:form_start] + new_form_content + s[form_end:]
+
 
 content = replace_form(content)
 
-with open('src/components/Admin/DiscountManagement.tsx', 'w', encoding='utf-8') as f:
+with open("src/components/Admin/DiscountManagement.tsx", "w", encoding="utf-8") as f:
     f.write(content)
-

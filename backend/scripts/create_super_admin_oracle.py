@@ -16,13 +16,14 @@ from app.repositories.user_repository import user_repository
 
 async def create_super_admin():
     email = os.getenv("TEST_ADMIN_EMAIL", "stationeryjunction.jsr@gmail.com")
-    
+
     password = os.getenv("TEST_ADMIN_PASSWORD")
     if not password:
         import secrets
+
         password = secrets.token_urlsafe(12)
         print(f"[*] TEST_ADMIN_PASSWORD not set in environment. Generated secure random password: {password}")
-        
+
     name = os.getenv("TEST_ADMIN_NAME", "Super Admin")
 
     try:

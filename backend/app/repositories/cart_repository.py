@@ -71,7 +71,7 @@ class CartRepository:
         saved_storage = get_storage("savedForLater")
         existing = await saved_storage.findOne({"user": user_id})
 
-        saved_item = {"user": user_id, "productId": product_id, "savedAt": datetime.utcnow().isoformat()}
+        saved_item = {"user": user_id, "productId": product_id, "savedAt": datetime.now(timezone.utc).isoformat()}
 
         if existing:
             # Check if already saved
@@ -90,6 +90,6 @@ class CartRepository:
         return await saved_storage.findOne({"user": user_id}) or {"items": []}
 
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 cart_repository = CartRepository()

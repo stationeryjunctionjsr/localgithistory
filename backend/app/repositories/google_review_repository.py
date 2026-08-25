@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 
 import httpx
@@ -70,7 +70,7 @@ class GoogleReviewRepository:
         # 1. Try Official API first
         api_data = await self.fetch_via_api()
         if api_data:
-            new_data = {**api_data, "lastUpdated": datetime.utcnow().isoformat(), "method": "official_api"}
+            new_data = {**api_data, "lastUpdated": datetime.now(timezone.utc).isoformat(), "method": "official_api"}
             await self._update_storage(new_data)
             return new_data
 
@@ -127,7 +127,7 @@ class GoogleReviewRepository:
                     new_data = {
                         "rating": float(scraped_rating),
                         "reviewCount": str(scraped_count),
-                        "lastUpdated": datetime.utcnow().isoformat(),
+                        "lastUpdated": datetime.now(timezone.utc).isoformat(),
                         "method": "scraping",
                     }
                     await self._update_storage(new_data)

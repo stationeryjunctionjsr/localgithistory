@@ -139,7 +139,12 @@ async def run_segment_filter(criteria: FilterCriteria):
                 except ValueError as e:
                     logger.warning("Invalid date format for order %s in segment filter: %s", o.get("_id"), str(e))
                 except Exception as e:
-                    logger.error("Unexpected error parsing date for order %s in segment filter: %s", o.get("_id"), str(e), exc_info=True)
+                    logger.error(
+                        "Unexpected error parsing date for order %s in segment filter: %s",
+                        o.get("_id"),
+                        str(e),
+                        exc_info=True,
+                    )
             all_orders = filtered_orders
 
         for o in all_orders:
@@ -304,7 +309,7 @@ async def refresh_segment(segment_id: str, admin: dict = Depends(require_super_a
     import datetime
 
     await customer_segments_repository.update(
-        segment_id, {"userIds": user_ids, "lastRefreshedAt": datetime.datetime.utcnow().isoformat()}
+        segment_id, {"userIds": user_ids, "lastRefreshedAt": datetime.datetime.now(timezone.utc).isoformat()}
     )
 
     return {"status": "success", "count": len(user_ids), "userIds": user_ids}

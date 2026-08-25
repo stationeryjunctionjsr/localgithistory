@@ -1,4 +1,3 @@
-import os
 
 # We will read schemas.py, and completely replace from 'class ProductResponse' down to 'class CouponValidateCart'
 # with the correct content.
@@ -123,22 +122,21 @@ class CouponValidate(BaseModel):
 
 class CouponValidateCart(BaseModel):"""
 
-with open(r'c:\\Ecommerce app\\backend\\app\\models\\schemas.py', 'r', encoding='utf-8') as f:
+with open(r"c:\\Ecommerce app\\backend\\app\\models\\schemas.py", "r", encoding="utf-8") as f:
     content = f.read()
 
-import re
 
 # We will just split on 'class ProductResponse' and 'class CouponValidateCart'
 # but since ProductResponse is already messed up, we'll split on 'class ProductUpdate'
 # wait, 'class ProductUpdate(BaseModel):' is intact!
 # And 'class CouponValidateCart(BaseModel):' is intact.
 
-part1 = content.split('class ProductResponse')[0]
-part2 = 'class CouponValidateCart(BaseModel):' + content.split('class CouponValidateCart(BaseModel):')[1]
+part1 = content.split("class ProductResponse")[0]
+part2 = "class CouponValidateCart(BaseModel):" + content.split("class CouponValidateCart(BaseModel):")[1]
 
 new_content = part1 + correct_middle + part2
 
-with open(r'c:\\Ecommerce app\\backend\\app\\models\\schemas.py', 'w', encoding='utf-8') as f:
+with open(r"c:\\Ecommerce app\\backend\\app\\models\\schemas.py", "w", encoding="utf-8") as f:
     f.write(new_content)
 
 print("done")

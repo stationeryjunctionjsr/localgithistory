@@ -9,10 +9,12 @@ sys.path.insert(0, str(backend_root))
 os.chdir(backend_root)
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
+
 
 async def main():
     print("Connecting to database...")
@@ -30,6 +32,7 @@ async def main():
                 print(r)
         except Exception as e:
             print(f"Error querying: {e}")
+
 
 if __name__ == "__main__":
     if sys.platform == "win32":

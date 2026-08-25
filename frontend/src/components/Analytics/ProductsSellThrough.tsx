@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface ProductsSellThroughProps {
   startDate: Date | null;
@@ -33,7 +34,7 @@ export default function ProductsSellThrough({
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch products sell-through:', error);
+      logger.error('Failed to fetch products sell-through:', error);
       setLoading(false);
     }
   };

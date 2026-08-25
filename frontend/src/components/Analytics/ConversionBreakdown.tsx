@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface ConversionBreakdownProps {
   startDate: Date | null;
@@ -28,7 +29,7 @@ export default function ConversionBreakdown({ startDate, endDate }: ConversionBr
       setData(response.data);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch conversion breakdown:', error);
+      logger.error('Failed to fetch conversion breakdown:', error);
       setLoading(false);
     }
   };

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict
 
 from app.db.storage_factory import get_storage
@@ -14,8 +14,8 @@ class ReturnSettingsRepository:
             # Create default settings if they don't exist
             default_settings = {
                 "returnDays": 7,
-                "createdAt": datetime.utcnow().isoformat(),
-                "updatedAt": datetime.utcnow().isoformat(),
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+                "updatedAt": datetime.now(timezone.utc).isoformat(),
             }
             created = await self.storage.create(default_settings)
             return created
@@ -23,7 +23,7 @@ class ReturnSettingsRepository:
 
     async def update_settings(self, update_data: Dict) -> Dict:
         settings = await self.get_settings()
-        update_data["updatedAt"] = datetime.utcnow().isoformat()
+        update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(settings["_id"], update_data)
 
 

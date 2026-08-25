@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.db.storage_factory import get_storage
 
@@ -13,7 +13,7 @@ class WishlistRepository:
 
     async def createOrUpdate(self, user_id: str, items: list):
         existing = await self.findByUser(user_id)
-        wishlist_data = {"user": user_id, "items": items or [], "updatedAt": datetime.utcnow().isoformat()}
+        wishlist_data = {"user": user_id, "items": items or [], "updatedAt": datetime.now(timezone.utc).isoformat()}
         if existing:
             return await self.storage.update(existing.get("_id"), wishlist_data)
         else:
@@ -26,7 +26,7 @@ class WishlistRepository:
             "_id": item.get("_id") or str(uuid.uuid4()),
             "product": item.get("product"),
             "quantity": item.get("quantity", 1),
-            "addedAt": item.get("addedAt") or datetime.utcnow().isoformat(),
+            "addedAt": item.get("addedAt") or datetime.now(timezone.utc).isoformat(),
         }
 
         if not wishlist:

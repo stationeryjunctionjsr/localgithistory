@@ -12,6 +12,7 @@ load_dotenv()
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 
+
 async def run():
     factory = get_async_session_factory()
     if not factory:
@@ -44,7 +45,7 @@ async def run():
         for stmt in statements:
             if not stmt:
                 continue
-            
+
             print(f"Executing: {stmt}")
             try:
                 await session.execute(text(stmt))
@@ -63,6 +64,7 @@ async def run():
     print("=" * 60)
     print("Migration complete!")
     print("=" * 60)
+
 
 if __name__ == "__main__":
     asyncio.run(run())

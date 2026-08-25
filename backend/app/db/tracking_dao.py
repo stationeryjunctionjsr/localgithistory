@@ -105,10 +105,9 @@ def _build_select_columns() -> str:
 
 
 class OracleTrackingDAO:
-
     @property
     def TABLE(self):
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_tracking{suffix}"
 
     def _factory(self):
@@ -118,7 +117,7 @@ class OracleTrackingDAO:
         factory = self._factory()
         if not factory:
             return []
-        
+
         where_clauses = []
         params = {}
         if query:
@@ -130,14 +129,13 @@ class OracleTrackingDAO:
                     col = _TRACKING_SCALAR[k]
                     where_clauses.append(f"{col} = :{col}")
                     params[col] = v
-        
+
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         cols = _build_select_columns()
-        
+
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT {cols} FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
-                params
+                text(f"SELECT {cols} FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params
             )
             rows = result.fetchall()
         return [_row_to_doc(r) for r in rows]

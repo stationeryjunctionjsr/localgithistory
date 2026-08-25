@@ -11,7 +11,6 @@ router = APIRouter()
 
 
 @router.get("", response_model=List[ContactResponse])
-
 @router.get("/", response_model=List[ContactResponse])
 async def get_contacts(current_user: dict = Depends(get_current_user)):
     if current_user.get("role") == "super_admin":
@@ -40,7 +39,6 @@ async def get_contact(contact_id: str):
 
 
 @router.post("", response_model=ContactResponse, status_code=201)
-
 @router.post("/", response_model=ContactResponse, status_code=201)
 async def create_contact(contact_data: ContactCreate, current_user: dict = Depends(require_super_admin)):
     contact = await contact_repository.create(contact_data.dict())

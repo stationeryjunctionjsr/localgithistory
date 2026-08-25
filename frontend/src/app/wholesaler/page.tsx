@@ -1,6 +1,8 @@
 import WholesalerClient from '@/components/WholesalerClient';
 import { Suspense } from 'react';
 
+export const dynamic = 'force-dynamic';
+
 export const revalidate = 60; // 1 minute caching for the dashboard so inventory feels fresh but layout is fast
 
 export default async function WholesalerDashboardPage() {
@@ -34,22 +36,27 @@ export default async function WholesalerDashboardPage() {
     fetch(`${baseURL}/google-reviews/rating`, fetchOptions).catch(() => null),
   ]);
 
-  const extractJson = async (res: Response | null, label: string) => {
+  const extractJson = async (res: Response | null, label: string, critical: boolean = false) => {
     if (res === null) {
-      console.error(`[wholesaler/page] fetch failed (network error): ${label}`);
+      console.error(`[fetch] network error: ${label}`);
+      if (critical) throw new Error(`Network error: ${label}`);
       return null;
     }
     if (!res.ok) {
-      console.error(`[wholesaler/page] fetch failed (${res.status}): ${label}`);
+      console.error(`[fetch] status ${res.status}: ${label}`);
+      if (critical) throw new Error(`API failed with status ${res.status}: ${label}`);
       return null;
     }
-    return res.json().catch(() => null);
+    return res.json().catch((e) => {
+      if (critical) throw e;
+      return null;
+    });
   };
 
   const [categoriesRaw, brandsRaw, colRaw, homeBannersRaw, wholeBannersRaw, googleRatingRaw] =
     await Promise.all([
-      extractJson(categoriesRes, 'categories/public'),
-      extractJson(brandsRes, 'brands/public'),
+      extractJson(categoriesRes, 'categories/public', true),
+      extractJson(brandsRes, 'brands/public', true),
       extractJson(collectionsRes, 'collections/public'),
       extractJson(homeBannersRes, 'banners/homepage'),
       extractJson(wholeBannersRes, 'banners/wholesaler'),

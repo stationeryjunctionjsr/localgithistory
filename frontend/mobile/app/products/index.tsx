@@ -55,6 +55,9 @@ interface Product {
   createdAt?: string;
   collection?: string;
   salesCount?: number;
+  isNew?: boolean;
+  bestSeller?: boolean;
+  previouslyBought?: boolean;
 }
 
 type PageMode = 'category' | 'brand' | 'collection' | 'general';
@@ -564,12 +567,32 @@ export default function ProductsList(props: ProductsListProps = {}) {
             </View>
           )}
           {isOutOfStock && (
-            <View className="absolute inset-0 items-center justify-center bg-white/60">
+            <View className="absolute inset-0 items-center justify-center bg-white/60 z-10">
               <View className="rounded-full bg-neutral-900 px-3 py-1">
                 <Text className="text-xs font-bold text-white">Out of Stock</Text>
               </View>
             </View>
           )}
+
+          {/* Dynamic Badges */}
+          <View className="absolute bottom-2 left-1 flex-row flex-wrap gap-1 pr-1">
+            {item.isNew && (
+              <View className="rounded bg-blue-500 px-1.5 py-0.5">
+                <Text className="text-[9px] font-bold text-white">NEW</Text>
+              </View>
+            )}
+            {item.bestSeller && (
+              <View className="rounded bg-amber-500 px-1.5 py-0.5">
+                <Text className="text-[9px] font-bold text-white">BESTSELLER</Text>
+              </View>
+            )}
+            {item.previouslyBought && (
+              <View className="rounded bg-violet-500 px-1.5 py-0.5">
+                <Text className="text-[9px] font-bold text-white">BOUGHT BEFORE</Text>
+              </View>
+            )}
+          </View>
+
 
           {/* Add Button Overlay (visible on card) */}
           {!isOutOfStock && (

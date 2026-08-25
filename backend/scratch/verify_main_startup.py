@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 import asyncio
@@ -23,11 +24,11 @@ with patch("app.config.database.use_oracle", return_value=False):
             print(f"\n--- Testing startup directories for environment: {env} ---")
             settings.environment = env
             await initialize_data_dir()
-            
+
             # Verify folders exist
             base_dir = Path(__file__).resolve().parents[1] / "uploads"
             env_folder = "SJ_PROD" if env == "production" else ("SJ_UAT" if env == "uat" else "SJ_LOCAL")
-            
+
             subfolders = ["categories", "products", "brands", "invoices"]
             for subfolder in subfolders:
                 path = base_dir / env_folder / subfolder

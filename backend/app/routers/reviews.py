@@ -34,8 +34,8 @@ class ClassificationUpdate(BaseModel):
 
 # --- Customer Endpoints ---
 
-@router.post("", status_code=status.HTTP_201_CREATED)
 
+@router.post("", status_code=status.HTTP_201_CREATED)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_review(review_data: ReviewCreate, current_user: dict = Depends(get_current_user)):
     """Submit a rating and review for a delivered product."""
@@ -62,7 +62,7 @@ async def create_review(review_data: ReviewCreate, current_user: dict = Depends(
     if not has_purchased:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You can only review products that have been successfully delivered to you."
+            detail="You can only review products that have been successfully delivered to you.",
         )
 
     # 3. Verify that the classification is valid and active
@@ -78,7 +78,7 @@ async def create_review(review_data: ReviewCreate, current_user: dict = Depends(
     if not valid_class:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid review classification: '{review_data.classification}'"
+            detail=f"Invalid review classification: '{review_data.classification}'",
         )
 
     # 4. Create review with status 'pending'
@@ -101,7 +101,7 @@ async def create_review(review_data: ReviewCreate, current_user: dict = Depends(
 async def get_product_reviews(product_id: str):
     """Retrieve all approved reviews for a product."""
     reviews = await product_review_repository.findAll({"productId": str(product_id), "status": "approved"})
-    
+
     # Sort reviews by creation date descending (newest first)
     reviews.sort(key=lambda r: r.get("createdAt", ""), reverse=True)
     return reviews
@@ -116,17 +116,15 @@ async def get_active_classifications():
 
 # --- Admin Endpoints ---
 
+
 @router.get("/admin/list")
-async def admin_get_all_reviews(
-    status_filter: Optional[str] = None,
-    current_user: dict = Depends(require_super_admin)
-):
+async def admin_get_all_reviews(status_filter: Optional[str] = None, current_user: dict = Depends(require_super_admin)):
     """Get all reviews in the system, optionally filtered by status (super admin only)."""
     query = {}
     if status_filter:
         query["status"] = status_filter
     reviews = await product_review_repository.findAll(query)
-    
+
     # Sort by creation date descending
     reviews.sort(key=lambda r: r.get("createdAt", ""), reverse=True)
     return reviews
@@ -140,7 +138,7 @@ async def admin_approve_review(review_id: str, current_user: dict = Depends(requ
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
 
     updated = await product_review_repository.update(review_id, {"status": "approved"})
-    
+
     # Recalculate average rating for the product
     try:
         product_id = review.get("productId")
@@ -148,10 +146,9 @@ async def admin_approve_review(review_id: str, current_user: dict = Depends(requ
             all_approved = await product_review_repository.findAll({"productId": product_id, "status": "approved"})
             if all_approved:
                 avg_rating = sum(int(r.get("rating", 0)) for r in all_approved) / len(all_approved)
-                await product_repository.update(product_id, {
-                    "rating": round(avg_rating, 2),
-                    "reviews": len(all_approved)
-                })
+                await product_repository.update(
+                    product_id, {"rating": round(avg_rating, 2), "reviews": len(all_approved)}
+                )
     except Exception as e:
         logger.error("Failed to update product aggregated rating: %s", str(e))
 
@@ -166,7 +163,7 @@ async def admin_remove_review(review_id: str, current_user: dict = Depends(requi
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
 
     updated = await product_review_repository.update(review_id, {"status": "removed"})
-    
+
     # Recalculate average rating for the product
     try:
         product_id = review.get("productId")
@@ -174,15 +171,11 @@ async def admin_remove_review(review_id: str, current_user: dict = Depends(requi
             all_approved = await product_review_repository.findAll({"productId": product_id, "status": "approved"})
             if all_approved:
                 avg_rating = sum(int(r.get("rating", 0)) for r in all_approved) / len(all_approved)
-                await product_repository.update(product_id, {
-                    "rating": round(avg_rating, 2),
-                    "reviews": len(all_approved)
-                })
+                await product_repository.update(
+                    product_id, {"rating": round(avg_rating, 2), "reviews": len(all_approved)}
+                )
             else:
-                await product_repository.update(product_id, {
-                    "rating": None,
-                    "reviews": 0
-                })
+                await product_repository.update(product_id, {"rating": None, "reviews": 0})
     except Exception as e:
         logger.error("Failed to update product aggregated rating: %s", str(e))
 
@@ -197,8 +190,7 @@ async def admin_get_classifications(current_user: dict = Depends(require_super_a
 
 @router.post("/admin/classifications")
 async def admin_create_classification(
-    class_data: ClassificationCreate,
-    current_user: dict = Depends(require_super_admin)
+    class_data: ClassificationCreate, current_user: dict = Depends(require_super_admin)
 ):
     """Create a new review classification (super admin only)."""
     name = class_data.name.strip()
@@ -210,18 +202,13 @@ async def admin_create_classification(
         if c.get("name", "").strip().lower() == name.lower():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Classification already exists")
 
-    created = await review_classification_repository.create({
-        "name": name,
-        "isActive": True
-    })
+    created = await review_classification_repository.create({"name": name, "isActive": True})
     return {"message": "Classification created successfully", "classification": created}
 
 
 @router.put("/admin/classifications/{class_id}")
 async def admin_update_classification(
-    class_id: str,
-    class_data: ClassificationUpdate,
-    current_user: dict = Depends(require_super_admin)
+    class_id: str, class_data: ClassificationUpdate, current_user: dict = Depends(require_super_admin)
 ):
     """Update a review classification (super admin only)."""
     existing = await review_classification_repository.findById(class_id)
@@ -233,12 +220,14 @@ async def admin_update_classification(
         name = class_data.name.strip()
         if not name:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Name cannot be empty")
-        
+
         # Check uniqueness
         all_classes = await review_classification_repository.findAll()
         for c in all_classes:
             if c.get("_id") != class_id and c.get("name", "").strip().lower() == name.lower():
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Classification name already in use")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Classification name already in use"
+                )
         update_dict["name"] = name
 
     if class_data.isActive is not None:

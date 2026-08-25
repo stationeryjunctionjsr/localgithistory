@@ -27,7 +27,7 @@ def _row_to_segment(r) -> Dict:
 class OracleReferralSettingsDAO:
     @property
     def TABLE(self) -> str:
-        suffix = getattr(settings, 'table_suffix', '')
+        suffix = getattr(settings, "table_suffix", "")
         return f"sj_referral_settings{suffix}"
 
     def _factory(self):

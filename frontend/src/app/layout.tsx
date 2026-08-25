@@ -6,6 +6,7 @@ import { NotificationProvider } from '@/context/NotificationContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { WishlistProvider } from '@/context/WishlistContext';
 import { CartProvider } from '@/context/CartContext';
+import { PincodeProvider } from '@/context/PincodeContext';
 import CartOverlay from '@/components/CartOverlay';
 import PrivacyConsent from '@/components/PrivacyConsent';
 import ForceUpdateGate from '@/components/ForceUpdateGate';
@@ -126,7 +127,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <WishlistProvider>
                   <CartProvider>
                     <NotificationProvider>
-                      <AppChrome />
+                      <PincodeProvider>
+                        <AppChrome />
                       <LaunchPopup />
                       <FeedbackModal />
                       <MSG91Initializer />
@@ -146,6 +148,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       <FontSwitcher />
                       <ToastSetup />
                       <ToastContainer position="top-right" autoClose={2000} />
+                      </PincodeProvider>
                     </NotificationProvider>
                   </CartProvider>
                 </WishlistProvider>

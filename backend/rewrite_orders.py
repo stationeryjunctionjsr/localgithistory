@@ -1,6 +1,6 @@
 import re
 
-content = open('c:/Ecommerce app/backend/app/routers/orders.py', encoding='utf-8').read()
+content = open("c:/Ecommerce app/backend/app/routers/orders.py", encoding="utf-8").read()
 
 start_marker = "    # Build item totals for discount distribution (eligible-only vs all)"
 end_marker = "    # -------------------------------"
@@ -211,7 +211,7 @@ new_block = """    # Build item totals for discount distribution (eligible-only 
 
 new_content = content[:start_idx] + new_block + content[end_idx:]
 
-with open('c:/Ecommerce app/backend/app/routers/orders.py', 'w', encoding='utf-8') as f:
+with open("c:/Ecommerce app/backend/app/routers/orders.py", "w", encoding="utf-8") as f:
     f.write(new_content)
 
 print("Updated orders.py successfully")

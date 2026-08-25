@@ -1,4 +1,5 @@
 'use client';
+import { logger } from '@/utils/logger';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api, { setSessionRevokedHandler } from '@/utils/api';
@@ -23,6 +24,20 @@ interface User {
   creditUsed?: number;
   logoUrl?: string;
   referralCode?: string;
+  // Seller admin fields
+  isSellerAdmin?: boolean;
+  sellerPermissions?: {
+    allowDeliverySlots?: boolean;
+    allowUrgentDelivery?: boolean;
+    serviceablePincodes?: string[];
+    urgentPincodes?: string[];
+    slotPincodes?: string[];
+  };
+  // Valet fields
+  isOnDuty?: boolean;
+  vehicleType?: string;
+  serviceAreaPincodes?: string[];
+  maxConcurrentOrders?: number;
 }
 
 interface AuthContextType {
@@ -105,15 +120,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // promote guest activities if we had a guest session id
       const guestSessionId = Cookies.get('guestSessionId');
       if (guestSessionId && sessionId) {
-        promoteGuestActivities(guestSessionId, userData._id).catch(() => {});
+        promoteGuestActivities(guestSessionId, userData._id).catch(() => {
+          // non-critical â€” guest activity promotion failed silently
+        });
       }
       logActivity({
         type: 'login',
         detail: { method: isEmail ? 'email' : 'phone' },
         sessionId,
-      }).catch(() => {});
-      // Sync guest cart/wishlist to backend (fire-and-forget — don't block login)
-      syncGuestDataToBackend().catch(() => {});
+      }).catch((e) => logger.warn("Background task failed", e));
+      // Sync guest cart/wishlist to backend (fire-and-forget â€” don't block login)
+      syncGuestDataToBackend().catch(() => {
+        toast.warn("We couldn't restore your cart. Please add your items again.");
+      });
 
       if (message) {
         toast.info(message);
@@ -123,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return userData;
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Login failed');
+      toast.error(error.response?.data?.detail || error.response?.data?.message || 'Login failed');
       throw error;
     }
   };
@@ -141,9 +160,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       setUser(userData);
-      logActivity({ type: 'register', detail: { role: data.role }, sessionId }).catch(() => {});
-      // Sync guest cart/wishlist to backend (fire-and-forget — don't block registration)
-      syncGuestDataToBackend().catch(() => {});
+      logActivity({ type: 'register', detail: { role: data.role }, sessionId }).catch((e) => logger.warn("Background task failed", e));
+      // Sync guest cart/wishlist to backend (fire-and-forget â€" don't block registration)
+      syncGuestDataToBackend().catch(() => {
+        toast.warn("We couldn't restore your cart. Please add your items again.");
+      });
 
       if (message) {
         toast.info(message);
@@ -151,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         toast.success('Registration successful');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Registration failed');
+      toast.error(error.response?.data?.detail || error.response?.data?.message || 'Registration failed');
       throw error;
     }
   };
@@ -173,17 +194,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userData = data.user;
     if (userData) setUser(userData);
     // Sync guest cart/wishlist to backend (fire-and-forget)
-    syncGuestDataToBackend().catch(() => {});
+    syncGuestDataToBackend().catch(() => {
+      toast.warn("We couldn't restore your cart. Please add your items again.");
+    });
     return userData;
   };
 
   const logout = () => {
-    api.post('/auth/logout', {}).catch(() => {});
+    api.post('/auth/logout', {}).catch((e) => logger.warn("Background task failed", e));
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('sessionId');
     }
     setUser(null);
-    logActivity({ type: 'logout' }).catch(() => {});
+    logActivity({ type: 'logout' }).catch((e) => logger.warn("Background task failed", e));
   };
 
   const fetchUser = async () => {

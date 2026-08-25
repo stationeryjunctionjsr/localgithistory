@@ -31,6 +31,7 @@ export interface ApiAdapter {
   onUnauthorized?: () => void;
   onSessionRevoked?: (detail: any) => void;
   getDeviceHeaders?: () => Promise<Record<string, string>> | Record<string, string>;
+  getPincode?: () => Promise<string | null> | string | null;
 }
 
 let webSessionRevokedHandler: ((detail: any) => void) | null = null;
@@ -119,6 +120,19 @@ export const createApiClient = (adapter: ApiAdapter, options?: CreateApiClientOp
     const finalSessionId = explicitSessionId || adapterSessionId;
     if (finalSessionId) {
       headers['X-Session-Id'] = finalSessionId as any;
+    }
+
+    // Pincode header and query passthrough (explicit or via adapter)
+    const explicitPincode = (config as any).pincode || (config.params && config.params.pincode);
+    const adapterPincode = adapter.getPincode
+      ? await Promise.resolve(adapter.getPincode())
+      : null;
+    const finalPincode = explicitPincode || adapterPincode;
+    if (finalPincode) {
+      headers['X-Pincode'] = finalPincode as any;
+      if (config.params && typeof config.params === 'object' && !config.params.pincode) {
+        config.params.pincode = finalPincode;
+      }
     }
 
     // For FormData, allow browser to set boundary
@@ -210,6 +224,12 @@ const webAdapter: ApiAdapter = {
       return null;
     }
     return window.localStorage.getItem('sessionId');
+  },
+  getPincode: () => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    return window.localStorage.getItem('sj_user_pincode') || null;
   },
   clearTokens: () => {},
   setTokens: () => {},

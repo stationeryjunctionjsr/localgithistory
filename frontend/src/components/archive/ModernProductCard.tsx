@@ -21,6 +21,7 @@ import { useShare } from '@/hooks/useShare';
 import styles from './ModernProductCard.module.css';
 import QuickVariantModal from '../QuickVariantModal';
 import AuthModal from '@/components/AuthModal';
+import { logger } from '@/utils/logger';
 
 // Custom SVG Components
 // eslint-disable-next-line unused-imports/no-unused-vars
@@ -299,7 +300,7 @@ export default function ModernProductCard({
         await addToWishlist(product._id, getSessionId());
       }
     } catch (error) {
-      console.error('Error toggling wishlist:', error);
+      logger.error('Error toggling wishlist:', error);
     } finally {
       setIsWishlistLoading(false);
     }

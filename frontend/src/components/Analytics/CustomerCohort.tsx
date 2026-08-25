@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface CustomerCohortProps {
   startDate: Date | null;
@@ -28,7 +29,7 @@ export default function CustomerCohort({ startDate, endDate }: CustomerCohortPro
       setData(response.data || []);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch customer cohort:', error);
+      logger.error('Failed to fetch customer cohort:', error);
       setLoading(false);
     }
   };

@@ -76,7 +76,9 @@ class DeliveryChargeRepository:
             "deliveryChargeGst": default_data.get("deliveryChargeGst", False),
             "deliveryChargeGstPercentage": float(default_data.get("deliveryChargeGstPercentage", 18.0)),
             "isActive": default_data.get("isActive", True),
-            "urgentDeliveryCharge": float(default_data.get("urgentDeliveryCharge")) if default_data.get("urgentDeliveryCharge") is not None else None,
+            "urgentDeliveryCharge": float(default_data.get("urgentDeliveryCharge"))
+            if default_data.get("urgentDeliveryCharge") is not None
+            else None,
         }
 
         if existing:
@@ -109,7 +111,7 @@ class DeliveryChargeRepository:
             # Check if default charge is applied
             if pincode_charge.get("applyDefaultCharge"):
                 default_charge = await self.getDefaultCharge()
-                
+
                 urgent_charge = None
                 if pincode_charge.get("urgentDeliveryAvailable"):
                     urgent_charge = default_charge.get("urgentDeliveryCharge") if default_charge else None
@@ -233,7 +235,15 @@ class DeliveryChargeRepository:
                 "urgentDeliveryCharge": None,
             }
 
-        return {"charge": 0, "minCartValue": 0, "source": "none", "deliveryCharge": None, "isApplicableToRole": True, "urgentDeliveryAvailable": False, "urgentDeliveryCharge": None}
+        return {
+            "charge": 0,
+            "minCartValue": 0,
+            "source": "none",
+            "deliveryCharge": None,
+            "isApplicableToRole": True,
+            "urgentDeliveryAvailable": False,
+            "urgentDeliveryCharge": None,
+        }
 
     def isChargeApplicableToRole(self, charge_data: Dict, user_role: str) -> bool:
         """Check if delivery charge is applicable to the user's role"""
@@ -317,7 +327,9 @@ class DeliveryChargeRepository:
             "isActive": charge_data.get("isActive", True),
             "description": charge_data.get("description", ""),
             "urgentDeliveryAvailable": charge_data.get("urgentDeliveryAvailable", False) is True,
-            "urgentDeliveryCharge": float(charge_data.get("urgentDeliveryCharge")) if charge_data.get("urgentDeliveryCharge") is not None else None,
+            "urgentDeliveryCharge": float(charge_data.get("urgentDeliveryCharge"))
+            if charge_data.get("urgentDeliveryCharge") is not None
+            else None,
         }
 
         return await self.storage.create(charge)

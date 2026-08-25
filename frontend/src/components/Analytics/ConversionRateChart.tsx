@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface ConversionRateChartProps {
   startDate: Date | null;
@@ -50,7 +51,7 @@ export default function ConversionRateChart({ startDate, endDate }: ConversionRa
       const d = response.data;
       setData(d && typeof d === 'object' && !Array.isArray(d) ? d : null);
     } catch (error) {
-      console.error('Failed to fetch conversion rate:', error);
+      logger.error('Failed to fetch conversion rate:', error);
     } finally {
       setLoading(false);
     }

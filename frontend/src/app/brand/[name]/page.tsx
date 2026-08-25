@@ -5,6 +5,7 @@ import { permanentRedirect } from 'next/navigation';
  * Permanently redirected to /brands/[name] via next.config.js redirects.
  * This server component is a safety fallback.
  */
-export default function LegacyBrandRedirect({ params }: { params: { name: string } }) {
-  permanentRedirect(`/brands/${encodeURIComponent(params.name)}`);
+export default async function LegacyBrandRedirect({ params }: { params: Promise<{ name: string }> }) {
+  const { name } = await params;
+  permanentRedirect(`/brands/${encodeURIComponent(name)}`);
 }

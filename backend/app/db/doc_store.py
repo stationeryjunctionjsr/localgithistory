@@ -6,7 +6,7 @@ Uses parameterized queries only.
 
 import json
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from sqlalchemy import text
@@ -15,7 +15,7 @@ from app.config.database import get_async_session_factory
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _parse_doc(doc_clob: Optional[str]) -> dict:
@@ -64,23 +64,23 @@ class OracleDocStore:
             doc["_id"] = str(row.id)
         doc["createdAt"] = row.created_at.isoformat() if row.created_at else _now_iso()
         doc["updatedAt"] = row.updated_at.isoformat() if row.updated_at else _now_iso()
-        
+
         # Read from row.used_count if available and not present in doc
         if hasattr(row, "used_count") and row.used_count is not None:
             if "usedCount" not in doc:
                 doc["usedCount"] = int(row.used_count)
-        
+
         # Fallback to 0 if still not present
         if "usedCount" not in doc:
             doc["usedCount"] = 0
-            
+
         return doc
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         factory = self._get_session_factory()
         if not factory:
             return []
-        
+
         where_clauses = []
         params = {}
         if query:
@@ -93,9 +93,7 @@ class OracleDocStore:
                     else:
                         # String ID (e.g. "system_retail_registered_no_order") → match
                         # against the _id field embedded in the JSON document
-                        where_clauses.append(
-                            f"JSON_VALUE({self.doc_column}, '$._id') = :json_id"
-                        )
+                        where_clauses.append(f"JSON_VALUE({self.doc_column}, '$._id') = :json_id")
                         params["json_id"] = str(v)
                 elif v is not None:
                     param_name = f"qp_{k}"
@@ -104,17 +102,16 @@ class OracleDocStore:
                         params[param_name] = "true" if v else "false"
                     else:
                         params[param_name] = str(v)
-                        
+
         where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
-        
+
         cols = f"id, external_id, {self.doc_column}, created_at, updated_at"
         if self._raw_table_name == "sj_coupons":
             cols += ", used_count"
-            
+
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT {cols} FROM {self.table_name}{where_sql} ORDER BY id ASC"),
-                params
+                text(f"SELECT {cols} FROM {self.table_name}{where_sql} ORDER BY id ASC"), params
             )
             rows = result.fetchall()
             docs = []
@@ -146,7 +143,7 @@ class OracleDocStore:
 
     async def create(self, data: Dict) -> Dict:
         external_id = secrets.token_hex(16)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # Keep custom string _id if provided in data
         custom_id = data.get("_id")
         payload = {k: v for k, v in data.items() if k not in ("createdAt", "updatedAt")}
@@ -156,7 +153,7 @@ class OracleDocStore:
         factory = self._get_session_factory()
         if not factory:
             raise RuntimeError("Oracle not configured")
-            
+
         cols = ["external_id", self.doc_column, "created_at", "updated_at"]
         vals = [":external_id", ":doc", ":created_at", ":updated_at"]
         params = {
@@ -165,12 +162,12 @@ class OracleDocStore:
             "created_at": now,
             "updated_at": now,
         }
-        
+
         if self._raw_table_name == "sj_coupons":
             cols.append("used_count")
             vals.append(":used_count")
             params["used_count"] = int(data.get("usedCount") or 0)
-            
+
             if "code" in data:
                 cols.append("code")
                 vals.append(":code")
@@ -206,7 +203,7 @@ class OracleDocStore:
 
         cols_str = ", ".join(cols)
         vals_str = ", ".join(vals)
-        
+
         async with factory() as session:
             result = await session.execute(
                 text(
@@ -243,11 +240,11 @@ class OracleDocStore:
         factory = self._get_session_factory()
         if not factory:
             return None
-            
+
         cols = f"id, external_id, {self.doc_column}, created_at, updated_at"
         if self._raw_table_name == "sj_coupons":
             cols += ", used_count"
-            
+
         async with factory() as session:
             result = await session.execute(
                 text(f"SELECT {cols} FROM {self.table_name} WHERE id = :id"),
@@ -264,13 +261,13 @@ class OracleDocStore:
                 doc.pop("_id", None)
             doc.pop("_db_id", None)
             doc.pop("createdAt", None)
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             doc["updatedAt"] = now.isoformat()
             doc_json = json.dumps(doc, default=str)
-            
+
             update_sql = f"SET {self.doc_column} = :doc, updated_at = :updated_at"
             params = {"doc": doc_json, "updated_at": now, "id": int(db_id)}
-            
+
             if self._raw_table_name == "sj_coupons":
                 if "usedCount" in update_data:
                     update_sql += ", used_count = :used_count"
@@ -289,7 +286,9 @@ class OracleDocStore:
                     params["min_order_value"] = float(update_data["minPurchaseAmount"])
                 if "usageLimit" in update_data:
                     update_sql += ", max_uses = :max_uses"
-                    params["max_uses"] = int(update_data["usageLimit"]) if update_data["usageLimit"] is not None else None
+                    params["max_uses"] = (
+                        int(update_data["usageLimit"]) if update_data["usageLimit"] is not None else None
+                    )
                 if "isActive" in update_data:
                     update_sql += ", is_active = :is_active"
                     params["is_active"] = 1 if update_data["isActive"] else 0
@@ -299,7 +298,7 @@ class OracleDocStore:
                 if "validUntil" in update_data:
                     update_sql += ", end_date = :end_date"
                     params["end_date"] = _to_datetime(update_data["validUntil"])
-                    
+
             await session.execute(
                 text(f"UPDATE {self.table_name} {update_sql} WHERE id = :id"),
                 params,

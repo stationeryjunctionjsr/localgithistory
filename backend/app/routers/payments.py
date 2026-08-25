@@ -35,22 +35,20 @@ async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
     # 2. Get all payments for this user
     user_payments = await payment_repository.findAll({"userId": current_user.get("userId")})
     unpaid_credit_bills = []
-    
+
     for p in user_payments:
         # Check if it is a credit payment
         if p.get("paymentMethod") == "credit":
             # Calculate verified amount paid
             verified_paid = sum(
-                entry.get("amount", 0.0)
-                for entry in (p.get("paymentEntries") or [])
-                if entry.get("verified")
+                entry.get("amount", 0.0) for entry in (p.get("paymentEntries") or []) if entry.get("verified")
             )
             # Calculate effective remaining due amount
             effective_due = p.get("totalAmount", 0.0) - verified_paid
             if effective_due > 0:
                 unpaid_credit_bills.append((p, effective_due))
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     total_dues = 0.0
     total_overdue = 0.0
     has_overdue_bills = False
@@ -72,7 +70,11 @@ async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
         order_date_str = bill.get("orderDate") or bill.get("createdAt")
         if order_date_str:
             try:
-                order_date = datetime.fromisoformat(order_date_str.replace("Z", "+00:00")).astimezone(timezone.utc).replace(tzinfo=None)
+                order_date = (
+                    datetime.fromisoformat(order_date_str.replace("Z", "+00:00"))
+                    .astimezone(timezone.utc)
+                    .replace(tzinfo=None)
+                )
             except Exception:
                 order_date = now
         else:
@@ -99,17 +101,19 @@ async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
             else:
                 time_remaining_str = f"{days_left} day{'s' if days_left > 1 else ''} remaining"
 
-        bills_info.append({
-            "orderId": bill.get("orderId"),
-            "orderNumber": order_number,
-            "amountRemaining": effective_due,
-            "totalAmount": bill.get("totalAmount", 0.0),
-            "orderDate": order_date_str,
-            "dueDate": due_date.isoformat() + "Z",
-            "timeRemaining": time_remaining_str,
-            "overdue": is_overdue,
-            "paymentId": bill.get("_id")
-        })
+        bills_info.append(
+            {
+                "orderId": bill.get("orderId"),
+                "orderNumber": order_number,
+                "amountRemaining": effective_due,
+                "totalAmount": bill.get("totalAmount", 0.0),
+                "orderDate": order_date_str,
+                "dueDate": due_date.isoformat() + "Z",
+                "timeRemaining": time_remaining_str,
+                "overdue": is_overdue,
+                "paymentId": bill.get("_id"),
+            }
+        )
 
     # Sort bills by due date (earliest first)
     bills_info.sort(key=lambda b: b["dueDate"])
@@ -127,12 +131,12 @@ async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
     return {
         "hasOverdueBills": has_overdue_bills,
         "totalDues": total_dues,
-        "totalOverdue": total_dues,  # total credit not settled, irrespective of credit period
+        "currentOverdue": total_overdue,
         "minimumOverdue": minimum_overdue,
         "nearestDueAmount": nearest_due_amount,
         "nearestDueDate": nearest_due_date,
         "bills": bills_info,
-        "paymentTerms": terms_days
+        "paymentTerms": terms_days,
     }
 
 
@@ -170,16 +174,18 @@ async def get_payments(
 
     payments = await payment_repository.findAll(query or None)
 
-    # Enhance payments with orderNumber
+    # Bulk-fetch all referenced orders in one query to avoid N+1 DB calls
+    order_ids = list({p.get("orderId") for p in payments if p.get("orderId")})
+    orders_list = await order_repository.findAll({"_id": {"$in": order_ids}}) if order_ids else []
+    order_map = {str(o.get("_id")): o for o in orders_list}
+
     enhanced_payments = []
     for payment in payments:
-        try:
-            order = await order_repository.findById(payment.get("orderId"))
-            enhanced_payment = {**payment, "orderNumber": order.get("orderNumber") if order else payment.get("orderId")}
-            enhanced_payments.append(enhanced_payment)
-        except Exception:
-            enhanced_payment = {**payment, "orderNumber": payment.get("orderId")}
-            enhanced_payments.append(enhanced_payment)
+        order = order_map.get(str(payment.get("orderId")))
+        enhanced_payments.append({
+            **payment,
+            "orderNumber": order.get("orderNumber") if order else payment.get("orderId"),
+        })
 
     return enhanced_payments
 
@@ -238,7 +244,15 @@ async def submit_credit_settlement(
 
         payment = payments[0]
 
-        # Verify amount doesn't exceed remaining amount
+        # Re-fetch the payment record immediately before the guard to avoid a
+        # race condition where two concurrent requests both read the same stale
+        # amountRemaining and both pass the check before either is deducted.
+        fresh_payments = await payment_repository.findByOrderId(settlement_data.orderId)
+        if not fresh_payments:
+            raise HTTPException(status_code=404, detail="Payment record not found")
+        payment = fresh_payments[0]
+
+        # Verify amount doesn't exceed remaining amount (using freshly-read value)
         if settlement_data.amount > payment.get("amountRemaining", 0):
             raise HTTPException(
                 status_code=400,
@@ -281,7 +295,7 @@ async def submit_credit_settlement(
                             "orderId": updated_payment.get("orderId"),
                             "amount": settlement_data.amount,
                             "paymentMethod": "upi",
-                            "createdAt": datetime.utcnow().isoformat() + "Z",
+                            "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
                         },
                     }
                 )

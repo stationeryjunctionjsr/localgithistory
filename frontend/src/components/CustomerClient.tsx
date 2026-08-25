@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useProductsPerRow, getSectionDisplayConfig } from '@/hooks/useProductsPerRow';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -19,6 +20,10 @@ import Link from 'next/link';
 import { useRecommendationSectionView } from '@/hooks/useRecommendationSectionView';
 import { trackRecommendationProductClick } from '@/utils/analytics';
 import { useCart } from '@/context/CartContext';
+import { usePincode } from '@/context/PincodeContext';
+import UnserviceableLocationBanner from '@/components/UnserviceableLocationBanner';
+import { toast } from 'react-hot-toast';
+import { logger } from '@/utils/logger';
 
 export interface CustomerClientProps {
   initialProducts?: any[];
@@ -41,6 +46,7 @@ export default function CustomerClient({
 }: CustomerClientProps) {
   const { user } = useAuth();
   const { cart, addToCart, updateQuantity, removeFromCart } = useCart();
+  const { isServiceable, pincode } = usePincode();
   // eslint-disable-next-line unused-imports/no-unused-vars
   const { theme } = useTheme();
   const router = useRouter();
@@ -68,6 +74,8 @@ export default function CustomerClient({
   const [customerFavourites, setCustomerFavourites] = useState<any[]>([]);
   const [trendingNow, setTrendingNow] = useState<any[]>([]);
   const [explore, setExplore] = useState<any[]>([]);
+  const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
+
   const [googleRating, setGoogleRating] = useState(
     initialStats?.googleRating || { rating: 5.0, reviewCount: '421' }
   );
@@ -78,6 +86,7 @@ export default function CustomerClient({
     'explore',
   ]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const productsPerRow = useProductsPerRow();
   const newArrivalsRef = useRecommendationSectionView('new_arrivals');
   const customerFavouritesRef = useRecommendationSectionView('customer_favourites');
   const trendingNowRef = useRecommendationSectionView('trending_now');
@@ -128,18 +137,28 @@ export default function CustomerClient({
   // Public data (products, categories, brands, collections, google rating)
   // comes pre-fetched from the server component via initial* props.
   useEffect(() => {
-    /* 
-    // Commented out to prevent redundant client-side API requests that duplicate SSR data:
-    fetchProducts();
-    fetchCategories();
-    fetchBrands();
-    fetchCollections();
-    fetchGoogleRating();
-    */
-    fetchBanners();
-    fetchRecommendations();
+    if (isServiceable !== false) {
+      fetchBanners();
+      fetchRecommendations();
+    }
+    
+    if (user) {
+      api.get('/wishlist').then((res) => {
+        const ids = new Set<string>();
+        (res.data || []).forEach((item: any) => {
+          if (item.product && item.product._id) {
+            ids.add(item.product._id);
+          }
+        });
+        setWishlistedIds(ids);
+      }).catch(err => logger.error('Failed to fetch wishlist', err));
+    } else {
+      setWishlistedIds(new Set());
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, user]);
+  }, [isMobile, user, pincode, isServiceable]);
+
+  // Bundles now appear inline in the ProductCatalog grid via /bundles/search (no separate fetch needed here)
 
   /*
   // Commented out to prevent redundant client-side fetching (data is now SSR-loaded via initialStats):
@@ -148,7 +167,7 @@ export default function CustomerClient({
       const res = await api.get('/google-reviews/rating');
       if (res.data) setGoogleRating(res.data);
     } catch (e) {
-      console.error('Failed to fetch google rating', e);
+      logger.error('Failed to fetch google rating', e);
     }
   };
 
@@ -159,7 +178,7 @@ export default function CustomerClient({
       const allProducts = response.data.products || response.data || [];
       setProducts(allProducts);
     } catch (error) {
-      console.error('Failed to fetch products', error);
+      logger.error('Failed to fetch products', error);
     }
   };
 
@@ -169,7 +188,7 @@ export default function CustomerClient({
       const res = await api.get('/brands/public', { params: { forHomepage: true } });
       setBrands(Array.isArray(res.data) ? res.data : res.data?.brands || []);
     } catch (e) {
-      console.error('Failed to fetch brands', e);
+      logger.error('Failed to fetch brands', e);
       setBrands([]);
     }
   };
@@ -189,7 +208,7 @@ export default function CustomerClient({
           }));
         setCategories(activeCategories);
       } catch (categoryError) {
-        console.warn('Category API not available, falling back to products', categoryError);
+        logger.warn('Category API not available, falling back to products', categoryError);
         const response = await api.get('/products/public');
         const products = response.data.products || response.data || [];
         const uniqueCategoryNames: string[] = Array.from(
@@ -204,7 +223,7 @@ export default function CustomerClient({
         );
       }
     } catch (error) {
-      console.error('Failed to fetch categories', error);
+      logger.error('Failed to fetch categories', error);
       setCategories([]);
     }
   };
@@ -217,7 +236,7 @@ export default function CustomerClient({
       });
       setCollections(response.data || []);
     } catch (error) {
-      console.error('Failed to fetch collections', error);
+      logger.error('Failed to fetch collections', error);
     }
   };
   */
@@ -229,7 +248,7 @@ export default function CustomerClient({
       const response = await api.get('/recommendations');
       const data = response.data || {};
       const filterActive = (arr: any[]) =>
-        (arr || []).filter((p: any) => p && p.isActive !== false);
+        (arr || []).filter((p: any) => p && p.isActive !== false && p.stock > 0);
       setNewArrivals(filterActive(data.newArrivals || []));
       setCustomerFavourites(filterActive(data.customerFavourites || []));
       setTrendingNow(filterActive(data.trendingNow || []));
@@ -240,7 +259,36 @@ export default function CustomerClient({
           : ['new_arrivals', 'customer_favourites', 'trending_now', 'explore']
       );
     } catch (e) {
-      console.error('Failed to fetch recommendations', e);
+      logger.error('Failed to fetch recommendations', e);
+    }
+  };
+
+  const toggleWishlist = async (productId: string, productName: string) => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    try {
+      if (wishlistedIds.has(productId)) {
+        await api.delete(`/wishlist/${productId}`);
+        setWishlistedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(productId);
+          return next;
+        });
+        toast.success(`${productName || 'Item'} removed from wishlist`);
+      } else {
+        await api.post('/wishlist', { productId });
+        setWishlistedIds((prev) => {
+          const next = new Set(prev);
+          next.add(productId);
+          return next;
+        });
+        toast.success(`${productName || 'Item'} added to wishlist`);
+      }
+    } catch (error) {
+      logger.error('Failed to toggle wishlist', error);
+      toast.error('Could not update wishlist');
     }
   };
   const fetchBanners = async () => {
@@ -254,7 +302,7 @@ export default function CustomerClient({
       const activeBanners = (response.data || []).filter((b: any) => b.isActive);
       setBanners(activeBanners);
     } catch (error) {
-      console.error('Failed to fetch banners', error);
+      logger.error('Failed to fetch banners', error);
     }
   };
 
@@ -322,14 +370,23 @@ export default function CustomerClient({
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       <Header />
 
-      {!selectedCategory && !selectedCategoryTag && !selectedCollection && !searchTerm && (
+      {isServiceable === false ? (
+        <main className="w-full px-4 py-12 md:px-8 xl:px-12">
+          <UnserviceableLocationBanner />
+        </main>
+      ) : (
         <>
-          <HeroCarousel banners={banners} />
-          <StatsCounter productCount={products.length} brandCount={brands.length} />
-        </>
-      )}
+          {!selectedCategory && !selectedCategoryTag && !selectedCollection && !searchTerm && (
+            <>
+              <HeroCarousel banners={banners} />
+              <StatsCounter 
+                productCount={products.length} 
+                brandCount={brands.length} 
+              />
+            </>
+          )}
 
-      <main className="w-full px-4 py-8 md:px-8 xl:px-12">
+          <main className="w-full px-4 py-8 md:px-8 xl:px-12">
         {/* Recommendation sections — new_arrivals always first ("Just Landed"), then bandit-ordered rest */}
         {!selectedCategory &&
           !selectedCategoryTag &&
@@ -355,7 +412,7 @@ export default function CustomerClient({
                 ref: newArrivalsRef,
                 items: newArrivals,
                 slot: 'new_arrivals',
-                show: newArrivals.length > 0,
+                show: getSectionDisplayConfig(newArrivals.length, productsPerRow).hide === false,
               },
               {
                 key: 'customer_favourites',
@@ -365,7 +422,7 @@ export default function CustomerClient({
                 ref: customerFavouritesRef,
                 items: customerFavourites,
                 slot: 'customer_favourites',
-                show: customerFavourites.length > 0,
+                show: getSectionDisplayConfig(customerFavourites.length, productsPerRow).hide === false,
               },
               {
                 key: 'trending_now',
@@ -375,7 +432,7 @@ export default function CustomerClient({
                 ref: trendingNowRef,
                 items: trendingNow,
                 slot: 'trending_now',
-                show: trendingNow.length > 0,
+                show: getSectionDisplayConfig(trendingNow.length, productsPerRow).hide === false,
               },
               {
                 key: 'explore',
@@ -385,7 +442,7 @@ export default function CustomerClient({
                 ref: exploreRef,
                 items: explore,
                 slot: 'explore',
-                show: explore.length > 0 && !!user,
+                show: getSectionDisplayConfig(explore.length, productsPerRow).hide === false && !!user,
               },
             ];
             const styles: Record<string, { span: string; bar: string }> = {
@@ -424,98 +481,92 @@ export default function CustomerClient({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5 xl:grid-cols-6">
-                  {sec.items
-                    .slice(0, expandedSections[sec.key] ? 24 : 6)
-                    .map((p: any, index: number) => (
-                      <div
-                        key={p._id}
-                        className="animate-fade-in-up opacity-0"
-                        style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
-                      >
-                        <HoverProductCard
-                          product={{ ...p, isNew: false, bestSeller: false }}
-                          onClick={() => {
-                            trackRecommendationProductClick({
-                              productId: p._id,
-                              productName: p.name,
-                              recommendationSlot: sec.slot,
-                            });
-                            router.push(`/customer/product/${p._id}`);
-                          }}
-                          cartQuantity={
-                            cart?.items?.find((i: any) => (i.product?._id || i.product) === p._id)
-                              ?.quantity || 0
-                          }
-                          onAddToCart={(e) => {
-                            e.stopPropagation();
-                            addToCart(p._id, 1, p);
-                          }}
-                          onIncrement={(e) => {
-                            e.stopPropagation();
-                            const item = cart?.items?.find(
-                              (i: any) => (i.product?._id || i.product) === p._id
-                            );
-                            if (item) updateQuantity(item._id, (item.quantity || 1) + 1);
-                          }}
-                          onDecrement={(e) => {
-                            e.stopPropagation();
-                            const item = cart?.items?.find(
-                              (i: any) => (i.product?._id || i.product) === p._id
-                            );
-                            if (item) {
-                              if ((item.quantity || 1) <= 1) removeFromCart(item._id);
-                              else updateQuantity(item._id, (item.quantity || 1) - 1);
-                            }
-                          }}
-                        />
-                      </div>
-                    ))}
-                </div>
+                  {(() => {
+                    const cfg = getSectionDisplayConfig(sec.items.length, productsPerRow);
+                    const isExpanded = expandedSections[sec.key];
+                    return (
+                      <>
+                        {sec.items
+                          .slice(0, isExpanded ? cfg.expanded : cfg.visible)
+                          .map((p: any, index: number) => (
+                            <div
+                              key={p._id}
+                              className="animate-fade-in-up opacity-0"
+                              style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
+                            >
+                              <HoverProductCard
+                                product={{ ...p, isNew: false, bestSeller: false }}
+                                onClick={() => {
+                                  trackRecommendationProductClick({
+                                    productId: p._id,
+                                    productName: p.name,
+                                    recommendationSlot: sec.slot,
+                                  });
+                                  router.push(`/customer/product/${p._id}`);
+                                }}
+                                cartQuantity={
+                                  cart?.items?.find((i: any) => (i.product?._id || i.product) === p._id)
+                                    ?.quantity || 0
+                                }
+                                onAddToCart={(e) => {
+                                  e.stopPropagation();
+                                  addToCart(p._id, 1, p);
+                                }}
+                                onIncrement={(e) => {
+                                  e.stopPropagation();
+                                  const item = cart?.items?.find(
+                                    (i: any) => (i.product?._id || i.product) === p._id
+                                  );
+                                  if (item) updateQuantity(item._id, (item.quantity || 1) + 1);
+                                }}
+                                onDecrement={(e) => {
+                                  e.stopPropagation();
+                                  const item = cart?.items?.find(
+                                    (i: any) => (i.product?._id || i.product) === p._id
+                                  );
+                                  if (item) {
+                                    if ((item.quantity || 1) <= 1) removeFromCart(item._id);
+                                    else updateQuantity(item._id, (item.quantity || 1) - 1);
+                                  }
+                                }}
+                                isWishlisted={wishlistedIds.has(p._id)}
+                                onWishlistClick={(e) => {
+                                  toggleWishlist(p._id, p.name);
+                                }}
+                              />
+                            </div>
+                          ))}
 
-                {sec.items.length > 6 && (
-                  <div className="relative mt-12 flex justify-center border-t border-gray-100 pt-8">
-                    <button
-                      onClick={() => handleToggleSection(sec.key)}
-                      className="absolute -top-6 flex items-center gap-2 rounded-full border border-gray-200 bg-white px-8 py-3 font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md"
-                    >
-                      {expandedSections[sec.key] ? (
-                        <>
-                          Show less
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 15l7-7 7 7"
-                            />
-                          </svg>
-                        </>
-                      ) : (
-                        <>
-                          Show more
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
+                        {cfg.showButton && (
+                          <div className="col-span-full">
+                            <div className="relative mt-12 flex justify-center border-t border-gray-100 pt-8">
+                              <button
+                                onClick={() => handleToggleSection(sec.key)}
+                                className="absolute -top-6 flex items-center gap-2 rounded-full border border-gray-200 bg-white px-8 py-3 font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md"
+                              >
+                                {isExpanded ? (
+                                  <>
+                                    Show less
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                    </svg>
+                                  </>
+                                ) : (
+                                  <>
+                                    Show more
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               </section>
             ));
           })()}
@@ -772,6 +823,9 @@ export default function CustomerClient({
                 hideThumbnail={true}
               />
             )}
+
+
+
             <div className={`w-full ${searchTerm ? 'mt-4' : 'py-4'}`}>
               <ProductCatalog
                 category={selectedCategory}
@@ -845,6 +899,8 @@ export default function CustomerClient({
             </a>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

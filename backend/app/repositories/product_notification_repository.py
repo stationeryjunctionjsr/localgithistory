@@ -38,8 +38,7 @@ class ProductNotificationRepository:
         async with factory() as session:
             try:
                 result = await session.execute(
-                    text("SELECT table_name FROM user_tables WHERE table_name = :tname"),
-                    {"tname": table_name_upper}
+                    text("SELECT table_name FROM user_tables WHERE table_name = :tname"), {"tname": table_name_upper}
                 )
                 row = result.fetchone()
                 if not row:
@@ -71,11 +70,9 @@ class ProductNotificationRepository:
             "status": "active",
         }
         # Check if an active notification already exists for this email and product
-        existing = await self.storage.findAll({
-            "productId": str(product_id),
-            "email": email.strip().lower(),
-            "status": "active"
-        })
+        existing = await self.storage.findAll(
+            {"productId": str(product_id), "email": email.strip().lower(), "status": "active"}
+        )
         if existing:
             return existing[0]
 
@@ -83,10 +80,7 @@ class ProductNotificationRepository:
 
     async def trigger_restock_notifications(self, product_id: str, product_name: str):
         await self.ensure_table_exists()
-        active_notifs = await self.storage.findAll({
-            "productId": str(product_id),
-            "status": "active"
-        })
+        active_notifs = await self.storage.findAll({"productId": str(product_id), "status": "active"})
         if not active_notifs:
             return
 
@@ -97,7 +91,7 @@ class ProductNotificationRepository:
 
         product_url = f"{domain}/customer/product/{product_id}"
         subject = f"Back in stock: {product_name}"
-        clean_product_name = product_name.replace("'", "").replace('"', '')
+        clean_product_name = product_name.replace("'", "").replace('"', "")
         plain_text_body = f"Good news! The item {clean_product_name} is back in stock and ready to order. View the product here: {product_url}"
         html_body = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">

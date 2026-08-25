@@ -90,7 +90,7 @@ export default function MyReturns() {
               />
             </svg>
             <h3 className="mt-4 text-sm font-semibold text-gray-900">No returns found</h3>
-            <p className="mt-1 text-sm text-gray-500">You haven't requested any returns yet.</p>
+            <p className="mt-1 text-sm text-gray-500">You haven&apos;t requested any returns yet.</p>
             <div className="mt-6">
               <Link
                 href="/customer/orders"

@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
@@ -54,14 +54,14 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(user_id: str, session_id: str) -> str:
     """Create short-lived access token tied to session"""
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {"userId": user_id, "sessionId": session_id, "exp": expire, "type": "access"}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_refresh_token(user_id: str, session_id: str, refresh_id: str) -> str:
     """Create long-lived refresh token with jti"""
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode = {
         "userId": user_id,
         "sessionId": session_id,
@@ -147,8 +147,11 @@ async def verify_token(token: str) -> dict:
 
 
 def check_roles(user: dict, *allowed_roles: str):
-    """Check if user has required role"""
-    if user.get("role") not in allowed_roles:
+    """Check if user has required role. Uses effectiveRole when present
+    (e.g. deactivated wholesalers get effectiveRole='customer'), falling
+    back to role for backwards compatibility."""
+    effective = user.get("effectiveRole") or user.get("role")
+    if effective not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Insufficient permissions.")
     return user
 
@@ -253,3 +256,20 @@ async def require_super_admin_or_valet(current_user: dict = Depends(get_current_
         raise
     except Exception:
         raise HTTPException(status_code=403, detail="Access denied. Super admin or valet only.")
+
+
+def is_seller_admin(user: dict) -> bool:
+    return user.get("role") == "seller_admin"
+
+
+def require_seller_admin(user: dict = Depends(get_current_user)) -> dict:
+    if not is_seller_admin(user):
+        raise HTTPException(status_code=403, detail="Seller Admin required")
+    return user
+
+
+def require_super_admin_or_seller(user: dict = Depends(get_current_user)) -> dict:
+    role = user.get("role")
+    if role not in ("super_admin", "seller_admin"):
+        raise HTTPException(status_code=403, detail="Admin or Seller required")
+    return user

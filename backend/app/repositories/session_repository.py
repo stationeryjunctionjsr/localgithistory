@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
@@ -15,7 +15,7 @@ class SessionRepository:
                 "userId": user_id,
                 "refreshTokenId": refresh_token_id,
                 "status": "active",
-                "lastActiveAt": datetime.utcnow().isoformat(),
+                "lastActiveAt": datetime.now(timezone.utc).isoformat(),
                 "revokedAt": None,
                 "revokedReason": None,
                 "device": device,
@@ -39,7 +39,7 @@ class SessionRepository:
 
     async def revoke_session(self, session_id: str, reason: str) -> Optional[Dict]:
         return await self.update_session(
-            session_id, {"status": "revoked", "revokedReason": reason, "revokedAt": datetime.utcnow().isoformat()}
+            session_id, {"status": "revoked", "revokedReason": reason, "revokedAt": datetime.now(timezone.utc).isoformat()}
         )
 
     async def revoke_other_sessions(self, user_id: str, exclude_session_id: Optional[str] = None) -> List[Dict]:
@@ -51,7 +51,7 @@ class SessionRepository:
         return updated
 
     async def touch_last_active(self, session_id: str):
-        await self.update_session(session_id, {"lastActiveAt": datetime.utcnow().isoformat()})
+        await self.update_session(session_id, {"lastActiveAt": datetime.now(timezone.utc).isoformat()})
 
     async def touch(self, session_id: str, device: dict = None) -> None:
         """Lightweight session touch — delegates to DAO's single-UPDATE touch."""
@@ -59,7 +59,7 @@ class SessionRepository:
             await self.storage.touch(session_id, device)
         else:
             # Fallback for non-Oracle storage backends
-            updates = {"lastActiveAt": datetime.utcnow().isoformat()}
+            updates = {"lastActiveAt": datetime.now(timezone.utc).isoformat()}
             if device:
                 updates["device"] = device
             await self.update_session(session_id, updates)
@@ -69,7 +69,7 @@ class SessionRepository:
         if last_active:
             try:
                 dt = datetime.fromisoformat(last_active.replace("Z", "+00:00"))
-                if datetime.utcnow() - dt > timedelta(days=max_inactive_days):
+                if datetime.now(timezone.utc) - dt > timedelta(days=max_inactive_days):
                     return await self.revoke_session(session["_id"], "inactive")
             except Exception as e:
                 logger.warning("Invalid lastActiveAt for session %s: %s", session.get("_id"), str(e))

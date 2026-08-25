@@ -48,7 +48,7 @@ interface Filters {
 export default function BusinessFavouritesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // Filters State
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -82,12 +82,22 @@ export default function BusinessFavouritesScreen() {
 
   const isWholesaler = user?.role === 'wholesaler';
 
-  // Redirect/Block non-wholesalers
+  // Redirect non-wholesalers — render nothing while auth is still loading
+  // to prevent a flash of protected content before the redirect fires
   useEffect(() => {
-    if (!isWholesaler) {
+    if (!authLoading && !isWholesaler) {
       router.replace('/(tabs)/home');
     }
-  }, [isWholesaler]);
+  }, [isWholesaler, authLoading]);
+
+  // While auth is resolving or if not a wholesaler, show nothing
+  if (authLoading || !isWholesaler) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   const fetchProducts = useCallback(async () => {
     if (!isWholesaler) return;
@@ -572,7 +582,7 @@ const styles = StyleSheet.create({
   },
   outOfStockText: {
     fontSize: 10,
-    fontWeight: '750',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   brandText: {
@@ -622,7 +632,7 @@ const styles = StyleSheet.create({
   },
   modalHeaderTitle: {
     fontSize: 16,
-    fontWeight: '750',
+    fontWeight: '700',
     color: colors.textPrimary,
   },
   modalForm: {
@@ -631,7 +641,7 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontSize: 12,
-    fontWeight: '750',
+    fontWeight: '700',
     color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,

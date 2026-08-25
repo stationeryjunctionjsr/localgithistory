@@ -2,23 +2,16 @@ import pytest
 from app.repositories.coupon_repository import coupon_repository
 from app.repositories.customer_segments_repository import customer_segments_repository
 
+
 @pytest.mark.asyncio
 async def test_coupon_segments_overlap_and_multi_select():
     # 1. Create segment A
-    segment_a_data = {
-        "name": "Test Segment A",
-        "type": "retail",
-        "userIds": ["user_1", "user_3"]
-    }
+    segment_a_data = {"name": "Test Segment A", "type": "retail", "userIds": ["user_1", "user_3"]}
     segment_a = await customer_segments_repository.create(segment_a_data)
     segment_a_id = str(segment_a["_id"])
 
     # 2. Create segment B
-    segment_b_data = {
-        "name": "Test Segment B",
-        "type": "retail",
-        "userIds": ["user_2", "user_3"]
-    }
+    segment_b_data = {"name": "Test Segment B", "type": "retail", "userIds": ["user_2", "user_3"]}
     segment_b = await customer_segments_repository.create(segment_b_data)
     segment_b_id = str(segment_b["_id"])
 

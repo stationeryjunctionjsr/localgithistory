@@ -15,6 +15,7 @@ async def test_password():
     admin = await user_repository.findOne({"role": "super_admin"})
     if admin:
         import os
+
         password = os.getenv("TEST_ADMIN_PASSWORD", "")
         if not password:
             print("[-] TEST_ADMIN_PASSWORD not set in environment. Using empty password.")

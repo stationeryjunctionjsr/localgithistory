@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/utils/api';
+import { logger } from '@/utils/logger';
 
 interface POSStaffSalesProps {
   startDate: Date | null;
@@ -29,7 +30,7 @@ export default function POSStaffSales({ startDate, endDate, currency }: POSStaff
       setData(response.data);
       setLoading(false);
     } catch (error) {
-      console.error('Failed to fetch POS staff sales:', error);
+      logger.error('Failed to fetch POS staff sales:', error);
       setLoading(false);
     }
   };

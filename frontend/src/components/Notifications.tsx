@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import api from '@/utils/api';
 import { toast } from 'react-toastify';
 import { formatDateTimeIST } from '@/utils/dateUtils';
+import { logger } from '@/utils/logger';
 
 interface Notification {
   _id: string;
@@ -73,11 +74,27 @@ export default function Notifications() {
   useEffect(() => {
     fetchNotifications();
     fetchUnreadCount();
-    const interval = setInterval(() => {
+
+    let interval: ReturnType<typeof setInterval> | null = setInterval(() => {
       fetchNotifications();
       fetchUnreadCount();
     }, 30000);
-    return () => clearInterval(interval);
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+      } else {
+        fetchNotifications();
+        fetchUnreadCount();
+        interval = setInterval(() => { fetchNotifications(); fetchUnreadCount(); }, 30000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -85,7 +102,7 @@ export default function Notifications() {
       const response = await api.get('/notifications/');
       setNotifications(response.data || []);
     } catch (error: any) {
-      console.error('Error fetching notifications:', error);
+      logger.error('Error fetching notifications:', error);
     }
   };
 
@@ -94,7 +111,7 @@ export default function Notifications() {
       const response = await api.get('/notifications/unread-count/');
       setUnreadCount(response.data.count || 0);
     } catch (error: any) {
-      console.error('Error fetching unread count:', error);
+      logger.error('Error fetching unread count:', error);
     }
   };
 
@@ -136,7 +153,7 @@ export default function Notifications() {
         await fetchNotifications();
         await fetchUnreadCount();
       } catch (error: any) {
-        console.error('Error marking notification as read:', error);
+        logger.error('Error marking notification as read:', error);
       }
     }
   };
@@ -379,7 +396,7 @@ function NotificationDetailModal({
         setProduct(response.data);
       }
     } catch (error: any) {
-      console.error('Error fetching details:', error);
+      logger.error('Error fetching details:', error);
       toast.error('Failed to load details');
     } finally {
       setLoading(false);

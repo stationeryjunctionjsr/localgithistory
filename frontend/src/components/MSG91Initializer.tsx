@@ -1,6 +1,7 @@
 'use client';
 
 import Script from 'next/script';
+import { logger } from '@/utils/logger';
 
 export default function MSG91Initializer() {
   // Removed duplicate useEffect initialization which causes "Widget not found"
@@ -17,7 +18,7 @@ export default function MSG91Initializer() {
             const widgetId = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID;
             const tokenAuth = process.env.NEXT_PUBLIC_MSG91_TOKEN_AUTH;
             if (!widgetId || !tokenAuth) {
-              console.warn(
+              logger.warn(
                 'MSG91 widget credentials not configured. Set NEXT_PUBLIC_MSG91_WIDGET_ID and NEXT_PUBLIC_MSG91_TOKEN_AUTH.'
               );
               return;
@@ -32,7 +33,7 @@ export default function MSG91Initializer() {
                 }
               },
               failure: (error: any) => {
-                console.error('MSG91 Initialization Failure:', error);
+                logger.error('MSG91 Initialization Failure:', error);
               },
             };
             initFn(configuration);
@@ -40,7 +41,7 @@ export default function MSG91Initializer() {
               console.log('MSG91 SDK Initialized Successfully');
             }
           } else {
-            console.warn('MSG91 initialization function not found on window object.');
+            logger.warn('MSG91 initialization function not found on window object.');
           }
         }
       }}

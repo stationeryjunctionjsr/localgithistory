@@ -15,7 +15,6 @@ def require_wholesaler(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("", response_model=List[CouponResponse])
-
 @router.get("/", response_model=List[CouponResponse])
 async def get_schemes(current_user: dict = Depends(require_wholesaler)):
     """

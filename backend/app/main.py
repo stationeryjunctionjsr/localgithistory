@@ -46,6 +46,7 @@ if _sentry_dsn:
 else:
     logger.debug("SENTRY_DSN not set — Sentry disabled")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan — replaces deprecated @app.on_event('startup')."""
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
     # Scheduled notification job
     try:
         from app.jobs.scheduled_notifications import start_scheduled_notification_job
+
         start_scheduled_notification_job()
     except Exception as e:
         logger.warning("Could not start scheduled notification job: %s", e)
@@ -62,6 +64,7 @@ async def lifespan(app: FastAPI):
     # Recommendation scheduler (trending + customer favourites)
     try:
         from app.jobs.scheduler import start_recommendation_scheduler
+
         start_recommendation_scheduler()
     except Exception as e:
         logger.warning("Could not start recommendation scheduler: %s", e)
@@ -117,6 +120,7 @@ async def lifespan(app: FastAPI):
         await asyncio.sleep(5)
         try:
             from app.config.database import get_async_session_factory, use_oracle
+
             if use_oracle():
                 factory = get_async_session_factory()
                 if factory:
@@ -131,32 +135,77 @@ async def lifespan(app: FastAPI):
 
             from starlette.responses import Response as _WarmupResponse
             from app.routers.products import get_public_products, get_public_product
+
             await get_public_products(
                 response=_WarmupResponse(),
-                category=None, categories=None, subCategory=None,
-                search=None, brand=None, collection=None, popularity=None,
-                minDiscount=None, minPrice=None, maxPrice=None,
-                availability=None, page=1, limit=50, role="customer",
-                categoryTag=None, sort=None, includeFacets=True, skinny=False,
+                category=None,
+                categories=None,
+                subCategory=None,
+                search=None,
+                brand=None,
+                collection=None,
+                popularity=None,
+                minDiscount=None,
+                minPrice=None,
+                maxPrice=None,
+                availability=None,
+                page=1,
+                limit=50,
+                role="customer",
+                categoryTag=None,
+                sort=None,
+                includeFacets=True,
+                skinny=False,
             )
             await get_public_products(
                 response=_WarmupResponse(),
-                category=None, categories=None, subCategory=None,
-                search="test", brand=None, collection=None, popularity=None,
-                minDiscount=None, minPrice=None, maxPrice=None,
-                availability=None, page=1, limit=50, role="customer",
-                categoryTag=None, sort=None, includeFacets=False, skinny=True,
+                category=None,
+                categories=None,
+                subCategory=None,
+                search="test",
+                brand=None,
+                collection=None,
+                popularity=None,
+                minDiscount=None,
+                minPrice=None,
+                maxPrice=None,
+                availability=None,
+                page=1,
+                limit=50,
+                role="customer",
+                categoryTag=None,
+                sort=None,
+                includeFacets=False,
+                skinny=True,
             )
             # Warm up first product detail if possible
             products_res = await get_public_products(
                 response=_WarmupResponse(),
-                category=None, categories=None, subCategory=None, search=None, brand=None,
-                collection=None, popularity=None, minDiscount=None, minPrice=None,
-                maxPrice=None, availability=None, page=1, limit=1, role="customer",
-                categoryTag=None, sort=None, includeFacets=False, skinny=True
+                category=None,
+                categories=None,
+                subCategory=None,
+                search=None,
+                brand=None,
+                collection=None,
+                popularity=None,
+                minDiscount=None,
+                minPrice=None,
+                maxPrice=None,
+                availability=None,
+                page=1,
+                limit=1,
+                role="customer",
+                categoryTag=None,
+                sort=None,
+                includeFacets=False,
+                skinny=True,
             )
             try:
-                products_list = products_res.get("products", []) if isinstance(products_res, dict) else (products_res.products if hasattr(products_res, "products") else [])
+                products_list = (
+                    products_res.get("products", [])
+                    if isinstance(products_res, dict)
+                    else (products_res.products if hasattr(products_res, "products") else [])
+                )
                 if products_list:
                     # In PaginatedProductResponse, products is a list of objects/dicts.
                     p0 = products_list[0]
@@ -167,27 +216,35 @@ async def lifespan(app: FastAPI):
                 logger.warning("Failed to warm up get_public_product: %s", e)
 
             from app.routers.banners import get_public_banners
+
             await get_public_banners(
-                position=None, targetAudience=None, pageType=None,
-                pageId=None, userRole="guest",
+                position=None,
+                targetAudience=None,
+                pageType=None,
+                pageId=None,
+                userRole="guest",
             )
             from app.routers.categories import get_public_categories
+
             await get_public_categories(forHomepage=False)
             from app.routers.brands import get_public_brands
+
             await get_public_brands(forHomepage=False)
-            
+
             try:
                 from app.routers.recommendations import get_recommendations
+
                 await get_recommendations(current_user=None)
             except Exception as re:
                 logger.warning("Failed to warm up recommendations: %s", re)
-                
+
             try:
                 from app.routers.delivery_charges import check_serviceability
+
                 await check_serviceability("110001")
             except Exception as e:
                 logger.warning("Failed to warm up check-serviceability: %s", e)
-            
+
             logger.info("Critical API caches pre-warmed")
         except Exception as e:
             logger.warning("Cache warm-up incomplete: %s", e)
@@ -198,6 +255,7 @@ async def lifespan(app: FastAPI):
     async def _ensure_indexes():
         try:
             from app.scripts.create_indexes import create_indexes
+
             await create_indexes()
         except Exception as e:
             logger.warning("Could not create DB indexes: %s", e)
@@ -246,6 +304,7 @@ import logging as _logging
 
 SLOW_REQUEST_THRESHOLD_MS = settings.slow_request_threshold_ms
 
+
 @app.middleware("http")
 async def unified_request_middleware(request: Request, call_next):
     from app.utils.maintenance import (
@@ -279,7 +338,7 @@ async def unified_request_middleware(request: Request, call_next):
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self), payment=()"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+        "script-src 'self' https://cdnjs.cloudflare.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: blob: https://*.oraclecloud.com https://maps.googleapis.com https://maps.gstatic.com; "
@@ -292,8 +351,9 @@ async def unified_request_middleware(request: Request, call_next):
     # Timing log
     level = _logging.WARNING if duration_ms > SLOW_REQUEST_THRESHOLD_MS else _logging.INFO
     client = request.client.host if request.client else "-"
-    logger.log(level, "%s %s -> %s in %.0fms [%s]",
-               request.method, request.url.path, response.status_code, duration_ms, client)
+    logger.log(
+        level, "%s %s -> %s in %.0fms [%s]", request.method, request.url.path, response.status_code, duration_ms, client
+    )
 
     return response
 
@@ -372,6 +432,7 @@ async def initialize_data_dir():
 
     # Initialize uploads directories
     from app.config.settings import settings
+
     env = settings.environment.lower()
     if env == "production":
         env_folder = "SJ_PROD"
@@ -392,7 +453,6 @@ async def initialize_data_dir():
     invoices_uploads_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("File-based storage initialized")
-
 
 
 # Global Exception Handler
@@ -529,6 +589,7 @@ async def touch_session_middleware(request: Request, call_next):
         # Lightweight JWT decode just to extract session ID — no DB calls.
         # Full verification happens in get_current_user() inside the route.
         from jose import jwt as jose_jwt
+
         payload = jose_jwt.decode(
             token,
             settings.jwt_secret_key,
@@ -541,17 +602,15 @@ async def touch_session_middleware(request: Request, call_next):
             now = time.time()
             cache_key = (session_id, device)
             last_touch = _session_last_touch.get(cache_key, 0)
-            
+
             # Only update the DB if 60 seconds have elapsed since the last touch
             if now - last_touch > 60:
                 asyncio.create_task(session_repository.touch(session_id, device))
                 _session_last_touch[cache_key] = now
-                
+
                 # Cleanup cache if it grows too large to prevent memory leaks
                 if len(_session_last_touch) > 10000:
-                    _session_last_touch = {
-                        k: t for k, t in _session_last_touch.items() if now - t <= 60
-                    }
+                    _session_last_touch = {k: t for k, t in _session_last_touch.items() if now - t <= 60}
     except Exception as e:
         if isinstance(e, HTTPException) and isinstance(e.detail, dict) and e.detail.get("code") == ERR_SESSION_REVOKED:
             return JSONResponse(status_code=401, content=e.detail)

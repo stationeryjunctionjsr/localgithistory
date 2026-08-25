@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import api from '@/utils/api';
 import SearchableDropdown from './SearchableDropdown';
+import { logger } from '@/utils/logger';
 
 interface VisibilityRule {
   pageType: string;
@@ -53,7 +54,7 @@ export default function CollectionVisibilityControls({
         setBrands(brandRes.data || []);
         setCollections(collRes.data || []);
       } catch (error) {
-        console.error('Failed to fetch visibility context data', error);
+        logger.error('Failed to fetch visibility context data', error);
       }
     };
     fetchContextData();
