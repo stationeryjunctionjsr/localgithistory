@@ -1,0 +1,204 @@
+"""
+MySQL DAO for sj_banners. Implements FileStorage-like interface for 'banners'.
+Fully relational with child tables for user_segments and visibility_rules.
+"""
+
+import secrets
+from typing import Dict, List, Optional
+
+from sqlalchemy import text
+
+from app.config.database import get_async_session_factory
+from app.config.settings import settings
+from app.db.oracle_utils import now_utc
+
+
+class MySQLBannerDAO:
+    @property
+    def TABLE(self):
+        suffix = getattr(settings, "table_suffix", "")
+        return f"sj_banners{suffix}"
+
+    def _factory(self):
+        return get_async_session_factory()
+
+    def _row_to_doc(self, r, children: Dict) -> Dict:
+        return {
+            "_id": str(r.id),
+            "title": r.title,
+            "imageUrl": r.image_url,
+            "linkUrl": r.link_url,
+            "isActive": bool(r.is_active) if r.is_active is not None else True,
+            "targetAudience": r.target_audience,
+            "position": r.position,
+            "userSegments": children.get("userSegments", []),
+            "visibilityRules": children.get("visibilityRules", []),
+            "createdAt": r.created_at.isoformat() if r.created_at else None,
+            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
+        }
+
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
+        c_map = {rid: {"userSegments": [], "visibilityRules": []} for rid in ids}
+        if not ids:
+            return c_map
+        chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
+        for chunk in chunks:
+            chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
+            placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
+
+            res_us = await session.execute(
+                text(f"SELECT banner_id, segment FROM sj_banner_user_segments WHERE banner_id IN ({placeholders})"),
+                chunk_params,
+            )
+            for r in res_us.fetchall():
+                c_map[r.banner_id]["userSegments"].append(r.segment)
+
+            res_vr = await session.execute(
+                text(f"SELECT banner_id, rule FROM sj_banner_visibility_rules WHERE banner_id IN ({placeholders})"),
+                chunk_params,
+            )
+            for r in res_vr.fetchall():
+                c_map[r.banner_id]["visibilityRules"].append(r.rule)
+        return c_map
+
+    async def _replace_children(self, session, bid: int, data: Dict):
+        await session.execute(text("DELETE FROM sj_banner_user_segments WHERE banner_id = :bid"), {"bid": bid})
+        await session.execute(text("DELETE FROM sj_banner_visibility_rules WHERE banner_id = :bid"), {"bid": bid})
+
+        for seg in data.get("userSegments", []):
+            await session.execute(
+                text("INSERT INTO sj_banner_user_segments (banner_id, segment) VALUES (:bid, :seg)"),
+                {"bid": bid, "seg": str(seg)},
+            )
+
+        for rule in data.get("visibilityRules", []):
+            await session.execute(
+                text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
+                {"bid": bid, "rule": str(rule)},
+            )
+
+    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+        factory = self._factory()
+        if not factory:
+            return []
+
+        where_clauses = []
+        params = {}
+        if query:
+            for k, v in query.items():
+                if k in ("_id", "id"):
+                    where_clauses.append("id = :id")
+                    params["id"] = int(v) if str(v).isdigit() else 0
+                elif k == "isActive":
+                    where_clauses.append("is_active = :is_active")
+                    params["is_active"] = int(bool(v))
+                elif k == "position":
+                    where_clauses.append("position = :pos")
+                    params["pos"] = str(v)
+                elif k == "targetAudience":
+                    where_clauses.append("target_audience = :ta")
+                    params["ta"] = str(v)
+
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        async with factory() as session:
+            result = await session.execute(
+                text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params
+            )
+            rows = result.fetchall()
+            c_map = await self._fetch_children(session, [r.id for r in rows])
+        return [self._row_to_doc(r, c_map[r.id]) for r in rows]
+
+    async def findOne(self, query: Dict) -> Optional[Dict]:
+        docs = await self.findAll(query)
+        return docs[0] if docs else None
+
+    async def findById(self, id: str) -> Optional[Dict]:
+        return await self.findOne({"_id": id})
+
+    async def create(self, data: Dict) -> Dict:
+        factory = self._factory()
+        now = now_utc()
+        external_id = secrets.token_hex(16)
+        async with factory() as session:
+            await session.execute(
+                text(
+                    f"""
+                    INSERT INTO {self.TABLE} (
+                        external_id, title, image_url, link_url,
+                        is_active, target_audience, position,
+                        created_at, updated_at
+                    ) VALUES (
+                        :external_id, :title, :image_url, :link_url,
+                        :is_active, :target_audience, :position,
+                        :created_at, :updated_at
+                    )
+                    """
+                ),
+                {
+                    "external_id": external_id,
+                    "title": data.get("title"),
+                    "image_url": data.get("imageUrl"),
+                    "link_url": data.get("linkUrl"),
+                    "is_active": int(bool(data.get("isActive", True))),
+                    "target_audience": data.get("targetAudience"),
+                    "position": data.get("position"),
+                    "created_at": now,
+                    "updated_at": now,
+                },
+            )
+            await session.commit()
+            r = await session.execute(
+                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
+            )
+            new_id = r.scalar()
+            await self._replace_children(session, new_id, data)
+            await session.commit()
+        return await self.findById(str(new_id))
+
+    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+        existing = await self.findById(id)
+        if not existing:
+            return None
+        merged = {**existing, **update_data}
+
+        factory = self._factory()
+        now = now_utc()
+        bid = int(id) if str(id).isdigit() else 0
+        async with factory() as session:
+            await session.execute(
+                text(
+                    f"""
+                    UPDATE {self.TABLE} SET
+                        title = :title,
+                        image_url = :image_url,
+                        link_url = :link_url,
+                        is_active = :is_active,
+                        target_audience = :target_audience,
+                        position = :position,
+                        updated_at = :updated_at
+                    WHERE id = :id
+                    """
+                ),
+                {
+                    "id": bid,
+                    "title": merged.get("title"),
+                    "image_url": merged.get("imageUrl"),
+                    "link_url": merged.get("linkUrl"),
+                    "is_active": int(bool(merged.get("isActive", True))),
+                    "target_audience": merged.get("targetAudience"),
+                    "position": merged.get("position"),
+                    "updated_at": now,
+                },
+            )
+            await self._replace_children(session, bid, merged)
+            await session.commit()
+        return await self.findById(id)
+
+    async def delete(self, id: str) -> bool:
+        factory = self._factory()
+        async with factory() as session:
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else 0}
+            )
+            await session.commit()
+            return result.rowcount > 0

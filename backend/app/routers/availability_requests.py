@@ -1,0 +1,190 @@
+from datetime import datetime, timezone
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+
+from app.db.storage_factory import get_storage
+from app.utils.auth import get_optional_user, require_super_admin
+from app.utils.logger import logger
+
+router = APIRouter()
+
+_storage = get_storage("availabilityRequests")
+
+
+class AvailabilityRequestCreate(BaseModel):
+    productId: str
+    productName: str
+    pincode: str
+    userName: Optional[str] = None
+    userEmail: Optional[str] = None
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
+async def create_availability_request(
+    data: AvailabilityRequestCreate,
+    current_user: Optional[dict] = Depends(get_optional_user),
+):
+    """Create a product availability request for a specific pincode.
+    Can be submitted by authenticated users or guests (providing name/email).
+    """
+    user_id = current_user.get("_id") if current_user else None
+    user_name = (current_user.get("name") if current_user else None) or data.userName
+    user_email = (current_user.get("email") if current_user else None) or data.userEmail
+
+    record = {
+        "productId": data.productId,
+        "productName": data.productName,
+        "pincode": data.pincode.strip(),
+        "userId": user_id,
+        "userName": user_name,
+        "userEmail": user_email,
+        "status": "pending",
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "fulfilledAt": None,
+    }
+
+    result = await _storage.create(record)
+    return result
+
+
+@router.get("")
+@router.get("/")
+async def list_availability_requests(
+    pincode: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    productId: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, le=200),
+    current_user: dict = Depends(require_super_admin),
+):
+    """List all availability requests. Admin only."""
+    all_requests = await _storage.findAll({})
+
+    # Apply filters
+    if pincode:
+        all_requests = [r for r in all_requests if r.get("pincode") == pincode.strip()]
+    if status_filter:
+        all_requests = [r for r in all_requests if r.get("status") == status_filter]
+    if productId:
+        all_requests = [r for r in all_requests if r.get("productId") == productId]
+
+    # Sort newest first
+    all_requests.sort(key=lambda r: r.get("createdAt", ""), reverse=True)
+
+    total = len(all_requests)
+    start = (page - 1) * limit
+    paginated = all_requests[start : start + limit]
+
+    return {"requests": paginated, "total": total, "page": page, "limit": limit}
+
+
+@router.post("/{request_id}/fulfill")
+async def fulfill_availability_request(
+    request_id: str,
+    current_user: dict = Depends(require_super_admin),
+):
+    """Mark a request as fulfilled and notify the user via push + email."""
+    req = await _storage.findById(request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if req.get("status") == "fulfilled":
+        raise HTTPException(status_code=400, detail="Request already fulfilled")
+
+    # Mark fulfilled
+    await _storage.update(
+        request_id,
+        {
+            "status": "fulfilled",
+            "fulfilledAt": datetime.now(timezone.utc).isoformat(),
+            "fulfilledBy": current_user.get("_id"),
+        },
+    )
+
+    product_id = req.get("productId")
+    product_name = req.get("productName", "Your requested product")
+    pincode = req.get("pincode")
+    user_id = req.get("userId")
+    user_email = req.get("userEmail")
+
+    notification_payload = {
+        "title": "Product Now Available! 🎉",
+        "message": f"{product_name} is now available for delivery to pincode {pincode}.",
+        "link": f"/customer/product/{product_id}",
+    }
+
+    # Send push notification to user (if authenticated)
+    push_delivered = 0
+    if user_id:
+        try:
+            from app.services.push_notification_service import push_notification_service
+
+            result = await push_notification_service.send_to_user(user_id, notification_payload)
+            push_delivered = result.get("deliveredCount", 0)
+        except Exception as e:
+            logger.warning("Could not send push notification for availability request %s: %s", request_id, e)
+
+    # Also notify all users who clicked "Notify Me" for this product+pincode
+    notify_push = 0
+    notify_email_list = []
+    if product_id and pincode:
+        try:
+            from app.db.storage_factory import get_storage as _gs
+
+            tracking_storage = _gs("tracking")
+            all_events = await tracking_storage.findAll({})
+            notify_events = [
+                e
+                for e in all_events
+                if e.get("type") == "notify_pincode"
+                and str(e.get("productId")) == str(product_id)
+                and str(e.get("pincode")) == str(pincode)
+                and not e.get("notified")
+            ]
+            for event in notify_events:
+                ev_user_id = event.get("userId")
+                ev_email = event.get("email")
+                if ev_user_id and ev_user_id != user_id:
+                    try:
+                        from app.services.push_notification_service import push_notification_service
+
+                        r = await push_notification_service.send_to_user(ev_user_id, notification_payload)
+                        notify_push += r.get("deliveredCount", 0)
+                    except Exception:
+                        pass
+                if ev_email:
+                    notify_email_list.append(ev_email)
+                # Mark as notified
+                try:
+                    await tracking_storage.update(str(event["_id"]), {"notified": True})
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning("Could not notify 'Notify Me' users for product %s at %s: %s", product_id, pincode, e)
+
+    # Send email notifications (best-effort)
+    email_delivered = 0
+    all_emails = list({e for e in ([user_email] + notify_email_list) if e})
+    for email in all_emails:
+        try:
+            from app.services.email_service import EmailService
+
+            email_service = EmailService()
+            email_service.send_email(
+                to_emails=email,
+                subject=f"'{product_name}' is now available at your pincode!",
+                body=f"Great news! The product '{product_name}' you requested is now available for delivery to {pincode}. Visit the app to place your order now!",
+            )
+            email_delivered += 1
+        except Exception as e:
+            logger.warning("Could not send email to %s: %s", email, e)
+
+    return {
+        "success": True,
+        "message": (
+            f"Request fulfilled. Push: {push_delivered + notify_push} delivered, Email: {email_delivered} sent."
+        ),
+    }

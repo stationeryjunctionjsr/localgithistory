@@ -1,0 +1,242 @@
+"""
+MySQL DAO for sj_tracking. Fully relational with child tables.
+"""
+
+import secrets
+from datetime import datetime
+from typing import Dict, List, Optional
+
+from sqlalchemy import text
+
+from app.config.database import get_async_session_factory
+from app.config.settings import settings
+from app.db.oracle_utils import now_utc
+
+_TRACKING_SCALAR = {
+    "type": "event_type",
+    "userId": "user_id",
+    "sessionId": "session_id",
+    "timestamp": "event_timestamp",
+    "searchTerm": "search_term",
+    "resultsCount": "results_count",
+    "productId": "product_id",
+    "productName": "product_name",
+    "segment": "segment",
+    "page": "page",
+    "reason": "reason",
+    "filterType": "filter_type",
+    "filterValue": "filter_value",
+    "cartValue": "cart_value",
+    "cartItems": "cart_items",
+    "isReturning": "is_returning",
+    "source": "source",
+    "campaign": "campaign",
+    "os": "os",
+    "browser": "browser",
+    "ipAddress": "ip_address",
+}
+
+
+class MySQLTrackingDAO:
+    @property
+    def TABLE(self):
+        suffix = getattr(settings, "table_suffix", "")
+        return f"sj_tracking{suffix}"
+
+    def _factory(self):
+        return get_async_session_factory()
+
+    def _row_to_doc(self, r, children: Dict) -> Dict:
+        out = {
+            "_id": str(r.id),
+            "externalId": r.external_id,
+            "createdAt": r.created_at.isoformat() if r.created_at else None,
+            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
+        }
+        for api_k, db_col in _TRACKING_SCALAR.items():
+            val = getattr(r, db_col, None)
+            if api_k in ("resultsCount",) and val is not None:
+                val = int(val)
+            elif api_k in ("cartValue",) and val is not None:
+                val = float(val)
+            elif api_k in ("isReturning",) and val is not None:
+                val = bool(val)
+            elif api_k in ("cartItems",) and val is not None:
+                if isinstance(val, str):
+                    import json
+
+                    try:
+                        val = json.loads(val)
+                    except:
+                        pass
+            elif api_k in ("timestamp",) and val:
+                val = val.isoformat() if hasattr(val, "isoformat") else str(val)
+            out[api_k] = val
+
+        out["productIds"] = children.get("product_ids", [])
+        payload = children.get("payload", {})
+        out.update(payload)
+        out["payload"] = {}
+        return out
+
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
+        c_map = {rid: {"product_ids": [], "payload": {}} for rid in ids}
+        if not ids:
+            return c_map
+        chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
+        for chunk in chunks:
+            chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
+            placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
+
+            p_res = await session.execute(
+                text(f"SELECT tracking_id, product_id FROM sj_tracking_products WHERE tracking_id IN ({placeholders})"),
+                chunk_params,
+            )
+            for r in p_res.fetchall():
+                c_map[r.tracking_id]["product_ids"].append(r.product_id)
+
+        return c_map
+
+    async def _replace_children(self, session, tid: int, data: Dict):
+        await session.execute(text("DELETE FROM sj_tracking_products WHERE tracking_id = :tid"), {"tid": tid})
+        await session.execute(text("DELETE FROM sj_tracking_payload WHERE tracking_id = :tid"), {"tid": tid})
+
+        for pid in data.get("productIds", []):
+            await session.execute(
+                text("INSERT INTO sj_tracking_products (tracking_id, product_id) VALUES (:tid, :pid)"),
+                {"tid": tid, "pid": str(pid)},
+            )
+
+        for k, v in data.get("payload", {}).items():
+            await session.execute(
+                text("INSERT INTO sj_tracking_payload (tracking_id, payload_key, payload_value) VALUES (:tid, :k, :v)"),
+                {"tid": tid, "k": str(k), "v": str(v)},
+            )
+
+    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+        factory = self._factory()
+        if not factory:
+            return []
+
+        where_clauses = []
+        params = {}
+        if query:
+            for k, v in query.items():
+                if k in ("_id", "id"):
+                    where_clauses.append("id = :id")
+                    params["id"] = int(v) if str(v).isdigit() else 0
+                elif k in _TRACKING_SCALAR:
+                    where_clauses.append(f"{_TRACKING_SCALAR[k]} = :{k}")
+                    params[k] = v
+
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        async with factory() as session:
+            res = await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params)
+            rows = res.fetchall()
+            c_map = await self._fetch_children(session, [r.id for r in rows])
+        return [self._row_to_doc(r, c_map[r.id]) for r in rows]
+
+    async def findOne(self, query: Dict) -> Optional[Dict]:
+        docs = await self.findAll(query)
+        return docs[0] if docs else None
+
+    async def findById(self, id: str) -> Optional[Dict]:
+        return await self.findOne({"_id": id})
+
+    async def create(self, data: Dict) -> Dict:
+        factory = self._factory()
+        now = now_utc()
+        external_id = secrets.token_hex(16)
+
+        cols = ["external_id", "created_at", "updated_at"]
+        params = {"eid": external_id, "c": now, "u": now}
+
+        for api_k, db_col in _TRACKING_SCALAR.items():
+            if api_k in data:
+                cols.append(db_col)
+                val = data[api_k]
+                if api_k == "timestamp" and val:
+                    try:
+                        val = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
+                    except:
+                        pass
+                if api_k == "cartItems" and val is not None:
+                    import json
+
+                    val = json.dumps(val)
+                params[f"s_{api_k}"] = val
+
+        col_sql = ", ".join(cols)
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in _TRACKING_SCALAR if k in data])
+
+        async with factory() as session:
+            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = (
+                await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
+                )
+            ).scalar()
+            await self._replace_children(session, new_id, data)
+            await session.commit()
+        return await self.findById(str(new_id))
+
+    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+        existing = await self.findById(id)
+        if not existing:
+            return None
+        merged = {**existing, **data}
+        now = now_utc()
+
+        updates = ["updated_at = :u"]
+        params = {"id": int(id) if str(id).isdigit() else 0, "u": now}
+        for api_k, db_col in _TRACKING_SCALAR.items():
+            if api_k in merged:
+                updates.append(f"{db_col} = :s_{api_k}")
+                val = merged[api_k]
+                if api_k == "timestamp" and val:
+                    try:
+                        val = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
+                    except:
+                        pass
+                if api_k == "cartItems" and val is not None:
+                    import json
+
+                    val = json.dumps(val)
+                params[f"s_{api_k}"] = val
+
+        set_sql = ", ".join(updates)
+
+        factory = self._factory()
+        async with factory() as session:
+            await session.execute(text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"), params)
+            await self._replace_children(session, int(id) if str(id).isdigit() else 0, merged)
+            await session.commit()
+        return await self.findById(id)
+
+    async def delete(self, id: str) -> bool:
+        factory = self._factory()
+        async with factory() as session:
+            res = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else 0}
+            )
+            await session.commit()
+            return res.rowcount > 0
+
+    async def deleteMany(self, query: Dict) -> int:
+        from sqlalchemy import text
+
+        factory = self._factory()
+        where_clauses = []
+        params = {}
+        for k, v in query.items():
+            if k in _TRACKING_SCALAR:
+                where_clauses.append(f"{_TRACKING_SCALAR[k]} = :{k}")
+                params[k] = v
+            elif k in ("_id", "id"):
+                where_clauses.append("id = :id")
+                params["id"] = int(v) if str(v).isdigit() else 0
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        async with factory() as session:
+            res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE {where_sql}"), params)
+            await session.commit()
+            return res.rowcount
