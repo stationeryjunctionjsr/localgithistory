@@ -225,8 +225,8 @@ async def register(user_data: RegisterRequest, request: Request):
     try:
         normalized_phone = normalize_phone(user_data.phone)
         logger.info(
-            f"[REGISTER] phone={normalized_phone} has_msg91Token={bool(user_data.msg91Token)} "
-            f"has_otp={bool(user_data.otp)} otp={user_data.otp} deviceId={user_data.deviceId}"
+            f"[REGISTER] phone=***{normalized_phone[-4:] if normalized_phone else '??'} has_msg91Token={bool(user_data.msg91Token)} "
+            f"has_otp={bool(user_data.otp)} deviceId={user_data.deviceId}"
         )
         if not normalized_phone or len(normalized_phone) != 10:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a valid 10-digit phone number")
