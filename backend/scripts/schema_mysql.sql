@@ -1431,6 +1431,10 @@ CREATE TABLE `sj_tracking` (
   `os` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `browser` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `ip_address` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  is_returning tinyint(1) DEFAULT NULL,
+  cart_items json DEFAULT NULL,
+  source varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  campaign varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_tracking_external` (`external_id`),
   KEY `ix_sj_tracking_created` (`created_at`)
