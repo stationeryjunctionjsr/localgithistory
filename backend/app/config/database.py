@@ -14,20 +14,18 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 
-# DATABASE_URL format: oracle+oracledb://user:password@host:port/?service_name=xxx
-# For Oracle Autonomous (wallet): use connect descriptor in host or service_name.
-# Sync URL: oracle+oracledb://...  Async: same; SQLAlchemy uses asyncio layer.
+# DATABASE_URL format: mysql+aiomysql://user:password@host:port/dbname
 def get_database_url() -> str | None:
     url = os.environ.get("DATABASE_URL")
     if not url:
         return None
     # Ensure async driver for SQLAlchemy asyncio
-    if url.startswith("oracle:"):
-        url = "oracle+oracledb_async:" + url[6:]
-    elif url.startswith("oracle+oracledb:"):
-        url = "oracle+oracledb_async:" + url[16:]
-    elif not url.startswith("oracle+oracledb_async:") and not url.startswith("mysql"):
-        pass
+    # if url.startswith("oracle:"):
+    #     url = "oracle+oracledb_async:" + url[6:]
+    # elif url.startswith("oracle+oracledb:"):
+    #     url = "oracle+oracledb_async:" + url[16:]
+    # elif not url.startswith("oracle+oracledb_async:") and not url.startswith("mysql"):
+    #     pass
     if url.startswith("mysql"):
         if url.startswith("mysql://"):
             url = url.replace("mysql://", "mysql+aiomysql://", 1)
@@ -51,11 +49,11 @@ def get_async_engine():
         return None
 
     connect_args = {}
-    wallet_path = os.environ.get("WALLET_PATH")
-    if wallet_path and DATABASE_URL and DATABASE_URL.startswith("oracle"):
-        connect_args["config_dir"] = wallet_path
-        connect_args["wallet_location"] = wallet_path
-        connect_args["wallet_password"] = os.environ.get("WALLET_PASSWORD", "WalletPassword123#")
+    # wallet_path = os.environ.get("WALLET_PATH")
+    # if wallet_path and DATABASE_URL and DATABASE_URL.startswith("oracle"):
+    #     connect_args["config_dir"] = wallet_path
+    #     connect_args["wallet_location"] = wallet_path
+    #     connect_args["wallet_password"] = os.environ.get("WALLET_PASSWORD", "WalletPassword123#")
 
     import sys
 
@@ -120,4 +118,4 @@ def use_oracle() -> bool:
 
 
 def is_oracle() -> bool:
-    return bool(DATABASE_URL) and "oracle" in DATABASE_URL
+    return False  # Oracle commented out, force False
