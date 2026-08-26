@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -23,27 +23,13 @@ export default function ReturnsManagement() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectNotes, setRejectNotes] = useState('');
   const [rejecting, setRejecting] = useState(false);
-  const [autoAssigningId, setAutoAssigningId] = useState<string | null>(null);
-
-  const handleAutoAssign = async (returnId: string) => {
-    setAutoAssigningId(returnId);
-    try {
-      await api.post(`/returns/admin/${returnId}/auto-assign`);
-      toast.success('Auto-assigned return pickup to best available valet.');
-      fetchReturns();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to auto-assign valet');
-    } finally {
-      setAutoAssigningId(null);
-    }
-  };
 
   const fetchReturns = async () => {
     try {
       const params = statusFilter ? { status: statusFilter } : {};
       const res = await api.get('/returns/admin/all', { params });
       setReturns(res.data || []);
-    } catch (_err) {
+    } catch (err) {
       toast.error('Failed to fetch return requests');
     }
   };
@@ -62,7 +48,6 @@ export default function ReturnsManagement() {
       setLoading(true);
       Promise.all([fetchReturns(), fetchValets()]).finally(() => setLoading(false));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, statusFilter]);
 
   if (user?.role !== 'super_admin') return <div className="p-8 text-center text-red-500 font-bold">Access Denied</div>;
@@ -239,37 +224,38 @@ export default function ReturnsManagement() {
                       </td>
                       <td className="px-6 py-4">
                         {getStatusBadge(ret.status)}
-                        {ret.status === 'pending_valet' && ret.pendingValet && (
-                          <div className="text-[10px] text-amber-700 font-medium mt-1">
-                            Offered to: {ret.pendingValet.name}
-                            {(ret.valetCascadeCount || 0) > 0 && (
-                              <span className="text-slate-400 block text-[9px]">Cascade #{ret.valetCascadeCount}</span>
-                            )}
-                          </div>
-                        )}
-                        {ret.valet && ret.status !== 'pending_valet' && (
-                          <div className="text-[10px] text-slate-500 mt-1">Valet: {ret.valet.name}</div>
-                        )}
-                        {ret.deliverySlot && (
-                          <div className="text-[10px] text-purple-600 font-medium mt-0.5">
-                            📅 {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime}
-                          </div>
+                        {ret.valet && (
+                          <div className="text-[10px] text-slate-400 mt-1">Valet: {ret.valet.name}</div>
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
-                          {(ret.status === 'pending' || ret.status === 'pending_valet') && (
+                          {(ret.status === 'pending' || ret.status === 'assigned') && (
                             <button
-                              onClick={() => handleAutoAssign(ret._id)}
-                              disabled={autoAssigningId === ret._id}
-                              className="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1 rounded text-xs font-semibold transition"
+                              onClick={() => handleOpenAssignModal(ret)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs font-semibold transition"
                             >
-                              {autoAssigningId === ret._id ? '…' : '⚡ Auto Assign'}
+                              Assign Valet
                             </button>
                           )}
-                          {(ret.status === 'pending' || ret.status === 'pending_valet' || ret.status === 'assigned') && (
-                      
-<truncated 1477 bytes
+                          {(ret.status === 'collected' || ret.status === 'assigned') && (
+                            <button
+                              onClick={() => handleCompleteReturn(ret._id)}
+                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-semibold transition"
+                            >
+                              Complete
+                            </button>
+                          )}
+                          {(ret.status === 'pending' || ret.status === 'assigned') && (
+                            <button
+                              onClick={() => handleOpenRejectModal(ret)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-semibold transition"
+                            >
+                              Reject
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
