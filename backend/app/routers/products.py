@@ -343,28 +343,66 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
 
 
 @router.get("/suggest")
-async def get_search_suggestions(q: str = "", limit: int = 8):
-    """Lightweight autocomplete endpoint returning matching product names"""
+async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = None):
+    """Lightweight autocomplete endpoint returning matching product names, brands, and categories"""
     if len(q) < 2:
-        return {"suggestions": []}
+        return {"products": [], "brands": [], "categories": []}
 
     q_lower = q.lower()
     tokens = [t for t in q_lower.split() if t.strip()]
     if not tokens:
-        return {"suggestions": []}
+        return {"products": [], "brands": [], "categories": []}
 
     active_products = await product_repository.storage.findAll({"search": q, "isActive": True})
 
-    suggestions = []
+    products = []
+    brands = set()
+    categories = set()
+    
+    # If a pincode is provided, we fetch the serviceable sellers for this pincode
+    # to filter out products that can't be delivered there.
+    serviceable_seller_ids = None
+    if pincode:
+        from app.repositories.pincode_search_repository import pincode_search_repository
+        serviceability = await pincode_search_repository.get_pincode_serviceability(pincode)
+        if serviceability and serviceability.get("isServiceable"):
+            sellers = serviceability.get("serviceableSellers", [])
+            serviceable_seller_ids = {str(s.get("id", s.get("sellerId"))) for s in sellers}
+        else:
+            serviceable_seller_ids = set() # No sellers serviceable
+
     for p in active_products:
         name = p.get("name", "")
         name_lower = name.lower()
         if all(t in name_lower for t in tokens):
-            suggestions.append(name)
-            if len(suggestions) >= limit:
+            # Check pincode availability
+            if serviceable_seller_ids is not None:
+                p_sellers = p.get("sellerIds", [])
+                if p_sellers and not any(s_id in serviceable_seller_ids for s_id in p_sellers):
+                    continue # Not available at pincode
+                    
+            if p.get("brand"):
+                brands.add(p.get("brand"))
+            if p.get("category"):
+                categories.add(p.get("category"))
+                
+            if len(products) < limit:
+                display_image = p.get("displayImage") or (p.get("images")[0] if p.get("images") else None)
+                products.append({
+                    "productId": str(p.get("_id", p.get("productId"))),
+                    "name": name,
+                    "productName": name,
+                    "displayImage": display_image
+                })
+            
+            if len(products) >= limit and len(brands) >= 3 and len(categories) >= 3:
                 break
 
-    return {"suggestions": suggestions}
+    return {
+        "products": products,
+        "brands": list(brands)[:3],
+        "categories": list(categories)[:3]
+    }
 
 
 async def populate_product_discounts(

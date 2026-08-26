@@ -400,3 +400,21 @@ async def get_most_abandoned_products(
 
 
 
+
+@router.post("/notify-pincode")
+async def track_notify_pincode(data: dict, current_user: Optional[dict] = Depends(get_optional_user)):
+    user_id = current_user.get("_id") if current_user else None
+    user_email = current_user.get("email") if current_user else data.get("email")
+    
+    # Store the notification request
+    record = {
+        "event": "notify_pincode",
+        "productId": data.get("productId"),
+        "productName": data.get("productName"),
+        "pincode": data.get("pincode"),
+        "userId": user_id,
+        "email": user_email,
+        "createdAt": datetime.now(timezone.utc).isoformat()
+    }
+    await tracking_repository.create(record)
+    return {"success": True}
