@@ -1,11 +1,12 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query, Request
 from pydantic import BaseModel
 
 from app.repositories.tracking_repository import tracking_repository
 from app.utils.auth import get_optional_user, require_super_admin
+from app.utils.limiter import limiter
 
 router = APIRouter()
 
@@ -72,9 +73,11 @@ class TrackErrorRequest(BaseModel):
 
 
 @router.post("/beacon")
+@limiter.limit("60/minute")
 async def track_beacon(
     payload: Dict[str, Any] = Body(default_factory=dict),
     current_user: Optional[dict] = Depends(get_optional_user),
+    req: Request = None,
 ):
     """Accept beacon payloads (e.g. from navigator.sendBeacon on page unload)."""
     await tracking_repository.create(
@@ -88,7 +91,8 @@ async def track_beacon(
 
 
 @router.post("/search")
-async def track_search(request: TrackSearchRequest, current_user: Optional[dict] = Depends(get_optional_user)):
+@limiter.limit("60/minute")
+async def track_search(request: TrackSearchRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
     segment = "wholesaler" if (current_user and current_user.get("role") == "wholesaler") else "customer"
     await tracking_repository.trackSearch(
         current_user.get("_id") if current_user else None,
@@ -102,7 +106,8 @@ async def track_search(request: TrackSearchRequest, current_user: Optional[dict]
 
 
 @router.post("/view")
-async def track_view(request: TrackViewRequest, current_user: Optional[dict] = Depends(get_optional_user)):
+@limiter.limit("60/minute")
+async def track_view(request: TrackViewRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
     await tracking_repository.trackProductView(
         current_user.get("_id") if current_user else None, request.productId, request.productName, request.sessionId
     )
@@ -110,7 +115,8 @@ async def track_view(request: TrackViewRequest, current_user: Optional[dict] = D
 
 
 @router.post("/click")
-async def track_click(request: TrackClickRequest, current_user: Optional[dict] = Depends(get_optional_user)):
+@limiter.limit("60/minute")
+async def track_click(request: TrackClickRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
     await tracking_repository.trackProductClick(
         current_user.get("_id") if current_user else None,
         request.productId,
@@ -122,8 +128,10 @@ async def track_click(request: TrackClickRequest, current_user: Optional[dict] =
 
 
 @router.post("/cart-abandonment")
+@limiter.limit("60/minute")
 async def track_cart_abandonment(
-    request: TrackCartAbandonmentRequest, current_user: Optional[dict] = Depends(get_optional_user)
+    request: TrackCartAbandonmentRequest, current_user: Optional[dict] = Depends(get_optional_user),
+    req: Request = None,
 ):
     await tracking_repository.trackCartAbandonment(
         current_user.get("_id") if current_user else None, request.cartItems, request.cartValue, request.sessionId
@@ -132,7 +140,8 @@ async def track_cart_abandonment(
 
 
 @router.post("/session")
-async def track_session(request: TrackSessionRequest, current_user: Optional[dict] = Depends(get_optional_user)):
+@limiter.limit("60/minute")
+async def track_session(request: TrackSessionRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
     await tracking_repository.trackSession(
         current_user.get("_id") if current_user else None, request.sessionId, request.isReturning
     )
@@ -140,7 +149,8 @@ async def track_session(request: TrackSessionRequest, current_user: Optional[dic
 
 
 @router.post("/page-view")
-async def track_page_view(request: TrackPageViewRequest, current_user: Optional[dict] = Depends(get_optional_user)):
+@limiter.limit("60/minute")
+async def track_page_view(request: TrackPageViewRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
     await tracking_repository.trackPageView(
         current_user.get("_id") if current_user else None, request.page, request.sessionId
     )
@@ -148,7 +158,8 @@ async def track_page_view(request: TrackPageViewRequest, current_user: Optional[
 
 
 @router.post("/drop-off")
-async def track_drop_off(request: TrackDropOffRequest, current_user: Optional[dict] = Depends(get_optional_user)):
+@limiter.limit("60/minute")
+async def track_drop_off(request: TrackDropOffRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
     await tracking_repository.trackDropOff(
         current_user.get("_id") if current_user else None, request.page, request.reason, request.sessionId
     )
@@ -156,7 +167,8 @@ async def track_drop_off(request: TrackDropOffRequest, current_user: Optional[di
 
 
 @router.post("/error")
-async def track_frontend_error(request: TrackErrorRequest, current_user: Optional[dict] = Depends(get_optional_user)):
+@limiter.limit("60/minute")
+async def track_frontend_error(request: TrackErrorRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
     from app.utils.logger import logger
 
     user_id = current_user.get("_id") if current_user else "anonymous"
@@ -191,8 +203,10 @@ class TrackFilterClickRequest(BaseModel):
 
 
 @router.post("/cart-remove")
+@limiter.limit("60/minute")
 async def track_cart_item_remove(
-    request: TrackCartItemRemoveRequest, current_user: Optional[dict] = Depends(get_optional_user)
+    request: TrackCartItemRemoveRequest, current_user: Optional[dict] = Depends(get_optional_user),
+    req: Request = None,
 ):
     await tracking_repository.trackCartItemRemove(
         current_user.get("_id") if current_user else None, request.productId, request.quantity, request.sessionId
@@ -201,8 +215,10 @@ async def track_cart_item_remove(
 
 
 @router.post("/cart-add")
+@limiter.limit("60/minute")
 async def track_cart_item_add(
-    request: TrackCartItemAddRequest, current_user: Optional[dict] = Depends(get_optional_user)
+    request: TrackCartItemAddRequest, current_user: Optional[dict] = Depends(get_optional_user),
+    req: Request = None,
 ):
     await tracking_repository.trackCartAdd(
         current_user.get("_id") if current_user else None, request.productId, request.quantity, request.sessionId
@@ -211,8 +227,10 @@ async def track_cart_item_add(
 
 
 @router.post("/filter-click")
+@limiter.limit("60/minute")
 async def track_filter_click(
-    request: TrackFilterClickRequest, current_user: Optional[dict] = Depends(get_optional_user)
+    request: TrackFilterClickRequest, current_user: Optional[dict] = Depends(get_optional_user),
+    req: Request = None,
 ):
     await tracking_repository.trackFilterClick(
         current_user.get("_id") if current_user else None, request.filterType, request.filterValue, request.sessionId
@@ -225,6 +243,7 @@ async def get_recent_searches(
     sessionId: Optional[str] = None,
     limit: int = Query(5, ge=1, le=20),
     current_user: Optional[dict] = Depends(get_optional_user),
+    req: Request = None,
 ):
     user_id = current_user.get("_id") if current_user else None
     return await tracking_repository.getRecentUserSearches(user_id, sessionId, limit)
@@ -234,6 +253,7 @@ async def get_recent_searches(
 async def clear_recent_searches(
     sessionId: Optional[str] = None,
     current_user: Optional[dict] = Depends(get_optional_user),
+    req: Request = None,
 ):
     user_id = current_user.get("_id") if current_user else None
     await tracking_repository.clearRecentSearches(user_id, sessionId)
@@ -242,7 +262,8 @@ async def clear_recent_searches(
 
 @router.get("/suggestions")
 async def get_search_suggestions(
-    limit: int = Query(5, ge=1, le=20), current_user: Optional[dict] = Depends(get_optional_user)
+    limit: int = Query(5, ge=1, le=20), current_user: Optional[dict] = Depends(get_optional_user),
+    req: Request = None,
 ):
     # Popular terms
     most_searched = await tracking_repository.getMostSearched(limit)
@@ -344,3 +365,6 @@ async def get_most_abandoned_products(
     end = parse_date(end_date)
     products = await tracking_repository.getMostAbandonedProducts(limit, start, end)
     return products
+
+
+

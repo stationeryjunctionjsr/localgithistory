@@ -6,7 +6,8 @@ Import the singleton `settings` anywhere instead of calling os.getenv() directly
 
 Usage:
     from app.config.settings import settings
-    print(settings.jwt_secret)
+    # Access settings like: settings.environment, settings.database_url
+    # Never log or print secret fields (jwt_secret_key, smtp_password, etc.)
 """
 
 from typing import List

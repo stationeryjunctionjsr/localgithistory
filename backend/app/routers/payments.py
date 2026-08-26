@@ -252,6 +252,9 @@ async def submit_credit_settlement(
             raise HTTPException(status_code=404, detail="Payment record not found")
         payment = fresh_payments[0]
 
+        if settlement_data.amount <= 0:
+            raise HTTPException(status_code=400, detail="Amount must be strictly positive")
+
         # Verify amount doesn't exceed remaining amount (using freshly-read value)
         if settlement_data.amount > payment.get("amountRemaining", 0):
             raise HTTPException(
