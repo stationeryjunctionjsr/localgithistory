@@ -25,6 +25,7 @@ class MySQLValetAvailabilityDAO:
         return {
             "_id": str(r.id),
             "externalId": r.external_id,
+            "valetId": str(r.valet_id) if getattr(r, "valet_id", None) is not None else None,
             "date": r.date.isoformat() if hasattr(r.date, "isoformat") else str(r.date),
             "availabilityType": r.availability_type,
             "slots": children.get("slots", []),
@@ -32,6 +33,26 @@ class MySQLValetAvailabilityDAO:
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
         }
+
+    async def _replace_children(self, session, vid: int, data: Dict):
+        await session.execute(
+            text("DELETE FROM sj_valet_availability_slots WHERE availability_id = :vid"), {"vid": vid}
+        )
+        await session.execute(
+            text("DELETE FROM sj_valet_availability_zones WHERE availability_id = :vid"), {"vid": vid}
+        )
+
+        for slot in data.get("slots", []):
+            await session.execute(
+                text("INSERT INTO sj_valet_availability_slots (availability_id, slot) VALUES (:vid, :s)"),
+                {"vid": vid, "s": str(slot)},
+            )
+
+        for zone in data.get("zones", []):
+            await session.execute(
+                text("INSERT INTO sj_valet_availability_zones (availability_id, zone) VALUES (:vid, :z)"),
+                {"vid": vid, "z": str(zone)},
+            )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         factory = self._factory()
@@ -45,6 +66,9 @@ class MySQLValetAvailabilityDAO:
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
                     params["id"] = int(v) if str(v).isdigit() else 0
+                elif k == "valetId":
+                    where_clauses.append("valet_id = :valet_id")
+                    params["valet_id"] = str(v)
                 elif k == "date":
                     where_clauses.append("date = :date")
                     params["date"] = str(v)
@@ -56,7 +80,7 @@ class MySQLValetAvailabilityDAO:
         async with factory() as session:
             result = await session.execute(
                 text(
-                    f"SELECT id, external_id, date, availability_type, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"
+                    f"SELECT id, external_id, valet_id, date, availability_type, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"
                 ),
                 params,
             )
@@ -97,26 +121,6 @@ class MySQLValetAvailabilityDAO:
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.findOne({"_id": id})
 
-    async def _replace_children(self, session, availability_id: int, data: Dict):
-        await session.execute(
-            text("DELETE FROM sj_valet_availability_slots WHERE availability_id = :aid"), {"aid": availability_id}
-        )
-        await session.execute(
-            text("DELETE FROM sj_valet_availability_zones WHERE availability_id = :aid"), {"aid": availability_id}
-        )
-
-        for s in data.get("slots", []):
-            await session.execute(
-                text("INSERT INTO sj_valet_availability_slots (availability_id, slot) VALUES (:aid, :s)"),
-                {"aid": availability_id, "s": s},
-            )
-
-        for z in data.get("zones", []):
-            await session.execute(
-                text("INSERT INTO sj_valet_availability_zones (availability_id, zone) VALUES (:aid, :z)"),
-                {"aid": availability_id, "z": z},
-            )
-
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
         if not factory:
@@ -127,11 +131,12 @@ class MySQLValetAvailabilityDAO:
         async with factory() as session:
             await session.execute(
                 text(f"""
-                    INSERT INTO {self.TABLE} (external_id, date, availability_type, created_at, updated_at) 
-                    VALUES (:external_id, :date, :availability_type, :created_at, :updated_at)
+                    INSERT INTO {self.TABLE} (external_id, valet_id, date, availability_type, created_at, updated_at) 
+                    VALUES (:external_id, :valet_id, :date, :availability_type, :created_at, :updated_at)
                 """),
                 {
                     "external_id": external_id,
+                    "valet_id": str(data.get("valetId", "")),
                     "date": data.get("date"),
                     "availability_type": data.get("availabilityType", ""),
                     "created_at": now,
@@ -151,33 +156,38 @@ class MySQLValetAvailabilityDAO:
         existing = await self.findById(id)
         if not existing:
             return None
+
         merged = {**existing, **update_data}
-        now = now_utc()
         factory = self._factory()
+        if not factory:
+            return None
+        now = now_utc()
+        pk = int(id) if str(id).isdigit() else 0
 
         async with factory() as session:
             await session.execute(
-                text(
-                    f"UPDATE {self.TABLE} SET date = :date, availability_type = :atype, updated_at = :upd WHERE id = :id"
-                ),
+                text(f"""
+                    UPDATE {self.TABLE} 
+                    SET valet_id = :valet_id, date = :date, availability_type = :atype, updated_at = :up 
+                    WHERE id = :id
+                """),
                 {
-                    "id": int(id) if str(id).isdigit() else 0,
+                    "id": pk,
+                    "valet_id": str(merged.get("valetId", "")),
                     "date": merged.get("date"),
                     "atype": merged.get("availabilityType", ""),
-                    "upd": now,
+                    "up": now,
                 },
             )
-            await self._replace_children(session, int(id) if str(id).isdigit() else 0, merged)
+            await self._replace_children(session, pk, merged)
             await session.commit()
+
         return await self.findById(id)
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        if not factory:
-            return False
+        pk = int(id) if str(id).isdigit() else 0
         async with factory() as session:
-            result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else 0}
-            )
+            res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pk})
             await session.commit()
-            return result.rowcount > 0
+            return res.rowcount > 0

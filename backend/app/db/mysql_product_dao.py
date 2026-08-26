@@ -3,6 +3,7 @@ MySQL DAO for sj_products (Fully Relational).
 """
 
 import secrets
+import json
 from typing import Dict, List, Optional
 
 from sqlalchemy import text
@@ -40,8 +41,8 @@ class MySQLProductDAO:
             "videos": children.get("videos", []),
             "isActive": bool(r.is_active) if r.is_active is not None else True,
             "tags": children.get("tags", []),
-            "variantAttributes": children.get("attributes", []),
-            "variantCombinations": children.get("combinations", []),
+            "variantAttributes": json.loads(r.variant_attributes) if getattr(r, "variant_attributes", None) else [],
+            "variants": json.loads(r.variants) if getattr(r, "variants", None) else [],
             "details": children.get("details", {}),
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
@@ -199,14 +200,13 @@ class MySQLProductDAO:
                 children_map[r.product_id]["tags"].append(r.tag)
 
             # Attributes
-            res = await session.execute(
-                text(f"SELECT product_id, attr_name FROM sj_product_attributes WHERE product_id IN ({placeholders})"),
-                chunk_params,
-            )
-            for r in res.fetchall():
-                children_map[r.product_id]["attributes"].append(r.attr_name)
-
-            # Details
+        # res = await session.execute(
+        # text(f"SELECT product_id, attr_name FROM sj_product_attributes WHERE product_id IN ({placeholders})"),
+        # chunk_params,
+        # )
+        # for r in res.fetchall():
+        # children_map[r.product_id]["attributes"].append(r.attr_name)
+        #             # Details
             res = await session.execute(
                 text(
                     f"SELECT product_id, detail_key, detail_value FROM sj_product_details WHERE product_id IN ({placeholders})"
@@ -218,39 +218,37 @@ class MySQLProductDAO:
 
             # Combinations (This is trickier without JSON)
             # Fetch base combinations
-            res = await session.execute(
-                text(
-                    f"SELECT id, product_id, sku, price, stock FROM sj_product_variant_combinations WHERE product_id IN ({placeholders})"
-                ),
-                chunk_params,
-            )
-            combos = res.fetchall()
-            if combos:
-                combo_ids = [c.id for c in combos]
-                c_params = {f"cid_{i}": cid for i, cid in enumerate(combo_ids)}
-                c_placeholders = ", ".join([f":{k}" for k in c_params.keys()])
-                opt_res = await session.execute(
-                    text(
-                        f"SELECT combination_id, attr_name, attr_value FROM sj_product_variant_options WHERE combination_id IN ({c_placeholders})"
-                    ),
-                    c_params,
-                )
-                opts = opt_res.fetchall()
-                opt_map = {cid: {} for cid in combo_ids}
-                for o in opts:
-                    opt_map[o.combination_id][o.attr_name] = o.attr_value
-
-                for c in combos:
-                    children_map[c.product_id]["combinations"].append(
-                        {
-                            "sku": c.sku,
-                            "price": float(c.price) if c.price is not None else 0.0,
-                            "stock": c.stock,
-                            "attributes": opt_map[c.id],
-                        }
-                    )
-
-        return children_map
+        # res = await session.execute(
+        # text(
+        # f"SELECT id, product_id, sku, price, stock FROM sj_product_variant_combinations WHERE product_id IN ({placeholders})"
+        # ),
+        # chunk_params,
+        # )
+        # combos = res.fetchall()
+        # if combos:
+        # combo_ids = [c.id for c in combos]
+        # c_params = {f"cid_{i}": cid for i, cid in enumerate(combo_ids)}
+        # c_placeholders = ", ".join([f":{k}" for k in c_params.keys()])
+        # opt_res = await session.execute(
+        # text(
+        # f"SELECT combination_id, attr_name, attr_value FROM sj_product_variant_options WHERE combination_id IN ({c_placeholders})"
+        # ),
+        # c_params,
+        # )
+        # opts = opt_res.fetchall()
+        # opt_map = {cid: {} for cid in combo_ids}
+        # for o in opts:
+        # opt_map[o.combination_id][o.attr_name] = o.attr_value
+        #         # for c in combos:
+        # children_map[c.product_id]["combinations"].append(
+        # {
+        # "sku": c.sku,
+        # "price": float(c.price) if c.price is not None else 0.0,
+        # "stock": c.stock,
+        # "attributes": opt_map[c.id],
+        # }
+        # )
+        #         return children_map
 
     async def find_paginated(self, query: Dict, skip: int = 0, limit: int = 50, sort: str = "newest"):
         factory = self._factory()
@@ -271,7 +269,7 @@ class MySQLProductDAO:
         count_sql = f"SELECT COUNT(*) FROM {self.TABLE} p {join_sql} WHERE {where_sql}"
         query_sql = f"""
             SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                   p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
+                   p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.variants, p.variant_attributes, p.created_at, p.updated_at
             FROM {self.TABLE} p
             {join_sql} WHERE {where_sql} {sort_sql} LIMIT :limit OFFSET :skip
         """
@@ -323,7 +321,7 @@ class MySQLProductDAO:
                 await session.execute(
                     text(f"""
                 SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
+                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.variants, p.variant_attributes, p.created_at, p.updated_at
                 FROM {self.TABLE} p {join_sql} WHERE {where_sql} ORDER BY p.id ASC
             """),
                     params,
@@ -348,7 +346,7 @@ class MySQLProductDAO:
                 await session.execute(
                     text(f"""
                 SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
+                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.variants, p.variant_attributes, p.created_at, p.updated_at
                 FROM {self.TABLE} p WHERE p.id = :id
             """),
                     {"id": pid},
@@ -364,11 +362,9 @@ class MySQLProductDAO:
         await session.execute(text("DELETE FROM sj_product_images WHERE product_id = :pid"), {"pid": pid})
         await session.execute(text("DELETE FROM sj_product_videos WHERE product_id = :pid"), {"pid": pid})
         await session.execute(text("DELETE FROM sj_product_tags WHERE product_id = :pid"), {"pid": pid})
-        await session.execute(text("DELETE FROM sj_product_attributes WHERE product_id = :pid"), {"pid": pid})
+        # await session.execute(text("DELETE FROM sj_product_attributes WHERE product_id = :pid"), {"pid": pid})
         await session.execute(text("DELETE FROM sj_product_details WHERE product_id = :pid"), {"pid": pid})
-        await session.execute(
-            text("DELETE FROM sj_product_variant_combinations WHERE product_id = :pid"), {"pid": pid}
-        )  # cascades to options
+        # cascades to options
 
         # Insert images
         images = data.get("images") or []
@@ -393,13 +389,12 @@ class MySQLProductDAO:
             )
 
         # Insert attributes
-        for attr in data.get("variantAttributes") or []:
-            await session.execute(
-                text("INSERT INTO sj_product_attributes (product_id, attr_name) VALUES (:pid, :attr)"),
-                {"pid": pid, "attr": attr},
-            )
-
-        # Insert details
+        # for attr in data.get("variantAttributes") or []:
+        # await session.execute(
+        # text("INSERT INTO sj_product_attributes (product_id, attr_name) VALUES (:pid, :attr)"),
+        # {"pid": pid, "attr": attr},
+        # )
+        #         # Insert details
         for k, v in (data.get("details") or {}).items():
             await session.execute(
                 text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"),
@@ -407,24 +402,22 @@ class MySQLProductDAO:
             )
 
         # Insert combinations
-        for combo in data.get("variantCombinations") or []:
-            res = await session.execute(
-                text(
-                    "INSERT INTO sj_product_variant_combinations (product_id, sku, price, stock) VALUES (:pid, :sku, :price, :stock)"
-                ),
-                {"pid": pid, "sku": combo.get("sku"), "price": combo.get("price"), "stock": combo.get("stock")},
-            )
-            combo_id = res.lastrowid
-
-            for attr_name, attr_value in (combo.get("attributes") or {}).items():
-                await session.execute(
-                    text(
-                        "INSERT INTO sj_product_variant_options (combination_id, attr_name, attr_value) VALUES (:cid, :k, :v)"
-                    ),
-                    {"cid": combo_id, "k": attr_name, "v": attr_value},
-                )
-
-    async def create(self, data: Dict) -> Dict:
+        # for combo in data.get("variantCombinations") or []:
+        # res = await session.execute(
+        # text(
+        # "INSERT INTO sj_product_variant_combinations (product_id, sku, price, stock) VALUES (:pid, :sku, :price, :stock)"
+        # ),
+        # {"pid": pid, "sku": combo.get("sku"), "price": combo.get("price"), "stock": combo.get("stock")},
+        # )
+        # combo_id = res.lastrowid
+        #         # for attr_name, attr_value in (combo.get("attributes") or {}).items():
+        # await session.execute(
+        # text(
+        # "INSERT INTO sj_product_variant_options (combination_id, attr_name, attr_value) VALUES (:cid, :k, :v)"
+        # ),
+        # {"cid": combo_id, "k": attr_name, "v": attr_value},
+        # )
+        #     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -436,10 +429,10 @@ class MySQLProductDAO:
                 text(f"""
                     INSERT INTO {self.TABLE} (
                         external_id, name, description, sku, category, sub_category, brand,
-                        mrp, mrp_per_case, quantity_per_case, stock, is_active, created_at, updated_at
+                        mrp, mrp_per_case, quantity_per_case, stock, is_active, variants, variant_attributes, created_at, updated_at
                     ) VALUES (
                         :external_id, :name, :description, :sku, :category, :sub_category, :brand,
-                        :mrp, :mrp_per_case, :quantity_per_case, :stock, :is_active, :created_at, :updated_at
+                        :mrp, :mrp_per_case, :quantity_per_case, :stock, :is_active, :variants, :variant_attributes, :created_at, :updated_at
                     )
                 """),
                 {
@@ -455,6 +448,8 @@ class MySQLProductDAO:
                     "quantity_per_case": data.get("quantityPerCase"),
                     "stock": data.get("stock", 0),
                     "is_active": 1 if data.get("isActive", True) else 0,
+                    "variants": json.dumps(data.get("variants") or []),
+                    "variant_attributes": json.dumps(data.get("variantAttributes") or []),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -498,6 +493,8 @@ class MySQLProductDAO:
                     "quantity_per_case": merged.get("quantityPerCase"),
                     "stock": merged.get("stock", 0),
                     "is_active": 1 if merged.get("isActive", True) else 0,
+                    "variants": json.dumps(merged.get("variants") or []),
+                    "variant_attributes": json.dumps(merged.get("variantAttributes") or []),
                     "updated_at": now,
                 },
             )

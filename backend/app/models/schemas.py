@@ -177,7 +177,7 @@ class ProductBase(BaseModel):
     variantAttributes: Optional[List[str]] = Field(
         default=None, description="List of variant attribute names like Color, Size"
     )
-    variantCombinations: Optional[List[Dict[str, Any]]] = Field(
+    variants: Optional[List[Dict[str, Any]]] = Field(
         default=None, description="Actual combinations of attributes with stock and price"
     )
 
@@ -219,7 +219,7 @@ class ProductUpdate(BaseModel):
     tags: Optional[List[str]] = None
     variations: Optional[List[Dict[str, Any]]] = None
     variantAttributes: Optional[List[str]] = None
-    variantCombinations: Optional[List[Dict[str, Any]]] = None
+    variants: Optional[List[Dict[str, Any]]] = None
 
 
 class CouponValidateCart(BaseModel):

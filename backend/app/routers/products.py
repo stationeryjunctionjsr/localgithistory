@@ -134,11 +134,11 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                     "images": [img.strip() for img in main_row.get("images", "").split(",") if img.strip()] if main_row.get("images") else [],
                     "videos": [vid.strip() for vid in main_row.get("videos", "").split(",") if vid.strip()] if main_row.get("videos") else [],
                     "variantAttributes": [],
-                    "variantCombinations": [],
+                    "variants": [],
                 }
 
                 variant_attributes = set()
-                variant_combinations = []
+                variants_list = []
 
                 for row in rows:
                     try:
@@ -168,7 +168,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                                 variant_attributes.add(attr_name)
 
                     if attributes:
-                        variant_combinations.append(
+                        variants_list.append(
                             {"attributes": attributes, "price": row_price, "stock": row_stock, "sku": row_sku}
                         )
                     elif len(rows) == 1:
@@ -178,7 +178,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                             product_data["sku"] = row_sku
 
                 product_data["variantAttributes"] = list(variant_attributes)
-                product_data["variantCombinations"] = variant_combinations
+                product_data["variants"] = variants_list
 
                 existing = None
                 from app.db.storage_factory import get_storage
@@ -284,7 +284,7 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
             f"PDT-{p.get('productId')}" if p.get("productId") is not None else ""
         )
 
-        combinations = p.get("variantCombinations", []) or []
+        combinations = p.get("variants", []) or []
         if combinations:
             for idx, combo in enumerate(combinations):
                 combo_mrp = combo.get("price") if combo.get("price") is not None else mrp
@@ -605,7 +605,7 @@ async def get_public_products(
         for p in products:
             p["displayImage"] = p.get("displayImage") or (p.get("images")[0] if p.get("images") else None)
             p.pop("description", None)
-            p.pop("variantCombinations", None)
+            p.pop("variants", None)
             p.pop("videos", None)
             p.pop("images", None)
             p.pop("applicableDiscounts", None)
@@ -746,7 +746,7 @@ async def get_products(
         for p in products:
             p["displayImage"] = p.get("displayImage") or (p.get("images")[0] if p.get("images") else None)
             p.pop("description", None)
-            p.pop("variantCombinations", None)
+            p.pop("variants", None)
             p.pop("videos", None)
             p.pop("images", None)
             p.pop("applicableDiscounts", None)
