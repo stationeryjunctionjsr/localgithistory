@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy import text
 
-from app.config.database import get_async_session_factory, use_oracle
+from app.config.database import get_async_session_factory, use_oracle, is_oracle
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
 
@@ -28,7 +28,7 @@ class BundleRepository:
     async def ensure_table_exists(self):
         if self._initialized:
             return
-        if not use_oracle():
+        if not use_oracle() or not is_oracle():
             self._initialized = True
             return
         from app.config.settings import settings

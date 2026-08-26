@@ -145,6 +145,20 @@ export default function MyReturns() {
                         })}
                       </span>
                     </div>
+                    {req.deliverySlotDate && (
+                      <div>
+                        <span className="text-xs text-[#1a4d33] font-semibold uppercase tracking-wider block">
+                          Scheduled Pickup
+                        </span>
+                        <span className="text-sm text-gray-700 font-bold">
+                          {new Date(req.deliverySlotDate).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })} {req.deliverySlotId ? `| Slot: ${req.deliverySlotId}` : ''}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div>

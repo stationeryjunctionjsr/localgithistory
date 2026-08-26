@@ -116,7 +116,7 @@ export default function Cart() {
   // Delivery slot state
   const [deliveryOptions, setDeliveryOptions] = useState<{ slotBookingAvailable: boolean;
   urgentAvailable?: boolean; availableDates: string[] } | null>(null);
-  const [selectedDeliveryType, setSelectedDeliveryType] = useState<'standard' | 'slot'>('standard');
+  const [selectedDeliveryType, setSelectedDeliveryType] = useState<'standard' | 'urgent'>('standard');
   const [selectedSlotDate, setSelectedSlotDate] = useState('');
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<any | null>(null);
@@ -1263,11 +1263,13 @@ export default function Cart() {
           quantity: i.quantity,
           sellAsCase: !!i.sellAsCase,
         })),
-        // Delivery slot fields
-        isUrgentDelivery: selectedSlot?.isUrgent ?? false,
-        deliverySlotId: selectedSlot?.slotId ?? null,
-        deliverySlotConfigId: selectedSlot?.configId ?? null,
-        deliverySlotDate: selectedSlot ? selectedSlotDate : null,
+        // Delivery option fields
+        isUrgentDelivery: selectedDeliveryType === 'urgent',
+        deliverySlotId: selectedDeliveryType === 'standard' ? (selectedSlot?.slotId ?? null) : null,
+        deliverySlotConfigId: selectedDeliveryType === 'standard' ? (selectedSlot?.configId ?? null) : null,
+        deliverySlotDate: selectedDeliveryType === 'urgent'
+          ? new Date().toISOString().split('T')[0]
+          : (selectedSlot ? selectedSlotDate : null),
       };
       if (checkoutData.paymentMethod === 'upi') {
         orderData.upiPaymentScreenshot = checkoutData.upiPaymentScreenshot || null;
@@ -2672,7 +2674,7 @@ export default function Cart() {
                         <p className="mb-3 text-sm font-semibold text-slate-800">🚚 Delivery Option</p>
 
                         {/* Standard */}
-                        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 mb-2 transition-all hover:border-indigo-300">
+                        <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 mb-2 transition-all ${selectedDeliveryType === 'standard' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-300'}`}>
                           <input
                             type="radio"
                             name="deliveryType"
@@ -2681,95 +2683,104 @@ export default function Cart() {
                             onChange={() => {
                               setSelectedDeliveryType('standard');
                               setSelectedSlot(null);
+                              if (deliveryOptions.slotBookingAvailable && deliveryOptions.availableDates.length > 0) {
+                                const firstDate = deliveryOptions.availableDates[0];
+                                setSelectedSlotDate(firstDate);
+                                fetchSlotsForDate(firstDate);
+                              }
                             }}
-                            className="accent-indigo-600"
+                            className="mt-0.5 accent-indigo-600"
                           />
-                          <span className="text-sm font-medium text-slate-700">Standard Delivery (Free)</span>
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-slate-700">📅 Standard Delivery</span>
+                            
+                            {selectedDeliveryType === 'standard' && deliveryOptions.slotBookingAvailable && (
+                              <div className="mt-3 space-y-3">
+                                {/* Date selector */}
+                                <div>
+                                  <label className="mb-1 block text-xs font-medium text-slate-600">Select Date</label>
+                                  <select
+                                    value={selectedSlotDate}
+                                    onChange={(e) => {
+                                      setSelectedSlotDate(e.target.value);
+                                      fetchSlotsForDate(e.target.value);
+                                    }}
+                                    className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none bg-white"
+                                  >
+                                    <option value="">Choose a date…</option>
+                                    {deliveryOptions.availableDates.map((d) => (
+                                      <option key={d} value={d}>{d}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                {/* Slot list */}
+                                {selectedSlotDate && (
+                                  <div>
+                                    <label className="mb-2 block text-xs font-medium text-slate-600">Select Time Slot</label>
+                                    {loadingSlots ? (
+                                      <p className="text-xs text-slate-400">Loading slots…</p>
+                                    ) : availableSlots.filter(s => !s.isUrgent).length === 0 ? (
+                                      <p className="text-xs text-slate-400">No standard slots available for this date.</p>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => setSelectedSlot({ slotId: 'anytime', isFullDay: true, isUrgent: false })}
+                                          className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition-all ${
+                                            selectedSlot?.slotId === 'anytime'
+                                              ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-400'
+                                              : 'border-slate-200 bg-white hover:border-slate-300'
+                                          }`}
+                                        >
+                                          <span className="font-medium">Anytime</span>
+                                        </button>
+                                        {availableSlots.filter(s => !s.isUrgent).map((slot) => (
+                                          <button
+                                            key={slot.slotId}
+                                            type="button"
+                                            onClick={() => setSelectedSlot(slot)}
+                                            className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition-all ${
+                                              selectedSlot?.slotId === slot.slotId
+                                                ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-400'
+                                                : 'border-slate-200 bg-white hover:border-slate-300'
+                                            }`}
+                                          >
+                                            <span className="font-medium">
+                                              {slot.isFullDay ? 'Full Day' : `${slot.startTime} – ${slot.endTime}`}
+                                            </span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </label>
 
-                        {/* Schedule a slot */}
-                        {deliveryOptions.slotBookingAvailable && (
-                          <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${selectedDeliveryType === 'slot' ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-300'}`}>
+                        {/* Urgent Delivery */}
+                        {deliveryOptions.urgentAvailable && (
+                          <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${selectedDeliveryType === 'urgent' ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300'}`}>
                             <input
                               type="radio"
                               name="deliveryType"
-                              value="slot"
-                              checked={selectedDeliveryType === 'slot'}
+                              value="urgent"
+                              checked={selectedDeliveryType === 'urgent'}
                               onChange={() => {
-                                setSelectedDeliveryType('slot');
+                                setSelectedDeliveryType('urgent');
                                 setSelectedSlot(null);
-                                if (deliveryOptions.availableDates.length > 0) {
-                                  const firstDate = deliveryOptions.availableDates[0];
-                                  setSelectedSlotDate(firstDate);
-                                  fetchSlotsForDate(firstDate);
-                                }
+                                setSelectedSlotDate(new Date().toISOString().split('T')[0]);
                               }}
-                              className="mt-0.5 accent-indigo-600"
+                              className="mt-0.5 accent-amber-600"
                             />
                             <div className="flex-1">
-                              <span className="text-sm font-medium text-slate-700">📅 Schedule a Delivery Slot</span>
-                              {selectedDeliveryType === 'slot' && (
-                                <div className="mt-3 space-y-3">
-                                  {/* Date selector */}
-                                  <div>
-                                    <label className="mb-1 block text-xs font-medium text-slate-600">Select Date</label>
-                                    <select
-                                      value={selectedSlotDate}
-                                      onChange={(e) => {
-                                        setSelectedSlotDate(e.target.value);
-                                        fetchSlotsForDate(e.target.value);
-                                      }}
-                                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
-                                    >
-                                      <option value="">Choose a date…</option>
-                                      {deliveryOptions.availableDates.map((d) => (
-                                        <option key={d} value={d}>{d}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-
-                                  {/* Slot list */}
-                                  {selectedSlotDate && (
-                                    <div>
-                                      <label className="mb-2 block text-xs font-medium text-slate-600">Select Time Slot</label>
-                                      {loadingSlots ? (
-                                        <p className="text-xs text-slate-400">Loading slots…</p>
-                                      ) : availableSlots.length === 0 ? (
-                                        <p className="text-xs text-slate-400">No slots available for this date.</p>
-                                      ) : (
-                                        <div className="space-y-2">
-                                          {availableSlots.map((slot) => (
-                                            <button
-                                              key={slot.slotId}
-                                              type="button"
-                                              onClick={() => setSelectedSlot(slot)}
-                                              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition-all ${
-                                                selectedSlot?.slotId === slot.slotId
-                                                  ? slot.isUrgent
-                                                    ? 'border-amber-500 bg-amber-50 ring-1 ring-amber-400'
-                                                    : 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-400'
-                                                  : 'border-slate-200 bg-white hover:border-slate-300'
-                                              }`}
-                                            >
-                                              <span className="flex items-center gap-2">
-                                                {slot.isUrgent && (
-                                                  <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">⚡ Urgent</span>
-                                                )}
-                                                <span className="font-medium">{slot.startTime} – {slot.endTime}</span>
-                                              </span>
-                                            </button>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {selectedSlot?.isUrgent && (
-                                    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                                      ⚡ <strong>Urgent delivery surcharge</strong> will apply for this slot.
-                                    </p>
-                                  )}
-                                </div>
+                              <span className="text-sm font-medium text-slate-700">⚡ Urgent Delivery</span>
+                              {selectedDeliveryType === 'urgent' && (
+                                <p className="mt-2 rounded-lg border border-amber-200 bg-amber-100 px-3 py-2 text-xs text-amber-800">
+                                  Delivered as soon as possible. An <strong>urgent surcharge</strong> will apply.
+                                </p>
                               )}
                             </div>
                           </label>

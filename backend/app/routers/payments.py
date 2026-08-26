@@ -48,7 +48,7 @@ async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
             if effective_due > 0:
                 unpaid_credit_bills.append((p, effective_due))
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     total_dues = 0.0
     total_overdue = 0.0
     has_overdue_bills = False

@@ -22,13 +22,17 @@ def get_database_url() -> str | None:
     if not url:
         return None
     # Ensure async driver for SQLAlchemy asyncio
-    # if url.startswith("oracle:"):
-    #     url = "oracle+oracledb_async:" + url[6:]
-    # elif url.startswith("oracle+oracledb:"):
-    #     url = "oracle+oracledb_async:" + url[16:]
-    # elif not url.startswith("oracle+oracledb_async:"):
+    if url.startswith("oracle:"):
+        url = "oracle+oracledb_async:" + url[6:]
+    elif url.startswith("oracle+oracledb:"):
+        url = "oracle+oracledb_async:" + url[16:]
+    elif not url.startswith("oracle+oracledb_async:") and not url.startswith("mysql"):
+        pass
     if url.startswith("mysql"):
-        url = url.replace("mysql://", "mysql+aiomysql://").replace("mysql+pymysql://", "mysql+aiomysql://")
+        if url.startswith("mysql://"):
+            url = url.replace("mysql://", "mysql+aiomysql://", 1)
+        elif url.startswith("mysql+pymysql://"):
+            url = url.replace("mysql+pymysql://", "mysql+aiomysql://", 1)
     else:
         return url  # leave as-is if already full URL
     return url
@@ -47,11 +51,11 @@ def get_async_engine():
         return None
 
     connect_args = {}
-    # wallet_path = os.environ.get("WALLET_PATH")
-    # if wallet_path and DATABASE_URL and DATABASE_URL.startswith("oracle"):
-    #     connect_args["config_dir"] = wallet_path
-    #     connect_args["wallet_location"] = wallet_path
-    #     connect_args["wallet_password"] = os.environ.get("WALLET_PASSWORD", "WalletPassword123#")
+    wallet_path = os.environ.get("WALLET_PATH")
+    if wallet_path and DATABASE_URL and DATABASE_URL.startswith("oracle"):
+        connect_args["config_dir"] = wallet_path
+        connect_args["wallet_location"] = wallet_path
+        connect_args["wallet_password"] = os.environ.get("WALLET_PASSWORD", "WalletPassword123#")
 
     import sys
 
@@ -64,7 +68,6 @@ def get_async_engine():
         )
     else:
         # Use QueuePool for connection pooling in a long-running FastAPI app.
-        # pooling is critical for Oracle performance (especially TCPS).
         pool_size = int(os.getenv("DB_POOL_SIZE", 5))
         max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 2))
         
@@ -74,7 +77,7 @@ def get_async_engine():
             max_overflow=max_overflow,
             pool_timeout=30,
             pool_recycle=1800,
-            pool_pre_ping=False,
+            pool_pre_ping=True,
             echo=os.environ.get("SQL_ECHO", "").lower() in ("1", "true"),
             connect_args=connect_args,
         )
@@ -114,3 +117,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 def use_oracle() -> bool:
     return bool(DATABASE_URL)
+
+
+def is_oracle() -> bool:
+    return bool(DATABASE_URL) and "oracle" in DATABASE_URL

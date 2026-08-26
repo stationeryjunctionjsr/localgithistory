@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import text
 
 from app.db.storage_factory import get_storage
-from app.config.database import use_oracle, get_async_session_factory
+from app.config.database import use_oracle, is_oracle, get_async_session_factory
 from app.config.settings import settings
 from app.services.email_service import email_service
 from app.utils.logger import logger
@@ -24,7 +24,7 @@ class ProductNotificationRepository:
     async def ensure_table_exists(self):
         if self._initialized:
             return
-        if not use_oracle():
+        if not use_oracle() or not is_oracle():
             self._initialized = True
             return
         suffix = getattr(settings, "table_suffix", "")

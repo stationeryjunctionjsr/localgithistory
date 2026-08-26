@@ -382,3 +382,69 @@ async def reject_return(
     )
 
     return await populate_return_request(updated)
+
+
+from pydantic import BaseModel
+
+@router.get("/valet/pending")
+async def get_valet_pending_returns(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "valet":
+        raise HTTPException(status_code=403, detail="Only valets can view pending assignments")
+    returns = await return_request_repository.findAll({
+        "status": "pending_valet",
+        "pendingValetId": str(current_user["_id"])
+    })
+    return [await populate_return_request(r) for r in returns]
+
+class ValetReturnResponseRequest(BaseModel):
+    accept: bool
+    declineReason: Optional[str] = None
+
+@router.put("/valet/{return_id}/response", response_model=dict)
+async def valet_return_response(
+    return_id: str,
+    response_data: ValetReturnResponseRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    ret = await return_request_repository.findById(return_id)
+    if not ret:
+        raise HTTPException(status_code=404, detail="Return request not found")
+        
+    if current_user.get("role") != "super_admin":
+        if current_user.get("role") != "valet":
+            raise HTTPException(status_code=403, detail="Access denied")
+        if str(ret.get("pendingValetId", "")) != str(current_user["_id"]):
+            raise HTTPException(status_code=403, detail="Return is not assigned to you")
+            
+    if ret.get("status") != "pending_valet":
+        raise HTTPException(status_code=400, detail="Return is not pending valet acceptance")
+        
+    from datetime import datetime, timezone
+    now_iso = datetime.now(timezone.utc).isoformat() + "Z"
+    
+    if response_data.accept:
+        updated_ret = await return_request_repository.update(return_id, {
+            "status": "assigned",
+            "valetId": str(current_user["_id"]),
+            "pendingValetId": None,
+            "valetAssignedAt": now_iso
+        })
+        return await populate_return_request(updated_ret)
+    else:
+        # Declined -> Cascade
+        history = list(ret.get("valetDeclineHistory") or [])
+        valet_id_str = str(current_user.get("_id"))
+        if valet_id_str not in history:
+            history.append(valet_id_str)
+            
+        await return_request_repository.update(return_id, {
+            "valetDeclineHistory": history,
+            "pendingValetId": None
+        })
+        ret["valetDeclineHistory"] = history
+        ret["pendingValetId"] = None
+        
+        from app.jobs.valet_timeout_job import _cascade_or_revert_return
+        await _cascade_or_revert_return(ret)
+        return await populate_return_request(await return_request_repository.findById(return_id))
+

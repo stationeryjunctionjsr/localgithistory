@@ -2,13 +2,21 @@ import socket
 import sys
 import asyncio
 
-# The IPv4 getaddrinfo patch was removed as it caused asyncio.gather to hang during DB connection pool initialization.
+# Force IPv4
+orig_getaddrinfo = socket.getaddrinfo
+def getaddrinfo_ipv4(host, port, family=0, type=0, proto=0, flags=0):
+    return orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = getaddrinfo_ipv4
 
 # Use WindowsSelectorEventLoopPolicy on Windows to prevent async SSL "event loop closed" errors.
-# The policy is deprecated in Python 3.14 and will be removed in 3.16; on those versions the
-# default ProactorEventLoop no longer has the SSL issues, so falling back silently is safe.
 if sys.platform == "win32":
     import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        try:
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        except AttributeError:
+            pass
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
@@ -42,13 +50,13 @@ if __name__ == "__main__":
     print(f"Starting server on port {port}...")
 
     # Auto-whitelist IP for Oracle Autonomous DB
-    import subprocess
-
-    try:
-        print("Checking/updating IP whitelist for Oracle DB...", flush=True)
-        subprocess.run([sys.executable, "whitelist_current_ip.py"], check=True)
-    except Exception as e:
-        print(f"Warning: Failed to auto-whitelist IP (this may cause connection errors): {e}")
+    # (Disabled during MySQL migration because Oracle DB is hibernated)
+    # import subprocess
+    # try:
+    #     print("Checking/updating IP whitelist for Oracle DB...", flush=True)
+    #     subprocess.run([sys.executable, "whitelist_current_ip.py"], check=True)
+    # except Exception as e:
+    #     print(f"Warning: Failed to auto-whitelist IP (this may cause connection errors): {e}")
 
     workers = int(os.getenv("WORKERS", 4))
     uvicorn.run(
@@ -61,5 +69,6 @@ if __name__ == "__main__":
         # Raise the TCP accept-queue beyond the OS default (128 on many Linux/Docker
         # base images). On production Linux this prevents connection drops during
         # sudden traffic bursts before Uvicorn can accept() them.
-        backlog=2048,
+        # However, force a small backlog on Windows to prevent WinError 10022 crashes.
+        backlog=128,
     )

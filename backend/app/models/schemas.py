@@ -728,6 +728,9 @@ class ReturnItemSchema(BaseModel):
 class ReturnRequestBase(BaseModel):
     orderId: str
     items: List[ReturnItemSchema]
+    sellerId: Optional[str] = None
+    deliverySlotId: Optional[str] = None
+    deliverySlotDate: Optional[str] = None
     paymentMethod: str  # 'cod' or 'upi'
     upiPaymentScreenshot: Optional[str] = None
     notes: Optional[str] = None
@@ -749,6 +752,9 @@ class ReturnRequestResponse(BaseModel):
     orderId: str
     userId: str
     items: List[Dict[str, Any]]  # populated items
+    sellerId: Optional[str] = None
+    deliverySlotId: Optional[str] = None
+    deliverySlotDate: Optional[str] = None
     paymentMethod: str
     upiPaymentScreenshot: Optional[str] = None
     notes: Optional[str] = None

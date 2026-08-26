@@ -131,6 +131,8 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                     "quantityPerCase": qty_per_case,
                     "stock": 0,
                     "isActive": main_row.get("isActive", "true").lower() in ["true", "1", "yes"],
+                    "images": [img.strip() for img in main_row.get("images", "").split(",") if img.strip()] if main_row.get("images") else [],
+                    "videos": [vid.strip() for vid in main_row.get("videos", "").split(",") if vid.strip()] if main_row.get("videos") else [],
                     "variantAttributes": [],
                     "variantCombinations": [],
                 }
@@ -957,3 +959,20 @@ async def notify_me(
 
     await product_notification_repository.create_notification(product_id, email, user_id)
     return {"message": "Notification registered successfully", "email": email}
+
+@router.post("/upload-videos")
+async def upload_videos(
+    files: List[UploadFile] = File(...),
+    current_user: dict = Depends(require_super_admin)
+):
+    from app.utils.oci_storage import upload_file_to_oci
+    import uuid
+    urls = []
+    for file in files:
+        ext = file.filename.split('.')[-1] if '.' in file.filename else 'mp4'
+        obj_name = f"videos/{uuid.uuid4()}.{ext}"
+        content = await file.read()
+        url = await upload_file_to_oci(content, obj_name, file.content_type)
+        if url:
+            urls.append(url)
+    return {"urls": urls}
