@@ -39,7 +39,7 @@ async def get_all_ads(placement: Optional[str] = None, active_only: bool = Query
     if active_only:
         query["status"] = "active"
     ads = await storage.findAll(query)
-    return ads
+    return {"ads": ads}
 
 
 @router.post("/")
@@ -55,6 +55,18 @@ async def update_ad(ad_id: str, ad_data: dict, _: dict = Depends(require_super_a
         raise HTTPException(status_code=404, detail="Ad not found")
     return updated
 
+
+
+@router.patch("/{ad_id}/status")
+async def update_ad_status(ad_id: str, payload: dict, _: dict = Depends(require_super_admin)):
+    status = payload.get("status")
+    if not status:
+        raise HTTPException(status_code=400, detail="Status is required")
+        
+    updated = await storage.update(ad_id, {"status": status})
+    if not updated:
+        raise HTTPException(status_code=404, detail="Ad not found")
+    return {"message": f"Ad status updated to {status}"}
 
 @router.delete("/{ad_id}")
 async def delete_ad(ad_id: str, _: dict = Depends(require_super_admin)):

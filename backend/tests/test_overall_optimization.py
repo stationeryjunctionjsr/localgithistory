@@ -9,18 +9,24 @@ from app.db.storage_factory import get_storage
 
 async def clean_database():
     try:
-        # Delete test user's wishlist, cart and sessions first to satisfy foreign key constraints
         users = await user_repository.storage.findAll()
         for u in users:
             if u.get("name") == "TEST_GEN_OPT_User" or u.get("email") == "gen_opt_user@test.com":
-                await wishlist_repository.storage.deleteMany({"user": u["_id"]})
-                await cart_repository.storage.deleteMany({"user": u["_id"]})
-                from app.repositories.session_repository import session_repository
-
-                await session_repository.storage.deleteMany({"user": u["_id"]})
+                try:
+                    await wishlist_repository.storage.deleteMany({"user": u["_id"]})
+                except Exception:
+                    pass
+                try:
+                    await cart_repository.storage.deleteMany({"user": u["_id"]})
+                except Exception:
+                    pass
+                try:
+                    from app.repositories.session_repository import session_repository
+                    await session_repository.storage.deleteMany({"user": u["_id"]})
+                except Exception:
+                    pass
                 await user_repository.storage.delete(u["_id"])
 
-        # Delete test product
         products = await product_repository.storage.findAll()
         for p in products:
             if p.get("name") == "TEST_GEN_OPT_Product" or p.get("sku") == "SKU-GEN-OPT":
@@ -54,7 +60,7 @@ async def test_oracle_doc_store_filtering():
             "userId": "TEST_GEN_OPT_USER_ID",
             "quantity": 5,
             "status": "active",
-            "expiresAt": "2026-06-04T12:00:00Z",
+            "expiresAt": "2026-06-04 12:00:00",
         }
     )
     r2 = await store.create(
@@ -63,7 +69,7 @@ async def test_oracle_doc_store_filtering():
             "userId": "TEST_GEN_OPT_USER_ID",
             "quantity": 10,
             "status": "expired",
-            "expiresAt": "2026-06-04T12:00:00Z",
+            "expiresAt": "2026-06-04 12:00:00",
         }
     )
 

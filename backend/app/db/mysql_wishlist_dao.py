@@ -145,6 +145,22 @@ class MySQLWishlistDAO:
         factory = self._factory()
         wid = int(id) if str(id).isdigit() else 0
         async with factory() as session:
+            await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": wid})
             result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": wid})
             await session.commit()
             return result.rowcount > 0
+
+    async def deleteMany(self, query: Dict) -> int:
+        factory = self._factory()
+        docs = await self.findAll(query)
+        if not docs:
+            return 0
+        wids = [int(d["_id"]) for d in docs if str(d.get("_id", "")).isdigit()]
+        if not wids:
+            return 0
+        async with factory() as session:
+            for wid in wids:
+                await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": wid})
+                await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :wid"), {"wid": wid})
+            await session.commit()
+        return len(wids)

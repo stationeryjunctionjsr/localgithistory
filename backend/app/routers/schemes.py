@@ -75,3 +75,36 @@ async def get_applicable_schemes(product_id: str, current_user: dict = Depends(r
         out.append(cr)
 
     return out
+
+
+@router.get("/applicable/bundle/{bundle_id}", response_model=List[dict])
+async def get_applicable_bundle_schemes(bundle_id: str, current_user: dict = Depends(require_wholesaler)):
+    """
+    Get all active schemes applicable to a given bundle.
+    """
+    from app.repositories.bundle_repository import bundle_repository
+
+    bundle = await bundle_repository.findById(bundle_id)
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+
+    coupons = await coupon_repository.findAll({"isActive": True})
+    business_coupons = [c for c in coupons if "wholesaler" in (c.get("applicableRoles") or [])]
+
+    applicable_offers = []
+    for c in business_coupons:
+        applies_to_type = c.get("appliesToType") or "all"
+        applies_to_ids = c.get("appliesToValueIds") or []
+        is_eligible = await coupon_repository._bundle_eligible_async(
+            bundle, applies_to_type, applies_to_ids, c.get("excludedProductIds")
+        )
+
+        if is_eligible:
+            applicable_offers.append(c)
+
+    out = []
+    for c in applicable_offers:
+        cr = CouponResponse(**c).model_dump(by_alias=True)
+        out.append(cr)
+
+    return out

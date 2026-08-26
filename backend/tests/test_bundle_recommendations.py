@@ -46,6 +46,9 @@ async def test_bundle_product_recommendations(client: AsyncClient, user_auth: di
     data = response.json()
     assert "bundles" in data
     bundles = data["bundles"]
+    print(f"b1: {b1}")
+    print(f"b2: {b2}")
+    print(f"bundles: {bundles}")
     assert len(bundles) == 2, data
 
     # Highest salesCount first (High Volume Bundle has 20, Low Volume Bundle has 5)

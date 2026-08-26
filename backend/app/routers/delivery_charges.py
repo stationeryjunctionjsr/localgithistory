@@ -84,12 +84,22 @@ async def get_serviceable_pincodes(current_user: dict = Depends(require_super_ad
 @cache.ttl_cache(ttl=3600.0)
 async def check_serviceability(pincode: str = Query(...), userRole: Optional[str] = Query("customer")):
     """Check if a pincode is serviceable for a user role. Also returns slot booking availability."""
+    if not pincode or len(pincode) != 6 or not pincode.isdigit():
+        return {
+            "isServiceable": False,
+            "pincode": pincode,
+            "userRole": userRole,
+            "sellerCount": 0,
+            "slotBookingAvailable": False,
+            "availableDates": [],
+            "urgentDeliveryAvailable": False,
+        }
+
     from app.db.storage_factory import get_storage
 
     is_serviceable = await delivery_charge_repository.isPincodeServiceable(pincode, userRole)
 
     platform_urgent = False
-    from app.db.storage_factory import get_storage
     zones_storage = get_storage("deliveryZones")
     zones = await zones_storage.findAll({"isActive": True})
     for z in zones:
@@ -135,6 +145,7 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
         "isServiceable": is_serviceable,
         "pincode": pincode,
         "userRole": userRole,
+        "sellerCount": 0,
         "slotBookingAvailable": len(available_dates) > 0,
         "availableDates": available_dates,
         "urgentDeliveryAvailable": platform_urgent,

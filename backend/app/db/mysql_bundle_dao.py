@@ -16,6 +16,7 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
                 "price": "price",
                 "discountPercentage": "discount_percentage",
                 "isActive": "is_active",
+                "salesCount": "sales_count",
             },
             
             bool_api_keys=frozenset({"isActive"}),
@@ -51,37 +52,41 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
     async def findById(self, id: str) -> Optional[Dict]:
         doc = await super().findById(id)
         if doc:
-            doc["products"] = await self._fetch_products(doc.get("id"))
+            doc["items"] = await self._fetch_products(doc.get("external_id"))
         return doc
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         doc = await super().findOne(query)
         if doc:
-            doc["products"] = await self._fetch_products(doc.get("id"))
+            doc["items"] = await self._fetch_products(doc.get("external_id"))
         return doc
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         docs = await super().findAll(query)
-        # For simplicity, N+1 query. In a highly loaded system, we'd do a JOIN or IN clause.
         for doc in docs:
-            doc["products"] = await self._fetch_products(doc.get("id"))
+            doc["items"] = await self._fetch_products(doc.get("external_id"))
         return docs
 
     async def create(self, data: Dict) -> Dict:
-        products = data.pop("products", [])
+        items = data.pop("items", [])
+        # Fallback to products if passed
+        if not items and "products" in data:
+            items = data.pop("products")
         doc = await super().create(data)
-        await self._save_products(doc.get("external_id"), products)
-        doc["products"] = await self._fetch_products(doc.get("external_id"))
+        await self._save_products(doc.get("external_id"), items)
+        doc["items"] = await self._fetch_products(doc.get("external_id"))
         return doc
 
     async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
-        products = None
-        if "products" in update_data:
-            products = update_data.pop("products")
+        items = None
+        if "items" in update_data:
+            items = update_data.pop("items")
+        elif "products" in update_data:
+            items = update_data.pop("products")
 
         doc = await super().update(id, update_data)
         if doc:
-            if products is not None:
-                await self._save_products(doc.get("external_id"), products)
-            doc["products"] = await self._fetch_products(doc.get("external_id"))
+            if items is not None:
+                await self._save_products(doc.get("external_id"), items)
+            doc["items"] = await self._fetch_products(doc.get("external_id"))
         return doc

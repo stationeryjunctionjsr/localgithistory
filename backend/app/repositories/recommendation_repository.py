@@ -291,19 +291,31 @@ class RecommendationRepository:
         self,
         segment: str,
         days: int = 7,
-        min_search_count: int = 10,
-        top_per_subcategory: int = 5,
+        top_percentile: float = 0.30,
         exclude_product_ids: Optional[Set[str]] = None,
         use_cache: bool = True,
+        limit: Optional[int] = None,
     ) -> List[str]:
         """
-        Trending Now: search-to-sale journey only. Per subcategory, top products by
-        conversion_rate = converted_sales_count / search_count (last `days`).
-        - search_count = number of searches that included this product (segment).
-        - converted_sales_count = number of orders containing this product where the same
-          user/session had searched for this product within 7 days before the order (search then sold within 7 days).
-        - Skip if search_count < min_search_count.
-        - Sort by conversion_rate descending, take top_per_subcategory per subcategory.
+        Trending Now: search-to-sale journey only.
+
+        Algorithm:
+        1. Score every product with ≥ 1 search in the last `days` days:
+               score = converted_sales / search_count
+           (converted_sales = orders where the same user/session searched this product first).
+
+        2. Compute the (1 - top_percentile) score cutoff across all scored products.
+           e.g. top_percentile=0.30 → keep products at or above the 70th-percentile score.
+           The bar is always relative to the current window: it rises when many products
+           convert well, and falls when traffic is thin — no hardcoded number.
+
+        3. Apply exclude_product_ids to the eligible pool.
+
+        4. Sort the remaining pool by score descending.
+
+        5. Return the eligible pool up to `limit`. The frontend's row-based display logic
+           will handle how many rows to show and whether to render a "Show more" button.
+
         If use_cache=True, returns from cache when available (written by scheduled job).
         """
         if use_cache:
@@ -362,45 +374,50 @@ class RecommendationRepository:
                 if linked:
                     converted_sales_count[pid] = converted_sales_count.get(pid, 0) + 1
 
-        # Search counts per product (segment)
+        # ── Step 3: search counts per product ───────────────────────────────────
         search_count = await tracking_repository.get_search_counts_by_product(days, segment)
 
-        # Products and subcategories - ONLY fetch active products
-        all_products = await self.product_storage.findAll({"isActive": True})
-        pid_to_subcat: Dict[str, str] = {}
-        for p in all_products:
-            pid = p.get("_id")
-            if pid:
-                pid_to_subcat[pid] = p.get("subCategory") or "None"
-
-        # Build candidates: (pid, subcat, conversion_rate); skip if search_count < min_search_count
-        candidates: List[Tuple[str, str, float]] = []
+        # ── Step 4: score every product with ≥1 search ──────────────────────────
+        # (No subcat grouping — all products compete in one global pool)
+        all_scored: List[Tuple[str, float]] = []
         for pid, sc in search_count.items():
-            if sc < min_search_count or pid in exclude:
+            if sc < 1:
                 continue
-            subcat = pid_to_subcat.get(pid, "None")
             converted = converted_sales_count.get(pid, 0)
-            rate = converted / sc if sc else 0.0
-            candidates.append((pid, subcat, rate))
+            rate = converted / sc  # conversion score ∈ [0, 1]
+            all_scored.append((pid, rate))
 
-        # Include products that have sales but no search data? No - we require search_count >= 10.
+        if not all_scored:
+            return []
 
-        # Group by subcategory, sort by conversion desc, take top_per_subcategory per subcategory
-        by_subcat: Dict[str, List[Tuple[str, float]]] = {}
-        for pid, subcat, rate in candidates:
-            by_subcat.setdefault(subcat, []).append((pid, rate))
-        # Flatten to (pid, rate), sort by rate descending so rank 1 (highest) is first
-        flat: List[Tuple[str, float]] = []
-        for subcat in sorted(by_subcat.keys()):
-            sorted_pids = sorted(by_subcat[subcat], key=lambda x: x[1], reverse=True)[:top_per_subcategory]
-            flat.extend(sorted_pids)
-        flat.sort(key=lambda x: x[1], reverse=True)
-        return [pid for pid, _ in flat]
+        # ── Step 5: top-percentile cutoff ────────────────────────────────────────
+        scores_only = sorted([rate for _, rate in all_scored])  # ascending
+        cutoff_index = max(0, int(len(scores_only) * (1.0 - top_percentile)) - 1)
+        score_cutoff = scores_only[cutoff_index]  # 70th-percentile value
+        logger.info(
+            "[Trending] segment=%s scored=%d score_cutoff=%.4f (top %.0f%%)",
+            segment, len(all_scored), score_cutoff, top_percentile * 100,
+        )
+
+        # ── Step 6: apply exclusion list, then sort by score descending ──────────
+        eligible = [
+            (pid, rate)
+            for pid, rate in all_scored
+            if rate >= score_cutoff and pid not in exclude
+        ]
+        eligible.sort(key=lambda x: x[1], reverse=True)
+
+        # ── Step 7: return eligible pool ─────────────────────────────────────────
+        # The full sorted pool is returned so the frontend's row-based display logic
+        # (getSectionDisplayConfig) can decide how many rows and whether to show
+        # "Show more". The caller's `limit` acts as a safety cap for very large pools.
+        result = [pid for pid, _ in eligible]
+        return result[:limit] if limit else result
 
     async def get_trending_product_ids(self, segment: str) -> Set[str]:
         """Set of product IDs that are Trending Now for this segment (for tagging in catalog)."""
         ids = await self.get_trending_by_conversion(
-            segment, days=7, min_search_count=10, top_per_subcategory=5, exclude_product_ids=set()
+            segment, days=7, top_percentile=0.30, exclude_product_ids=set()
         )
         return set(ids)
 
@@ -1133,6 +1150,7 @@ class RecommendationRepository:
         """
         config = __import__('backend.app.config.recommendation_config', fromlist=['_load_config'])._load_config()
         limits = config.get("strategy_limits", {})
+        limit_trending = limits.get("trending", 24)
         limit_explore = limits.get("explore", 24)
         limit_new = limits.get("new_arrivals") or limits.get("user_favorites") or 24
         
@@ -1214,7 +1232,6 @@ class RecommendationRepository:
             return out
 
         trending_days = 7
-        trending_top_per_subcat = 2 # Updated to top 2 products per subcategory as requested
         
         config_mod = __import__('backend.app.config.recommendation_config', fromlist=['_segment_config'])
         _segment_config = config_mod._segment_config
@@ -1238,8 +1255,8 @@ class RecommendationRepository:
                 self.get_trending_by_conversion(
                     "customer",
                     days=trending_days,
-                    top_per_subcategory=trending_top_per_subcat,
                     exclude_product_ids=set(),
+                    limit=limit_trending,
                 ),
                 self.get_new_arrivals(None, None, limit_new),
             )
@@ -1284,8 +1301,8 @@ class RecommendationRepository:
                 self.get_trending_by_conversion(
                     "customer",
                     days=trending_days,
-                    top_per_subcategory=trending_top_per_subcat,
                     exclude_product_ids=exclude,
+                    limit=limit_trending,
                 ),
                 self.get_new_arrivals(user_id, role, limit_new),
             )
@@ -1358,13 +1375,12 @@ class RecommendationRepository:
 
         bf_ids_after_exclude = [x for x in (bf_ids_raw or []) if x not in exclude]
 
-        # 1. Fetch Trending + New Arrivals in parallel
         tn_ids_raw, new_ids_raw = await asyncio.gather(
             self.get_trending_by_conversion(
                 "wholesaler",
                 days=trending_days,
-                top_per_subcategory=trending_top_per_subcat,
                 exclude_product_ids=exclude,
+                limit=limit_trending,
             ),
             self.get_new_arrivals(user_id, role, limit_new),
         )

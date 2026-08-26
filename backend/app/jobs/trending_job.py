@@ -20,16 +20,14 @@ async def run_trending_job():
         customer_ids = await recommendation_repository.get_trending_by_conversion(
             "customer",
             days=7,
-            min_search_count=10,
-            top_per_subcategory=5,
+            top_percentile=0.30,
             exclude_product_ids=set(),
             use_cache=False,
         )
         wholesaler_ids = await recommendation_repository.get_trending_by_conversion(
             "wholesaler",
             days=7,
-            min_search_count=10,
-            top_per_subcategory=5,
+            top_percentile=0.30,
             exclude_product_ids=set(),
             use_cache=False,
         )

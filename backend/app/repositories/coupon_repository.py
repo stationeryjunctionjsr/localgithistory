@@ -286,6 +286,27 @@ class CouponRepository:
             return pid in [str(x) for x in applies_to_value_ids]
         return False
 
+    async def _bundle_eligible_async(
+        self,
+        bundle: Dict,
+        applies_to_type: str,
+        applies_to_value_ids: Optional[List[str]],
+        excluded_product_ids: Optional[List[str]] = None,
+    ) -> bool:
+        """Determines if a bundle is eligible for a discount scheme."""
+        bid = str(bundle.get("_id", ""))
+        if excluded_product_ids and bid in [str(x) for x in excluded_product_ids]:
+            return False
+            
+        if applies_to_type == "all":
+            return True
+        elif applies_to_type == "bundles":
+            if not applies_to_value_ids:
+                return True
+            return bid in [str(x) for x in applies_to_value_ids]
+        # Bundles don't inherently belong to collections, subcategories, or products
+        return False
+
     async def _user_matches_behavior(
         self,
         user_id: str,

@@ -28,6 +28,9 @@ class MySQLCategoryDAO:
             "description": r.description,
             "isActive": bool(r.is_active) if r.is_active is not None else True,
             "categoryTag": r.category_tag,
+            "minimumQuantity": getattr(r, "minimum_quantity", None),
+            "gst": float(r.gst) if getattr(r, "gst", None) is not None else None,
+            "isReturnable": bool(r.is_returnable) if getattr(r, "is_returnable", None) is not None else True,
             "images": children.get("images", []),
             "subCategories": children.get("subCategories", []),
             "categoryTags": children.get("categoryTags", []),
@@ -139,9 +142,11 @@ class MySQLCategoryDAO:
                     f"""
                     INSERT INTO {self.TABLE} (
                         external_id, name, description, is_active, category_tag,
+                        minimum_quantity, gst, is_returnable,
                         created_at, updated_at
                     ) VALUES (
                         :external_id, :name, :description, :is_active, :category_tag,
+                        :minimum_quantity, :gst, :is_returnable,
                         :created_at, :updated_at
                     )
                     """
@@ -152,6 +157,9 @@ class MySQLCategoryDAO:
                     "description": data.get("description"),
                     "is_active": int(bool(data.get("isActive", True))),
                     "category_tag": data.get("categoryTag"),
+                    "minimum_quantity": data.get("minimumQuantity"),
+                    "gst": data.get("gst"),
+                    "is_returnable": int(bool(data.get("isReturnable", True))),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -183,6 +191,9 @@ class MySQLCategoryDAO:
                         description = :description,
                         is_active = :is_active,
                         category_tag = :category_tag,
+                        minimum_quantity = :minimum_quantity,
+                        gst = :gst,
+                        is_returnable = :is_returnable,
                         updated_at = :updated_at
                     WHERE id = :id
                     """
@@ -193,6 +204,9 @@ class MySQLCategoryDAO:
                     "description": merged.get("description"),
                     "is_active": int(bool(merged.get("isActive", True))),
                     "category_tag": merged.get("categoryTag"),
+                    "minimum_quantity": merged.get("minimumQuantity"),
+                    "gst": merged.get("gst"),
+                    "is_returnable": int(bool(merged.get("isReturnable", True))),
                     "updated_at": now,
                 },
             )

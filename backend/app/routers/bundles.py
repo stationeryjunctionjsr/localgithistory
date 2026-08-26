@@ -55,6 +55,7 @@ class CreateBundleRequest(BaseModel):
     category: Optional[str] = None
     subCategory: Optional[str] = None
     brand: Optional[str] = None
+    searchTags: Optional[List[str]] = None
 
 
 class UpdateBundleRequest(BaseModel):
@@ -70,6 +71,7 @@ class UpdateBundleRequest(BaseModel):
     category: Optional[str] = None
     subCategory: Optional[str] = None
     brand: Optional[str] = None
+    searchTags: Optional[List[str]] = None
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -116,7 +118,7 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
             }
         )
 
-    bundle_price = bundle.get("price", 0)
+    bundle_price = float(bundle.get("price", 0))
     display_img = (
         bundle.get("displayImage")
         or bundle.get("imageUrl")
@@ -178,9 +180,34 @@ async def search_bundles(
                 # Filter by search term
                 if q:
                     search_term = q.lower()
+                    
+                    # 1. Check price expressions (e.g. "under 500")
+                    price_matched = False
+                    price_val = None
+                    tokens = search_term.split()
+                    if len(tokens) >= 2 and tokens[0] in {"under", "below", "less"}:
+                        try:
+                            price_val = float(tokens[1])
+                            if float(eb.get("price", 0)) <= price_val:
+                                price_matched = True
+                        except ValueError:
+                            pass
+                    elif search_term.isdigit():
+                        if abs(float(eb.get("price", 0)) - float(search_term)) < 10:
+                            price_matched = True
+
+                    # 2. Check text fields
                     name = (eb.get("name") or "").lower()
                     desc = (eb.get("description") or "").lower()
-                    if search_term not in name and search_term not in desc:
+                    tags = [t.lower() for t in (eb.get("searchTags") or [])]
+                    
+                    text_matched = (
+                        search_term in name or 
+                        search_term in desc or 
+                        any(search_term in t for t in tags)
+                    )
+
+                    if not text_matched and not price_matched:
                         continue
 
                 # Resolve effective category & brand
@@ -409,6 +436,7 @@ async def create_bundle(payload: CreateBundleRequest, current_user: dict = Depen
             "imageUrl": payload.imageUrl,
             "isActive": payload.isActive,
             "salesCount": payload.salesCount if payload.salesCount is not None else 0,
+            "searchTags": payload.searchTags or [],
         }
         created = await bundle_repository.create(bundle_data)
         return {"message": "Bundle created", "bundle": created}
@@ -449,6 +477,8 @@ async def update_bundle(
             updates["isActive"] = payload.isActive
         if payload.salesCount is not None:
             updates["salesCount"] = payload.salesCount
+        if payload.searchTags is not None:
+            updates["searchTags"] = payload.searchTags
 
         updated = await bundle_repository.update(bundle_id, updates)
         return {"message": "Bundle updated", "bundle": updated}
