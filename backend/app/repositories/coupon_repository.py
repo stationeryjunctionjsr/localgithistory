@@ -83,10 +83,18 @@ class CouponRepository:
         x_required = int(coupon.get("minQuantityOfEligibleItems") or 0)
         y_required = int(coupon.get("buyXGetYCustomerGetsQuantity") or 0)
 
+        # Batch-load all cart products upfront to avoid N+1 (one DB hit per item)
+        cart_pids = [str(item.get("product") or item.get("productId")) for item in cart_items if item.get("product") or item.get("productId")]
+        if cart_pids:
+            products_list = await product_repository.findAll({"allowed_ids": cart_pids})
+            product_map = {str(p["_id"]): p for p in products_list if p.get("_id")}
+        else:
+            product_map = {}
+
         elements = []
         for idx, item in enumerate(cart_items):
             pid = str(item.get("product") or item.get("productId"))
-            product = await product_repository.findById(pid)
+            product = product_map.get(pid)
             if not product:
                 continue
             qty = int(item.get("quantity") or 0)
@@ -341,13 +349,9 @@ class CouponRepository:
                     if has_app is None:
                         has_app = False
                         try:
-                            # Check devices for app usage
                             device_storage = get_storage("deviceSubscriptions")
-                            devices = await device_storage.findAll()
-                            for d in devices:
-                                if d.get("userId") and str(d.get("userId")) == str(user_id):
-                                    has_app = True
-                                    break
+                            devices = await device_storage.findAll({"userId": str(user_id)})
+                            has_app = len(devices) > 0
                         except Exception:
                             logger.exception("Error checking for app usage for user")
 

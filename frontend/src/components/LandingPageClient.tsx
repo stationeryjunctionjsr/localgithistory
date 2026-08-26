@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { usePincode } from '@/context/PincodeContext';
 import api from '@/utils/api';
 import ProductCatalog from '@/components/ProductCatalog';
 import InfiniteCarousel from '@/components/InfiniteCarousel';
@@ -43,6 +44,7 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
   const { user } = useAuth();
   // eslint-disable-next-line unused-imports/no-unused-vars
   const { theme } = useTheme();
+  const { isPincodeModalOpen, isMandatory } = usePincode();
   const router = useRouter();
   const searchParams = useSearchParams();
   // eslint-disable-next-line unused-imports/no-unused-vars
@@ -218,10 +220,32 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
     setShowHamburger(false);
   };
 
+  // Lock body scroll while the mandatory pincode gate is blocking the page
+  useEffect(() => {
+    const gateActive = isMandatory && isPincodeModalOpen && !user;
+    if (gateActive) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMandatory, isPincodeModalOpen, user]);
+
+  // Determine if the mandatory pincode gate should blur page content
+  const gateBlur = isMandatory && isPincodeModalOpen && !user;
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+      {/* Header always visible — contains the pincode picker button */}
       <Header />
 
+      {/* Page body: blurred + non-interactive while pincode gate is active */}
+      <div
+        className={gateBlur ? 'pointer-events-none select-none blur-sm transition-[filter] duration-200' : ''}
+        aria-hidden={gateBlur}
+      >
       {!selectedCategory && !selectedCategoryTag && !selectedCollection && !searchTerm && (
         <>
           <HeroCarousel banners={banners} />
@@ -671,6 +695,8 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
             </div>
           </div>
         )}
+
+      </div>{/* end blur wrapper */}
 
       <ThemeSwitcher />
     </div>

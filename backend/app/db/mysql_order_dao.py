@@ -145,6 +145,10 @@ class MySQLOrderDAO:
                     if dt:
                         where_clauses.append("created_at <= :endDate")
                         params["endDate"] = dt
+                elif k == "orderNumber_prefix":
+                    if v:
+                        where_clauses.append("order_number LIKE :order_prefix")
+                        params["order_prefix"] = f"{v}%"
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         return where_sql, params

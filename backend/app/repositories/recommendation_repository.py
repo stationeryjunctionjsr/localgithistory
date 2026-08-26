@@ -228,25 +228,15 @@ class RecommendationRepository:
 
     async def _get_retail_customer_ids(self) -> set:
         """User IDs with role customer (retail)."""
-        users = await self.user_storage.findAll()
-        return {
-            u.get("_id")
-            for u in users
-            if u.get("_id") and (u.get("role") == "customer" or u.get("effectiveRole") == "customer")
-        }
+        users = await self.user_storage.findAll({"role": "customer"})
+        return {u.get("_id") for u in users if u.get("_id")}
 
     async def _get_user_purchased_product_ids(self, user_id: str, days: int) -> set:
         """Products the user purchased in the last `days` days."""
-        # Use database-side filtering to only fetch relevant orders
-        query = {"user": user_id}
-        orders = await self.order_storage.findAll(query)
-
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        orders = await self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()})
         out = set()
         for order in orders:
-            dt = _parse_order_date(order)
-            if not dt or dt < cutoff:
-                continue
             for item in order.get("items", []):
                 pid = item.get("product") or item.get("productId")
                 if pid:
@@ -273,16 +263,14 @@ class RecommendationRepository:
         if not retail_ids:
             return []
         exclude = exclude_product_ids or set()
-        orders = await self.order_storage.findAll()
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        orders = await self.order_storage.findAll({
+            "orderNumber_prefix": "ORDER-RT-",
+            "startDate": cutoff.isoformat(),
+        })
         product_counts: Dict[str, int] = {}
         for order in orders:
             if order.get("user") not in retail_ids:
-                continue
-            dt = _parse_order_date(order)
-            if not dt:
-                continue
-            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-            if dt < cutoff:
                 continue
             for item in order.get("items", []):
                 pid = item.get("product") or item.get("productId")
@@ -334,19 +322,15 @@ class RecommendationRepository:
         # Search events (last 7 days) with productIds for linking
         searches = await tracking_repository.get_searches_with_products(days, segment)
 
-        # Orders in last 7 days (segment)
-        # Use database-side filtering for date and possibly segment if supported
-        # Note: OracleOrderDAO supports filtering by user, but maybe not by date in a generic way yet.
-        # But we can at least pass an empty query to trigger the optimized findAll.
-        orders = await self.order_storage.findAll()
+        # Orders in last `days` days for this segment — filtered at DB level
+        orders = await self.order_storage.findAll({
+            "orderNumber_prefix": prefix,
+            "startDate": cutoff.isoformat(),
+        })
         converted_sales_count: Dict[str, int] = {}
         for order in orders:
-            # Filtering still needed in Python if DAO doesn't support date range yet,
-            # but at least we've optimized the underlying query execution.
-            if not (order.get("orderNumber") or str(order.get("orderNumber", "")).startswith(prefix)):
-                continue
             order_dt = _parse_order_date(order)
-            if not order_dt or order_dt < cutoff:
+            if not order_dt:
                 continue
             if order.get("status") == "cancelled":
                 continue
@@ -435,8 +419,13 @@ class RecommendationRepository:
             return []
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         city_filter = city.strip().lower() if city and city.strip() else None
-        orders = await self.order_storage.findAll()
-        all_products = await self.product_storage.findAll()
+        orders, all_products = await asyncio.gather(
+            self.order_storage.findAll({
+                "orderNumber_prefix": "ORDER-RT-",
+                "startDate": cutoff.isoformat(),
+            }),
+            self.product_storage.findAll({"isActive": True}),
+        )
         pid_to_subcat: Dict[str, str] = {
             p.get("_id"): (p.get("subCategory") or "None") for p in all_products if p.get("_id")
         }
@@ -444,11 +433,6 @@ class RecommendationRepository:
         segment_quantity: Dict[str, Dict[str, int]] = {}
         for order in orders:
             if order.get("user") not in retail_ids:
-                continue
-            if not (order.get("orderNumber") or str(order.get("orderNumber", "")).startswith("ORDER-RT-")):
-                continue
-            dt = _parse_order_date(order)
-            if not dt or dt < cutoff:
                 continue
             if order.get("status") == "cancelled":
                 continue
@@ -518,19 +502,19 @@ class RecommendationRepository:
         w_freq, w_qty = _get_favourites_weights("business_favourites")
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         city_filter = city.strip().lower() if city and city.strip() else None
-        orders = await self.order_storage.findAll()
-        all_products = await self.product_storage.findAll()
+        orders, all_products = await asyncio.gather(
+            self.order_storage.findAll({
+                "orderNumber_prefix": "ORDER-WH-",
+                "startDate": cutoff.isoformat(),
+            }),
+            self.product_storage.findAll({"isActive": True}),
+        )
         pid_to_subcat: Dict[str, str] = {
             p.get("_id"): (p.get("subCategory") or "None") for p in all_products if p.get("_id")
         }
         segment_order_count: Dict[str, Dict[str, int]] = {}
         segment_quantity: Dict[str, Dict[str, int]] = {}
         for order in orders:
-            if not (order.get("orderNumber") or str(order.get("orderNumber", "")).startswith("ORDER-WH-")):
-                continue
-            dt = _parse_order_date(order)
-            if not dt or dt < cutoff:
-                continue
             if order.get("status") == "cancelled":
                 continue
             # City filter: match against the order's delivery city (shippingAddress.city)
@@ -624,21 +608,13 @@ class RecommendationRepository:
         states_seen: set = set()
         cities_seen: set = set()
 
-        orders = await self.order_storage.findAll()
+        prefix = "ORDER-RT-" if kind == "customer" else "ORDER-WH-"
+        orders = await self.order_storage.findAll({
+            "orderNumber_prefix": prefix,
+            "startDate": cutoff.isoformat(),
+        })
         for order in orders:
-            # Role / type filter
-            order_num = order.get("orderNumber") or ""
-            if kind == "customer":
-                if retail_ids and order.get("user") not in retail_ids:
-                    continue
-                if not order_num.startswith("ORDER-RT-"):
-                    continue
-            else:
-                if not order_num.startswith("ORDER-WH-"):
-                    continue
-
-            dt = _parse_order_date(order)
-            if not dt or dt < cutoff:
+            if kind == "customer" and retail_ids and order.get("user") not in retail_ids:
                 continue
             if order.get("status") == "cancelled":
                 continue
@@ -687,13 +663,11 @@ class RecommendationRepository:
         _load_config()
         days_new = 30  # same as add_dynamic_tags "new" tag
         cutoff = datetime.now(timezone.utc) - timedelta(days=days_new)
-        all_products = await self.product_storage.findAll()
+        all_products = await self.product_storage.findAll({"isActive": True})
         user_ordered: Set[str] = set()
         if user_id:
-            orders = await self.order_storage.findAll()
+            orders = await self.order_storage.findAll({"user": user_id})
             for o in orders:
-                if o.get("user") != user_id:
-                    continue
                 for item in o.get("items", []):
                     pid = item.get("product") or item.get("productId")
                     if pid:
@@ -808,17 +782,17 @@ class RecommendationRepository:
     async def get_most_bought_by_wholesalers(self, user_id: str, limit: int = 10, days: int = 5) -> List[str]:
         """Products most frequently bought by other wholesalers. Used only when caller is wholesaler."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        users = await self.user_storage.findAll()
-        wholesaler_ids = {u.get("_id") for u in users if u.get("role") == "wholesaler" and u.get("_id") != user_id}
+        users = await self.user_storage.findAll({"role": "wholesaler"})
+        wholesaler_ids = {u.get("_id") for u in users if u.get("_id") and u.get("_id") != user_id}
         if not wholesaler_ids:
             return []
-        orders = await self.order_storage.findAll()
+        orders = await self.order_storage.findAll({
+            "orderNumber_prefix": "ORDER-WH-",
+            "startDate": cutoff.isoformat(),
+        })
         product_counts: Dict[str, int] = {}
         for order in orders:
             if order.get("user") not in wholesaler_ids:
-                continue
-            dt = _parse_order_date(order)
-            if not dt or dt < cutoff:
                 continue
             for item in order.get("items", []):
                 pid = item.get("product") or item.get("productId")
@@ -830,14 +804,9 @@ class RecommendationRepository:
     async def get_most_bought_by_user(self, user_id: str, limit: int = 5, days: int = 60) -> List[str]:
         """Top products bought by same user in last `days` days (for wholesaler 'your favourites')."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        orders = await self.order_storage.findAll()
+        orders = await self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()})
         product_counts: Dict[str, int] = {}
         for order in orders:
-            if order.get("user") != user_id:
-                continue
-            dt = _parse_order_date(order)
-            if not dt or dt < cutoff:
-                continue
             for item in order.get("items", []):
                 pid = item.get("product") or item.get("productId")
                 if pid:
@@ -850,21 +819,16 @@ class RecommendationRepository:
     ) -> List[str]:
         """Best selling products from categories this user bought least from (Explore – based on logged-in user orders)."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        # Fetch orders and products once each (avoids duplicate full-table scans)
-        orders, products = await asyncio.gather(
-            self.order_storage.findAll(),
-            self.product_storage.findAll(),
+        # Fetch user orders (filtered) and active products concurrently
+        user_orders, products = await asyncio.gather(
+            self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()}),
+            self.product_storage.findAll({"isActive": True}),
         )
         # Build product lookup: id -> product
         product_by_id: Dict[str, Dict] = {p.get("_id"): p for p in products if p.get("_id")}
 
         user_product_ids: set = set()
-        for o in orders:
-            if o.get("user") != user_id:
-                continue
-            dt = _parse_order_date(o)
-            if not dt or dt < cutoff:
-                continue
+        for o in user_orders:
             for item in o.get("items", []):
                 product_id = item.get("product") or item.get("productId")
                 if product_id:
@@ -884,10 +848,13 @@ class RecommendationRepository:
             category for category, count in sorted(category_counts.items(), key=lambda x: x[1]) if count > 0
         ][:5]
 
-        # Get best selling products from these categories using the already-loaded orders
-        category_product_sales: Dict[str, Dict[str, int]] = {}
+        # Get best selling products from these categories using date-filtered all orders
         cat_set = set(categories_with_purchases)
-        for order in orders:
+        if not cat_set:
+            return []
+        recent_orders = await self.order_storage.findAll({"startDate": cutoff.isoformat()})
+        category_product_sales: Dict[str, Dict[str, int]] = {}
+        for order in recent_orders:
             for item in order.get("items", []):
                 product_id = item.get("product") or item.get("productId")
                 if not product_id:
@@ -936,22 +903,26 @@ class RecommendationRepository:
         pid_set = set(product_ids)
         scores: Dict[str, float] = {pid: 0.0 for pid in product_ids}
 
-        for action, weight in [
-            ("recommendation_product_view", weights.get("product_view", 1)),
-            ("recommendation_add_to_cart", weights.get("add_to_cart", 3)),
+        try:
+            pv_docs, atc_docs = await asyncio.gather(
+                self.activity_storage.findAll({"action": "recommendation_product_view"}),
+                self.activity_storage.findAll({"action": "recommendation_add_to_cart"}),
+            )
+        except Exception:
+            return scores
+
+        for docs, weight in [
+            (pv_docs, weights.get("product_view", 1)),
+            (atc_docs, weights.get("add_to_cart", 3)),
         ]:
-            try:
-                activities = await self.activity_storage.findAll({"action": action})
-                for doc in activities:
-                    created = self._parse_created_at(doc)
-                    if created and created < cutoff:
-                        continue
-                    meta = doc.get("meta") or {}
-                    pid = meta.get("productId")
-                    if pid and pid in pid_set:
-                        scores[pid] = scores.get(pid, 0) + weight
-            except Exception:
-                continue
+            for doc in docs:
+                created = self._parse_created_at(doc)
+                if created and created < cutoff:
+                    continue
+                meta = doc.get("meta") or {}
+                pid = meta.get("productId")
+                if pid and pid in pid_set:
+                    scores[pid] = scores.get(pid, 0) + weight
 
         return scores
 
@@ -970,8 +941,8 @@ class RecommendationRepository:
         limits.get("trending", 10)
         limit_explore = limits.get("explore", 5)
         limit_new = limits.get("new_arrivals") or limits.get("user_favorites") or 10
-        # Fetch all products once and reuse — avoid repeated full table scans
-        all_products = await self.product_storage.findAll()
+        # Fetch all active products once and reuse — avoid repeated full table scans
+        all_products = await self.product_storage.findAll({"isActive": True})
         product_map = {p["_id"]: p for p in all_products}
 
         def to_products(ids: List[str]) -> List[Dict]:
