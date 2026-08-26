@@ -140,7 +140,7 @@ async def get_dashboard_data(
 async def get_sales_over_time(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    group_by: str = Query("hour", regex="^(hour|day|month)$"),
+    group_by: str = Query("hour", pattern="^(hour|day|month)$"),
     current_user: dict = Depends(require_roles("super_admin", "admin")),
 ):
     """Get sales over time"""
@@ -173,7 +173,7 @@ async def get_sales_breakdown(
 async def get_average_order_value(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    group_by: str = Query("hour", regex="^(hour|day|month)$"),
+    group_by: str = Query("hour", pattern="^(hour|day|month)$"),
     current_user: dict = Depends(require_roles("super_admin", "admin")),
 ):
     """Get average order value over time"""
@@ -223,7 +223,7 @@ async def get_sales_by_product(
 async def get_conversion_rate(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    group_by: str = Query("day", regex="^(hour|day|month)$"),
+    group_by: str = Query("day", pattern="^(hour|day|month)$"),
     current_user: dict = Depends(require_roles("super_admin", "admin")),
 ):
     """Get conversion funnel breakdown (sessions → cart → checkout → completed)"""

@@ -2743,6 +2743,16 @@ async def get_all_sub_orders(
     skip = (page - 1) * limit
     sub_orders = await sub_order_repository.findAll(query, skip=skip, limit=limit)
     total = await sub_order_repository.count(query)
+
+    # Promote unrealized → realized commissions whose return window has elapsed
+    try:
+        from app.routers.commission import maybe_realize_commission
+        import asyncio
+        sub_orders = list(await asyncio.gather(*[maybe_realize_commission(so) for so in sub_orders]))
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Commission promotion failed: %s", e)
+
     return {
         "subOrders": sub_orders,
         "totalCount": total,

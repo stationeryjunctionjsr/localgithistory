@@ -34,7 +34,7 @@ export default function DeliverySlotsPage() {
 
   // Urgent delivery charge (global setting stored in default delivery charge)
   const [urgentDeliveryCharge, setUrgentDeliveryCharge] = useState('');
-  const [defaultChargeId, setDefaultChargeId] = useState<string | null>(null);
+  const [_defaultChargeId, setDefaultChargeId] = useState<string | null>(null);
   const [savingUrgent, setSavingUrgent] = useState(false);
 
   // Generate next 7 dates

@@ -13,6 +13,7 @@ class UserRole(str, Enum):
 
 class ReturnRequestStatus(str, Enum):
     PENDING = "pending"
+    PENDING_VALET = "pending_valet"
     ASSIGNED = "assigned"
     COLLECTED = "collected"
     RETURNED = "returned"
@@ -748,6 +749,9 @@ class ReturnRequestResponse(BaseModel):
     status: ReturnRequestStatus
     valetId: Optional[str] = None
     valet: Optional[Dict[str, Any]] = None  # populated valet
+    valetDeclineHistory: Optional[List[str]] = None
+    valetCascadeCount: Optional[int] = None
+    valetAssignedAt: Optional[str] = None
     user: Optional[Dict[str, Any]] = None  # populated user
     deliveryCharge: float
     createdAt: str
@@ -1425,6 +1429,9 @@ class ReturnRequestResponse(BaseModel):
     status: ReturnRequestStatus
     valetId: Optional[str] = None
     valet: Optional[Dict[str, Any]] = None  # populated valet
+    valetDeclineHistory: Optional[List[str]] = None
+    valetCascadeCount: Optional[int] = None
+    valetAssignedAt: Optional[str] = None
     user: Optional[Dict[str, Any]] = None  # populated user
     deliveryCharge: float
     createdAt: str

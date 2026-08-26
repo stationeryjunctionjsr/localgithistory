@@ -128,7 +128,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <CartProvider>
                     <NotificationProvider>
                       <PincodeProvider>
-                        <AppChrome />
+                        <Suspense fallback={null}>
+                          <AppChrome />
+                        </Suspense>
                       <LaunchPopup />
                       <FeedbackModal />
                       <MSG91Initializer />

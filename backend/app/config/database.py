@@ -65,10 +65,13 @@ def get_async_engine():
     else:
         # Use QueuePool for connection pooling in a long-running FastAPI app.
         # pooling is critical for Oracle performance (especially TCPS).
+        pool_size = int(os.getenv("DB_POOL_SIZE", 5))
+        max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 2))
+        
         _async_engine = create_async_engine(
             DATABASE_URL,
-            pool_size=5,
-            max_overflow=2,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
             pool_timeout=30,
             pool_recycle=1800,
             pool_pre_ping=False,

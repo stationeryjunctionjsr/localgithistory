@@ -15,7 +15,9 @@ async def get_public_brands(forHomepage: bool = False):
     """Active brands with name and logo. If forHomepage=true, only brands with display-in-homepage enabled (web & mobile)."""
     brands = await brand_repository.findActive()
     if forHomepage:
-        brands = [b for b in brands if b.get("showInMobileHomepage")]
+        featured = [b for b in brands if b.get("showInMobileHomepage")]
+        if featured:
+            brands = featured
     return [
         {
             "_id": b["_id"],

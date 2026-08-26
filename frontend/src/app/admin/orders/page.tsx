@@ -99,6 +99,7 @@ export default function OrderManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [orderTypeFilter, setOrderTypeFilter] = useState('all');
+  const [orderCategoryTab, setOrderCategoryTab] = useState('all');
   const [dateFilter, setDateFilter] = useState('all'); // 'all', 'day', 'week', 'month', 'year', 'custom'
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
@@ -220,9 +221,16 @@ export default function OrderManagement() {
       const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
       const matchesOrderType = orderTypeFilter === 'all' || order.orderType === orderTypeFilter;
 
-      return matchesSearch && matchesStatus && matchesOrderType;
+      let matchesCategory = true;
+      if (orderCategoryTab === 'regular') {
+        matchesCategory = !order.isUrgentDelivery && !order.deliverySlot;
+      } else if (orderCategoryTab === 'urgent_slot') {
+        matchesCategory = !!order.isUrgentDelivery || !!order.deliverySlot;
+      }
+
+      return matchesSearch && matchesStatus && matchesOrderType && matchesCategory;
     });
-  }, [orders, searchTerm, statusFilter, orderTypeFilter]);
+  }, [orders, searchTerm, statusFilter, orderTypeFilter, orderCategoryTab]);
 
   const totalItems = filteredOrders.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -527,6 +535,29 @@ export default function OrderManagement() {
               </InfoButton>
               <RefreshButton onRefresh={fetchOrders} />
             </h1>
+          </div>
+
+          {/* Tabs */}
+          <div className="mb-6 border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+              {['all', 'regular', 'urgent_slot'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => {
+                    setOrderCategoryTab(tab);
+                    setCurrentPage(1);
+                  }}
+                  className={`
+                    whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
+                    ${orderCategoryTab === tab
+                      ? 'border-primary-green text-primary-green'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+                  `}
+                >
+                  {tab === 'all' ? 'All' : tab === 'regular' ? 'Regular' : 'Urgent/Slot'}
+                </button>
+              ))}
+            </nav>
           </div>
 
           {/* Search and Filters */}

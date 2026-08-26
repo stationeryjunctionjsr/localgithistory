@@ -191,8 +191,9 @@ async def lifespan(app: FastAPI):
                         async with factory() as session:
                             await session.execute(text("SELECT 1 FROM DUAL"))
 
-                    await asyncio.gather(*[warm_conn() for _ in range(10)])
-                    logger.info("All 10 DB connection pool slots pre-warmed")
+                    # Only warm up 1 connection per worker to prevent overwhelming the listener
+                    await asyncio.gather(*[warm_conn() for _ in range(1)])
+                    logger.info("DB connection pool slot pre-warmed")
 
             from starlette.responses import Response as _WarmupResponse
             from app.routers.products import get_public_products, get_public_product
@@ -485,6 +486,7 @@ async def initialize_data_dir():
         "productReviews.json",
         "reviewClassifications.json",
         "bundles.json",
+        "commissionSettings.json",
     ]
     for file in files:
         file_path = DATA_DIR / file
@@ -624,6 +626,11 @@ from app.routers import content_pages
 
 app.include_router(content_pages.router, prefix="/api/content", tags=["content-pages"])
 app.include_router(bundles.router, prefix="/api/bundles", tags=["bundles"])
+
+from app.routers import commission, valet_payout
+
+app.include_router(commission.router, prefix="/api/commission", tags=["commission"])
+app.include_router(valet_payout.router, prefix="/api/valet-payout", tags=["valet-payout"])
 
 # Prometheus metrics disabled — its middleware adds a call_next layer per request
 # which doubles latency under concurrency. Re-enable only in production behind
