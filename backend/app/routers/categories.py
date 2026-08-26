@@ -38,6 +38,67 @@ class CategoryUpdate(BaseModel):
     isReturnable: Optional[bool] = None
 
 
+@router.get("/available")
+@cache.ttl_cache(ttl=300.0)
+async def get_available_categories(pincode: Optional[str] = None):
+    """
+    Returns the category names and subcategories that have at least one product
+    available for the given pincode (based on zone -> seller mapping).
+    Returns null if no pincode is provided or if the pincode is not in any zone (fail-open).
+    """
+    if not pincode:
+        return None
+
+    from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
+    seller_id_set = await get_seller_ids_for_pincode(pincode)
+
+    if seller_id_set is None:
+        return None  # Pincode not in any zone -> fail open (show all)
+
+    result = {
+        "categoryNames": set(),
+        "subCategories": {},  # dict[category_name, set[subcategory_name]]
+        "brandNames": set(),
+        "collectionNames": set(),
+    }
+
+    if not seller_id_set:
+        # Zone found, but no sellers -> empty result
+        return {"categoryNames": [], "subCategories": {}, "brandNames": [], "collectionNames": []}
+
+    from app.repositories.product_repository import product_repository
+    # We pass 'customer' to get the standard retail light catalog cache
+    products = await product_repository._get_lightweight_search_catalog("customer", None)
+
+    for p in products:
+        p_seller_ids = p.get("catalogSellerIds") or []
+        # Check if the product has any overlap with the zone's seller IDs
+        if any(sid in seller_id_set for sid in p_seller_ids):
+            cat = p.get("category")
+            if cat:
+                result["categoryNames"].add(cat)
+                if cat not in result["subCategories"]:
+                    result["subCategories"][cat] = set()
+                sub = p.get("subCategory")
+                if sub:
+                    result["subCategories"][cat].add(sub)
+            brand = p.get("brand")
+            if brand:
+                result["brandNames"].add(brand)
+            collections = p.get("resolvedCollectionNames") or []
+            for col in collections:
+                result["collectionNames"].add(col)
+
+    # Convert sets to lists for JSON serialization
+    return {
+        "categoryNames": list(result["categoryNames"]),
+        "subCategories": {k: list(v) for k, v in result["subCategories"].items()},
+        "brandNames": list(result["brandNames"]),
+        "collectionNames": list(result["collectionNames"]),
+    }
+
+
+
 @router.get("/public")
 @cache.ttl_cache(ttl=300.0)
 async def get_public_categories(forHomepage: bool = False):

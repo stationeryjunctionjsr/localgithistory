@@ -9,6 +9,7 @@ tables = [
     "sj_stock_reservations",
     "sj_product_notifications",
     "sj_product_reviews",
+    "sj_classification_tags",
     "sj_review_classifications",
     "sj_bundles",
     "sj_customer_segments",

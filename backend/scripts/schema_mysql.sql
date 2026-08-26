@@ -1128,6 +1128,17 @@ CREATE TABLE `sj_return_valet_declines` (
   CONSTRAINT `fk_sj_return_valet_declines` FOREIGN KEY (`parent_id`) REFERENCES `sj_return_requests` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `sj_classification_tags` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `external_id` (`external_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `sj_review_classifications` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,

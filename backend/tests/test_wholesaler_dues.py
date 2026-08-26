@@ -59,7 +59,7 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
 
         payment_data = {
             "orderId": order["_id"],
-            "userId": user["userId"],
+            "userId": user.get("userId", str(user["_id"])),
             "customerName": user["name"],
             "orderDate": order_date.isoformat().replace("+00:00", "Z"),
             "paymentMethod": "credit",

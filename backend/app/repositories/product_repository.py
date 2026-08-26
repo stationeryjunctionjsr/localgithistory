@@ -313,6 +313,14 @@ class ProductRepository:
                         and (s.get("stock") or 0) > 0
                         and s.get("requestStatus", "approved") == "approved"
                     ],
+                    # Seller IDs for catalogue filtering (mega menu, brands, collections).
+                    # Includes out-of-stock items so they still appear in navigation.
+                    "catalogSellerIds": [
+                        str(s.get("sellerId"))
+                        for s in (p.get("sellers") or [])
+                        if s.get("isActive")
+                        and s.get("requestStatus", "approved") == "approved"
+                    ],
                 }
                 for p in products
             ]

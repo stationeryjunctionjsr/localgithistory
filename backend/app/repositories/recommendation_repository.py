@@ -1138,8 +1138,21 @@ class RecommendationRepository:
             logging.error(f"Error fetching bundles for recommendations: {e}")
             return []
 
+    def _is_available_in_zone(self, product: dict, seller_id_set: set) -> bool:
+        """True if product has at least one active, in-stock seller in the zone."""
+        if seller_id_set is None:
+            return True  # no zone filter
+        sellers = product.get("sellers") or []
+        return any(
+            str(s.get("sellerId")) in seller_id_set
+            and s.get("isActive")
+            and (s.get("stock") or 0) > 0
+            and s.get("requestStatus", "approved") == "approved"
+            for s in sellers
+        )
+
     async def get_recommendation_components(
-        self, user_id: str = None, role: str = None, city: str = None
+        self, user_id: str = None, role: str = None, city: str = None, seller_id_set: set = None
     ) -> dict:
         """
         Return recommendation components by segment (guest, retail, business/wholesaler).
@@ -1216,7 +1229,7 @@ class RecommendationRepository:
             out = []
             for pid in ids:
                 p = product_map.get(pid)
-                if p:
+                if p and self._is_available_in_zone(p, seller_id_set):
                     p_copy = dict(p)
                     # Convert to skinny payload to reduce size (keep images array since hover card cycles images)
                     p_copy["displayImage"] = p_copy.get("displayImage") or (

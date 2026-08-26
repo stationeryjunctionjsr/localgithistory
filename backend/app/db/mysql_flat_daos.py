@@ -1601,6 +1601,131 @@ class MySQLProductReviewsDAO:
             await session.commit()
             return res.rowcount > 0
 
+class MySQLClassificationTagsDAO:
+    TABLE = "sj_classification_tags"
+
+    def _factory(self):
+        return get_async_session_factory()
+
+    def _row_to_doc(self, row) -> Dict:
+        return {
+            "_id": str(row.id),
+            "id": row.id,
+            "external_id": row.external_id,
+            "name": row.name,
+            "isActive": bool(row.is_active),
+            "createdAt": row.created_at.isoformat() if row.created_at else None,
+            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
+        }
+
+    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+        query = query or {}
+        where_clauses = []
+        params = {}
+        if "name" in query:
+            where_clauses.append("name = :name")
+            params["name"] = query["name"]
+        if "isActive" in query:
+            where_clauses.append("is_active = :isActive")
+            params["isActive"] = 1 if query["isActive"] else 0
+
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        factory = self._factory()
+        async with factory() as session:
+            rows = (
+                await session.execute(
+                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
+                    params,
+                )
+            ).fetchall()
+        return [self._row_to_doc(r) for r in rows]
+
+    async def findOne(self, query: Dict) -> Optional[Dict]:
+        if "_id" in query:
+            return await self.findById(query["_id"])
+        if "id" in query:
+            return await self.findById(query["id"])
+        docs = await self.findAll(query)
+        return docs[0] if docs else None
+
+    async def findById(self, id: str) -> Optional[Dict]:
+        factory = self._factory()
+        pid = int(id) if str(id).isdigit() else 0
+        async with factory() as session:
+            row = (
+                await session.execute(
+                    text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
+                    {"id": pid},
+                )
+            ).fetchone()
+        return self._row_to_doc(row) if row else None
+
+    async def create(self, data: Dict) -> Dict:
+        factory = self._factory()
+        now = now_utc()
+        ext_id = secrets.token_hex(16)
+        
+        cols = ["external_id", "created_at", "updated_at"]
+        vals = [":eid", ":c", ":u"]
+        params = {"eid": ext_id, "c": now, "u": now}
+        if "name" in data:
+            cols.append("name")
+            vals.append(":name")
+            params["name"] = data["name"]
+        if "isActive" in data:
+            cols.append("is_active")
+            vals.append(":isActive")
+            params["isActive"] = 1 if data["isActive"] else 0
+
+        col_sql = ", ".join(cols)
+        val_sql = ", ".join(vals)
+        async with factory() as session:
+            await session.execute(
+                text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"),
+                params,
+            )
+            new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
+            await session.commit()
+        return await self.findById(str(new_id))
+
+    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+        existing = await self.findById(id)
+        if not existing:
+            return None
+        merged = {**existing, **data}
+        now = now_utc()
+        pid = int(id) if str(id).isdigit() else 0
+        
+        updates = ["updated_at = :u"]
+        params = {"id": pid, "u": now}
+        if "name" in merged:
+            updates.append("name = :name")
+            params["name"] = merged["name"]
+        if "isActive" in merged:
+            updates.append("is_active = :isActive")
+            params["isActive"] = 1 if merged["isActive"] else 0
+
+        set_sql = ", ".join(updates)
+        factory = self._factory()
+        async with factory() as session:
+            await session.execute(
+                text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
+                params,
+            )
+            await session.commit()
+        return await self.findById(id)
+
+    async def delete(self, id: str) -> bool:
+        factory = self._factory()
+        pid = int(id) if str(id).isdigit() else 0
+        async with factory() as session:
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                {"id": pid},
+            )
+            await session.commit()
+            return result.rowcount > 0
+
 class MySQLReviewClassificationsDAO:
     TABLE = "sj_review_classifications"
 
@@ -2649,6 +2774,7 @@ FLAT_DAOS = {
     "stockReservations": MySQLStockReservationsDAO(),
     "productNotifications": MySQLProductNotificationsDAO(),
     "productReviews": MySQLProductReviewsDAO(),
+    "classificationTags": MySQLClassificationTagsDAO(),
     "reviewClassifications": MySQLReviewClassificationsDAO(),
     "aboutUs": MySQLAboutUsDAO(),
     "privacyPolicy": MySQLPrivacyPolicyDAO(),

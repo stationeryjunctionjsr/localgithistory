@@ -102,6 +102,8 @@ export default function Header() {
   const navRef = useRef<HTMLElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
 
+  const [availableCategories, setAvailableCategories] = useState<{ categoryNames: string[]; subCategories: Record<string, string[]>; brandNames: string[]; collectionNames: string[] } | null>(null);
+
   // Fetch category tags, brands, categories, and promo strips
   useEffect(() => {
     fetchCategoryTags();
@@ -109,6 +111,20 @@ export default function Header() {
     fetchCategories();
     fetchPromoStrips();
   }, []);
+
+  // Fetch available categories for current zone when pincode changes
+  useEffect(() => {
+    if (!pincode) {
+      setAvailableCategories(null);
+      return;
+    }
+    api.get('/categories/available', { params: { pincode } })
+      .then(res => setAvailableCategories(res.data))
+      .catch(err => {
+        logger.error('Failed to fetch available categories for zone', err);
+        setAvailableCategories(null); // fail-open
+      });
+  }, [pincode]);
 
   // Debounced live autocomplete — fires 250ms after the user stops typing
   useEffect(() => {
@@ -246,13 +262,24 @@ export default function Header() {
     }
   };
 
-  // Get categories for a specific tag
+  // Get categories for a specific tag (filtered by zone availability)
   const getCategoriesForTag = (tagName: string): Category[] => {
     const targetTag = tagName.toLowerCase();
-    return categories.filter((c) => {
+    const baseCats = categories.filter((c) => {
       const tag = c.categoryTag || (c.categoryTags && c.categoryTags[0]) || (c.tags && c.tags[0]);
       return (tag || "").toLowerCase() === targetTag;
     });
+
+    if (!availableCategories) return baseCats; // no zone info, fail open
+
+    return baseCats
+      .filter((c) => availableCategories.categoryNames.includes(c.name))
+      .map((c) => ({
+        ...c,
+        subCategories: (c.subCategories || []).filter((sub) =>
+          (availableCategories.subCategories[c.name] || []).includes(sub)
+        ),
+      }));
   };
 
   // Get brands for categories under this tag
@@ -309,8 +336,9 @@ export default function Header() {
 
   // Determine visible and overflow category tags
   const maxVisibleTags = 6;
-  const visibleTags = categoryTags.slice(0, maxVisibleTags);
-  const overflowTags = categoryTags.slice(maxVisibleTags);
+  const filteredTags = categoryTags.filter(tag => getCategoriesForTag(tag.name).length > 0);
+  const visibleTags = filteredTags.slice(0, maxVisibleTags);
+  const overflowTags = filteredTags.slice(maxVisibleTags);
 
   return (
     <header className={`${styles.header} hidden md:block`}>

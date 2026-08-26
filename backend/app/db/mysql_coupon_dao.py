@@ -120,7 +120,7 @@ class MySQLCouponDAO:
                 text(
                     f"""
                     SELECT id, external_id, code, discount_type, discount_value, min_order_value, max_uses,
-                           used_count, start_date, end_date, is_active, created_at, updated_at
+                           used_count, start_date, end_date, is_active, created_at, updated_at, extra_data
                     FROM {self.TABLE} WHERE id = :id
                     """
                 ),

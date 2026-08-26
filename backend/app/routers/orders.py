@@ -359,9 +359,10 @@ async def create_order(
             except Exception:
                 terms_days = 30
 
-        user_payments = await payment_repository.findAll({"userId": user.get("userId")})
+        user_id_val = user.get("userId") if user.get("userId") else str(user.get("_id"))
+        user_payments = await payment_repository.findAll({"userId": user_id_val})
         import datetime as dt
-        now = dt.datetime.now(dt.timezone.utc)
+        now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
         has_overdue = False
 
         for p in user_payments:

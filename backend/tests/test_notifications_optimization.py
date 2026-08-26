@@ -1,7 +1,10 @@
 import pytest
+import uuid
 from datetime import datetime, timezone, timedelta
 from app.repositories.notification_repository import notification_repository
 
+# Generate unique prefix per test run to prevent clashes in persistent DB
+PREFIX = f"TEST_OPT_{uuid.uuid4().hex[:8]}_"
 
 @pytest.fixture(autouse=True)
 async def cleanup_notifications():
@@ -9,7 +12,7 @@ async def cleanup_notifications():
     try:
         notifs = await notification_repository.storage.findAll()
         for n in notifs:
-            if n.get("title", "").startswith("TEST_OPT_"):
+            if (n.get("title") or "").startswith(PREFIX):
                 await notification_repository.storage.delete(n["_id"])
     except Exception:
         pass
@@ -19,13 +22,13 @@ async def cleanup_notifications():
 async def test_notification_optimizations():
     # 1. Create a set of test notifications with distinct attributes
     n1 = await notification_repository.create(
-        {"title": "TEST_OPT_1", "message": "Message 1", "userId": "user_opt_A", "type": "new_order"}
+        {"title": f"{PREFIX}1", "message": "Message 1", "userId": "user_opt_A", "type": "new_order"}
     )
     n2 = await notification_repository.create(
-        {"title": "TEST_OPT_2", "message": "Message 2", "userId": "user_opt_A", "type": "low_stock"}
+        {"title": f"{PREFIX}2", "message": "Message 2", "userId": "user_opt_A", "type": "low_stock"}
     )
     n3 = await notification_repository.create(
-        {"title": "TEST_OPT_3", "message": "Message 3", "userId": "user_opt_B", "type": "new_order"}
+        {"title": f"{PREFIX}3", "message": "Message 3", "userId": "user_opt_B", "type": "new_order"}
     )
 
     # Initially all should be unread and unacknowledged
@@ -37,25 +40,25 @@ async def test_notification_optimizations():
     # 2. Test findById direct retrieval
     retrieved_n1 = await notification_repository.findById(n1["_id"])
     assert retrieved_n1 is not None
-    assert retrieved_n1["title"] == "TEST_OPT_1"
+    assert retrieved_n1["title"] == f"{PREFIX}1"
 
     # 3. Test findAll with filters (exact filtering at DB level)
     # Filter by userId
     user_A_notifs = await notification_repository.findAll({"userId": "user_opt_A"})
     # Filter to only the test ones
-    user_A_notifs = [n for n in user_A_notifs if n["title"].startswith("TEST_OPT_")]
+    user_A_notifs = [n for n in user_A_notifs if (n.get("title") or "").startswith(PREFIX)]
     assert len(user_A_notifs) == 2
-    assert {n["title"] for n in user_A_notifs} == {"TEST_OPT_1", "TEST_OPT_2"}
+    assert {n["title"] for n in user_A_notifs} == {f"{PREFIX}1", f"{PREFIX}2"}
 
     # Filter by type
     low_stock_notifs = await notification_repository.findAll({"type": "low_stock"})
-    low_stock_notifs = [n for n in low_stock_notifs if n["title"].startswith("TEST_OPT_")]
+    low_stock_notifs = [n for n in low_stock_notifs if (n.get("title") or "").startswith(PREFIX)]
     assert len(low_stock_notifs) == 1
-    assert low_stock_notifs[0]["title"] == "TEST_OPT_2"
+    assert low_stock_notifs[0]["title"] == f"{PREFIX}2"
 
     # Filter by isRead
     unread_notifs = await notification_repository.findAll({"isRead": False})
-    unread_notifs = [n for n in unread_notifs if n["title"].startswith("TEST_OPT_")]
+    unread_notifs = [n for n in unread_notifs if (n.get("title") or "").startswith(PREFIX)]
     assert len(unread_notifs) == 3
 
     # 4. Test acknowledge and markAsRead single operations
@@ -68,9 +71,6 @@ async def test_notification_optimizations():
     assert updated_n3["isAcknowledged"] is True
 
     # 5. Test markAllAsRead bulk operation
-    # n1: isRead=False, isAcknowledged=False (needs update)
-    # n2: isRead=True, isAcknowledged=False (needs update)
-    # n3: isRead=False, isAcknowledged=True (needs update)
     count = await notification_repository.markAllAsRead()
 
     # Check that it returns the count of updated notifications (at least 3 in this case)
@@ -78,7 +78,7 @@ async def test_notification_optimizations():
 
     # Verify all are now read and acknowledged
     all_notifs = await notification_repository.findAll()
-    test_notifs = [n for n in all_notifs if n["title"].startswith("TEST_OPT_")]
+    test_notifs = [n for n in all_notifs if (n.get("title") or "").startswith(PREFIX)]
     assert len(test_notifs) == 3
     for n in test_notifs:
         assert n["isRead"] is True

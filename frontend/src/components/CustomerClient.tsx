@@ -75,6 +75,20 @@ export default function CustomerClient({
   const [trendingNow, setTrendingNow] = useState<any[]>([]);
   const [explore, setExplore] = useState<any[]>([]);
   const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
+  const [availableCatalog, setAvailableCatalog] = useState<{ categoryNames: string[]; subCategories: Record<string, string[]>; brandNames: string[]; collectionNames: string[] } | null>(null);
+
+  useEffect(() => {
+    if (!pincode) {
+      setAvailableCatalog(null);
+      return;
+    }
+    api.get('/categories/available', { params: { pincode } })
+      .then(res => setAvailableCatalog(res.data))
+      .catch(err => {
+        logger.error('Failed to fetch available catalog', err);
+        setAvailableCatalog(null);
+      });
+  }, [pincode]);
 
   const [googleRating, setGoogleRating] = useState(
     initialStats?.googleRating || { rating: 5.0, reviewCount: '421' }
@@ -245,7 +259,11 @@ export default function CustomerClient({
 
   const fetchRecommendations = async () => {
     try {
-      const response = await api.get('/recommendations');
+      const params: Record<string, string> = {};
+      if (pincode) {
+        params.pincode = pincode;
+      }
+      const response = await api.get('/recommendations', { params });
       const data = response.data || {};
       const filterActive = (arr: any[]) =>
         (arr || []).filter((p: any) => p && p.isActive !== false && p.stock > 0);
@@ -365,6 +383,9 @@ export default function CustomerClient({
       router.push(`/categories/${encodeURIComponent(category)}`);
     }
   };
+  const visibleCategories = availableCatalog ? categories.filter(c => availableCatalog.categoryNames.includes(c.name)) : categories;
+  const visibleCollections = availableCatalog ? collections.filter(c => availableCatalog.collectionNames.includes(c.name)) : collections;
+  const visibleBrands = availableCatalog ? brands.filter((b: any) => availableCatalog.brandNames.includes(b.name || b)) : brands;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
@@ -594,7 +615,7 @@ export default function CustomerClient({
               </div>
 
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {collections.map((col: any, index: number) => (
+                {visibleCollections.map((col: any, index: number) => (
                   <div
                     key={col._id}
                     className="animate-fade-in-up group relative aspect-[4/3] cursor-pointer overflow-hidden rounded-2xl opacity-0 shadow-lg"
@@ -682,7 +703,7 @@ export default function CustomerClient({
               </div>
 
               <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 md:gap-5 lg:grid-cols-8">
-                {categories.slice(0, 24).map((cat, index) => (
+                {visibleCategories.slice(0, 24).map((cat, index) => (
                   <button
                     type="button"
                     key={cat.name}
@@ -793,7 +814,7 @@ export default function CustomerClient({
                 </Link>
               </div>
               <InfiniteCarousel
-                items={brands.map((b) => {
+                items={visibleBrands.map((b) => {
                   const name = typeof b === 'string' ? b : b?.name || '';
                   const id = typeof b === 'object' && b?._id ? b._id : name;
                   const logoUrl =

@@ -79,6 +79,7 @@ export default function MobileHeader() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryTags, setCategoryTags] = useState<CategoryTag[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<{ categoryNames: string[]; subCategories: Record<string, string[]> } | null>(null);
   const [tagData, setTagData] = useState<
     Record<string, { categories: Category[]; brands: Brand[] }>
   >({});
@@ -94,7 +95,21 @@ export default function MobileHeader() {
   const [liveAutocomplete, setLiveAutocomplete] = useState<{ products: { productId: string; name: string }[]; brands: string[]; categories: string[] }>({ products: [], brands: [], categories: [] });
   const [loadingAutocomplete, setLoadingAutocomplete] = useState(false);
 
+  // Fetch available categories for current zone when pincode changes
+  useEffect(() => {
+    if (!pincode) {
+      setAvailableCategories(null);
+      return;
+    }
+    api.get('/categories/available', { params: { pincode } })
+      .then(res => setAvailableCategories(res.data))
+      .catch(err => {
+        logger.error('Failed to fetch available categories for zone', err);
+        setAvailableCategories(null); // fail-open
+      });
+  }, [pincode]);
 
+  // Load menu tags when opened
   useEffect(() => {
     if (isMenuOpen && categoryTags.length === 0) {
       loadMenuData();
@@ -102,6 +117,7 @@ export default function MobileHeader() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMenuOpen]);
 
+  // Fetch cart items count for logged in users
   useEffect(() => {
     const fetchCartCount = async () => {
       if (!user) {
@@ -151,7 +167,17 @@ export default function MobileHeader() {
   };
 
   const getCategoriesForTag = (tagName: string) => {
-    return tagData[tagName]?.categories || [];
+    const cats = tagData[tagName]?.categories || [];
+    if (!availableCategories) return cats;
+
+    return cats
+      .filter((c: any) => availableCategories.categoryNames.includes(c.name))
+      .map((c: any) => ({
+        ...c,
+        subCategories: (c.subCategories || []).filter((sub: string) =>
+          (availableCategories.subCategories[c.name] || []).includes(sub)
+        ),
+      }));
   };
 
   const toggleTag = (tagName: string) => {
@@ -761,7 +787,7 @@ export default function MobileHeader() {
                                 </button>
                                 {cat.subCategories && cat.subCategories.length > 0 && (
                                   <div className="ml-1 space-y-1 border-l-2 border-gray-100 pl-3">
-                                    {cat.subCategories.map((sub) => (
+                                    {cat.subCategories.map((sub: string) => (
                                       <button
                                         key={sub}
                                         onClick={() => navigateToCategory(cat, sub)}

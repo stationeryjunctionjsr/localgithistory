@@ -2,7 +2,7 @@ import asyncio
 import time as _time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from pydantic import BaseModel
 
 from app.repositories.activity_repository import activity_repository
@@ -34,7 +34,10 @@ class RecommendationEventBody(BaseModel):
 
 @router.get("")
 @router.get("/")
-async def get_recommendations(current_user: Optional[dict] = Depends(get_optional_user)):
+async def get_recommendations(
+    current_user: Optional[dict] = Depends(get_optional_user),
+    pincode: Optional[str] = Query(None)
+):
     """
     Get recommendation components by segment. Auth optional (guests get Customer Favourites + Trending Now only).
     """
@@ -46,21 +49,29 @@ async def get_recommendations(current_user: Optional[dict] = Depends(get_optiona
             if role not in ("wholesaler", "customer"):
                 role = "customer"
 
+        # Resolve sellers for the pincode via zone
+        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
+        seller_id_set = await get_seller_ids_for_pincode(pincode) if pincode else None
+        pincode_key = pincode or "all"
+
         # Guest path: serve from 300-second server-side cache
         if not user_id:
             now = _time.monotonic()
-            entry = _guest_rec_cache.get("guest")
+            guest_key = f"guest_{pincode_key}"
+            entry = _guest_rec_cache.get(guest_key)
             if entry and now < entry[1]:
                 return entry[0]
 
             async with _guest_rec_lock:
                 # Re-check after acquiring lock
-                entry = _guest_rec_cache.get("guest")
+                entry = _guest_rec_cache.get(guest_key)
                 if entry and now < entry[1]:
                     return entry[0]
 
-                result = await recommendation_repository.get_recommendation_components(user_id=None, role=None)
-                _guest_rec_cache["guest"] = (result, _time.monotonic() + _GUEST_REC_TTL)
+                result = await recommendation_repository.get_recommendation_components(
+                    user_id=None, role=None, seller_id_set=seller_id_set
+                )
+                _guest_rec_cache[guest_key] = (result, _time.monotonic() + _GUEST_REC_TTL)
                 return result
 
         # For wholesalers, resolve their city from their profile address so we can
@@ -77,12 +88,14 @@ async def get_recommendations(current_user: Optional[dict] = Depends(get_optiona
 
         # Authenticated user path: cache per-user (and per-city for wholesalers) for 180 seconds
         city_key = city or "all"
-        user_cache_key = f"rec_{role}_{user_id}_{city_key}"
+        user_cache_key = f"rec_{role}_{user_id}_{city_key}_{pincode_key}"
         cached_res = cache.get(user_cache_key)
         if cached_res:
             return cached_res
 
-        result = await recommendation_repository.get_recommendation_components(user_id=user_id, role=role, city=city)
+        result = await recommendation_repository.get_recommendation_components(
+            user_id=user_id, role=role, city=city, seller_id_set=seller_id_set
+        )
         cache.set(user_cache_key, result, ttl=180.0)
         return result
     except Exception as e:

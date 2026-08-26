@@ -16,7 +16,7 @@ class ReviewClassificationRepository:
     @property
     def storage(self):
         if self._storage is None:
-            self._storage = get_storage("reviewClassifications")
+            self._storage = get_storage("classificationTags")
         return self._storage
 
     async def ensure_table_exists(self):
@@ -29,9 +29,9 @@ class ReviewClassificationRepository:
         from app.config.settings import settings
 
         suffix = getattr(settings, "table_suffix", "")
-        table_name_upper = f"SJ_REVIEW_CLASSIFICATIONS{suffix}".upper()
-        table_name_lower = f"sj_review_classifications{suffix}".lower()
-        constraint_name_lower = f"uq_rev_class_external{suffix}".lower()
+        table_name_upper = f"SJ_CLASSIFICATION_TAGS{suffix}".upper()
+        table_name_lower = f"sj_classification_tags{suffix}".lower()
+        constraint_name_lower = f"uq_class_tags_external{suffix}".lower()
 
         factory = get_async_session_factory()
         if not factory:

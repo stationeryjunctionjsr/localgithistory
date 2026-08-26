@@ -50,6 +50,20 @@ export default function WholesalerClient({
   // eslint-disable-next-line unused-imports/no-unused-vars
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [banners, setBanners] = useState<any[]>(initialBanners || []);
+  const [availableCatalog, setAvailableCatalog] = useState<{ categoryNames: string[]; subCategories: Record<string, string[]>; brandNames: string[]; collectionNames: string[] } | null>(null);
+
+  useEffect(() => {
+    if (!pincode) {
+      setAvailableCatalog(null);
+      return;
+    }
+    api.get('/categories/available', { params: { pincode } })
+      .then(res => setAvailableCatalog(res.data))
+      .catch(err => {
+        logger.error('Failed to fetch available catalog', err);
+        setAvailableCatalog(null);
+      });
+  }, [pincode]);
   // eslint-disable-next-line unused-imports/no-unused-vars
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categories, setCategories] = useState<any[]>(initialCategories || []);
@@ -104,7 +118,10 @@ export default function WholesalerClient({
       router.push('/');
       return;
     }
-    fetchAllData();
+    
+    if (isServiceable !== false) {
+      fetchAllData();
+    }
 
     // Check URL params
     const categoryParam = searchParams.get('category');
@@ -136,7 +153,7 @@ export default function WholesalerClient({
       setSelectedCategoryTag(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading, router, searchParams]);
+  }, [user, authLoading, router, searchParams, pincode, isServiceable]);
 
   useEffect(() => {
     if (banners.length > 1) {
@@ -299,7 +316,11 @@ export default function WholesalerClient({
   const fetchRecommendations = async () => {
     if (!user) return;
     try {
-      const response = await api.get('/recommendations');
+      const params: Record<string, string> = {};
+      if (pincode) {
+        params.pincode = pincode;
+      }
+      const response = await api.get('/recommendations', { params });
       const data = response.data || {};
       const group = (arr: any[]) => groupProductsByNameAndType(arr || []);
       setRecNewArrivals(group(data.newArrivals || []));
@@ -417,6 +438,10 @@ export default function WholesalerClient({
   if (authLoading || !user || userRole !== 'wholesaler') {
     return null;
   }
+
+  const visibleCategories = availableCatalog ? categories.filter(c => availableCatalog.categoryNames.includes(c.name)) : categories;
+  const visibleCollections = availableCatalog ? collections.filter(c => availableCatalog.collectionNames.includes(c.name)) : collections;
+  const visibleBrands = availableCatalog ? brands.filter((b: any) => availableCatalog.brandNames.includes(b.name || b)) : brands;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -744,7 +769,7 @@ export default function WholesalerClient({
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {collections.map((col: any, index: number) => (
+              {visibleCollections.map((col: any, index: number) => (
                 <div
                   key={col._id}
                   className="animate-fade-in-up group relative aspect-[4/3] cursor-pointer overflow-hidden rounded-2xl opacity-0 shadow-lg"
@@ -827,7 +852,7 @@ export default function WholesalerClient({
             </div>
 
             <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 md:gap-5 lg:grid-cols-8">
-              {categories.slice(0, 24).map((cat, index) => (
+              {visibleCategories.slice(0, 24).map((cat, index) => (
                 <button
                   type="button"
                   key={cat.name}
@@ -905,7 +930,7 @@ export default function WholesalerClient({
             </div>
 
             <InfiniteCarousel
-              items={brands.map((b) => ({
+              items={visibleBrands.map((b) => ({
                 id: b._id || b.name,
                 title: b.name,
                 image: (b.logoUrl ? getImageUrl(b.logoUrl) : undefined) || undefined,
