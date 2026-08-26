@@ -1443,7 +1443,7 @@ CREATE TABLE `sj_tracking` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_tracking_external` (`external_id`),
   KEY `ix_sj_tracking_created` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_tracking_payload` (
   `id` int NOT NULL AUTO_INCREMENT,
