@@ -150,24 +150,40 @@ class MySQLTrackingDAO:
 
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
+        
+        # We mutate a copy of payload so we can pop off known scalars
+        payload = data.get("payload", {})
+        if not isinstance(payload, dict):
+            payload = {}
+        payload = dict(payload)
 
+        extracted_keys = []
         for api_k, db_col in _TRACKING_SCALAR.items():
+            val = None
             if api_k in data:
-                cols.append(db_col)
                 val = data[api_k]
-                if api_k == "timestamp" and val:
+            elif api_k in payload:
+                val = payload.pop(api_k)
+                
+            if val is not None:
+                extracted_keys.append(api_k)
+                cols.append(db_col)
+                if api_k == "timestamp":
                     try:
                         val = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
                     except:
                         pass
-                if api_k == "cartItems" and val is not None:
+                if api_k == "cartItems":
                     import json
 
                     val = json.dumps(val)
                 params[f"s_{api_k}"] = val
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in _TRACKING_SCALAR if k in data])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in extracted_keys])
+
+        # Prepare new data dict with the popped payload for child inserts
+        new_data = {**data, "payload": payload}
 
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -176,7 +192,7 @@ class MySQLTrackingDAO:
                     text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
                 )
             ).scalar()
-            await self._replace_children(session, new_id, data)
+            await self._replace_children(session, new_id, new_data)
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -184,32 +200,49 @@ class MySQLTrackingDAO:
         existing = await self.findById(id)
         if not existing:
             return None
+            
         merged = {**existing, **data}
+        
+        payload = merged.get("payload", {})
+        if not isinstance(payload, dict):
+            payload = {}
+        payload = dict(payload)
+        
         now = now_utc()
 
         updates = ["updated_at = :u"]
         params = {"id": int(id) if str(id).isdigit() else 0, "u": now}
+        
         for api_k, db_col in _TRACKING_SCALAR.items():
-            if api_k in merged:
-                updates.append(f"{db_col} = :s_{api_k}")
+            val = None
+            if api_k in merged and api_k in data: # Only update if explicitly sent, or just use merged
                 val = merged[api_k]
-                if api_k == "timestamp" and val:
-                    try:
-                        val = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
-                    except:
-                        pass
-                if api_k == "cartItems" and val is not None:
-                    import json
+            elif api_k in payload:
+                val = payload.pop(api_k)
+                
+            if val is not None or api_k in merged: # Just use the merged value unconditionally like before
+                # Wait, if we pop from payload, we should set it
+                val = val if val is not None else merged.get(api_k)
+                if val is not None:
+                    updates.append(f"{db_col} = :s_{api_k}")
+                    if api_k == "timestamp":
+                        try:
+                            val = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
+                        except:
+                            pass
+                    if api_k == "cartItems":
+                        import json
 
-                    val = json.dumps(val)
-                params[f"s_{api_k}"] = val
+                        val = json.dumps(val)
+                    params[f"s_{api_k}"] = val
 
         set_sql = ", ".join(updates)
+        new_data = {**merged, "payload": payload}
 
         factory = self._factory()
         async with factory() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"), params)
-            await self._replace_children(session, int(id) if str(id).isdigit() else 0, merged)
+            await self._replace_children(session, int(id) if str(id).isdigit() else 0, new_data)
             await session.commit()
         return await self.findById(id)
 

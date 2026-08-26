@@ -544,7 +544,7 @@ CREATE TABLE `sj_event_payload` (
   PRIMARY KEY (`id`),
   KEY `fk_sj_event_p` (`parent_id`),
   CONSTRAINT `fk_sj_event_p` FOREIGN KEY (`parent_id`) REFERENCES `sj_events` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_events` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -555,7 +555,7 @@ CREATE TABLE `sj_events` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_events_external` (`external_id`),
   KEY `ix_sj_events_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_faq_items` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -934,6 +934,8 @@ CREATE TABLE `sj_products` (
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `variants` json DEFAULT NULL,
+  `variant_attributes` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_products_external` (`external_id`),
   UNIQUE KEY `ix_sj_products_sku` (`sku`),
@@ -942,6 +944,8 @@ CREATE TABLE `sj_products` (
   KEY `ix_sj_products_stock` (`stock`),
   KEY `ix_sj_products_subcategory` (`sub_category`),
   KEY `ix_sj_products_mrp` (`mrp`),
+  KEY `idx_products_category` (`category`),
+  KEY `idx_products_sub_cat` (`sub_category`),
   FULLTEXT KEY `ft_sj_products_search` (`name`,`brand`,`category`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -1010,17 +1014,8 @@ CREATE TABLE `sj_return_requests` (
   `upi_payment_screenshot` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `notes` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `seller_id` varchar(64) DEFAULT NULL,
-  `delivery_slot_id` varchar(64) DEFAULT NULL,
-  `delivery_slot_config_id` varchar(64) DEFAULT NULL,
-  `delivery_slot_date` varchar(32) DEFAULT NULL,
-  `pending_valet_id` varchar(64) DEFAULT NULL,
-  `valet_assigned_at` datetime DEFAULT NULL,
-  `valet_cascade_count` int DEFAULT '0',
-  `valet_accepted_at` datetime DEFAULT NULL,
-  `valet_declined_at` datetime DEFAULT NULL,
-  `valet_decline_reason` varchar(1000) DEFAULT NULL,
-  `delivery_charge` float DEFAULT '0',
+  `valet_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `delivery_charge` decimal(18,2) DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1264,13 +1259,14 @@ CREATE TABLE `sj_sessions` (
   `comments` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `device` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_sessions_external` (`external_id`),
   KEY `ix_sj_sessions_user` (`user_id`),
   KEY `ix_sj_sessions_status` (`status`),
   KEY `ix_sj_sessions_refresh` (`refresh_token_id`),
   CONSTRAINT `fk_sj_sessions_user` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_stock_reservations` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1440,14 +1436,14 @@ CREATE TABLE `sj_tracking` (
   `os` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `browser` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `ip_address` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  is_returning tinyint(1) DEFAULT NULL,
-  cart_items json DEFAULT NULL,
-  source varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  campaign varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `campaign` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_returning` tinyint(1) DEFAULT NULL,
+  `cart_items` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_tracking_external` (`external_id`),
   KEY `ix_sj_tracking_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_tracking_payload` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1510,11 +1506,11 @@ CREATE TABLE `sj_users` (
   `allow_urgent_delivery` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_users_external` (`external_id`),
-  UNIQUE KEY `uq_sj_users_email` (`email`),
-  UNIQUE KEY `uq_sj_users_phone` (`phone`),
+  KEY `ix_sj_users_email` (`email`),
+  KEY `ix_sj_users_phone` (`phone`),
   KEY `ix_sj_users_role` (`role`),
   KEY `ix_sj_users_referral` (`referral_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_valet_availability` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1523,6 +1519,7 @@ CREATE TABLE `sj_valet_availability` (
   `availability_type` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `valet_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1578,51 +1575,3 @@ CREATE TABLE `sj_wishlists` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
-
-CREATE TABLE sj_email_otp_send_log (
-  id int NOT NULL AUTO_INCREMENT,
-  email varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  sent_at datetime DEFAULT NULL,
-  PRIMARY KEY (id),
-  KEY ix_sj_email_otp_send_log_email (email),
-  KEY ix_sj_email_otp_send_log_sent (sent_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE sj_email_otps (
-  id int NOT NULL AUTO_INCREMENT,
-  email varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  device_key varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  otp_code varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL,
-  erify_attempts int DEFAULT '0',
-  created_at datetime DEFAULT NULL,
-  expires_at datetime DEFAULT NULL,
-  last_sent_at datetime DEFAULT NULL,
-  PRIMARY KEY (id),
-  KEY ix_sj_email_otps_email (email),
-  KEY ix_sj_email_otps_expires (expires_at),
-  KEY ix_sj_email_otps_email_device (email,device_key)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- Seed Payment Feature Flags
-INSERT IGNORE INTO sj_feature_flags (flag_id, name, description, enabled, category, created_at, updated_at) VALUES 
-('retail_enable_cod', 'Retail COD', 'Enable Cash on Delivery for Retail customers', 1, 'payments', NOW(), NOW()),
-('retail_enable_upi', 'Retail UPI', 'Enable UPI payment for Retail customers', 1, 'payments', NOW(), NOW()),
-('retail_enable_credit', 'Retail Credit', 'Enable Credit for Retail customers', 1, 'payments', NOW(), NOW()),
-('wholesale_enable_cod', 'Wholesale COD', 'Enable Cash on Delivery for Wholesale customers', 1, 'payments', NOW(), NOW()),
-('wholesale_enable_upi', 'Wholesale UPI', 'Enable UPI payment for Wholesale customers', 1, 'payments', NOW(), NOW()),
-('wholesale_enable_credit', 'Wholesale Credit', 'Enable Credit orders for Wholesale customers', 1, 'payments', NOW(), NOW()),
-('retail_enable_gst', 'Retail GST', 'Enable GST calculation for Retail customers', 1, 'payments', NOW(), NOW()),
-('wholesale_enable_gst', 'Wholesale GST', 'Enable GST calculation for Wholesale customers', 1, 'payments', NOW(), NOW());
-
-CREATE TABLE sj_return_valet_declines (
-  id int NOT NULL AUTO_INCREMENT,
-  
-eturn_request_id varchar(64) NOT NULL,
-  alet_id varchar(64) NOT NULL,
-  
-eason varchar(1000) DEFAULT NULL,
-  PRIMARY KEY (id),
-  KEY idx_ret_valet_decline (
-eturn_request_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
