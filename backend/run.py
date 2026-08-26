@@ -21,8 +21,8 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 
-# Load env file based on APP_ENV, defaulting to standard .env
-app_env = os.getenv("APP_ENV", "").lower()
+# Load env file based on APP_ENV or ENVIRONMENT, defaulting to standard .env
+app_env = os.getenv("APP_ENV", os.getenv("ENVIRONMENT", "")).lower()
 if app_env == "uat":
     print("Loading UAT environment config (.env.uat)...")
     load_dotenv(".env.uat")
@@ -50,4 +50,16 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Warning: Failed to auto-whitelist IP (this may cause connection errors): {e}")
 
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False, workers=4, loop="asyncio")
+    workers = int(os.getenv("WORKERS", 4))
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=False,
+        workers=workers,
+        loop="asyncio",
+        # Raise the TCP accept-queue beyond the OS default (128 on many Linux/Docker
+        # base images). On production Linux this prevents connection drops during
+        # sudden traffic bursts before Uvicorn can accept() them.
+        backlog=2048,
+    )
