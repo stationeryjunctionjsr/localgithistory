@@ -33,6 +33,8 @@ from app.db.mysql_commission_settings_dao import MySQLCommissionSettingsDAO
 from app.db.mysql_seller_availability_dao import MySQLSellerAvailabilityDAO
 from app.db.mysql_sub_order_dao import MySQLSubOrderDAO
 from app.db.mysql_seller_request_dao import MySQLSellerRequestDAO
+from app.db.mysql_ad_dao import MySQLAdDAO
+from app.db.mysql_seller_payout_dao import MySQLSellerPayoutDAO
 from app.utils.file_storage import FileStorage
 
 # Oracle DAOs commented out since project moved to 100% relational DB (MySQL)
@@ -63,6 +65,8 @@ _MYSQL_DAO_COLLECTIONS = {
     "sellerAvailability": MySQLSellerAvailabilityDAO,
     "subOrders": MySQLSubOrderDAO,
     "sellerRequests": MySQLSellerRequestDAO,
+    "ads": MySQLAdDAO,
+    "sellerPayouts": MySQLSellerPayoutDAO,
 }
 
 
