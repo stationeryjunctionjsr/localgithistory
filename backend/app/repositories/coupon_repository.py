@@ -1137,12 +1137,24 @@ class CouponRepository:
         valid_discounts = []
         for c in discounts:
             try:
-                valid_from = datetime.fromisoformat(c["validFrom"].replace("Z", "+00:00")).replace(tzinfo=None)
-                valid_until = datetime.fromisoformat(c["validUntil"].replace("Z", "+00:00")).replace(tzinfo=None)
+                valid_from_str = c.get("validFrom") or c.get("startDate")
+                valid_until_str = c.get("validUntil") or c.get("endDate")
+                if not valid_from_str or not valid_until_str:
+                    continue
+                valid_from = datetime.fromisoformat(valid_from_str.replace("Z", "+00:00"))
+                valid_until = datetime.fromisoformat(valid_until_str.replace("Z", "+00:00"))
+                
+                # Make sure both are either aware or naive
+                if valid_from.tzinfo is None:
+                    valid_from = valid_from.replace(tzinfo=timezone.utc)
+                if valid_until.tzinfo is None:
+                    valid_until = valid_until.replace(tzinfo=timezone.utc)
+                    
                 if valid_from <= now <= valid_until:
                     c["_affected_product_ids"] = await self._get_affected_product_ids(c)
                     valid_discounts.append(c)
-            except Exception:
+            except Exception as e:
+                print("Exception in coupon check:", e)
                 continue
 
         self._active_automatic_discounts_cache = valid_discounts
