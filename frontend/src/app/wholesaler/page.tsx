@@ -23,6 +23,7 @@ export default async function WholesalerDashboardPage() {
     homeBannersRes,
     wholeBannersRes,
     googleRatingRes,
+    productsRes,
   ] = await Promise.all([
     fetch(`${baseURL}/categories/public?forHomepage=true`, fetchOptions).catch(() => null),
     fetch(`${baseURL}/brands/public`, fetchOptions).catch(() => null),
@@ -34,6 +35,7 @@ export default async function WholesalerDashboardPage() {
     ),
     fetch(`${baseURL}/banners/public?position=wholesaler`, fetchOptions).catch(() => null),
     fetch(`${baseURL}/google-reviews/rating`, fetchOptions).catch(() => null),
+    fetch(`${baseURL}/products/public?includeFacets=false&skinny=true`, fetchOptions).catch(() => null),
   ]);
 
   const extractJson = async (res: Response | null, label: string, critical: boolean = false) => {
@@ -53,7 +55,7 @@ export default async function WholesalerDashboardPage() {
     });
   };
 
-  const [categoriesRaw, brandsRaw, colRaw, homeBannersRaw, wholeBannersRaw, googleRatingRaw] =
+  const [categoriesRaw, brandsRaw, colRaw, homeBannersRaw, wholeBannersRaw, googleRatingRaw, productsRaw] =
     await Promise.all([
       extractJson(categoriesRes, 'categories/public', true),
       extractJson(brandsRes, 'brands/public', true),
@@ -61,6 +63,7 @@ export default async function WholesalerDashboardPage() {
       extractJson(homeBannersRes, 'banners/homepage'),
       extractJson(wholeBannersRes, 'banners/wholesaler'),
       extractJson(googleRatingRes, 'google-reviews/rating'),
+      extractJson(productsRes, 'products/public'),
     ]);
 
   let categories = [];
@@ -95,8 +98,12 @@ export default async function WholesalerDashboardPage() {
       (b.targetAudience === 'all' || b.targetAudience === 'wholesaler')
   );
 
+  const products = productsRaw?.products || productsRaw || [];
+
   const stats = {
     googleRating: googleRatingRaw || { rating: 5.0, reviewCount: '421' },
+    productCount: products.length,
+    brandCount: brands.length,
   };
 
   // Detect a total API blackout: all three critical fetches failed with no response at all.

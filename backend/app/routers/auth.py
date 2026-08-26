@@ -73,16 +73,28 @@ class VerifyMsg91Request(BaseModel):
 @router.post("/check-phone")
 @limiter.limit("10/minute")
 async def check_phone(data: CheckPhoneRequest, request: Request):
-    """Check if a phone number belongs to a registered user with a real password."""
-    normalized_phone = normalize_phone(data.phone)
-    if not normalized_phone or len(normalized_phone) != 10:
-        raise HTTPException(status_code=400, detail="Enter a valid 10-digit phone number")
-    user = await user_repository.findByPhone(normalized_phone)
+    """Check if a phone number or email belongs to a registered user with a real password."""
+    import re
+    identifier = data.phone.strip()
+    is_email = "@" in identifier
+
+    user = None
+    if is_email:
+        normalized_email = identifier.lower()
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", normalized_email):
+            raise HTTPException(status_code=400, detail="Enter a valid email address")
+        user = await user_repository.findByEmail(normalized_email)
+    else:
+        normalized_phone = normalize_phone(identifier)
+        if not normalized_phone or len(normalized_phone) != 10:
+            raise HTTPException(status_code=400, detail="Enter a valid 10-digit phone number or email")
+        user = await user_repository.findByPhone(normalized_phone)
+
     exists = bool(user and user.get("password"))
     import hashlib
     import asyncio
 
-    await asyncio.sleep(0.05 + (int(hashlib.sha256(normalized_phone.encode()).hexdigest()[:4], 16) % 50) / 1000)
+    await asyncio.sleep(0.05 + (int(hashlib.sha256(identifier.encode()).hexdigest()[:4], 16) % 50) / 1000)
     return {"exists": exists}
 
 

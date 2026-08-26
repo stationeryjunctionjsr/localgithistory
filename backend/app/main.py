@@ -495,6 +495,7 @@ async def initialize_data_dir():
         "reviewClassifications.json",
         "bundles.json",
         "commissionSettings.json",
+        "valetAvailability.json",
     ]
     for file in files:
         file_path = DATA_DIR / file
@@ -635,10 +636,11 @@ from app.routers import content_pages
 app.include_router(content_pages.router, prefix="/api/content", tags=["content-pages"])
 app.include_router(bundles.router, prefix="/api/bundles", tags=["bundles"])
 
-from app.routers import commission, valet_payout
+from app.routers import commission, valet_payout, valet_availability
 
 app.include_router(commission.router, prefix="/api/commission", tags=["commission"])
 app.include_router(valet_payout.router, prefix="/api/valet-payout", tags=["valet-payout"])
+app.include_router(valet_availability.router, prefix="/api/valet-availability", tags=["valet-availability"])
 
 # Prometheus metrics disabled — its middleware adds a call_next layer per request
 # which doubles latency under concurrency. Re-enable only in production behind

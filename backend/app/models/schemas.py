@@ -119,6 +119,9 @@ class UserUpdate(BaseModel):
     paymentTerms: Optional[int] = None
     assignedSalesperson: Optional[str] = None
     referralCode: Optional[str] = None
+    isSellerAdmin: Optional[bool] = None
+    sellerPermissions: Optional[Dict[str, Any]] = None
+    commissionOverridePct: Optional[float] = None
 
 
 class UserResponse(UserBase):
@@ -135,6 +138,9 @@ class UserResponse(UserBase):
     paymentTerms: Optional[int] = None
     assignedSalesperson: Optional[str] = None
     referralCode: Optional[str] = None
+    isSellerAdmin: Optional[bool] = False
+    sellerPermissions: Optional[Dict[str, Any]] = None
+    commissionOverridePct: Optional[float] = None
     createdAt: str
     updatedAt: Optional[str] = None
 

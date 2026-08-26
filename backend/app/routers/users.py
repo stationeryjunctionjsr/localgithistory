@@ -79,6 +79,91 @@ async def deactivate_own_account(current_user: dict = Depends(get_current_user))
     return UserResponse(**updated_user)
 
 
+class DutyStatusRequest(BaseModel):
+    isOnDuty: bool
+
+
+@router.put("/me/duty-status")
+async def update_duty_status(
+    data: DutyStatusRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    user_id = current_user.get("_id")
+    if current_user.get("role") != "valet":
+        raise HTTPException(status_code=403, detail="Only valets can update duty status")
+    
+    await user_repository.update(user_id, {"isOnDuty": data.isOnDuty})
+    return {"isOnDuty": data.isOnDuty, "message": f"You are now {'on duty' if data.isOnDuty else 'off duty'}"}
+
+
+@router.get("/valets/available", response_model=List[UserResponse])
+async def get_available_valets(
+    pincode: str,
+    slotId: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    # 1. Get on-duty valets
+    all_valets = await user_repository.findAll({"role": "valet"})
+    on_duty = [v for v in all_valets if v.get("isOnDuty")]
+    
+    # 2. Filter by service area
+    in_area = [v for v in on_duty if pincode in v.get("serviceAreaPincodes", [])]
+    if not in_area:
+        return []
+        
+    # 3. Filter by availability (full_day or slotId match for today)
+    from datetime import datetime
+    from app.db.storage_factory import get_storage
+    today = datetime.now().strftime("%Y-%m-%d")
+    avail_store = get_storage("valetAvailability")
+    today_avails = await avail_store.findAll({"date": today})
+    
+    avail_map = {str(a.get("userId", "")): a for a in today_avails}
+    available_valets = []
+    for v in in_area:
+        vid = str(v.get("_id", ""))
+        a = avail_map.get(vid)
+        if not a:
+            continue
+        if a.get("availabilityType") == "full_day":
+            available_valets.append(v)
+        elif slotId and slotId in a.get("slots", []):
+            available_valets.append(v)
+            
+    if not available_valets:
+        return []
+        
+    # 4. Sort by active load
+    from app.repositories.order_repository import order_repository
+    active_orders = await order_repository.findAll({
+        "status": {"$in": ["pending_valet", "shipped", "return_pickup"]}
+    })
+    
+    load_map = {str(v.get("_id", "")): 0 for v in available_valets}
+    for o in active_orders:
+        av_id = o.get("assignedValet") or o.get("pendingValetId")
+        if type(av_id) == dict:
+            av_id = av_id.get("_id")
+        av_id = str(av_id) if av_id else ""
+        if av_id in load_map:
+            load_map[av_id] += 1
+            
+    # Check max capacity & add load count
+    final_valets = []
+    for v in available_valets:
+        load = load_map[str(v.get("_id", ""))]
+        v["activeOrderCount"] = load
+        max_cap = v.get("maxConcurrentOrders", 3)
+        if load < max_cap:
+            final_valets.append(v)
+            
+    # Sort least busy first
+    final_valets.sort(key=lambda v: v.get("activeOrderCount", 0))
+    
+    users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in final_valets]
+    return [UserResponse(**user) for user in users_without_passwords]
+
+
 @router.put("/{user_id}/approve", response_model=UserResponse)
 async def approve_user(user_id: str, current_user: dict = Depends(require_super_admin)):
     user = await user_repository.findById(user_id)

@@ -157,6 +157,16 @@ export default function Cart() {
       }
     }
   }, []);
+  useEffect(() => {
+    if (showCheckout || showAddressModal || showDuesModal || showUpiPayment) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [showCheckout, showAddressModal, showDuesModal, showUpiPayment]);
 
   const handleDuesFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -977,18 +987,30 @@ export default function Cart() {
   //  AUTH-IN-CHECKOUT HANDLERS
   // ═══════════════════════════════════════════════════════════════════
   const handleCheckPhone = async () => {
-    const clean = authPhone.replace(/\D/g, '');
-    if (!clean || clean.length < 10) {
-      toast.error('Enter a valid 10-digit phone number');
-      return;
+    const identifier = authPhone.trim();
+    const isEmail = identifier.includes('@');
+    let clean = identifier;
+    
+    if (!isEmail) {
+      clean = identifier.replace(/\D/g, '');
+      if (!clean || clean.length < 10) {
+        toast.error('Enter a valid 10-digit phone number or email');
+        return;
+      }
+    } else {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
+        toast.error('Enter a valid email address');
+        return;
+      }
     }
+
     setAuthBusy(true);
     try {
       const res = await api.post('/auth/check-phone', { phone: clean });
       setAuthIsExisting(res.data.exists);
       setAuthPhoneChecked(true);
     } catch {
-      toast.error('Could not verify phone. Please try again.');
+      toast.error('Could not verify identifier. Please try again.');
     }
     setAuthBusy(false);
   };
@@ -1008,7 +1030,12 @@ export default function Cart() {
   };
 
   const handleSendOtp = async () => {
-    const clean = authPhone.replace(/\D/g, '');
+    const identifier = authPhone.trim();
+    if (identifier.includes('@')) {
+      toast.error('Registration via email is not currently supported here. Please use a mobile number or login.');
+      return;
+    }
+    const clean = identifier.replace(/\D/g, '');
     if (clean.length < 10) {
       toast.error('Enter a valid 10-digit number');
       return;
@@ -2336,8 +2363,8 @@ export default function Cart() {
                 <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 p-4">
                   <h4 className="mb-3 text-sm font-semibold">Sign in to place your order</h4>
                   <input
-                    type="tel"
-                    placeholder="10-digit mobile number"
+                    type="text"
+                    placeholder="10-digit mobile number or email"
                     value={authPhone}
                     onChange={(e) => {
                       setAuthPhone(e.target.value);
@@ -2351,7 +2378,8 @@ export default function Cart() {
                     <button
                       onClick={handleCheckPhone}
                       disabled={authBusy}
-                      className="w-full rounded bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
+                      className="rounded bg-gray-900 px-4 py-2 text-sm font-semibold text-white"
+                      style={{ alignSelf: 'center', width: 'auto', minWidth: '160px' }}
                     >
                       {authBusy ? '...' : 'Continue'}
                     </button>
@@ -3009,8 +3037,8 @@ export default function Cart() {
                   <div className={ck.authBox}>
                     <div className={ck.authTitle}>🔐 Sign in to place your order</div>
                     <input
-                      type="tel"
-                      placeholder="10-digit mobile number"
+                      type="text"
+                      placeholder="10-digit mobile number or email"
                       value={authPhone}
                       onChange={(e) => {
                         setAuthPhone(e.target.value);
@@ -3025,7 +3053,7 @@ export default function Cart() {
                         onClick={handleCheckPhone}
                         disabled={authBusy}
                         className={ck.btnPrimary}
-                        style={{ width: '100%' }}
+                        style={{ alignSelf: 'center', width: 'auto', minWidth: '160px' }}
                       >
                         {authBusy ? '...' : 'Continue'}
                       </button>
@@ -4273,7 +4301,7 @@ export default function Cart() {
         {/* Checkout Button at bottom - mobile: app-style summary bar above nav */}
         {!loading &&
           cart?.items?.length > 0 &&
-          (isMobile ? (
+          isMobile && (
             <div
               className="mt-6 border-t border-neutral-100 bg-white px-6 pb-6 pt-4"
               style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
@@ -4306,94 +4334,8 @@ export default function Cart() {
                 </button>
               )}
             </div>
-          ) : (
-            <div
-              style={{
-                marginTop: 32,
-                background: '#fff',
-                borderRadius: 16,
-                boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
-                padding: '24px 28px',
-                border: '1px solid #f1f5f9',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: 20,
-                }}
-              >
-                <span style={{ fontSize: 16, fontWeight: 600, color: '#475569' }}>
-                  Subtotal ({cart.items?.length || 0} items)
-                </span>
-                <span style={{ fontSize: 28, fontWeight: 700, color: '#0f172a' }}>
-                  ₹{cart.subtotal?.toFixed(2) || '0.00'}
-                </span>
-              </div>
-              {isValet ? (
-                <p
-                  style={{
-                    textAlign: 'center',
-                    color: '#b45309',
-                    fontWeight: 600,
-                    padding: '12px 0',
-                  }}
-                >
-                  Valets cannot place orders. Use a customer or business account to checkout.
-                </p>
-              ) : user && ((user as any).effectiveRole === 'wholesaler' || user.role === 'wholesaler') && duesInfo?.hasOverdueBills ? (
-                <button
-                  onClick={() => setShowDuesModal(true)}
-                  style={{
-                    width: '100%',
-                    padding: '16px',
-                    borderRadius: 14,
-                    border: 'none',
-                    background: 'linear-gradient(135deg,#d63031,#ff7675)',
-                    color: '#fff',
-                    fontSize: 17,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 6px 20px rgba(214, 48, 49, 0.3)',
-                    transition: 'all 0.2s',
-                    letterSpacing: 0.3,
-                  }}
-                >
-                  🔴 Clear Dues to Order
-                </button>
-              ) : (
-                <button
-                  onClick={handleStartCheckout}
-                  style={{
-                    width: '100%',
-                    padding: '16px',
-                    borderRadius: 14,
-                    border: 'none',
-                    background: 'linear-gradient(135deg,#1a4d33,#2d7a50)',
-                    color: '#fff',
-                    fontSize: 17,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 6px 20px rgba(26,77,51,0.3)',
-                    transition: 'all 0.2s',
-                    letterSpacing: 0.3,
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.target as HTMLElement).style.transform = 'translateY(-1px)';
-                    (e.target as HTMLElement).style.boxShadow = '0 8px 28px rgba(26,77,51,0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.target as HTMLElement).style.transform = 'none';
-                    (e.target as HTMLElement).style.boxShadow = '0 6px 20px rgba(26,77,51,0.3)';
-                  }}
-                >
-                  Proceed to Checkout →
-                </button>
-              )}
-            </div>
-          ))}
+          )}
+        
       </div>
 
       {/* ── Inline remove confirmation bar ─────────────────────────── */}
