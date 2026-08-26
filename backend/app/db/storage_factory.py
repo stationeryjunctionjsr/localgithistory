@@ -49,6 +49,7 @@ _MYSQL_DAO_COLLECTIONS = {
     "bundles": MySQLBundleDAO,
     "customerSegments": MySQLCustomerSegmentDAO,
     "faqSections": MySQLFaqSectionDAO,
+    "valetAvailability": lambda: MySQLDocStore("sj_valet_availability"),
 }
 
 

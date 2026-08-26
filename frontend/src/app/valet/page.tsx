@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import api from '@/utils/api';
 import { toast } from 'react-toastify';
+
 import { formatDateTimeIST } from '@/utils/dateUtils';
 
 interface Order {
@@ -202,12 +203,41 @@ export default function ValetDashboard() {
       setLoadingReturns(true);
       const res = await api.get('/returns/valet/assigned');
       setReturns(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch assigned returns', err);
+    } finally {
+      setLoadingReturns(false);
+    }
+  };
+
+  const handleOrderRespond = async (orderId: string, accept: boolean) => {
+    if (!accept && !declineReason) {
+      setShowDeclineInput(orderId);
+      return;
+    }
+    try {
+      setRespondingOrderId(orderId);
+      const res = await fetch(`/api/orders/${orderId}/valet-response`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ accept, declineReason: accept ? undefined : declineReason }),
+      });
+      if (res.ok) {
+        setDeclineReason('');
+        setShowDeclineInput(null);
+        await Promise.all([fetchPendingAssignments(), fetchOrders()]);
+      } else {
+        const err = await res.json();
+        alert(err.detail || 'Failed to respond to assignment');
+      }
     } catch (e) {
       console.error('Error responding to assignment:', e);
       alert('Failed to respond to assignment');
     } finally {
       setRespondingOrderId(null);
-      setLoadingReturns(false);
     }
   };
 
@@ -376,6 +406,15 @@ export default function ValetDashboard() {
                     </button>
                     <button
                       onClick={() => {
+                        router.push('/valet/availability');
+                        setShowProfileDropdown(false);
+                      }}
+                      className="block w-full px-4 py-2 text-left text-black hover:bg-gray-100"
+                    >
+                      My Availability
+                    </button>
+                    <button
+                      onClick={() => {
                         handleLogout();
                         setShowProfileDropdown(false);
                       }}
@@ -391,7 +430,194 @@ export default function ValetDashboard() {
         </div>
       </header>
 
+      {/* Duty Toggle Bar */}
+      <div className={`py-2 px-4 flex justify-between items-center text-white ${user?.isOnDuty ? 'bg-green-600' : 'bg-red-500'}`}>
+        <span className="font-semibold">{user?.isOnDuty ? '🟢 On Duty' : '🔴 Off Duty'}</span>
+        <button
+          onClick={async () => {
+            const newState = !user?.isOnDuty;
+            try {
+              const res = await api.put('/users/me/duty-status', { isOnDuty: newState });
+              if (res.data) {
+                window.location.reload();
+              }
+            } catch (e) {
+              console.error(e);
+              
+              toast.error('Failed to change duty status');
+            }
+          }}
+          className="bg-white/20 hover:bg-white/30 px-4 py-1 rounded text-sm transition-colors"
+        >
+          Go {user?.isOnDuty ? 'Off' : 'On'} Duty
+        </button>
+      </div>
+
       <main className="container mx-auto px-4 py-8">
+        {/* Pending Assignments */}
+        {pendingAssignments.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              </span>
+              New Assignment Requests
+            </h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {pendingAssignments.map((order: any) => {
+                const timeLeft = countdown[order._id] || 0;
+                const isUrgent = order.isUrgentDelivery;
+                return (
+                  <div key={order._id} className={`bg-white border-2 rounded-xl p-4 shadow-sm ${timeLeft < 60 ? 'border-red-500 animate-pulse' : 'border-blue-500'}`}>
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="font-bold text-lg">{order.orderNumber || order._id}</div>
+                        <div className="text-sm text-gray-500">{order.shippingAddress?.city} - {order.paymentMethod?.toUpperCase()}</div>
+                      </div>
+                      <div className={`text-xl font-mono font-bold ${timeLeft < 60 ? 'text-red-600' : 'text-blue-600'}`}>
+                        {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                      </div>
+                    </div>
+                    
+                    {isUrgent && (
+                      <div className="mb-3 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-bold inline-block">
+                        ⚡ URGENT DELIVERY
+                      </div>
+                    )}
+                    
+                    <div className="text-xl font-bold mb-4">₹{order.total}</div>
+                    
+                    {showDeclineInput === order._id ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          placeholder="Reason for declining..."
+                          value={declineReason}
+                          onChange={(e) => setDeclineReason(e.target.value)}
+                          className="w-full border p-2 rounded"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleOrderRespond(order._id, false)}
+                            disabled={!declineReason.trim()}
+                            className="flex-1 bg-red-600 text-white py-2 rounded font-bold disabled:opacity-50"
+                          >
+                            Confirm Decline
+                          </button>
+                          <button
+                            onClick={() => { setShowDeclineInput(null); setDeclineReason(''); }}
+                            className="px-4 py-2 bg-gray-200 rounded font-bold"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleOrderRespond(order._id, true)}
+                          disabled={respondingOrderId === order._id}
+                          className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50"
+                        >
+                          {respondingOrderId === order._id ? 'Accepting...' : 'Accept Order'}
+                        </button>
+                        <button
+                          onClick={() => handleOrderRespond(order._id, false)}
+                          disabled={respondingOrderId === order._id}
+                          className="flex-1 bg-red-100 text-red-700 py-3 rounded-lg font-bold hover:bg-red-200 disabled:opacity-50"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Pending Return Pickups */}
+        {pendingReturns.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+              </span>
+              New Return Pickups
+            </h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {pendingReturns.map((ret: any) => {
+                const reqId = ret._id || ret.id;
+                const timeLeft = returnCountdown[reqId] || 0;
+                return (
+                  <div key={reqId} className={`bg-white border-2 rounded-xl p-4 shadow-sm ${timeLeft < 60 ? 'border-red-500 animate-pulse' : 'border-orange-500'}`}>
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="font-bold text-lg">Return #{ret.returnId || reqId.substring(0, 8)}</div>
+                        <div className="text-sm text-gray-500">Order #{ret.orderId}</div>
+                      </div>
+                      <div className={`text-xl font-mono font-bold ${timeLeft < 60 ? 'text-red-600' : 'text-orange-600'}`}>
+                        {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <div className="text-xs text-gray-500">Items:</div>
+                      <div className="font-medium text-sm">{ret.items?.length || 0} items to collect</div>
+                    </div>
+                    
+                    {showDeclineInput === reqId ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          placeholder="Reason for declining..."
+                          value={declineReason}
+                          onChange={(e) => setDeclineReason(e.target.value)}
+                          className="w-full border p-2 rounded"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleReturnRespond(reqId, false)}
+                            disabled={!declineReason.trim()}
+                            className="flex-1 bg-red-600 text-white py-2 rounded font-bold disabled:opacity-50"
+                          >
+                            Confirm Decline
+                          </button>
+                          <button
+                            onClick={() => { setShowDeclineInput(null); setDeclineReason(''); }}
+                            className="px-4 py-2 bg-gray-200 rounded font-bold"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleReturnRespond(reqId, true)}
+                          disabled={respondingReturnId === reqId}
+                          className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50"
+                        >
+                          {respondingReturnId === reqId ? 'Accepting...' : 'Accept Return'}
+                        </button>
+                        <button
+                          onClick={() => handleReturnRespond(reqId, false)}
+                          disabled={respondingReturnId === reqId}
+                          className="flex-1 bg-red-100 text-red-700 py-3 rounded-lg font-bold hover:bg-red-200 disabled:opacity-50"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {/* Stats Cards */}
         <div className="mb-6 grid grid-cols-3 gap-2 md:gap-4">
           <div className="flex flex-col items-center justify-center gap-2 rounded-lg bg-white p-2 text-center shadow-md md:flex-row md:justify-start md:gap-4 md:p-4 md:text-left">
@@ -778,6 +1004,11 @@ export default function ValetDashboard() {
 
                         <div>
                           <div className="mb-1 text-xs uppercase text-gray-500">📍 Pickup Address</div>
+                        {ret.deliverySlot && (
+                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
+                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
+                          </div>
+                        )}
                           <div className="text-sm">
                             {ret.user?.address ? formatAddress({
                               street: ret.user.address.street,

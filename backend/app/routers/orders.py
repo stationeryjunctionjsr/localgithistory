@@ -1739,6 +1739,24 @@ async def update_order_status(
     elif status_data.status == "delivered":
         from datetime import datetime
 
+        # Increment deliveredCount on the slot
+        try:
+            config_id = order.get("deliverySlotConfigId")
+            slot_id = order.get("deliverySlotId")
+            if config_id and slot_id:
+                from app.db.storage_factory import get_storage as _get_storage
+                slot_storage = _get_storage("deliverySlots")
+                slot_config = await slot_storage.findById(config_id)
+                if slot_config:
+                    slots_list = slot_config.get("slots", [])
+                    for sl in slots_list:
+                        if sl.get("id") == slot_id:
+                            sl["deliveredCount"] = sl.get("deliveredCount", 0) + 1
+                            break
+                    await slot_storage.update(config_id, {"slots": slots_list})
+        except Exception as e:
+            logger.error("Failed to increment deliveredCount for config %s slot %s: %s", order.get("deliverySlotConfigId"), order.get("deliverySlotId"), str(e), exc_info=True)
+
         if order.get("paymentMethod") == "cod" and "paymentStatus" not in update_data:
             update_data["paymentStatus"] = "paid"
             update_data["codPaymentReceived"] = True
@@ -2075,6 +2093,94 @@ async def dispatch_order(
 
     populated_order = await populate_order(updated_order)
     return populated_order
+
+
+@router.get("/valet/pending")
+async def get_valet_pending_orders(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "valet":
+        raise HTTPException(status_code=403, detail="Only valets can view pending assignments")
+    orders = await order_repository.findAll({
+        "status": "pending_valet",
+        "pendingValetId": str(current_user["_id"])
+    })
+    return [await populate_order(o) for o in orders]
+
+
+class ValetResponseRequest(BaseModel):
+    accept: bool
+    declineReason: Optional[str] = None
+
+
+@router.put("/{order_id}/valet-response", response_model=dict)
+async def valet_response(
+    order_id: str,
+    response_data: ValetResponseRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    order = await order_repository.findById(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    if current_user.get("role") != "super_admin":
+        if current_user.get("role") != "valet":
+            raise HTTPException(status_code=403, detail="Access denied")
+        if str(order.get("pendingValetId", "")) != str(current_user["_id"]):
+            raise HTTPException(status_code=403, detail="Order is not assigned to you")
+            
+    if order.get("status") != "pending_valet":
+        raise HTTPException(status_code=400, detail="Order is not pending valet acceptance")
+        
+    from datetime import datetime, timezone
+    now_iso = datetime.now(timezone.utc).isoformat() + "Z"
+    
+    if response_data.accept:
+        # Generate Invoice
+        from app.routers.invoices import _generate_b2b_invoice_pdf
+        try:
+            invoice = await _generate_b2b_invoice_pdf(order_id)
+        except Exception:
+            invoice = None
+            
+        updated_order = await order_repository.update(order_id, {
+            "status": "shipped",
+            "assignedValet": str(current_user["_id"]),
+            "pendingValetId": None,
+            "shippedAt": now_iso,
+            "invoiceUrl": invoice.get("url") if invoice else None
+        })
+        # Notify seller
+        seller_id = order.get("sellerId")
+        if seller_id:
+            try:
+                from app.services.push_notification_service import push_notification_service
+                await push_notification_service.send_to_user(
+                    seller_id,
+                    {
+                        "title": "Valet Accepted",
+                        "message": f"Valet has accepted order #{order.get('orderNumber', order_id)} and it is now shipped.",
+                        "link": f"/seller/orders/{order_id}",
+                    }
+                )
+            except Exception:
+                pass
+        return await populate_order(updated_order)
+    else:
+        # Declined -> Cascade
+        history = list(order.get("valetDeclineHistory") or [])
+        valet_id_str = str(current_user.get("_id"))
+        if valet_id_str not in history:
+            history.append(valet_id_str)
+            
+        await order_repository.update(order_id, {
+            "valetDeclineHistory": history,
+            "pendingValetId": None
+        })
+        order["valetDeclineHistory"] = history
+        order["pendingValetId"] = None
+        
+        from app.jobs.valet_timeout_job import _cascade_or_revert
+        await _cascade_or_revert(order)
+        return await populate_order(await order_repository.findById(order_id))
 
 
 @router.put("/{order_id}/cancel", response_model=dict)
