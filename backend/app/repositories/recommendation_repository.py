@@ -815,70 +815,87 @@ class RecommendationRepository:
         return [pid for pid, _ in sorted_products]
 
     async def get_best_selling_from_least_bought_categories(
-        self, user_id: str, limit: int = 5, days: int = 60
-    ) -> List[str]:
-        """Best selling products from categories this user bought least from (Explore – based on logged-in user orders)."""
+        self, user_id: str, limit: int = 24, days: int = 60, exclude_product_ids: set = None
+    ) -> list[str]:
+        """Explore - picks top best-selling products from the user's n/3 neglected subcategories."""
+        if exclude_product_ids is None:
+            exclude_product_ids = set()
+
+        from datetime import datetime, timedelta, timezone
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-        # Fetch user orders (filtered) and active products concurrently
-        user_orders, products = await asyncio.gather(
+        
+        # 1. Fetch user orders in the last 60 days + active products
+        user_orders, products = await __import__('asyncio').gather(
             self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()}),
             self.product_storage.findAll({"isActive": True}),
         )
-        # Build product lookup: id -> product
-        product_by_id: Dict[str, Dict] = {p.get("_id"): p for p in products if p.get("_id")}
+        
+        product_by_id = {p.get("_id"): p for p in products if p.get("_id")}
 
-        user_product_ids: set = set()
+        # 2. Count units purchased per subcategory (fallback to category) for this user
+        subcat_counts = {}
         for o in user_orders:
             for item in o.get("items", []):
-                product_id = item.get("product") or item.get("productId")
-                if product_id:
-                    user_product_ids.add(product_id)
+                pid = item.get("product") or item.get("productId")
+                if not pid: continue
+                p = product_by_id.get(pid)
+                if p:
+                    subcat = p.get("subCategory") or p.get("category")
+                    if subcat:
+                        subcat_counts[subcat] = subcat_counts.get(subcat, 0) + item.get("quantity", 1)
 
-        # Count categories from products this user purchased
-        category_counts: Dict[str, int] = {}
-        for pid in user_product_ids:
-            p = product_by_id.get(pid)
-            if p:
-                cat = p.get("category")
-                if cat:
-                    category_counts[cat] = category_counts.get(cat, 0) + 1
-
-        # Find categories with least purchases (at least 1 purchase)
-        categories_with_purchases = [
-            category for category, count in sorted(category_counts.items(), key=lambda x: x[1]) if count > 0
-        ][:5]
-
-        # Get best selling products from these categories using date-filtered all orders
-        cat_set = set(categories_with_purchases)
-        if not cat_set:
+        n = len(subcat_counts)
+        if n == 0:
             return []
-        recent_orders = await self.order_storage.findAll({"startDate": cutoff.isoformat()})
-        category_product_sales: Dict[str, Dict[str, int]] = {}
-        for order in recent_orders:
+
+        # 3. Neglected count = max(1, round(n / 3))
+        neglected_count = max(1, round(n / 3.0))
+        
+        # 4. Products per subcategory = max(1, round(24 / neglected_count))
+        # Note: We take 'limit' instead of hardcoded 24 to respect the caller, but limit is usually 24.
+        products_per_subcat = max(1, round(limit / neglected_count))
+
+        # Sort subcats ascending by purchase quantity
+        sorted_subcats = sorted(subcat_counts.items(), key=lambda x: x[1])
+        neglected_set = {subcat for subcat, _ in sorted_subcats[:neglected_count]}
+
+        # 5. Fetch all-time orders to compute best-selling products overall
+        # To avoid massive overhead, we filter orders by these neglected subcategories as we iterate.
+        all_orders = await self.order_storage.findAll()
+        
+        subcat_product_sales = {}
+        for order in all_orders:
             for item in order.get("items", []):
-                product_id = item.get("product") or item.get("productId")
-                if not product_id:
-                    continue
-                p = product_by_id.get(product_id)
-                if not p:
-                    continue
-                category = p.get("category")
-                if category not in cat_set:
-                    continue
-                quantity = item.get("quantity", 1)
-                category_product_sales.setdefault(category, {})[product_id] = (
-                    category_product_sales[category].get(product_id, 0) + quantity
-                )
+                pid = item.get("product") or item.get("productId")
+                if not pid: continue
+                p = product_by_id.get(pid)
+                if not p: continue
+                
+                subcat = p.get("subCategory") or p.get("category")
+                if subcat in neglected_set:
+                    quantity = item.get("quantity", 1)
+                    if subcat not in subcat_product_sales:
+                        subcat_product_sales[subcat] = {}
+                    subcat_product_sales[subcat][pid] = subcat_product_sales[subcat].get(pid, 0) + quantity
 
-        # Get top 5 products from least bought categories
+        # 6. For each neglected subcategory, pick the top products_per_subcat best-selling products
+        # that are NOT in the exclude set.
         recommended_product_ids = []
-        for category in categories_with_purchases:
-            if category in category_product_sales:
-                top_products = sorted(category_product_sales[category].items(), key=lambda x: x[1], reverse=True)[:1]
-                recommended_product_ids.extend([pid for pid, _ in top_products])
+        for subcat in neglected_set:
+            sales = subcat_product_sales.get(subcat, {})
+            # Sort by sales descending
+            top_products = sorted(sales.items(), key=lambda x: x[1], reverse=True)
+            
+            added = 0
+            for pid, _ in top_products:
+                if pid not in exclude_product_ids:
+                    recommended_product_ids.append(pid)
+                    added += 1
+                    if added >= products_per_subcat:
+                        break
 
+        # We return the compiled list. There is NO adaptive refill.
         return recommended_product_ids[:limit]
-
     def _parse_created_at(self, doc: Dict) -> Optional[datetime]:
         raw = doc.get("createdAt")
         if not raw:
@@ -1069,10 +1086,44 @@ class RecommendationRepository:
         sorted_subcats = [sc for sc, _ in sorted(subcat_counts.items(), key=lambda x: x[1])]
         return sorted_subcats[:neglected_count]
 
-    async def get_recommendation_components(
+    async def _get_bundles_as_items(self, product_map=None):
+        """Fetch and enrich active bundles to be treated as products in recommendation lists."""
+        from app.repositories.bundle_repository import bundle_repository
+        from app.routers.bundles import _enrich_bundle
+        import logging
+        try:
+            bundles = await bundle_repository.get_active_bundles()
+            enriched = []
+            for b in bundles:
+                try:
+                    eb = await _enrich_bundle(b)
+                    if not eb.get("isAvailable"):
+                        continue
+                    # Format as a product card for the frontend
+                    eb["isBundle"] = True
+                    # Resolving subCategory for Explore
+                    sub_cat = eb.get("subCategory")
+                    if not sub_cat:
+                        # Attempt to derive from component products
+                        for item in eb.get("items", []):
+                            pid = item.get("productId")
+                            p = product_map.get(str(pid)) if product_map else None
+                            if p and p.get("subCategory"):
+                                sc = p.get("subCategory")
+                                sub_cat = sc.get("name") if isinstance(sc, dict) else sc
+                                break
+                    eb["subCategory"] = sub_cat
+                    enriched.append(eb)
+                except Exception as e:
+                    logging.warning(f"Could not enrich bundle {b.get('_id')} for recommendations: {e}")
+            return enriched
+        except Exception as e:
+            logging.error(f"Error fetching bundles for recommendations: {e}")
+            return []
 
-        self, user_id: Optional[str] = None, role: Optional[str] = None, city: Optional[str] = None
-    ) -> Dict[str, List[Dict]]:
+    async def get_recommendation_components(
+        self, user_id: str = None, role: str = None, city: str = None
+    ) -> dict:
         """
         Return recommendation components by segment (guest, retail, business/wholesaler).
         - Guest: Customer Favourites + Trending Now (retail orders, no exclusions). No Explore. sectionOrder from bandit.
@@ -1080,12 +1131,12 @@ class RecommendationRepository:
         - Wholesaler (business): Customer Favourites (retail), Trending Now (business), Explore (user), Business Favourites (business). sectionOrder from bandit.
         All slots participate in the bandit (epsilon-greedy) for section ordering.
         """
-        config = _load_config()
+        config = __import__('backend.app.config.recommendation_config', fromlist=['_load_config'])._load_config()
         limits = config.get("strategy_limits", {})
-        limits.get("trending", 10)
-        limit_explore = limits.get("explore", 5)
-        limit_new = limits.get("new_arrivals") or limits.get("user_favorites") or 10
-        # Fetch all active products once and reuse — avoid repeated full table scans
+        limit_explore = limits.get("explore", 24)
+        limit_new = limits.get("new_arrivals") or limits.get("user_favorites") or 24
+        
+        # Fetch all active products once and reuse
         all_products = await self.product_storage.findAll({"isActive": True})
         product_map = {p["_id"]: p for p in all_products if p.get("_id")}
 
@@ -1143,7 +1194,7 @@ class RecommendationRepository:
             scored = sorted([(_b["_id"], _b.get("salesCount", 0) or 0) for _b in bundle_items if _b.get("_id") and _b["_id"] not in exclude_set and (_b.get("subCategory") or _b.get("category")) in neglected_set], key=lambda x: x[1], reverse=True)
             return [bid for bid, _ in scored]
 
-        def to_products(ids: List[str]) -> List[Dict]:
+        def to_products(ids: list[str]) -> list[dict]:
             out = []
             for pid in ids:
                 p = product_map.get(pid)
@@ -1163,11 +1214,14 @@ class RecommendationRepository:
             return out
 
         trending_days = 7
-        trending_top_per_subcat = 5
+        trending_top_per_subcat = 2 # Updated to top 2 products per subcategory as requested
+        
+        config_mod = __import__('backend.app.config.recommendation_config', fromlist=['_segment_config'])
+        _segment_config = config_mod._segment_config
         cf_days_config = _segment_config("guest").get("customer_favourites_days", 60)
 
         # Customer Favourites: from cache (job at 12 AM IST) or compute on the fly
-        cf_cache = _read_customer_favourites_cache()
+        cf_cache = __import__('backend.app.config.recommendation_config', fromlist=['_read_customer_favourites_cache'])._read_customer_favourites_cache()
         cf_ids_cached = cf_cache.get("product_ids") if isinstance(cf_cache.get("product_ids"), list) else None
 
         # Guest: no user_id
@@ -1178,6 +1232,7 @@ class RecommendationRepository:
                     return cf_ids_cached
                 return await self.get_customer_favourites_by_subcategory(days=cf_days_config)
 
+            import asyncio
             cf_ids_raw, tn_ids_raw, new_ids_raw = await asyncio.gather(
                 _cf_or_cached(),
                 self.get_trending_by_conversion(
@@ -1207,7 +1262,9 @@ class RecommendationRepository:
         if role != "wholesaler":
             seg = _segment_config("retail")
             exclude_days = seg.get("exclude_user_purchases_days", 60)
-            # Parallel fetch: user purchased IDs + cart IDs + trending (independent)
+            
+            import asyncio
+            # Parallel fetch: user purchased IDs + cart IDs
             purchased_task = self._get_user_purchased_product_ids(user_id, exclude_days)
             cart_task = self._get_user_cart_product_ids(user_id)
 
@@ -1221,24 +1278,15 @@ class RecommendationRepository:
             )
             cf_ids = [x for x in (cf_ids_raw or []) if x not in exclude]
 
-            # Now fetch trending + explore + new arrivals in parallel
-            exp_days = seg.get("explore_days", 60)
-
-            async def _explore_retail():
-                if seg.get("explore_available", True):
-                    return await self.get_best_selling_from_least_bought_categories(
-                        user_id, limit_explore, days=exp_days
-                    )
-                return []
-
-            tn_ids_raw, explore_ids_prod, new_ids_raw = await asyncio.gather(
+            # Sequential Fetch for Cross-Section Deduplication
+            # 1. Fetch Trending + New Arrivals in parallel first
+            tn_ids_raw, new_ids_raw = await asyncio.gather(
                 self.get_trending_by_conversion(
                     "customer",
                     days=trending_days,
                     top_per_subcategory=trending_top_per_subcat,
                     exclude_product_ids=exclude,
                 ),
-                _explore_retail(),
                 self.get_new_arrivals(user_id, role, limit_new),
             )
             
@@ -1252,8 +1300,18 @@ class RecommendationRepository:
             cf_ids_bundle = _bundle_favourites_ids(exclude | set(cf_ids))
             cf_ids = cf_ids + cf_ids_bundle
             
+            # 2. Build cross-section exclude for Explore
             explore_exclude = exclude | set(cf_ids) | set(tn_ids) | set(new_ids)
-            _neg = await self._derive_neglected_subcats(user_id, exp_days) if explore_ids_prod else []
+            
+            # 3. Fetch Explore using the consolidated exclude set
+            exp_days = seg.get("explore_days", 60)
+            explore_ids_prod = []
+            if seg.get("explore_available", True):
+                explore_ids_prod = await self.get_best_selling_from_least_bought_categories(
+                    user_id, limit_explore, days=exp_days, exclude_product_ids=explore_exclude
+                )
+                
+            _neg = await getattr(self, '_derive_neglected_subcats', lambda u, d: [])(user_id, exp_days) if explore_ids_prod else []
             explore_bundle_ids = _bundle_explore_ids(_neg, explore_exclude | set(explore_ids_prod))
             explore_ids = list(explore_ids_prod) + explore_bundle_ids
 
@@ -1271,54 +1329,68 @@ class RecommendationRepository:
         # Business (wholesaler)
         seg = _segment_config("wholesaler")
         bf_days = seg.get("business_favourites_days", seg.get("wholesaler_favourites_days", 60))
-        exclude = await self._get_user_purchased_product_ids(user_id, bf_days)
-        exclude |= await self._get_user_cart_product_ids(user_id)
+        
+        import asyncio
+        purchased_ids = await self._get_user_purchased_product_ids(user_id, bf_days)
+        cart_ids = await self._get_user_cart_product_ids(user_id)
+        exclude = purchased_ids | cart_ids
 
         # Normalise city for consistent matching
         city_normalised = city.strip() if city and city.strip() else None
 
         # Customer Favourites: city-scoped when city provided, else use global cache / compute
         if city_normalised:
-            cf_ids = await self.get_customer_favourites_by_subcategory(days=cf_days_config, city=city_normalised)
+            cf_ids_raw = await self.get_customer_favourites_by_subcategory(days=cf_days_config, city=city_normalised)
         elif cf_ids_cached is not None:
-            cf_ids = list(cf_ids_cached)
+            cf_ids_raw = list(cf_ids_cached)
         else:
-            cf_ids = await self.get_customer_favourites_by_subcategory(days=cf_days_config)
+            cf_ids_raw = await self.get_customer_favourites_by_subcategory(days=cf_days_config)
+        cf_ids = [x for x in (cf_ids_raw or []) if x not in exclude]
+        cf_ids = cf_ids + _bundle_favourites_ids(exclude | set(cf_ids))
 
         # Business Favourites: city-scoped when city provided, else use global cache / compute
         if city_normalised:
             bf_ids_raw = await self.get_business_favourites_by_subcategory(days=bf_days, city=city_normalised)
         else:
-            bf_cache = _read_business_favourites_cache()
-            bf_ids_raw = bf_cache.get("product_ids") if isinstance(bf_cache.get("product_ids"), list) else None
-            if bf_ids_raw is None:
-                bf_ids_raw = await self.get_business_favourites_by_subcategory(days=bf_days)
+            bf_cache = __import__('backend.app.config.recommendation_config', fromlist=['_read_business_favourites_cache'])._read_business_favourites_cache()
+            bf_ids_cached = bf_cache.get("product_ids") if isinstance(bf_cache.get("product_ids"), list) else None
+            bf_ids_raw = bf_ids_cached if bf_ids_cached is not None else await self.get_business_favourites_by_subcategory(days=bf_days)
 
         bf_ids_after_exclude = [x for x in (bf_ids_raw or []) if x not in exclude]
-        # Business dashboard overlapping rules (tags stay intact; only section membership changes):
-        # 1. Products in Customer Favourites and Trending Now → removed from Trending Now.
-        # 2. Products in Trending Now and Business Favourites → removed from Trending Now.
-        # 3. Products in Customer Favourites and Business Favourites → removed from Business Favourites.
-        bf_ids_section = [x for x in bf_ids_after_exclude if x not in set(cf_ids)]
 
-        async def _explore_business():
-            if seg.get("explore_available", True):
-                return await self.get_best_selling_from_least_bought_categories(
-                    user_id, limit_explore, days=seg.get("explore_days", 60)
-                )
-            return []
-
-        tn_ids, explore_ids, new_ids = await asyncio.gather(
+        # 1. Fetch Trending + New Arrivals in parallel
+        tn_ids_raw, new_ids_raw = await asyncio.gather(
             self.get_trending_by_conversion(
                 "wholesaler",
                 days=trending_days,
                 top_per_subcategory=trending_top_per_subcat,
                 exclude_product_ids=exclude,
             ),
-            _explore_business(),
             self.get_new_arrivals(user_id, role, limit_new),
         )
-        tn_ids = [x for x in tn_ids if x not in set(cf_ids) and x not in set(bf_ids_raw or [])]
+        
+        new_ids = list(new_ids_raw) + _bundle_new_arrival_ids(exclude | set(new_ids_raw))
+        
+        tn_product_ids = [x for x in tn_ids_raw if x not in set(cf_ids) and x not in set(bf_ids_after_exclude)]
+        tn_bundle_ids = _bundle_trending_ids(exclude | set(cf_ids) | set(bf_ids_after_exclude) | set(tn_product_ids), tn_product_ids)
+        tn_ids = tn_product_ids + tn_bundle_ids
+        
+        # Build deduplication exclude for Explore
+        explore_exclude = exclude | set(cf_ids) | set(bf_ids_after_exclude) | set(tn_ids) | set(new_ids)
+        
+        # Fetch Explore sequentially
+        exp_days = seg.get("explore_days", 60)
+        explore_ids_prod = []
+        if seg.get("explore_available", True):
+            explore_ids_prod = await self.get_best_selling_from_least_bought_categories(
+                user_id, limit_explore, days=exp_days, exclude_product_ids=explore_exclude
+            )
+            
+        _neg = await getattr(self, '_derive_neglected_subcats', lambda u, d: [])(user_id, exp_days) if explore_ids_prod else []
+        explore_bundle_ids = _bundle_explore_ids(_neg, explore_exclude | set(explore_ids_prod))
+        explore_ids = list(explore_ids_prod) + explore_bundle_ids
+
+        bf_ids_section = [x for x in bf_ids_after_exclude if x not in set(cf_ids)]
 
         out = {
             "newArrivals": to_products(new_ids),
@@ -1332,6 +1404,4 @@ class RecommendationRepository:
         }
         out["sectionOrder"] = ["new_arrivals", "customer_favourites", "trending_now", "explore", "business_favourites"]
         return out
-
-
 recommendation_repository = RecommendationRepository()
