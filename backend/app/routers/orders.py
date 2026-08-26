@@ -95,7 +95,7 @@ async def create_payment_notification(payment):
                     "orderId": payment.get("orderId"),
                     "amount": payment.get("totalAmount", 0),
                     "paymentMethod": payment.get("paymentMethod"),
-                    "createdAt": payment.get("createdAt") or datetime.now(timezone.utc).isoformat() + "Z",
+                    "createdAt": payment.get("createdAt") or datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
                 },
             }
         )
@@ -360,7 +360,8 @@ async def create_order(
                 terms_days = 30
 
         user_payments = await payment_repository.findAll({"userId": user.get("userId")})
-        now = datetime.now(timezone.utc)
+        import datetime as dt
+        now = dt.datetime.now(dt.timezone.utc)
         has_overdue = False
 
         for p in user_payments:
@@ -378,7 +379,7 @@ async def create_order(
 
                             order_date = (
                                 datetime.fromisoformat(order_date_str.replace("Z", "+00:00"))
-                                .astimezone(timezone.utc)
+                                .astimezone(__import__("datetime").timezone.utc)
                                 .replace(tzinfo=None)
                             )
                             due_date = order_date + timedelta(days=terms_days)
@@ -1172,7 +1173,7 @@ async def create_order(
                                         sl["bookedCount"] = sl.get("bookedCount", 0) + 1
                                     break
                             doc["slots"] = updated_slots
-                            doc["updatedAt"] = datetime.now(timezone.utc).isoformat()
+                            doc["updatedAt"] = datetime.now(__import__("datetime").timezone.utc).isoformat()
                             await session.execute(
                                 text(
                                     f"UPDATE {slot_storage.table_name} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :id"
@@ -1568,7 +1569,7 @@ async def update_order_tracking(
     update_payload = {
         "trackingId": data.trackingId,
         "courierPartner": data.courierPartner,
-        "trackingUpdatedAt": __import__("datetime").datetime.now(timezone.utc).isoformat() + "Z",
+        "trackingUpdatedAt": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
     }
     await order_repository.update(order_id, update_payload)
 
@@ -1732,7 +1733,7 @@ async def update_order_status(
 
             update_data["paymentStatus"] = "paid"
             update_data["codPaymentReceived"] = True
-            update_data["codPaymentReceivedAt"] = datetime.now(timezone.utc).isoformat()
+            update_data["codPaymentReceivedAt"] = datetime.now(__import__("datetime").timezone.utc).isoformat()
 
     if status_data.status == "out_for_delivery":
         update_data["shippedAt"] = None  # Will be set by repository
@@ -1760,7 +1761,7 @@ async def update_order_status(
         if order.get("paymentMethod") == "cod" and "paymentStatus" not in update_data:
             update_data["paymentStatus"] = "paid"
             update_data["codPaymentReceived"] = True
-            update_data["codPaymentReceivedAt"] = datetime.now(timezone.utc).isoformat()
+            update_data["codPaymentReceivedAt"] = datetime.now(__import__("datetime").timezone.utc).isoformat()
 
             # Create or update payment record for COD
             existing_payment = await payment_repository.findByOrderId(order.get("_id"))
@@ -1795,7 +1796,7 @@ async def update_order_status(
                             "orderId": updated_payment_with_entry.get("orderId"),
                             "totalAmount": order.get("total", payment.get("totalAmount", 0)),
                             "paymentMethod": "cod",
-                            "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
+                            "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
                         }
                     )
             else:
@@ -1817,7 +1818,7 @@ async def update_order_status(
                                 "amount": order.get("total", 0),
                                 "image": None,
                                 "verified": False,
-                                "createdAt": datetime.now(timezone.utc).isoformat(),
+                                "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat(),
                             }
                         ],
                     }
@@ -1830,7 +1831,7 @@ async def update_order_status(
                         "orderId": new_payment.get("orderId"),
                         "totalAmount": new_payment.get("totalAmount", 0),
                         "paymentMethod": "cod",
-                        "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
+                        "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
                     }
                 )
     elif status_data.status == "cancelled":
@@ -1849,7 +1850,7 @@ async def update_order_status(
 
         from datetime import datetime
 
-        update_data["cancelledAt"] = datetime.now(timezone.utc).isoformat()
+        update_data["cancelledAt"] = datetime.now(__import__("datetime").timezone.utc).isoformat()
         update_data["cancelledBy"] = current_user.get("_id")
 
         # Mark existing payment as cancelled (do NOT create new records or mark as paid)
@@ -2050,7 +2051,7 @@ async def dispatch_order(
 
     from datetime import datetime
 
-    now_iso = datetime.now(timezone.utc).isoformat() + "Z"
+    now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
     is_urgent = order.get("isUrgentDelivery", False)
     timeout_minutes = 5 if is_urgent else 20
 
@@ -2131,7 +2132,7 @@ async def valet_response(
         raise HTTPException(status_code=400, detail="Order is not pending valet acceptance")
         
     from datetime import datetime, timezone
-    now_iso = datetime.now(timezone.utc).isoformat() + "Z"
+    now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
     
     if response_data.accept:
         # Generate Invoice
@@ -2219,7 +2220,7 @@ async def cancel_order(order_id: str, current_user: dict = Depends(get_current_u
 
     updated_order = await order_repository.update(
         order_id,
-        {"status": "cancelled", "cancelledAt": datetime.now(timezone.utc).isoformat(), "cancelledBy": current_user.get("_id")},
+        {"status": "cancelled", "cancelledAt": datetime.now(__import__("datetime").timezone.utc).isoformat(), "cancelledBy": current_user.get("_id")},
     )
 
     populated_order = await populate_order(updated_order)
@@ -2287,7 +2288,7 @@ async def valet_response(
     if assigned_at_str:
         try:
             assigned_at = datetime.fromisoformat(assigned_at_str.replace("Z", "+00:00")).replace(tzinfo=None)
-            if datetime.now(timezone.utc) >= assigned_at + timedelta(minutes=timeout_minutes):
+            if datetime.now(__import__("datetime").timezone.utc) >= assigned_at + timedelta(minutes=timeout_minutes):
                 raise HTTPException(
                     status_code=400,
                     detail="The acceptance window for this order has expired",
@@ -2297,7 +2298,7 @@ async def valet_response(
         except Exception:
             pass
 
-    now_iso = datetime.now(timezone.utc).isoformat() + "Z"
+    now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
     valet_id = str(current_user["_id"]) if current_user.get("role") == "valet" else str(order.get("pendingValetId", ""))
     seller_id = order.get("sellerId")
 
@@ -2537,7 +2538,7 @@ async def confirm_sub_order_pickup(
     all_sub_orders = await sub_order_repository.findByParentOrder(order_id)
     remaining = [s for s in all_sub_orders if s.get("pickupStatus") != "picked_up"]
 
-    datetime.now(timezone.utc).isoformat() + "Z"
+    datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
 
     if not remaining:
         # ── All sellers picked up — transition parent to 'out_for_delivery' ──
@@ -2688,7 +2689,7 @@ async def generate_invoice(order_id: str, current_user: dict = Depends(require_s
 
     # Update order with invoice path
     await order_repository.update(
-        order_id, {"invoicePath": invoice_path, "invoiceGeneratedAt": datetime.now(timezone.utc).isoformat() + "Z"}
+        order_id, {"invoicePath": invoice_path, "invoiceGeneratedAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"}
     )
 
     return {"message": "Invoice generated successfully", "invoicePath": invoice_path}

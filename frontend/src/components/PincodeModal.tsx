@@ -213,15 +213,10 @@ export default function PincodeModal() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div>
-                    <span className="font-bold">Serviceable Area: </span>
+                    <span className="font-bold">Serviceability confirmed! </span>
                     {successInfo.city || successInfo.state
-                      ? `${successInfo.city || ''}${successInfo.city && successInfo.state ? ', ' : ''}${successInfo.state || ''} (${successInfo.pincode})`
-                      : `PIN Code ${successInfo.pincode}`}
-                    <div className="text-[11px] text-emerald-700 mt-0.5">
-                      {successInfo.sellerCount && successInfo.sellerCount > 0
-                        ? `🎉 ${successInfo.sellerCount} seller(s) available in your location!`
-                        : '🎉 Platform delivery available to your location!'}
-                    </div>
+                      ? `Delivering to ${successInfo.city || ''}${successInfo.city && successInfo.state ? ', ' : ''}${successInfo.state || ''} (${successInfo.pincode})`
+                      : `Delivering to PIN Code ${successInfo.pincode}`}
                   </div>
                 </div>
               </div>

@@ -2,24 +2,30 @@
 MySQL DAO for sj_coupons. Implements FileStorage-like interface for 'coupons'.
 """
 
+import json
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
-from app.db.oracle_utils import now_utc
 
 
-def _to_ts(value: Optional[str]) -> Optional[datetime]:
-    if not value:
+def _to_ts(val):
+    if not val:
         return None
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except Exception:
-        return None
+    if isinstance(val, str):
+        try:
+            return datetime.fromisoformat(val.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return val
+
+
+def now_utc():
+    return datetime.now(timezone.utc)
 
 
 class MySQLCouponDAO:
@@ -28,11 +34,21 @@ class MySQLCouponDAO:
         suffix = getattr(settings, "table_suffix", "")
         return f"sj_coupons{suffix}"
 
+    CORE_KEYS = {
+        "code", "discountType", "discountValue", "minOrderValue", 
+        "maxUses", "usedCount", "startDate", "endDate", 
+        "validFrom", "validUntil", "isActive", "createdAt", "updatedAt",
+        "_id", "id"
+    }
+
     def _factory(self):
         return get_async_session_factory()
 
+    def _extract_extra(self, data: Dict) -> Dict:
+        return {k: v for k, v in data.items() if k not in self.CORE_KEYS}
+
     def _row_to_doc(self, r) -> Dict:
-        return {
+        doc = {
             "_id": str(r.id),
             "code": r.code,
             "discountType": r.discount_type,
@@ -40,12 +56,22 @@ class MySQLCouponDAO:
             "minOrderValue": float(r.min_order_value) if r.min_order_value is not None else None,
             "maxUses": int(r.max_uses) if r.max_uses is not None else None,
             "usedCount": int(r.used_count) if r.used_count is not None else 0,
-            "startDate": r.start_date.isoformat() if r.start_date else None,
-            "endDate": r.end_date.isoformat() if r.end_date else None,
+            "validFrom": r.start_date.isoformat() + "Z" if r.start_date else None,
+            "validUntil": r.end_date.isoformat() + "Z" if r.end_date else None,
             "isActive": bool(r.is_active) if r.is_active is not None else True,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
+            "createdAt": r.created_at.isoformat() + "Z" if r.created_at else None,
+            "updatedAt": r.updated_at.isoformat() + "Z" if r.updated_at else None,
         }
+        doc["startDate"] = doc["validFrom"]
+        doc["endDate"] = doc["validUntil"]
+
+        if hasattr(r, 'extra_data') and r.extra_data:
+            try:
+                extra = json.loads(r.extra_data) if isinstance(r.extra_data, str) else r.extra_data
+                doc.update(extra)
+            except Exception:
+                pass
+        return doc
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         factory = self._factory()
@@ -56,7 +82,7 @@ class MySQLCouponDAO:
                 text(
                     f"""
                     SELECT id, external_id, code, discount_type, discount_value, min_order_value, max_uses,
-                           used_count, start_date, end_date, is_active, created_at, updated_at
+                           used_count, start_date, end_date, is_active, created_at, updated_at, extra_data
                     FROM {self.TABLE}
                     """
                 )
@@ -109,16 +135,18 @@ class MySQLCouponDAO:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
         external_id = secrets.token_hex(16)
+        extra_data = json.dumps(self._extract_extra(data))
+        
         async with factory() as session:
             await session.execute(
                 text(
                     f"""
                     INSERT INTO {self.TABLE} (
                         external_id, code, discount_type, discount_value, min_order_value, max_uses,
-                        used_count, start_date, end_date, is_active, created_at, updated_at
+                        used_count, start_date, end_date, is_active, created_at, updated_at, extra_data
                     ) VALUES (
                         :external_id, :code, :discount_type, :discount_value, :min_order_value, :max_uses,
-                        :used_count, :start_date, :end_date, :is_active, :created_at, :updated_at
+                        :used_count, :start_date, :end_date, :is_active, :created_at, :updated_at, :extra_data
                     )
                     """
                 ),
@@ -130,11 +158,12 @@ class MySQLCouponDAO:
                     "min_order_value": data.get("minOrderValue"),
                     "max_uses": data.get("maxUses"),
                     "used_count": data.get("usedCount", 0),
-                    "start_date": _to_ts(data.get("startDate")),
-                    "end_date": _to_ts(data.get("endDate")),
+                    "start_date": _to_ts(data.get("validFrom") or data.get("startDate")),
+                    "end_date": _to_ts(data.get("validUntil") or data.get("endDate")),
                     "is_active": 1 if data.get("isActive", True) else 0,
                     "created_at": now,
                     "updated_at": now,
+                    "extra_data": extra_data,
                 },
             )
             await session.commit()
@@ -155,6 +184,8 @@ class MySQLCouponDAO:
             return None
         now = now_utc()
         cid = int(id) if str(id).isdigit() else 0
+        extra_data = json.dumps(self._extract_extra(merged))
+        
         async with factory() as session:
             await session.execute(
                 text(
@@ -169,7 +200,8 @@ class MySQLCouponDAO:
                         start_date = :start_date,
                         end_date = :end_date,
                         is_active = :is_active,
-                        updated_at = :updated_at
+                        updated_at = :updated_at,
+                        extra_data = :extra_data
                     WHERE id = :id
                     """
                 ),
@@ -181,10 +213,11 @@ class MySQLCouponDAO:
                     "min_order_value": merged.get("minOrderValue"),
                     "max_uses": merged.get("maxUses"),
                     "used_count": merged.get("usedCount", 0),
-                    "start_date": _to_ts(merged.get("startDate")),
-                    "end_date": _to_ts(merged.get("endDate")),
+                    "start_date": _to_ts(merged.get("validFrom") or merged.get("startDate")),
+                    "end_date": _to_ts(merged.get("validUntil") or merged.get("endDate")),
                     "is_active": 1 if merged.get("isActive", True) else 0,
                     "updated_at": now,
+                    "extra_data": extra_data,
                 },
             )
             await session.commit()

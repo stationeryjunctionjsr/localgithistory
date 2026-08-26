@@ -29,6 +29,7 @@ class ZoneCreate(BaseModel):
     name: str
     description: Optional[str] = None
     pincodes: List[str] = []
+    sellerIds: List[str] = []  # Seller IDs that service this zone
     defaultCapacity: int = 10
     urgentDeliveryAvailable: bool = False
     isActive: bool = True
@@ -38,6 +39,7 @@ class ZoneUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     pincodes: Optional[List[str]] = None
+    sellerIds: Optional[List[str]] = None  # Seller IDs that service this zone
     defaultCapacity: Optional[int] = None
     urgentDeliveryAvailable: Optional[bool] = None
     isActive: Optional[bool] = None
@@ -119,6 +121,9 @@ async def create_zone(
             )
     storage = get_storage("deliveryZones")
     result = await storage.create(zone.dict())
+    # New zone means a new zone_id — full cache clear is cheapest
+    from app.repositories.zone_seller_cache import invalidate_zone_cache
+    invalidate_zone_cache()
     return result
 
 
@@ -157,6 +162,9 @@ async def update_zone(
     updated = await storage.update(zone_id, update_data)
     if not updated:
         raise HTTPException(status_code=404, detail="Zone not found")
+    # Evict this specific zone so fresh sellers are picked up immediately
+    from app.repositories.zone_seller_cache import invalidate_zone_cache
+    invalidate_zone_cache(zone_id)
     return updated
 
 
@@ -174,4 +182,6 @@ async def delete_zone(
     result = await storage.delete(zone_id)
     if not result:
         raise HTTPException(status_code=404, detail="Zone not found")
+    from app.repositories.zone_seller_cache import invalidate_zone_cache
+    invalidate_zone_cache(zone_id)
     return {"message": "Zone deleted successfully"}

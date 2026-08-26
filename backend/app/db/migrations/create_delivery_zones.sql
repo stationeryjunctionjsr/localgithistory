@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS sj_delivery_zones (
   name                      VARCHAR(255) NOT NULL,
   description               VARCHAR(1000),
   pincodes                  LONGTEXT,                    -- JSON array of pincode strings
+  seller_ids                LONGTEXT,                    -- JSON array of seller ID strings (zone → seller mapping)
   default_capacity          INT          NOT NULL DEFAULT 10,
   urgent_delivery_available TINYINT(1)   NOT NULL DEFAULT 0,
   is_active                 TINYINT(1)   NOT NULL DEFAULT 1,
@@ -16,3 +17,7 @@ CREATE TABLE IF NOT EXISTS sj_delivery_zones (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX ix_sj_delivery_zones_active ON sj_delivery_zones (is_active);
+
+-- Migration: Add seller_ids to existing sj_delivery_zones table (run once on existing deployments)
+ALTER TABLE sj_delivery_zones
+  ADD COLUMN IF NOT EXISTS seller_ids LONGTEXT COMMENT 'JSON array of seller ID strings';

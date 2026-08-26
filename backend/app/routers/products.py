@@ -361,17 +361,15 @@ async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = Non
     brands = set()
     categories = set()
     
-    # If a pincode is provided, we fetch the serviceable sellers for this pincode
-    # to filter out products that can't be delivered there.
+    # If a pincode is provided, resolve serviceable seller IDs via the zone that
+    # contains this pincode.  Returns:
+    #   None     → pincode not in any zone → no filtering (show all)
+    #   set()    → zone found but no sellers assigned → nothing available
+    #   set(ids) → zone found with sellers → filter to these IDs
     serviceable_seller_ids = None
     if pincode:
-        from app.repositories.pincode_search_repository import pincode_search_repository
-        serviceability = await pincode_search_repository.get_pincode_serviceability(pincode)
-        if serviceability and serviceability.get("isServiceable"):
-            sellers = serviceability.get("serviceableSellers", [])
-            serviceable_seller_ids = {str(s.get("id", s.get("sellerId"))) for s in sellers}
-        else:
-            serviceable_seller_ids = set() # No sellers serviceable
+        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
+        serviceable_seller_ids = await get_seller_ids_for_pincode(pincode)
 
     for p in active_products:
         name = p.get("name", "")

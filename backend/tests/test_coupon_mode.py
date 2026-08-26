@@ -45,6 +45,13 @@ async def test_coupon_override_and_stacking():
         "force": True,
     }
     auto_coupon = await coupon_repository.create(auto_discount_data)
+    print("Created auto coupon:", auto_coupon)
+
+    from sqlalchemy import text
+    factory = coupon_repository.storage._factory()
+    async with factory() as session:
+        result = await session.execute(text(f"SELECT id, extra_data FROM sj_coupons WHERE id={auto_coupon['_id']}"))
+        print("Raw SQL row:", result.fetchone())
 
     # 3. Create an override coupon code (10% off)
     override_coupon_data = {
@@ -86,7 +93,12 @@ async def test_coupon_override_and_stacking():
         # Force reload active automatic product discounts cache
         coupon_repository._active_automatic_discounts_cache = None
         coupon_repository._active_automatic_discounts_cache_time = None
-        await coupon_repository.get_active_automatic_product_discounts()
+        
+        discounts = await coupon_repository.get_active_automatic_product_discounts()
+        print("Auto discounts found:", len(discounts))
+        print("Auto coupon id:", product_id)
+        for c in discounts:
+            print("Discount:", c.get("method"), c.get("isActive"), c.get("typeOfDiscount"), c.get("appliesToValueIds"))
 
         # Normal price calculation should apply the 15% automatic discount -> 85.0
         price_normal = product_repository.getPriceForRole(product, "customer", quantity=1)

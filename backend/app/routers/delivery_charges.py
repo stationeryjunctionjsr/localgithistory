@@ -83,31 +83,55 @@ async def get_serviceable_pincodes(current_user: dict = Depends(require_super_ad
 @router.get("/check-serviceability")
 @cache.ttl_cache(ttl=3600.0)
 async def check_serviceability(pincode: str = Query(...), userRole: Optional[str] = Query("customer")):
-    """Check if a pincode is serviceable for a user role. Also returns slot booking availability."""
+    """Check if a pincode is serviceable for a user role. Also returns slot booking availability
+    and the list of sellers that service this pincode (resolved via delivery zone)."""
     if not pincode or len(pincode) != 6 or not pincode.isdigit():
         return {
             "isServiceable": False,
             "pincode": pincode,
             "userRole": userRole,
             "sellerCount": 0,
+            "serviceableSellers": [],
             "slotBookingAvailable": False,
             "availableDates": [],
             "urgentDeliveryAvailable": False,
         }
 
     from app.db.storage_factory import get_storage
+    from app.repositories.zone_seller_cache import get_seller_ids_for_pincode, get_zone_for_pincode
+    from app.repositories.user_repository import user_repository
 
     is_serviceable = await delivery_charge_repository.isPincodeServiceable(pincode, userRole)
 
-    platform_urgent = False
-    zones_storage = get_storage("deliveryZones")
-    zones = await zones_storage.findAll({"isActive": True})
-    for z in zones:
-        if pincode in z.get("pincodes", []):
-            platform_urgent = bool(z.get("urgentDeliveryAvailable", False))
-            break
+    # ── Zone metadata (urgent delivery flag + seller IDs) ──────────────────────
+    zone = await get_zone_for_pincode(pincode)
+    platform_urgent = bool(zone.get("urgentDeliveryAvailable", False)) if zone else False
 
-    # Check if delivery slots are available for this pincode + segment
+    # Resolve seller IDs from zone
+    seller_id_set = await get_seller_ids_for_pincode(pincode)  # None | set()| set(ids)
+
+    # Build rich serviceableSellers objects for the frontend
+    serviceable_sellers: list = []
+    if seller_id_set:  # non-None and non-empty
+        for sid in seller_id_set:
+            try:
+                seller_doc = await user_repository.findById(sid)
+                if not seller_doc:
+                    continue
+                perms = seller_doc.get("sellerPermissions") or {}
+                serviceable_sellers.append({
+                    "id": str(seller_doc.get("_id", sid)),
+                    "name": seller_doc.get("name", ""),
+                    "companyName": seller_doc.get("companyName", seller_doc.get("name", "")),
+                    "city": seller_doc.get("city") or seller_doc.get("address", {}).get("city"),
+                    "allowUrgentDelivery": bool(perms.get("allowUrgentDelivery", False)),
+                    "allowDeliverySlots": bool(perms.get("allowDeliverySlots", True)),
+                })
+            except Exception as exc:
+                from app.utils.logger import logger
+                logger.warning("check_serviceability: could not fetch seller %s: %s", sid, exc)
+
+    # ── Delivery slot availability ─────────────────────────────────────────────
     slot_storage = get_storage("deliverySlots")
     segment = "wholesale" if userRole == "wholesaler" else "retail"
     import asyncio
@@ -116,7 +140,6 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
     today = dt_date.today()
     dates_to_check = [(today + timedelta(days=i)).isoformat() for i in range(7)]
 
-    # Execute all 7 date checks concurrently to avoid sequential latency
     tasks = [
         slot_storage.findAll({"date": check_date, "segment": segment, "isActive": True})
         for check_date in dates_to_check
@@ -145,11 +168,13 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
         "isServiceable": is_serviceable,
         "pincode": pincode,
         "userRole": userRole,
-        "sellerCount": 0,
+        "sellerCount": len(serviceable_sellers),
+        "serviceableSellers": serviceable_sellers,
         "slotBookingAvailable": len(available_dates) > 0,
         "availableDates": available_dates,
         "urgentDeliveryAvailable": platform_urgent,
     }
+
 
 
 @router.get("/{charge_id}", response_model=DeliveryChargeResponse)

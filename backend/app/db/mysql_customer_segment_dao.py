@@ -28,9 +28,15 @@ class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
                 "behavior": "behavior",
                 "role": "role",
             },
-            
-            bool_api_keys=frozenset({"isActive", "appUser", "isSystem"}),
+            bool_api_keys=["isActive", "isSystem", "appUser"],
+            has_external_id=True,
         )
+
+    def _row_to_doc(self, r) -> Dict:
+        doc = super()._row_to_doc(r)
+        if hasattr(r, 'external_id') and r.external_id:
+            doc['externalId'] = r.external_id
+        return doc
 
     def _flatten_filters(self, data: Dict) -> Dict:
         # Move keys from 'filters' directly into data so they get mapped by scalar_map
