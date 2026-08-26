@@ -1189,7 +1189,7 @@ class ProductRepository:
             return None
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT id, stock FROM {self.storage.TABLE} WHERE external_id = :id FOR UPDATE"),
+                text(f"SELECT id, stock FROM {self.storage.TABLE} WHERE id = :id FOR UPDATE"),
                 {"id": product_id},
             )
             row = result.fetchone()
@@ -1211,7 +1211,7 @@ class ProductRepository:
             return -1
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT id, stock FROM {self.storage.TABLE} WHERE external_id = :id FOR UPDATE"),
+                text(f"SELECT id, stock FROM {self.storage.TABLE} WHERE id = :id FOR UPDATE"),
                 {"id": product_id},
             )
             row = result.fetchone()

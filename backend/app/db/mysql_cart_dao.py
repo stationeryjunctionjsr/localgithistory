@@ -78,7 +78,7 @@ class MySQLCartDAO:
                 items_result = await session.execute(
                     text(
                         f"""
-                        SELECT cart_id, product_id, quantity, sell_as_case
+                        SELECT cart_id, product_id, quantity, sell_as_case, bundle_id, bundle_name
                         FROM {self.ITEMS_TABLE}
                         WHERE cart_id IN ({placeholders})
                         ORDER BY id ASC
@@ -92,6 +92,8 @@ class MySQLCartDAO:
                             "product": str(ir.product_id),
                             "quantity": int(ir.quantity),
                             "sellAsCase": bool(ir.sell_as_case),
+                            "bundleId": str(ir.bundle_id) if ir.bundle_id else None,
+                            "bundleName": str(ir.bundle_name) if ir.bundle_name else None,
                         }
                     )
 
@@ -115,12 +117,14 @@ class MySQLCartDAO:
                 continue
             qty = it.get("quantity", 0) or 0
             sell_as_case = 1 if it.get("sellAsCase") else 0
+            bundle_id = it.get("bundleId")
+            bundle_name = it.get("bundleName")
 
             await session.execute(
                 text(
                     f"""
-                    INSERT INTO {self.ITEMS_TABLE} (cart_id, product_id, quantity, sell_as_case)
-                    VALUES (:cart_id, :product_id, :quantity, :sell_as_case)
+                    INSERT INTO {self.ITEMS_TABLE} (cart_id, product_id, quantity, sell_as_case, bundle_id, bundle_name)
+                    VALUES (:cart_id, :product_id, :quantity, :sell_as_case, :bundle_id, :bundle_name)
                     """
                 ),
                 {
@@ -128,6 +132,8 @@ class MySQLCartDAO:
                     "product_id": str(pid_raw),
                     "quantity": qty,
                     "sell_as_case": sell_as_case,
+                    "bundle_id": bundle_id,
+                    "bundle_name": bundle_name,
                 },
             )
 

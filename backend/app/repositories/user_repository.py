@@ -193,12 +193,13 @@ class UserRepository:
                 updated_count += 1
         return updated_count
 
-    async def increment_credit_used_atomic(self, user_id: str, amount: float):
-        import json
-        from datetime import datetime, timezone
-
+    async def adjust_credit(self, user_id: str, amount: float) -> Optional[Dict]:
+        """
+        Atomically adjust user credit (positive = consume, negative = refund).
+        Uses SELECT FOR UPDATE on the relational table.
+        """
         from sqlalchemy import text
-
+        from datetime import datetime, timezone
         from app.config.database import get_async_session_factory
 
         factory = get_async_session_factory()
@@ -207,24 +208,23 @@ class UserRepository:
 
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT id, doc FROM {self.storage.TABLE} WHERE external_id = :id FOR UPDATE"),
+                text(f"SELECT id, credit_used, credit_limit FROM {self.storage.TABLE} WHERE id = :id FOR UPDATE"),
                 {"id": user_id},
             )
             row = result.fetchone()
-            if not row or not row.doc:
+            if not row:
                 return None
 
-            doc = json.loads(row.doc)
-            new_credit_used = max(0, float(doc.get("creditUsed", 0) or 0) + amount)
-            doc["creditUsed"] = new_credit_used
-            doc["updatedAt"] = datetime.now(timezone.utc).isoformat()
-
+            new_credit_used = max(0, float(row.credit_used or 0) + amount)
+            now = datetime.now(timezone.utc).isoformat()
+            
             await session.execute(
-                text(f"UPDATE {self.storage.TABLE} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :rid"),
-                {"doc": json.dumps(doc, default=str), "rid": row.id},
+                text(f"UPDATE {self.storage.TABLE} SET credit_used = :cu, updated_at = :u WHERE id = :id"),
+                {"cu": new_credit_used, "u": now, "id": user_id},
             )
             await session.commit()
-            return new_credit_used
+
+        return await self.findById(user_id)
 
 
 user_repository = UserRepository()

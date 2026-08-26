@@ -165,7 +165,7 @@ CREATE TABLE `sj_bundle_products` (
   PRIMARY KEY (`id`),
   KEY `fk_bundle_id` (`bundle_id`),
   CONSTRAINT `fk_bundle_id` FOREIGN KEY (`bundle_id`) REFERENCES `sj_bundles` (`external_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_bundles` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -177,9 +177,10 @@ CREATE TABLE `sj_bundles` (
   `is_active` tinyint(1) DEFAULT '1',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `sales_count` int DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=54 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_cart_items` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -187,10 +188,12 @@ CREATE TABLE `sj_cart_items` (
   `product_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
   `quantity` int NOT NULL,
   `sell_as_case` tinyint(1) DEFAULT '0',
+  `bundle_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bundle_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_cart_item_cart` (`cart_id`),
   CONSTRAINT `fk_cart_item_cart` FOREIGN KEY (`cart_id`) REFERENCES `sj_carts` (`external_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_carts` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -202,7 +205,7 @@ CREATE TABLE `sj_carts` (
   UNIQUE KEY `uq_sj_carts_external` (`external_id`),
   KEY `ix_sj_carts_user` (`user_id`),
   CONSTRAINT `fk_sj_carts_user` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_categories` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -220,7 +223,7 @@ CREATE TABLE `sj_categories` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_categories_external` (`external_id`),
   KEY `ix_sj_categories_active` (`is_active`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_category_category_tags` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -395,7 +398,7 @@ CREATE TABLE `sj_coupons` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_coupons_external` (`external_id`),
   UNIQUE KEY `ix_sj_coupons_code` ((upper(`code`)))
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_customer_segment_users` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -430,7 +433,7 @@ CREATE TABLE `sj_customer_segments` (
   `is_system` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_delivery_charge_def_tiers` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -587,7 +590,7 @@ CREATE TABLE `sj_event_payload` (
   PRIMARY KEY (`id`),
   KEY `fk_sj_event_p` (`parent_id`),
   CONSTRAINT `fk_sj_event_p` FOREIGN KEY (`parent_id`) REFERENCES `sj_events` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=157 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=245 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_events` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -598,7 +601,7 @@ CREATE TABLE `sj_events` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_events_external` (`external_id`),
   KEY `ix_sj_events_created` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=73 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=113 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_faq_items` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -674,7 +677,7 @@ CREATE TABLE `sj_notifications` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_notifications_external` (`external_id`),
   KEY `ix_sj_notifications_user` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_order_feedback` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -703,7 +706,7 @@ CREATE TABLE `sj_order_items` (
   KEY `ix_sj_order_items_product` (`product_id`),
   CONSTRAINT `fk_oi_order` FOREIGN KEY (`order_id`) REFERENCES `sj_orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_oi_product` FOREIGN KEY (`product_id`) REFERENCES `sj_products` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_orders` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -752,7 +755,7 @@ CREATE TABLE `sj_orders` (
   KEY `ix_sj_orders_status` (`status`),
   KEY `ix_sj_orders_created` (`created_at`),
   CONSTRAINT `fk_sj_orders_user` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_otp_send_log` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -792,7 +795,7 @@ CREATE TABLE `sj_payment_entries` (
   PRIMARY KEY (`id`),
   KEY `fk_sj_payment_ent` (`payment_id`),
   CONSTRAINT `fk_sj_payment_ent` FOREIGN KEY (`payment_id`) REFERENCES `sj_payments` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_payments` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -811,7 +814,7 @@ CREATE TABLE `sj_payments` (
   `payment_id` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_payments_external` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_pincode_searches` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -880,7 +883,7 @@ CREATE TABLE `sj_product_notifications` (
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_product_reviews` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1019,7 +1022,7 @@ CREATE TABLE `sj_products` (
   KEY `idx_products_category` (`category`),
   KEY `idx_products_sub_cat` (`sub_category`),
   FULLTEXT KEY `ft_sj_products_search` (`name`,`brand`,`category`)
-) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=126 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_promo_strips` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1063,7 +1066,7 @@ CREATE TABLE `sj_referral_settings` (
   `is_active` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_referral_settings_external` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_return_request_items` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1372,7 +1375,7 @@ CREATE TABLE `sj_sessions` (
   KEY `ix_sj_sessions_status` (`status`),
   KEY `ix_sj_sessions_refresh` (`refresh_token_id`),
   CONSTRAINT `fk_sj_sessions_user` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=68 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=150 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_stock_reservations` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1386,7 +1389,7 @@ CREATE TABLE `sj_stock_reservations` (
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_sub_order_items` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1485,7 +1488,7 @@ CREATE TABLE `sj_support_tickets` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_support_tickets_external` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_system_settings` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1548,7 +1551,7 @@ CREATE TABLE `sj_tracking` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_tracking_external` (`external_id`),
   KEY `ix_sj_tracking_created` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=147 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=233 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_tracking_cart_items` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1591,7 +1594,7 @@ CREATE TABLE `sj_user_addresses` (
   PRIMARY KEY (`id`),
   KEY `fk_usr_addr` (`user_id`),
   CONSTRAINT `fk_usr_addr` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_users` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1625,7 +1628,7 @@ CREATE TABLE `sj_users` (
   KEY `ix_sj_users_phone` (`phone`),
   KEY `ix_sj_users_role` (`role`),
   KEY `ix_sj_users_referral` (`referral_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=75 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=169 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_valet_availability` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1675,7 +1678,7 @@ CREATE TABLE `sj_wishlist_items` (
   PRIMARY KEY (`id`),
   KEY `fk_sj_wishlist_item` (`wishlist_id`),
   CONSTRAINT `fk_sj_wishlist_item` FOREIGN KEY (`wishlist_id`) REFERENCES `sj_wishlists` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_wishlists` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1687,6 +1690,6 @@ CREATE TABLE `sj_wishlists` (
   UNIQUE KEY `uq_sj_wishlists_external` (`external_id`),
   KEY `ix_sj_wishlists_user` (`user_id`),
   CONSTRAINT `fk_sj_wishlists_user` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

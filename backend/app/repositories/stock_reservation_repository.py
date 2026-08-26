@@ -180,7 +180,7 @@ class StockReservationRepository:
         async with factory() as session:
             # 1. Lock the product row
             prod_result = await session.execute(
-                text(f"SELECT id, stock FROM {product_storage.TABLE} WHERE external_id = :pid FOR UPDATE"),
+                text(f"SELECT id, stock FROM {product_storage.TABLE} WHERE id = :pid FOR UPDATE"),
                 {"pid": str(product_id)},
             )
             prod_row = prod_result.fetchone()
