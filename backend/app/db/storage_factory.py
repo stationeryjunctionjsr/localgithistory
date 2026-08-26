@@ -24,11 +24,16 @@ from app.db.mysql_flat_daos import FLAT_DAOS
 from app.db.mysql_doc_store import MySQLDocStore
 from app.db.mysql_user_dao import MySQLUserDAO
 from app.db.mysql_generated_daos import GENERATED_DAOS
+from app.db.typed_doc_configs import TYPED_DOC_DAOS
 from app.db.mysql_wishlist_dao import MySQLWishlistDAO
 from app.db.mysql_bundle_dao import MySQLBundleDAO
 from app.db.mysql_customer_segment_dao import MySQLCustomerSegmentDAO
 from app.db.mysql_faq_section_dao import MySQLFaqSectionDAO
 from app.db.mysql_valet_availability_dao import MySQLValetAvailabilityDAO
+from app.db.mysql_commission_settings_dao import MySQLCommissionSettingsDAO
+from app.db.mysql_seller_availability_dao import MySQLSellerAvailabilityDAO
+from app.db.mysql_sub_order_dao import MySQLSubOrderDAO
+from app.db.mysql_seller_request_dao import MySQLSellerRequestDAO
 from app.utils.file_storage import FileStorage
 
 # Oracle DAOs commented out since project moved to 100% relational DB (MySQL)
@@ -55,6 +60,10 @@ _MYSQL_DAO_COLLECTIONS = {
     "customerSegments": MySQLCustomerSegmentDAO,
     "faqSections": MySQLFaqSectionDAO,
     "valetAvailability": MySQLValetAvailabilityDAO,
+    "commissionSettings": MySQLCommissionSettingsDAO,
+    "sellerAvailability": MySQLSellerAvailabilityDAO,
+    "subOrders": MySQLSubOrderDAO,
+    "sellerRequests": MySQLSellerRequestDAO,
 }
 
 
@@ -69,4 +78,6 @@ def get_storage(collection_name: str) -> Any:
         return GENERATED_DAOS[collection_name]
     if collection_name in FLAT_DAOS:
         return FLAT_DAOS[collection_name]
+    if collection_name in TYPED_DOC_DAOS:
+        return TYPED_DOC_DAOS[collection_name]
     return FileStorage(collection_name)

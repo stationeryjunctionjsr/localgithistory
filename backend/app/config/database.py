@@ -60,7 +60,10 @@ def get_async_engine():
     if "pytest" in sys.modules:
         _async_engine = create_async_engine(
             DATABASE_URL,
-            poolclass=NullPool,
+            pool_size=5,
+            max_overflow=10,
+            pool_timeout=30,
+            pool_recycle=1800,
             echo=os.environ.get("SQL_ECHO", "").lower() in ("1", "true"),
             connect_args=connect_args,
         )
@@ -75,7 +78,6 @@ def get_async_engine():
             max_overflow=max_overflow,
             pool_timeout=30,
             pool_recycle=1800,
-            pool_pre_ping=True,
             echo=os.environ.get("SQL_ECHO", "").lower() in ("1", "true"),
             connect_args=connect_args,
         )

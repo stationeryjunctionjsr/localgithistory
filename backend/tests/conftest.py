@@ -7,10 +7,22 @@ from app.main import app
 from app.repositories.user_repository import user_repository
 from app.repositories.session_repository import session_repository
 
+import sys
+if sys.platform == "win32":
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    except AttributeError:
+        pass
 
 @pytest.fixture(scope="session")
 def event_loop():
     """Create a session-scoped event loop for the async tests to share connections."""
+    import sys
+    if sys.platform == "win32":
+        try:
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        except AttributeError:
+            pass
     policy = asyncio.get_event_loop_policy()
     loop = policy.new_event_loop()
     yield loop
