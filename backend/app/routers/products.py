@@ -402,6 +402,7 @@ async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = Non
 
     return {
         "products": products,
+        "suggestions": [p["name"] for p in products],
         "brands": list(brands)[:3],
         "categories": list(categories)[:3]
     }

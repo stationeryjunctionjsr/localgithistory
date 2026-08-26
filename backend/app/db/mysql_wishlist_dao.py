@@ -46,13 +46,15 @@ class MySQLWishlistDAO:
                 c_map[r.wishlist_id].append(r.product_id)
         return c_map
 
-    async def _replace_items(self, session, wid: int, items: List[str]):
+    async def _replace_items(self, session, wid: int, items: List):
         await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": wid})
-        for pid in items:
-            await session.execute(
-                text("INSERT INTO sj_wishlist_items (wishlist_id, product_id) VALUES (:wid, :pid)"),
-                {"wid": wid, "pid": str(pid)},
-            )
+        for item in items:
+            pid = item.get("product") if isinstance(item, dict) else item
+            if pid:
+                await session.execute(
+                    text("INSERT INTO sj_wishlist_items (wishlist_id, product_id) VALUES (:wid, :pid)"),
+                    {"wid": wid, "pid": str(pid)},
+                )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         factory = self._factory()

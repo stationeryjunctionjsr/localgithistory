@@ -42,13 +42,21 @@ async def get_wishlist(current_user: dict = Depends(get_current_user)):
         role_for_pricing = get_role_for_pricing(current_user)
         populated_items = []
 
-        product_ids = [item.get("product") for item in wishlist.get("items", []) if item.get("product")]
+        raw_items = wishlist.get("items", [])
+        norm_items = []
+        for it in raw_items:
+            if isinstance(it, dict):
+                norm_items.append(it)
+            elif isinstance(it, str):
+                norm_items.append({"product": it, "quantity": 1})
+
+        product_ids = [item.get("product") for item in norm_items if item.get("product")]
         products_map = {}
         if product_ids:
             products = await product_repository.findAll({"allowed_ids": product_ids})
             products_map = {str(p["_id"]): p for p in products}
 
-        for item in wishlist.get("items", []):
+        for item in norm_items:
             product = products_map.get(str(item.get("product")))
             if not product or product.get("isActive") is False:
                 continue

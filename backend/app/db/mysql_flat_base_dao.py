@@ -35,7 +35,12 @@ def _to_ts(val) -> Optional[datetime]:
     if hasattr(val, "isoformat"):
         return val
     try:
-        return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
+        s = str(val)
+        if s.endswith("Z"):
+            s = s[:-1]
+            if not s.endswith("+00:00") and "+" not in s[-6:] and "-" not in s[-6:]:
+                s += "+00:00"
+        return datetime.fromisoformat(s)
     except Exception:
         return None
 

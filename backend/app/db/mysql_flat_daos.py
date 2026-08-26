@@ -1210,7 +1210,14 @@ class MySQLStockReservationsDAO:
         if "expiresAt" in data:
             cols.append("expires_at")
             vals.append(":expiresAt")
-            params["expiresAt"] = data["expiresAt"]
+            # Convert 'Z' format to datetime object
+            exp = str(data["expiresAt"])
+            if exp.endswith("Z"):
+                exp = exp[:-1]
+                if not exp.endswith("+00:00") and "+" not in exp[-6:] and "-" not in exp[-6:]:
+                    exp += "+00:00"
+            from datetime import datetime
+            params["expiresAt"] = datetime.fromisoformat(exp)
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1247,7 +1254,13 @@ class MySQLStockReservationsDAO:
             params["status"] = merged["status"]
         if "expiresAt" in merged:
             updates.append("expires_at = :expiresAt")
-            params["expiresAt"] = merged["expiresAt"]
+            exp = str(merged["expiresAt"])
+            if exp.endswith("Z"):
+                exp = exp[:-1]
+                if not exp.endswith("+00:00") and "+" not in exp[-6:] and "-" not in exp[-6:]:
+                    exp += "+00:00"
+            from datetime import datetime
+            params["expiresAt"] = datetime.fromisoformat(exp)
 
         set_sql = ", ".join(updates)
         factory = self._factory()
