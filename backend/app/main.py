@@ -47,27 +47,88 @@ else:
     logger.debug("SENTRY_DSN not set — Sentry disabled")
 
 
+# Held open for the process lifetime to keep the OS scheduler-election lock.
+# Never close this — closing it releases the lock.
+_SCHEDULER_LOCK_FD = None
+
+# ── SINGLE-VM SCHEDULER ELECTION (file-lock) ─────────────────────────────────
+# Keeps exactly one uvicorn worker running the scheduler within this VM.
+#
+# WHEN SCALING TO MULTIPLE VMs — replace this entire block:
+#   1. Delete _try_acquire_scheduler_lock() below and _SCHEDULER_LOCK_FD above.
+#   2. Remove the `_is_scheduler_worker` guard in lifespan() below.
+#   3. In scheduler.py, uncomment start_recommendation_scheduler_multi_vm()
+#      and call it instead of start_recommendation_scheduler().
+#      (Full migration steps are documented at the top of scheduler.py.)
+# ─────────────────────────────────────────────────────────────────────────────
+def _try_acquire_scheduler_lock() -> bool:
+    """Elect exactly one uvicorn worker as the scheduler using an OS file lock.
+
+    With ``uvicorn --workers N`` all N worker processes import and execute
+    ``lifespan``.  Without a guard every worker starts its own
+    ``AsyncIOScheduler``, causing every job to run N times per tick.
+
+    Strategy: the first worker to open and ``flock(LOCK_EX | LOCK_NB)``
+    ``/tmp/sj_scheduler.lock`` wins.  Subsequent workers get ``EWOULDBLOCK``
+    and skip scheduler startup entirely.  The winning fd is stored in
+    ``_SCHEDULER_LOCK_FD`` (module-level) so it is never GC'd — closing the fd
+    would silently release the lock.
+
+    Falls back to ``True`` on non-POSIX platforms (Windows dev box) where
+    ``fcntl`` is unavailable, so local ``uvicorn app.main:app`` (single worker)
+    keeps working.
+    """
+    global _SCHEDULER_LOCK_FD
+    try:
+        import fcntl
+
+        lock_path = "/tmp/sj_scheduler.lock"
+        fd = open(lock_path, "w")  # noqa: WPS515 — intentionally kept open
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # Write PID for observability (e.g. ``cat /tmp/sj_scheduler.lock``)
+        fd.write(str(os.getpid()))
+        fd.flush()
+        _SCHEDULER_LOCK_FD = fd  # prevent garbage collection / lock release
+        logger.info("Scheduler election won by PID %d", os.getpid())
+        return True
+    except ImportError:
+        # Windows / non-POSIX: single-worker dev mode, always run scheduler
+        return True
+    except (OSError, IOError):
+        # Another worker already holds the lock
+        logger.info("Scheduler election lost (PID %d) — scheduler will not start in this worker", os.getpid())
+        return False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan — replaces deprecated @app.on_event('startup')."""
     logger.info("Application starting up...")
     await initialize_data_dir()
 
-    # Scheduled notification job
-    try:
-        from app.jobs.scheduled_notifications import start_scheduled_notification_job
+    # ── Scheduler election ────────────────────────────────────────────────────
+    # Only the winning worker starts in-process schedulers.  The OS file lock
+    # (held for the process lifetime) prevents the other N-1 workers from
+    # starting duplicate schedulers.
+    _is_scheduler_worker = _try_acquire_scheduler_lock()
 
-        start_scheduled_notification_job()
-    except Exception as e:
-        logger.warning("Could not start scheduled notification job: %s", e)
+    # Scheduled notification job
+    if _is_scheduler_worker:
+        try:
+            from app.jobs.scheduled_notifications import start_scheduled_notification_job
+
+            start_scheduled_notification_job()
+        except Exception as e:
+            logger.warning("Could not start scheduled notification job: %s", e)
 
     # Recommendation scheduler (trending + customer favourites)
-    try:
-        from app.jobs.scheduler import start_recommendation_scheduler
+    if _is_scheduler_worker:
+        try:
+            from app.jobs.scheduler import start_recommendation_scheduler
 
-        start_recommendation_scheduler()
-    except Exception as e:
-        logger.warning("Could not start recommendation scheduler: %s", e)
+            start_recommendation_scheduler()
+        except Exception as e:
+            logger.warning("Could not start recommendation scheduler: %s", e)
 
     # Seed system customer segments (deferred 30 s to avoid cold-start DB contention)
     try:
