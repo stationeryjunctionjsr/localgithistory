@@ -1,0 +1,134 @@
+flowchart TD
+    %% 1. USERS & ROLES
+    subgraph Users ["1. User Roles & Marketplace Participants (RBAC)"]
+        direction TB
+        C["Retail Customer (B2C)"]
+        W["Wholesaler (B2B)<br/>(Pending / Approved)"]
+        S["Seller Admin / Vendor<br/>(Marketplace Store Owner)"]
+        A["Super Admin (Platform Owner)"]
+        V["Valet (Delivery Agent)"]
+    end
+
+    %% 2. AUTH & ONBOARDING
+    subgraph Auth ["2. Authentication & Access Lifecycle"]
+        AuthFlow["Phone Login / Register<br/>(Rate-limited OTP / MSG91 Widget)"]
+        RoleCheck{"Role & Approval Gate"}
+        WholesaleGate["Wholesaler: Pending → Customer Pricing<br/>Approved → B2B Case Pricing & Credit"]
+        SellerGate["Seller: Store Setup, Pincodes,<br/>Permissions & Commission Tiers"]
+        ValetGate["Valet: 7-Day Slot Availability<br/>& On-Duty / Pincode Config"]
+        RetailGate["Customer: Retail Catalog Access"]
+    end
+
+    Users --> AuthFlow
+    AuthFlow --> RoleCheck
+    RoleCheck -- "Wholesaler" --> WholesaleGate
+    RoleCheck -- "Seller Admin" --> SellerGate
+    RoleCheck -- "Valet" --> ValetGate
+    RoleCheck -- "Customer" --> RetailGate
+
+    %% 3. MARKETPLACE CATALOG & RECOMMENDATIONS
+    subgraph CatalogEngines ["3. Marketplace Catalog, Search & Recommendations"]
+        Catalog["Multi-Vendor Catalog<br/>• Platform & Seller Products<br/>• Dynamic Product Tags (isNew, bestSeller, previouslyBought)<br/>• Product Bundles (Curated Kits & Stock Sync)"]
+        SearchEng["Search Engine<br/>• Tokenized & Weighted (9 fields)<br/>• Price Expressions ('under 500')<br/>• Fuzzy Typo Fallback (0.7) & Dynamic Facets"]
+        RecsEng["Dynamic Recommendations Engine<br/>• New Arrivals (30d Unbought)<br/>• Trending Now (70th %ile Conversion)<br/>• Customer & Business Favourites (Weighted)<br/>• Explore (Bottom 1/3 Neglected Categories)"]
+    end
+
+    RetailGate --> Catalog
+    WholesaleGate --> Catalog
+    SellerGate -.->|Manages Inventory| Catalog
+    Catalog --> SearchEng
+    Catalog --> RecsEng
+
+    %% 4. CART & MARKETPLACE SPLIT
+    subgraph CartSection ["4. Cart Management & Split-Cart Sub-Orders"]
+        Cart["Unified Multi-Vendor Cart<br/>• Server-Side Pricing (MRP vs Case)<br/>• Bundle Unpacking (bundleId)<br/>• Stock Hold (10m Retail / 30m B2B)"]
+        SplitCheck{"Multi-Seller Items?"}
+        SingleOrder["Single Parent Order"]
+        SplitOrders["Split-Cart Sub-Orders<br/>• Parent Order: Global Payment & Summary<br/>• Sub-Order A (Seller 1): Items, Shipping, Slot<br/>• Sub-Order B (Seller 2): Items, Shipping, Slot"]
+    end
+
+    SearchEng --> Cart
+    RecsEng --> Cart
+    Cart --> SplitCheck
+    SplitCheck -- "Single Seller / Platform" --> SingleOrder
+    SplitCheck -- "Multiple Sellers" --> SplitOrders
+
+    %% 5. CHECKOUT PIPELINE
+    subgraph CheckoutPipeline ["5. Checkout & Financial Calculations"]
+        PreVal{"Pre-Flight Validation<br/>• Stock Reservations Valid<br/>• B2B Overdue Dues Check<br/>• Pincode Serviceability"}
+        DelivSlots["Delivery & Time-Slot Engine<br/>• Standard / Urgent Delivery Selection<br/>• Date & Slot Capacity Booking<br/>• Tiered Shipping & 18% Shipping GST"]
+        Discounts["Coupons, BXGY & Referrals<br/>• Conflict Avoidance Engine<br/>• BXGY Proportional Discount Split<br/>• 1st-Order Referral Distribution"]
+        Taxes["Tax Engine (CGST & SGST Split)"]
+    end
+
+    SingleOrder --> PreVal
+    SplitOrders --> PreVal
+    PreVal --> DelivSlots
+    DelivSlots --> Discounts
+    Discounts --> Taxes
+
+    %% 6. PAYMENTS & SETTLEMENT
+    subgraph PaymentFlow ["6. Payment Processing & Credit Settlement"]
+        PayChoice{"Payment Method"}
+        CODOrder["Cash on Delivery (COD)<br/>• Status: Pending"]
+        UPIOrder["UPI Payment<br/>• Screenshot Upload<br/>• Admin Manual Verification"]
+        CreditOrder["B2B Credit Payment<br/>• Ledger Entry (Due Date = Date + Terms)<br/>• Overdue Bills Lock Future Orders"]
+        CreditSettlement["Credit Dues Settlement<br/>• Wholesaler UPI Settlement Submission<br/>• Admin Verification & Lock Release"]
+    end
+
+    Taxes --> PayChoice
+    PayChoice -- "COD" --> CODOrder
+    PayChoice -- "UPI" --> UPIOrder
+    PayChoice -- "Credit" --> CreditOrder
+    CreditOrder -.-> CreditSettlement
+    CreditSettlement -.-> A
+
+    %% 7. VALET DISPATCH & AUTO-CASCADE ENGINE
+    subgraph ValetDispatchEngine ["7. Valet Matching, Dispatch & Auto-Cascade Engine"]
+        OrderReady["Order Processing<br/>(Seller / Admin prepares order)"]
+        ValetFilter["4-Step Valet Eligibility Matcher<br/>1. On-Duty Status (isOnDuty=True)<br/>2. Seller Pincode Serviceability<br/>3. Date & Time Slot Availability<br/>4. Active Order Capacity Sort (Least Busy)"]
+        DispatchAction["Dispatch Order (status: pending_valet)<br/>• Push Notification to Selected Valet<br/>• Timeout Window: 5 min (Urgent) / 20 min (Normal)"]
+        ValetDecision{"Valet Action / Timeout"}
+        ValetAccept["Valet Accepts<br/>• Status → 'shipped'<br/>• Assigned Valet Confirmed<br/>• Seller Notified & Invoice Generated"]
+        ValetDecline["Valet Declines / Window Expires<br/>(Tracked in valetDeclineHistory)"]
+        CascadeCheck{"Next Eligible Valet Available?"}
+        NextValet["Auto-Cascade to Next Valet<br/>(valetCascadeCount + 1)"]
+        RevertOrder["No Valets Available<br/>• Revert Status → 'processing'<br/>• Urgent Alert to Seller/Admin for Manual Reassign"]
+    end
+
+    CODOrder --> OrderReady
+    UPIOrder -- "Verified" --> OrderReady
+    CreditOrder --> OrderReady
+
+    OrderReady --> ValetFilter
+    ValetFilter --> DispatchAction
+    DispatchAction --> ValetDecision
+    ValetDecision -- "Accepts" --> ValetAccept
+    ValetDecision -- "Declines / Timed Out" --> ValetDecline
+    ValetDecline --> CascadeCheck
+    CascadeCheck -- "Yes" --> NextValet
+    NextValet --> DispatchAction
+    CascadeCheck -- "No" --> RevertOrder
+    RevertOrder -.->|Manual Reassign| ValetFilter
+
+    %% 8. DELIVERY & COMMISSION LIFECYCLE
+    subgraph DeliveryCommission ["8. Delivery Execution & Marketplace Commission"]
+        OutForDelivery["Valet Out for Delivery"]
+        DeliveredState["Order Delivered & Payment Confirmed<br/>• COD Cash Collected by Valet<br/>• Dynamic PDF Invoice Generated (OCI)"]
+        CommissionFlow["Marketplace Commission Lifecycle<br/>• Tiers / Seller Override Percentage<br/>• Delivered → commissionStatus: 'unrealized'<br/>• Return Window (7d) Expires → commissionStatus: 'realized'<br/>• Seller Payout Balance Credited"]
+    end
+
+    ValetAccept --> OutForDelivery
+    OutForDelivery --> DeliveredState
+    DeliveredState --> CommissionFlow
+
+    %% 9. POST-DELIVERY & ENGAGEMENT
+    subgraph PostDeliveryEngage ["9. Post-Delivery, Returns, Reviews & Engagement"]
+        ReturnProcess["4-Stage Return & Refund Flow<br/>1. PENDING (Customer requests within returnDays)<br/>2. ASSIGNED (Seller/Admin assigns Valet)<br/>3. COLLECTED (Valet physical item pickup)<br/>4. RETURNED (Warehouse check, auto-restock & refund)"]
+        ReviewProcess["Proof-of-Purchase Reviews<br/>• Delivered items only<br/>• Classification Tag selection<br/>• Super Admin Moderation & Live Score Recalculation"]
+        PlatformOps["Platform Operations & Marketing<br/>• Customer Segmentation (16 Cohorts + Custom Filters)<br/>• Push Notifications (Expo & Web Push VAPID)<br/>• Unified Support Ticketing<br/>• Headless Dynamic CMS"]
+    end
+
+    DeliveredState --> ReturnProcess
+    DeliveredState --> ReviewProcess
+    CommissionFlow --> PlatformOps

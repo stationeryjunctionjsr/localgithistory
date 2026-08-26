@@ -1,0 +1,1203 @@
+﻿diff --git a/backend/app/repositories/product_repository.py b/backend/app/repositories/product_repository.py
+index 7cbd206..06f5cad 100644
+--- a/backend/app/repositories/product_repository.py
++++ b/backend/app/repositories/product_repository.py
+@@ -15,6 +15,10 @@ class ProductRepository:
+         self._collections_cache_time = None
+         self._cat_gst_map: Optional[Dict[str, float]] = None
+         self._cat_gst_map_exp: float = 0.0
++        # Lock prevents thundering herd: only one coroutine rebuilds the
++        # lightweight search catalog at a time; all others wait then serve from cache.
++        self._light_catalog_lock = asyncio.Lock()
++        self._light_catalog_cache: Dict = {}
+ 
+     def _parse_date(self, date_str: str) -> Optional[datetime]:
+         if not date_str:
+@@ -40,6 +44,7 @@ class ProductRepository:
+         "collections": 4,
+         "brand": 3,
+         "variantAttributes": 3,
++        "price": 6,
+         "description": 1,
+     }
+ 
+@@ -53,12 +58,30 @@ class ProductRepository:
+             for k, v in attrs.items() if isinstance(attrs, dict) else []:
+                 parts.append(str(k).lower())
+                 parts.append(str(v).lower())
++            if "price" in combo and combo["price"] is not None:
++                p_val = float(combo["price"])
++                parts.append(str(p_val))
++                parts.append(str(int(p_val)))
+         return " ".join(parts)
+ 
++    def _extract_price_text(self, product: Dict) -> str:
++        """Collect text representations of all prices for a product (MRP, case MRP, variant prices)."""
++        parts = []
++        mrp = product.get("mrp")
++        if mrp is not None:
++            fmrp = float(mrp)
++            parts.extend([str(fmrp), str(int(fmrp)), f"rs {int(fmrp)}", f"Γé╣{int(fmrp)}", f"rs.{int(fmrp)}"])
++        mrp_case = product.get("mrpPerCase")
++        if mrp_case is not None:
++            fmrp_case = float(mrp_case)
++            parts.extend([str(fmrp_case), str(int(fmrp_case))])
++        return " ".join(parts).lower()
++
+     def _score_product(self, product: Dict, tokens: List[str]) -> float:
+         """Score a product against search tokens using weighted field matching.
+-        All tokens must match at least one field (AND logic). Score is the sum of field weights."""
++        Supports text matching, price matching, and price range expression matching."""
+         score = 0.0
++        price_text = self._extract_price_text(product)
+         fields = {
+             "name": (product.get("name") or "").lower(),
+             "sku": (product.get("sku") or "").lower(),
+@@ -69,22 +92,67 @@ class ProductRepository:
+             "collections": " ".join(product.get("resolvedCollectionNames") or []).lower(),
+             "brand": (product.get("brand") or "").lower(),
+             "variantAttributes": self._get_variant_search_text(product),
++            "price": price_text,
+             "description": (product.get("description") or "").lower(),
+         }
+ 
++        # Check price range expression patterns across raw query tokens (e.g. 'under 500', 'below 300', '100-500')
++        import re
++        full_query = " ".join(tokens).lower()
++        prod_mrp = float(product.get("mrp") or 0.0)
++
++        price_expr_matched = False
++        # Pattern 1: under/below/less than X or <=X
++        match_under = re.search(r'(?:under|below|less\s+than|<=)\s*Γé╣?\s*(\d+(?:\.\d+)?)', full_query)
++        if match_under:
++            limit_val = float(match_under.group(1))
++            if prod_mrp > 0 and prod_mrp <= limit_val:
++                score += self.SEARCH_WEIGHTS["price"] * 2.0
++                price_expr_matched = True
++
++        # Pattern 2: above/over/more than X or >=X
++        match_above = re.search(r'(?:above|over|more\s+than|>=)\s*Γé╣?\s*(\d+(?:\.\d+)?)', full_query)
++        if match_above:
++            limit_val = float(match_above.group(1))
++            if prod_mrp >= limit_val:
++                score += self.SEARCH_WEIGHTS["price"] * 2.0
++                price_expr_matched = True
++
++        # Pattern 3: X to Y or X-Y
++        match_range = re.search(r'(\d+(?:\.\d+)?)\s*(?:to|-)\s*(\d+(?:\.\d+)?)', full_query)
++        if match_range:
++            low_val, high_val = float(match_range.group(1)), float(match_range.group(2))
++            if prod_mrp >= low_val and prod_mrp <= high_val:
++                score += self.SEARCH_WEIGHTS["price"] * 2.0
++                price_expr_matched = True
++
++        price_expr_keywords = {"under", "below", "less", "than", "above", "over", "more", "to"}
++
+         for token in tokens:
++            # Clean currency symbols from token (e.g. 'Γé╣500' -> '500', 'rs500' -> '500')
++            clean_token = re.sub(r'^(?:rs\.?|Γé╣)', '', token).strip()
++            if not clean_token:
++                clean_token = token
++
+             token_matched = False
+             for field_name, field_value in fields.items():
+-                if token in field_value:
++                if clean_token in field_value or token in field_value:
+                     score += self.SEARCH_WEIGHTS[field_name]
+                     token_matched = True
++
++            # If token is part of a price expression keyword/value and price expression matched, count token as matched
++            if not token_matched and (price_expr_matched or token in price_expr_keywords):
++                if price_expr_matched:
++                    token_matched = True
++
+             if not token_matched:
+                 return 0.0  # AND logic: all tokens must match somewhere
+         return score
+ 
+-    def _weighted_search(self, products: List[Dict], search_query: str) -> Dict:
++    async def _weighted_search(self, products: List[Dict], search_query: str) -> Dict:
+         """Filter and rank products using multi-word tokenized search with weighted relevance scoring.
+-        Falls back to fuzzy matching if exact search yields fewer than 5 results."""
++        Falls back to fuzzy matching if exact search yields fewer than 5 results.
++        The CPU-heavy fuzzy search is offloaded to a thread pool to avoid blocking the event loop."""
+         tokens = [t.lower() for t in search_query.split() if t.strip()]
+         if not tokens:
+             return {"products": products, "usedFuzzy": False, "suggestedQuery": None}
+@@ -99,9 +167,13 @@ class ProductRepository:
+         used_fuzzy = False
+         suggested_query = None
+ 
+-        # Fuzzy fallback if too few exact results
++        # Fuzzy fallback if too few exact results ΓÇö run in thread pool to avoid blocking the event loop
+         if len(scored) < 5:
+-            fuzzy_results, suggested_query = self._fuzzy_search(products, tokens, already_matched={p.get("_id") for p in scored})
++            already_matched = {p.get("_id") for p in scored}
++            loop = asyncio.get_event_loop()
++            fuzzy_results, suggested_query = await loop.run_in_executor(
++                None, self._fuzzy_search, products, tokens, already_matched
++            )
+             if fuzzy_results:
+                 scored.extend(fuzzy_results)
+                 used_fuzzy = True
+@@ -185,47 +257,54 @@ class ProductRepository:
+         return fuzzy_results, suggested_query
+ 
+     async def _get_lightweight_search_catalog(self, role: str, user_id: Optional[str]) -> List[Dict]:
+-        import time as _t
+-        
+         _TTL = 300.0
+-        now_m = _t.monotonic()
++        now_m = time_module.monotonic()
+         effective_role = "wholesaler" if role == "wholesaler" else "customer"
+-        
+-        if not hasattr(self, "_light_catalog_cache"):
+-            self._light_catalog_cache = {}
+-            
++
++        # Fast path: serve from warm cache without acquiring the lock
+         entry = self._light_catalog_cache.get(effective_role)
+         if entry and now_m < entry["exp"]:
+             return entry["data"]
+-            
+-        raw_products = await self.storage.findAll({"isActive": True})
+-        
+-        products = await self._attach_category_gst(raw_products)
+-        products = await self.add_dynamic_tags(products, effective_role, None)
+-        products = await self.resolve_search_tags(products)
+-        
+-        light_products = []
+-        for p in products:
+-            light_products.append({
+-                "_id": p.get("_id"),
+-                "name": p.get("name"),
+-                "sku": p.get("sku"),
+-                "searchTags": p.get("searchTags"),
+-                "category": p.get("category"),
+-                "categoryTag": p.get("categoryTag"),
+-                "subCategory": p.get("subCategory"),
+-                "resolvedCollectionNames": p.get("resolvedCollectionNames"),
+-                "brand": p.get("brand"),
+-                "variantAttributes": p.get("variantAttributes"),
+-                "variantCombinations": p.get("variantCombinations"),
+-                "description": p.get("description"),
+-            })
+-            
+-        self._light_catalog_cache[effective_role] = {
+-            "data": light_products,
+-            "exp": now_m + _TTL
+-        }
+-        return light_products
++
++        # Slow path: cache is cold or expired ΓÇö acquire lock so only ONE
++        # coroutine rebuilds it while all others wait, then serve from cache.
++        async with self._light_catalog_lock:
++            # Double-check: another coroutine may have built the cache
++            # while we were waiting for the lock.
++            entry = self._light_catalog_cache.get(effective_role)
++            if entry and now_m < entry["exp"]:
++                return entry["data"]
++
++            # We are genuinely the first ΓÇö build the cache now.
++            raw_products = await self.storage.findAll({"isActive": True})
++
++            products = await self._attach_category_gst(raw_products)
++            products = await self.add_dynamic_tags(products, effective_role, None)
++            products = await self.resolve_search_tags(products)
++
++            light_products = [
++                {
++                    "_id": p.get("_id"),
++                    "name": p.get("name"),
++                    "sku": p.get("sku"),
++                    "searchTags": p.get("searchTags"),
++                    "category": p.get("category"),
++                    "categoryTag": p.get("categoryTag"),
++                    "subCategory": p.get("subCategory"),
++                    "resolvedCollectionNames": p.get("resolvedCollectionNames"),
++                    "brand": p.get("brand"),
++                    "variantAttributes": p.get("variantAttributes"),
++                    "variantCombinations": p.get("variantCombinations"),
++                    "description": p.get("description"),
++                }
++                for p in products
++            ]
++
++            self._light_catalog_cache[effective_role] = {
++                "data": light_products,
++                "exp": time_module.monotonic() + _TTL,
++            }
++            return light_products
+ 
+     async def _attach_category_gst(self, products: List[Dict]) -> List[Dict]:
+         if not products:
+@@ -302,7 +381,7 @@ class ProductRepository:
+ 
+         # Apply weighted search AFTER tag resolution
+         if search_query:
+-            search_res = self._weighted_search(products, search_query)
++            search_res = await self._weighted_search(products, search_query)
+             products = search_res["products"]
+ 
+         # Apply popularity filter (new, best_selling, trending; exclusive ΓåÆ Collections)
+@@ -488,7 +567,7 @@ class ProductRepository:
+                 candidate_products = await self._get_lightweight_search_catalog(role, user_id)
+                 
+                 # 2. Apply python-side fuzzy search
+-                search_res = self._weighted_search(candidate_products, search_query)
++                search_res = await self._weighted_search(candidate_products, search_query)
+                 matched_products = search_res["products"]
+                 used_fuzzy = search_res["usedFuzzy"]
+                 suggested_query = search_res["suggestedQuery"]
+@@ -661,6 +740,8 @@ class ProductRepository:
+             elif role in ["customer", "guest"] and pid in trending_ids["customer"]:
+                 final_tags.append("trending")
+             p["tags"] = final_tags
++            # Mark products the logged-in user has previously bought (all-time, not time-limited)
++            p["previouslyBought"] = bool(user_id and str(pid) in user_ordered_pids)
+ 
+         return products
+ 
+diff --git a/backend/app/repositories/recommendation_repository.py b/backend/app/repositories/recommendation_repository.py
+index 4903f4f..4a9edab 100644
+--- a/backend/app/repositories/recommendation_repository.py
++++ b/backend/app/repositories/recommendation_repository.py
+@@ -49,7 +49,7 @@ def _load_config() -> Dict:
+     _defaults = {
+         "engagement_days": 30,
+         "engagement_weights": {"product_view": 1, "add_to_cart": 3},
+-        "strategy_limits": {"trending": 10, "user_favorites": 5, "explore": 5},
++        "strategy_limits": {"trending": 10, "user_favorites": 24, "explore": 24, "new_arrivals": 24},
+         "total_limit": 20,
+         "bandit": {"epsilon": 0.2, "personal_threshold": 10},
+         "customer_favourites_weights": {"frequency": 0.7, "quantity": 0.3},
+@@ -224,6 +224,7 @@ class RecommendationRepository:
+         self.activity_storage = get_storage("activities")
+         self.user_storage = get_storage("users")
+         self.cart_storage = get_storage("carts")
++        self.bundle_storage = get_storage("bundles")
+         self._rewards_lock = asyncio.Lock()
+ 
+     async def _get_retail_customer_ids(self) -> set:
+@@ -303,19 +304,33 @@ class RecommendationRepository:
+         self,
+         segment: str,
+         days: int = 7,
+-        min_search_count: int = 10,
+-        top_per_subcategory: int = 5,
++        top_percentile: float = 0.30,
+         exclude_product_ids: Optional[Set[str]] = None,
+         use_cache: bool = True,
++        limit: Optional[int] = None,
+     ) -> List[str]:
+         """
+-        Trending Now: search-to-sale journey only. Per subcategory, top products by
+-        conversion_rate = converted_sales_count / search_count (last `days`).
+-        - search_count = number of searches that included this product (segment).
+-        - converted_sales_count = number of orders containing this product where the same
+-          user/session had searched for this product within 7 days before the order (search then sold within 7 days).
+-        - Skip if search_count < min_search_count.
+-        - Sort by conversion_rate descending, take top_per_subcategory per subcategory.
++        Trending Now: search-to-sale journey only.
++
++        Algorithm:
++        1. Score every product with ΓëÑ 1 search in the last `days` days:
++               score = converted_sales / search_count
++           (converted_sales = orders where the same user/session searched this product first).
++
++        2. Compute the (1 - top_percentile) score cutoff across all scored products.
++           e.g. top_percentile=0.30 ΓåÆ keep products at or above the 70th-percentile score.
++           The bar is always relative to the current window: it rises when many products
++           convert well, and falls when traffic is thin ΓÇö no hardcoded number.
++
++        3. Apply exclude_product_ids to the eligible pool.
++
++        4. Sort the remaining pool by score descending.
++
++        5. Return between `limit` (R) and `2├ùlimit` (2R) products ΓÇö the exact count is
++           the size of the eligible pool clamped into that band, so the list can
++           naturally grow during busy periods without being artificially capped at R.
++           If `limit` is not set, return the full eligible pool.
++
+         If use_cache=True, returns from cache when available (written by scheduled job).
+         """
+         if use_cache:
+@@ -328,25 +343,19 @@ class RecommendationRepository:
+         prefix = self._order_segment_prefix(segment)
+         if not prefix:
+             return []
+-        exclude = exclude_product_ids or set()
+-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
++        date_cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+ 
+-        # Search events (last 7 days) with productIds for linking
++        # ΓöÇΓöÇ Step 1: search events in window ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+         searches = await tracking_repository.get_searches_with_products(days, segment)
+ 
+-        # Orders in last 7 days (segment)
+-        # Use database-side filtering for date and possibly segment if supported
+-        # Note: OracleOrderDAO supports filtering by user, but maybe not by date in a generic way yet.
+-        # But we can at least pass an empty query to trigger the optimized findAll.
++        # ΓöÇΓöÇ Step 2: orders in window (segment) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+         orders = await self.order_storage.findAll()
+         converted_sales_count: Dict[str, int] = {}
+         for order in orders:
+-            # Filtering still needed in Python if DAO doesn't support date range yet,
+-            # but at least we've optimized the underlying query execution.
+             if not (order.get("orderNumber") or str(order.get("orderNumber", "")).startswith(prefix)):
+                 continue
+             order_dt = _parse_order_date(order)
+-            if not order_dt or order_dt < cutoff:
++            if not order_dt or order_dt < date_cutoff:
+                 continue
+             if order.get("status") == "cancelled":
+                 continue
+@@ -359,15 +368,12 @@ class RecommendationRepository:
+                 if pid:
+                     pids_in_order.add(pid)
+             for pid in pids_in_order:
+-                # Count only if this order is linked to a search for P within 7 days before order
+                 linked = False
+                 for s in searches:
+                     if pid not in (s.get("productIds") or []):
+                         continue
+                     st = s.get("timestamp")
+-                    if not st:
+-                        continue
+-                    if st > order_dt or st < order_start:
++                    if not st or st > order_dt or st < order_start:
+                         continue
+                     if order_user and s.get("userId") == order_user:
+                         linked = True
+@@ -378,45 +384,52 @@ class RecommendationRepository:
+                 if linked:
+                     converted_sales_count[pid] = converted_sales_count.get(pid, 0) + 1
+ 
+-        # Search counts per product (segment)
++        # ΓöÇΓöÇ Step 3: search counts per product ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+         search_count = await tracking_repository.get_search_counts_by_product(days, segment)
+ 
+-        # Products and subcategories - ONLY fetch active products
+-        all_products = await self.product_storage.findAll({"isActive": True})
+-        pid_to_subcat: Dict[str, str] = {}
+-        for p in all_products:
+-            pid = p.get("_id")
+-            if pid:
+-                pid_to_subcat[pid] = p.get("subCategory") or "None"
+-
+-        # Build candidates: (pid, subcat, conversion_rate); skip if search_count < min_search_count
+-        candidates: List[Tuple[str, str, float]] = []
++        # ΓöÇΓöÇ Step 4: score every product with ΓëÑ1 search ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        # (No subcat grouping ΓÇö all products compete in one global pool)
++        all_scored: List[Tuple[str, float]] = []
+         for pid, sc in search_count.items():
+-            if sc < min_search_count or pid in exclude:
++            if sc < 1:
+                 continue
+-            subcat = pid_to_subcat.get(pid, "None")
+             converted = converted_sales_count.get(pid, 0)
+-            rate = converted / sc if sc else 0.0
+-            candidates.append((pid, subcat, rate))
+-
+-        # Include products that have sales but no search data? No - we require search_count >= 10.
+-
+-        # Group by subcategory, sort by conversion desc, take top_per_subcategory per subcategory
+-        by_subcat: Dict[str, List[Tuple[str, float]]] = {}
+-        for pid, subcat, rate in candidates:
+-            by_subcat.setdefault(subcat, []).append((pid, rate))
+-        # Flatten to (pid, rate), sort by rate descending so rank 1 (highest) is first
+-        flat: List[Tuple[str, float]] = []
+-        for subcat in sorted(by_subcat.keys()):
+-            sorted_pids = sorted(by_subcat[subcat], key=lambda x: x[1], reverse=True)[:top_per_subcategory]
+-            flat.extend(sorted_pids)
+-        flat.sort(key=lambda x: x[1], reverse=True)
+-        return [pid for pid, _ in flat]
++            rate = converted / sc  # conversion score Γêê [0, 1]
++            all_scored.append((pid, rate))
++
++        if not all_scored:
++            return []
++
++        # ΓöÇΓöÇ Step 5: top-percentile cutoff ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        scores_only = sorted([rate for _, rate in all_scored])  # ascending
++        cutoff_index = max(0, int(len(scores_only) * (1.0 - top_percentile)) - 1)
++        score_cutoff = scores_only[cutoff_index]  # 70th-percentile value
++        logger.info(
++            "[Trending] segment=%s scored=%d score_cutoff=%.4f (top %.0f%%)",
++            segment, len(all_scored), score_cutoff, top_percentile * 100,
++        )
++
++        # ΓöÇΓöÇ Step 6: apply exclusion list, then sort by score descending ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        exclude = exclude_product_ids or set()
++        eligible = [
++            (pid, rate)
++            for pid, rate in all_scored
++            if rate >= score_cutoff and pid not in exclude
++        ]
++        eligible.sort(key=lambda x: x[1], reverse=True)
++
++        # ΓöÇΓöÇ Step 7: return eligible pool ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        # The full sorted pool is returned so the frontend's row-based display logic
++        # (getSectionDisplayConfig) can decide how many rows and whether to show
++        # "Show more". The caller's `limit` acts as a safety cap for very large pools,
++        # but no artificial R-to-2R banding is applied here.
++        result = [pid for pid, _ in eligible]
++        return result[:limit] if limit else result
+ 
+     async def get_trending_product_ids(self, segment: str) -> Set[str]:
+         """Set of product IDs that are Trending Now for this segment (for tagging in catalog)."""
+         ids = await self.get_trending_by_conversion(
+-            segment, days=7, min_search_count=10, top_per_subcategory=5, exclude_product_ids=set()
++            segment, days=7, top_percentile=0.30, exclude_product_ids=set()
+         )
+         return set(ids)
+ 
+@@ -582,6 +595,108 @@ class RecommendationRepository:
+         ids = await self.get_business_favourites_by_subcategory(days=60)
+         return set(ids)
+ 
++    async def _get_bundles_as_items(
++        self,
++        product_map: Optional[Dict] = None,
++    ) -> List[Dict]:
++        """
++        Fetch all active bundles and transform them into product-like dicts
++        suitable for inclusion in recommendation sections.
++        Each bundle is treated as a single unit (not expanded into component products).
++        Returns list of bundle-as-product dicts with isBundle=True.
++        """
++        try:
++            bundles_raw = await self.bundle_storage.findAll({"isActive": True})
++        except Exception:
++            logger.exception("Error fetching bundles for recommendations")
++            return []
++
++        if not bundles_raw:
++            return []
++
++        # If product_map not provided, fetch products for image/category resolution
++        if product_map is None:
++            all_products = await self.product_storage.findAll({"isActive": True})
++            product_map = {p.get("_id"): p for p in all_products if p.get("_id")}
++
++        result = []
++        for b in bundles_raw:
++            if not b.get("_id"):
++                continue
++            # Resolve display image
++            display_img = b.get("displayImage") or b.get("imageUrl")
++            if not display_img:
++                for bitem in b.get("items", []):
++                    p = product_map.get(bitem.get("productId", ""))
++                    if p and p.get("images"):
++                        display_img = p["images"][0]
++                        break
++
++            # Resolve category/subCategory/brand
++            # Admin-set fields take priority; else derive from first component product
++            category = b.get("category")
++            sub_category = b.get("subCategory")
++            brand = b.get("brand")
++            if not category or not sub_category or not brand:
++                for bitem in b.get("items", []):
++                    p = product_map.get(bitem.get("productId", ""))
++                    if p:
++                        if not category:
++                            category = p.get("category")
++                        if not sub_category:
++                            sub_category = p.get("subCategory")
++                        if not brand:
++                            brand = p.get("brand")
++                    if category and sub_category and brand:
++                        break
++
++            # Compute stock: available if all components have stock >= their quantity
++            all_in_stock = True
++            for bitem in b.get("items", []):
++                p = product_map.get(bitem.get("productId", ""))
++                if not p or (p.get("stock", 0) or 0) < (bitem.get("quantity", 1) or 1):
++                    all_in_stock = False
++                    break
++
++            if not all_in_stock:
++                continue  # skip unavailable bundles from recommendations
++
++            # Compute savings
++            total_mrp = sum(
++                (product_map.get(bitem.get("productId", ""), {}).get("mrp", 0) or 0)
++                * (bitem.get("quantity", 1) or 1)
++                for bitem in b.get("items", [])
++            )
++            bundle_price = b.get("price", 0) or 0
++            savings_pct = round((total_mrp - bundle_price) / total_mrp * 100, 1) if total_mrp else 0
++
++            result.append({
++                "_id": b["_id"],
++                "name": b.get("name", ""),
++                "price": bundle_price,
++                "mrp": total_mrp,
++                "displayImage": display_img,
++                "images": [display_img] if display_img else [],
++                "stock": 999,  # treated as always in stock for display (already filtered above)
++                "isActive": True,
++                "isBundle": True,
++                "salesCount": b.get("salesCount", 0),
++                "createdAt": b.get("createdAt"),
++                "category": category,
++                "subCategory": sub_category,
++                "brand": brand,
++                "savingsPercent": savings_pct,
++                "totalMrp": round(total_mrp, 2),
++                "savings": round(total_mrp - bundle_price, 2),
++                "items": b.get("items", []),
++                "description": b.get("description"),
++                # Mimick product fields used in catalog cards
++                "bestSeller": b.get("salesCount", 0) > 0,
++                "isNew": False,  # overridden in New Arrivals section
++                "previouslyBought": False,
++            })
++        return result
++
+     async def compute_business_favourites_for_cache(self, days: int = 60) -> Dict:
+         """Compute Business Favourites (top 1 per subcategory by quantity+frequency, wholesaler orders, 60d) for the job."""
+         ids = await self.get_business_favourites_by_subcategory(days=days)
+@@ -689,10 +804,13 @@ class RecommendationRepository:
+             "cities": sorted(cities_seen),
+         }
+ 
+-    async def get_new_arrivals(self, user_id: Optional[str], role: Optional[str], limit: int = 10) -> List[str]:
++    async def get_new_arrivals(
++        self, user_id: Optional[str], role: Optional[str], limit: int = 10, exclude_product_ids: Optional[Set[str]] = None
++    ) -> List[str]:
+ 
+         """New Arrivals: products created in last 30 days. For retail, exclude products user already bought (any time)."""
+         _load_config()
++        exclude = exclude_product_ids or set()
+         days_new = 30  # same as add_dynamic_tags "new" tag
+         cutoff = datetime.now(timezone.utc) - timedelta(days=days_new)
+         all_products = await self.product_storage.findAll()
+@@ -709,7 +827,7 @@ class RecommendationRepository:
+         candidates: List[Tuple[str, Optional[datetime]]] = []
+         for p in all_products:
+             pid = p.get("_id")
+-            if not pid or pid in user_ordered:
++            if not pid or pid in user_ordered or pid in exclude:
+                 continue
+             created = _parse_order_date({"createdAt": p.get("createdAt")}) if p.get("createdAt") else None
+             if created and created >= cutoff:
+@@ -854,19 +972,29 @@ class RecommendationRepository:
+         return [pid for pid, _ in sorted_products]
+ 
+     async def get_best_selling_from_least_bought_categories(
+-        self, user_id: str, limit: int = 5, days: int = 60
++        self, user_id: str, target_total: int = 24, days: int = 60, exclude_product_ids: Optional[Set[str]] = None
+     ) -> List[str]:
+-        """Best selling products from categories this user bought least from (Explore ΓÇô based on logged-in user orders)."""
++        """
++        Explore: Best-selling products from subcategories this user bought least from.
++
++        Algorithm:
++          1. Count subCategories purchased from in the last `days` days ΓåÆ n subcategories.
++          2. Pick bottom round(n / 3) subcategories (those with the fewest purchases). min 1.
++          3. Set products_per_subcat = max(1, round(target_total / neglected_count)).
++          4. For each neglected subcat, pick the top `products_per_subcat` best-sellers
++             (by all-time quantity sold) not in `exclude_product_ids`.
++          Explore stays strictly within the n/3 neglected subcategories ΓÇö no refill from others.
++        """
+         cutoff = datetime.utcnow() - timedelta(days=days)
+-        # Fetch orders and products once each (avoids duplicate full-table scans)
+         orders, products = await asyncio.gather(
+             self.order_storage.findAll(),
+             self.product_storage.findAll(),
+         )
+-        # Build product lookup: id -> product
+         product_by_id: Dict[str, Dict] = {p.get("_id"): p for p in products if p.get("_id")}
++        exclude = set(exclude_product_ids) if exclude_product_ids else set()
+ 
+-        user_product_ids: set = set()
++        # ΓöÇΓöÇ Step 1: count subcategories the user bought from in the window ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        subcat_counts: Dict[str, int] = {}
+         for o in orders:
+             if o.get("user") != user_id:
+                 continue
+@@ -874,51 +1002,68 @@ class RecommendationRepository:
+             if not dt or dt < cutoff:
+                 continue
+             for item in o.get("items", []):
+-                product_id = item.get("product") or item.get("productId")
+-                if product_id:
+-                    user_product_ids.add(product_id)
+-
+-        # Count categories from products this user purchased
+-        category_counts: Dict[str, int] = {}
+-        for pid in user_product_ids:
+-            p = product_by_id.get(pid)
+-            if p:
+-                cat = p.get("category")
+-                if cat:
+-                    category_counts[cat] = category_counts.get(cat, 0) + 1
+-
+-        # Find categories with least purchases (at least 1 purchase)
+-        categories_with_purchases = [
+-            category for category, count in sorted(category_counts.items(), key=lambda x: x[1]) if count > 0
+-        ][:5]
+-
+-        # Get best selling products from these categories using the already-loaded orders
+-        category_product_sales: Dict[str, Dict[str, int]] = {}
+-        cat_set = set(categories_with_purchases)
++                pid = item.get("product") or item.get("productId")
++                if not pid:
++                    continue
++                p = product_by_id.get(pid)
++                if not p:
++                    continue
++                # Prefer subCategory; fall back to category for products without one
++                subcat = p.get("subCategory") or p.get("category")
++                if subcat:
++                    subcat_counts[subcat] = subcat_counts.get(subcat, 0) + item.get("quantity", 1)
++
++        n = len(subcat_counts)
++        if n == 0:
++            # No purchase history ΓåÆ nothing to show in Explore
++            return []
++
++        # ΓöÇΓöÇ Step 2: pick neglected subcategories (bottom round(n/3)) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        neglected_count = max(1, round(n / 3))
++        # Sorted ascending by purchase count; take the bottom neglected_count
++        all_sorted_subcats: List[str] = [sc for sc, _ in sorted(subcat_counts.items(), key=lambda x: x[1])]
++        neglected_subcats: List[str] = all_sorted_subcats[:neglected_count]
++
++        # ΓöÇΓöÇ Step 3: products per subcategory ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        products_per_subcat = max(1, round(target_total / neglected_count))
++
++        # ΓöÇΓöÇ Step 4: build all-time sales map for neglected subcategories only ΓöÇΓöÇΓöÇΓöÇΓöÇ
++        neglected_set = set(neglected_subcats)
++        subcat_product_sales: Dict[str, Dict[str, int]] = {}
+         for order in orders:
+             for item in order.get("items", []):
+-                product_id = item.get("product") or item.get("productId")
+-                if not product_id:
++                pid = item.get("product") or item.get("productId")
++                if not pid:
+                     continue
+-                p = product_by_id.get(product_id)
++                p = product_by_id.get(pid)
+                 if not p:
+                     continue
+-                category = p.get("category")
+-                if category not in cat_set:
++                subcat = p.get("subCategory") or p.get("category")
++                if not subcat or subcat not in neglected_set:
+                     continue
+-                quantity = item.get("quantity", 1)
+-                category_product_sales.setdefault(category, {})[product_id] = (
+-                    category_product_sales[category].get(product_id, 0) + quantity
++                qty = item.get("quantity", 1)
++                subcat_product_sales.setdefault(subcat, {})[pid] = (
++                    subcat_product_sales[subcat].get(pid, 0) + qty
+                 )
+ 
+-        # Get top 5 products from least bought categories
+-        recommended_product_ids = []
+-        for category in categories_with_purchases:
+-            if category in category_product_sales:
+-                top_products = sorted(category_product_sales[category].items(), key=lambda x: x[1], reverse=True)[:1]
+-                recommended_product_ids.extend([pid for pid, _ in top_products])
++        # ΓöÇΓöÇ Step 5: collect from neglected subcats ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        recommended: List[str] = []
++        used: Set[str] = set(exclude)
++
++        for subcat in neglected_subcats:
++            sales = subcat_product_sales.get(subcat, {})
++            candidates = sorted(
++                [(pid, qty) for pid, qty in sales.items() if pid not in used],
++                key=lambda x: x[1],
++                reverse=True,
++            )[:products_per_subcat]
++            for pid, _ in candidates:
++                recommended.append(pid)
++                used.add(pid)
++
++        return recommended[:target_total]
++
+ 
+-        return recommended_product_ids[:limit]
+ 
+     def _parse_created_at(self, doc: Dict) -> Optional[datetime]:
+         raw = doc.get("createdAt")
+@@ -965,6 +1110,77 @@ class RecommendationRepository:
+ 
+     async def get_recommendation_components(
+         self, user_id: Optional[str] = None, role: Optional[str] = None, city: Optional[str] = None
++    ) -> Dict[str, List[Dict]]:
++        out = await self._get_recommendation_components_base(user_id, role, city)
++        
++        # ΓöÇΓöÇ Mix bundles into recommendation sections ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        # Max 2 bundles per section; treat each bundle as 1 unit.
++        MAX_BUNDLES_PER_SECTION = 2
++        try:
++            all_products = await self.product_storage.findAll({"isActive": True})
++            pid_to_doc = {p.get("_id"): p for p in all_products if p.get("_id")}
++            _bundle_items = await self._get_bundles_as_items(product_map=pid_to_doc)
++            if _bundle_items:
++                now_utc = datetime.now(timezone.utc)
++                cutoff_30d = now_utc - timedelta(days=30)
++
++                # New Arrivals: bundles created in last 30 days, sorted newest first
++                _new_bundles = sorted(
++                    [
++                        b for b in _bundle_items
++                        if b.get("createdAt") and _parse_order_date({"createdAt": b["createdAt"]}) and
++                        _parse_order_date({"createdAt": b["createdAt"]}) >= cutoff_30d
++                    ],
++                    key=lambda b: _parse_order_date({"createdAt": b["createdAt"]}) or datetime.min.replace(tzinfo=timezone.utc),
++                    reverse=True,
++                )[:MAX_BUNDLES_PER_SECTION]
++                for _b in _new_bundles:
++                    _b["isNew"] = True
++                if "newArrivals" in out:
++                    out["newArrivals"] = list(out["newArrivals"]) + _new_bundles
++
++                # Customer Favourites: top bundles by salesCount (retail proxy)
++                _cf_bundles = sorted(
++                    [b for b in _bundle_items if b.get("salesCount", 0) > 0],
++                    key=lambda b: b.get("salesCount", 0),
++                    reverse=True,
++                )[:MAX_BUNDLES_PER_SECTION]
++                if "customerFavourites" in out:
++                    out["customerFavourites"] = list(out["customerFavourites"]) + _cf_bundles
++
++                # Business Favourites: same salesCount proxy
++                if "businessFavourites" in out:
++                    out["businessFavourites"] = list(out["businessFavourites"]) + _cf_bundles[:MAX_BUNDLES_PER_SECTION]
++
++                # Trending Now: bundles whose component products appear in searches
++                # AND the bundle was ordered. Proxy: use salesCount velocity.
++                # Full search-to-sale for bundles requires tracking data; use salesCount > 0 as proxy.
++                # Bundles with highest salesCount that have been ordered recently are considered trending.
++                _trending_bundles = sorted(
++                    [b for b in _bundle_items if b.get("salesCount", 0) >= 10],
++                    key=lambda b: b.get("salesCount", 0),
++                    reverse=True,
++                )[:MAX_BUNDLES_PER_SECTION]
++                if "trendingNow" in out:
++                    out["trendingNow"] = list(out["trendingNow"]) + _trending_bundles
++
++                # Explore: bundles that are bestsellers (salesCount > 0) and
++                # belong to the user's neglected subcategories (if user context available)
++                # Without user context, skip explore bundles for guests
++                if user_id and "explore" in out:
++                    _explore_bundles = sorted(
++                        [b for b in _bundle_items if b.get("salesCount", 0) > 0],
++                        key=lambda b: b.get("salesCount", 0),
++                        reverse=True,
++                    )[:MAX_BUNDLES_PER_SECTION]
++                    out["explore"] = list(out["explore"]) + _explore_bundles
++        except Exception as _be:
++            logger.warning("Could not mix bundles into recommendations: %s", _be)
++            
++        return out
++
++    async def _get_recommendation_components_base(
++        self, user_id: Optional[str] = None, role: Optional[str] = None, city: Optional[str] = None
+     ) -> Dict[str, List[Dict]]:
+         """
+         Return recommendation components by segment (guest, retail, business/wholesaler).
+@@ -975,9 +1191,9 @@ class RecommendationRepository:
+         """
+         config = _load_config()
+         limits = config.get("strategy_limits", {})
+-        limits.get("trending", 10)
+-        limit_explore = limits.get("explore", 5)
+-        limit_new = limits.get("new_arrivals") or limits.get("user_favorites") or 10
++        limit_trending = limits.get("trending", 24)
++        limit_explore = limits.get("explore", 24)
++        limit_new = limits.get("new_arrivals") or limits.get("user_favorites") or 24
+         # Fetch all products once and reuse ΓÇö avoid repeated full table scans
+         all_products = await self.product_storage.findAll()
+         product_map = {p["_id"]: p for p in all_products}
+@@ -1000,7 +1216,6 @@ class RecommendationRepository:
+             return out
+ 
+         trending_days = 7
+-        trending_top_per_subcat = 5
+         cf_days_config = _segment_config("guest").get("customer_favourites_days", 60)
+ 
+         # Customer Favourites: from cache (job at 12 AM IST) or compute on the fly
+@@ -1020,8 +1235,8 @@ class RecommendationRepository:
+                 self.get_trending_by_conversion(
+                     "customer",
+                     days=trending_days,
+-                    top_per_subcategory=trending_top_per_subcat,
+                     exclude_product_ids=set(),
++                    limit=limit_trending,
+                 ),
+                 self.get_new_arrivals(None, None, limit_new),
+             )
+@@ -1040,11 +1255,13 @@ class RecommendationRepository:
+         if role != "wholesaler":
+             seg = _segment_config("retail")
+             exclude_days = seg.get("exclude_user_purchases_days", 60)
+-            # Parallel fetch: user purchased IDs + cart IDs + trending (independent)
+-            purchased_task = self._get_user_purchased_product_ids(user_id, exclude_days)
+-            cart_task = self._get_user_cart_product_ids(user_id)
++            exp_days = seg.get("explore_days", 60)
+ 
+-            purchased_ids, cart_ids = await asyncio.gather(purchased_task, cart_task)
++            # Phase 1 ΓÇô gather base exclusions (purchases + cart) in parallel
++            purchased_ids, cart_ids = await asyncio.gather(
++                self._get_user_purchased_product_ids(user_id, exclude_days),
++                self._get_user_cart_product_ids(user_id),
++            )
+             exclude = purchased_ids | cart_ids
+ 
+             cf_ids_raw = (
+@@ -1054,28 +1271,30 @@ class RecommendationRepository:
+             )
+             cf_ids = [x for x in (cf_ids_raw or []) if x not in exclude]
+ 
+-            # Now fetch trending + explore + new arrivals in parallel
+-            exp_days = seg.get("explore_days", 60)
+-
+-            async def _explore_retail():
+-                if seg.get("explore_available", True):
+-                    return await self.get_best_selling_from_least_bought_categories(
+-                        user_id, limit_explore, days=exp_days
+-                    )
+-                return []
+-
+-            tn_ids, explore_ids, new_ids = await asyncio.gather(
++            # Phase 2 ΓÇô run Trending + New Arrivals in parallel (Explore waits for these)
++            tn_ids_raw, new_ids = await asyncio.gather(
+                 self.get_trending_by_conversion(
+                     "customer",
+                     days=trending_days,
+-                    top_per_subcategory=trending_top_per_subcat,
+                     exclude_product_ids=exclude,
++                    limit=limit_trending,
+                 ),
+-                _explore_retail(),
+-                self.get_new_arrivals(user_id, role, limit_new),
++                self.get_new_arrivals(user_id, role, limit_new, exclude_product_ids=exclude),
+             )
+-            # Exclude products that are in Customer Favourites from Trending Now section (tag unchanged)
+-            tn_ids = [x for x in tn_ids if x not in set(cf_ids)]
++            # Remove CF overlap from Trending (section membership rule)
++            tn_ids = [x for x in tn_ids_raw if x not in set(cf_ids)]
++
++            # Phase 3 ΓÇô Explore with full cross-section exclusions
++            # Exclude: base (purchases + cart) + every ID already placed in CF, Trending, New Arrivals
++            shown_ids = set(cf_ids) | set(tn_ids) | set(new_ids)
++            explore_exclude = exclude | shown_ids
++            if seg.get("explore_available", True):
++                explore_ids = await self.get_best_selling_from_least_bought_categories(
++                    user_id, target_total=limit_explore, days=exp_days, exclude_product_ids=explore_exclude
++                )
++            else:
++                explore_ids = []
++
+             out = {
+                 "newArrivals": to_products(new_ids),
+                 "customerFavourites": to_products(cf_ids),
+@@ -1098,13 +1317,15 @@ class RecommendationRepository:
+ 
+         # Customer Favourites: city-scoped when city provided, else use global cache / compute
+         if city_normalised:
+-            cf_ids = await self.get_customer_favourites_by_subcategory(
++            cf_ids_raw = await self.get_customer_favourites_by_subcategory(
+                 days=cf_days_config, city=city_normalised
+             )
+         elif cf_ids_cached is not None:
+-            cf_ids = list(cf_ids_cached)
++            cf_ids_raw = list(cf_ids_cached)
+         else:
+-            cf_ids = await self.get_customer_favourites_by_subcategory(days=cf_days_config)
++            cf_ids_raw = await self.get_customer_favourites_by_subcategory(days=cf_days_config)
++
++        cf_ids = [x for x in (cf_ids_raw or []) if x not in exclude]
+ 
+         # Business Favourites: city-scoped when city provided, else use global cache / compute
+         if city_normalised:
+@@ -1124,24 +1345,30 @@ class RecommendationRepository:
+         # 3. Products in Customer Favourites and Business Favourites ΓåÆ removed from Business Favourites.
+         bf_ids_section = [x for x in bf_ids_after_exclude if x not in set(cf_ids)]
+ 
+-        async def _explore_business():
+-            if seg.get("explore_available", True):
+-                return await self.get_best_selling_from_least_bought_categories(
+-                    user_id, limit_explore, days=seg.get("explore_days", 60)
+-                )
+-            return []
+-
+-        tn_ids, explore_ids, new_ids = await asyncio.gather(
++        # Phase 2 ΓÇô run Trending + New Arrivals in parallel
++        tn_ids_raw, new_ids = await asyncio.gather(
+             self.get_trending_by_conversion(
+                 "wholesaler",
+                 days=trending_days,
+-                top_per_subcategory=trending_top_per_subcat,
+                 exclude_product_ids=exclude,
++                limit=limit_trending,
+             ),
+-            _explore_business(),
+-            self.get_new_arrivals(user_id, role, limit_new),
++            self.get_new_arrivals(user_id, role, limit_new, exclude_product_ids=exclude),
+         )
+-        tn_ids = [x for x in tn_ids if x not in set(cf_ids) and x not in set(bf_ids_raw or [])]
++        tn_ids = [x for x in tn_ids_raw if x not in set(cf_ids) and x not in set(bf_ids_raw or [])]
++
++        # Phase 3 ΓÇô Explore with full cross-section exclusions
++        shown_ids = set(cf_ids) | set(tn_ids) | set(new_ids) | set(bf_ids_section)
++        explore_exclude = exclude | shown_ids
++        if seg.get("explore_available", True):
++            explore_ids = await self.get_best_selling_from_least_bought_categories(
++                user_id,
++                target_total=limit_explore,
++                days=seg.get("explore_days", 60),
++                exclude_product_ids=explore_exclude,
++            )
++        else:
++            explore_ids = []
+ 
+         out = {
+             "newArrivals": to_products(new_ids),
+diff --git a/backend/app/routers/bundles.py b/backend/app/routers/bundles.py
+index b5ccf16..677b350 100644
+--- a/backend/app/routers/bundles.py
++++ b/backend/app/routers/bundles.py
+@@ -9,6 +9,8 @@ Admin-managed bundles. Each bundle has:
+ Endpoints:
+   Public / Customer:
+     GET  /api/bundles                        ΓÇô list active bundles (with product details)
++    GET  /api/bundles/search                 ΓÇô search bundles by name/category/brand
++    GET  /api/bundles/product/{product_id}   ΓÇô bundles containing a specific product
+     GET  /api/bundles/{bundle_id}            ΓÇô get single bundle with full product details
+     POST /api/bundles/{bundle_id}/add-to-cart ΓÇô add all bundle items to the user's cart
+ 
+@@ -44,11 +46,17 @@ class BundleItemSchema(BaseModel):
+ class CreateBundleRequest(BaseModel):
+     name: str
+     description: Optional[str] = None
+-    price: float           # bundle price (what customer pays for the whole bundle)
++    price: float
+     items: List[BundleItemSchema]
+-    imageUrl: Optional[str] = None
++    imageUrl: Optional[str] = None          # legacy single image URL (kept for backward compat)
++    images: Optional[List[str]] = None      # list of image URLs (admin uploads)
++    displayImage: Optional[str] = None      # primary display image URL
+     isActive: bool = True
+     salesCount: Optional[int] = 0
++    category: Optional[str] = None          # admin-set category for catalog/recommendation filtering
++    subCategory: Optional[str] = None       # admin-set sub-category
++    brand: Optional[str] = None             # admin-set brand
++    searchTags: Optional[List[str]] = None  # search and categorization tags
+ 
+ 
+ class UpdateBundleRequest(BaseModel):
+@@ -57,8 +65,14 @@ class UpdateBundleRequest(BaseModel):
+     price: Optional[float] = None
+     items: Optional[List[BundleItemSchema]] = None
+     imageUrl: Optional[str] = None
++    images: Optional[List[str]] = None
++    displayImage: Optional[str] = None
+     isActive: Optional[bool] = None
+     salesCount: Optional[int] = None
++    category: Optional[str] = None
++    subCategory: Optional[str] = None
++    brand: Optional[str] = None
++    searchTags: Optional[List[str]] = None
+ 
+ 
+ # ΓöÇΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+@@ -103,6 +117,16 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
+         })
+ 
+     bundle_price = bundle.get("price", 0)
++    # Resolve displayImage: admin-set > imageUrl (legacy) > first component product image
++    display_img = (
++        bundle.get("displayImage")
++        or bundle.get("imageUrl")
++        or next(
++            (item["product"]["images"][0] for item in enriched_items
++             if item.get("product") and item["product"].get("images")),
++            None,
++        )
++    )
+     return {
+         **bundle,
+         "items": enriched_items,
+@@ -110,6 +134,7 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
+         "savings": round(total_mrp - bundle_price, 2),
+         "savingsPercent": round((total_mrp - bundle_price) / total_mrp * 100, 1) if total_mrp else 0,
+         "isAvailable": fully_available,
++        "displayImage": display_img,
+     }
+ 
+ 
+@@ -182,6 +207,115 @@ async def list_all_bundles(current_user: dict = Depends(require_super_admin)):
+         raise HTTPException(status_code=500, detail="An internal error occurred")
+ 
+ 
++@router.get("/search")
++async def search_bundles(
++    q: Optional[str] = None,
++    category: Optional[str] = None,
++    brand: Optional[str] = None,
++    limit: int = 12,
++):
++    """
++    Search active available bundles by name/description and/or filter by category/brand.
++    - If the bundle has admin-set category/brand fields, those take priority.
++    - Otherwise, category/brand are derived from the bundle's component products.
++    Public endpoint, no auth required.
++    """
++    try:
++        bundles = await bundle_repository.get_active_bundles()
++        # Pre-fetch all products once for category/brand resolution
++        from app.db.storage_factory import get_storage as _get_storage
++        product_storage = _get_storage("products")
++        all_products_list = await product_storage.findAll({"isActive": True})
++        product_map: Dict = {p["_id"]: p for p in all_products_list if p.get("_id")}
++
++        results = []
++        term = q.strip().lower() if q and q.strip() else None
++        cat_filter = category.strip().lower() if category and category.strip() else None
++        brand_filter = brand.strip().lower() if brand and brand.strip() else None
++
++        for bundle in bundles:
++            # Text match
++            if term:
++                import re
++                name_match = term in (bundle.get("name") or "").lower()
++                desc_match = term in (bundle.get("description") or "").lower()
++                tag_match = any(term in tag.lower() for tag in (bundle.get("searchTags") or []))
++                price_val = float(bundle.get("price") or 0)
++                clean_term = re.sub(r'^(?:rs\.?|Γé╣)', '', term).strip()
++                price_match = (
++                    (clean_term and clean_term in str(price_val))
++                    or (clean_term and clean_term in str(int(price_val)))
++                    or term in f"rs {int(price_val)}"
++                    or term in f"Γé╣{int(price_val)}"
++                )
++                price_expr_match = False
++                match_under = re.search(r'(?:under|below|less\s+than|<=)\s*Γé╣?\s*(\d+(?:\.\d+)?)', term)
++                if match_under and price_val > 0 and price_val <= float(match_under.group(1)):
++                    price_expr_match = True
++                match_above = re.search(r'(?:above|over|more\s+than|>=)\s*Γé╣?\s*(\d+(?:\.\d+)?)', term)
++                if match_above and price_val >= float(match_above.group(1)):
++                    price_expr_match = True
++
++                if not (name_match or desc_match or tag_match or price_match or price_expr_match):
++                    continue
++
++            # Category / brand match
++            if cat_filter or brand_filter:
++                # Admin-set fields take priority
++                b_cat = (bundle.get("category") or "").lower()
++                b_sub = (bundle.get("subCategory") or "").lower()
++                b_brand = (bundle.get("brand") or "").lower()
++
++                has_admin_cat = bool(bundle.get("category"))
++                has_admin_brand = bool(bundle.get("brand"))
++
++                if cat_filter:
++                    if has_admin_cat:
++                        if cat_filter not in (b_cat, b_sub):
++                            continue
++                    else:
++                        # Derive from component products
++                        component_cats = set()
++                        component_subcats = set()
++                        for bitem in bundle.get("items", []):
++                            p = product_map.get(bitem.get("productId", ""))
++                            if p:
++                                if p.get("category"): component_cats.add(p["category"].lower())
++                                if p.get("subCategory"): component_subcats.add(p["subCategory"].lower())
++                        if cat_filter not in component_cats and cat_filter not in component_subcats:
++                            continue
++
++                if brand_filter:
++                    if has_admin_brand:
++                        if brand_filter != b_brand:
++                            continue
++                    else:
++                        component_brands = set()
++                        for bitem in bundle.get("items", []):
++                            p = product_map.get(bitem.get("productId", ""))
++                            if p and p.get("brand"):
++                                component_brands.add(p["brand"].lower())
++                        if brand_filter not in component_brands:
++                            continue
++
++            try:
++                enriched = await _enrich_bundle(bundle)
++                if enriched.get("isAvailable"):
++                    results.append(enriched)
++            except Exception as exc:
++                logger.warning("Could not enrich bundle %s in search: %s", bundle.get("_id"), exc)
++
++            if len(results) >= limit:
++                break
++
++        # Sort by salesCount descending
++        results.sort(key=lambda x: x.get("salesCount", 0), reverse=True)
++        return {"bundles": results, "total": len(results)}
++    except Exception as e:
++        logger.error("Error in bundle search: %s", str(e), exc_info=True)
++        raise HTTPException(status_code=500, detail="An internal error occurred")
++
++
+ @router.get("/{bundle_id}")
+ @cache.ttl_cache(ttl=300.0)
+ async def get_bundle(bundle_id: str):
+@@ -210,7 +344,6 @@ async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_cu
+     try:
+         from app.repositories.cart_repository import cart_repository
+         from app.repositories.stock_reservation_repository import stock_reservation_repository
+-        from app.repositories.wishlist_repository import wishlist_repository
+ 
+         bundle = await bundle_repository.findById(bundle_id)
+         if not bundle or not bundle.get("isActive", True):
+@@ -278,8 +411,6 @@ async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_cu
+                 ttl_minutes=ttl_minutes,
+             )
+ 
+-            # Remove from wishlist if present
+-            await wishlist_repository.removeItem(user_id, pid)
+             added_product_ids.append(pid)
+ 
+         return {
+@@ -313,8 +444,14 @@ async def create_bundle(payload: CreateBundleRequest, current_user: dict = Depen
+             "price": payload.price,
+             "items": [{"productId": i.productId, "quantity": i.quantity} for i in payload.items],
+             "imageUrl": payload.imageUrl,
++            "images": payload.images or [],
++            "displayImage": payload.displayImage or payload.imageUrl,
+             "isActive": payload.isActive,
+             "salesCount": payload.salesCount if payload.salesCount is not None else 0,
++            "category": payload.category,
++            "subCategory": payload.subCategory,
++            "brand": payload.brand,
++            "searchTags": payload.searchTags or [],
+         }
+         created = await bundle_repository.create(bundle_data)
+         return {"message": "Bundle created", "bundle": created}
+@@ -355,6 +492,18 @@ async def update_bundle(
+             updates["isActive"] = payload.isActive
+         if payload.salesCount is not None:
+             updates["salesCount"] = payload.salesCount
++        if payload.images is not None:
++            updates["images"] = payload.images
++        if payload.displayImage is not None:
++            updates["displayImage"] = payload.displayImage
++        if payload.category is not None:
++            updates["category"] = payload.category
++        if payload.subCategory is not None:
++            updates["subCategory"] = payload.subCategory
++        if payload.brand is not None:
++            updates["brand"] = payload.brand
++        if payload.searchTags is not None:
++            updates["searchTags"] = payload.searchTags
+ 
+         updated = await bundle_repository.update(bundle_id, updates)
+         return {"message": "Bundle updated", "bundle": updated}

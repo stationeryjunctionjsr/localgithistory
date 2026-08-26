@@ -1,0 +1,16 @@
+﻿[tool.ruff]
+# Enable rules.
+lint.select = ["E", "F", "W", "I", "B"]
+lint.ignore = ["E501", "B008", "B904", "E402", "E722", "F841", "B007", "F821", "F811", "W291"]  # Ignore line length, FastAPI Depends(), raise-from-None, and mid-file imports
+
+# Line length
+line-length = 120
+
+# Python version
+target-version = "py312"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
