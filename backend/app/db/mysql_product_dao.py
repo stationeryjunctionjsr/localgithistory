@@ -3,7 +3,7 @@ MySQL DAO for sj_products (Fully Relational).
 """
 
 import secrets
-import json
+
 from typing import Dict, List, Optional
 
 from sqlalchemy import text
@@ -280,7 +280,7 @@ class MySQLProductDAO:
         # "attributes": opt_map[c.id],
         # }
         # )
-        #         return children_map
+        return children_map
 
     async def find_paginated(self, query: Dict, skip: int = 0, limit: int = 50, sort: str = "newest"):
         factory = self._factory()

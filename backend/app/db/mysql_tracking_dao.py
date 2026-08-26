@@ -27,7 +27,6 @@ _TRACKING_SCALAR = {
     "filterType": "filter_type",
     "filterValue": "filter_value",
     "cartValue": "cart_value",
-    "cartItems": "cart_items",
     "isReturning": "is_returning",
     "source": "source",
     "campaign": "campaign",
@@ -61,14 +60,7 @@ class MySQLTrackingDAO:
                 val = float(val)
             elif api_k in ("isReturning",) and val is not None:
                 val = bool(val)
-            elif api_k in ("cartItems",) and val is not None:
-                if isinstance(val, str):
-                    import json
-
-                    try:
-                        val = json.loads(val)
-                    except:
-                        pass
+            
             elif api_k in ("timestamp",) and val:
                 val = val.isoformat() if hasattr(val, "isoformat") else str(val)
             out[api_k] = val
@@ -77,6 +69,7 @@ class MySQLTrackingDAO:
         payload = children.get("payload", {})
         out.update(payload)
         out["payload"] = {}
+        out["cartItems"] = children.get("cartItems", [])
         return out
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
@@ -84,6 +77,20 @@ class MySQLTrackingDAO:
         if not ids:
             return c_map
         chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
+
+        for chunk in chunks:
+            chunk_params = {f"tid_{i}": tid for i, tid in enumerate(chunk)}
+            placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
+            
+            res = await session.execute(
+                text(f"SELECT tracking_id, product_id, quantity FROM sj_tracking_cart_items WHERE tracking_id IN ({placeholders})"),
+                chunk_params
+            )
+            for r in res.fetchall():
+                if "cartItems" not in children_map[r.tracking_id]:
+                    children_map[r.tracking_id]["cartItems"] = []
+                children_map[r.tracking_id]["cartItems"].append({"productId": r.product_id, "quantity": r.quantity})
+
         for chunk in chunks:
             chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
             placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
@@ -173,10 +180,7 @@ class MySQLTrackingDAO:
                         val = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
                     except:
                         pass
-                if api_k == "cartItems":
-                    import json
-
-                    val = json.dumps(val)
+                
                 params[f"s_{api_k}"] = val
 
         col_sql = ", ".join(cols)
@@ -230,10 +234,7 @@ class MySQLTrackingDAO:
                             val = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
                         except:
                             pass
-                    if api_k == "cartItems":
-                        import json
-
-                        val = json.dumps(val)
+                    
                     params[f"s_{api_k}"] = val
 
         set_sql = ", ".join(updates)

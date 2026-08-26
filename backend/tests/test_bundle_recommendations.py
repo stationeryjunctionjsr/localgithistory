@@ -25,7 +25,7 @@ async def test_bundle_product_recommendations(client: AsyncClient, user_auth: di
             "name": "Low Volume Bundle",
             "price": 50.0,
             "isActive": True,
-            "items": [{"productId": pid1, "quantity": 1}, {"productId": pid2, "quantity": 1}],
+            "products": [{"productId": pid1, "quantity": 1}, {"productId": pid2, "quantity": 1}],
             "salesCount": 5,
         }
     )
@@ -35,7 +35,7 @@ async def test_bundle_product_recommendations(client: AsyncClient, user_auth: di
             "name": "High Volume Bundle",
             "price": 45.0,
             "isActive": True,
-            "items": [{"productId": pid1, "quantity": 2}],
+            "products": [{"productId": pid1, "quantity": 2}],
             "salesCount": 20,
         }
     )
@@ -46,7 +46,7 @@ async def test_bundle_product_recommendations(client: AsyncClient, user_auth: di
     data = response.json()
     assert "bundles" in data
     bundles = data["bundles"]
-    assert len(bundles) == 2
+    assert len(bundles) == 2, data
 
     # Highest salesCount first (High Volume Bundle has 20, Low Volume Bundle has 5)
     assert bundles[0]["name"] == "High Volume Bundle"
@@ -74,7 +74,7 @@ async def test_bundle_purchase_increments_sales_count(client: AsyncClient, user_
             "name": "Test Order Bundle",
             "price": 12.0,
             "isActive": True,
-            "items": [{"productId": pid, "quantity": 1}],
+            "products": [{"productId": pid, "quantity": 1}],
             "salesCount": 10,
         }
     )
@@ -95,8 +95,10 @@ async def test_bundle_purchase_increments_sales_count(client: AsyncClient, user_
         },
         "paymentMethod": "cod",
     }
-    order_response = await client.post("/api/orders/", json=order_data, headers=user_auth)
-    assert order_response.status_code == 201
+    from unittest.mock import patch
+    with patch("app.repositories.feature_flag_repository.FeatureFlagRepository.is_enabled", return_value=True):
+        order_response = await client.post("/api/orders/", json=order_data, headers=user_auth)
+    assert order_response.status_code == 201, order_response.text
     order_id = order_response.json().get("_id")
 
     # 4. Fetch the bundle again and verify salesCount incremented to 11

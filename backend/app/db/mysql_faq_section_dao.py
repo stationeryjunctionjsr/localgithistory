@@ -3,10 +3,10 @@ from typing import Dict, List, Optional
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
-from app.db.mysql_typed_doc_dao import MySQLTypedDocDAO
+from app.db.mysql_flat_base_dao import MySQLFlatBaseDAO
 
 
-class MySQLFaqSectionDAO(MySQLTypedDocDAO):
+class MySQLFaqSectionDAO(MySQLFlatBaseDAO):
     """
     MySQL DAO for sj_faq_sections.
     Handles the child table sj_faq_items for the 'items' API key.
@@ -16,7 +16,7 @@ class MySQLFaqSectionDAO(MySQLTypedDocDAO):
         super().__init__(
             table_name="sj_faq_sections",
             scalar_map={"title": "title", "orderIndex": "order_index", "isActive": "is_active", "icon": "icon"},
-            clob_map={},
+            
             bool_api_keys=frozenset({"isActive"}),
         )
 

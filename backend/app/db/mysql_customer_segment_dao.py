@@ -3,10 +3,10 @@ from typing import Dict, List, Optional
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
-from app.db.mysql_typed_doc_dao import MySQLTypedDocDAO
+from app.db.mysql_flat_base_dao import MySQLFlatBaseDAO
 
 
-class MySQLCustomerSegmentDAO(MySQLTypedDocDAO):
+class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
     def __init__(self):
         super().__init__(
             table_name="sj_customer_segments",
@@ -28,7 +28,7 @@ class MySQLCustomerSegmentDAO(MySQLTypedDocDAO):
                 "behavior": "behavior",
                 "role": "role",
             },
-            clob_map={},
+            
             bool_api_keys=frozenset({"isActive", "appUser", "isSystem"}),
         )
 

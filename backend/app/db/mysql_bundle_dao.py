@@ -3,10 +3,10 @@ from typing import Dict, List, Optional
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
-from app.db.mysql_typed_doc_dao import MySQLTypedDocDAO
+from app.db.mysql_flat_base_dao import MySQLFlatBaseDAO
 
 
-class MySQLBundleDAO(MySQLTypedDocDAO):
+class MySQLBundleDAO(MySQLFlatBaseDAO):
     def __init__(self):
         super().__init__(
             table_name="sj_bundles",
@@ -17,7 +17,7 @@ class MySQLBundleDAO(MySQLTypedDocDAO):
                 "discountPercentage": "discount_percentage",
                 "isActive": "is_active",
             },
-            clob_map={},
+            
             bool_api_keys=frozenset({"isActive"}),
         )
 

@@ -24,7 +24,6 @@ from app.db.mysql_flat_daos import FLAT_DAOS
 from app.db.mysql_doc_store import MySQLDocStore
 from app.db.mysql_user_dao import MySQLUserDAO
 from app.db.mysql_generated_daos import GENERATED_DAOS
-from app.db.typed_doc_configs import TYPED_DOC_DAOS
 from app.db.mysql_wishlist_dao import MySQLWishlistDAO
 from app.db.mysql_bundle_dao import MySQLBundleDAO
 from app.db.mysql_customer_segment_dao import MySQLCustomerSegmentDAO
@@ -78,6 +77,4 @@ def get_storage(collection_name: str) -> Any:
         return GENERATED_DAOS[collection_name]
     if collection_name in FLAT_DAOS:
         return FLAT_DAOS[collection_name]
-    if collection_name in TYPED_DOC_DAOS:
-        return TYPED_DOC_DAOS[collection_name]
     return FileStorage(collection_name)
