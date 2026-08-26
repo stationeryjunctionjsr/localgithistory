@@ -10,7 +10,7 @@ from app.utils.logger import logger
 
 router = APIRouter(prefix="/ads", tags=["Ads"])
 storage = get_storage("ads")
-events_storage = get_storage("adEvents")
+events_storage = get_storage("tracking")
 
 @router.get("/summary")
 async def get_ads_summary(_: dict = Depends(require_super_admin)):
@@ -89,9 +89,10 @@ async def track_ad_event(
         event_type + "s": ad.get(event_type + "s", 0) + 1
     })
     
-    # Log event
+    # Log event to relational tracking db
     event_data = {
-        "adId": ad_id,
+        "source": "ad",
+        "campaign": ad_id,
         "type": event_type,
         "userId": current_user["_id"] if current_user else None,
         "timestamp": datetime.utcnow().isoformat() + "Z"

@@ -41,8 +41,8 @@ class MySQLProductDAO:
             "videos": children.get("videos", []),
             "isActive": bool(r.is_active) if r.is_active is not None else True,
             "tags": children.get("tags", []),
-            "variantAttributes": json.loads(r.variant_attributes) if getattr(r, "variant_attributes", None) else [],
-            "variants": json.loads(r.variants) if getattr(r, "variants", None) else [],
+            "variantAttributes": children.get("variantAttributes", []),
+            "variants": children.get("variants", []),
             "details": children.get("details", {}),
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
@@ -161,7 +161,7 @@ class MySQLProductDAO:
 
     async def _fetch_children_for_products(self, session, pids: List[int]) -> Dict[int, Dict]:
         children_map = {
-            pid: {"images": [], "videos": [], "tags": [], "attributes": [], "combinations": [], "details": {}}
+            pid: {"images": [], "videos": [], "tags": [], "variantAttributes": [], "variants": [], "details": {}}
             for pid in pids
         }
         if not pids:
@@ -199,6 +199,38 @@ class MySQLProductDAO:
             for r in res.fetchall():
                 children_map[r.product_id]["tags"].append(r.tag)
 
+
+            # Variant Attributes
+            res = await session.execute(
+                text(f"SELECT product_id, attribute_name FROM sj_product_variant_attributes WHERE product_id IN ({placeholders})"),
+                chunk_params
+            )
+            for r in res.fetchall():
+                children_map[r.product_id]["variantAttributes"].append(r.attribute_name)
+
+            # Variants
+            res = await session.execute(
+                text(f"SELECT id, product_id, sku, price, price_per_case, stock FROM sj_product_variants WHERE product_id IN ({placeholders}) ORDER BY id ASC"),
+                chunk_params
+            )
+            variants_by_id = {}
+            for r in res.fetchall():
+                v = {"sku": r.sku, "price": float(r.price) if r.price is not None else None, "pricePerCase": float(r.price_per_case) if r.price_per_case is not None else None, "stock": int(r.stock) if r.stock is not None else 0, "attributes": {}}
+                variants_by_id[r.id] = v
+                children_map[r.product_id]["variants"].append(v)
+            
+            if variants_by_id:
+                v_ids = list(variants_by_id.keys())
+                v_chunks = [v_ids[i:i+999] for i in range(0, len(v_ids), 999)]
+                for v_chunk in v_chunks:
+                    v_params = {f"vid_{i}": vid for i, vid in enumerate(v_chunk)}
+                    v_placeholders = ", ".join([f":{k}" for k in v_params.keys()])
+                    attr_res = await session.execute(
+                        text(f"SELECT variant_id, attr_name, attr_value FROM sj_product_variant_combo_attrs WHERE variant_id IN ({v_placeholders})"),
+                        v_params
+                    )
+                    for ar in attr_res.fetchall():
+                        variants_by_id[ar.variant_id]["attributes"][ar.attr_name] = ar.attr_value
             # Attributes
         # res = await session.execute(
         # text(f"SELECT product_id, attr_name FROM sj_product_attributes WHERE product_id IN ({placeholders})"),
@@ -269,7 +301,7 @@ class MySQLProductDAO:
         count_sql = f"SELECT COUNT(*) FROM {self.TABLE} p {join_sql} WHERE {where_sql}"
         query_sql = f"""
             SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                   p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.variants, p.variant_attributes, p.created_at, p.updated_at
+                   p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
             FROM {self.TABLE} p
             {join_sql} WHERE {where_sql} {sort_sql} LIMIT :limit OFFSET :skip
         """
@@ -321,7 +353,7 @@ class MySQLProductDAO:
                 await session.execute(
                     text(f"""
                 SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.variants, p.variant_attributes, p.created_at, p.updated_at
+                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
                 FROM {self.TABLE} p {join_sql} WHERE {where_sql} ORDER BY p.id ASC
             """),
                     params,
@@ -346,7 +378,7 @@ class MySQLProductDAO:
                 await session.execute(
                     text(f"""
                 SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.variants, p.variant_attributes, p.created_at, p.updated_at
+                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
                 FROM {self.TABLE} p WHERE p.id = :id
             """),
                     {"id": pid},
@@ -365,6 +397,29 @@ class MySQLProductDAO:
         # await session.execute(text("DELETE FROM sj_product_attributes WHERE product_id = :pid"), {"pid": pid})
         await session.execute(text("DELETE FROM sj_product_details WHERE product_id = :pid"), {"pid": pid})
         # cascades to options
+
+        # Insert variants
+        await session.execute(text("DELETE FROM sj_product_variant_attributes WHERE product_id = :pid"), {"pid": pid})
+        for attr in data.get("variantAttributes") or []:
+            await session.execute(
+                text("INSERT INTO sj_product_variant_attributes (product_id, attribute_name) VALUES (:pid, :attr)"),
+                {"pid": pid, "attr": str(attr)}
+            )
+            
+        await session.execute(text("DELETE FROM sj_product_variants WHERE product_id = :pid"), {"pid": pid})
+        for variant in data.get("variants") or []:
+            await session.execute(
+                text("INSERT INTO sj_product_variants (product_id, sku, price, price_per_case, stock) VALUES (:pid, :sku, :price, :price_per_case, :stock)"),
+                {"pid": pid, "sku": variant.get("sku"), "price": variant.get("price"), "price_per_case": variant.get("pricePerCase"), "stock": variant.get("stock", 0)}
+            )
+            vid = (await session.execute(text("SELECT LAST_INSERT_ID()"))).scalar()
+            attrs = variant.get("attributes") or {}
+            for k, v in attrs.items():
+                await session.execute(
+                    text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"),
+                    {"vid": vid, "k": str(k), "v": str(v)}
+                )
+
 
         # Insert images
         images = data.get("images") or []
@@ -417,7 +472,7 @@ class MySQLProductDAO:
         # ),
         # {"cid": combo_id, "k": attr_name, "v": attr_value},
         # )
-        #     async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> Dict:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -429,10 +484,10 @@ class MySQLProductDAO:
                 text(f"""
                     INSERT INTO {self.TABLE} (
                         external_id, name, description, sku, category, sub_category, brand,
-                        mrp, mrp_per_case, quantity_per_case, stock, is_active, variants, variant_attributes, created_at, updated_at
+                        mrp, mrp_per_case, quantity_per_case, stock, is_active, created_at, updated_at
                     ) VALUES (
                         :external_id, :name, :description, :sku, :category, :sub_category, :brand,
-                        :mrp, :mrp_per_case, :quantity_per_case, :stock, :is_active, :variants, :variant_attributes, :created_at, :updated_at
+                        :mrp, :mrp_per_case, :quantity_per_case, :stock, :is_active, :created_at, :updated_at
                     )
                 """),
                 {
@@ -448,8 +503,8 @@ class MySQLProductDAO:
                     "quantity_per_case": data.get("quantityPerCase"),
                     "stock": data.get("stock", 0),
                     "is_active": 1 if data.get("isActive", True) else 0,
-                    "variants": json.dumps(data.get("variants") or []),
-                    "variant_attributes": json.dumps(data.get("variantAttributes") or []),
+                    
+                    
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -493,8 +548,8 @@ class MySQLProductDAO:
                     "quantity_per_case": merged.get("quantityPerCase"),
                     "stock": merged.get("stock", 0),
                     "is_active": 1 if merged.get("isActive", True) else 0,
-                    "variants": json.dumps(merged.get("variants") or []),
-                    "variant_attributes": json.dumps(merged.get("variantAttributes") or []),
+                    
+                    
                     "updated_at": now,
                 },
             )
