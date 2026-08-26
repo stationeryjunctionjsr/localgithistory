@@ -88,6 +88,15 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
 
     is_serviceable = await delivery_charge_repository.isPincodeServiceable(pincode, userRole)
 
+    platform_urgent = False
+    from app.db.storage_factory import get_storage
+    zones_storage = get_storage("deliveryZones")
+    zones = await zones_storage.findAll({"isActive": True})
+    for z in zones:
+        if pincode in z.get("pincodes", []):
+            platform_urgent = bool(z.get("urgentDeliveryAvailable", False))
+            break
+
     # Check if delivery slots are available for this pincode + segment
     slot_storage = get_storage("deliverySlots")
     segment = "wholesale" if userRole == "wholesaler" else "retail"
@@ -128,6 +137,7 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
         "userRole": userRole,
         "slotBookingAvailable": len(available_dates) > 0,
         "availableDates": available_dates,
+        "urgentDeliveryAvailable": platform_urgent,
     }
 
 

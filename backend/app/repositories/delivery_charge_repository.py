@@ -113,7 +113,7 @@ class DeliveryChargeRepository:
                 default_charge = await self.getDefaultCharge()
 
                 urgent_charge = None
-                if pincode_charge.get("urgentDeliveryAvailable"):
+                if False:
                     urgent_charge = default_charge.get("urgentDeliveryCharge") if default_charge else None
 
                 if default_charge and default_charge.get("isActive"):
@@ -125,7 +125,7 @@ class DeliveryChargeRepository:
                             "source": "pincode-default",
                             "deliveryCharge": default_charge,
                             "isApplicableToRole": False,
-                            "urgentDeliveryAvailable": pincode_charge.get("urgentDeliveryAvailable", False),
+                            "urgentDeliveryAvailable": False,
                             "urgentDeliveryCharge": urgent_charge,
                         }
 
@@ -138,7 +138,7 @@ class DeliveryChargeRepository:
                             "deliveryCharge": default_charge,
                             "isApplicableToRole": True,
                             "appliedTier": tier_charge["tier"],
-                            "urgentDeliveryAvailable": pincode_charge.get("urgentDeliveryAvailable", False),
+                            "urgentDeliveryAvailable": False,
                             "urgentDeliveryCharge": urgent_charge,
                         }
 
@@ -148,7 +148,7 @@ class DeliveryChargeRepository:
                         "source": "pincode-default-no-tiers",
                         "deliveryCharge": default_charge,
                         "isApplicableToRole": True,
-                        "urgentDeliveryAvailable": pincode_charge.get("urgentDeliveryAvailable", False),
+                        "urgentDeliveryAvailable": False,
                         "urgentDeliveryCharge": urgent_charge,
                     }
             else:
@@ -162,7 +162,7 @@ class DeliveryChargeRepository:
                         "deliveryCharge": pincode_charge,
                         "isApplicableToRole": True,
                         "appliedTier": tier_charge["tier"],
-                        "urgentDeliveryAvailable": pincode_charge.get("urgentDeliveryAvailable", False),
+                        "urgentDeliveryAvailable": False,
                         "urgentDeliveryCharge": pincode_charge.get("urgentDeliveryCharge"),
                     }
                 else:
@@ -172,7 +172,7 @@ class DeliveryChargeRepository:
                         "source": "pincode",
                         "deliveryCharge": pincode_charge,
                         "isApplicableToRole": True,
-                        "urgentDeliveryAvailable": pincode_charge.get("urgentDeliveryAvailable", False),
+                        "urgentDeliveryAvailable": False,
                         "urgentDeliveryCharge": pincode_charge.get("urgentDeliveryCharge"),
                     }
 
