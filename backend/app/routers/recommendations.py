@@ -49,15 +49,18 @@ async def get_recommendations(
             if role not in ("wholesaler", "customer"):
                 role = "customer"
 
-        # Resolve sellers for the pincode via zone
-        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
-        seller_id_set = await get_seller_ids_for_pincode(pincode) if pincode else None
-        pincode_key = pincode or "all"
+        # Resolve sellers and zone for the pincode
+        from app.repositories.zone_seller_cache import get_zone_id_and_seller_ids_for_pincode
+        zone_id, seller_id_set = None, None
+        if pincode:
+            zone_id, seller_id_set = await get_zone_id_and_seller_ids_for_pincode(pincode)
+            
+        location_key = zone_id if zone_id else (pincode or "all")
 
         # Guest path: serve from 300-second server-side cache
         if not user_id:
             now = _time.monotonic()
-            guest_key = f"guest_{pincode_key}"
+            guest_key = f"guest_{location_key}"
             entry = _guest_rec_cache.get(guest_key)
             if entry and now < entry[1]:
                 return entry[0]
@@ -88,7 +91,7 @@ async def get_recommendations(
 
         # Authenticated user path: cache per-user (and per-city for wholesalers) for 180 seconds
         city_key = city or "all"
-        user_cache_key = f"rec_{role}_{user_id}_{city_key}_{pincode_key}"
+        user_cache_key = f"rec_{role}_{user_id}_{city_key}_{location_key}"
         cached_res = cache.get(user_cache_key)
         if cached_res:
             return cached_res

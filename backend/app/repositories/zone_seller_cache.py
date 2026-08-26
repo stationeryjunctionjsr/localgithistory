@@ -47,17 +47,16 @@ async def _fetch_all_zones() -> list:
     return await storage.findAll({"isActive": True})
 
 
-async def get_seller_ids_for_pincode(pincode: str) -> Optional[Set[str]]:
+async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional[str], Optional[Set[str]]]:
     """
-    Resolve a pincode to the set of seller IDs for its zone.
-
+    Resolve a pincode to its zone ID and the set of seller IDs for its zone.
     Returns:
-        None     -- pincode not in any zone -> callers should apply no filter
-        set()    -- zone found but no sellers assigned -> nothing available
-        set(ids) -- zone found with sellers -> filter to these IDs
+        (None, None) -> pincode not in any zone
+        (zone_id, set()) -> zone found but no sellers assigned
+        (zone_id, set(ids)) -> zone found with sellers
     """
     if not pincode:
-        return None
+        return None, None
 
     try:
         zones = await _fetch_all_zones()
@@ -67,22 +66,28 @@ async def get_seller_ids_for_pincode(pincode: str) -> Optional[Set[str]]:
                 continue
 
             zone_id = str(zone["_id"])
-            # Check in-process cache first
             if zone_id in _zone_cache:
                 cached_ids, expiry = _zone_cache[zone_id]
                 if _is_fresh(expiry):
-                    return set(cached_ids)
+                    return zone_id, set(cached_ids)
 
-            # Cache miss -- populate and return
-            return set(_cache_zone(zone))
-
-        # Pincode not in any active zone
-        return None
-
+            return zone_id, set(_cache_zone(zone))
+        return None, None
     except Exception as exc:
         logger.error("zone_seller_cache: failed to resolve pincode %s: %s", pincode, exc, exc_info=True)
-        return None  # Fail open: no filter applied
+        return None, None
 
+async def get_seller_ids_for_pincode(pincode: str) -> Optional[Set[str]]:
+    """
+    Resolve a pincode to the set of seller IDs for its zone.
+
+    Returns:
+        None     -- pincode not in any zone -> callers should apply no filter
+        set()    -- zone found but no sellers assigned -> nothing available
+        set(ids) -- zone found with sellers -> filter to these IDs
+    """
+    _, seller_ids = await get_zone_id_and_seller_ids_for_pincode(pincode)
+    return seller_ids
 
 async def get_zone_for_pincode(pincode: str) -> Optional[dict]:
     """
