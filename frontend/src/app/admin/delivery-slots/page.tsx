@@ -14,15 +14,19 @@ interface Slot {
   bookedCount: number;
   isActive: boolean;
   isUrgent: boolean;
+  isFullDay?: boolean;
+  deliveredCount?: number;
   cutoffHours: number | null;
   urgentCutoffHours: number | null;
 }
 
 export default function DeliverySlotsPage() {
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedDates, setSelectedDates] = useState<string[]>([format(new Date(), 'yyyy-MM-dd')]);
+  const primaryDate = selectedDates[0];
   const [segment, setSegment] = useState('retail');
   const [selectedPincodes, setSelectedPincodes] = useState<string[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [originalSlots, setOriginalSlots] = useState<Slot[]>([]);
   const [configId, setConfigId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,7 +48,7 @@ export default function DeliverySlotsPage() {
 
   useEffect(() => {
     fetchConfig();
-  }, [selectedDate, segment]);
+  }, [primaryDate, segment]);
 
   useEffect(() => {
     fetchServiceablePincodes();
@@ -98,7 +102,7 @@ export default function DeliverySlotsPage() {
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const response = await api.get(`/delivery-slots?date=${selectedDate}&segment=${segment}`);
+      const response = await api.get(`/delivery-slots?date=${primaryDate}&segment=${segment}`);
       const data = response.data;
       if (data && data.length > 0) {
         const config = data[0];
@@ -121,6 +125,7 @@ export default function DeliverySlotsPage() {
         setConfigId(null);
         setSelectedPincodes([]);
         setSlots([]);
+        setOriginalSlots([]);
       }
     } catch (error) {
       console.error('Failed to fetch config', error);
@@ -131,24 +136,90 @@ export default function DeliverySlotsPage() {
   };
 
   const handleSave = async () => {
+    // 1. Validation: Overlaps
+    const fullDaySlots = slots.filter(s => s.isFullDay);
+    if (fullDaySlots.length > 1) {
+      toast.error('You can only add one Anytime slot per day');
+      return;
+    }
+    
+    const urgentSlots = slots.filter(s => s.isUrgent && !s.isFullDay).sort((a,b) => a.startTime.localeCompare(b.startTime));
+    for (let i = 0; i < urgentSlots.length - 1; i++) {
+      if (urgentSlots[i].endTime > urgentSlots[i+1].startTime) {
+        toast.error(`Urgent slots overlap: ${urgentSlots[i].startTime}-${urgentSlots[i].endTime} overlaps with ${urgentSlots[i+1].startTime}-${urgentSlots[i+1].endTime}`);
+        return;
+      }
+    }
+
+    const standardSlots = slots.filter(s => !s.isUrgent && !s.isFullDay).sort((a,b) => a.startTime.localeCompare(b.startTime));
+    for (let i = 0; i < standardSlots.length - 1; i++) {
+      if (standardSlots[i].endTime > standardSlots[i+1].startTime) {
+        toast.error(`Standard slots overlap: ${standardSlots[i].startTime}-${standardSlots[i].endTime} overlaps with ${standardSlots[i+1].startTime}-${standardSlots[i+1].endTime}`);
+        return;
+      }
+    }
+
+    // 2. Validation: Cutoffs for new/modified slots
+    const now = new Date();
+    for (const dateStr of selectedDates) {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      
+      for (const slot of slots) {
+        if (slot.isFullDay) continue;
+        
+        const originalSlot = originalSlots.find(s => s.id === slot.id);
+        const isModified = !originalSlot || 
+          originalSlot.startTime !== slot.startTime || 
+          originalSlot.endTime !== slot.endTime || 
+          originalSlot.cutoffHours !== slot.cutoffHours || 
+          originalSlot.urgentCutoffHours !== slot.urgentCutoffHours;
+          
+        if (isModified) {
+          const isUrgent = slot.isUrgent;
+          const cutoffHours = isUrgent ? slot.urgentCutoffHours : slot.cutoffHours;
+          if (cutoffHours !== null) {
+            const anchorTimeStr = isUrgent ? slot.endTime : slot.startTime;
+            if (!anchorTimeStr) {
+              toast.error('Please set start and end times for all slots');
+              return;
+            }
+            const [hours, minutes] = anchorTimeStr.split(':').map(Number);
+            const anchorDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+            const cutoffDate = new Date(anchorDate.getTime() - (cutoffHours * 60 * 60 * 1000));
+            
+            if (cutoffDate <= now) {
+              toast.error(`Cannot save: The cutoff time for the newly added/modified slot ending/starting at ${anchorTimeStr} on ${dateStr} has already passed.`);
+              return;
+            }
+          }
+        }
+      }
+    }
+
     setSaving(true);
     try {
-      const payload = {
-        segment,
-        date: selectedDate,
-        pincodes: selectedPincodes,
-        slots,
-        isActive: true,
-      };
+      for (const date of selectedDates) {
+        const payload = {
+          segment,
+          date,
+          pincodes: selectedPincodes,
+          slots,
+          isActive: true,
+        };
 
-      if (configId) {
-        await api.put(`/delivery-slots/${configId}`, payload);
-        toast.success('Updated delivery slots');
-      } else {
-        const res = await api.post(`/delivery-slots`, payload);
-        setConfigId(res.data._id);
-        toast.success('Created delivery slots');
+        if (date === primaryDate && configId) {
+          await api.put(`/delivery-slots/${configId}`, payload);
+        } else {
+          const existingRes = await api.get(`/delivery-slots?date=${date}&segment=${segment}`);
+          if (existingRes.data && existingRes.data.length > 0) {
+            await api.put(`/delivery-slots/${existingRes.data[0]._id}`, payload);
+          } else {
+            await api.post(`/delivery-slots`, payload);
+          }
+        }
       }
+      toast.success(selectedDates.length > 1 ? `Saved slots for ${selectedDates.length} dates` : 'Updated delivery slots');
+      fetchConfig();
     } catch (error: any) {
       const msg = error?.response?.data?.detail || 'Failed to save delivery slots';
       toast.error(msg);
@@ -174,6 +245,41 @@ export default function DeliverySlotsPage() {
     ]);
   };
 
+  const addFullDaySlot = () => {
+    setSlots([
+      ...slots,
+      {
+        id: Date.now().toString(),
+        startTime: '00:00',
+        endTime: '23:59',
+        capacity: 0,
+        bookedCount: 0,
+        isActive: true,
+        isUrgent: false,
+        isFullDay: true,
+        cutoffHours: null,
+        urgentCutoffHours: null,
+      },
+    ]);
+  };
+
+  const addUrgentSlot = () => {
+    setSlots([
+      ...slots,
+      {
+        id: Date.now().toString(),
+        startTime: '09:00',
+        endTime: '22:00',
+        capacity: 50,
+        bookedCount: 0,
+        isActive: true,
+        isUrgent: true,
+        isFullDay: false,
+        cutoffHours: null,
+        urgentCutoffHours: 1,
+      },
+    ]);
+  };
   const removeSlot = (id: string) => {
     setSlots(slots.filter((s) => s.id !== id));
   };
@@ -264,20 +370,42 @@ export default function DeliverySlotsPage() {
 
               <div className="space-y-5">
                 {/* Date */}
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Date</label>
-                  <select
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="block w-full rounded-lg border border-slate-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                  >
-                    {next7Days.map((date) => (
-                      <option key={date} value={date}>
-                        {date}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                                  <div>
+                    <label className="mb-2 block text-sm font-medium text-slate-700">Select Date(s)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {next7Days.map((date) => {
+                        const isSelected = selectedDates.includes(date);
+                        return (
+                          <button
+                            key={date}
+                            onClick={() => {
+                              if (isSelected) {
+                                if (selectedDates.length > 1) {
+                                  setSelectedDates(selectedDates.filter(d => d !== date));
+                                } else {
+                                  toast.error('At least one date must be selected');
+                                }
+                              } else {
+                                setSelectedDates([...selectedDates, date].sort());
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                              isSelected 
+                                ? 'bg-indigo-600 text-white border-transparent' 
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {format(new Date(date), 'MMM d, yyyy')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {selectedDates.length > 1 && (
+                      <p className="mt-2 text-xs text-amber-600 font-medium">
+                        You are editing multiple dates at once. Saving will overwrite the slots configuration for all selected dates.
+                      </p>
+                    )}
+                  </div>
 
                 {/* Segment */}
                 <div>
@@ -389,7 +517,7 @@ export default function DeliverySlotsPage() {
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-slate-800">
-                  Time Slots — {selectedDate} ({segment})
+                  Time Slots — {selectedDates.length > 1 ? 'Multiple Dates' : primaryDate} ({segment})
                 </h2>
                 <button
                   onClick={addSlot}

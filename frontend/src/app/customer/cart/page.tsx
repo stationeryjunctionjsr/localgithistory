@@ -114,7 +114,8 @@ export default function Cart() {
   const [fetchingDeliveryCharge, setFetchingDeliveryCharge] = useState(false);
 
   // Delivery slot state
-  const [deliveryOptions, setDeliveryOptions] = useState<{ slotBookingAvailable: boolean; availableDates: string[] } | null>(null);
+  const [deliveryOptions, setDeliveryOptions] = useState<{ slotBookingAvailable: boolean;
+  urgentAvailable?: boolean; availableDates: string[] } | null>(null);
   const [selectedDeliveryType, setSelectedDeliveryType] = useState<'standard' | 'slot'>('standard');
   const [selectedSlotDate, setSelectedSlotDate] = useState('');
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
