@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
@@ -374,7 +374,7 @@ async def create_order(
                     order_date_str = p.get("orderDate") or p.get("createdAt")
                     if order_date_str:
                         try:
-                            from datetime import timedelta, timezone
+                            from datetime import timedelta
 
                             order_date = (
                                 datetime.fromisoformat(order_date_str.replace("Z", "+00:00"))

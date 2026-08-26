@@ -28,6 +28,12 @@ interface Bundle {
   price: number;
   items: BundleItem[];
   imageUrl?: string;
+  images?: string[];
+  displayImage?: string;
+  category?: string;
+  subCategory?: string;
+  brand?: string;
+  searchTags?: string[];
   isActive: boolean;
   totalMrp?: number;
   savings?: number;
@@ -51,6 +57,11 @@ const emptyForm = (): Omit<Bundle, '_id'> => ({
   price: 0,
   items: [],
   imageUrl: '',
+  displayImage: '',
+  category: '',
+  subCategory: '',
+  brand: '',
+  searchTags: [],
   isActive: true,
 });
 
@@ -150,11 +161,18 @@ export default function BundlesManagement() {
     }
     setSaving(true);
     try {
+      const payload = {
+        ...formData,
+        searchTags: typeof formData.searchTags === 'string' 
+          ? (formData.searchTags as string).split(',').map(t => t.trim()).filter(Boolean)
+          : formData.searchTags
+      };
+      
       if (editingBundle?._id) {
-        await api.put(`/bundles/admin/${editingBundle._id}`, formData);
+        await api.put(`/bundles/admin/${editingBundle._id}`, payload);
         toast.success('Bundle updated');
       } else {
-        await api.post('/bundles/admin', formData);
+        await api.post('/bundles/admin', payload);
         toast.success('Bundle created');
       }
       setShowModal(false);
@@ -287,9 +305,9 @@ export default function BundlesManagement() {
                   <tr key={bundle._id} className="hover:bg-gray-50">
                     <td className="border border-gray-200 p-2">
                       <div className="flex items-center gap-3">
-                        {bundle.imageUrl ? (
+                        {bundle.displayImage || bundle.imageUrl ? (
                           <img
-                            src={imgSrc(bundle.imageUrl) || ''}
+                            src={imgSrc(bundle.displayImage || bundle.imageUrl || '') || ''}
                             className="h-10 w-10 rounded-lg border border-slate-200 object-cover"
                             alt=""
                           />
@@ -528,6 +546,66 @@ export default function BundlesManagement() {
                           )}
                         </div>
                       )}
+                    </div>
+                    
+                    <div>
+                      <label className="mb-1 block text-sm font-semibold text-slate-700">Display Image URL <span className="font-normal text-slate-400">(optional)</span></label>
+                      <input
+                        type="text"
+                        value={formData.displayImage}
+                        onChange={(e) => setFormData({ ...formData, displayImage: e.target.value })}
+                        className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                        placeholder="https://... (defaults to first product image if left blank)"
+                      />
+                    </div>
+                    
+                    <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <h4 className="text-sm font-bold text-slate-700">Catalog Classification <span className="font-normal text-slate-400">(optional)</span></h4>
+                      <p className="text-xs text-slate-500">Set to control where this bundle appears in category/brand pages and recommendations. If left blank, the bundle inherits the categories and brands of its component products.</p>
+                      
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-slate-600">Category</label>
+                          <input
+                            type="text"
+                            value={formData.category}
+                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                            className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            placeholder="e.g. Notebooks"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-slate-600">Sub-category</label>
+                          <input
+                            type="text"
+                            value={formData.subCategory}
+                            onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
+                            className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            placeholder="e.g. Spiral Notebooks"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold text-slate-600">Brand</label>
+                          <input
+                            type="text"
+                            value={formData.brand}
+                            onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                            className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            placeholder="e.g. Classmate"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-3">
+                        <label className="mb-1 block text-xs font-semibold text-slate-600">Search Tags <span className="font-normal text-slate-400">(comma-separated)</span></label>
+                        <input
+                          type="text"
+                          value={Array.isArray(formData.searchTags) ? formData.searchTags.join(', ') : formData.searchTags || ''}
+                          onChange={(e) => setFormData({ ...formData, searchTags: (e.target.value as any) })}
+                          className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          placeholder="e.g. school-kit, starter-pack, summer-sale"
+                        />
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-3">

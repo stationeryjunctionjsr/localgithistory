@@ -70,8 +70,8 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
     async def create(self, data: Dict) -> Dict:
         products = data.pop("products", [])
         doc = await super().create(data)
-        await self._save_products(doc.get("id"), products)
-        doc["products"] = await self._fetch_products(doc.get("id"))
+        await self._save_products(doc.get("external_id"), products)
+        doc["products"] = await self._fetch_products(doc.get("external_id"))
         return doc
 
     async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
@@ -82,6 +82,6 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
         doc = await super().update(id, update_data)
         if doc:
             if products is not None:
-                await self._save_products(doc.get("id"), products)
-            doc["products"] = await self._fetch_products(doc.get("id"))
+                await self._save_products(doc.get("external_id"), products)
+            doc["products"] = await self._fetch_products(doc.get("external_id"))
         return doc

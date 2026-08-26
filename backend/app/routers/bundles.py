@@ -45,11 +45,16 @@ class BundleItemSchema(BaseModel):
 class CreateBundleRequest(BaseModel):
     name: str
     description: Optional[str] = None
-    price: float  # bundle price (what customer pays for the whole bundle)
+    price: float
     items: List[BundleItemSchema]
     imageUrl: Optional[str] = None
+    images: Optional[List[str]] = None
+    displayImage: Optional[str] = None
     isActive: bool = True
     salesCount: Optional[int] = 0
+    category: Optional[str] = None
+    subCategory: Optional[str] = None
+    brand: Optional[str] = None
 
 
 class UpdateBundleRequest(BaseModel):
@@ -58,8 +63,13 @@ class UpdateBundleRequest(BaseModel):
     price: Optional[float] = None
     items: Optional[List[BundleItemSchema]] = None
     imageUrl: Optional[str] = None
+    images: Optional[List[str]] = None
+    displayImage: Optional[str] = None
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
+    category: Optional[str] = None
+    subCategory: Optional[str] = None
+    brand: Optional[str] = None
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -107,6 +117,14 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
         )
 
     bundle_price = bundle.get("price", 0)
+    display_img = (
+        bundle.get("displayImage")
+        or bundle.get("imageUrl")
+        or next(
+            (item["product"]["images"][0] for item in enriched_items if item.get("product") and item["product"].get("images")),
+            None,
+        )
+    )
     return {
         **bundle,
         "items": enriched_items,
@@ -114,6 +132,7 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
         "savings": round(total_mrp - bundle_price, 2),
         "savingsPercent": round((total_mrp - bundle_price) / total_mrp * 100, 1) if total_mrp else 0,
         "isAvailable": fully_available,
+        "displayImage": display_img,
     }
 
 
@@ -128,6 +147,76 @@ async def _validate_bundle_items(items: List[BundleItemSchema]):
 
 
 # ─── Public endpoints ──────────────────────────────────────────────────────────
+
+
+@router.get("/search")
+async def search_bundles(
+    q: Optional[str] = None,
+    category: Optional[str] = None,
+    brand: Optional[str] = None,
+    limit: int = 12,
+):
+    """
+    Search active available bundles by name/description and/or filter by category/brand.
+    Public endpoint, no auth required.
+    """
+    try:
+        bundles = await bundle_repository.get_active_bundles()
+        # Pre-fetch all products once for category/brand resolution
+        from app.db.storage_factory import get_storage as _get_storage
+        product_storage = _get_storage("products")
+        all_products_list = await product_storage.find({"isActive": True})
+        product_map = {str(p["_id"]): p for p in all_products_list if "_id" in p}
+
+        enriched_bundles = []
+        for b in bundles:
+            try:
+                eb = await _enrich_bundle(b)
+                if not eb.get("isAvailable"):
+                    continue
+
+                # Filter by search term
+                if q:
+                    search_term = q.lower()
+                    name = (eb.get("name") or "").lower()
+                    desc = (eb.get("description") or "").lower()
+                    if search_term not in name and search_term not in desc:
+                        continue
+
+                # Resolve effective category & brand
+                eff_categories = set()
+                eff_brands = set()
+                if eb.get("category"):
+                    eff_categories.add(eb["category"].lower())
+                if eb.get("brand"):
+                    eff_brands.add(eb["brand"].lower())
+
+                if not eff_categories or not eff_brands:
+                    # Inherit from components
+                    for item in eb.get("items", []):
+                        pid = item.get("productId")
+                        p = product_map.get(str(pid))
+                        if p:
+                            c = p.get("category")
+                            if c:
+                                eff_categories.add((c.get("name") if isinstance(c, dict) else c).lower())
+                            b_name = p.get("brand")
+                            if b_name:
+                                eff_brands.add(b_name.lower())
+
+                if category and category.lower() not in eff_categories:
+                    continue
+                if brand and brand.lower() not in eff_brands:
+                    continue
+
+                enriched_bundles.append(eb)
+            except Exception as e:
+                logger.warning("Could not enrich bundle %s: %s", b.get("_id"), e)
+
+        return {"bundles": enriched_bundles[:limit], "total": len(enriched_bundles[:limit])}
+    except Exception as e:
+        logger.error("Error searching bundles: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("")

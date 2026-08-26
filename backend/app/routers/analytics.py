@@ -135,6 +135,17 @@ async def get_dashboard_data(
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
+@router.get("/reports/bundle-performance")
+async def get_bundle_performance(current_user: dict = Depends(require_roles("super_admin"))):
+    """
+    Get detailed bundle performance reports.
+    """
+    try:
+        return await analytics_repository.get_bundle_performance_report()
+    except Exception as e:
+        logger.error("Error fetching bundle performance: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
 
 @router.get("/sales-over-time", response_model=List[Dict])
 async def get_sales_over_time(

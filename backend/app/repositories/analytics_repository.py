@@ -1464,5 +1464,99 @@ class AnalyticsRepository:
             "mostViewed": most_viewed,
         }
 
+    async def get_bundle_performance_report(self) -> Dict:
+        """
+        Generate a performance report for all bundles.
+        Returns total copies sold, order count, total revenue, and monthly trends per bundle.
+        """
+        from app.repositories.bundle_repository import bundle_repository
+        
+        bundles = await bundle_repository.findAll({})
+        bundle_map = {str(b["_id"]): b for b in bundles if b.get("_id")}
+        
+        # Initialize stats map
+        # { bundle_id: { "order_count": int, "copies_sold": int, "revenue": float, "monthly": { "YYYY-MM": revenue } } }
+        stats = {
+            bid: {
+                "bundle": b,
+                "order_count": 0,
+                "copies_sold": 0,
+                "revenue": 0.0,
+                "monthly": defaultdict(float)
+            }
+            for bid, b in bundle_map.items()
+        }
+        
+        # Fetch all completed orders
+        orders = await self.order_storage.find({"status": "completed"})
+        for order in orders:
+            items = order.get("items", [])
+            order_date = order.get("createdAt")
+            month_key = None
+            if order_date:
+                # parse date
+                try:
+                    if isinstance(order_date, str):
+                        dt = datetime.fromisoformat(order_date.replace("Z", "+00:00"))
+                    else:
+                        dt = order_date
+                    month_key = dt.strftime("%Y-%m")
+                except:
+                    pass
+                    
+            # Group items by bundleId in this order
+            order_bundles = defaultdict(list)
+            for item in items:
+                b_id = item.get("bundleId")
+                if b_id:
+                    order_bundles[b_id].append(item)
+                    
+            for b_id, b_items in order_bundles.items():
+                if b_id not in stats:
+                    continue
+                b_def = bundle_map.get(b_id)
+                if not b_def:
+                    continue
+                    
+                b_specs = b_def.get("items", [])
+                copies = 1
+                if b_specs and b_items:
+                    spec = b_specs[0]
+                    spec_qty = max(1, spec.get("quantity", 1) or 1)
+                    spec_pid = str(spec.get("productId", ""))
+                    ref_item = next(
+                        (i for i in b_items if str(i.get("product", "")) == spec_pid or str(i.get("productId", "")) == spec_pid),
+                        b_items[0]
+                    )
+                    copies = max(1, ref_item.get("quantity", spec_qty) // spec_qty)
+                
+                b_price = b_def.get("price", 0.0)
+                b_revenue = copies * b_price
+                
+                stats[b_id]["order_count"] += 1
+                stats[b_id]["copies_sold"] += copies
+                stats[b_id]["revenue"] += b_revenue
+                if month_key:
+                    stats[b_id]["monthly"][month_key] += b_revenue
+                    
+        # Format the result
+        result = []
+        for b_id, data in stats.items():
+            b = data["bundle"]
+            result.append({
+                "bundleId": b_id,
+                "name": b.get("name", "Unknown"),
+                "price": b.get("price", 0.0),
+                "isActive": b.get("isActive", False),
+                "orderCount": data["order_count"],
+                "copiesSold": data["copies_sold"],
+                "totalRevenue": round(data["revenue"], 2),
+                "monthlyRevenue": {k: round(v, 2) for k, v in data["monthly"].items()}
+            })
+            
+        # Sort by revenue descending
+        result.sort(key=lambda x: x["totalRevenue"], reverse=True)
+        return {"report": result}
+
 
 analytics_repository = AnalyticsRepository()
