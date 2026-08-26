@@ -23,10 +23,14 @@ def get_database_url() -> str | None:
         return None
     # Ensure async driver for SQLAlchemy asyncio
     if url.startswith("oracle:"):
-        url = "oracle+oracledb:" + url[6:]
-    elif not url.startswith("oracle+oracledb:"):
+        url = "oracle+oracledb_async:" + url[6:]
+    elif url.startswith("oracle+oracledb:"):
+        url = "oracle+oracledb_async:" + url[16:]
+    elif not url.startswith("oracle+oracledb_async:"):
         if url.startswith("mysql"):
             url = url.replace("mysql://", "mysql+aiomysql://").replace("mysql+pymysql://", "mysql+aiomysql://")
+        else:
+            return url  # leave as-is if already full URL
     return url
 
 
