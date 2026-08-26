@@ -1182,99 +1182,48 @@ class ProductRepository:
     async def decrement_stock_atomic(
         self, product_id: str, quantity: int, variant_combinations: list = None, role: str = None
     ):
-        import json
-        from datetime import datetime
-
         from sqlalchemy import text
-
         from app.config.database import get_async_session_factory
-
         factory = get_async_session_factory()
         if not factory:
             return None
-
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT id, doc FROM {self.storage.TABLE} WHERE external_id = :id FOR UPDATE"),
+                text(f"SELECT id, stock FROM {self.storage.TABLE} WHERE external_id = :id FOR UPDATE"),
                 {"id": product_id},
             )
             row = result.fetchone()
-            if not row or not row.doc:
+            if not row:
                 return None
-
-            doc = json.loads(row.doc)
-
-            # Reduce variant stock
-            if variant_combinations and doc.get("variantCombinations"):
-                for vc in variant_combinations:
-                    for i, combo in enumerate(doc["variantCombinations"]):
-                        match = True
-                        for k, v in vc.get("attributes", {}).items():
-                            if combo.get("attributes", {}).get(k) != v:
-                                match = False
-                                break
-                        if match:
-                            doc["variantCombinations"][i]["stock"] = max(
-                                0, doc["variantCombinations"][i].get("stock", 0) - vc["quantity"]
-                            )
-
-            # Reduce overall stock
-            new_stock = max(0, doc.get("stock", 0) - quantity)
-            doc["stock"] = new_stock
-
-            if role == "wholesaler":
-                doc["wholesalerPurchaseCount"] = doc.get("wholesalerPurchaseCount", 0) + 1
-            else:
-                doc["customerPurchaseCount"] = doc.get("customerPurchaseCount", 0) + 1
-
-            doc["updatedAt"] = datetime.now(timezone.utc).isoformat()
-
+            new_stock = max(0, row.stock - quantity)
             await session.execute(
-                text(f"UPDATE {self.storage.TABLE} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :rid"),
-                {"doc": json.dumps(doc, default=str), "rid": row.id},
+                text(f"UPDATE {self.storage.TABLE} SET stock = :stock, updated_at = UTC_TIMESTAMP() WHERE id = :rid"),
+                {"stock": new_stock, "rid": row.id},
             )
             await session.commit()
-            return new_stock
+        return new_stock
 
     async def increment_stock_atomic(self, product_id: str, quantity: int) -> int:
-        """Atomically restore stock for a cancelled/declined order using SELECT … FOR UPDATE.
-
-        Mirrors decrement_stock_atomic — both use a row-level lock so concurrent
-        cancel + new-order operations cannot race and produce wrong stock counts.
-
-        Returns the new stock value after increment, or -1 if the factory is unavailable.
-        """
-        import json
-        from datetime import datetime
-
         from sqlalchemy import text
-
         from app.config.database import get_async_session_factory
-
         factory = get_async_session_factory()
         if not factory:
             return -1
-
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT id, doc FROM {self.storage.TABLE} WHERE external_id = :id FOR UPDATE"),
+                text(f"SELECT id, stock FROM {self.storage.TABLE} WHERE external_id = :id FOR UPDATE"),
                 {"id": product_id},
             )
             row = result.fetchone()
-            if not row or not row.doc:
+            if not row:
                 return -1
-
-            doc = json.loads(row.doc)
-            new_stock = doc.get("stock", 0) + quantity
-            doc["stock"] = new_stock
-            doc["updatedAt"] = datetime.now(timezone.utc).isoformat()
-
+            new_stock = row.stock + quantity
             await session.execute(
-                text(f"UPDATE {self.storage.TABLE} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :rid"),
-                {"doc": json.dumps(doc, default=str), "rid": row.id},
+                text(f"UPDATE {self.storage.TABLE} SET stock = :stock, updated_at = UTC_TIMESTAMP() WHERE id = :rid"),
+                {"stock": new_stock, "rid": row.id},
             )
             await session.commit()
-            return new_stock
+        return new_stock
 
 
 product_repository = ProductRepository()

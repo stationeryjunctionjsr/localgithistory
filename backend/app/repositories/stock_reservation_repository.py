@@ -161,27 +161,14 @@ class StockReservationRepository:
             logger.info("Cleaned up %d expired stock reservations", expired_count)
 
     async def reserve_stock_checked(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> dict:
-        """Atomically check available stock and create a reservation in one transaction.
-
-        Acquires a row-level lock on the product row (SELECT … FOR UPDATE) so that
-        concurrent add-to-cart requests for the same product serialize here instead
-        of racing through a check-then-act gap.
-
-        Raises ValueError("Insufficient stock. Available: N") if stock is insufficient.
-        Returns the created reservation dict on success.
-        """
-        import json
         from datetime import datetime, timedelta, timezone
-
         from sqlalchemy import text
-
         from app.config.database import get_async_session_factory
         from app.db.storage_factory import get_storage as _get_storage
 
         await self.ensure_table_exists()
         factory = get_async_session_factory()
         if not factory:
-            # Fallback: no DB factory — just do the non-atomic reserve (dev / test only)
             return await self.reserve_stock(product_id, user_id, quantity, ttl_minutes)
 
         product_storage = _get_storage("products")
@@ -191,80 +178,36 @@ class StockReservationRepository:
         expires_at = now + timedelta(minutes=ttl_minutes)
 
         async with factory() as session:
-            # 1. Lock the product row so no other request can read-and-decide simultaneously
+            # 1. Lock the product row
             prod_result = await session.execute(
-                text(f"SELECT id, doc FROM {product_storage.TABLE} WHERE external_id = :pid FOR UPDATE"),
+                text(f"SELECT id, stock FROM {product_storage.TABLE} WHERE external_id = :pid FOR UPDATE"),
                 {"pid": str(product_id)},
             )
             prod_row = prod_result.fetchone()
-            if not prod_row or not prod_row.doc:
+            if not prod_row:
                 raise ValueError("Product not found")
 
-            prod_doc = json.loads(prod_row.doc)
-            actual_stock = int(prod_doc.get("stock", 0))
+            actual_stock = int(prod_row.stock)
 
-            # 2. Sum reservations held by OTHER users (within the same transaction)
+            # 2. Sum reservations held by OTHER users
             res_result = await session.execute(
                 text(
-                    f"SELECT doc FROM {res_storage.TABLE} "
-                    f"WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.productId')) = :pid "
-                    f"  AND JSON_UNQUOTE(JSON_EXTRACT(doc, '$.userId'))    != :uid "
-                    f"  AND JSON_UNQUOTE(JSON_EXTRACT(doc, '$.status'))    = 'active' "
-                    f"  AND JSON_UNQUOTE(JSON_EXTRACT(doc, '$.expiresAt')) > :now"
+                    f"SELECT SUM(quantity) as reserved FROM {res_storage.TABLE} "
+                    f"WHERE product_id = :pid "
+                    f"  AND user_id != :uid "
+                    f"  AND status = 'active' "
+                    f"  AND expires_at > :now"
                 ),
                 {"pid": str(product_id), "uid": str(user_id), "now": now.isoformat()},
             )
-            reserved_by_others = sum(int(json.loads(r.doc).get("quantity", 0)) for r in res_result.fetchall())
+            res_row = res_result.fetchone()
+            other_reserved = int(res_row.reserved or 0) if res_row else 0
 
-            available = actual_stock - reserved_by_others
+            available = max(0, actual_stock - other_reserved)
             if available < quantity:
-                raise ValueError(f"Insufficient stock. Available: {max(0, available)}")
+                raise ValueError(f"Insufficient stock. Available: {available}")
 
-            # 3. Release any existing active reservation of this user for this product
-            old_res_result = await session.execute(
-                text(
-                    f"SELECT id FROM {res_storage.TABLE} "
-                    f"WHERE JSON_UNQUOTE(JSON_EXTRACT(doc, '$.productId')) = :pid "
-                    f"  AND JSON_UNQUOTE(JSON_EXTRACT(doc, '$.userId'))    = :uid "
-                    f"  AND JSON_UNQUOTE(JSON_EXTRACT(doc, '$.status'))    = 'active'"
-                ),
-                {"pid": str(product_id), "uid": str(user_id)},
-            )
-            for old_row in old_res_result.fetchall():
-                released_doc = {"status": "released", "updatedAt": now.isoformat()}
-                await session.execute(
-                    text(
-                        f"UPDATE {res_storage.TABLE} "
-                        f"SET doc = JSON_MERGE_PATCH(doc, :patch), updated_at = UTC_TIMESTAMP() "
-                        f"WHERE id = :rid"
-                    ),
-                    {"patch": json.dumps(released_doc), "rid": old_row.id},
-                )
+            # 3. All clear, make the reservation
+            return await self.reserve_stock(product_id, user_id, quantity, ttl_minutes)
 
-            # 4. Insert new reservation
-            import secrets
-
-            external_id = secrets.token_hex(16)
-            reservation_data = {
-                "productId": str(product_id),
-                "userId": str(user_id),
-                "quantity": int(quantity),
-                "status": "active",
-                "expiresAt": expires_at.isoformat() + "Z",
-            }
-            await session.execute(
-                text(
-                    f"INSERT INTO {res_storage.TABLE} (external_id, doc, created_at, updated_at) "
-                    f"VALUES (:eid, :doc, UTC_TIMESTAMP(), UTC_TIMESTAMP())"
-                ),
-                {"eid": external_id, "doc": json.dumps(reservation_data)},
-            )
-
-            await session.commit()
-
-        reservation_data["_id"] = external_id
-        return reservation_data
-
-
-# Global singleton instance
 stock_reservation_repository = StockReservationRepository()
