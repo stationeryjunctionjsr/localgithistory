@@ -24,6 +24,31 @@ def _dao(
 
 # Collection name -> MySQLTypedDocDAO instance (parent-only; no child tables)
 TYPED_DOC_DAOS = {
+    "returnRequests": _dao(
+        "sj_return_requests",
+        {
+            "returnId": "return_id",
+            "orderId": "order_id",
+            "userId": "user_id",
+            "sellerId": "seller_id",
+            "deliverySlotId": "delivery_slot_id",
+            "deliverySlotConfigId": "delivery_slot_config_id",
+            "deliverySlotDate": "delivery_slot_date",
+            "paymentMethod": "payment_method",
+            "upiPaymentScreenshot": "upi_payment_screenshot",
+            "notes": "notes",
+            "status": "status",
+            "valetId": "valet_id",
+            "pendingValetId": "pending_valet_id",
+            "valetAssignedAt": "valet_assigned_at",
+            "valetCascadeCount": "valet_cascade_count",
+            "valetAcceptedAt": "valet_accepted_at",
+            "valetDeclinedAt": "valet_declined_at",
+            "valetDeclineReason": "valet_decline_reason",
+            "deliveryCharge": "delivery_charge",
+        },
+        {"items": "items", "valetDeclineHistory": "valet_decline_history"},
+    ),
     "returnSettings": _dao(
         "sj_return_settings",
         {"returnDays": "return_days"},

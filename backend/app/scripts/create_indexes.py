@@ -60,11 +60,11 @@ PRODUCT_INDEXES_ORACLE = [
 
 
 async def create_indexes():
-    from app.config.database import get_async_session_factory, use_oracle
+    from app.config.database import get_async_session_factory, use_db
     from sqlalchemy import text
     from app.config.settings import settings
 
-    if not use_oracle():
+    if not use_db():
         logger.warning("Oracle not configured — skipping index creation.")
         return
 

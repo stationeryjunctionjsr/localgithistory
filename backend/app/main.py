@@ -182,9 +182,9 @@ async def lifespan(app: FastAPI):
     async def _warm_critical_caches():
         await asyncio.sleep(5)
         try:
-            from app.config.database import get_async_session_factory, use_oracle
+            from app.config.database import get_async_session_factory, use_db
 
-            if use_oracle():
+            if use_db():
                 factory = get_async_session_factory()
                 if factory:
                     from sqlalchemy import text
@@ -443,7 +443,7 @@ if uploads_dir.exists():
 # Initialize data directory
 import json
 
-from app.config.database import use_oracle
+from app.config.database import use_db
 from app.repositories.session_repository import session_repository
 from app.utils.auth import ERR_SESSION_REVOKED, verify_token
 from app.utils.device import parse_device
@@ -451,7 +451,7 @@ from app.utils.file_storage import DATA_DIR, ensure_data_dir
 
 
 async def initialize_data_dir():
-    if use_oracle():
+    if use_db():
         logger.info("Oracle DB enabled; skipping file-based storage initialization")
         return
     ensure_data_dir()

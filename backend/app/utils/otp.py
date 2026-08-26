@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 import requests.exceptions
 
-from app.config.database import use_oracle
+from app.config.database import use_db
 from app.utils.logger import logger
 from app.utils.retry import with_retry
 
@@ -406,7 +406,7 @@ def request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[str, Any]]:
     Note: When using Oracle, callers must await the result since the DB calls are async.
     For backward compatibility, this function detects Oracle mode and returns an awaitable.
     """
-    if use_oracle():
+    if use_db():
         import asyncio
 
         loop = asyncio.get_event_loop()
@@ -419,7 +419,7 @@ def request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[str, Any]]:
 
 async def request_otp_async(user_key: str, device_key: str) -> Tuple[bool, Dict[str, Any]]:
     """Async version of request_otp. Use this from async route handlers."""
-    if use_oracle():
+    if use_db():
         return await _db_request_otp(user_key, device_key)
     return _mem_request_otp(user_key, device_key)
 
@@ -428,7 +428,7 @@ def verify_otp(
     user_key: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
 ) -> Dict[str, Any]:
     """Verify OTP. For Oracle mode, use verify_otp_async from async context."""
-    if use_oracle():
+    if use_db():
         raise RuntimeError("Use verify_otp_async in async context")
     return _mem_verify_otp(user_key, provided_otp, device_key, delete_on_success)
 
@@ -437,7 +437,7 @@ async def verify_otp_async(
     user_key: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
 ) -> Dict[str, Any]:
     """Async version of verify_otp. Use this from async route handlers."""
-    if use_oracle():
+    if use_db():
         return await _db_verify_otp(user_key, provided_otp, device_key, delete_on_success)
     return _mem_verify_otp(user_key, provided_otp, device_key, delete_on_success)
 
