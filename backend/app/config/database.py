@@ -114,7 +114,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 def use_oracle() -> bool:
-    return bool(DATABASE_URL)
+    return False  # Oracle commented out, force False
 
 
 def is_oracle() -> bool:
