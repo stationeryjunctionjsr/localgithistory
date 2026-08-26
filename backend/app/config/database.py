@@ -1,6 +1,6 @@
 """
-Database configuration for MySQL. Uses single DATABASE_URL.
-All access is parameterized.
+Database configuration for Oracle. Uses single DATABASE_URL.
+All access is parameterized; one application user.
 """
 
 import os
@@ -22,8 +22,15 @@ def get_database_url() -> str | None:
     if not url:
         return None
     # Ensure async driver for SQLAlchemy asyncio
-    if url.startswith("mysql"):
-        url = url.replace("mysql://", "mysql+aiomysql://").replace("mysql+pymysql://", "mysql+aiomysql://")
+    if url.startswith("oracle:"):
+        url = "oracle+oracledb_async:" + url[6:]
+    elif url.startswith("oracle+oracledb:"):
+        url = "oracle+oracledb_async:" + url[16:]
+    elif not url.startswith("oracle+oracledb_async:"):
+        if url.startswith("mysql"):
+            url = url.replace("mysql://", "mysql+aiomysql://").replace("mysql+pymysql://", "mysql+aiomysql://")
+        else:
+            return url  # leave as-is if already full URL
     return url
 
 
@@ -57,7 +64,7 @@ def get_async_engine():
         )
     else:
         # Use QueuePool for connection pooling in a long-running FastAPI app.
-        # pooling is critical for database performance.
+        # pooling is critical for Oracle performance (especially TCPS).
         pool_size = int(os.getenv("DB_POOL_SIZE", 5))
         max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 2))
         
@@ -105,5 +112,5 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-def use_db() -> bool:
+def use_oracle() -> bool:
     return bool(DATABASE_URL)

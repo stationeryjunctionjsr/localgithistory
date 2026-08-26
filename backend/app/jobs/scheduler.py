@@ -38,14 +38,14 @@ async def _google_reviews_job():
 
 
 async def _resource_monitoring_job():
-    from app.config.database import get_async_session_factory, use_db
+    from app.config.database import get_async_session_factory, use_oracle
     from app.utils.error_handler import check_db_usage, check_system_resources
 
     # Check CPU/Mem (Sync)
     check_system_resources()
 
     # Check DB (Async)
-    if use_db():
+    if use_oracle():
         try:
             session_factory = get_async_session_factory()
             if session_factory:

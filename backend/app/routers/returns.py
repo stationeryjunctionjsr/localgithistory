@@ -69,22 +69,13 @@ async def get_all_returns(status: Optional[str] = None, current_user: dict = Dep
 @router.get("/valet/assigned", response_model=List[ReturnRequestResponse])
 async def get_valet_returns(current_user: dict = Depends(require_super_admin_or_valet)):
     """Valet gets returns assigned to them"""
-    if current_user.get("role") == "valet":
-        query = {"valetId": current_user.get("_id"), "status": {"$in": [ReturnRequestStatus.ASSIGNED.value, ReturnRequestStatus.COLLECTED.value]}}
-    else:
-        query = {}
-    requests = await return_request_repository.findAll(query)
-    return [await populate_return_request(r) for r in requests]
-
-
-@router.get("/valet/pending", response_model=List[ReturnRequestResponse])
-async def get_valet_pending_returns(current_user: dict = Depends(require_super_admin_or_valet)):
-    """Valet polls for returns waiting for their acceptance"""
     if current_user.get("role") != "valet":
-        raise HTTPException(status_code=403, detail="Only valets can view pending assignments")
-    query = {"valetId": current_user.get("_id"), "status": ReturnRequestStatus.PENDING_VALET.value}
-    requests = await return_request_repository.findAll(query)
-    return [await populate_return_request(r) for r in requests]
+        raise HTTPException(status_code=403, detail="Only valets can view assigned returns")
+
+    requests = await return_request_repository.findAll(
+        {"valetId": current_user.get("_id"), "status": ReturnRequestStatus.ASSIGNED.value}
+    )
+    return [await populate_return_request(req) for req in requests]
 
 
 @router.get("/order/{order_id}/eligibility")
@@ -310,59 +301,11 @@ async def assign_valet(
         raise HTTPException(status_code=400, detail="Valid Valet ID is required")
 
     updated = await return_request_repository.update(
-        request_id,
-        {
-            "valetId": valet_data.valetId,
-            "status": ReturnRequestStatus.PENDING_VALET.value,
-            "valetAssignedAt": datetime.utcnow().isoformat(),
-            "valetDeclineHistory": [],
-            "valetCascadeCount": 0,
-        },
+        request_id, {"valetId": valet_data.valetId, "status": ReturnRequestStatus.ASSIGNED.value}
     )
 
     return await populate_return_request(updated)
 
-
-from pydantic import BaseModel
-class ValetResponseData(BaseModel):
-    accept: bool
-    declineReason: Optional[str] = None
-
-@router.put("/valet/{request_id}/response", response_model=ReturnRequestResponse)
-async def valet_response(
-    request_id: str,
-    response_data: ValetResponseData,
-    current_user: dict = Depends(require_super_admin_or_valet),
-):
-    """Valet accepts or declines a return pickup assignment"""
-    req = await return_request_repository.findById(request_id)
-    if not req:
-        raise HTTPException(status_code=404, detail="Return request not found")
-
-    if current_user.get("role") == "valet" and req.get("valetId") != current_user.get("_id"):
-        raise HTTPException(status_code=403, detail="Return request not assigned to you")
-
-    if req.get("status") != ReturnRequestStatus.PENDING_VALET.value:
-        raise HTTPException(status_code=400, detail="Return request is not pending valet acceptance")
-
-    if response_data.accept:
-        updated = await return_request_repository.update(request_id, {"status": ReturnRequestStatus.ASSIGNED.value})
-    else:
-        decline_history = list(req.get("valetDeclineHistory") or [])
-        if current_user.get("_id") not in decline_history:
-            decline_history.append(current_user.get("_id"))
-            
-        updated = await return_request_repository.update(
-            request_id, 
-            {
-                "valetId": None,
-                "status": ReturnRequestStatus.PENDING_VALET.value,
-                "valetDeclineHistory": decline_history,
-                "valetAssignedAt": "1970-01-01T00:00:00Z" 
-            }
-        )
-
-    return await populate_return_request(updated)
 
 @router.put("/valet/{request_id}/collect", response_model=ReturnRequestResponse)
 async def valet_collect(request_id: str, current_user: dict = Depends(require_super_admin_or_valet)):

@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from app.db.storage_factory import get_storage
 
 # ── ORACLE-specific imports (commented out — Oracle disabled) ──────────────────
-# from app.config.database import use_db, get_async_session_factory
+# from app.config.database import use_oracle, get_async_session_factory
 # ─────────────────────────────────────────────────────────────────────────
 from app.utils.logger import logger
 
@@ -28,7 +28,7 @@ class StockReservationRepository:
         self._initialized = True
 
         # ── ORACLE runtime table creation (commented out) ────────────────────────
-        # if not use_db():
+        # if not use_oracle():
         #     self._initialized = True
         #     return
         # ... (Oracle CREATE TABLE for sj_stock_reservations)

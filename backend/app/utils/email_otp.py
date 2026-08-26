@@ -3,7 +3,7 @@ import secrets
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.config.database import use_db
+from app.config.database import use_oracle
 from app.utils.logger import logger
 
 # Policy Settings
@@ -238,7 +238,7 @@ def _mem_verify_otp(
 
 async def request_email_otp_async(email: str, device_key: str = "default") -> Tuple[bool, Dict[str, Any]]:
     """Async request function for email OTP."""
-    if use_db():
+    if use_oracle():
         return await _db_request_otp(email, device_key)
     return _mem_request_otp(email, device_key)
 
@@ -247,6 +247,6 @@ async def verify_email_otp_async(
     email: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
 ) -> Dict[str, Any]:
     """Async verify function for email OTP."""
-    if use_db():
+    if use_oracle():
         return await _db_verify_otp(email, provided_otp, device_key, delete_on_success)
     return _mem_verify_otp(email, provided_otp, device_key, delete_on_success)

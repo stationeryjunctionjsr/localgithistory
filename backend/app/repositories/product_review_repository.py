@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import text
 
 from app.db.storage_factory import get_storage
-from app.config.database import use_db, get_async_session_factory
+from app.config.database import use_oracle, get_async_session_factory
 from app.utils.logger import logger
 
 
@@ -22,7 +22,7 @@ class ProductReviewRepository:
     async def ensure_table_exists(self):
         if self._initialized:
             return
-        if not use_db():
+        if not use_oracle():
             self._initialized = True
             return
         from app.config.settings import settings

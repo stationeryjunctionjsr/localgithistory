@@ -7,10 +7,10 @@ import psutil
 try:
     from sqlalchemy import text
 
-    from app.config.database import use_db
+    from app.config.database import use_oracle
 except ImportError:
 
-    def use_db():
+    def use_oracle():
         return False
 
 
@@ -126,7 +126,7 @@ def check_system_resources():
 
 async def check_db_usage(db_session):
     """Oracle specific DB usage check."""
-    if not use_db():
+    if not use_oracle():
         return
 
     try:

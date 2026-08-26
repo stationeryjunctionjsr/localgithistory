@@ -31,11 +31,11 @@ async def check_health():
     from fastapi.responses import JSONResponse
     from sqlalchemy import text
 
-    from app.config.database import get_async_engine, use_db
+    from app.config.database import get_async_engine, use_oracle
 
     db_status = "ok"
 
-    if use_db():
+    if use_oracle():
         try:
             engine = get_async_engine()
             if engine:
