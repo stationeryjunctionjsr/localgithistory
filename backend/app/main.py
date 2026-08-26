@@ -149,6 +149,7 @@ async def lifespan(app: FastAPI):
         from app.repositories.product_review_repository import product_review_repository
         from app.repositories.review_classification_repository import review_classification_repository
         from app.repositories.bundle_repository import bundle_repository
+        from app.repositories.return_request_repository import return_request_repository
 
         results = await asyncio.gather(
             stock_reservation_repository.ensure_table_exists(),
@@ -156,6 +157,7 @@ async def lifespan(app: FastAPI):
             product_review_repository.ensure_table_exists(),
             review_classification_repository.ensure_table_exists(),
             bundle_repository.ensure_table_exists(),
+            return_request_repository.ensure_table_columns(),
             return_exceptions=True,
         )
         for i, r in enumerate(results):
@@ -191,9 +193,15 @@ async def lifespan(app: FastAPI):
                         async with factory() as session:
                             await session.execute(text("SELECT 1 FROM DUAL"))
 
-                    # Only warm up 1 connection per worker to prevent overwhelming the listener
-                    await asyncio.gather(*[warm_conn() for _ in range(1)])
-                    logger.info("DB connection pool slot pre-warmed")
+                    # Warm ALL pool slots (pool_size + max_overflow) so no real
+                    # user request ever pays the connection-open penalty.
+                    # Reads the same env vars as database.py to stay in sync.
+                    import os as _os
+                    _pool_size = int(_os.getenv("DB_POOL_SIZE", 5))
+                    _max_overflow = int(_os.getenv("DB_MAX_OVERFLOW", 2))
+                    _total_slots = _pool_size + _max_overflow
+                    await asyncio.gather(*[warm_conn() for _ in range(_total_slots)])
+                    logger.info("DB connection pool pre-warmed (%d slots)", _total_slots)
 
             from starlette.responses import Response as _WarmupResponse
             from app.routers.products import get_public_products, get_public_product
