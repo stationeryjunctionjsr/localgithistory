@@ -888,6 +888,42 @@ class RecommendationRepository:
         except Exception:
             return None
 
+    async def _derive_neglected_subcats(self, user_id: str, days: int) -> List[str]:
+        """
+        Return the list of subcategories the user bought least from in the last `days` days
+        (the bottom round(n/3) by purchase count).  Used by bundle Explore scoring to test
+        whether a bundle's subCategory falls inside the neglected set.
+        """
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        orders = await self.order_storage.findAll({"user": user_id})
+        products = await self.product_storage.findAll()
+        product_by_id: Dict[str, Dict] = {p.get("_id"): p for p in products if p.get("_id")}
+
+        subcat_counts: Dict[str, int] = {}
+        for o in orders:
+            if o.get("user") != user_id:
+                continue
+            dt = _parse_order_date(o)
+            if not dt or dt < cutoff:
+                continue
+            for item in o.get("items", []):
+                pid = item.get("product") or item.get("productId")
+                if not pid:
+                    continue
+                p = product_by_id.get(pid)
+                if not p:
+                    continue
+                subcat = p.get("subCategory") or p.get("category")
+                if subcat:
+                    subcat_counts[subcat] = subcat_counts.get(subcat, 0) + item.get("quantity", 1)
+
+        n = len(subcat_counts)
+        if n == 0:
+            return []
+        neglected_count = max(1, round(n / 3))
+        sorted_subcats = [sc for sc, _ in sorted(subcat_counts.items(), key=lambda x: x[1])]
+        return sorted_subcats[:neglected_count]
+
     async def _get_engagement_scores(self, product_ids: List[str]) -> Dict[str, float]:
         """
         Score each product by recommendation engagement in the last N days:
@@ -925,8 +961,116 @@ class RecommendationRepository:
                     scores[pid] = scores.get(pid, 0) + weight
 
         return scores
+    def _parse_created_at(self, doc) -> str:
+        raw = doc.get("createdAt")
+        if not raw:
+            return None
+        try:
+            from datetime import datetime
+            return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        except Exception:
+            return None
+
+    async def _derive_neglected_subcats(self, user_id: str, days: int) -> list:
+        """
+        Return the list of subcategories the user bought least from in the last `days` days
+        (the bottom round(n/3) by purchase count). Used by bundle Explore scoring to test
+        whether a bundle's subCategory falls inside the neglected set.
+        """
+        from datetime import datetime, timedelta
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        orders = await self.order_storage.findAll({"user": user_id})
+        products = await self.product_storage.findAll()
+        product_by_id = {p.get("_id"): p for p in products if p.get("_id")}
+
+        subcat_counts = {}
+        for o in orders:
+            if o.get("user") != user_id:
+                continue
+            # Simplified proxy for parsing
+            dt = o.get("createdAt")
+            if not dt:
+                continue
+            try:
+                dt = datetime.fromisoformat(str(dt).replace("Z", "+00:00")).replace(tzinfo=None)
+            except Exception:
+                continue
+            if dt < cutoff:
+                continue
+            for item in o.get("items", []):
+                pid = item.get("product") or item.get("productId")
+                if not pid:
+                    continue
+                p = product_by_id.get(pid)
+                if not p:
+                    continue
+                subcat = p.get("subCategory") or p.get("category")
+                if subcat:
+                    subcat_counts[subcat] = subcat_counts.get(subcat, 0) + item.get("quantity", 1)
+
+        n = len(subcat_counts)
+        if n == 0:
+            return []
+        neglected_count = max(1, round(n / 3))
+        sorted_subcats = [sc for sc, _ in sorted(subcat_counts.items(), key=lambda x: x[1])]
+        return sorted_subcats[:neglected_count]
+
+    def _parse_created_at(self, doc) -> str:
+        raw = doc.get("createdAt")
+        if not raw:
+            return None
+        try:
+            from datetime import datetime
+            return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        except Exception:
+            return None
+
+    async def _derive_neglected_subcats(self, user_id: str, days: int) -> list:
+        """
+        Return the list of subcategories the user bought least from in the last `days` days
+        (the bottom round(n/3) by purchase count). Used by bundle Explore scoring to test
+        whether a bundle's subCategory falls inside the neglected set.
+        """
+        from datetime import datetime, timedelta
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        orders = await self.order_storage.findAll({"user": user_id})
+        products = await self.product_storage.findAll()
+        product_by_id = {p.get("_id"): p for p in products if p.get("_id")}
+
+        subcat_counts = {}
+        for o in orders:
+            if o.get("user") != user_id:
+                continue
+            # Simplified proxy for parsing
+            dt = o.get("createdAt")
+            if not dt:
+                continue
+            try:
+                dt = datetime.fromisoformat(str(dt).replace("Z", "+00:00")).replace(tzinfo=None)
+            except Exception:
+                continue
+            if dt < cutoff:
+                continue
+            for item in o.get("items", []):
+                pid = item.get("product") or item.get("productId")
+                if not pid:
+                    continue
+                p = product_by_id.get(pid)
+                if not p:
+                    continue
+                subcat = p.get("subCategory") or p.get("category")
+                if subcat:
+                    subcat_counts[subcat] = subcat_counts.get(subcat, 0) + item.get("quantity", 1)
+
+        n = len(subcat_counts)
+        if n == 0:
+            return []
+        neglected_count = max(1, round(n / 3))
+        sorted_subcats = [sc for sc, _ in sorted(subcat_counts.items(), key=lambda x: x[1])]
+        return sorted_subcats[:neglected_count]
 
     async def get_recommendation_components(
+
         self, user_id: Optional[str] = None, role: Optional[str] = None, city: Optional[str] = None
     ) -> Dict[str, List[Dict]]:
         """
@@ -943,7 +1087,61 @@ class RecommendationRepository:
         limit_new = limits.get("new_arrivals") or limits.get("user_favorites") or 10
         # Fetch all active products once and reuse — avoid repeated full table scans
         all_products = await self.product_storage.findAll({"isActive": True})
-        product_map = {p["_id"]: p for p in all_products}
+        product_map = {p["_id"]: p for p in all_products if p.get("_id")}
+
+        try:
+            bundle_items = await getattr(self, '_get_bundles_as_items', lambda **kw: [])(product_map=product_map)
+        except Exception as e:
+            import logging
+            logging.warning(f"Could not fetch bundles: {e}")
+            bundle_items = []
+
+        for _b in bundle_items:
+            if _b.get("_id"):
+                product_map[_b["_id"]] = _b
+
+        bundle_ids = {_b["_id"] for _b in bundle_items if _b.get("_id")}
+
+        def _bundle_new_arrival_ids(exclude_set):
+            from datetime import datetime, timedelta, timezone
+            cutoff_na = datetime.now(timezone.utc) - timedelta(days=30)
+            qualifying = []
+            for _b in bundle_items:
+                bid = _b.get("_id")
+                if not bid or bid in exclude_set:
+                    continue
+                created = self._parse_created_at({"createdAt": _b.get("createdAt")}) if _b.get("createdAt") else None
+                if created and created >= cutoff_na:
+                    qualifying.append((bid, created))
+            qualifying.sort(key=lambda x: x[1], reverse=True)
+            return [bid for bid, _ in qualifying]
+
+        def _bundle_trending_ids(exclude_set, product_tn_ids):
+            if not bundle_items: return []
+            counts = [_b.get("salesCount", 0) or 0 for _b in bundle_items]
+            max_count = max(counts) if counts else 0
+            if max_count == 0: return []
+            all_rates = []
+            for _b in bundle_items:
+                bid = _b.get("_id")
+                if not bid or bid in exclude_set: continue
+                rate = (_b.get("salesCount", 0) or 0) / max_count
+                if rate > 0: all_rates.append((bid, rate))
+            if not all_rates: return []
+            rate_values = sorted(r for _, r in all_rates)
+            cutoff_idx = max(0, int(len(rate_values) * 0.70) - 1)
+            score_cutoff = rate_values[cutoff_idx]
+            eligible = sorted([(bid, r) for bid, r in all_rates if r >= score_cutoff], key=lambda x: x[1], reverse=True)
+            return [bid for bid, _ in eligible]
+
+        def _bundle_favourites_ids(exclude_set):
+            scored = sorted([(_b["_id"], _b.get("salesCount", 0) or 0) for _b in bundle_items if _b.get("_id") and _b["_id"] not in exclude_set and (_b.get("salesCount", 0) or 0) > 0], key=lambda x: x[1], reverse=True)
+            return [bid for bid, _ in scored]
+
+        def _bundle_explore_ids(neglected_subcats, exclude_set):
+            neglected_set = set(neglected_subcats)
+            scored = sorted([(_b["_id"], _b.get("salesCount", 0) or 0) for _b in bundle_items if _b.get("_id") and _b["_id"] not in exclude_set and (_b.get("subCategory") or _b.get("category")) in neglected_set], key=lambda x: x[1], reverse=True)
+            return [bid for bid, _ in scored]
 
         def to_products(ids: List[str]) -> List[Dict]:
             out = []
@@ -980,7 +1178,7 @@ class RecommendationRepository:
                     return cf_ids_cached
                 return await self.get_customer_favourites_by_subcategory(days=cf_days_config)
 
-            cf_ids, tn_ids, new_ids = await asyncio.gather(
+            cf_ids_raw, tn_ids_raw, new_ids_raw = await asyncio.gather(
                 _cf_or_cached(),
                 self.get_trending_by_conversion(
                     "customer",
@@ -990,6 +1188,10 @@ class RecommendationRepository:
                 ),
                 self.get_new_arrivals(None, None, limit_new),
             )
+            
+            new_ids = list(new_ids_raw) + _bundle_new_arrival_ids(set(new_ids_raw))
+            cf_ids = list(cf_ids_raw) + _bundle_favourites_ids(set(cf_ids_raw))
+            tn_ids = list(tn_ids_raw) + _bundle_trending_ids(set(tn_ids_raw), tn_ids_raw)
             out = {
                 "newArrivals": to_products(new_ids),
                 "customerFavourites": to_products(cf_ids),
@@ -1029,7 +1231,7 @@ class RecommendationRepository:
                     )
                 return []
 
-            tn_ids, explore_ids, new_ids = await asyncio.gather(
+            tn_ids_raw, explore_ids_prod, new_ids_raw = await asyncio.gather(
                 self.get_trending_by_conversion(
                     "customer",
                     days=trending_days,
@@ -1039,8 +1241,22 @@ class RecommendationRepository:
                 _explore_retail(),
                 self.get_new_arrivals(user_id, role, limit_new),
             )
-            # Exclude products that are in Customer Favourites from Trending Now section (tag unchanged)
-            tn_ids = [x for x in tn_ids if x not in set(cf_ids)]
+            
+            cf_set = set(cf_ids)
+            tn_product_ids = [x for x in tn_ids_raw if x not in cf_set]
+            tn_bundle_ids = _bundle_trending_ids(exclude | cf_set | set(tn_product_ids), tn_product_ids)
+            tn_ids = tn_product_ids + tn_bundle_ids
+            
+            new_ids = list(new_ids_raw) + _bundle_new_arrival_ids(exclude | set(new_ids_raw))
+            
+            cf_ids_bundle = _bundle_favourites_ids(exclude | set(cf_ids))
+            cf_ids = cf_ids + cf_ids_bundle
+            
+            explore_exclude = exclude | set(cf_ids) | set(tn_ids) | set(new_ids)
+            _neg = await self._derive_neglected_subcats(user_id, exp_days) if explore_ids_prod else []
+            explore_bundle_ids = _bundle_explore_ids(_neg, explore_exclude | set(explore_ids_prod))
+            explore_ids = list(explore_ids_prod) + explore_bundle_ids
+
             out = {
                 "newArrivals": to_products(new_ids),
                 "customerFavourites": to_products(cf_ids),
