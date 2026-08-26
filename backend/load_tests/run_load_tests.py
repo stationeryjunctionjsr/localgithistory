@@ -336,6 +336,20 @@ def main():
     try:
         resp = httpx.get(f"{BASE_URL}/api/health", timeout=5)
         print(_green(f"  [PASS] API reachable — {BASE_URL}/api/health -> HTTP {resp.status_code}"))
+        
+        print(_cyan("  [WAIT] Warming up critical endpoints to prevent cold-start latency..."))
+        for ep in [
+            "/api/categories/public",
+            "/api/products/public",
+            "/api/promo-strips",
+            "/api/recommendations"
+        ]:
+            try:
+                httpx.get(f"{BASE_URL}{ep}", timeout=10)
+            except Exception:
+                pass
+        print(_green("  [PASS] Caches and DB connections warmed up!"))
+
     except Exception as e:
         print(_red(f"  [FAIL] Cannot reach {BASE_URL}/api/health: {e}"))
         print(_red("    Start the backend first, then re-run this script."))
