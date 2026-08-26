@@ -111,7 +111,7 @@ export default function ValetDashboard() {
   // Live countdown timers for pending forward delivery assignments
   useEffect(() => {
     const tick = setInterval(() => {
-      setCountdown((prev) => {
+      setCountdown((_prev) => {
         const next: Record<string, number> = {};
         pendingAssignments.forEach((o) => {
           const assignedAt = (o as any).valetAssignedAt;
@@ -126,7 +126,7 @@ export default function ValetDashboard() {
       });
 
       // Live countdown timers for pending return pickups (strictly 20 minutes)
-      setReturnCountdown((prev) => {
+      setReturnCountdown((_prev) => {
         const next: Record<string, number> = {};
         pendingReturns.forEach((r) => {
           const assignedAt = r.valetAssignedAt;
@@ -739,6 +739,12 @@ export default function ValetDashboard() {
                             </div>
                           </div>
                         </div>
+
+                        {ret.deliverySlot && (
+                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
+                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
+                          </div>
+                        )}
 
                         {ret.deliverySlot && (
                           <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">

@@ -75,9 +75,9 @@ class TrackErrorRequest(BaseModel):
 @router.post("/beacon")
 @limiter.limit("60/minute")
 async def track_beacon(
+    request: Request,
     payload: Dict[str, Any] = Body(default_factory=dict),
     current_user: Optional[dict] = Depends(get_optional_user),
-    req: Request = None,
 ):
     """Accept beacon payloads (e.g. from navigator.sendBeacon on page unload)."""
     await tracking_repository.create(
@@ -92,14 +92,18 @@ async def track_beacon(
 
 @router.post("/search")
 @limiter.limit("60/minute")
-async def track_search(request: TrackSearchRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
+async def track_search(
+    request: Request,
+    payload: TrackSearchRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
+):
     segment = "wholesaler" if (current_user and current_user.get("role") == "wholesaler") else "customer"
     await tracking_repository.trackSearch(
         current_user.get("_id") if current_user else None,
-        request.searchTerm,
-        request.resultsCount,
-        request.sessionId,
-        product_ids=request.productIds,
+        payload.searchTerm,
+        payload.resultsCount,
+        payload.sessionId,
+        product_ids=payload.productIds,
         segment=segment,
     )
     return {"message": "Search tracked"}
@@ -107,22 +111,30 @@ async def track_search(request: TrackSearchRequest, current_user: Optional[dict]
 
 @router.post("/view")
 @limiter.limit("60/minute")
-async def track_view(request: TrackViewRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
+async def track_view(
+    request: Request,
+    payload: TrackViewRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
+):
     await tracking_repository.trackProductView(
-        current_user.get("_id") if current_user else None, request.productId, request.productName, request.sessionId
+        current_user.get("_id") if current_user else None, payload.productId, payload.productName, payload.sessionId
     )
     return {"message": "View tracked"}
 
 
 @router.post("/click")
 @limiter.limit("60/minute")
-async def track_click(request: TrackClickRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
+async def track_click(
+    request: Request,
+    payload: TrackClickRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
+):
     await tracking_repository.trackProductClick(
         current_user.get("_id") if current_user else None,
-        request.productId,
-        request.productName,
-        request.source,
-        request.sessionId,
+        payload.productId,
+        payload.productName,
+        payload.source,
+        payload.sessionId,
     )
     return {"message": "Click tracked"}
 
@@ -130,55 +142,72 @@ async def track_click(request: TrackClickRequest, current_user: Optional[dict] =
 @router.post("/cart-abandonment")
 @limiter.limit("60/minute")
 async def track_cart_abandonment(
-    request: TrackCartAbandonmentRequest, current_user: Optional[dict] = Depends(get_optional_user),
-    req: Request = None,
+    request: Request,
+    payload: TrackCartAbandonmentRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartAbandonment(
-        current_user.get("_id") if current_user else None, request.cartItems, request.cartValue, request.sessionId
+        current_user.get("_id") if current_user else None, payload.cartItems, payload.cartValue, payload.sessionId
     )
     return {"message": "Cart abandonment tracked"}
 
 
 @router.post("/session")
 @limiter.limit("60/minute")
-async def track_session(request: TrackSessionRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
+async def track_session(
+    request: Request,
+    payload: TrackSessionRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
+):
     await tracking_repository.trackSession(
-        current_user.get("_id") if current_user else None, request.sessionId, request.isReturning
+        current_user.get("_id") if current_user else None, payload.sessionId, payload.isReturning
     )
     return {"message": "Session tracked"}
 
 
 @router.post("/page-view")
 @limiter.limit("60/minute")
-async def track_page_view(request: TrackPageViewRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
+async def track_page_view(
+    request: Request,
+    payload: TrackPageViewRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
+):
     await tracking_repository.trackPageView(
-        current_user.get("_id") if current_user else None, request.page, request.sessionId
+        current_user.get("_id") if current_user else None, payload.page, payload.sessionId
     )
     return {"message": "Page view tracked"}
 
 
 @router.post("/drop-off")
 @limiter.limit("60/minute")
-async def track_drop_off(request: TrackDropOffRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
+async def track_drop_off(
+    request: Request,
+    payload: TrackDropOffRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
+):
     await tracking_repository.trackDropOff(
-        current_user.get("_id") if current_user else None, request.page, request.reason, request.sessionId
+        current_user.get("_id") if current_user else None, payload.page, payload.reason, payload.sessionId
     )
     return {"message": "Drop-off tracked"}
 
 
 @router.post("/error")
 @limiter.limit("60/minute")
-async def track_frontend_error(request: TrackErrorRequest, current_user: Optional[dict] = Depends(get_optional_user), req: Request = None):
+async def track_frontend_error(
+    request: Request,
+    payload: TrackErrorRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
+):
     from app.utils.logger import logger
 
     user_id = current_user.get("_id") if current_user else "anonymous"
     error_msg = (
         f"[FRONTEND] Critical Error from user {user_id}\n"
-        f"Message: {request.message}\n"
-        f"URL: {request.url}\n"
-        f"Line: {request.line}:{request.col}\n"
-        f"Session: {request.sessionId}\n"
-        f"Stack: {request.stack}"
+        f"Message: {payload.message}\n"
+        f"URL: {payload.url}\n"
+        f"Line: {payload.line}:{payload.col}\n"
+        f"Session: {payload.sessionId}\n"
+        f"Stack: {payload.stack}"
     )
     logger.error(error_msg)
     return {"message": "Frontend error tracked"}
@@ -205,11 +234,12 @@ class TrackFilterClickRequest(BaseModel):
 @router.post("/cart-remove")
 @limiter.limit("60/minute")
 async def track_cart_item_remove(
-    request: TrackCartItemRemoveRequest, current_user: Optional[dict] = Depends(get_optional_user),
-    req: Request = None,
+    request: Request,
+    payload: TrackCartItemRemoveRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartItemRemove(
-        current_user.get("_id") if current_user else None, request.productId, request.quantity, request.sessionId
+        current_user.get("_id") if current_user else None, payload.productId, payload.quantity, payload.sessionId
     )
     return {"message": "Cart item removal tracked"}
 
@@ -217,11 +247,12 @@ async def track_cart_item_remove(
 @router.post("/cart-add")
 @limiter.limit("60/minute")
 async def track_cart_item_add(
-    request: TrackCartItemAddRequest, current_user: Optional[dict] = Depends(get_optional_user),
-    req: Request = None,
+    request: Request,
+    payload: TrackCartItemAddRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartAdd(
-        current_user.get("_id") if current_user else None, request.productId, request.quantity, request.sessionId
+        current_user.get("_id") if current_user else None, payload.productId, payload.quantity, payload.sessionId
     )
     return {"message": "Cart item addition tracked"}
 
@@ -229,11 +260,12 @@ async def track_cart_item_add(
 @router.post("/filter-click")
 @limiter.limit("60/minute")
 async def track_filter_click(
-    request: TrackFilterClickRequest, current_user: Optional[dict] = Depends(get_optional_user),
-    req: Request = None,
+    request: Request,
+    payload: TrackFilterClickRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackFilterClick(
-        current_user.get("_id") if current_user else None, request.filterType, request.filterValue, request.sessionId
+        current_user.get("_id") if current_user else None, payload.filterType, payload.filterValue, payload.sessionId
     )
     return {"message": "Filter click tracked"}
 

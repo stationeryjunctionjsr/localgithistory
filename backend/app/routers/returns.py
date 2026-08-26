@@ -259,6 +259,40 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
     return await populate_return_request(created)
 
 
+@router.post("/admin/{request_id}/auto-assign", response_model=ReturnRequestResponse)
+async def auto_assign_return(request_id: str, current_user: dict = Depends(require_super_admin)):
+    """Super Admin triggers auto-assigning the return pickup to the best available valet."""
+    req = await return_request_repository.findById(request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Return request not found")
+
+    from app.jobs.valet_timeout_job import _find_next_available_valet_for_return
+
+    candidate = await _find_next_available_valet_for_return(req, [])
+    if not candidate:
+        raise HTTPException(
+            status_code=400,
+            detail="No eligible on-duty valets currently available in customer's area matching availability criteria.",
+        )
+
+    valet_id = str(candidate["_id"])
+    now_iso = datetime.utcnow().isoformat() + "Z"
+
+    updated = await return_request_repository.update(
+        request_id,
+        {
+            "status": ReturnRequestStatus.PENDING_VALET.value,
+            "pendingValetId": valet_id,
+            "valetId": None,
+            "valetAssignedAt": now_iso,
+            "valetDeclineHistory": [],
+            "valetCascadeCount": 0,
+        },
+    )
+
+    return await populate_return_request(updated)
+
+
 @router.put("/admin/{request_id}/assign", response_model=ReturnRequestResponse)
 async def assign_valet(
     request_id: str, valet_data: ReturnRequestUpdate, current_user: dict = Depends(require_super_admin)

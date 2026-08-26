@@ -1,0 +1,61 @@
+=== EDITS PRESENT IN CODEBASE (0) ===
+
+=== EDITS MISSING FROM CODEBASE (24) ===
+  [MISSING] c:\Ecommerce app\backend\app\models\schemas.py -> "Update ReturnRequest schemas with slot and valet auto-cascade fields and add ValetReturnResponseRequest" (2/2 lines missing)
+     - "class ValetReturnResponseRequest(BaseModel):\n    action: str  # \"accept\" | \"decline\"\n    declineReason: Optional[
+     - <truncated 441 bytes>
+  [MISSING] c:\Ecommerce app\backend\app\models\schemas.py -> "Remove duplicate ReturnRequest schemas at bottom of schemas.py" (1/1 lines missing)
+     - "class ReturnSettingsUpdate(BaseModel):\n    returnDays: Optional[int] = None\n"
+  [MISSING] c:\Ecommerce app\backend\app\db\mysql_typed_doc_configs.py -> "Map sellerId, deliverySlot and valet auto-cascade fields in returnRequests config" (1/1 lines missing)
+     - "    \"returnRequests\": _dao(\n        \"sj_return_requests\",\n        {\n            \"returnId\": \"return_id\",\n  
+  [MISSING] c:\Ecommerce app\backend\app\db\typed_doc_configs.py -> "Update returnRequests mapping in typed_doc_configs.py" (1/1 lines missing)
+     - "    \"returnRequests\": _dao(\n        \"sj_return_requests\",\n        {\n            \"returnId\": \"return_id\",\n  
+  [MISSING] c:\Ecommerce app\backend\app\repositories\return_request_repository.py -> "Update ReturnRequestRepository with ensure_table_columns and field support" (2/2 lines missing)
+     - "from datetime import datetime\nfrom typing import Dict, List, Optional\nimport re\nfrom sqlalchemy import text\n\nfrom 
+     - <truncated 3297 bytes>
+  [MISSING] c:\Ecommerce app\backend\app\main.py -> "Add return_request_repository.ensure_table_columns() to startup table checks" (1/1 lines missing)
+     - "        from app.repositories.stock_reservation_repository import stock_reservation_repository\n        from app.reposi
+  [MISSING] c:\Ecommerce app\backend\app\jobs\valet_timeout_job.py -> "Add return pickup auto-cascading and timeout handling to valet_timeout_job.py" (2/2 lines missing)
+     - "\"\"\"\nValet Timeout Job\n\nScans all orders in `pending_valet` status (5 min urgent, 20 min normal) and\nall return r
+     - <truncated 17464 bytes>
+  [MISSING] c:\Ecommerce app\backend\app\routers\returns.py -> "Update returns.py with auto-cascading assignment, delivery slot/normal routing, and valet response endpoints" (2/2 lines missing)
+     - "from datetime import datetime, timedelta\nfrom typing import Dict, List, Optional\n\nfrom fastapi import APIRouter, Dep
+     - <truncated 25859 bytes>
+  [MISSING] c:\Ecommerce app\frontend\src\app\valet\page.tsx -> "Add pending return requests state and live 20-min timer to ValetDashboard" (2/2 lines missing)
+     - "  const [pendingAssignments, setPendingAssignments] = useState<Order[]>([]);\n  const [pendingReturns, setPendingReturn
+     - <truncated 1134 bytes>
+  [MISSING] c:\Ecommerce app\frontend\src\app\valet\page.tsx -> "Update fetchPendingAssignments to fetch pending returns and add handleValetReturnResponse" (2/2 lines missing)
+     - "  const fetchPendingAssignments = async () => {\n    if (!user) return;\n    try {\n      const [ordersRes, returnsRes]
+     - <truncated 535 bytes>
+  [MISSING] c:\Ecommerce app\frontend\src\app\valet\page.tsx -> "Add pending returns cards with 20-min countdown timer in valet page banner" (2/2 lines missing)
+     - "      {/* ── Pending Assignment Cards (Forward Orders) ── */}\n      {pendingAssignments.length > 0 && (\n        <div 
+     - <truncated 11006 bytes>
+  [MISSING] c:\Ecommerce app\frontend\src\app\valet\page.tsx -> "Show scheduled pickup slot in assigned returns section of valet page" (1/1 lines missing)
+     - "                        {ret.deliverySlot && (\n                          <div className=\"mb-3 text-xs bg-purple-50 te
+  [MISSING] c:\Ecommerce app\frontend\src\app\admin\returns-management\page.tsx -> "Add auto-assign, pending_valet badge, and slot details in admin returns management" (2/2 lines missing)
+     - "export default function ReturnsManagement() {\n  const { user } = useAuth();\n  const [returns, setReturns] = useState<
+     - <truncated 4573 bytes>
+  [MISSING] c:\Ecommerce app\frontend\src\app\admin\returns-management\page.tsx -> "Update status and actions columns in admin returns table for auto-assign and pending_valet" (2/2 lines missing)
+     - "                      <td className=\"px-6 py-4\">\n                        {getStatusBadge(ret.status)}\n             
+     - <truncated 1477 bytes>
+  [MISSING] c:\Ecommerce app\frontend\src\app\customer\returns\page.tsx -> "Update status badge and text formatting for pending_valet in customer returns page" (1/1 lines missing)
+     - "  const getStatusBadgeClass = (status: string) => {\n    switch (status?.toLowerCase()) {\n      case 'pending':\n     
+  [MISSING] c:\Ecommerce app\frontend\src\app\customer\returns\page.tsx -> "Use formatStatusLabel for badge text in customer returns page" (1/1 lines missing)
+     - "                  <div>\n                    <span\n                      className={`px-3 py-1 text-xs font-semibold r
+  [MISSING] c:\Ecommerce app\frontend\mobile\app\returns.tsx -> "Support pending_valet status color and background in mobile returns.tsx" (1/1 lines missing)
+     - "  const getStatusColor = (status: string) => {\n    switch (status?.toLowerCase()) {\n      case 'pending':\n      case
+  [MISSING] c:\Ecommerce app\frontend\mobile\app\valet\index.tsx -> "Update valet returns endpoint in mobile valet app" (1/1 lines missing)
+     - "  const { data: returnsData, isLoading: returnsLoading, refetch: refetchReturns, isRefetching: isRefetchingReturns } = 
+  [MISSING] C:\Users\RESHAM DILAWARI\.gemini\antigravity\brain\bb9a944b-16f1-4cea-a212-aeb6d6407126\scratch\test_return_cascade.py -> "Add sys.path insert for running test script" (1/1 lines missing)
+     - "import asyncio\nimport os\nimport sys\n\nsys.path.insert(0, os.path.abspath(\".\"))\n\nfrom datetime import datetime, t
+  [MISSING] C:\Users\RESHAM DILAWARI\.gemini\antigravity\brain\bb9a944b-16f1-4cea-a212-aeb6d6407126\scratch\test_return_cascade.py -> "Replace unicode checkmarks with [OK] and mock DB for offline test execution" (2/2 lines missing)
+     - "import asyncio\nimport os\nimport sys\n\nsys.path.insert(0, os.path.abspath(\".\"))\n\nfrom datetime import datetime, t
+     - <truncated 785 bytes>
+  [MISSING] c:\Ecommerce app\frontend\src\app\admin\returns-management\page.tsx -> "Remove unused formatDateTimeIST import in admin returns management" (1/1 lines missing)
+     - "'use client';\n\nimport { useState, useEffect } from 'react';\nimport { useAuth } from '@/context/AuthContext';\nimport
+  [MISSING] c:\Ecommerce app\frontend\src\app\customer\returns\page.tsx -> "Escape apostrophe in customer returns page" (1/1 lines missing)
+     - "            <h3 className=\"mt-4 text-sm font-semibold text-gray-900\">No returns found</h3>\n            <p className=
+  [MISSING] c:\Ecommerce app\frontend\src\app\valet\page.tsx -> "Prefix unused prev parameter with underscore in valet page" (1/1 lines missing)
+     - "  // Live countdown timers for pending forward delivery assignments\n  useEffect(() => {\n    const tick = setInterval(
+  [MISSING] c:\Ecommerce app\frontend\src\app\admin\returns-management\page.tsx -> "Fix unused caught error and add exhaustive-deps disable comment in admin returns management" (1/1 lines missing)
+     - "  const fetchReturns = async () => {\n    try {\n      const params = statusFilter ? { status: statusFilter } : {};\n  

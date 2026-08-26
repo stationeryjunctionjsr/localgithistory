@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -23,6 +23,20 @@ export default function ReturnsManagement() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectNotes, setRejectNotes] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  const [autoAssigningId, setAutoAssigningId] = useState<string | null>(null);
+
+  const handleAutoAssign = async (returnId: string) => {
+    setAutoAssigningId(returnId);
+    try {
+      await api.post(`/returns/admin/${returnId}/auto-assign`);
+      toast.success('Auto-assigned return pickup to best available valet.');
+      fetchReturns();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to auto-assign valet');
+    } finally {
+      setAutoAssigningId(null);
+    }
+  };
 
   const fetchReturns = async () => {
     try {
