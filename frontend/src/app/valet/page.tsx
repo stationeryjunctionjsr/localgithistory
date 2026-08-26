@@ -49,6 +49,14 @@ export default function ValetDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [returns, setReturns] = useState<any[]>([]);
+  const [pendingAssignments, setPendingAssignments] = useState<Order[]>([]);
+  const [pendingReturns, setPendingReturns] = useState<any[]>([]);
+  const [respondingOrderId, setRespondingOrderId] = useState<string | null>(null);
+  const [respondingReturnId, setRespondingReturnId] = useState<string | null>(null);
+  const [declineReason, setDeclineReason] = useState('');
+  const [showDeclineInput, setShowDeclineInput] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<Record<string, number>>({});
+  const [returnCountdown, setReturnCountdown] = useState<Record<string, number>>({});
   const [loadingReturns, setLoadingReturns] = useState(false);
   const [expandedReturns, setExpandedReturns] = useState<Set<string>>(new Set());
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -88,6 +96,52 @@ export default function ValetDashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading, router, startDate, endDate]);
 
+  // Poll for pending assignments every 15 s
+  useEffect(() => {
+    fetchPendingAssignments();
+    fetchPendingReturns();
+    const interval = setInterval(() => {
+      fetchPendingAssignments();
+      fetchPendingReturns();
+    }, 15000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Live countdown timers for pending forward delivery assignments
+  useEffect(() => {
+    const tick = setInterval(() => {
+      setCountdown((prev) => {
+        const next: Record<string, number> = {};
+        pendingAssignments.forEach((o) => {
+          const assignedAt = (o as any).valetAssignedAt;
+          if (!assignedAt) return;
+          const isUrgent = (o as any).isUrgentDelivery;
+          const timeoutMs = (isUrgent ? 5 : 20) * 60 * 1000;
+          const elapsed = Date.now() - new Date(assignedAt).getTime();
+          const remaining = Math.max(0, Math.round((timeoutMs - elapsed) / 1000));
+          next[o._id] = remaining;
+        });
+        return next;
+      });
+
+      // Live countdown timers for pending return pickups (strictly 20 minutes)
+      setReturnCountdown((prev) => {
+        const next: Record<string, number> = {};
+        pendingReturns.forEach((r) => {
+          const assignedAt = r.valetAssignedAt;
+          if (!assignedAt) return;
+          const timeoutMs = 20 * 60 * 1000;
+          const elapsed = Date.now() - new Date(assignedAt).getTime();
+          const remaining = Math.max(0, Math.round((timeoutMs - elapsed) / 1000));
+          next[r._id || r.id] = remaining;
+        });
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [pendingAssignments, pendingReturns]);
+
   const fetchOrders = async () => {
     try {
       setLoading(true);
@@ -115,15 +169,76 @@ export default function ValetDashboard() {
     }
   };
 
+  const fetchPendingAssignments = async () => {
+    try {
+      const res = await fetch('/api/orders/valet/pending', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingAssignments(data);
+      }
+    } catch (e) {
+      console.error('Error fetching pending assignments:', e);
+    }
+  };
+
+  const fetchPendingReturns = async () => {
+    try {
+      const res = await fetch('/api/returns/valet/pending', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingReturns(data);
+      }
+    } catch (e) {
+      console.error('Error fetching pending returns:', e);
+    }
+  };
+
   const fetchReturns = async () => {
     try {
       setLoadingReturns(true);
       const res = await api.get('/returns/valet/assigned');
       setReturns(res.data || []);
-    } catch (err) {
-      console.error('Failed to fetch assigned returns', err);
+    } catch (e) {
+      console.error('Error responding to assignment:', e);
+      alert('Failed to respond to assignment');
     } finally {
+      setRespondingOrderId(null);
       setLoadingReturns(false);
+    }
+  };
+
+  const handleReturnRespond = async (returnId: string, accept: boolean) => {
+    if (!accept && !declineReason) {
+      setShowDeclineInput(returnId);
+      return;
+    }
+    try {
+      setRespondingReturnId(returnId);
+      const res = await fetch(`/api/returns/valet/${returnId}/response`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ accept, declineReason: accept ? undefined : declineReason }),
+      });
+      if (res.ok) {
+        setDeclineReason('');
+        setShowDeclineInput(null);
+        await Promise.all([fetchPendingReturns(), fetchReturns()]);
+      } else {
+        const err = await res.json();
+        alert(err.detail || 'Failed to respond to return pickup');
+      }
+    } catch (e) {
+      console.error('Error responding to return:', e);
+      alert('Failed to respond to return pickup');
+    } finally {
+      setRespondingReturnId(null);
     }
   };
 
@@ -624,6 +739,36 @@ export default function ValetDashboard() {
                             </div>
                           </div>
                         </div>
+
+                        {ret.deliverySlot && (
+                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
+                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
+                          </div>
+                        )}
+
+                        {ret.deliverySlot && (
+                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
+                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
+                          </div>
+                        )}
+
+                        {ret.deliverySlot && (
+                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
+                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
+                          </div>
+                        )}
+
+                        {ret.deliverySlot && (
+                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
+                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
+                          </div>
+                        )}
+
+                        {ret.deliverySlot && (
+                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
+                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
+                          </div>
+                        )}
 
                         <div>
                           <div className="mb-1 text-xs uppercase text-gray-500">📍 Pickup Address</div>

@@ -33,6 +33,8 @@ export default function MyReturns() {
     switch (status?.toLowerCase()) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'pending_valet':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'assigned':
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'collected':
@@ -44,6 +46,11 @@ export default function MyReturns() {
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  const formatStatusLabel = (status: string) => {
+    if (status === 'pending_valet') return 'Assigning Valet';
+    return status;
   };
 
   return (
@@ -146,7 +153,7 @@ export default function MyReturns() {
                         req.status
                       )}`}
                     >
-                      {req.status}
+                      {formatStatusLabel(req.status)}
                     </span>
                   </div>
                 </div>

@@ -1010,8 +1010,17 @@ CREATE TABLE `sj_return_requests` (
   `upi_payment_screenshot` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `notes` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `valet_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `delivery_charge` decimal(18,2) DEFAULT NULL,
+  `seller_id` varchar(64) DEFAULT NULL,
+  `delivery_slot_id` varchar(64) DEFAULT NULL,
+  `delivery_slot_config_id` varchar(64) DEFAULT NULL,
+  `delivery_slot_date` varchar(32) DEFAULT NULL,
+  `pending_valet_id` varchar(64) DEFAULT NULL,
+  `valet_assigned_at` datetime DEFAULT NULL,
+  `valet_cascade_count` int DEFAULT '0',
+  `valet_accepted_at` datetime DEFAULT NULL,
+  `valet_declined_at` datetime DEFAULT NULL,
+  `valet_decline_reason` varchar(1000) DEFAULT NULL,
+  `delivery_charge` float DEFAULT '0',
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1605,3 +1614,15 @@ INSERT IGNORE INTO sj_feature_flags (flag_id, name, description, enabled, catego
 ('wholesale_enable_credit', 'Wholesale Credit', 'Enable Credit orders for Wholesale customers', 1, 'payments', NOW(), NOW()),
 ('retail_enable_gst', 'Retail GST', 'Enable GST calculation for Retail customers', 1, 'payments', NOW(), NOW()),
 ('wholesale_enable_gst', 'Wholesale GST', 'Enable GST calculation for Wholesale customers', 1, 'payments', NOW(), NOW());
+
+CREATE TABLE sj_return_valet_declines (
+  id int NOT NULL AUTO_INCREMENT,
+  
+eturn_request_id varchar(64) NOT NULL,
+  alet_id varchar(64) NOT NULL,
+  
+eason varchar(1000) DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY idx_ret_valet_decline (
+eturn_request_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
