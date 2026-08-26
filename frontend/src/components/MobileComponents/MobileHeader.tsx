@@ -79,7 +79,7 @@ export default function MobileHeader() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryTags, setCategoryTags] = useState<CategoryTag[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<{ categoryNames: string[]; subCategories: Record<string, string[]> } | null>(null);
+  const [availableCategories, setAvailableCategories] = useState<{ categoryNames: string[]; subCategories: Record<string, string[]>; brandNames: string[]; collectionNames: string[] } | null>(null);
   const [tagData, setTagData] = useState<
     Record<string, { categories: Category[]; brands: Brand[] }>
   >({});
