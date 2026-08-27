@@ -1635,8 +1635,8 @@ CREATE TABLE `sj_users` (
   `allow_urgent_delivery` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_users_external` (`external_id`),
-  KEY `ix_sj_users_email` (`email`),
-  KEY `ix_sj_users_phone` (`phone`),
+  UNIQUE KEY `uq_sj_users_email` (`email`),
+  UNIQUE KEY `uq_sj_users_phone` (`phone`),
   KEY `ix_sj_users_role` (`role`),
   KEY `ix_sj_users_referral` (`referral_code`)
 ) ENGINE=InnoDB AUTO_INCREMENT=169 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

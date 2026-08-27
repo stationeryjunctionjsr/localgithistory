@@ -304,7 +304,7 @@ export default function Cart() {
       api.post('/tracking/page-view', {
         page: pagePath,
         sessionId: sid,
-      }).catch(() => {});
+      }).catch((e) => logger.warn('Background task failed', e));
     }
     
     // 2. Dispatch GTM page view event
@@ -733,7 +733,10 @@ export default function Cart() {
     try {
       const r = await api.get('/wishlist');
       setWishlistItems(r.data.items || []);
-    } catch {}
+    } catch (e) {
+      logger.error('Failed to fetch wishlist', e);
+      toast.warn('Could not load wishlist items');
+    }
   };
 
   const fetchImpulseBuy = async () => {
@@ -746,7 +749,10 @@ export default function Cart() {
         const r = await api.get(`/collections/${col._id}/products`);
         setImpulseBuyItems(r.data || []);
       }
-    } catch {}
+    } catch (e) {
+      logger.error('Failed to fetch impulse buy items', e);
+      toast.warn('Could not load recommendation items');
+    }
   };
 
   const handleAddToCart = async (productId: string, product?: any) => {
@@ -755,7 +761,7 @@ export default function Cart() {
         await api.post('/cart', { productId, quantity: 1 });
       } else {
         addGuestCartItem(productId, 1, product);
-        trackBackendCartAdd(productId, 1).catch(() => {});
+        trackBackendCartAdd(productId, 1).catch((e) => logger.warn('Background task failed', e));
       }
       toast.success('Added to cart');
       fetchCart();
@@ -1026,7 +1032,10 @@ export default function Cart() {
       await login(authPhone, authPassword);
       toast.success('Logged in');
       fetchCart();
-    } catch {}
+    } catch (e: any) {
+      logger.error('Login failed', e);
+      toast.error('Login failed');
+    }
     setAuthBusy(false);
   };
 
@@ -1303,8 +1312,9 @@ export default function Cart() {
               const platform = attr.fbclid ? 'meta' : (attr.gclid ? 'google' : (attr.utmSource || 'unknown'));
               trackWebAdConversion(attr.adId, platform, finalTotalAmount);
             }
-          // eslint-disable-next-line unused-imports/no-unused-vars
-          } catch (e) {}
+          } catch (e) {
+            logger.warn('Background task failed', e);
+          }
         }
       }
 

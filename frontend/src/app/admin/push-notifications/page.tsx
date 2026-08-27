@@ -81,7 +81,10 @@ export default function PushNotificationManagement() {
       api
         .get('/customer-segments')
         .then((r) => setCustomSegments(r.data || []))
-        .catch(() => {});
+        .catch((e) => {
+          logger.error('Failed to load customer segments', e);
+          toast.warn('Could not load customer segments');
+        });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, statusFilter]);
