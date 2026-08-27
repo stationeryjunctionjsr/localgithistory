@@ -113,9 +113,28 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
     # ── Seller resolution ──────────────────────────────────────────────────────
     # For wholesale customers the only seller is always the Super Admin — the
     # marketplace model does not apply.  We skip the per-zone seller lookup and
-    # return showSellerCount=False so the frontend hides the seller-count UI.
+    # return the super admin as the only serviceable seller.
     serviceable_sellers: list = []
-    if not is_wholesaler:
+    if is_wholesaler:
+        from app.repositories.zone_seller_cache import get_super_admin_seller_id
+        sa_id = await get_super_admin_seller_id()
+        if sa_id:
+            try:
+                seller_doc = await user_repository.findById(sa_id)
+                if seller_doc:
+                    perms = seller_doc.get("sellerPermissions") or {}
+                    serviceable_sellers.append({
+                        "id": str(seller_doc.get("_id", sa_id)),
+                        "name": seller_doc.get("name", ""),
+                        "companyName": seller_doc.get("companyName", seller_doc.get("name", "")),
+                        "city": seller_doc.get("city") or seller_doc.get("address", {}).get("city"),
+                        "allowUrgentDelivery": bool(perms.get("allowUrgentDelivery", False)),
+                        "allowDeliverySlots": bool(perms.get("allowDeliverySlots", True)),
+                    })
+            except Exception as exc:
+                from app.utils.logger import logger
+                logger.warning("check_serviceability: could not fetch super admin %s: %s", sa_id, exc)
+    else:
         seller_id_set = await get_seller_ids_for_pincode(pincode)  # None | set()| set(ids)
         if seller_id_set:  # non-None and non-empty
             for sid in seller_id_set:

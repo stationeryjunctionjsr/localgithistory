@@ -101,7 +101,11 @@ export default function MobileHeader() {
       setAvailableCategories(null);
       return;
     }
-    api.get('/categories/available', { params: { pincode } })
+    const currentRole = user?.effectiveRole || user?.role;
+    const params: any = { pincode };
+    if (currentRole) params.role = currentRole;
+    
+    api.get('/categories/available', { params })
       .then(res => setAvailableCategories(res.data))
       .catch(err => {
         logger.error('Failed to fetch available categories for zone', err);
@@ -168,9 +172,7 @@ export default function MobileHeader() {
 
   const getCategoriesForTag = (tagName: string) => {
     const cats = tagData[tagName]?.categories || [];
-    if (!availableCategories || user?.role === 'wholesaler' || user?.effectiveRole === 'wholesaler') {
-      return cats;
-    }
+    if (!availableCategories) return cats;
 
     return cats
       .filter((c: any) => availableCategories.categoryNames.includes(c.name))
@@ -255,8 +257,10 @@ export default function MobileHeader() {
       try {
         const params: Record<string, string> = { q: searchQuery.trim(), limit: '8' };
         if (activeCategoryTag) params.categoryTag = activeCategoryTag;
-        // Super Admin is the seller to all business zones, so Wholesalers are not bound by retail pincodes
-        if (pincode && user?.role !== 'wholesaler' && user?.effectiveRole !== 'wholesaler') params.pincode = pincode;
+        // Pass effective role so backend can filter Wholesalers to Super Admin products
+        const currentRole = user?.effectiveRole || user?.role;
+        if (currentRole) params.role = currentRole;
+        if (pincode) params.pincode = pincode;
         const res = await api.get('/products/suggest', { params });
         setLiveAutocomplete({
           products: res.data?.products || [],

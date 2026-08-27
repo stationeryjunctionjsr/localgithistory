@@ -28,6 +28,21 @@ ZONE_CACHE_TTL_S = 300  # 5 minutes
 # { zone_id: (frozenset[seller_id], expiry_monotonic) }
 _zone_cache: Dict[str, Tuple[frozenset, float]] = {}
 
+_super_admin_id_cache: Optional[str] = None
+_super_admin_cache_expiry: float = 0.0
+
+async def get_super_admin_seller_id() -> Optional[str]:
+    global _super_admin_id_cache, _super_admin_cache_expiry
+    if _super_admin_id_cache and time.monotonic() < _super_admin_cache_expiry:
+        return _super_admin_id_cache
+        
+    from app.repositories.user_repository import user_repository
+    super_admin = await user_repository.findOne({"role": "super_admin"})
+    if super_admin:
+        _super_admin_id_cache = str(super_admin.get("_id"))
+        _super_admin_cache_expiry = time.monotonic() + 3600
+        return _super_admin_id_cache
+    return None
 
 def _is_fresh(expiry: float) -> bool:
     return time.monotonic() < expiry

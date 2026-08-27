@@ -415,8 +415,6 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   // True when: no pincode set (can't check), OR at least one of the product's
   // active+stocked sellers serves the user's pincode.
   const isAvailableAtPincode = useMemo(() => {
-    // Super Admin is the seller to all business zones, so Wholesalers are not bound by retail pincodes
-    if (user?.role === 'wholesaler' || user?.effectiveRole === 'wholesaler') return true;
     if (!pincode) return true; // No pincode set — optimistic
     if (!serviceableSellers || serviceableSellers.length === 0) return false;
     const productSellers: any[] = product?.sellers || [];
@@ -840,10 +838,14 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                     </svg>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                        Not available at your pincode ({pincode})
+                        {(user?.role === 'wholesaler' || user?.effectiveRole === 'wholesaler') 
+                          ? 'Not eligible for your account' 
+                          : `Not available at your pincode (${pincode})`}
                       </p>
                       <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                        This product is currently not delivered to your area.
+                        {(user?.role === 'wholesaler' || user?.effectiveRole === 'wholesaler') 
+                          ? 'This product is not serviced for wholesale accounts.' 
+                          : 'This product is currently not delivered to your area.'}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-3">
                         <button
@@ -986,7 +988,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                         </>
                       )}
                     </svg>
-                    {isSameAsCart ? 'GO TO CART' : (!isAvailableAtPincode ? 'UNAVAILABLE AT PINCODE' : (cartItem ? 'UPDATE CART' : 'ADD TO CART'))}
+                    {isSameAsCart ? 'GO TO CART' : (!isAvailableAtPincode ? ((user?.role === 'wholesaler' || user?.effectiveRole === 'wholesaler') ? 'NOT ELIGIBLE' : 'UNAVAILABLE AT PINCODE') : (cartItem ? 'UPDATE CART' : 'ADD TO CART'))}
                   </button>
                 )}
                 <button

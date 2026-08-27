@@ -345,7 +345,7 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
 
 
 @router.get("/suggest")
-async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = None):
+async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = None, role: str = "customer"):
     """Lightweight autocomplete endpoint returning matching product names, brands, and categories"""
     if len(q) < 2:
         return {"products": [], "brands": [], "categories": []}
@@ -355,32 +355,33 @@ async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = Non
     if not tokens:
         return {"products": [], "brands": [], "categories": []}
 
-    active_products = await product_repository.storage.findAll({"search": q, "isActive": True})
+    query = {"search": q, "isActive": True}
+    
+    serviceable_seller_ids = None
+    if role == "wholesaler":
+        from app.repositories.zone_seller_cache import get_super_admin_seller_id
+        sa_id = await get_super_admin_seller_id()
+        if sa_id:
+            serviceable_seller_ids = {sa_id}
+        else:
+            serviceable_seller_ids = set()
+    elif pincode:
+        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
+        serviceable_seller_ids = await get_seller_ids_for_pincode(pincode)
+
+    if serviceable_seller_ids is not None:
+        query["seller_ids"] = list(serviceable_seller_ids)
+
+    active_products = await product_repository.storage.findAll(query)
 
     products = []
     brands = set()
     categories = set()
-    
-    # If a pincode is provided, resolve serviceable seller IDs via the zone that
-    # contains this pincode.  Returns:
-    #   None     → pincode not in any zone → no filtering (show all)
-    #   set()    → zone found but no sellers assigned → nothing available
-    #   set(ids) → zone found with sellers → filter to these IDs
-    serviceable_seller_ids = None
-    if pincode:
-        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
-        serviceable_seller_ids = await get_seller_ids_for_pincode(pincode)
 
     for p in active_products:
         name = p.get("name", "")
         name_lower = name.lower()
         if all(t in name_lower for t in tokens):
-            # Check pincode availability
-            if serviceable_seller_ids is not None:
-                p_sellers = p.get("sellerIds", [])
-                if p_sellers and not any(s_id in serviceable_seller_ids for s_id in p_sellers):
-                    continue # Not available at pincode
-                    
             if p.get("brand"):
                 brands.add(p.get("brand"))
             if p.get("category"):
@@ -590,6 +591,12 @@ async def get_public_products(
         query["sort"] = sort
     query["role"] = role
 
+    if role == "wholesaler":
+        from app.repositories.zone_seller_cache import get_super_admin_seller_id
+        sa_id = await get_super_admin_seller_id()
+        if sa_id:
+            query["allowed_seller_ids"] = [sa_id]
+
     if page > 1:
         includeFacets = False
 
@@ -730,6 +737,12 @@ async def get_products(
 
     query["role"] = effective_role
     query["user_id"] = user_id
+
+    if effective_role == "wholesaler":
+        from app.repositories.zone_seller_cache import get_super_admin_seller_id
+        sa_id = await get_super_admin_seller_id()
+        if sa_id:
+            query["allowed_seller_ids"] = [sa_id]
 
     if page > 1:
         includeFacets = False

@@ -40,20 +40,28 @@ class CategoryUpdate(BaseModel):
 
 @router.get("/available")
 @cache.ttl_cache(ttl=300.0)
-async def get_available_categories(pincode: Optional[str] = None):
+async def get_available_categories(pincode: Optional[str] = None, role: Optional[str] = "customer"):
     """
     Returns the category names and subcategories that have at least one product
     available for the given pincode (based on zone -> seller mapping).
     Returns null if no pincode is provided or if the pincode is not in any zone (fail-open).
     """
-    if not pincode:
-        return None
+    if role == "wholesaler":
+        from app.repositories.zone_seller_cache import get_super_admin_seller_id
+        sa_id = await get_super_admin_seller_id()
+        if sa_id:
+            seller_id_set = {sa_id}
+        else:
+            seller_id_set = set()
+    else:
+        if not pincode:
+            return None
 
-    from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
-    seller_id_set = await get_seller_ids_for_pincode(pincode)
+        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
+        seller_id_set = await get_seller_ids_for_pincode(pincode)
 
-    if seller_id_set is None:
-        return None  # Pincode not in any zone -> fail open (show all)
+        if seller_id_set is None:
+            return None  # Pincode not in any zone -> fail open (show all)
 
     result = {
         "categoryNames": set(),
