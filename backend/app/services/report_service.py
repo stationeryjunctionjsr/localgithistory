@@ -1,4 +1,3 @@
-import json
 import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
@@ -17,26 +16,20 @@ load_dotenv(env_path)
 
 class ReportService:
     def __init__(self):
-        # JSON file-based tracking data read is disabled — Oracle is the only supported backend.
-        # self.tracking_file = os.path.join("backend", "app", "data", "tracking.json")
-        # if not os.path.exists(self.tracking_file):
-        #     # Fallback if running from backend directory
-        #     self.tracking_file = os.path.join("app", "data", "tracking.json")
         pass
 
-    def _read_tracking_data(self) -> List[Dict[str, Any]]:
-        # JSON file-based tracking data read is disabled — tracking data is stored in Oracle.
-        # if not os.path.exists(self.tracking_file):
-        #     return []
-        # try:
-        #     with open(self.tracking_file, "r") as f:
-        #         return json.load(f)
-        # except Exception as e:
-        #     logger.error("Error reading tracking data: %s", str(e), exc_info=True)
-        #     return []
-        return []  # Tracking data is now in Oracle; implement DB read if needed.
+    async def _read_tracking_data(self) -> List[Dict[str, Any]]:
+        """Read all tracking events from the MySQL tracking table."""
+        try:
+            from app.db.storage_factory import get_storage
+            storage = get_storage("tracking")
+            records = await storage.findAll()
+            return records if records else []
+        except Exception as e:
+            logger.error("Error reading tracking data from MySQL: %s", str(e), exc_info=True)
+            return []
 
-    def generate_daily_search_report(self, date: datetime = None) -> str:
+    async def generate_daily_search_report(self, date: datetime = None) -> str:
         """
         Generates an Excel report for search keywords and conversions for a specific date.
         Defaults to yesterday if no date is provided.
@@ -45,7 +38,7 @@ class ReportService:
             date = datetime.now() - timedelta(days=1)
 
         target_date_str = date.strftime("%Y-%m-%d")
-        events = self._read_tracking_data()
+        events = await self._read_tracking_data()
 
         # Filter events for the target date
         day_events = [e for e in events if e.get("timestamp", "").startswith(target_date_str)]
@@ -53,10 +46,6 @@ class ReportService:
         # Separate search events and conversion events
         search_events = [e for e in day_events if e.get("type") == "product_search"]
         conversion_events = [e for e in day_events if e.get("type") in ["cart_add", "wishlist_add"]]
-
-        # Aggregate data by search term/session
-        # A simple approach: for each search, check if a conversion happened in the same session later that day
-        # for one of the products in the search results.
 
         report_data = []
 
@@ -71,11 +60,9 @@ class ReportService:
             added_to_wishlist = False
 
             if session_id:
-                # Find conversions in the same session after the search
                 for conv in conversion_events:
                     if conv.get("sessionId") == session_id and conv.get("timestamp") >= search_time:
                         prod_id = conv.get("productId")
-                        # Check if this product was in the search results
                         if prod_id in product_ids:
                             if conv.get("type") == "cart_add":
                                 added_to_cart = True
@@ -136,7 +123,6 @@ class ReportService:
         # Save to temp file
         report_dir = "backend/app/reports"
         if not os.path.exists(report_dir):
-            # Fallback
             report_dir = "app/reports"
             if not os.path.exists(report_dir):
                 os.makedirs(report_dir, exist_ok=True)

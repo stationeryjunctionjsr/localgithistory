@@ -193,7 +193,7 @@ def verify_otp_via_msg91_headless(phone: str, otp: str) -> Tuple[bool, Dict[str,
 
 
 async def _db_request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[str, Any]]:
-    from app.db.otp_dao import otp_dao
+    from app.db.mysql_otp_dao import otp_dao
 
     send_count = await otp_dao.count_sends_in_window(user_key, SEND_WINDOW_SECONDS)
     if send_count >= MAX_SENDS_PER_HOUR:
@@ -243,7 +243,7 @@ async def _db_request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[st
 async def _db_verify_otp(
     user_key: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
 ) -> Dict[str, Any]:
-    from app.db.otp_dao import otp_dao
+    from app.db.mysql_otp_dao import otp_dao
 
     stored = await otp_dao.find_active_otp(user_key, device_key)
     if not stored:
@@ -397,49 +397,38 @@ def _mem_verify_otp(
     return {"valid": False, "message": "Invalid OTP"}
 
 
-# ─── Public API (auto-selects Oracle or in-memory) ───
+# ─── Public API (MySQL Relational DB mode) ───
 
 
 def request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[str, Any]]:
     """
-    Request (send/resend) an OTP. Uses Oracle DB when configured, in-memory fallback otherwise.
-    Note: When using Oracle, callers must await the result since the DB calls are async.
-    For backward compatibility, this function detects Oracle mode and returns an awaitable.
+    Request (send/resend) an OTP.
+    Since we are using MySQL DB, callers must await the result (use request_otp_async).
     """
-    if use_oracle():
-        import asyncio
-
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # We're already in an async context; use a helper
-            raise RuntimeError("Use request_otp_async in async context")
-        return loop.run_until_complete(_db_request_otp(user_key, device_key))
-    return _mem_request_otp(user_key, device_key)
+    import asyncio
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        raise RuntimeError("Use request_otp_async in async context")
+    return loop.run_until_complete(_db_request_otp(user_key, device_key))
 
 
 async def request_otp_async(user_key: str, device_key: str) -> Tuple[bool, Dict[str, Any]]:
     """Async version of request_otp. Use this from async route handlers."""
-    if use_oracle():
-        return await _db_request_otp(user_key, device_key)
-    return _mem_request_otp(user_key, device_key)
+    return await _db_request_otp(user_key, device_key)
 
 
 def verify_otp(
     user_key: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
 ) -> Dict[str, Any]:
-    """Verify OTP. For Oracle mode, use verify_otp_async from async context."""
-    if use_oracle():
-        raise RuntimeError("Use verify_otp_async in async context")
-    return _mem_verify_otp(user_key, provided_otp, device_key, delete_on_success)
+    """Verify OTP. Use verify_otp_async from async context."""
+    raise RuntimeError("Use verify_otp_async in async context")
 
 
 async def verify_otp_async(
     user_key: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
 ) -> Dict[str, Any]:
     """Async version of verify_otp. Use this from async route handlers."""
-    if use_oracle():
-        return await _db_verify_otp(user_key, provided_otp, device_key, delete_on_success)
-    return _mem_verify_otp(user_key, provided_otp, device_key, delete_on_success)
+    return await _db_verify_otp(user_key, provided_otp, device_key, delete_on_success)
 
 
 def get_otp(user_key: str, device_key: str = "default") -> Optional[str]:

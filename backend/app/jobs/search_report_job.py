@@ -1,3 +1,4 @@
+import asyncio
 import os
 from datetime import datetime, timedelta
 
@@ -6,7 +7,7 @@ from app.services.report_service import report_service
 from app.utils.logger import logger
 
 
-def run_daily_search_report_job():
+async def run_daily_search_report_job():
     """
     Job that runs daily to generate and send the search report.
     """
@@ -15,7 +16,7 @@ def run_daily_search_report_job():
     try:
         # Generate report for yesterday
         yesterday = datetime.now() - timedelta(days=1)
-        report_path = report_service.generate_daily_search_report(yesterday)
+        report_path = await report_service.generate_daily_search_report(yesterday)
 
         if not os.path.exists(report_path):
             logger.warning("[%s] Report generation failed or no data found.", datetime.now())
@@ -34,7 +35,6 @@ def run_daily_search_report_job():
 
         if success:
             logger.info("[%s] Daily search report sent successfully to %s", datetime.now(), ", ".join(to_emails))
-            # Optional: Clean up old reports
         else:
             logger.error("[%s] Failed to send daily search report email.", datetime.now())
 
@@ -44,4 +44,4 @@ def run_daily_search_report_job():
 
 if __name__ == "__main__":
     # Manual test run
-    run_daily_search_report_job()
+    asyncio.run(run_daily_search_report_job())

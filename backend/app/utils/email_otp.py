@@ -36,7 +36,7 @@ def send_verification_email_sync(email: str, otp_code: str) -> bool:
 
 
 async def _db_request_otp(email: str, device_key: str = "default") -> Tuple[bool, Dict[str, Any]]:
-    from app.db.email_otp_dao import email_otp_dao
+    from app.db.mysql_email_otp_dao import email_otp_dao
 
     email_lower = email.lower()
     send_count = await email_otp_dao.count_sends_in_window(email_lower, EMAIL_SEND_WINDOW_SECONDS)
@@ -90,7 +90,7 @@ async def _db_request_otp(email: str, device_key: str = "default") -> Tuple[bool
 async def _db_verify_otp(
     email: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
 ) -> Dict[str, Any]:
-    from app.db.email_otp_dao import email_otp_dao
+    from app.db.mysql_email_otp_dao import email_otp_dao
 
     email_lower = email.lower()
     stored = await email_otp_dao.find_active_otp(email_lower, device_key)
@@ -238,15 +238,11 @@ def _mem_verify_otp(
 
 async def request_email_otp_async(email: str, device_key: str = "default") -> Tuple[bool, Dict[str, Any]]:
     """Async request function for email OTP."""
-    if use_oracle():
-        return await _db_request_otp(email, device_key)
-    return _mem_request_otp(email, device_key)
+    return await _db_request_otp(email, device_key)
 
 
 async def verify_email_otp_async(
     email: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
 ) -> Dict[str, Any]:
     """Async verify function for email OTP."""
-    if use_oracle():
-        return await _db_verify_otp(email, provided_otp, device_key, delete_on_success)
-    return _mem_verify_otp(email, provided_otp, device_key, delete_on_success)
+    return await _db_verify_otp(email, provided_otp, device_key, delete_on_success)
