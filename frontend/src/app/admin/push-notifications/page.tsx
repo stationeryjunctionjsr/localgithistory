@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import InfoButton from '@/components/InfoButton';
 import { formatDateTimeIST } from '@/utils/dateUtils';
 import RefreshButton from '@/components/Admin/RefreshButton';
+import { logger } from '@/utils/logger';
 
 interface PushNotification {
   _id: string;
@@ -83,7 +84,7 @@ export default function PushNotificationManagement() {
         .then((r) => setCustomSegments(r.data || []))
         .catch((e) => {
           logger.error('Failed to load customer segments', e);
-          toast.warn('Could not load customer segments');
+          toast.warning('Could not load customer segments');
         });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

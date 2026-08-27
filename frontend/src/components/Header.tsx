@@ -137,7 +137,8 @@ export default function Header() {
       try {
         const params: Record<string, string> = { q: searchQuery.trim(), limit: '8' };
         if (activeCategoryTag) params.categoryTag = activeCategoryTag;
-        if (pincode) params.pincode = pincode;
+        // Super Admin is the seller to all business zones, so Wholesalers are not bound by retail pincodes
+        if (pincode && user?.role !== 'wholesaler' && user?.effectiveRole !== 'wholesaler') params.pincode = pincode;
         const res = await api.get('/products/suggest', { params });
         setLiveAutocomplete({
           products: res.data?.products || [],
@@ -270,7 +271,10 @@ export default function Header() {
       return (tag || "").toLowerCase() === targetTag;
     });
 
-    if (!availableCategories) return baseCats; // no zone info, fail open
+    // Wholesalers see all categories (Super Admin is the seller to all business zones)
+    if (!availableCategories || user?.role === 'wholesaler' || user?.effectiveRole === 'wholesaler') {
+      return baseCats; 
+    }
 
     return baseCats
       .filter((c) => availableCategories.categoryNames.includes(c.name))

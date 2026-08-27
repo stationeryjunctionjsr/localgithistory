@@ -50,20 +50,7 @@ export default function WholesalerClient({
   // eslint-disable-next-line unused-imports/no-unused-vars
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [banners, setBanners] = useState<any[]>(initialBanners || []);
-  const [availableCatalog, setAvailableCatalog] = useState<{ categoryNames: string[]; subCategories: Record<string, string[]>; brandNames: string[]; collectionNames: string[] } | null>(null);
 
-  useEffect(() => {
-    if (!pincode) {
-      setAvailableCatalog(null);
-      return;
-    }
-    api.get('/categories/available', { params: { pincode } })
-      .then(res => setAvailableCatalog(res.data))
-      .catch(err => {
-        logger.error('Failed to fetch available catalog', err);
-        setAvailableCatalog(null);
-      });
-  }, [pincode]);
   // eslint-disable-next-line unused-imports/no-unused-vars
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categories, setCategories] = useState<any[]>(initialCategories || []);
@@ -439,9 +426,9 @@ export default function WholesalerClient({
     return null;
   }
 
-  const visibleCategories = availableCatalog ? categories.filter(c => availableCatalog.categoryNames.includes(c.name)) : categories;
-  const visibleCollections = availableCatalog ? collections.filter(c => availableCatalog.collectionNames.includes(c.name)) : collections;
-  const visibleBrands = availableCatalog ? brands.filter((b: any) => availableCatalog.brandNames.includes(b.name || b)) : brands;
+  const visibleCategories = categories;
+  const visibleCollections = collections;
+  const visibleBrands = brands;
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -49,10 +49,10 @@ async def get_recommendations(
             if role not in ("wholesaler", "customer"):
                 role = "customer"
 
-        # Resolve sellers and zone for the pincode
+        # Resolve sellers and zone for the pincode (Bypass for Wholesalers, they see all)
         from app.repositories.zone_seller_cache import get_zone_id_and_seller_ids_for_pincode
         zone_id, seller_id_set = None, None
-        if pincode:
+        if pincode and role != "wholesaler":
             zone_id, seller_id_set = await get_zone_id_and_seller_ids_for_pincode(pincode)
             
         location_key = zone_id if zone_id else (pincode or "all")

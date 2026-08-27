@@ -32,6 +32,7 @@ import { getImageUrl } from '@/utils/imageUrl';
 import Header from '@/components/Header';
 import ck from './checkout.module.css';
 import SearchableSelect from '@/components/SearchableSelect';
+import { logger } from '@/utils/logger';
 
 export default function Cart() {
   const [cart, setCart] = useState<any>(null);
@@ -735,7 +736,7 @@ export default function Cart() {
       setWishlistItems(r.data.items || []);
     } catch (e) {
       logger.error('Failed to fetch wishlist', e);
-      toast.warn('Could not load wishlist items');
+      toast.warning('Could not load wishlist items');
     }
   };
 
@@ -751,7 +752,7 @@ export default function Cart() {
       }
     } catch (e) {
       logger.error('Failed to fetch impulse buy items', e);
-      toast.warn('Could not load recommendation items');
+      toast.warning('Could not load recommendation items');
     }
   };
 

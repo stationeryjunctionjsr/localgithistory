@@ -415,6 +415,8 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   // True when: no pincode set (can't check), OR at least one of the product's
   // active+stocked sellers serves the user's pincode.
   const isAvailableAtPincode = useMemo(() => {
+    // Super Admin is the seller to all business zones, so Wholesalers are not bound by retail pincodes
+    if (user?.role === 'wholesaler' || user?.effectiveRole === 'wholesaler') return true;
     if (!pincode) return true; // No pincode set — optimistic
     if (!serviceableSellers || serviceableSellers.length === 0) return false;
     const productSellers: any[] = product?.sellers || [];
@@ -427,7 +429,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
         (s.requestStatus === 'approved' || !s.requestStatus) &&
         serviceableIds.has(String(s.sellerId))
     );
-  }, [pincode, serviceableSellers, product]);
+  }, [pincode, serviceableSellers, product, user]);
 
   const handleVariantSelect = (attr: string, value: string) => {
     const newSelections = { ...selectedVariants, [attr]: value };

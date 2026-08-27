@@ -168,7 +168,9 @@ export default function MobileHeader() {
 
   const getCategoriesForTag = (tagName: string) => {
     const cats = tagData[tagName]?.categories || [];
-    if (!availableCategories) return cats;
+    if (!availableCategories || user?.role === 'wholesaler' || user?.effectiveRole === 'wholesaler') {
+      return cats;
+    }
 
     return cats
       .filter((c: any) => availableCategories.categoryNames.includes(c.name))
@@ -253,7 +255,8 @@ export default function MobileHeader() {
       try {
         const params: Record<string, string> = { q: searchQuery.trim(), limit: '8' };
         if (activeCategoryTag) params.categoryTag = activeCategoryTag;
-        if (pincode) params.pincode = pincode;
+        // Super Admin is the seller to all business zones, so Wholesalers are not bound by retail pincodes
+        if (pincode && user?.role !== 'wholesaler' && user?.effectiveRole !== 'wholesaler') params.pincode = pincode;
         const res = await api.get('/products/suggest', { params });
         setLiveAutocomplete({
           products: res.data?.products || [],
