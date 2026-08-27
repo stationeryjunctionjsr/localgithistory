@@ -1145,6 +1145,31 @@ class RecommendationRepository:
                     out.append(p_copy)
             return out
 
+        def to_products_city_only(ids: list) -> list:
+            """
+            Like to_products but WITHOUT zone filtering.
+            Used for Customer Favourites and Business Favourites on the Wholesaler
+            dashboard, which are scoped by city only (not by zone).
+            This preserves the original city-level intelligence signal — a wholesaler
+            should see what is trending in their city regardless of their delivery zone.
+            """
+            out = []
+            for pid in ids:
+                p = product_map.get(pid)
+                if p:
+                    p_copy = dict(p)
+                    p_copy["displayImage"] = p_copy.get("displayImage") or (
+                        p_copy.get("images")[0] if p_copy.get("images") else None
+                    )
+                    p_copy.pop("description", None)
+                    p_copy.pop("variantCombinations", None)
+                    p_copy.pop("videos", None)
+                    p_copy.pop("applicableDiscounts", None)
+                    p_copy.pop("variations", None)
+                    p_copy.pop("variantAttributes", None)
+                    out.append(p_copy)
+            return out
+
         trending_days = 7
         
         cf_days_config = _segment_config("guest").get("customer_favourites_days", 60)
@@ -1322,11 +1347,13 @@ class RecommendationRepository:
 
         out = {
             "newArrivals": to_products(new_ids),
-            "customerFavourites": to_products(cf_ids),
+            # Customer Favourites and Business Favourites are city-scoped, NOT zone-filtered.
+            # A wholesaler sees what is trending in their city regardless of their delivery zone.
+            "customerFavourites": to_products_city_only(cf_ids),
             "trendingNow": to_products(tn_ids),
             "explore": to_products(explore_ids),
             "wholesalerFavourites": [],
-            "businessFavourites": to_products(bf_ids_section),
+            "businessFavourites": to_products_city_only(bf_ids_section),
             # Pass the city name through so the frontend can show "Popular in {City}"
             "cityName": city_normalised or "",
         }
