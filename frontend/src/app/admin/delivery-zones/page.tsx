@@ -15,6 +15,7 @@ interface Zone {
   defaultCapacity: number;
   urgentDeliveryAvailable: boolean;
   isActive: boolean;
+  customerType: 'retail' | 'business' | 'both';
   createdAt?: string;
 }
 
@@ -25,6 +26,7 @@ interface ZoneFormData {
   defaultCapacity: number;
   urgentDeliveryAvailable: boolean;
   isActive: boolean;
+  customerType: 'retail' | 'business' | 'both';
 }
 
 const EMPTY_FORM: ZoneFormData = {
@@ -34,6 +36,7 @@ const EMPTY_FORM: ZoneFormData = {
   defaultCapacity: 10,
   urgentDeliveryAvailable: false,
   isActive: true,
+  customerType: 'retail',
 };
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -110,6 +113,7 @@ export default function DeliveryZonesPage() {
       defaultCapacity: zone.defaultCapacity ?? 10,
       urgentDeliveryAvailable: zone.urgentDeliveryAvailable ?? false,
       isActive: zone.isActive !== false,
+      customerType: zone.customerType || 'retail',
     });
     setPincodeSearch('');
     setShowModal(true);
@@ -278,6 +282,21 @@ export default function DeliveryZonesPage() {
                   <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-indigo-700">
                     🪣 Default cap: {zone.defaultCapacity ?? 10}
                   </span>
+                  {zone.customerType === 'retail' && (
+                    <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-blue-700">
+                      🏪 Retail
+                    </span>
+                  )}
+                  {zone.customerType === 'business' && (
+                    <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-emerald-700">
+                      🏢 Business
+                    </span>
+                  )}
+                  {zone.customerType === 'both' && (
+                    <span className="flex items-center gap-1 rounded-full bg-purple-50 px-2.5 py-0.5 text-purple-700">
+                      🌐 Both
+                    </span>
+                  )}
                   {zone.urgentDeliveryAvailable && (
                     <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-amber-700">
                       ⚡ Urgent
@@ -378,6 +397,48 @@ export default function DeliveryZonesPage() {
                   }
                   className="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
+              </div>
+
+              {/* Customer Type */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Customer Type
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="customerType"
+                      value="retail"
+                      checked={form.customerType === 'retail'}
+                      onChange={(e) => setForm((p) => ({ ...p, customerType: e.target.value as 'retail' | 'business' | 'both' }))}
+                      className="text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-slate-700">Retail Customer</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="customerType"
+                      value="business"
+                      checked={form.customerType === 'business'}
+                      onChange={(e) => setForm((p) => ({ ...p, customerType: e.target.value as 'retail' | 'business' | 'both' }))}
+                      className="text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-slate-700">Business Customer</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="customerType"
+                      value="both"
+                      checked={form.customerType === 'both'}
+                      onChange={(e) => setForm((p) => ({ ...p, customerType: e.target.value as 'retail' | 'business' | 'both' }))}
+                      className="text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-slate-700">Both</span>
+                  </label>
+                </div>
               </div>
 
               {/* Toggles */}

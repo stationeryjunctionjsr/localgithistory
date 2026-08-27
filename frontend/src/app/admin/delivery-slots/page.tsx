@@ -334,7 +334,8 @@ export default function DeliverySlotsPage() {
           <h2 className="mb-1 text-base font-semibold text-amber-900">⚡ Urgent Delivery Settings</h2>
           <p className="mb-3 text-xs text-amber-700">
             Set the flat surcharge applied when a customer books a slot marked as &quot;Urgent&quot;. This
-            charge is applied on top of the standard delivery charge.
+            charge is applied on top of the standard delivery charge.{' '}
+            <strong>These settings apply to {segment === 'retail' ? 'Retail Customers' : 'Business Customers'} globally.</strong>
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div>
@@ -412,6 +413,9 @@ export default function DeliverySlotsPage() {
                   <label className="mb-1 block text-sm font-medium text-slate-700">
                     Customer Segment
                   </label>
+                  <p className="mb-2 text-xs text-slate-500">
+                    Delivery timings for retail and business customers are managed separately.
+                  </p>
                   <div className="flex rounded-md shadow-sm">
                     <button
                       onClick={() => setSegment('retail')}
@@ -421,7 +425,7 @@ export default function DeliverySlotsPage() {
                           : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                       }`}
                     >
-                      Retail
+                      Retail Customer
                     </button>
                     <button
                       onClick={() => setSegment('wholesale')}
@@ -431,7 +435,7 @@ export default function DeliverySlotsPage() {
                           : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                       }`}
                     >
-                      Wholesale
+                      Business Customer
                     </button>
                   </div>
                 </div>

@@ -12,6 +12,7 @@ export default function PincodeModal() {
     city: currentCity,
     state: currentState,
     sellerCount,
+    pincodeData,
     isLoading,
     error,
     checkAndSetPincode,
@@ -19,12 +20,14 @@ export default function PincodeModal() {
   } = usePincode();
 
   const { user } = useAuth();
+  const isWholesaler = (user as any)?.role === 'wholesaler';
   const [enteredPin, setEnteredPin] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<{
     city?: string | null;
     state?: string | null;
     sellerCount?: number;
+    showSellerCount?: boolean;
     pincode?: string;
   } | null>(null);
 
@@ -72,6 +75,7 @@ export default function PincodeModal() {
         city: result.data?.city,
         state: result.data?.state,
         sellerCount: result.data?.sellerCount,
+        showSellerCount: result.data?.showSellerCount !== false,
         pincode: clean,
       });
     } else {
@@ -145,7 +149,9 @@ export default function PincodeModal() {
               {isMandatory ? 'Select Delivery Location' : 'Change Delivery Location'}
             </h2>
             <p className="mt-1.5 text-xs sm:text-sm text-gray-500 leading-relaxed max-w-sm">
-              We operate hyperlocally to deliver the freshest deals and fastest service from local sellers. Please enter your 6-digit PIN code.
+              {isWholesaler
+                ? 'We deliver directly to your business location. Please enter your 6-digit PIN code to confirm serviceability.'
+                : 'We operate hyperlocally to deliver the freshest deals and fastest service from local sellers. Please enter your 6-digit PIN code.'}
             </p>
           </div>
 

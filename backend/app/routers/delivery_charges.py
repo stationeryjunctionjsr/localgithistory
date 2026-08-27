@@ -103,66 +103,78 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
 
     is_serviceable = await delivery_charge_repository.isPincodeServiceable(pincode, userRole)
 
-    # ── Zone metadata (urgent delivery flag + seller IDs) ──────────────────────
+    # ── Zone metadata (urgent delivery flag + customerType + seller IDs) ───────
     zone = await get_zone_for_pincode(pincode)
     platform_urgent = bool(zone.get("urgentDeliveryAvailable", False)) if zone else False
+    zone_customer_type = zone.get("customerType", "retail") if zone else "retail"
 
-    # Resolve seller IDs from zone
-    seller_id_set = await get_seller_ids_for_pincode(pincode)  # None | set()| set(ids)
+    is_wholesaler = (userRole == "wholesaler")
 
-    # Build rich serviceableSellers objects for the frontend
+    # ── Seller resolution ──────────────────────────────────────────────────────
+    # For wholesale customers the only seller is always the Super Admin — the
+    # marketplace model does not apply.  We skip the per-zone seller lookup and
+    # return showSellerCount=False so the frontend hides the seller-count UI.
     serviceable_sellers: list = []
-    if seller_id_set:  # non-None and non-empty
-        for sid in seller_id_set:
-            try:
-                seller_doc = await user_repository.findById(sid)
-                if not seller_doc:
-                    continue
-                perms = seller_doc.get("sellerPermissions") or {}
-                serviceable_sellers.append({
-                    "id": str(seller_doc.get("_id", sid)),
-                    "name": seller_doc.get("name", ""),
-                    "companyName": seller_doc.get("companyName", seller_doc.get("name", "")),
-                    "city": seller_doc.get("city") or seller_doc.get("address", {}).get("city"),
-                    "allowUrgentDelivery": bool(perms.get("allowUrgentDelivery", False)),
-                    "allowDeliverySlots": bool(perms.get("allowDeliverySlots", True)),
-                })
-            except Exception as exc:
-                from app.utils.logger import logger
-                logger.warning("check_serviceability: could not fetch seller %s: %s", sid, exc)
+    if not is_wholesaler:
+        seller_id_set = await get_seller_ids_for_pincode(pincode)  # None | set()| set(ids)
+        if seller_id_set:  # non-None and non-empty
+            for sid in seller_id_set:
+                try:
+                    seller_doc = await user_repository.findById(sid)
+                    if not seller_doc:
+                        continue
+                    perms = seller_doc.get("sellerPermissions") or {}
+                    serviceable_sellers.append({
+                        "id": str(seller_doc.get("_id", sid)),
+                        "name": seller_doc.get("name", ""),
+                        "companyName": seller_doc.get("companyName", seller_doc.get("name", "")),
+                        "city": seller_doc.get("city") or seller_doc.get("address", {}).get("city"),
+                        "allowUrgentDelivery": bool(perms.get("allowUrgentDelivery", False)),
+                        "allowDeliverySlots": bool(perms.get("allowDeliverySlots", True)),
+                    })
+                except Exception as exc:
+                    from app.utils.logger import logger
+                    logger.warning("check_serviceability: could not fetch seller %s: %s", sid, exc)
 
     # ── Delivery slot availability ─────────────────────────────────────────────
     slot_storage = get_storage("deliverySlots")
-    segment = "wholesale" if userRole == "wholesaler" else "retail"
+    segment = "wholesale" if is_wholesaler else "retail"
+
+    # For business customers: slots are only available when the zone is tagged
+    # "business" or "both".  A "retail"-only zone has no wholesale slots.
+    wholesale_zone_eligible = zone_customer_type in ("business", "both")
+
     import asyncio
     from datetime import date as dt_date, timedelta
 
     today = dt_date.today()
     dates_to_check = [(today + timedelta(days=i)).isoformat() for i in range(7)]
 
-    tasks = [
-        slot_storage.findAll({"date": check_date, "segment": segment, "isActive": True})
-        for check_date in dates_to_check
-    ]
-    results = await asyncio.gather(*tasks)
-
     available_dates = []
-    for check_date, configs in zip(dates_to_check, results):
-        for config in configs:
-            config_pincodes = config.get("pincodes", [])
-            if config_pincodes and pincode not in config_pincodes:
-                continue
-            for slot in config.get("slots", []):
-                if not slot.get("isActive", True):
+
+    if not is_wholesaler or wholesale_zone_eligible:
+        tasks = [
+            slot_storage.findAll({"date": check_date, "segment": segment, "isActive": True})
+            for check_date in dates_to_check
+        ]
+        results = await asyncio.gather(*tasks)
+
+        for check_date, configs in zip(dates_to_check, results):
+            for config in configs:
+                config_pincodes = config.get("pincodes", [])
+                if config_pincodes and pincode not in config_pincodes:
                     continue
-                cap = slot.get("capacity")
-                booked = slot.get("bookedCount", 0)
-                if cap is None or (cap - booked) > 0:
-                    available_dates.append(check_date)
-                    break
-            else:
-                continue
-            break
+                for slot in config.get("slots", []):
+                    if not slot.get("isActive", True):
+                        continue
+                    cap = slot.get("capacity")
+                    booked = slot.get("bookedCount", 0)
+                    if cap is None or (cap - booked) > 0:
+                        available_dates.append(check_date)
+                        break
+                else:
+                    continue
+                break
 
     return {
         "isServiceable": is_serviceable,
@@ -170,9 +182,11 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
         "userRole": userRole,
         "sellerCount": len(serviceable_sellers),
         "serviceableSellers": serviceable_sellers,
+        "showSellerCount": not is_wholesaler,
         "slotBookingAvailable": len(available_dates) > 0,
         "availableDates": available_dates,
         "urgentDeliveryAvailable": platform_urgent,
+        "zoneCustomerType": zone_customer_type,
     }
 
 

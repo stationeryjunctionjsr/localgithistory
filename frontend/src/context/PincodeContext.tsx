@@ -24,6 +24,8 @@ export interface PincodeData {
   serviceableSellers: ServiceableSeller[];
   urgentDeliveryAvailable?: boolean;
   slotBookingAvailable?: boolean;
+  showSellerCount?: boolean;  // false for wholesalers — marketplace model does not apply
+  zoneCustomerType?: string;  // "retail" | "business" | "both"
 }
 
 interface PincodeContextType {
@@ -140,6 +142,8 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           serviceableSellers: data.serviceableSellers || [],
           urgentDeliveryAvailable: Boolean(data.urgentDeliveryAvailable),
           slotBookingAvailable: Boolean(data.slotBookingAvailable),
+          showSellerCount: data.showSellerCount !== false, // default true; false only when API explicitly says so
+          zoneCustomerType: data.zoneCustomerType || 'retail',
         };
 
         if (isServ) {

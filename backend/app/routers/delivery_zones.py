@@ -5,6 +5,11 @@ Super admin creates named zones that group pincodes together.
 Each zone has a default capacity (inherited by delivery slot configs) and
 an optional urgent-delivery flag.
 
+Each zone is tagged with a customerType:
+  - "retail"   — only Retail Customers are served by this zone
+  - "business" — only Business (Wholesale) Customers are served by this zone
+  - "both"     — both Retail and Business Customers are served by this zone
+
 Public endpoint: GET /for-pincode?pincode=<pin>
   — Resolves which zone a pincode belongs to (used at checkout + order creation).
 
@@ -33,6 +38,7 @@ class ZoneCreate(BaseModel):
     defaultCapacity: int = 10
     urgentDeliveryAvailable: bool = False
     isActive: bool = True
+    customerType: str = "retail"  # "retail" | "business" | "both"
 
 
 class ZoneUpdate(BaseModel):
@@ -43,6 +49,7 @@ class ZoneUpdate(BaseModel):
     defaultCapacity: Optional[int] = None
     urgentDeliveryAvailable: Optional[bool] = None
     isActive: Optional[bool] = None
+    customerType: Optional[str] = None  # "retail" | "business" | "both"
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -75,7 +82,7 @@ async def _check_pincode_conflicts(
 async def get_zone_for_pincode(pincode: str = Query(..., description="6-digit pincode")):
     """
     Public endpoint — resolve which zone a pincode belongs to.
-    Returns zone metadata including defaultCapacity and urgentDeliveryAvailable.
+    Returns zone metadata including defaultCapacity, urgentDeliveryAvailable, and customerType.
     Used by checkout slot-picker and order creation.
     """
     storage = get_storage("deliveryZones")
@@ -87,6 +94,7 @@ async def get_zone_for_pincode(pincode: str = Query(..., description="6-digit pi
                 "zoneName": zone.get("name"),
                 "defaultCapacity": zone.get("defaultCapacity", 10),
                 "urgentDeliveryAvailable": bool(zone.get("urgentDeliveryAvailable", False)),
+                "customerType": zone.get("customerType", "retail"),
             }
     # Pincode not mapped to any zone
     return {
@@ -94,6 +102,7 @@ async def get_zone_for_pincode(pincode: str = Query(..., description="6-digit pi
         "zoneName": None,
         "defaultCapacity": None,
         "urgentDeliveryAvailable": False,
+        "customerType": "retail",
     }
 
 
