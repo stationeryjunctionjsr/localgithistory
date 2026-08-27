@@ -593,7 +593,7 @@ export default function CustomerClient({
           })()}
 
         {/* Collections Section */}
-        {collections.length > 0 &&
+        {visibleCollections.length > 0 &&
           !selectedCategory &&
           !selectedCategoryTag &&
           !selectedCollection &&
@@ -662,7 +662,7 @@ export default function CustomerClient({
           )}
 
         {/* Shop by Category Section */}
-        {categories.length > 0 &&
+        {visibleCategories.length > 0 &&
           !selectedCategory &&
           !selectedCategoryTag &&
           !selectedCollection &&
@@ -774,7 +774,7 @@ export default function CustomerClient({
           )}
 
         {/* Brands Section */}
-        {brands.length > 0 &&
+        {visibleBrands.length > 0 &&
           !selectedCategory &&
           !selectedCategoryTag &&
           !selectedCollection &&

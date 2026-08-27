@@ -751,7 +751,7 @@ export default function WholesalerClient({
             ));
           })()}
         {/* Collections Section */}
-        {collections.length > 0 && showHomeSections && (
+        {visibleCollections.length > 0 && showHomeSections && (
           <section className="mb-20">
             <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
               <div className="relative">
@@ -819,7 +819,7 @@ export default function WholesalerClient({
           </section>
         )}
 
-        {categories.length > 0 && showHomeSections && (
+        {visibleCategories.length > 0 && showHomeSections && (
           <section className="mb-20">
             <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
               <div className="relative">
@@ -897,7 +897,7 @@ export default function WholesalerClient({
         )}
 
         {/* Brands Section */}
-        {brands.length > 0 && showHomeSections && (
+        {visibleBrands.length > 0 && showHomeSections && (
           <section className="mb-20">
             <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
               <div className="relative">

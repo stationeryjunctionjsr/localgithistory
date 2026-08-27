@@ -913,50 +913,7 @@ class RecommendationRepository:
 
         # We return the compiled list. There is NO adaptive refill.
         return recommended_product_ids[:limit]
-    def _parse_created_at(self, doc: Dict) -> Optional[datetime]:
-        raw = doc.get("createdAt")
-        if not raw:
-            return None
-        try:
-            return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-        except Exception:
-            return None
 
-    async def _derive_neglected_subcats(self, user_id: str, days: int) -> List[str]:
-        """
-        Return the list of subcategories the user bought least from in the last `days` days
-        (the bottom round(n/3) by purchase count).  Used by bundle Explore scoring to test
-        whether a bundle's subCategory falls inside the neglected set.
-        """
-        cutoff = datetime.utcnow() - timedelta(days=days)
-        orders = await self.order_storage.findAll({"user": user_id})
-        products = await self.product_storage.findAll()
-        product_by_id: Dict[str, Dict] = {p.get("_id"): p for p in products if p.get("_id")}
-
-        subcat_counts: Dict[str, int] = {}
-        for o in orders:
-            if o.get("user") != user_id:
-                continue
-            dt = _parse_order_date(o)
-            if not dt or dt < cutoff:
-                continue
-            for item in o.get("items", []):
-                pid = item.get("product") or item.get("productId")
-                if not pid:
-                    continue
-                p = product_by_id.get(pid)
-                if not p:
-                    continue
-                subcat = p.get("subCategory") or p.get("category")
-                if subcat:
-                    subcat_counts[subcat] = subcat_counts.get(subcat, 0) + item.get("quantity", 1)
-
-        n = len(subcat_counts)
-        if n == 0:
-            return []
-        neglected_count = max(1, round(n / 3))
-        sorted_subcats = [sc for sc, _ in sorted(subcat_counts.items(), key=lambda x: x[1])]
-        return sorted_subcats[:neglected_count]
 
     async def _get_engagement_scores(self, product_ids: List[str]) -> Dict[str, float]:
         """
@@ -995,12 +952,12 @@ class RecommendationRepository:
                     scores[pid] = scores.get(pid, 0) + weight
 
         return scores
-    def _parse_created_at(self, doc) -> str:
+
+    def _parse_created_at(self, doc) -> Optional[datetime]:
         raw = doc.get("createdAt")
         if not raw:
             return None
         try:
-            from datetime import datetime
             return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
         except Exception:
             return None
@@ -1011,7 +968,6 @@ class RecommendationRepository:
         (the bottom round(n/3) by purchase count). Used by bundle Explore scoring to test
         whether a bundle's subCategory falls inside the neglected set.
         """
-        from datetime import datetime, timedelta
         cutoff = datetime.utcnow() - timedelta(days=days)
         orders = await self.order_storage.findAll({"user": user_id})
         products = await self.product_storage.findAll()
@@ -1021,61 +977,6 @@ class RecommendationRepository:
         for o in orders:
             if o.get("user") != user_id:
                 continue
-            # Simplified proxy for parsing
-            dt = o.get("createdAt")
-            if not dt:
-                continue
-            try:
-                dt = datetime.fromisoformat(str(dt).replace("Z", "+00:00")).replace(tzinfo=None)
-            except Exception:
-                continue
-            if dt < cutoff:
-                continue
-            for item in o.get("items", []):
-                pid = item.get("product") or item.get("productId")
-                if not pid:
-                    continue
-                p = product_by_id.get(pid)
-                if not p:
-                    continue
-                subcat = p.get("subCategory") or p.get("category")
-                if subcat:
-                    subcat_counts[subcat] = subcat_counts.get(subcat, 0) + item.get("quantity", 1)
-
-        n = len(subcat_counts)
-        if n == 0:
-            return []
-        neglected_count = max(1, round(n / 3))
-        sorted_subcats = [sc for sc, _ in sorted(subcat_counts.items(), key=lambda x: x[1])]
-        return sorted_subcats[:neglected_count]
-
-    def _parse_created_at(self, doc) -> str:
-        raw = doc.get("createdAt")
-        if not raw:
-            return None
-        try:
-            from datetime import datetime
-            return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-        except Exception:
-            return None
-
-    async def _derive_neglected_subcats(self, user_id: str, days: int) -> list:
-        """
-        Return the list of subcategories the user bought least from in the last `days` days
-        (the bottom round(n/3) by purchase count). Used by bundle Explore scoring to test
-        whether a bundle's subCategory falls inside the neglected set.
-        """
-        from datetime import datetime, timedelta
-        cutoff = datetime.utcnow() - timedelta(days=days)
-        orders = await self.order_storage.findAll({"user": user_id})
-        products = await self.product_storage.findAll()
-        product_by_id = {p.get("_id"): p for p in products if p.get("_id")}
-
-        subcat_counts = {}
-        for o in orders:
-            if o.get("user") != user_id:
-                continue
-            # Simplified proxy for parsing
             dt = o.get("createdAt")
             if not dt:
                 continue
@@ -1161,7 +1062,7 @@ class RecommendationRepository:
         - Wholesaler (business): Customer Favourites (retail), Trending Now (business), Explore (user), Business Favourites (business). sectionOrder from bandit.
         All slots participate in the bandit (epsilon-greedy) for section ordering.
         """
-        config = __import__('backend.app.config.recommendation_config', fromlist=['_load_config'])._load_config()
+        config = _load_config()
         limits = config.get("strategy_limits", {})
         limit_trending = limits.get("trending", 24)
         limit_explore = limits.get("explore", 24)
@@ -1246,12 +1147,10 @@ class RecommendationRepository:
 
         trending_days = 7
         
-        config_mod = __import__('backend.app.config.recommendation_config', fromlist=['_segment_config'])
-        _segment_config = config_mod._segment_config
         cf_days_config = _segment_config("guest").get("customer_favourites_days", 60)
 
         # Customer Favourites: from cache (job at 12 AM IST) or compute on the fly
-        cf_cache = __import__('backend.app.config.recommendation_config', fromlist=['_read_customer_favourites_cache'])._read_customer_favourites_cache()
+        cf_cache = _read_customer_favourites_cache()
         cf_ids_cached = cf_cache.get("product_ids") if isinstance(cf_cache.get("product_ids"), list) else None
 
         # Guest: no user_id
@@ -1382,7 +1281,7 @@ class RecommendationRepository:
         if city_normalised:
             bf_ids_raw = await self.get_business_favourites_by_subcategory(days=bf_days, city=city_normalised)
         else:
-            bf_cache = __import__('backend.app.config.recommendation_config', fromlist=['_read_business_favourites_cache'])._read_business_favourites_cache()
+            bf_cache = _read_business_favourites_cache()
             bf_ids_cached = bf_cache.get("product_ids") if isinstance(bf_cache.get("product_ids"), list) else None
             bf_ids_raw = bf_ids_cached if bf_ids_cached is not None else await self.get_business_favourites_by_subcategory(days=bf_days)
 
