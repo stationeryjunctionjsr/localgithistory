@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import api from '@/utils/api';

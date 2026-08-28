@@ -4,7 +4,7 @@ import { logger } from '@/utils/logger';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api, { setSessionRevokedHandler } from '@/utils/api';
 import Cookies from 'js-cookie';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import { logActivity, promoteGuestActivities } from '@/utils/activity';
 import { syncGuestDataToBackend } from '@/utils/syncCartWishlist';
 
@@ -131,11 +131,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }).catch((e) => logger.warn("Background task failed", e));
       // Sync guest cart/wishlist to backend (fire-and-forget â€” don't block login)
       syncGuestDataToBackend().catch(() => {
-        toast.warn("We couldn't restore your cart. Please add your items again.");
+        toast.error("We couldn't restore your cart. Please add your items again.");
       });
 
       if (message) {
-        toast.info(message);
+        toast.success(message);
       } else {
         toast.success('Login successful');
       }
@@ -163,11 +163,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logActivity({ type: 'register', detail: { role: data.role }, sessionId }).catch((e) => logger.warn("Background task failed", e));
       // Sync guest cart/wishlist to backend (fire-and-forget â€" don't block registration)
       syncGuestDataToBackend().catch(() => {
-        toast.warn("We couldn't restore your cart. Please add your items again.");
+        toast.error("We couldn't restore your cart. Please add your items again.");
       });
 
       if (message) {
-        toast.info(message);
+        toast.success(message);
       } else {
         toast.success('Registration successful');
       }
@@ -195,7 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (userData) setUser(userData);
     // Sync guest cart/wishlist to backend (fire-and-forget)
     syncGuestDataToBackend().catch(() => {
-      toast.warn("We couldn't restore your cart. Please add your items again.");
+      toast.error("We couldn't restore your cart. Please add your items again.");
     });
     return userData;
   };

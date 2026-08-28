@@ -229,7 +229,7 @@ export default function AuthModal({
           if (process.env.NODE_ENV !== 'production') {
             console.log('OTP (Development):', response.data.otp);
           }
-          toast(`OTP (Dev): ${response.data.otp}`, { autoClose: 2000 });
+          toast(`OTP (Dev): ${response.data.otp}`, { duration: 2000 });
         }
         setSendingOTP(false);
       }
@@ -409,7 +409,7 @@ export default function AuthModal({
           if (process.env.NODE_ENV !== 'production') {
             console.log('OTP (Development):', response.data.otp);
           }
-          toast(`OTP (Dev): ${response.data.otp}`, { autoClose: 2000 });
+          toast(`OTP (Dev): ${response.data.otp}`, { duration: 2000 });
         }
         setSendingForgotPasswordOTP(false);
       }

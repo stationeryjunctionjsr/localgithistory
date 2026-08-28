@@ -68,7 +68,7 @@ test.describe('Flow 1: Sign up and Login', () => {
     await page.locator('button', { hasText: 'Verify' }).first().click();
     
     // Wait for "Phone number verified" text or similar indicator
-    await expect(page.locator('text=Phone number verified')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Phone number verified').first()).toBeVisible({ timeout: 10000 });
     
     // 5. Submit Registration
     // Wait for it to become enabled

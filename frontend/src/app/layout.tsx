@@ -12,7 +12,7 @@ import PrivacyConsent from '@/components/PrivacyConsent';
 import ForceUpdateGate from '@/components/ForceUpdateGate';
 import MaintenanceGate from '@/components/MaintenanceGate';
 import SessionAnalytics from '@/components/SessionAnalytics';
-import { ToastContainer } from 'react-toastify';
+import { Toaster } from 'react-hot-toast';
 import 'react-toastify/dist/ReactToastify.css';
 import ThemeSwitcher from '@/components/ThemeSwitcher';
 import FontSwitcher from '@/components/FontSwitcher';
@@ -149,7 +149,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       <ThemeSwitcher />
                       <FontSwitcher />
                       <ToastSetup />
-                      <ToastContainer position="top-right" autoClose={2000} />
+                      <Toaster position="top-center" />
                       </PincodeProvider>
                     </NotificationProvider>
                   </CartProvider>

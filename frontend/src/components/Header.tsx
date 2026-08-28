@@ -356,8 +356,9 @@ export default function Header() {
   const overflowTags = filteredTags.slice(maxVisibleTags);
 
   return (
-    <header className={`${styles.header} hidden md:block`}>
-      <Suspense fallback={null}>
+    <>
+      <header className={`${styles.header} hidden md:block`}>
+        <Suspense fallback={null}>
         <SearchParamsReader onRead={setActiveCategoryTag} />
       </Suspense>
       {/* Top Banner - Sliding Promo Strip */}
@@ -1395,6 +1396,8 @@ export default function Header() {
         </div>
       </div>
 
+      </header>
+
       {/* Auth Modal for Login/Register */}
       {showAuthModal && (
         <AuthModal
@@ -1416,6 +1419,6 @@ export default function Header() {
         isOpen={showAccessibilityModal}
         onClose={() => setShowAccessibilityModal(false)}
       />
-    </header>
+    </>
   );
 }
