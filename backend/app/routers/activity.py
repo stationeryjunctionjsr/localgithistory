@@ -37,7 +37,7 @@ class PromoteGuestBody(BaseModel):
     userId: Optional[str] = None
 
 
-@router.post("")
+@router.post("/")
 async def log_activity(
     body: LogActivityBody,
     request: Request = None,
