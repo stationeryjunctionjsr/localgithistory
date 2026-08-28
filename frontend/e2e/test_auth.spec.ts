@@ -50,12 +50,12 @@ test.describe('Flow 1: Sign up and Login', () => {
 
     // 3. Send OTP
     const sendOtpBtn = page.locator('button', { hasText: 'Send OTP' }).first();
-    
-    console.log("Clicking Send OTP...");
-    await sendOtpBtn.click({ force: true });
-    
     // We need to wait for the OTP API response to extract the development OTP
-    const response = await page.waitForResponse(res => res.url().includes('/api/auth/send-otp'));
+    console.log("Clicking Send OTP...");
+    const [response] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/api/auth/send-otp')),
+      sendOtpBtn.evaluate(btn => (btn as HTMLElement).click())
+    ]);
     const responseData = await response.json();
     const otp = responseData.otp;
     console.log('Extracted OTP:', otp);
@@ -65,7 +65,7 @@ test.describe('Flow 1: Sign up and Login', () => {
     
     // 4. Fill OTP and Verify
     await page.getByPlaceholder('6-digit OTP').fill(otp.toString());
-    await page.locator('button', { hasText: 'Verify' }).first().click();
+    await page.locator('button', { hasText: 'Verify' }).first().evaluate(btn => (btn as HTMLElement).click());
     
     // Wait for "Phone number verified" text or similar indicator
     await expect(page.locator('text=Phone number verified').first()).toBeVisible({ timeout: 10000 });
