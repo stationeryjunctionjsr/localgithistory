@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -15,10 +15,10 @@ import UnserviceableLocationBanner from '@/components/UnserviceableLocationBanne
 import { logger } from '@/utils/logger';
 
 // pageMode controls what appears as chips (on the page) vs. filters (in sidebar):
-//   'category'    â†’ sub-categories as chips on page, brands in filters (no categories, no sub-categories in sidebar)
-//   'brand'       â†’ categories as chips on page, sub-categories in filters, NO brands in sidebar
-//   'collection'  â†’ categories as chips on page, sub-categories & brands in sidebar
-//   'general'     â†’ categories in sidebar, sub-categories & brands in sidebar (default)
+//   'category'    → sub-categories as chips on page, brands in filters (no categories, no sub-categories in sidebar)
+//   'brand'       → categories as chips on page, sub-categories in filters, NO brands in sidebar
+//   'collection'  → categories as chips on page, sub-categories & brands in sidebar
+//   'general'     → categories in sidebar, sub-categories & brands in sidebar (default)
 type PageMode = 'category' | 'brand' | 'collection' | 'general';
 
 /** Server page size for catalog requests (matches admin-style discrete pages, not infinite scroll). */
@@ -80,7 +80,7 @@ function PopularProductsFallback() {
           )}
           <p className="line-clamp-2 text-xs font-medium text-gray-900">{product.name}</p>
           <p className="mt-0.5 text-xs text-gray-500">
-            â‚¹{(product.price || product.mrp || 0).toLocaleString()}
+            ₹{(product.price || product.mrp || 0).toLocaleString()}
           </p>
         </button>
       ))}
@@ -1419,8 +1419,8 @@ export default function ProductCatalog({
                     </h4>
                     <div className="px-2">
                       <div className="mb-4 flex justify-between text-xs font-bold text-gray-500">
-                        <span>â‚¹{priceRangeBounds.min}</span>
-                        <span>â‚¹{priceRangeBounds.max}</span>
+                        <span>₹{priceRangeBounds.min}</span>
+                        <span>₹{priceRangeBounds.max}</span>
                       </div>
                       <div className="range-slider relative h-8">
                         <div className="slider-track absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-gray-200"></div>
@@ -1460,7 +1460,7 @@ export default function ProductCatalog({
                                 }}
                               >
                                 <div className="slider-value absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-1.5 py-0.5 text-[10px] text-white">
-                                  â‚¹
+                                  ₹
                                   {isDraggingMin
                                     ? tempMinPrice
                                     : filters.minPrice || priceRangeBounds.min}
@@ -1480,7 +1480,7 @@ export default function ProductCatalog({
                                 }}
                               >
                                 <div className="slider-value absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-1.5 py-0.5 text-[10px] text-white">
-                                  â‚¹
+                                  ₹
                                   {isDraggingMax
                                     ? tempMaxPrice
                                     : filters.maxPrice || priceRangeBounds.max}
@@ -1715,7 +1715,7 @@ export default function ProductCatalog({
                 {/* Product Grid */}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
                   {displayItems.map((product: any, _index: number) => {
-                    // â”€â”€ Bundle card variables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    // ── Bundle card variables ──────────────────────────────
                     const isBundle = !!product.isBundle;
                     const bundleCopiesInCart = isBundle
                       ? (() => {
@@ -1781,7 +1781,7 @@ export default function ProductCatalog({
                             )}
                           </div>
 
-                          {/* Wishlist Button â€” hidden for bundles */}
+                          {/* Wishlist Button — hidden for bundles */}
                           {!isBundle && (
                           <button
                             onClick={(e) => {
@@ -1808,7 +1808,7 @@ export default function ProductCatalog({
 
                            {/* Quick Add Button / Quantity Selector */}
                            {(isBundle ? true : product.stock > 0) && (() => {
-                             // â”€â”€ Bundle counter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                             // ── Bundle counter ────────────────────────────
                              if (isBundle) {
                                if (bundleCopiesInCart > 0) {
                                  return (
@@ -1837,7 +1837,7 @@ export default function ProductCatalog({
                                        className="flex w-10 flex-shrink-0 items-center justify-center py-2.5 text-lg font-bold text-white hover:bg-white/10 transition-colors sm:w-12"
                                        aria-label="Remove one bundle"
                                      >
-                                       âˆ’
+                                       −
                                      </button>
                                      <span className="flex flex-1 items-center justify-center text-sm font-bold text-white">{bundleCopiesInCart}</span>
                                      <button
@@ -1883,7 +1883,7 @@ export default function ProductCatalog({
                                );
                              }
 
-                             // â”€â”€ Regular product counter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                             // ── Regular product counter ───────────────────
                               const cartItem = cart?.items?.find((item: any) => {
                                 const pId = item.product?._id || item.product || item._id;
                                 return pId === product._id;
@@ -1913,7 +1913,7 @@ export default function ProductCatalog({
                                        className="flex w-10 flex-shrink-0 items-center justify-center py-2.5 text-lg font-bold text-white active:bg-white/20 hover:bg-white/10 transition-colors sm:w-12"
                                        aria-label="Decrease quantity"
                                      >
-                                       âˆ’
+                                       −
                                      </button>
                                      <span className="flex flex-1 items-center justify-center text-sm font-bold text-white">
                                        {quantityInCart}
@@ -2005,12 +2005,12 @@ export default function ProductCatalog({
                           {/* Price */}
                           <div className="flex flex-wrap items-baseline gap-1 sm:gap-2">
                             <span className="text-sm font-bold text-gray-900 sm:text-base">
-                              â‚¹{(product.price || product.mrp || 0).toLocaleString()}
+                              ₹{(product.price || product.mrp || 0).toLocaleString()}
                             </span>
                             {isBundle && product.totalMrp && product.totalMrp > product.price && (
                               <>
                                 <span className="text-[10px] text-gray-400 line-through sm:text-xs">
-                                  â‚¹{product.totalMrp.toLocaleString()}
+                                  ₹{product.totalMrp.toLocaleString()}
                                 </span>
                                 <span className="text-[10px] font-semibold text-emerald-600 sm:text-xs">
                                   Save {product.savingsPercent}%
@@ -2020,7 +2020,7 @@ export default function ProductCatalog({
                             {!isBundle && product.mrp && product.mrp > product.price && (
                               <>
                                 <span className="text-[10px] text-gray-400 line-through sm:text-xs">
-                                  â‚¹{product.mrp.toLocaleString()}
+                                  ₹{product.mrp.toLocaleString()}
                                 </span>
                                 <span className="text-[10px] font-semibold text-emerald-600 sm:text-xs">
                                   {discountPercent}%

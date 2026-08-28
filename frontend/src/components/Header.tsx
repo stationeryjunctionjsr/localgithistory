@@ -91,6 +91,13 @@ export default function Header() {
   const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [popularTerms, setPopularTerms] = useState<string[]>([]);
+
+  useEffect(() => {
+    (window as any).openAuthModal = (mode: 'login' | 'register') => {
+      setAuthModalMode(mode);
+      setShowAuthModal(true);
+    };
+  }, []);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [recentProducts, setRecentProducts] = useState<{ productId: string; productName: string; displayImage?: string; price?: number }[]>([]);
