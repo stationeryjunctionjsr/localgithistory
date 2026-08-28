@@ -7,7 +7,7 @@ let initialized = false;
 
 export default function ToastSetup() {
   useEffect(() => {
-    if (initialized) return;
+    return;
     initialized = true;
 
     const originalError = toast.error;

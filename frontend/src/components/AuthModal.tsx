@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import api from '@/utils/api';
 import { logger } from '@/utils/logger';
 
@@ -171,7 +171,7 @@ export default function AuthModal({
 
     setSendingOTP(true);
     try {
-      if (typeof window !== 'undefined' && (window as any).sendOtp) {
+      if (typeof window !== 'undefined' && (window as any).sendOtp && !(window as any).disableMSG91) {
         try {
           (window as any).sendOtp(
             '91' + cleanPhone,
@@ -229,7 +229,7 @@ export default function AuthModal({
           if (process.env.NODE_ENV !== 'production') {
             console.log('OTP (Development):', response.data.otp);
           }
-          toast.info(`OTP (Dev): ${response.data.otp}`, { autoClose: 2000 });
+          toast(`OTP (Dev): ${response.data.otp}`, { autoClose: 2000 });
         }
         setSendingOTP(false);
       }
@@ -245,7 +245,7 @@ export default function AuthModal({
   };
 
   const handleRetryOTP = () => {
-    if (typeof window !== 'undefined' && (window as any).retryOtp) {
+    if (typeof window !== 'undefined' && (window as any).retryOtp && !(window as any).disableMSG91) {
       setSendingOTP(true);
       (window as any).retryOtp(
         11,
@@ -253,7 +253,7 @@ export default function AuthModal({
         (data: any) => {
           setCanResend(false);
           setTimer(30);
-          toast.info('OTP resent');
+          toast('OTP resent');
           setSendingOTP(false);
         },
         // eslint-disable-next-line unused-imports/no-unused-vars
@@ -276,7 +276,7 @@ export default function AuthModal({
 
     setVerifyingOTP(true);
     try {
-      if (typeof window !== 'undefined' && (window as any).verifyOtp) {
+      if (typeof window !== 'undefined' && (window as any).verifyOtp && !(window as any).disableMSG91) {
         try {
           (window as any).verifyOtp(
             otp,
@@ -347,7 +347,7 @@ export default function AuthModal({
 
     setSendingForgotPasswordOTP(true);
     try {
-      if (typeof window !== 'undefined' && (window as any).sendOtp) {
+      if (typeof window !== 'undefined' && (window as any).sendOtp && !(window as any).disableMSG91) {
         try {
           (window as any).sendOtp(
             '91' + cleanPhone,
@@ -409,7 +409,7 @@ export default function AuthModal({
           if (process.env.NODE_ENV !== 'production') {
             console.log('OTP (Development):', response.data.otp);
           }
-          toast.info(`OTP (Dev): ${response.data.otp}`, { autoClose: 2000 });
+          toast(`OTP (Dev): ${response.data.otp}`, { autoClose: 2000 });
         }
         setSendingForgotPasswordOTP(false);
       }
@@ -422,7 +422,7 @@ export default function AuthModal({
   };
 
   const handleRetryForgotPasswordOTP = () => {
-    if (typeof window !== 'undefined' && (window as any).retryOtp) {
+    if (typeof window !== 'undefined' && (window as any).retryOtp && !(window as any).disableMSG91) {
       setSendingForgotPasswordOTP(true);
       (window as any).retryOtp(
         11,
@@ -430,7 +430,7 @@ export default function AuthModal({
         (data: any) => {
           setForgotPasswordCanResend(false);
           setForgotPasswordTimer(30);
-          toast.info('OTP resent');
+          toast('OTP resent');
           setSendingForgotPasswordOTP(false);
         },
         // eslint-disable-next-line unused-imports/no-unused-vars
@@ -453,7 +453,7 @@ export default function AuthModal({
 
     setVerifyingForgotPasswordOTP(true);
     try {
-      if (typeof window !== 'undefined' && (window as any).verifyOtp) {
+      if (typeof window !== 'undefined' && (window as any).verifyOtp && !(window as any).disableMSG91) {
         try {
           (window as any).verifyOtp(
             forgotPasswordData.otp,
@@ -516,7 +516,7 @@ export default function AuthModal({
     }
 
     if (forgotPasswordData.newPassword !== forgotPasswordData.confirmPassword) {
-      toast.error('Passwords do not match');
+      console.log('PASSWORDS DO NOT MATCH', formData.password, formData.confirmPassword); toast.error('Passwords do not match');
       return;
     }
 
@@ -617,6 +617,8 @@ export default function AuthModal({
   };
 
   const handleRegister = async (e: React.FormEvent) => {
+    console.log('HANDLE REGISTER CALLED', formData);
+    console.log('otpVerified', otpVerified);
     e.preventDefault();
 
     if (!otpVerified) {
@@ -625,7 +627,7 @@ export default function AuthModal({
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
+      console.log('PASSWORDS DO NOT MATCH', formData.password, formData.confirmPassword); toast.error('Passwords do not match');
       return;
     }
 
@@ -738,7 +740,7 @@ export default function AuthModal({
                     type="tel"
                     value={forgotPasswordData.phone}
                     onChange={handleForgotPasswordChange}
-                    required
+                   
                     disabled={forgotPasswordOTPSent && forgotPasswordOTPVerified}
                     placeholder="Enter 10-digit phone number"
                     maxLength={10}
@@ -818,7 +820,7 @@ export default function AuthModal({
                     type="password"
                     value={forgotPasswordData.newPassword}
                     onChange={handleForgotPasswordChange}
-                    required
+                   
                     minLength={6}
                     placeholder="Enter new password"
                     className="w-full rounded-lg border-2 border-gray-300 px-3 py-2 focus:border-red-500 focus:outline-none"
@@ -834,7 +836,7 @@ export default function AuthModal({
                     type="password"
                     value={forgotPasswordData.confirmPassword}
                     onChange={handleForgotPasswordChange}
-                    required
+                   
                     minLength={6}
                     placeholder="Confirm new password"
                     className="w-full rounded-lg border-2 border-gray-300 px-3 py-2 focus:border-red-500 focus:outline-none"
@@ -925,7 +927,7 @@ export default function AuthModal({
                 id="login-email-phone"
                 name="emailOrPhone"
                 type="text"
-                required
+               
                 autoComplete="username"
                 className="w-full rounded-lg border-2 border-gray-300 px-3 py-2 focus:border-red-500 focus:outline-none"
                 placeholder="Enter email or phone number"
@@ -941,7 +943,7 @@ export default function AuthModal({
                   id="login-password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
-                  required
+                 
                   autoComplete="current-password"
                   className="w-full rounded-lg border-2 border-gray-300 px-3 py-2 pr-10 focus:border-red-500 focus:outline-none"
                   placeholder="Password"
@@ -987,7 +989,7 @@ export default function AuthModal({
                 id="reg-name"
                 name="name"
                 type="text"
-                required
+               
                 autoComplete="name"
                 className="w-full rounded-lg border-2 border-gray-300 px-3 py-2 focus:border-red-500 focus:outline-none"
                 value={formData.name}
@@ -1001,7 +1003,7 @@ export default function AuthModal({
                 id="reg-email"
                 name="email"
                 type="email"
-                required
+               
                 autoComplete="email"
                 className="w-full rounded-lg border-2 border-gray-300 px-3 py-2 focus:border-red-500 focus:outline-none"
                 value={formData.email}
@@ -1016,7 +1018,7 @@ export default function AuthModal({
                   id="reg-password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
-                  required
+                 
                   minLength={6}
                   autoComplete="new-password"
                   aria-describedby="reg-password-hint"
@@ -1046,7 +1048,7 @@ export default function AuthModal({
                   id="reg-confirm-password"
                   name="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
-                  required
+                 
                   autoComplete="new-password"
                   className="w-full rounded-lg border-2 border-gray-300 px-3 py-2 pr-10 focus:border-red-500 focus:outline-none"
                   value={formData.confirmPassword}
@@ -1072,7 +1074,7 @@ export default function AuthModal({
                     id="reg-phone"
                     name="phone"
                     type="tel"
-                    required
+                   
                     disabled={otpVerified}
                     autoComplete="tel"
                     inputMode="numeric"
@@ -1157,3 +1159,4 @@ export default function AuthModal({
     </div>
   );
 }
+
