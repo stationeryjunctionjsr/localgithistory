@@ -305,7 +305,7 @@ export default function Header() {
 
   const fetchPromoStrips = async () => {
     try {
-      const response = await api.get('/promo-strips/active/');
+      const response = await api.get('/promo-strips/active');
       const activeStrips = response.data || [];
       setPromoStrips(activeStrips);
     // eslint-disable-next-line unused-imports/no-unused-vars

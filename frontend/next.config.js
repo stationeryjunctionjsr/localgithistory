@@ -63,13 +63,13 @@ const nextConfig = {
   async headers() {
     const cspDirectives = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://verify.msg91.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://verify.msg91.com https://pass.hostnsoft.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https: http:",
-      "connect-src 'self' https://www.google-analytics.com https://www.clarity.ms https://control.msg91.com https://verify.msg91.com " +
+      "connect-src 'self' https://www.google-analytics.com https://www.clarity.ms https://control.msg91.com https://verify.msg91.com https://pass.hostnsoft.com " +
         (process.env.NEXT_PUBLIC_API_URL),
-      "frame-src 'self' https://www.google.com https://www.googletagmanager.com https://verify.msg91.com",
+      "frame-src 'self' https://www.google.com https://www.googletagmanager.com https://verify.msg91.com https://pass.hostnsoft.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
