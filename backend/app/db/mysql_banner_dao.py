@@ -26,9 +26,14 @@ class MySQLBannerDAO:
         return {
             "_id": str(r.id),
             "title": r.title,
+            "description": r.description,
             "imageUrl": r.image_url,
             "linkUrl": r.link_url,
+            "displayOrder": r.display_order,
+            "startDate": r.start_date,
+            "endDate": r.end_date,
             "isActive": bool(r.is_active) if r.is_active is not None else True,
+            "isPublished": bool(r.is_published) if r.is_published is not None else False,
             "targetAudience": r.target_audience,
             "position": r.position,
             "userSegments": children.get("userSegments", []),
@@ -124,12 +129,14 @@ class MySQLBannerDAO:
                 text(
                     f"""
                     INSERT INTO {self.TABLE} (
-                        external_id, title, image_url, link_url,
-                        is_active, target_audience, position,
+                        external_id, title, description, image_url, link_url,
+                        display_order, start_date, end_date,
+                        is_active, is_published, target_audience, position,
                         created_at, updated_at
                     ) VALUES (
-                        :external_id, :title, :image_url, :link_url,
-                        :is_active, :target_audience, :position,
+                        :external_id, :title, :description, :image_url, :link_url,
+                        :display_order, :start_date, :end_date,
+                        :is_active, :is_published, :target_audience, :position,
                         :created_at, :updated_at
                     )
                     """
@@ -137,9 +144,14 @@ class MySQLBannerDAO:
                 {
                     "external_id": external_id,
                     "title": data.get("title"),
+                    "description": data.get("description"),
                     "image_url": data.get("imageUrl"),
                     "link_url": data.get("linkUrl"),
+                    "display_order": data.get("displayOrder", 0),
+                    "start_date": data.get("startDate"),
+                    "end_date": data.get("endDate"),
                     "is_active": int(bool(data.get("isActive", True))),
+                    "is_published": int(bool(data.get("isPublished", False))),
                     "target_audience": data.get("targetAudience"),
                     "position": data.get("position"),
                     "created_at": now,
@@ -170,9 +182,14 @@ class MySQLBannerDAO:
                     f"""
                     UPDATE {self.TABLE} SET
                         title = :title,
+                        description = :description,
                         image_url = :image_url,
                         link_url = :link_url,
+                        display_order = :display_order,
+                        start_date = :start_date,
+                        end_date = :end_date,
                         is_active = :is_active,
+                        is_published = :is_published,
                         target_audience = :target_audience,
                         position = :position,
                         updated_at = :updated_at
@@ -182,9 +199,14 @@ class MySQLBannerDAO:
                 {
                     "id": bid,
                     "title": merged.get("title"),
+                    "description": merged.get("description"),
                     "image_url": merged.get("imageUrl"),
                     "link_url": merged.get("linkUrl"),
+                    "display_order": merged.get("displayOrder", 0),
+                    "start_date": merged.get("startDate"),
+                    "end_date": merged.get("endDate"),
                     "is_active": int(bool(merged.get("isActive", True))),
+                    "is_published": int(bool(merged.get("isPublished", False))),
                     "target_audience": merged.get("targetAudience"),
                     "position": merged.get("position"),
                     "updated_at": now,
