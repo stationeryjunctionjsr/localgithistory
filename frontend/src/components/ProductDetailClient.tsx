@@ -844,7 +844,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                       </p>
                       <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
                         {(user?.role === 'wholesaler' || user?.effectiveRole === 'wholesaler') 
-                          ? 'This product is not serviced for wholesale accounts.' 
+                          ? 'This product is not serviced for business accounts.' 
                           : 'This product is currently not delivered to your area.'}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-3">
