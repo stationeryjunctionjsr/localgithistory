@@ -37,6 +37,8 @@ class MySQLProductDAO:
             "mrpPerCase": float(r.mrp_per_case) if r.mrp_per_case is not None else None,
             "quantityPerCase": int(r.quantity_per_case) if r.quantity_per_case is not None else None,
             "stock": int(r.stock) if r.stock is not None else 0,
+            "rating": float(r.rating) if getattr(r, "rating", None) is not None else 0.0,
+            "reviews": int(r.reviews) if getattr(r, "reviews", None) is not None else 0,
             "images": children.get("images", []),
             "videos": children.get("videos", []),
             "isActive": bool(r.is_active) if r.is_active is not None else True,
@@ -305,7 +307,7 @@ class MySQLProductDAO:
         count_sql = f"SELECT COUNT(*) FROM {self.TABLE} p {join_sql} WHERE {where_sql}"
         query_sql = f"""
             SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                   p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
+                   p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews, p.created_at, p.updated_at
             FROM {self.TABLE} p
             {join_sql} WHERE {where_sql} {sort_sql} LIMIT :limit OFFSET :skip
         """
@@ -357,7 +359,7 @@ class MySQLProductDAO:
                 await session.execute(
                     text(f"""
                 SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
+                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews, p.created_at, p.updated_at
                 FROM {self.TABLE} p {join_sql} WHERE {where_sql} ORDER BY p.id ASC
             """),
                     params,
@@ -382,7 +384,7 @@ class MySQLProductDAO:
                 await session.execute(
                     text(f"""
                 SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
+                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews, p.created_at, p.updated_at
                 FROM {self.TABLE} p WHERE p.id = :id
             """),
                     {"id": pid},
@@ -536,7 +538,7 @@ class MySQLProductDAO:
                 text(f"""
                 UPDATE {self.TABLE} SET name = :name, description = :description, sku = :sku, category = :category,
                     sub_category = :sub_category, brand = :brand, mrp = :mrp, mrp_per_case = :mrp_per_case,
-                    quantity_per_case = :quantity_per_case, stock = :stock, is_active = :is_active, updated_at = :updated_at
+                    quantity_per_case = :quantity_per_case, stock = :stock, is_active = :is_active, rating = :rating, reviews = :reviews, updated_at = :updated_at
                 WHERE id = :id
             """),
                 {
@@ -550,10 +552,10 @@ class MySQLProductDAO:
                     "mrp": merged.get("mrp"),
                     "mrp_per_case": merged.get("mrpPerCase"),
                     "quantity_per_case": merged.get("quantityPerCase"),
-                    "stock": merged.get("stock", 0),
+                    "stock": merged.get("stock"),
                     "is_active": 1 if merged.get("isActive", True) else 0,
-                    
-                    
+                    "rating": merged.get("rating", 0.0),
+                    "reviews": merged.get("reviews", 0),
                     "updated_at": now,
                 },
             )

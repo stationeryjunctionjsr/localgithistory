@@ -143,7 +143,7 @@ async def get_my_valet_earnings(
     valet_id = str(current_user["_id"])
     settings = await _get_settings()
     orders = await order_repository.findAll({"assignedValet": valet_id})
-    returns = await return_request_repository.findAll({"assignedValet": valet_id})
+    returns = await return_request_repository.findAll({"valetId": valet_id})
 
     return await _compute_valet_earnings(valet_id, settings, orders, returns)
 
@@ -166,7 +166,7 @@ async def get_valet_earnings_by_id(
 
     settings = await _get_settings()
     orders = await order_repository.findAll({"assignedValet": valet_id})
-    returns = await return_request_repository.findAll({"assignedValet": valet_id})
+    returns = await return_request_repository.findAll({"valetId": valet_id})
 
     result = await _compute_valet_earnings(valet_id, settings, orders, returns)
     result["valetName"] = valet.get("name", "")

@@ -101,8 +101,8 @@ async def check_return_eligibility(order_id: str, current_user: dict = Depends(g
 
     try:
         delivered_at = datetime.fromisoformat(delivered_at_str.replace("Z", "+00:00"))
-        if delivered_at.tzinfo:
-            delivered_at = delivered_at.replace(tzinfo=None)
+        if not delivered_at.tzinfo:
+            delivered_at = delivered_at.replace(tzinfo=timezone.utc)
     except ValueError:
         return {"eligibleItems": [], "reason": "Malformed delivery date format"}
     except Exception as e:

@@ -14,63 +14,28 @@ test.describe('Flow 5: Admin Panel - Segments and Discounts', () => {
       await route.fulfill({ json });
     });
 
-    await page.route('**/api/categories**', async route => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({ json: [{ _id: 'cat_1', name: 'Mock Category', description: 'Mock Description', isActive: true }] });
-      } else {
-        await route.fulfill({ json: { success: true }, status: 201 });
-      }
-    });
-
-    await page.route('**/api/category-tags**', async route => {
-      await route.fulfill({ json: [{ _id: 'tag_1', name: 'Mock Tag' }] });
-    });
-    
     await page.route('**/api/page-info/**', async route => {
       await route.fulfill({ json: { page: {}, columns: {} } });
     });
 
-    page.on('response', response => {
-      if (response.status() === 401) {
-        console.log(`[401] ${response.url()}`);
-      }
-    });
-
     // Mock background provider requests that otherwise return 401 and trigger a global redirect to /
-    await page.route('**/api/notifications**', async route => {
-      await route.fulfill({ json: [] });
-    });
-    await page.route('**/api/cart**', async route => {
-      await route.fulfill({ json: { items: [], total: 0 } });
-    });
-    await page.route('**/api/wishlist**', async route => {
-      await route.fulfill({ json: [] });
-    });
-    await page.route('**/api/order-feedback/eligible**', async route => {
-      await route.fulfill({ json: { eligible: false } });
-    });
-    await page.route('**/api/activity**', async route => {
-      await route.fulfill({ json: { success: true } });
-    });
-    await page.route('**/api/tracking**', async route => {
-      await route.fulfill({ json: { success: true } });
-    });
-    await page.route('**/api/auth/refresh**', async route => {
-      await route.fulfill({ json: { token: 'fake', refreshToken: 'fake', sessionId: 'fake' }, status: 200 });
-    });
+    await page.route('**/api/notifications**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/cart**', async route => route.fulfill({ json: { items: [], total: 0 } }));
+    await page.route('**/api/wishlist**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/order-feedback/eligible**', async route => route.fulfill({ json: { eligible: false } }));
+    await page.route('**/api/activity**', async route => route.fulfill({ json: { success: true } }));
+    await page.route('**/api/tracking**', async route => route.fulfill({ json: { success: true } }));
+    await page.route('**/api/auth/refresh**', async route => route.fulfill({ json: { token: 'fake', refreshToken: 'fake', sessionId: 'fake' }, status: 200 }));
     
-    // Make sure we mock the analytics dashboard data since this flow might load the dashboard stats
-    await page.route('**/api/analytics/dashboard-data', async route => {
-      await route.fulfill({ json: {
-        totalRevenue: 0,
-        totalOrders: 0,
-        averageOrderValue: 0,
-        conversionRate: 0,
-        revenueData: [],
-        ordersByStatus: []
-      } });
-    });
+    // Flow 5 specific mocks to prevent 401 redirects
+    await page.route('**/api/brands/**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/categories/public**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/products/**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/users/**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/bundles/admin/all**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/collections/**', async route => route.fulfill({ json: [] }));
   });
+
   test('Retail Customer Segments renders', async ({ page }) => {
     await page.route('**/api/customer-segments**', async route => {
       await route.fulfill({ json: [] });
