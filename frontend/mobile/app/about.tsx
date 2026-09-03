@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, shadows } from '../src/theme';
 import api from '../src/api/client';
+import { useLanguage } from '../src/context/LanguageContext';
 
 interface AboutData {
   brandName: string;
@@ -57,6 +58,7 @@ import { ContentPageSkeleton } from '../src/components/SkeletonLoader';
 
 export default function About() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [data, setData] = useState<AboutData>(FALLBACK);
   const [loading, setLoading] = useState(true);
 
@@ -81,7 +83,7 @@ export default function About() {
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>About Us</Text>
+          <Text style={styles.headerTitle}>{t('pages.about.title', 'About Us')}</Text>
           <View style={{ width: 40 }} />
         </View>
         <ContentPageSkeleton />
@@ -95,7 +97,7 @@ export default function About() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>About Us</Text>
+        <Text style={styles.headerTitle}>{t('pages.about.title', 'About Us')}</Text>
         <View style={{ width: 40 }} />
       </View>
 

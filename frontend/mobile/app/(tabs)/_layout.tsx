@@ -8,6 +8,7 @@ import api from '../../src/api/client';
 import { useAuth } from '../../src/hooks/useAuth';
 import { getGuestCart } from '../../src/services/guestStore';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLanguage } from '../../src/context/LanguageContext';
 
 interface TabIconProps {
   name: string;
@@ -87,6 +88,7 @@ function TabIcon({ name, focused, activeIcon, inactiveIcon, badge }: TabIconProp
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [cartCount, setCartCount] = useState(0);
   const isFirstRender = useRef(true);
 
@@ -138,7 +140,7 @@ export default function TabsLayout() {
           tabBarButton: (props: any) => (
             <Pressable {...props} style={styles.tabButton}>
               <TabIcon
-                name="Home"
+                name={t('nav.home', 'Home')}
                 focused={props.accessibilityState?.selected || false}
                 activeIcon="home"
                 inactiveIcon="home-outline"
@@ -153,7 +155,7 @@ export default function TabsLayout() {
           tabBarButton: (props: any) => (
             <Pressable {...props} style={styles.tabButton}>
               <TabIcon
-                name="Categories"
+                name={t('nav.categories', 'Categories')}
                 focused={props.accessibilityState?.selected || false}
                 activeIcon="grid"
                 inactiveIcon="grid-outline"
@@ -168,7 +170,7 @@ export default function TabsLayout() {
           tabBarButton: (props: any) => (
             <Pressable {...props} style={styles.tabButton}>
               <TabIcon
-                name="Brands"
+                name={t('nav.brands', 'Brands')}
                 focused={props.accessibilityState?.selected || false}
                 activeIcon="pricetag"
                 inactiveIcon="pricetag-outline"
@@ -185,7 +187,7 @@ export default function TabsLayout() {
                 tabBarButton: (props: any) => (
                   <Pressable {...props} style={styles.tabButton}>
                     <TabIcon
-                      name="Schemes"
+                      name={t('nav.schemes', 'Schemes')}
                       focused={props.accessibilityState?.selected || false}
                       activeIcon="pricetags"
                       inactiveIcon="pricetags-outline"
@@ -202,7 +204,7 @@ export default function TabsLayout() {
           tabBarButton: (props: any) => (
             <Pressable {...props} style={styles.tabButton}>
               <TabIcon
-                name="Cart"
+                name={t('nav.cart', 'Cart')}
                 focused={props.accessibilityState?.selected || false}
                 activeIcon="cart"
                 inactiveIcon="cart-outline"
@@ -218,7 +220,7 @@ export default function TabsLayout() {
           tabBarButton: (props: any) => (
             <Pressable {...props} style={styles.tabButton}>
               <TabIcon
-                name="Profile"
+                name={t('nav.profile', 'Profile')}
                 focused={props.accessibilityState?.selected || false}
                 activeIcon="person"
                 inactiveIcon="person-outline"

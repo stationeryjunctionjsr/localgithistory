@@ -6,6 +6,8 @@ import { useTheme } from '@/context/ThemeContext';
 import api from '@/utils/api';
 import { toast } from 'react-toastify';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 interface ContentSection {
   title: string;
   body: string;
@@ -23,6 +25,7 @@ interface AboutData {
 
 export default function AboutPage() {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const [data, setData] = useState<AboutData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -60,10 +63,10 @@ export default function AboutPage() {
       >
         <div className="mx-auto max-w-3xl px-4">
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-            About {brandName}
+            {t('pages.about.title', `About ${brandName}`)}
           </h1>
           <p className="mt-4 text-xl opacity-90 font-medium">
-            {tagline}
+            {t('pages.about.subtitle', tagline)}
           </p>
         </div>
       </div>

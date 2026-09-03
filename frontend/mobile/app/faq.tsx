@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, shadows } from '../src/theme';
 import { ContentPageSkeleton } from '../src/components/SkeletonLoader';
 import api from '../src/api/client';
+import { useLanguage } from '../src/context/LanguageContext';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -71,25 +72,38 @@ const FAQAccordion = ({ item, expanded, onToggle }: { item: FAQItem; expanded: b
 
 export default function FAQ() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [sections, setSections] = useState<FAQSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    api
-      .get('/content/faq/public')
-      .then((res) => {
-        const data = res.data || [];
-        setSections(data.length > 0 ? data : FALLBACK_SECTIONS);
-      })
-      .catch(() => setSections(FALLBACK_SECTIONS))
-      .finally(() => setLoading(false));
+    fetchFAQs();
   }, []);
 
-  const toggleItem = (key: string) => {
+  const fetchFAQs = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/content/faq/public');
+      if (res.data && res.data.length > 0) {
+        setSections(res.data);
+      }
+    } catch (err) {
+      console.log('Failed to fetch FAQs, using fallback', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleSection = (title: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedKey((prev) => (prev === key ? null : key));
+    setExpandedSection(expandedSection === title ? null : title);
+  };
+
+  const toggleItem = (id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedItems((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
@@ -114,7 +128,7 @@ export default function FAQ() {
           <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
         <Ionicons name="help-circle" size={24} color={colors.primary} />
-        <Text style={styles.headerTitle}>FAQs</Text>
+        <Text style={styles.headerTitle}>{t('pages.faq.title', 'FAQs')}</Text>
         <View style={{ width: 40 }} />
       </View>
 

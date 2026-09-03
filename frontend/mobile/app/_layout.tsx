@@ -26,6 +26,7 @@ import { storeDeepLinkAttribution } from '../src/utils/mobileAnalytics';
 import { CoachMarkProvider } from '../src/context/CoachMarkContext';
 import { PincodeProvider } from '../src/context/PincodeContext';
 import { PincodeModal } from '../src/components/PincodeModal';
+import { LanguageProvider } from '../src/context/LanguageContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient({
@@ -198,23 +199,25 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        <PincodeProvider>
-          <CoachMarkProvider>
-            <Stack screenOptions={{ headerShown: false }} />
-            <PincodeModal />
-            <MaintenanceGate />
-            <ForceUpdateGate />
-            <SessionAnalytics />
-            <SessionRevokedModal
-              detail={sessionRevokedDetail}
-              onCancel={() => clearSessionRevoked()}
-              onSignIn={() => clearSessionRevoked('login')}
-            />
-            <Toast />
-          </CoachMarkProvider>
-        </PincodeProvider>
-      </SafeAreaProvider>
+      <LanguageProvider>
+        <SafeAreaProvider>
+          <PincodeProvider>
+            <CoachMarkProvider>
+              <Stack screenOptions={{ headerShown: false }} />
+              <PincodeModal />
+              <MaintenanceGate />
+              <ForceUpdateGate />
+              <SessionAnalytics />
+              <SessionRevokedModal
+                detail={sessionRevokedDetail}
+                onCancel={() => clearSessionRevoked()}
+                onSignIn={() => clearSessionRevoked('login')}
+              />
+              <Toast />
+            </CoachMarkProvider>
+          </PincodeProvider>
+        </SafeAreaProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }

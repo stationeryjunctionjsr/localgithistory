@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, shadows } from '../src/theme';
 import { ContentPageSkeleton } from '../src/components/SkeletonLoader';
 import api from '../src/api/client';
+import { useLanguage } from '../src/context/LanguageContext';
 
 interface PolicySection {
   title: string;
@@ -45,6 +46,7 @@ const Section = ({ title, body }: { title: string; body: string }) => (
 
 export default function PrivacyPolicy() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [data, setData] = useState<PrivacyData>(FALLBACK);
   const [loading, setLoading] = useState(true);
 
@@ -70,7 +72,7 @@ export default function PrivacyPolicy() {
             <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <Ionicons name="shield-checkmark" size={24} color={colors.primary} />
-          <Text style={styles.headerTitle}>Privacy Policy</Text>
+          <Text style={styles.headerTitle}>{t('pages.privacyPolicy.title', 'Privacy Policy')}</Text>
           <View style={{ width: 40 }} />
         </View>
         <ContentPageSkeleton />
@@ -80,12 +82,12 @@ export default function PrivacyPolicy() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={[styles.header, shadows.sm]}>
+      <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
         <Ionicons name="shield-checkmark" size={24} color={colors.primary} />
-        <Text style={styles.headerTitle}>Privacy Policy</Text>
+        <Text style={styles.headerTitle}>{t('pages.privacyPolicy.title', 'Privacy Policy')}</Text>
         <View style={{ width: 40 }} />
       </View>
 

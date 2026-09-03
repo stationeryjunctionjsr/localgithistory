@@ -1,0 +1,149 @@
+{
+  "nav": {
+    "home": "ଘର",
+    "categories": "ବର୍ଗଗୁଡ଼ିକ",
+    "brands": "ବ୍ରାଣ୍ଡ",
+    "products": "ଉତ୍ପାଦ",
+    "about": "ଆମ ବିଷୟରେ",
+    "faq": "ଅଧିକ ଜଣାଶୁଣା ପ୍ରଶ୍ନ",
+    "support": "ସହାୟତା",
+    "login": "ଲଗ୍ ଇନ",
+    "register": "ପଞ୍ଜୀକୃତ",
+    "logout": "ଲଗ୍ ଆଉଟ",
+    "profile": "ପ୍ରୋଫାଇଲ",
+    "cart": "କାର୍ଟ",
+    "schemes": "ଯୋଜନା",
+    "wishlist": "ଇଚ୍ଛା ତାଲିକା",
+    "orders": "ଅର୍ଡର",
+    "notifications": "ବିଜ୍ଞପ୍ତି"
+  },
+  "accessibility": {
+    "title": "ଆକ୍ସେସ଼ିବିଲ୍ଟି ବିକଳ୍ପ",
+    "highContrast": "ଉଚ୍ଚ କନ୍ଟ୍ରାଷ୍ଟ",
+    "highContrastDesc": "ସ୍ପଷ୍ଟ ଦୃଶ୍ୟ ପାଇଁ ଟେକ୍ସ୍ଟ ଏବଂ ବୋର୍ଡର କନ୍ଟ୍ରାଷ୍ଟ ବଢ଼ାନ୍ତୁ।",
+    "reduceMotion": "ଗତି ହ୍ରାସ ଆ",
+    "reduceMotionDesc": "ଆ୍ୟପ ମଧ୍ୟରେ ଆ୍ୟନିମ ଏବଂ ପରିବର୍ତ୍ତନ ହ୍ରାସ ଆ।",
+    "focusRings": "ଫୋକ ରିଂ",
+    "focusRingsDesc": "ସଦାବ଼ କୀ'ବୋ ଫୋକ ଚିହ୍ନ ଦ୍ ଆ।",
+    "dyslexiaFont": "ଡ ଫଣ୍ଟ",
+    "dyslexiaFontDesc": "ଡ-ବ ଫଣ୍ଟ ଆ।",
+    "textSize": "ଟ ଆକ",
+    "language": "ଭ",
+    "languageDesc": "ଆ ଭ ବ ଆ।",
+    "largeText": "ବ ଟ ମୋ",
+    "largeTextDesc": "ଆ ଫ ଆ ବ ।",
+    "screenReader": "ସ୍ ର ସ",
+    "screenReaderDesc": "ଏ ଆ ସ ସ ସ (TalkBack / VoiceOver) ସ ।",
+    "settings": "ଆ ସ",
+    "settingsDesc": "ଭ ଅ ଆ ସ ।"
+  },
+  "common": {
+    "search": "ଖ",
+    "searchPlaceholder": "ଉ, ବ ଏ ଅ ଖ",
+    "close": "ବ",
+    "save": "ସ",
+    "cancel": "ର",
+    "tryAgain": "ପ ଚ",
+    "loading": "ଲ...",
+    "back": "ପ",
+    "submit": "ଜ",
+    "send": "ପ",
+    "reply": "ଉ",
+    "retry": "ପ",
+    "skipToContent": "ମ ସ ଯ",
+    "noResults": "କ ଫ ମ",
+    "viewAll": "ସ ଦ",
+    "learnMore": "ଅ ଜ"
+  },
+  "auth": {
+    "login": "ଲ ଇ",
+    "register": "ପ",
+    "logout": "ଲ ଆ",
+    "welcomeBack": "ଫ ସ",
+    "createAccount": "ଖ ବ",
+    "signIn": "ସ ଇ",
+    "forgotPassword": "ପ ଭ?"
+  },
+  "cart": {
+    "title": "କ",
+    "empty": "ଆ କ ଖ",
+    "checkout": "ଚ",
+    "items": "ବ",
+    "item": "ଜ",
+    "addToCart": "କ ଯ",
+    "removeFromCart": "ହ"
+  },
+  "pages": {
+    "about": {
+      "title": "ଆମ ବିଷୟରେ",
+      "subtitle": "ଗୁଣବତ୍ତା ଷ୍ଟେସ଼ ପ ଆ ପ୍ ଗ"
+    },
+    "faq": {
+      "title": "ଅଧ ଜ ପ",
+      "subtitle": "ଆ ଉ ଏ ସ ବ ସ ପ ଉ ଖ।"
+    },
+    "privacy": {
+      "title": "ଗ ନ",
+      "subtitle": "ଆ ଆ ବ ମ ଦ। ଆ ଡ ର ପ।"
+    },
+    "support": {
+      "title": "ଗ ସ",
+      "subtitle": "ଆ ସ ଟ ଆ ସ ।"
+    },
+    "accessibilityStatement": {
+      "title": "ଆ ବ",
+      "subtitle": "ସ ଉ ଡ ଆ ଆ ପ।"
+    },
+    "terms": {
+      "title": "ବ ଶ",
+      "subtitle": "ଆ ସ ବ ପ ଏ ଶ ଧ ପ।"
+    },
+    "notFound": {
+      "title": "ପ ମ ନ",
+      "message": "ଆ ଖ ପ ନ ବ ହ।",
+      "goHome": "ଘ ଯ"
+    }
+  },
+  "cookie": {
+    "title": "କ ସ",
+    "message": "ଆ ବ ଅ ବ, ସ ଟ ଓ ଓ ସ ବ କ ବ।",
+    "accept": "ସ ସ",
+    "reject": "ଅ",
+    "learnMore": "ଆ ଗ ନ ବ ଜ"
+  },
+  "support": {
+    "submitTicket": "ସ ଟ ଜ",
+    "detailHelp": "ବ ତ ଆ ସ ଦ ହ ।",
+    "myQueries": "ମ ପ",
+    "submitQuery": "ପ ଜ",
+    "sendTicket": "ଟ ପ",
+    "name": "ନ",
+    "email": "ଇ ଠ",
+    "phone": "ଫ ନ",
+    "company": "କ",
+    "companyOptional": "କ ନ (ବ)",
+    "category": "ବ",
+    "subject": "ବ",
+    "description": "ବ",
+    "hours": "ସ ଘ",
+    "contactInfo": "ସ ତ",
+    "howHelp": "ଆ ଆ କ ସ?",
+    "teamReady": "ଆ ସ ଟ ଆ ସ ।"
+  },
+  "lang": {
+    "en": "English",
+    "hi": "हिंदी",
+    "bn": "বাংলা",
+    "te": "తెలుగు",
+    "mr": "मराठी",
+    "ta": "தமிழ்",
+    "gu": "ગુજરાતી",
+    "kn": "ಕನ್ನಡ",
+    "ml": "മലയാളം",
+    "pa": "ਪੰਜਾਬੀ",
+    "or": "ଓଡ଼ିଆ",
+    "ur": "اردو",
+    "chooseLanguage": "ଭ ବ",
+    "changeLanguage": "ଭ ବ"
+  }
+}

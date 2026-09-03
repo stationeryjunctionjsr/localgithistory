@@ -6,6 +6,8 @@ import { useTheme } from '@/context/ThemeContext';
 import api from '@/utils/api';
 import { toast } from 'react-toastify';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 interface FAQItem {
   question: string;
   answer: string;
@@ -20,6 +22,7 @@ interface FAQSection {
 
 export default function FAQPage() {
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const [sections, setSections] = useState<FAQSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -60,10 +63,10 @@ export default function FAQPage() {
       >
         <div className="mx-auto max-w-3xl px-4">
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-            Frequently Asked Questions
+            {t('pages.faq.title', 'Frequently Asked Questions')}
           </h1>
           <p className="mt-4 text-lg opacity-90">
-            Have questions? We have answers. Find everything you need to know about our services.
+            {t('pages.faq.subtitle', 'Have questions? We have answers. Find everything you need to know about our services.')}
           </p>
         </div>
       </div>

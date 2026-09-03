@@ -2,21 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
 import styles from './PrivacyConsent.module.css';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function PrivacyConsent() {
-  const { user } = useAuth();
+  const { t } = useLanguage();
   const [showConsent, setShowConsent] = useState(false);
 
   useEffect(() => {
+    // Show the banner to ALL visitors (including logged-in users) if consent has not yet been given.
+    // Previously this was gated on `!user`, which meant logged-in users never saw the banner — GIGW non-compliant.
     const consentGiven = localStorage.getItem('cookieConsent');
-    if (!consentGiven && !user) {
+    if (!consentGiven) {
       setShowConsent(true);
-    } else if (user) {
-      setShowConsent(false);
     }
-  }, [user]);
+  }, []);
 
   const handleAcceptCookies = () => {
     localStorage.setItem('cookieConsent', 'accepted');
@@ -36,15 +36,14 @@ export default function PrivacyConsent() {
   return (
     <>
       {/* Cookie Consent Banner */}
-      <div className={styles.cookieConsentBanner}>
+      <div className={styles.cookieConsentBanner} role="dialog" aria-modal="false" aria-label={t('cookie.title', 'Cookie Consent')}>
         <div className={styles.cookieConsentContent}>
           <div className={styles.cookieConsentText}>
-            <h4>Cookie Consent</h4>
+            <h4>{t('cookie.title', 'Cookie Consent')}</h4>
             <p>
-              We use cookies to enhance your browsing experience, analyze site traffic, and
-              personalize content. By clicking &quot;Accept&quot;, you consent to our use of cookies.
+              {t('cookie.message', 'We use cookies to enhance your browsing experience, analyze site traffic, and personalize content. By clicking "Accept", you consent to our use of cookies.')}{' '}
               <Link href="/privacy-policy" className={styles.privacyLink}>
-                Learn more about our Privacy Policy
+                {t('cookie.learnMore', 'Learn more about our Privacy Policy')}
               </Link>
             </p>
           </div>
@@ -53,13 +52,13 @@ export default function PrivacyConsent() {
               onClick={handleRejectCookies}
               className={`${styles.consentButton} ${styles.rejectButton}`}
             >
-              Reject
+              {t('cookie.reject', 'Reject')}
             </button>
             <button
               onClick={handleAcceptCookies}
               className={`${styles.consentButton} ${styles.acceptButton}`}
             >
-              Accept All
+              {t('cookie.accept', 'Accept All')}
             </button>
           </div>
         </div>
@@ -67,4 +66,3 @@ export default function PrivacyConsent() {
     </>
   );
 }
-

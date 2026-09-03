@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@sj/api-client": "file:packages/api-client",
+    "@sj/i18n": "file:packages/i18n",
     "axios": "^1.19.0",
     "date-fns": "^4.4.0",
     "js-cookie": "^3.0.8",

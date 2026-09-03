@@ -201,10 +201,11 @@ export default function CustomerSupport() {
                 <form onSubmit={handleSupportSubmit} className="space-y-6 p-8">
                   <div className="grid gap-6 md:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
+                      <label htmlFor="support-name" className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
                         Name *
                       </label>
                       <input
+                        id="support-name"
                         type="text"
                         required
                         placeholder="Your Full Name"
@@ -215,10 +216,11 @@ export default function CustomerSupport() {
                       />
                     </div>
                     <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
+                      <label htmlFor="support-company" className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
                         Company
                       </label>
                       <input
+                        id="support-company"
                         type="text"
                         placeholder="Company Name (Optional)"
                         value={supportForm.company}
@@ -233,10 +235,11 @@ export default function CustomerSupport() {
 
                   <div className="grid gap-6 md:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
+                      <label htmlFor="support-email" className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
                         Email Address *
                       </label>
                       <input
+                        id="support-email"
                         type="email"
                         required
                         placeholder="your.email@example.com"
@@ -247,10 +250,11 @@ export default function CustomerSupport() {
                       />
                     </div>
                     <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
+                      <label htmlFor="support-phone" className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
                         Phone Number *
                       </label>
                       <input
+                        id="support-phone"
                         type="tel"
                         required
                         placeholder="+91 XXXXX XXXXX"
@@ -264,10 +268,11 @@ export default function CustomerSupport() {
 
                   <div className="grid gap-6 md:grid-cols-1">
                     <div>
-                      <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
+                      <label htmlFor="support-category" className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
                         Category
                       </label>
                       <select
+                        id="support-category"
                         value={supportForm.category}
                         onChange={(e) =>
                           setSupportForm({ ...supportForm, category: e.target.value })
@@ -277,7 +282,7 @@ export default function CustomerSupport() {
                       >
                         <option value="general">General Inquiry</option>
                         <option value="order">Order Issues</option>
-                        <option value="payment">Payment & Billing</option>
+                        <option value="payment">Payment &amp; Billing</option>
                         <option value="product">Product Information</option>
                         <option value="technical">Technical Support</option>
                       </select>
@@ -285,10 +290,11 @@ export default function CustomerSupport() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
+                    <label htmlFor="support-subject" className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
                       Subject *
                     </label>
                     <input
+                      id="support-subject"
                       type="text"
                       required
                       placeholder="Briefly describe your issue"
@@ -300,10 +306,11 @@ export default function CustomerSupport() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
+                    <label htmlFor="support-description" className="mb-2 block text-sm font-bold uppercase tracking-wide text-gray-700">
                       Description *
                     </label>
                     <textarea
+                      id="support-description"
                       required
                       rows={6}
                       placeholder="Tell us more about your problem..."

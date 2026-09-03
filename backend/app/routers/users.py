@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
-from app.models.schemas import UserResponse, UserUpdate
+from app.models.schemas import UserResponse, UserUpdate, SUPPORTED_LANGUAGES
 from app.repositories.user_repository import user_repository
 from app.utils.auth import get_current_user, require_super_admin
 from app.utils.limiter import limiter
@@ -56,6 +56,30 @@ async def get_my_profile(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="User not found")
 
     return UserResponse(**user)
+
+
+class UserPreferencesUpdate(BaseModel):
+    preferredLanguage: str
+
+
+@router.patch("/me/preferences")
+async def update_my_preferences(
+    data: UserPreferencesUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Update current user's UI preferences (language, etc.).
+    Lightweight endpoint so the frontend can sync language across devices without
+    triggering the full profile-update validation.
+    """
+    if data.preferredLanguage not in SUPPORTED_LANGUAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported language '{data.preferredLanguage}'. Supported: {sorted(SUPPORTED_LANGUAGES)}",
+        )
+    user_id = current_user.get("_id")
+    await user_repository.update(user_id, {"preferredLanguage": data.preferredLanguage})
+    return {"preferredLanguage": data.preferredLanguage}
+
 
 
 @router.put("/me/deactivate", response_model=UserResponse)

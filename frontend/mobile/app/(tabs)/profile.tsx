@@ -20,13 +20,17 @@ import { GeneralFeedbackModal } from '../../src/components/GeneralFeedbackModal'
 import { useAuth } from '../../src/hooks/useAuth';
 import { colors, shadows, borderRadius } from '../../src/theme';
 import { ProfileScreenSkeleton } from '../../src/components/SkeletonLoader';
+import { useLanguage } from '../../src/context/LanguageContext';
+import { LanguageSwitcher } from '../../src/components/LanguageSwitcher';
 
 export default function Profile() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
+  const { t } = useLanguage();
   const [showMenu, setShowMenu] = useState(true);
   const [guestDismissed, setGuestDismissed] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(false);
 
   const [hasDeliveredOrder, setHasDeliveredOrder] = useState(false);
   const [referralScheme, setReferralScheme] = useState<any>(null);
@@ -260,6 +264,15 @@ export default function Profile() {
             />
             <View style={styles.menuDivider} />
             <MenuItem
+              icon="language-outline"
+              label={t('accessibility.language', 'Language')}
+              subtitle={t('accessibility.languageDesc', 'Choose your preferred language')}
+              onPress={() => setShowLanguageSwitcher(true)}
+              iconBg="#E3F2FD"
+              iconColor="#1976D2"
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
               icon="chatbubble-ellipses-outline"
               label="Give Feedback"
               subtitle="Help us improve your experience"
@@ -271,6 +284,12 @@ export default function Profile() {
 
           {/* Feedback Modal */}
           <GeneralFeedbackModal visible={showFeedback} onClose={() => setShowFeedback(false)} />
+
+          {/* Language Switcher Modal */}
+          <LanguageSwitcher
+            visible={showLanguageSwitcher}
+            onClose={() => setShowLanguageSwitcher(false)}
+          />
 
           {/* Logout Button */}
           <TouchableOpacity style={styles.logoutButton} onPress={logout}>

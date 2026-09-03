@@ -24,6 +24,7 @@ interface User {
   creditUsed?: number;
   logoUrl?: string;
   referralCode?: string;
+  preferredLanguage?: string;
   // Seller admin fields
   isSellerAdmin?: boolean;
   sellerPermissions?: {
@@ -84,10 +85,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setSessionRevokedHandler(null);
   }, []);
 
+  /** Dispatch language-sync event so LanguageContext can pick up preferredLanguage from DB */
+  const dispatchLanguageSync = (userData: User) => {
+    if (typeof window !== 'undefined' && userData?.preferredLanguage) {
+      window.dispatchEvent(
+        new CustomEvent('sj:user-login', { detail: userData.preferredLanguage })
+      );
+    }
+  };
+
   const checkAuth = async () => {
     try {
       const response = await api.get('/auth/me');
       setUser(response.data);
+      dispatchLanguageSync(response.data);
     } catch {
       setUser(null);
     }
@@ -117,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       setUser(userData);
+      dispatchLanguageSync(userData);
       // promote guest activities if we had a guest session id
       const guestSessionId = Cookies.get('guestSessionId');
       if (guestSessionId && sessionId) {

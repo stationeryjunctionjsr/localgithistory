@@ -3,6 +3,7 @@
 import React, { useId } from 'react';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 
 const fontSizeLabels: Record<string, string> = {
   normal: 'A',
@@ -14,11 +15,16 @@ export default function AccessibilityPanel() {
   const { config, toggleHighContrast, toggleReducedMotion, toggleFocusVisible, toggleDyslexiaFont, cycleFontSize } =
     useAccessibility();
   const { theme } = useTheme();
+  const { t, locale } = useLanguage();
 
   const hcId = useId();
   const rmId = useId();
   const fvId = useId();
   const dfId = useId();
+  const langId = useId();
+
+  // Native language name label for the current locale
+  const langLabel = t(`lang.${locale}`, locale.toUpperCase());
 
   return (
     <div
@@ -26,7 +32,7 @@ export default function AccessibilityPanel() {
         padding: '0',
       }}
       role="group"
-      aria-label="Accessibility settings"
+      aria-label={t('accessibility.settings', 'Accessibility settings')}
     >
       {/* Section header */}
       <h3
@@ -55,13 +61,13 @@ export default function AccessibilityPanel() {
           <circle cx="12" cy="12" r="10" />
           <path d="M12 8v4M12 16h.01" />
         </svg>
-        Accessibility Options
+        {t('accessibility.title', 'Accessibility Options')}
       </h3>
 
       {/* High Contrast */}
       <div className="a11y-panel-toggle-row">
         <span id={hcId} style={{ fontSize: '12px', color: '#374151' }}>
-          High Contrast
+          {t('accessibility.highContrast', 'High Contrast')}
         </span>
         <label className="a11y-toggle-switch" aria-labelledby={hcId}>
           <input
@@ -77,7 +83,7 @@ export default function AccessibilityPanel() {
       {/* Reduced Motion */}
       <div className="a11y-panel-toggle-row">
         <span id={rmId} style={{ fontSize: '12px', color: '#374151' }}>
-          Reduce Motion
+          {t('accessibility.reduceMotion', 'Reduce Motion')}
         </span>
         <label className="a11y-toggle-switch" aria-labelledby={rmId}>
           <input
@@ -93,7 +99,7 @@ export default function AccessibilityPanel() {
       {/* Focus Rings */}
       <div className="a11y-panel-toggle-row">
         <span id={fvId} style={{ fontSize: '12px', color: '#374151' }}>
-          Focus Rings
+          {t('accessibility.focusRings', 'Focus Rings')}
         </span>
         <label className="a11y-toggle-switch" aria-labelledby={fvId}>
           <input
@@ -109,7 +115,7 @@ export default function AccessibilityPanel() {
       {/* Dyslexia Font */}
       <div className="a11y-panel-toggle-row">
         <span id={dfId} style={{ fontSize: '12px', color: '#374151' }}>
-          Dyslexia Font
+          {t('accessibility.dyslexiaFont', 'Dyslexia Font')}
         </span>
         <label className="a11y-toggle-switch" aria-labelledby={dfId}>
           <input
@@ -124,15 +130,37 @@ export default function AccessibilityPanel() {
 
       {/* Text Size */}
       <div className="a11y-panel-toggle-row">
-        <span style={{ fontSize: '12px', color: '#374151' }}>Text Size</span>
+        <span style={{ fontSize: '12px', color: '#374151' }}>{t('accessibility.textSize', 'Text Size')}</span>
         <button
           className="a11y-font-badge"
           onClick={cycleFontSize}
-          aria-label={`Text size: ${config.fontSize}. Click to cycle`}
+          aria-label={`${t('accessibility.textSize', 'Text size')}: ${config.fontSize}. ${t('common.retry', 'Click to cycle')}`}
           style={{ background: theme.primary }}
         >
           {fontSizeLabels[config.fontSize]}
         </button>
+      </div>
+
+      {/* Language — links to the LanguageSwitcher floating button */}
+      <div className="a11y-panel-toggle-row">
+        <span id={langId} style={{ fontSize: '12px', color: '#374151' }}>
+          {t('accessibility.language', 'Language')}
+        </span>
+        <span
+          aria-labelledby={langId}
+          lang={locale}
+          style={{
+            fontSize: '13px',
+            fontWeight: '600',
+            color: theme.primary,
+            background: '#f0fdf4',
+            borderRadius: '9999px',
+            padding: '4px 10px',
+          }}
+          title={t('lang.changeLanguage', 'Use the Language Switcher button in the bottom-right corner')}
+        >
+          🌐 {langLabel}
+        </span>
       </div>
     </div>
   );

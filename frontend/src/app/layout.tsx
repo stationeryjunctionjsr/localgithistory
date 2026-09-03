@@ -24,6 +24,8 @@ import MSG91Initializer from '@/components/MSG91Initializer';
 import ConsentBasedTracking from '@/components/ConsentBasedTracking';
 import AppChrome from '@/components/AppChrome';
 import { AccessibilityProvider } from '@/context/AccessibilityContext';
+import { LanguageProvider } from '@/context/LanguageContext';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import ToastSetup from '@/components/ToastSetup';
 
 export const metadata: Metadata = {
@@ -120,44 +122,47 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#main-content" className="skip-to-content">
           Skip to main content
         </a>
-        <AccessibilityProvider>
-          <ThemeProvider>
-            <FontProvider>
-              <AuthProvider>
-                <WishlistProvider>
-                  <CartProvider>
-                    <NotificationProvider>
-                      <PincodeProvider>
+        <LanguageProvider>
+          <AccessibilityProvider>
+            <ThemeProvider>
+              <FontProvider>
+                <AuthProvider>
+                  <WishlistProvider>
+                    <CartProvider>
+                      <NotificationProvider>
+                        <PincodeProvider>
+                          <Suspense fallback={null}>
+                            <AppChrome />
+                          </Suspense>
+                        <LaunchPopup />
+                        <FeedbackModal />
+                        <MSG91Initializer />
+                        <ErrorBoundary>
+                          <main id="main-content" tabIndex={-1} style={{ outline: 'none' }}>
+                            {children}
+                          </main>
+                        </ErrorBoundary>
+                        <CartOverlay />
                         <Suspense fallback={null}>
-                          <AppChrome />
+                          <SessionAnalytics />
                         </Suspense>
-                      <LaunchPopup />
-                      <FeedbackModal />
-                      <MSG91Initializer />
-                      <ErrorBoundary>
-                        <main id="main-content" tabIndex={-1} style={{ outline: 'none' }}>
-                          {children}
-                        </main>
-                      </ErrorBoundary>
-                      <CartOverlay />
-                      <Suspense fallback={null}>
-                        <SessionAnalytics />
-                      </Suspense>
-                      <PrivacyConsent />
-                      <MaintenanceGate />
-                      <ForceUpdateGate />
-                      <ThemeSwitcher />
-                      <FontSwitcher />
-                      <ToastSetup />
-                      <Toaster position="top-center" />
-                      </PincodeProvider>
-                    </NotificationProvider>
-                  </CartProvider>
-                </WishlistProvider>
-              </AuthProvider>
-            </FontProvider>
-          </ThemeProvider>
-        </AccessibilityProvider>
+                        <PrivacyConsent />
+                        <MaintenanceGate />
+                        <ForceUpdateGate />
+                        <ThemeSwitcher />
+                        <FontSwitcher />
+                        <LanguageSwitcher />
+                        <ToastSetup />
+                        <Toaster position="top-center" />
+                        </PincodeProvider>
+                      </NotificationProvider>
+                    </CartProvider>
+                  </WishlistProvider>
+                </AuthProvider>
+              </FontProvider>
+            </ThemeProvider>
+          </AccessibilityProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

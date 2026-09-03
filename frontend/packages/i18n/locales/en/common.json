@@ -1,0 +1,149 @@
+{
+  "nav": {
+    "home": "Home",
+    "categories": "Categories",
+    "brands": "Brands",
+    "products": "Products",
+    "about": "About Us",
+    "faq": "FAQ",
+    "support": "Support",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "profile": "Profile",
+    "cart": "Cart",
+    "schemes": "Schemes",
+    "wishlist": "Wishlist",
+    "orders": "Orders",
+    "notifications": "Notifications"
+  },
+  "accessibility": {
+    "title": "Accessibility Options",
+    "highContrast": "High Contrast",
+    "highContrastDesc": "Enhance text and border contrast for clearer visibility.",
+    "reduceMotion": "Reduce Motion",
+    "reduceMotionDesc": "Minimize animations and transitions throughout the app.",
+    "focusRings": "Focus Rings",
+    "focusRingsDesc": "Always show keyboard focus indicators.",
+    "dyslexiaFont": "Dyslexia Font",
+    "dyslexiaFontDesc": "Switch to a dyslexia-friendly font.",
+    "textSize": "Text Size",
+    "language": "Language",
+    "languageDesc": "Choose your preferred language.",
+    "largeText": "Large Text Mode",
+    "largeTextDesc": "Increase font size across the app.",
+    "screenReader": "Screen Reader Support",
+    "screenReaderDesc": "This app is compatible with system screen readers (TalkBack / VoiceOver). Enable them in your device settings for full audio navigation.",
+    "settings": "Accessibility Settings",
+    "settingsDesc": "Customize your display and interaction settings for a better viewing experience."
+  },
+  "common": {
+    "search": "Search",
+    "searchPlaceholder": "Search for products, brands and more",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "tryAgain": "Try Again",
+    "loading": "Loading...",
+    "back": "Back",
+    "submit": "Submit",
+    "send": "Send",
+    "reply": "Reply",
+    "retry": "Retry",
+    "skipToContent": "Skip to main content",
+    "noResults": "No results found",
+    "viewAll": "View All",
+    "learnMore": "Learn More"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "welcomeBack": "Welcome back",
+    "createAccount": "Create Account",
+    "signIn": "Sign In",
+    "forgotPassword": "Forgot Password?"
+  },
+  "cart": {
+    "title": "Cart",
+    "empty": "Your cart is empty",
+    "checkout": "Proceed to Checkout",
+    "items": "items",
+    "item": "item",
+    "addToCart": "Add to Cart",
+    "removeFromCart": "Remove"
+  },
+  "pages": {
+    "about": {
+      "title": "About Us",
+      "subtitle": "Your Premium Destination for Quality Stationery"
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "subtitle": "Find answers to common questions about our products and services."
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "subtitle": "We value your trust. Read how we protect and manage your personal data."
+    },
+    "support": {
+      "title": "Customer Support",
+      "subtitle": "Our support team is always ready to assist you."
+    },
+    "accessibilityStatement": {
+      "title": "Accessibility Statement",
+      "subtitle": "Our commitment to digital accessibility for all users."
+    },
+    "terms": {
+      "title": "Terms of Use",
+      "subtitle": "Please read these terms carefully before using our services."
+    },
+    "notFound": {
+      "title": "Page Not Found",
+      "message": "The page you are looking for does not exist or has been moved.",
+      "goHome": "Go to Home"
+    }
+  },
+  "cookie": {
+    "title": "Cookie Consent",
+    "message": "We use cookies to enhance your browsing experience, analyze site traffic, and personalize content. By clicking \"Accept\", you consent to our use of cookies.",
+    "accept": "Accept All",
+    "reject": "Reject",
+    "learnMore": "Learn more about our Privacy Policy"
+  },
+  "support": {
+    "submitTicket": "Submit a Support Ticket",
+    "detailHelp": "Detailed information helps us solve your issue faster.",
+    "myQueries": "My Queries",
+    "submitQuery": "Submit Query",
+    "sendTicket": "Send Ticket",
+    "name": "Name",
+    "email": "Email Address",
+    "phone": "Phone Number",
+    "company": "Company",
+    "companyOptional": "Company Name (Optional)",
+    "category": "Category",
+    "subject": "Subject",
+    "description": "Description",
+    "hours": "Support Hours",
+    "contactInfo": "Contact Info",
+    "howHelp": "How can we help you?",
+    "teamReady": "Our support team is always ready to assist you."
+  },
+  "lang": {
+    "en": "English",
+    "hi": "हिंदी",
+    "bn": "বাংলা",
+    "te": "తెలుగు",
+    "mr": "मराठी",
+    "ta": "தமிழ்",
+    "gu": "ગુજરાતી",
+    "kn": "ಕನ್ನಡ",
+    "ml": "മലയാളം",
+    "pa": "ਪੰਜਾਬੀ",
+    "or": "ଓଡ଼ିଆ",
+    "ur": "اردو",
+    "chooseLanguage": "Choose Language",
+    "changeLanguage": "Change Language"
+  }
+}

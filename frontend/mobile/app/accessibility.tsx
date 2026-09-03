@@ -11,12 +11,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, shadows, borderRadius } from '../src/theme';
+import { useLanguage } from '../src/context/LanguageContext';
+import { LanguageSwitcher } from '../src/components/LanguageSwitcher';
 
 export default function Accessibility() {
   const router = useRouter();
+  const { t, locale } = useLanguage();
   const [largeText, setLargeText] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(false);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -29,20 +33,21 @@ export default function Accessibility() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Accessibility Settings</Text>
+        <Text style={styles.headerTitle}>{t('accessibility.settings', 'Accessibility Settings')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionSubtitle}>
-          Customize your display and interaction settings for a better viewing experience.
+          {t('accessibility.settingsDesc', 'Customize your display and interaction settings for a better viewing experience.')}
         </Text>
 
         <View style={[styles.card, shadows.sm]}>
+          {/* Large Text */}
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>Large Text Mode</Text>
-              <Text style={styles.settingDescription}>Increase font size across menus and product descriptions.</Text>
+              <Text style={styles.settingTitle}>{t('accessibility.largeText', 'Large Text Mode')}</Text>
+              <Text style={styles.settingDescription}>{t('accessibility.largeTextDesc', 'Increase font size across the app.')}</Text>
             </View>
             <Switch
               value={largeText}
@@ -53,10 +58,11 @@ export default function Accessibility() {
 
           <View style={styles.divider} />
 
+          {/* High Contrast */}
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>High Contrast</Text>
-              <Text style={styles.settingDescription}>Enhance text and border contrast for clearer visibility.</Text>
+              <Text style={styles.settingTitle}>{t('accessibility.highContrast', 'High Contrast')}</Text>
+              <Text style={styles.settingDescription}>{t('accessibility.highContrastDesc', 'Enhance text and border contrast for clearer visibility.')}</Text>
             </View>
             <Switch
               value={highContrast}
@@ -67,10 +73,11 @@ export default function Accessibility() {
 
           <View style={styles.divider} />
 
+          {/* Reduce Motion */}
           <View style={styles.settingItem}>
             <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>Reduce Motion</Text>
-              <Text style={styles.settingDescription}>Minimize animations and transitions throughout the app.</Text>
+              <Text style={styles.settingTitle}>{t('accessibility.reduceMotion', 'Reduce Motion')}</Text>
+              <Text style={styles.settingDescription}>{t('accessibility.reduceMotionDesc', 'Minimize animations and transitions throughout the app.')}</Text>
             </View>
             <Switch
               value={reduceMotion}
@@ -78,18 +85,46 @@ export default function Accessibility() {
               trackColor={{ false: colors.neutral[200], true: colors.primary }}
             />
           </View>
+
+          <View style={styles.divider} />
+
+          {/* Language */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => setShowLanguageSwitcher(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingTitle}>{t('accessibility.language', 'Language')}</Text>
+              <Text style={styles.settingDescription}>
+                {t('accessibility.languageDesc', 'Choose your preferred language.')}
+                {' — '}
+                <Text style={{ color: colors.primary, fontWeight: '600' }}>
+                  {t(`lang.${locale}`, locale.toUpperCase())}
+                </Text>
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.neutral[300]} />
+          </TouchableOpacity>
         </View>
 
+        {/* Screen Reader info card */}
         <View style={[styles.infoCard, shadows.sm]}>
           <Ionicons name="information-circle-outline" size={24} color={colors.primary} style={{ marginRight: 12 }} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.infoTitle}>Screen Reader Support</Text>
+            <Text style={styles.infoTitle}>{t('accessibility.screenReader', 'Screen Reader Support')}</Text>
             <Text style={styles.infoBody}>
-              This app is compatible with system screen readers (TalkBack / VoiceOver). Enable them in your device settings for full audio navigation.
+              {t('accessibility.screenReaderDesc', 'This app is compatible with system screen readers (TalkBack / VoiceOver). Enable them in your device settings for full audio navigation.')}
             </Text>
           </View>
         </View>
       </ScrollView>
+
+      {/* Language Switcher Modal */}
+      <LanguageSwitcher
+        visible={showLanguageSwitcher}
+        onClose={() => setShowLanguageSwitcher(false)}
+      />
     </SafeAreaView>
   );
 }

@@ -85,6 +85,7 @@ class UserBase(BaseModel):
     savedAddresses: List[Dict[str, Any]] = Field(default=[], description="List of saved addresses for the user")
     referralCode: Optional[str] = Field(default=None, description="Referral code used to sign up")
     isEmailVerified: Optional[bool] = False
+    preferredLanguage: Optional[str] = Field(default="en", description="User's preferred UI language (BCP-47 code, e.g. 'hi', 'ta')")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -101,6 +102,10 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+
+
+# Supported language codes for UI localisation (GIGW 3.0 compliance)
+SUPPORTED_LANGUAGES = {"en", "hi", "bn", "te", "mr", "ta", "gu", "kn", "ml", "pa", "or", "ur"}
 
 
 class UserUpdate(BaseModel):
@@ -122,6 +127,7 @@ class UserUpdate(BaseModel):
     isSellerAdmin: Optional[bool] = None
     sellerPermissions: Optional[Dict[str, Any]] = None
     commissionOverridePct: Optional[float] = None
+    preferredLanguage: Optional[str] = None
 
 
 class UserResponse(UserBase):
