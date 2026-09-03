@@ -362,6 +362,18 @@ export default function Reports() {
           'top-returned-products': '/analytics/reports/top-returned-products?limit=50',
           'inventory-value': '/analytics/reports/inventory-value-by-category',
           'most-abandoned-products': '/tracking/most-abandoned-products?limit=50',
+          // New platform-analytics reports
+          'sessions-over-time': '/analytics/reports/sessions-over-time',
+          'visitors-now': '/analytics/reports/visitors-now',
+          'searches-no-clicks': '/analytics/reports/searches-no-clicks?limit=100',
+          'search-conversion': '/analytics/reports/search-conversion',
+          'bounce-rate': '/analytics/reports/bounce-rate',
+          'rfm-segments': '/analytics/reports/rfm-segments',
+          'customer-frequency': '/analytics/reports/customer-frequency',
+          // New seller-scoped reports (also visible on admin)
+          'net-sales': '/analytics/reports/net-sales',
+          'sales-heatmap': '/analytics/reports/sales-heatmap',
+          'inventory-runway': '/analytics/reports/inventory-runway',
         };
 
         const res = await api.get(endpoints[reportId], { params });
@@ -895,6 +907,159 @@ export default function Reports() {
             display: (row: any) => `₹${(row.valueLost ?? 0).toFixed(2)}`,
             sortable: true,
           },
+        ],
+      },
+      // ── Acquisition Analytics (super_admin only) ─────────────────────────
+      {
+        id: 'sessions-over-time',
+        category: 'Acquisition',
+        title: 'Sessions Over Time',
+        description: 'Daily session count and unique visitor trend from tracking data.',
+        columns: [
+          { header: 'DATE', key: 'period', sortable: true },
+          { header: 'SESSIONS', key: 'sessions', sortable: true },
+          { header: 'UNIQUE VISITORS', key: 'uniqueVisitors', sortable: true },
+        ],
+      },
+      {
+        id: 'visitors-now',
+        category: 'Acquisition',
+        title: 'Active Visitors Right Now',
+        description: 'Real-time count of sessions active in the last 15 minutes.',
+        columns: [
+          { header: 'ACTIVE VISITORS', key: 'activeVisitors', sortable: false },
+          { header: 'LOGGED IN', key: 'loggedInSessions', sortable: false },
+          { header: 'GUEST', key: 'guestSessions', sortable: false },
+          { header: 'WINDOW (MIN)', key: 'windowMinutes', sortable: false },
+        ],
+      },
+      {
+        id: 'bounce-rate',
+        category: 'Acquisition',
+        title: 'Bounce Rate Over Time',
+        description: 'Daily percentage of sessions where a visitor viewed only one page.',
+        columns: [
+          { header: 'DATE', key: 'period', sortable: true },
+          { header: 'TOTAL SESSIONS', key: 'totalSessions', sortable: true },
+          { header: 'BOUNCED', key: 'bouncedSessions', sortable: true },
+          {
+            header: 'BOUNCE RATE',
+            key: 'bounceRate',
+            display: (row: any) => `${row.bounceRate ?? 0}%`,
+            sortable: true,
+          },
+        ],
+      },
+      // ── Store Performance (super_admin only) ──────────────────────────────
+      {
+        id: 'searches-no-clicks',
+        category: 'Store Performance',
+        title: 'Searches With No Clicks',
+        description: 'Search queries where users found results but did not click on any product.',
+        columns: [
+          { header: 'SEARCH TERM', key: 'term', sortable: true },
+          { header: 'SEARCH COUNT', key: 'searchCount', sortable: true },
+          { header: 'AVG RESULTS', key: 'avgResults', sortable: true },
+        ],
+      },
+      {
+        id: 'search-conversion',
+        category: 'Store Performance',
+        title: 'Search Conversion Rate',
+        description: 'Percentage of search sessions that resulted in a completed order.',
+        columns: [
+          { header: 'TOTAL SEARCH SESSIONS', key: 'totalSearchSessions', sortable: false },
+          { header: 'CONVERTED', key: 'convertedSessions', sortable: false },
+          { header: 'NOT CONVERTED', key: 'nonConvertedSessions', sortable: false },
+          {
+            header: 'CONVERSION RATE',
+            key: 'conversionRate',
+            display: (row: any) => `${row.conversionRate ?? 0}%`,
+            sortable: false,
+          },
+        ],
+      },
+      // ── Customers (super_admin only) ──────────────────────────────────────
+      {
+        id: 'rfm-segments',
+        category: 'Customers',
+        title: 'RFM Customer Segmentation',
+        description: 'Customers grouped by Recency, Frequency, and Monetary value into actionable segments.',
+        columns: [
+          { header: 'CUSTOMER', key: 'name', sortable: true },
+          { header: 'EMAIL', key: 'email', sortable: true },
+          { header: 'SEGMENT', key: 'segment', sortable: true },
+          { header: 'LAST ORDER (DAYS)', key: 'recencyDays', sortable: true },
+          { header: 'ORDERS', key: 'orderCount', sortable: true },
+          {
+            header: 'TOTAL SPEND',
+            key: 'totalSpend',
+            display: (row: any) => `₹${(row.totalSpend ?? 0).toFixed(2)}`,
+            sortable: true,
+          },
+        ],
+      },
+      {
+        id: 'customer-frequency',
+        category: 'Customers',
+        title: 'One-Time vs Repeat Buyers',
+        description: 'Split of customers who ordered once vs those who returned, with revenue comparison.',
+        columns: [
+          { header: 'BUYER TYPE', key: 'type', sortable: true },
+          { header: 'CUSTOMERS', key: 'customers', sortable: true },
+          { header: 'SHARE %', key: 'customerPct', sortable: true },
+          { header: 'ORDERS', key: 'orders', sortable: true },
+          { header: 'AVG ORDERS', key: 'avgOrders', sortable: true },
+          {
+            header: 'REVENUE',
+            key: 'revenue',
+            display: (row: any) => `₹${(row.revenue ?? 0).toFixed(2)}`,
+            sortable: true,
+          },
+        ],
+      },
+      // ── Order Financials (seller-accessible) ──────────────────────────────
+      {
+        id: 'net-sales',
+        category: 'Order Financials',
+        title: 'Net Sales by Order',
+        description: 'Per-order breakdown from gross sales to net: discounts, tax, and shipping deducted.',
+        columns: [
+          { header: 'ORDER #', key: 'orderNumber', sortable: true },
+          { header: 'CUSTOMER', key: 'customerName', sortable: true },
+          { header: 'GROSS', key: 'grossSales', display: (row: any) => `₹${(row.grossSales ?? 0).toFixed(2)}`, sortable: true },
+          { header: 'DISCOUNT', key: 'discount', display: (row: any) => `₹${(row.discount ?? 0).toFixed(2)}`, sortable: true },
+          { header: 'TAX', key: 'tax', display: (row: any) => `₹${(row.tax ?? 0).toFixed(2)}`, sortable: true },
+          { header: 'SHIPPING', key: 'shipping', display: (row: any) => `₹${(row.shipping ?? 0).toFixed(2)}`, sortable: true },
+          { header: 'NET SALES', key: 'netSales', display: (row: any) => `₹${(row.netSales ?? 0).toFixed(2)}`, sortable: true },
+          { header: 'STATUS', key: 'status', sortable: true },
+        ],
+      },
+      {
+        id: 'sales-heatmap',
+        category: 'Order Financials',
+        title: 'Sales Heatmap (Day × Hour)',
+        description: 'Order volume and revenue by day of week and hour of day — reveals peak trading times.',
+        columns: [
+          { header: 'DAY', key: 'dayOfWeek', sortable: true },
+          { header: 'HOUR', key: 'hour', sortable: true },
+          { header: 'ORDER COUNT', key: 'orderCount', sortable: true },
+          { header: 'REVENUE', key: 'revenue', display: (row: any) => `₹${(row.revenue ?? 0).toFixed(2)}`, sortable: true },
+        ],
+      },
+      // ── Inventory (seller-accessible) ─────────────────────────────────────
+      {
+        id: 'inventory-runway',
+        category: 'Inventory',
+        title: 'Days of Inventory Remaining',
+        description: 'Estimated days until stock runs out based on 30-day average daily sales velocity.',
+        columns: [
+          { header: 'PRODUCT', key: 'name', sortable: true },
+          { header: 'CATEGORY', key: 'category', sortable: true },
+          { header: 'CURRENT STOCK', key: 'currentStock', sortable: true },
+          { header: 'SOLD (30D)', key: 'unitsSold30d', sortable: true },
+          { header: 'AVG/DAY', key: 'avgDailySales', sortable: true },
+          { header: 'DAYS LEFT', key: 'daysRemaining', display: (row: any) => row.daysRemaining != null ? `${row.daysRemaining}` : 'No sales', sortable: true },
         ],
       },
     ],

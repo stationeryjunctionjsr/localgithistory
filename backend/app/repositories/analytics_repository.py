@@ -1558,5 +1558,432 @@ class AnalyticsRepository:
         result.sort(key=lambda x: x["totalRevenue"], reverse=True)
         return {"report": result}
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # ADDITIONAL REPORTS
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @cache.ttl_cache(ttl=60)
+    async def get_sessions_over_time(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """Daily session count and unique visitor count from tracking data."""
+        sessions = await self.tracking_storage.findAll({"type": "session"})
+        sessions = self._filter_by_date_range(sessions, start_date, end_date, "timestamp")
+
+        by_day: dict = {}
+        for s in sessions:
+            ts = self._parse_date(s.get("timestamp", ""))
+            if not ts:
+                continue
+            day = ts.strftime("%Y-%m-%d")
+            if day not in by_day:
+                by_day[day] = {"sessions": 0, "visitors": set()}
+            by_day[day]["sessions"] += 1
+            uid = s.get("userId")
+            if uid:
+                by_day[day]["visitors"].add(uid)
+
+        return [
+            {"period": day, "sessions": data["sessions"], "uniqueVisitors": len(data["visitors"])}
+            for day, data in sorted(by_day.items())
+        ]
+
+    @cache.ttl_cache(ttl=30)
+    async def get_active_visitors_now(self, seller_id: Optional[str] = None) -> List[Dict]:
+        """Count of unique sessions active in the last 15 minutes."""
+        from datetime import timedelta
+
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=15)
+        sessions = await self.tracking_storage.findAll({"type": "session"})
+
+        active, logged_in, guest = set(), set(), set()
+        for s in sessions:
+            ts = self._to_naive_utc(self._parse_date(s.get("timestamp", "")))
+            if not ts or ts < cutoff:
+                continue
+            sid = s.get("sessionId")
+            if not sid:
+                continue
+            active.add(sid)
+            if s.get("userId"):
+                logged_in.add(sid)
+            else:
+                guest.add(sid)
+
+        return [
+            {
+                "activeVisitors": len(active),
+                "loggedInSessions": len(logged_in),
+                "guestSessions": len(guest),
+                "windowMinutes": 15,
+            }
+        ]
+
+    @cache.ttl_cache(ttl=300)
+    async def get_searches_with_no_clicks(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """Search terms whose sessions never produced a product_click event."""
+        searches = await self.tracking_storage.findAll({"type": "product_search"})
+        searches = self._filter_by_date_range(searches, start_date, end_date, "timestamp")
+
+        clicks = await self.tracking_storage.findAll({"type": "product_click"})
+        clicked_sessions = {c.get("sessionId") for c in clicks if c.get("sessionId")}
+
+        term_stats: dict = {}
+        for s in searches:
+            sid = s.get("sessionId")
+            if sid in clicked_sessions:
+                continue  # this session had a click — skip
+            term = (s.get("searchTerm") or "").strip().lower()
+            if not term:
+                continue
+            if term not in term_stats:
+                term_stats[term] = {"searchCount": 0, "totalResults": 0}
+            term_stats[term]["searchCount"] += 1
+            term_stats[term]["totalResults"] += s.get("resultsCount", 0)
+
+        result = [
+            {
+                "term": term,
+                "searchCount": data["searchCount"],
+                "avgResults": round(data["totalResults"] / data["searchCount"], 1) if data["searchCount"] else 0,
+            }
+            for term, data in term_stats.items()
+        ]
+        return sorted(result, key=lambda x: x["searchCount"], reverse=True)
+
+    @cache.ttl_cache(ttl=300)
+    async def get_search_conversion_rate(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """Percentage of sessions that searched AND placed an order."""
+        searches = await self.tracking_storage.findAll({"type": "product_search"})
+        searches = self._filter_by_date_range(searches, start_date, end_date, "timestamp")
+        search_sessions = {s.get("sessionId") for s in searches if s.get("sessionId")}
+
+        orders = await self.order_storage.findAll()
+        orders = self._filter_by_date_range(orders, start_date, end_date)
+        order_sessions = {o.get("sessionId") for o in orders if o.get("sessionId")}
+
+        total = len(search_sessions)
+        converted = len(search_sessions & order_sessions)
+        not_converted = total - converted
+        rate = round(converted / total * 100, 2) if total > 0 else 0.0
+
+        return [
+            {
+                "totalSearchSessions": total,
+                "convertedSessions": converted,
+                "nonConvertedSessions": not_converted,
+                "conversionRate": rate,
+            }
+        ]
+
+    @cache.ttl_cache(ttl=300)
+    async def get_bounce_rate_over_time(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """Daily bounce rate: sessions with only 1 page view / total sessions."""
+        page_views = await self.tracking_storage.findAll({"type": "page_view"})
+        page_views = self._filter_by_date_range(page_views, start_date, end_date, "timestamp")
+
+        # Count page views per (day, sessionId)
+        session_day: dict = {}  # sid -> day
+        session_views: dict = {}  # sid -> count
+        for pv in page_views:
+            sid = pv.get("sessionId")
+            ts = self._parse_date(pv.get("timestamp", ""))
+            if not sid or not ts:
+                continue
+            day = ts.strftime("%Y-%m-%d")
+            session_day.setdefault(sid, day)
+            session_views[sid] = session_views.get(sid, 0) + 1
+
+        by_day: dict = {}
+        for sid, day in session_day.items():
+            if day not in by_day:
+                by_day[day] = {"total": 0, "bounced": 0}
+            by_day[day]["total"] += 1
+            if session_views.get(sid, 0) <= 1:
+                by_day[day]["bounced"] += 1
+
+        return [
+            {
+                "period": day,
+                "totalSessions": data["total"],
+                "bouncedSessions": data["bounced"],
+                "bounceRate": round(data["bounced"] / data["total"] * 100, 1) if data["total"] else 0.0,
+            }
+            for day, data in sorted(by_day.items())
+        ]
+
+    @cache.ttl_cache(ttl=600)
+    async def get_rfm_segments(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """RFM segmentation: Champions, Loyal, Promising, At Risk, Dormant."""
+        from datetime import timedelta
+
+        orders = await self.order_storage.findAll()
+        orders = self._filter_by_date_range(orders, start_date, end_date)
+        users = await self.user_storage.findAll()
+        user_map = {u.get("_id"): u for u in users}
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        # Per-customer stats
+        stats: dict = {}
+        for order in orders:
+            uid = order.get("user")
+            if not uid:
+                continue
+            dt = self._to_naive_utc(self._parse_date(order.get("createdAt", "")))
+            if not dt:
+                continue
+            if uid not in stats:
+                stats[uid] = {"lastOrder": dt, "count": 0, "spend": 0.0}
+            if dt > stats[uid]["lastOrder"]:
+                stats[uid]["lastOrder"] = dt
+            stats[uid]["count"] += 1
+            stats[uid]["spend"] += order.get("total", 0)
+
+        result = []
+        for uid, data in stats.items():
+            recency_days = (now - data["lastOrder"]).days
+            freq = data["count"]
+            spend = round(data["spend"], 2)
+
+            # Simple rule-based RFM segment
+            if recency_days <= 30 and freq >= 5:
+                segment = "Champion"
+            elif recency_days <= 60 and freq >= 3:
+                segment = "Loyal"
+            elif recency_days <= 90 and freq >= 2:
+                segment = "Promising"
+            elif recency_days <= 180:
+                segment = "At Risk"
+            else:
+                segment = "Dormant"
+
+            user = user_map.get(uid, {})
+            result.append(
+                {
+                    "userId": uid,
+                    "name": user.get("name", "Unknown"),
+                    "email": user.get("email", ""),
+                    "segment": segment,
+                    "recencyDays": recency_days,
+                    "orderCount": freq,
+                    "totalSpend": spend,
+                }
+            )
+
+        return sorted(result, key=lambda x: x["totalSpend"], reverse=True)
+
+    @cache.ttl_cache(ttl=600)
+    async def get_customer_frequency_report(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """Split of one-time vs repeat buyers with revenue per group."""
+        orders = await self.order_storage.findAll()
+        orders = self._filter_by_date_range(orders, start_date, end_date)
+
+        user_stats: dict = {}
+        for order in orders:
+            uid = order.get("user")
+            if not uid:
+                continue
+            if uid not in user_stats:
+                user_stats[uid] = {"orders": 0, "revenue": 0.0}
+            user_stats[uid]["orders"] += 1
+            user_stats[uid]["revenue"] += order.get("total", 0)
+
+        one_time = [v for v in user_stats.values() if v["orders"] == 1]
+        repeat = [v for v in user_stats.values() if v["orders"] > 1]
+        total_customers = len(user_stats)
+
+        def pct(n: int) -> str:
+            return f"{round(n / total_customers * 100, 1)}" if total_customers else "0"
+
+        return [
+            {
+                "type": "One-Time Buyers",
+                "customers": len(one_time),
+                "customerPct": pct(len(one_time)),
+                "orders": sum(v["orders"] for v in one_time),
+                "avgOrders": 1,
+                "revenue": round(sum(v["revenue"] for v in one_time), 2),
+            },
+            {
+                "type": "Repeat Buyers",
+                "customers": len(repeat),
+                "customerPct": pct(len(repeat)),
+                "orders": sum(v["orders"] for v in repeat),
+                "avgOrders": round(
+                    sum(v["orders"] for v in repeat) / len(repeat), 1
+                ) if repeat else 0,
+                "revenue": round(sum(v["revenue"] for v in repeat), 2),
+            },
+        ]
+
+    @cache.ttl_cache(ttl=300)
+    async def get_net_sales_by_order(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """Per-order breakdown: gross sales → discounts → tax → shipping → net sales."""
+        orders = await self.order_storage.findAll()
+        orders = self._filter_by_date_range(orders, start_date, end_date)
+
+        if seller_id:
+            orders = [o for o in orders if str(o.get("sellerId", "")) == str(seller_id)]
+
+        users = await self.user_storage.findAll()
+        user_map = {u.get("_id"): u for u in users}
+
+        result = []
+        for order in orders:
+            subtotal = float(order.get("subtotal", 0) or 0)
+            discount = float(order.get("discount", 0) or 0)
+            tax = float(order.get("tax", 0) or 0)
+            shipping = float(order.get("shipping", order.get("deliveryCharge", 0)) or 0)
+            net = round(subtotal - discount + tax + shipping, 2)
+
+            user = user_map.get(order.get("user"), {})
+            result.append(
+                {
+                    "orderId": order.get("_id"),
+                    "orderNumber": order.get("orderNumber", ""),
+                    "customerName": user.get("name", "Unknown"),
+                    "grossSales": round(subtotal, 2),
+                    "discount": round(discount, 2),
+                    "tax": round(tax, 2),
+                    "shipping": round(shipping, 2),
+                    "netSales": net,
+                    "status": order.get("status", ""),
+                    "createdAt": order.get("createdAt"),
+                }
+            )
+
+        return sorted(result, key=lambda x: x.get("createdAt", "") or "", reverse=True)
+
+    @cache.ttl_cache(ttl=300)
+    async def get_sales_heatmap(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """Order volume and revenue grouped by day-of-week (0=Mon) and hour-of-day (0-23)."""
+        DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+        orders = await self.order_storage.findAll()
+        orders = self._filter_by_date_range(orders, start_date, end_date)
+
+        if seller_id:
+            orders = [o for o in orders if str(o.get("sellerId", "")) == str(seller_id)]
+
+        heat: dict = {}
+        for order in orders:
+            dt = self._parse_date(order.get("createdAt", ""))
+            if not dt:
+                continue
+            key = (dt.weekday(), dt.hour)
+            if key not in heat:
+                heat[key] = {"orderCount": 0, "revenue": 0.0}
+            heat[key]["orderCount"] += 1
+            heat[key]["revenue"] += order.get("total", 0)
+
+        return [
+            {
+                "dayOfWeek": DAY_NAMES[dow],
+                "hour": hour,
+                "orderCount": data["orderCount"],
+                "revenue": round(data["revenue"], 2),
+            }
+            for (dow, hour), data in sorted(heat.items())
+        ]
+
+    @cache.ttl_cache(ttl=300)
+    async def get_inventory_runway(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """Days of stock remaining per product based on 30-day average daily sales velocity."""
+        from datetime import timedelta
+
+        # 30-day window for velocity
+        window_end = datetime.now(timezone.utc).replace(tzinfo=None)
+        window_start = window_end - timedelta(days=30)
+
+        orders = await self.order_storage.findAll()
+        products = await self.product_storage.findAll()
+
+        if seller_id:
+            products = [p for p in products if str(p.get("sellerId", "")) == str(seller_id)]
+
+        product_map = {p.get("_id"): p for p in products}
+
+        # Units sold per product in the last 30 days
+        units_sold: dict = defaultdict(int)
+        for order in orders:
+            dt = self._to_naive_utc(self._parse_date(order.get("createdAt", "")))
+            if not dt or dt < window_start:
+                continue
+            for item in order.get("items", []):
+                pid = item.get("product") or item.get("productId")
+                if pid and str(pid) in {str(k) for k in product_map}:
+                    units_sold[str(pid)] += item.get("quantity", 0)
+
+        result = []
+        for product in products:
+            pid = str(product.get("_id", ""))
+            stock = int(product.get("stock", 0) or 0)
+            sold_30d = units_sold.get(pid, 0)
+            avg_daily = round(sold_30d / 30, 2)
+            days_remaining = round(stock / avg_daily) if avg_daily > 0 else None
+
+            result.append(
+                {
+                    "productId": pid,
+                    "name": product.get("name", "Unknown"),
+                    "category": product.get("category", "Uncategorized"),
+                    "currentStock": stock,
+                    "unitsSold30d": sold_30d,
+                    "avgDailySales": avg_daily,
+                    "daysRemaining": days_remaining,
+                }
+            )
+
+        # Sort: products running out soonest first; None (no sales) at the end
+        return sorted(
+            result,
+            key=lambda x: (x["daysRemaining"] is None, x["daysRemaining"] if x["daysRemaining"] is not None else 9999),
+        )
+
 
 analytics_repository = AnalyticsRepository()
+

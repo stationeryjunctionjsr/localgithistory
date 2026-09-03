@@ -22,6 +22,19 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
         return None
 
 
+def _resolve_seller_id(current_user: dict, requested_seller_id: Optional[str] = None) -> Optional[str]:
+    """
+    Resolves the effective seller_id for a request.
+    - Sellers (wholesaler role): always scoped to their own _id, ignores any requested_seller_id.
+    - Super admin: uses requested_seller_id if provided, otherwise None (all sellers).
+    """
+    role = current_user.get("role", "")
+    if role == "wholesaler":
+        return current_user.get("_id")
+    # super_admin / admin
+    return requested_seller_id
+
+
 @router.post("/events", response_model=Dict)
 async def record_event(
     event: Dict[str, Any] = Body(..., description="Analytics event payload"),
@@ -152,9 +165,10 @@ async def get_sales_over_time(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     group_by: str = Query("hour", pattern="^(hour|day|month)$"),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get sales over time"""
+    """Get sales over time. Sellers are auto-scoped to their own orders."""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
@@ -168,7 +182,7 @@ async def get_sales_over_time(
 async def get_sales_breakdown(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get sales breakdown"""
     try:
@@ -185,7 +199,7 @@ async def get_average_order_value(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     group_by: str = Query("hour", pattern="^(hour|day|month)$"),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get average order value over time"""
     try:
@@ -201,7 +215,7 @@ async def get_average_order_value(
 async def get_sales_by_channel(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get sales by channel"""
     try:
@@ -218,9 +232,10 @@ async def get_sales_by_product(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=100),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get top products by sales"""
+    """Get top products by sales. Sellers are auto-scoped to their own products."""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
@@ -235,7 +250,7 @@ async def get_conversion_rate(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     group_by: str = Query("day", pattern="^(hour|day|month)$"),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get conversion funnel breakdown (sessions → cart → checkout → completed)"""
     try:
@@ -251,7 +266,7 @@ async def get_conversion_rate(
 async def get_conversion_breakdown(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get conversion rate breakdown (alias for conversion-rate funnel data)"""
     try:
@@ -267,7 +282,7 @@ async def get_conversion_breakdown(
 async def get_checkout_funnel(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get detailed checkout funnel breakdown"""
     try:
@@ -283,7 +298,7 @@ async def get_checkout_funnel(
 async def get_sessions_by_device(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get sessions by device type"""
     try:
@@ -299,7 +314,7 @@ async def get_sessions_by_device(
 async def get_sessions_by_location(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get sessions by location"""
     try:
@@ -313,7 +328,7 @@ async def get_sessions_by_location(
 
 @router.get("/all-user-engagement", response_model=Dict)
 async def get_all_user_engagement(
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """
     Get aggregated engagement metrics across all users, bucketed by durations.
@@ -330,9 +345,10 @@ async def get_products_sell_through(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=100),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get products by sell-through rate"""
+    """Get products by sell-through rate. Sellers are auto-scoped to their own catalogue."""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
@@ -346,7 +362,7 @@ async def get_products_sell_through(
 async def get_customer_cohort(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get customer cohort analysis"""
     try:
@@ -362,7 +378,7 @@ async def get_customer_cohort(
 async def get_sessions_by_landing_page(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get sessions by landing page"""
     try:
@@ -393,7 +409,7 @@ async def get_my_user_engagement(current_user: dict = Depends(get_current_user))
 @router.get("/user-engagement/{user_id}", response_model=Dict)
 async def get_user_engagement_by_id(
     user_id: str,
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """
     Get engagement metrics for a specific user (admin). Same metrics as /user-engagement.
@@ -416,7 +432,7 @@ async def get_top_users_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=100),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
@@ -428,7 +444,7 @@ async def get_user_order_stats_report(
     role: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
@@ -439,7 +455,7 @@ async def get_user_order_stats_report(
 async def get_items_by_user_type_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
@@ -450,7 +466,7 @@ async def get_items_by_user_type_report(
 async def get_reports_summary(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
@@ -461,9 +477,10 @@ async def get_reports_summary(
 async def get_returns_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get returns and refund requests report"""
+    """Get returns and refund requests report. Sellers see only their own returns."""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
@@ -477,9 +494,10 @@ async def get_returns_report(
 async def get_payment_methods_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get orders and revenue broken down by payment method"""
+    """Get orders and revenue broken down by payment method. Sellers see their own orders."""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
@@ -494,9 +512,10 @@ async def get_revenue_by_category(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(20, ge=1, le=100),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get revenue broken down by product category"""
+    """Get revenue broken down by product category. Sellers see their own categories."""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
@@ -509,9 +528,10 @@ async def get_revenue_by_category(
 @router.get("/reports/inventory-alerts", response_model=List[Dict])
 async def get_inventory_alerts(
     threshold: int = Query(10, ge=0, le=1000),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get products with stock at or below the given threshold"""
+    """Get products with stock at or below the given threshold. Sellers see their own products."""
     try:
         return await analytics_repository.get_inventory_alerts(threshold)
     except Exception as e:
@@ -523,9 +543,10 @@ async def get_inventory_alerts(
 async def get_fulfillment_time_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get average order fulfillment time per order"""
+    """Get average order fulfillment time per order. Sellers see their own orders."""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
@@ -539,9 +560,10 @@ async def get_fulfillment_time_report(
 async def get_coupon_usage_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get coupon/discount usage report"""
+    """Get coupon/discount usage report. Sellers see coupons used on their orders."""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
@@ -556,9 +578,10 @@ async def get_sales_by_location_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=1000),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get sales grouped by location (city/state)"""
+    """Get sales grouped by location (city/state). Sellers see their own delivery destinations."""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
@@ -572,7 +595,7 @@ async def get_sales_by_location_report(
 async def get_new_vs_returning_customer_sales_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get revenue from new vs returning customers"""
     try:
@@ -589,7 +612,7 @@ async def get_items_bought_together_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=1000),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get market basket analysis: products bought together"""
     try:
@@ -605,7 +628,7 @@ async def get_items_bought_together_report(
 async def get_sales_by_device_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    current_user: dict = Depends(require_roles("super_admin")),
 ):
     """Get sales grouped by device type"""
     try:
@@ -622,9 +645,10 @@ async def get_top_returned_products_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=1000),
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get most frequently returned products"""
+    """Get most frequently returned products. Sellers see only their own products."""
     try:
         start = parse_date(start_date)
         end = parse_date(end_date)
@@ -636,11 +660,178 @@ async def get_top_returned_products_report(
 
 @router.get("/reports/inventory-value-by-category", response_model=List[Dict])
 async def get_inventory_value_by_category_report(
-    current_user: dict = Depends(require_roles("super_admin", "admin")),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
 ):
-    """Get inventory value grouped by category"""
+    """Get inventory value grouped by category. Sellers see only their own catalogue."""
     try:
         return await analytics_repository.get_inventory_value_by_category()
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+# ── New platform-analytics endpoints (super_admin only) ──────────────────────
+
+@router.get("/reports/sessions-over-time", response_model=List[Dict])
+async def get_sessions_over_time_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin")),
+):
+    """Daily session count and unique visitor trend. Super admin only."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        return await analytics_repository.get_sessions_over_time(start, end)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/reports/visitors-now", response_model=List[Dict])
+async def get_visitors_now_report(
+    current_user: dict = Depends(require_roles("super_admin")),
+):
+    """Real-time active sessions in last 15 minutes. Super admin only."""
+    try:
+        return await analytics_repository.get_active_visitors_now()
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/reports/searches-no-clicks", response_model=List[Dict])
+async def get_searches_no_clicks_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin")),
+):
+    """Search queries with zero product clicks. Super admin only."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        return await analytics_repository.get_searches_with_no_clicks(start, end)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/reports/search-conversion", response_model=List[Dict])
+async def get_search_conversion_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin")),
+):
+    """% of search sessions that produced an order. Super admin only."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        return await analytics_repository.get_search_conversion_rate(start, end)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/reports/bounce-rate", response_model=List[Dict])
+async def get_bounce_rate_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin")),
+):
+    """Daily bounce rate over time. Super admin only."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        return await analytics_repository.get_bounce_rate_over_time(start, end)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/reports/rfm-segments", response_model=List[Dict])
+async def get_rfm_segments_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin")),
+):
+    """RFM customer segmentation. Super admin only."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        return await analytics_repository.get_rfm_segments(start, end)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/reports/customer-frequency", response_model=List[Dict])
+async def get_customer_frequency_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin")),
+):
+    """One-time vs repeat buyer split. Super admin only."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        return await analytics_repository.get_customer_frequency_report(start, end)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+# ── New seller-accessible endpoints (wholesaler + super_admin, seller-scoped) ─
+
+@router.get("/reports/net-sales", response_model=List[Dict])
+async def get_net_sales_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
+):
+    """Per-order gross-to-net breakdown. Sellers see only their own orders."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        eff_seller_id = _resolve_seller_id(current_user, seller_id)
+        return await analytics_repository.get_net_sales_by_order(start, end, seller_id=eff_seller_id)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/reports/sales-heatmap", response_model=List[Dict])
+async def get_sales_heatmap_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
+):
+    """Orders by day-of-week x hour-of-day. Sellers see only their own orders."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        eff_seller_id = _resolve_seller_id(current_user, seller_id)
+        return await analytics_repository.get_sales_heatmap(start, end, seller_id=eff_seller_id)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/reports/inventory-runway", response_model=List[Dict])
+async def get_inventory_runway_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
+):
+    """Days of stock remaining per product. Sellers see only their own products."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        eff_seller_id = _resolve_seller_id(current_user, seller_id)
+        return await analytics_repository.get_inventory_runway(start, end, seller_id=eff_seller_id)
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
