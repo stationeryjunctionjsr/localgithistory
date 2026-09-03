@@ -447,6 +447,30 @@ class MySQLUserDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
+    async def add_credit_used_atomic(self, id: str, amount: float) -> bool:
+        factory = self._factory()
+        if not factory:
+            return False
+        
+        uid = int(id) if str(id).isdigit() else 0
+        if uid == 0:
+            return False
+            
+        from sqlalchemy import text
+        async with factory() as session:
+            res = await session.execute(
+                text(f"""
+                    UPDATE {self.TABLE} 
+                    SET credit_used = COALESCE(credit_used, 0) + :amount,
+                        updated_at = UTC_TIMESTAMP()
+                    WHERE id = :uid 
+                    AND (credit_limit IS NULL OR credit_limit = 0 OR COALESCE(credit_used, 0) + :amount <= credit_limit)
+                """),
+                {"uid": uid, "amount": amount}
+            )
+            await session.commit()
+            return res.rowcount > 0
+
     async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:

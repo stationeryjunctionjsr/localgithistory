@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Flow 4: Admin Panel - Delivery Charges, Pincodes, Zones', () => {
+test.describe('Flow 5: Admin Panel - Segments and Discounts', () => {
   test.beforeEach(async ({ page }) => {
     // Intercept auth to fake an admin login
     await page.route('**/api/auth/me', async route => {
@@ -71,27 +71,39 @@ test.describe('Flow 4: Admin Panel - Delivery Charges, Pincodes, Zones', () => {
       } });
     });
   });
-
-  test('Delivery Zones renders', async ({ page }) => {
-    // Intercept the API call for delivery zones to provide mock data
-    await page.route('**/api/delivery-zones**', async route => {
-      await route.fulfill({ json: [{ _id: 'zone_1', name: 'Mock Zone', active: true }] });
+  test('Retail Customer Segments renders', async ({ page }) => {
+    await page.route('**/api/customer-segments**', async route => {
+      await route.fulfill({ json: [] });
     });
     
-    await page.goto('/admin/delivery-zones');
-    
-    // Check if the page title renders (could be "Delivery Zones" or similar)
-    await expect(page.getByRole('heading', { name: /Zone/i }).first()).toBeVisible({ timeout: 10000 });
+    await page.goto('/admin/retail-customer-segments');
+    await expect(page.getByRole('heading', { name: /Retail Customer Segments/i }).first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('Delivery Charges renders', async ({ page }) => {
-    // Intercept the API call for delivery charges
-    await page.route('**/api/delivery-charges**', async route => {
-      await route.fulfill({ json: [{ _id: 'charge_1', zone: 'zone_1', cost: 50, active: true }] });
+  test('Business Customer Segments renders', async ({ page }) => {
+    await page.route('**/api/customer-segments**', async route => {
+      await route.fulfill({ json: [] });
     });
     
-    await page.goto('/admin/delivery-charges');
-    // Check if the page title renders
-    await expect(page.getByRole('heading', { name: /Charge/i }).first()).toBeVisible({ timeout: 10000 });
+    await page.goto('/admin/business-customer-segments');
+    await expect(page.getByRole('heading', { name: /Business Customer Segments/i }).first()).toBeVisible({ timeout: 10000 });
+  });
+
+  test('Retail Discounts renders', async ({ page }) => {
+    await page.route('**/api/coupons**', async route => {
+      await route.fulfill({ json: [] });
+    });
+    
+    await page.goto('/admin/retail-discounts');
+    await expect(page.getByRole('heading', { name: /Retail Discounts/i }).first()).toBeVisible({ timeout: 10000 });
+  });
+
+  test('Business Discounts renders', async ({ page }) => {
+    await page.route('**/api/schemes**', async route => {
+      await route.fulfill({ json: [] });
+    });
+    
+    await page.goto('/admin/business-discounts');
+    await expect(page.getByRole('heading', { name: /Business Discounts/i }).first()).toBeVisible({ timeout: 10000 });
   });
 });

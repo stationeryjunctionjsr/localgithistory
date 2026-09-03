@@ -29,6 +29,10 @@ class BannerRepository:
 
             if rules and len(rules) > 0:
                 banner["position"] = rules[0].get("pageType", "homepage")
+            
+            # 4. Ensure required date fields exist for Pydantic validation
+            if not banner.get("startDate"):
+                banner["startDate"] = banner.get("createdAt") or datetime.now(timezone.utc).isoformat()
             elif not banner.get("position"):
                 banner["position"] = "homepage"
 
@@ -106,7 +110,7 @@ class BannerRepository:
 
         # Filter by date range
         active_banners = []
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         for banner in banners:
             start_date = banner.get("startDate")
             end_date = banner.get("endDate")

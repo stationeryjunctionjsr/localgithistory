@@ -1301,8 +1301,9 @@ async def create_order(
 
     # Update credit used for credit payment method
     if order_data.paymentMethod == "credit":
-        new_credit_used = (user.get("creditUsed", 0) or 0) + total
-        await user_repository.update(current_user.get("_id"), {"creditUsed": new_credit_used})
+        success = await user_repository.add_credit_used_atomic(current_user.get("_id"), total)
+        if not success:
+            raise HTTPException(status_code=400, detail="Insufficient credit limit or user not found.")
 
     # Update discount usage count if discount was used
     if applied_coupon_id:

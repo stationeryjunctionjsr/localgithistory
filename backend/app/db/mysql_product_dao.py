@@ -143,11 +143,12 @@ class MySQLProductDAO:
         elif query.get("includeInactive") is not True:
             where_clauses.append("p.is_active = 1")
 
+        price_col = "COALESCE(p.mrp_per_case, p.mrp)" if query.get("role") == "wholesaler" else "p.mrp"
         if "minPrice" in query and query["minPrice"]:
-            where_clauses.append("p.mrp >= :minPrice")
+            where_clauses.append(f"{price_col} >= :minPrice")
             params["minPrice"] = float(query["minPrice"])
         if "maxPrice" in query and query["maxPrice"]:
-            where_clauses.append("p.mrp <= :maxPrice")
+            where_clauses.append(f"{price_col} <= :maxPrice")
             params["maxPrice"] = float(query["maxPrice"])
 
         availability = (query.get("availability") or "").strip().lower()
@@ -288,10 +289,13 @@ class MySQLProductDAO:
             return [], 0
         join_sql, where_sql, params = self._build_query_conditions(query)
         sort_sql = "ORDER BY p.created_at DESC"
+        
+        price_col = "COALESCE(p.mrp_per_case, p.mrp)" if query.get("role") == "wholesaler" else "p.mrp"
+        
         if sort == "price_asc":
-            sort_sql = "ORDER BY p.mrp ASC NULLS LAST"
+            sort_sql = f"ORDER BY {price_col} ASC NULLS LAST"
         elif sort == "price_desc":
-            sort_sql = "ORDER BY p.mrp DESC NULLS LAST"
+            sort_sql = f"ORDER BY {price_col} DESC NULLS LAST"
         elif sort == "name_asc":
             sort_sql = "ORDER BY p.name ASC"
         elif sort == "name_desc":

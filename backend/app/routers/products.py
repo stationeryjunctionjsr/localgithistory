@@ -562,6 +562,7 @@ async def get_public_products(
     skinny: bool = False,
 ):
     """Get all products (public endpoint - no auth required)"""
+    role = "customer" # Force role to customer for public endpoint
     query = {}
     if category:
         query["category"] = category
@@ -649,6 +650,7 @@ async def get_public_products(
 @cache.ttl_cache(ttl=900.0)
 async def get_public_product(product_id: str, role: str = "customer", response: Response = None):
     """Get a single product by ID (public endpoint - no auth required)"""
+    role = "customer" # Force role to customer for public endpoint
     product = await product_repository.findById(product_id)
 
     if not product or not product.get("isActive", True):
