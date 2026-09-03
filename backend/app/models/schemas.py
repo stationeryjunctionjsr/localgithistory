@@ -101,6 +101,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
+    email: EmailStr
     password: str
 
 
@@ -881,6 +882,20 @@ class CouponBase(BaseModel):
     shippingPincodes: Optional[List[str]] = None
     applicablePaymentMethods: Optional[List[str]] = None
     couponMode: Optional[str] = "override"
+    
+    @model_validator(mode='after')
+    def validate_dates(self):
+        if self.validFrom and self.validUntil:
+            from datetime import datetime, timezone
+            try:
+                start_dt = datetime.fromisoformat(self.validFrom.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
+                end_dt = datetime.fromisoformat(self.validUntil.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
+                if start_dt > end_dt:
+                    raise ValueError("validUntil must be after validFrom")
+            except ValueError as e:
+                if str(e) == "validUntil must be after validFrom":
+                    raise
+        return self
 
 
 class CouponCreate(CouponBase):

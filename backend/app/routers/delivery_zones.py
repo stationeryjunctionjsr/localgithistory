@@ -78,24 +78,39 @@ async def _check_pincode_conflicts(
 # ── Routes — ORDER MATTERS: static paths before /{zone_id} ───────────────────
 
 
+from app.config.database import get_async_session_factory
+from sqlalchemy import text
+
 @router.get("/for-pincode")
 async def get_zone_for_pincode(pincode: str = Query(..., description="6-digit pincode")):
     """
-    Public endpoint — resolve which zone a pincode belongs to.
+    Public endpoint - resolve which zone a pincode belongs to.
     Returns zone metadata including defaultCapacity, urgentDeliveryAvailable, and customerType.
     Used by checkout slot-picker and order creation.
     """
-    storage = get_storage("deliveryZones")
-    all_zones = await storage.findAll({"isActive": True})
-    for zone in all_zones:
-        if pincode in (zone.get("pincodes") or []):
-            return {
-                "zoneId": str(zone["_id"]),
-                "zoneName": zone.get("name"),
-                "defaultCapacity": zone.get("defaultCapacity", 10),
-                "urgentDeliveryAvailable": bool(zone.get("urgentDeliveryAvailable", False)),
-                "customerType": zone.get("customerType", "retail"),
-            }
+    factory = get_async_session_factory()
+    async with factory() as session:
+        result = await session.execute(
+            text("""
+                SELECT z.id, z.name, z.default_capacity, z.urgent_delivery_available, z.customer_type
+                FROM sj_delivery_zones z
+                JOIN sj_delivery_zone_pincodes p ON z.id = p.sj_delivery_zones_id
+                WHERE p.pincode = :pincode AND z.is_active = 1
+                LIMIT 1
+            """),
+            {"pincode": pincode}
+        )
+        row = result.fetchone()
+        
+    if row:
+        return {
+            "zoneId": str(row.id),
+            "zoneName": row.name,
+            "defaultCapacity": row.default_capacity if row.default_capacity is not None else 10,
+            "urgentDeliveryAvailable": bool(row.urgent_delivery_available),
+            "customerType": row.customer_type or "retail",
+        }
+
     # Pincode not mapped to any zone
     return {
         "zoneId": None,

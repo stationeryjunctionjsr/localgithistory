@@ -24,8 +24,23 @@ async def get_schemes(current_user: dict = Depends(require_wholesaler)):
     """
     coupons = await coupon_repository.findAll({"isActive": True})
 
-    # Filter for wholesaler
-    business_coupons = [c for c in coupons if "wholesaler" in (c.get("applicableRoles") or [])]
+    # Filter for wholesaler and expiration
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    business_coupons = []
+    
+    for c in coupons:
+        if "wholesaler" not in (c.get("applicableRoles") or []):
+            continue
+        valid_until = c.get("validUntil")
+        if valid_until:
+            try:
+                end_dt = datetime.fromisoformat(valid_until.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
+                if now > end_dt:
+                    continue
+            except Exception:
+                pass
+        business_coupons.append(c)
 
     # Sort by createdAt descending
     business_coupons.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
@@ -52,7 +67,23 @@ async def get_applicable_schemes(product_id: str, current_user: dict = Depends(r
         raise HTTPException(status_code=404, detail="Product not found")
 
     coupons = await coupon_repository.findAll({"isActive": True})
-    business_coupons = [c for c in coupons if "wholesaler" in (c.get("applicableRoles") or [])]
+    
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    business_coupons = []
+    
+    for c in coupons:
+        if "wholesaler" not in (c.get("applicableRoles") or []):
+            continue
+        valid_until = c.get("validUntil")
+        if valid_until:
+            try:
+                end_dt = datetime.fromisoformat(valid_until.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
+                if now > end_dt:
+                    continue
+            except Exception:
+                pass
+        business_coupons.append(c)
 
     applicable_offers = []
     for c in business_coupons:

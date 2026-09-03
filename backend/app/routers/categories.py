@@ -333,8 +333,8 @@ async def update_category(
             all_categories = await category_repository.findAll()
             name_lower = category_update.name.strip().lower()
             for cat in all_categories:
-                if cat.get("name", "").strip().lower() == name_lower and cat.get("_id") != category_id:
-                    raise HTTPException(status_code=400, detail="Category with this name already exists")
+                if cat.get("name", "").strip().lower() == name_lower and str(cat.get("_id")) != str(category_id):
+                    raise HTTPException(status_code=400, detail=f"Category with name '{category_update.name}' already exists")
             update_data["name"] = category_update.name.strip()
 
         if category_update.description is not None:

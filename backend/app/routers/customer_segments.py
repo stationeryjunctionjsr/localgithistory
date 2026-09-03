@@ -90,141 +90,98 @@ class FilterCriteria(BaseModel):
 
 
 async def run_segment_filter(criteria: FilterCriteria):
-    import datetime
-
-    from app.repositories.order_repository import order_repository
-    from app.repositories.user_repository import user_repository
-
-    users = await user_repository.findAll({"role": criteria.role})
-
-    needs_orders = any(
-        x is not None
-        for x in [
-            criteria.minAverageOrderValue,
-            criteria.maxAverageOrderValue,
-            criteria.minOrderFrequency,
-            criteria.maxOrderFrequency,
-            criteria.startDate,
-            criteria.endDate,
-            criteria.behavior,
-        ]
-    )
-
-    user_order_stats = {}
-    user_orders_map = {}
+    from app.config.database import get_async_session_factory
+    from sqlalchemy import text
+    
+    factory = get_async_session_factory()
+    
+    # We will build a single SQL query
+    select_clause = "SELECT u.id FROM sj_users u"
+    
+    joins = []
+    where_clauses = ["u.role = :role"]
+    params = {"role": criteria.role}
+    
+    # 1. Location filters
+    if criteria.state:
+        where_clauses.append("u.state = :state")
+        params["state"] = criteria.state
+        
+    if criteria.district:
+        where_clauses.append("(u.city = :district OR u.district = :district)")
+        params["district"] = criteria.district
+        
+    # 2. App User filter
+    if criteria.appUser is True:
+        joins.append("JOIN sj_device_subscriptions ds ON ds.user_id = u.id")
+    elif criteria.appUser is False:
+        joins.append("LEFT JOIN sj_device_subscriptions ds ON ds.user_id = u.id")
+        where_clauses.append("ds.id IS NULL")
+        
+    # 3. Order-based filters
+    needs_orders = any(x is not None for x in [
+        criteria.minAverageOrderValue, criteria.maxAverageOrderValue,
+        criteria.minOrderFrequency, criteria.maxOrderFrequency
+    ]) or (criteria.behavior == "coupon_user")
+    
     if needs_orders:
-        all_orders = await order_repository.findAll()
-        if criteria.startDate or criteria.endDate:
-            filtered_orders = []
-            for o in all_orders:
-                c_at_str = o.get("createdAt")
-                if not c_at_str:
-                    continue
-                try:
-                    c_at = datetime.datetime.fromisoformat(c_at_str.replace("Z", "+00:00")).replace(tzinfo=None)
-                    if criteria.startDate:
-                        start_dt = datetime.datetime.fromisoformat(criteria.startDate.replace("Z", "+00:00")).replace(
-                            tzinfo=None
-                        )
-                        if c_at < start_dt:
-                            continue
-                    if criteria.endDate:
-                        end_dt = datetime.datetime.fromisoformat(criteria.endDate.replace("Z", "+00:00")).replace(
-                            tzinfo=None
-                        )
-                        end_dt = end_dt.replace(hour=23, minute=59, second=59)
-                        if c_at > end_dt:
-                            continue
-                    filtered_orders.append(o)
-                except ValueError as e:
-                    logger.warning("Invalid date format for order %s in segment filter: %s", o.get("_id"), str(e))
-                except Exception as e:
-                    logger.error(
-                        "Unexpected error parsing date for order %s in segment filter: %s",
-                        o.get("_id"),
-                        str(e),
-                        exc_info=True,
-                    )
-            all_orders = filtered_orders
-
-        for o in all_orders:
-            uid = str(o.get("user"))
-            if not uid:
-                continue
-            if uid not in user_order_stats:
-                user_order_stats[uid] = {"count": 0, "total": 0.0}
-            if uid not in user_orders_map:
-                user_orders_map[uid] = []
-            user_order_stats[uid]["count"] += 1
-            user_order_stats[uid]["total"] += o.get("total", 0.0)
-            user_orders_map[uid].append(o)
-
-        for _uid, stat in user_order_stats.items():
-            stat["avg"] = stat["total"] / stat["count"] if stat["count"] > 0 else 0.0
-
-    app_user_map = {}
-    if criteria.appUser is not None or (criteria.behavior and criteria.behavior != "none"):
-        from app.db.storage_factory import get_storage
-
-        device_storage = get_storage("deviceSubscriptions")
-        devices = await device_storage.findAll()
-        for d in devices:
-            uid = d.get("userId")
-            if uid:
-                app_user_map[str(uid)] = True
-
-    filtered_users = []
-    from app.repositories.coupon_repository import coupon_repository
-
-    for u in users:
-        uid = str(u.get("_id", u.get("id")))
-
-        # Location
-        if criteria.state or criteria.district:
-            addr = u.get("address", {})
-            if criteria.state and addr.get("state") != criteria.state:
-                continue
-            if (
-                criteria.district
-                and addr.get("city") != criteria.district
-                and addr.get("district") != criteria.district
-            ):
-                continue
-
-        # Orders
-        if needs_orders:
-            stats = user_order_stats.get(uid, {"count": 0, "avg": 0.0})
-            if criteria.minOrderFrequency is not None and stats["count"] < criteria.minOrderFrequency:
-                continue
-            if criteria.maxOrderFrequency is not None and stats["count"] > criteria.maxOrderFrequency:
-                continue
-            if criteria.minAverageOrderValue is not None and stats["avg"] < criteria.minAverageOrderValue:
-                continue
-            if criteria.maxAverageOrderValue is not None and stats["avg"] > criteria.maxAverageOrderValue:
-                continue
-
-            # Additional pre-defined behaviors logic
-            if criteria.behavior and criteria.behavior != "none":
-                matches = await coupon_repository._user_matches_behavior(
-                    uid,
-                    criteria.behavior,
-                    user_orders=user_orders_map.get(uid, []),
-                    has_app=app_user_map.get(uid, False),
-                )
-                if not matches:
-                    continue
-
-        # App user
-        if criteria.appUser is not None:
-            is_app = app_user_map.get(uid, False)
-            if is_app != criteria.appUser:
-                continue
-
-        u_copy = dict(u)
-        u_copy["id"] = uid
-        filtered_users.append(u_copy)
-
-    return filtered_users
+        joins.append("LEFT JOIN sj_orders o ON o.user = u.id")
+        
+        # Order Date filters
+        if criteria.startDate:
+            where_clauses.append("(o.created_at >= :start_date OR o.id IS NULL)")
+            params["start_date"] = criteria.startDate.replace("Z", "+00:00")
+        if criteria.endDate:
+            where_clauses.append("(o.created_at <= :end_date OR o.id IS NULL)")
+            params["end_date"] = criteria.endDate.replace("Z", "+00:00")
+            
+        # Behavior: coupon_user
+        if criteria.behavior == "coupon_user":
+            where_clauses.append("(o.coupon_code IS NOT NULL AND o.coupon_code != '')")
+            
+    # Behavior: abandoned_cart
+    if criteria.behavior == "abandoned_cart":
+        joins.append("JOIN sj_carts c ON c.user_id = u.id")
+        where_clauses.append("(c.items IS NOT NULL AND c.items != '[]')")
+        # Ensure they haven't ordered recently
+        if "LEFT JOIN sj_orders o ON o.user = u.id" not in joins:
+            joins.append("LEFT JOIN sj_orders o ON o.user = u.id")
+            if criteria.endDate:
+                where_clauses.append("(o.created_at <= :end_date OR o.id IS NULL)")
+                params["end_date"] = criteria.endDate.replace("Z", "+00:00")
+    
+    # Build query
+    sql = select_clause + " " + " ".join(joins)
+    if where_clauses:
+        sql += " WHERE " + " AND ".join(where_clauses)
+        
+    # Group by
+    sql += " GROUP BY u.id"
+    
+    # Having clauses (Order frequency and AOV)
+    having_clauses = []
+    if criteria.minOrderFrequency is not None:
+        having_clauses.append("COUNT(o.id) >= :min_freq")
+        params["min_freq"] = criteria.minOrderFrequency
+    if criteria.maxOrderFrequency is not None:
+        having_clauses.append("COUNT(o.id) <= :max_freq")
+        params["max_freq"] = criteria.maxOrderFrequency
+        
+    if criteria.minAverageOrderValue is not None:
+        having_clauses.append("AVG(o.total) >= :min_aov")
+        params["min_aov"] = criteria.minAverageOrderValue
+    if criteria.maxAverageOrderValue is not None:
+        having_clauses.append("AVG(o.total) <= :max_aov")
+        params["max_aov"] = criteria.maxAverageOrderValue
+        
+    if having_clauses:
+        sql += " HAVING " + " AND ".join(having_clauses)
+        
+    async with factory() as session:
+        result = await session.execute(text(sql), params)
+        rows = result.fetchall()
+        
+    return [{"_id": str(r.id)} for r in rows]
 
 
 async def seed_system_segments():
@@ -306,10 +263,10 @@ async def refresh_segment(segment_id: str, admin: dict = Depends(require_super_a
     users = await run_segment_filter(criteria)
     user_ids = [str(u.get("_id", u.get("id"))) for u in users]
 
-    import datetime
+    from datetime import datetime, timezone
 
     await customer_segments_repository.update(
-        segment_id, {"userIds": user_ids, "lastRefreshedAt": datetime.datetime.now(timezone.utc).isoformat()}
+        segment_id, {"userIds": user_ids, "lastRefreshedAt": datetime.now(timezone.utc).isoformat()}
     )
 
     return {"status": "success", "count": len(user_ids), "userIds": user_ids}

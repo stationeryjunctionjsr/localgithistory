@@ -226,6 +226,9 @@ async def create_delivery_charge(charge_data: DeliveryChargeCreate, current_user
 
     if len(charge_data.pincode) != 6 or not charge_data.pincode.isdigit():
         raise HTTPException(status_code=400, detail="Pincode must be 6 digits")
+        
+    if not charge_data.serviceableForCustomer:
+        charge_data.urgentDeliveryAvailable = False
 
     # Check for duplicate pincode
     existing = await delivery_charge_repository.findByPincode(charge_data.pincode)
@@ -305,7 +308,11 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
 async def update_delivery_charge(
     charge_id: str, charge_data: DeliveryChargeUpdate, current_user: dict = Depends(require_super_admin)
 ):
-    charge = await delivery_charge_repository.update(charge_id, charge_data.dict(exclude_unset=True))
+    update_dict = charge_data.dict(exclude_unset=True)
+    if update_dict.get("serviceableForCustomer") is False:
+        update_dict["urgentDeliveryAvailable"] = False
+        
+    charge = await delivery_charge_repository.update(charge_id, update_dict)
     if not charge:
         raise HTTPException(status_code=404, detail="Delivery charge not found")
     return charge

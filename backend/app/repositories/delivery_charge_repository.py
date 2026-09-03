@@ -113,8 +113,10 @@ class DeliveryChargeRepository:
                 default_charge = await self.getDefaultCharge()
 
                 urgent_charge = None
-                if False:
-                    urgent_charge = default_charge.get("urgentDeliveryCharge") if default_charge else None
+                urgent_avail = False
+                if default_charge:
+                    urgent_charge = default_charge.get("urgentDeliveryCharge")
+                    urgent_avail = default_charge.get("urgentDeliveryAvailable", False)
 
                 if default_charge and default_charge.get("isActive"):
                     is_applicable = self.isChargeApplicableToRole(default_charge, user_role)
@@ -125,7 +127,7 @@ class DeliveryChargeRepository:
                             "source": "pincode-default",
                             "deliveryCharge": default_charge,
                             "isApplicableToRole": False,
-                            "urgentDeliveryAvailable": False,
+                            "urgentDeliveryAvailable": urgent_avail,
                             "urgentDeliveryCharge": urgent_charge,
                         }
 
@@ -138,7 +140,7 @@ class DeliveryChargeRepository:
                             "deliveryCharge": default_charge,
                             "isApplicableToRole": True,
                             "appliedTier": tier_charge["tier"],
-                            "urgentDeliveryAvailable": False,
+                            "urgentDeliveryAvailable": urgent_avail,
                             "urgentDeliveryCharge": urgent_charge,
                         }
 
@@ -148,10 +150,11 @@ class DeliveryChargeRepository:
                         "source": "pincode-default-no-tiers",
                         "deliveryCharge": default_charge,
                         "isApplicableToRole": True,
-                        "urgentDeliveryAvailable": False,
+                        "urgentDeliveryAvailable": urgent_avail,
                         "urgentDeliveryCharge": urgent_charge,
                     }
             else:
+                urgent_avail = pincode_charge.get("urgentDeliveryAvailable", False)
                 # Use pincode-specific tiers or charge
                 if pincode_charge.get("tiers") and len(pincode_charge.get("tiers", [])) > 0:
                     tier_charge = self.calculateTieredCharge(pincode_charge.get("tiers"), order_amount)
@@ -162,7 +165,7 @@ class DeliveryChargeRepository:
                         "deliveryCharge": pincode_charge,
                         "isApplicableToRole": True,
                         "appliedTier": tier_charge["tier"],
-                        "urgentDeliveryAvailable": False,
+                        "urgentDeliveryAvailable": urgent_avail,
                         "urgentDeliveryCharge": pincode_charge.get("urgentDeliveryCharge"),
                     }
                 else:
@@ -172,7 +175,7 @@ class DeliveryChargeRepository:
                         "source": "pincode",
                         "deliveryCharge": pincode_charge,
                         "isApplicableToRole": True,
-                        "urgentDeliveryAvailable": False,
+                        "urgentDeliveryAvailable": urgent_avail,
                         "urgentDeliveryCharge": pincode_charge.get("urgentDeliveryCharge"),
                     }
 
@@ -182,6 +185,7 @@ class DeliveryChargeRepository:
         if city_charge:
             # Check role applicability for city-specific charge
             is_applicable = self.isChargeApplicableToRole(city_charge, user_role)
+            urgent_avail = city_charge.get("urgentDeliveryAvailable", False)
 
             return {
                 "charge": city_charge.get("charge", 0) if is_applicable else 0,
@@ -189,16 +193,17 @@ class DeliveryChargeRepository:
                 "source": "city",
                 "deliveryCharge": city_charge,
                 "isApplicableToRole": is_applicable,
-                "urgentDeliveryAvailable": False,
-                "urgentDeliveryCharge": None,
+                "urgentDeliveryAvailable": urgent_avail,
+                "urgentDeliveryCharge": city_charge.get("urgentDeliveryCharge"),
             }
 
         # Use default if available
         default_charge = await self.getDefaultCharge()
         if default_charge and default_charge.get("isActive"):
-            # Check role applicability for default charge
             is_applicable = self.isChargeApplicableToRole(default_charge, user_role)
-
+            urgent_avail = default_charge.get("urgentDeliveryAvailable", False)
+            urgent_charge = default_charge.get("urgentDeliveryCharge")
+            
             if not is_applicable:
                 return {
                     "charge": 0,
@@ -206,8 +211,8 @@ class DeliveryChargeRepository:
                     "source": "default",
                     "deliveryCharge": default_charge,
                     "isApplicableToRole": False,
-                    "urgentDeliveryAvailable": False,
-                    "urgentDeliveryCharge": None,
+                    "urgentDeliveryAvailable": urgent_avail,
+                    "urgentDeliveryCharge": urgent_charge,
                 }
 
             # Default charges are always tiered (no single charge fallback)
@@ -220,8 +225,8 @@ class DeliveryChargeRepository:
                     "deliveryCharge": default_charge,
                     "isApplicableToRole": True,
                     "appliedTier": tier_charge["tier"],
-                    "urgentDeliveryAvailable": False,
-                    "urgentDeliveryCharge": None,
+                    "urgentDeliveryAvailable": urgent_avail,
+                    "urgentDeliveryCharge": urgent_charge,
                 }
 
             # If no tiers configured, no delivery charge
@@ -231,8 +236,8 @@ class DeliveryChargeRepository:
                 "source": "default-no-tiers",
                 "deliveryCharge": default_charge,
                 "isApplicableToRole": True,
-                "urgentDeliveryAvailable": False,
-                "urgentDeliveryCharge": None,
+                "urgentDeliveryAvailable": urgent_avail,
+                "urgentDeliveryCharge": urgent_charge,
             }
 
         return {

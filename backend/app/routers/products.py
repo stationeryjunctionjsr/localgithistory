@@ -825,6 +825,17 @@ async def get_product(product_id: str, current_user: dict = Depends(get_current_
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(product_data: ProductCreate, current_user: dict = Depends(require_super_admin)):
     try:
+        # Check for duplicate name or SKU
+        existing_products = await product_repository.findAll()
+        name_lower = product_data.name.strip().lower()
+        sku_lower = product_data.sku.strip().lower()
+        
+        for p in existing_products:
+            if p.get("name", "").strip().lower() == name_lower:
+                raise HTTPException(status_code=400, detail=f"Product with name '{product_data.name}' already exists")
+            if p.get("sku", "").strip().lower() == sku_lower:
+                raise HTTPException(status_code=400, detail=f"Product with SKU '{product_data.sku}' already exists")
+                
         product = await product_repository.create(product_data.dict())
         _invalidate_product_caches()
         return ProductResponse(**product)
