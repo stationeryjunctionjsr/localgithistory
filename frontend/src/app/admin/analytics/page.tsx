@@ -20,6 +20,17 @@ import SessionsByLandingPage from '@/components/Analytics/SessionsByLandingPage'
 import UserEngagementChart from '@/components/Analytics/UserEngagementChart';
 import CheckoutFunnelChart from '@/components/Analytics/CheckoutFunnelChart';
 import LegacyReportsComponents from '@/components/Analytics/LegacyReportsComponents';
+// New analytics chart components
+import ActiveVisitorsNow from '@/components/Analytics/ActiveVisitorsNow';
+import SessionsOverTimeChart from '@/components/Analytics/SessionsOverTimeChart';
+import BounceRateChart from '@/components/Analytics/BounceRateChart';
+import SalesHeatmap from '@/components/Analytics/SalesHeatmap';
+import RFMSegmentsChart from '@/components/Analytics/RFMSegmentsChart';
+import BuyerFrequencyChart from '@/components/Analytics/BuyerFrequencyChart';
+import SearchConversionWidget from '@/components/Analytics/SearchConversionWidget';
+import TopSearchesNoClicksChart from '@/components/Analytics/TopSearchesNoClicksChart';
+import SalesByChannelDetailedChart from '@/components/Analytics/SalesByChannelDetailedChart';
+import InventoryRunwayChart from '@/components/Analytics/InventoryRunwayChart';
 
 interface KPIData {
   gross_sales: number;
@@ -299,7 +310,44 @@ export default function AnalyticsDashboard() {
         <SessionsByLandingPage startDate={startDate} endDate={endDate} />
       </div>
 
-      {/* Sixth Row - Moved Reports */}
+      {/* ── New Analytics Rows ────────────────────────────────────────── */}
+
+      {/* Real-time + Sessions over time */}
+      <h3 className="mb-4 mt-8 border-b px-2 pb-2 text-xl font-bold">Traffic & Acquisition</h3>
+      <div className="mb-6 grid gap-6 md:grid-cols-3">
+        <ActiveVisitorsNow refreshIntervalMs={30000} />
+        <SessionsOverTimeChart startDate={startDate} endDate={endDate} />
+        <BounceRateChart startDate={startDate} endDate={endDate} />
+      </div>
+
+      {/* Sales heatmap + Channel detailed */}
+      <h3 className="mb-4 mt-8 border-b px-2 pb-2 text-xl font-bold">Sales Intelligence</h3>
+      <div className="mb-6 grid gap-6 md:grid-cols-2">
+        <SalesHeatmap startDate={startDate} endDate={endDate} />
+        <SalesByChannelDetailedChart startDate={startDate} endDate={endDate} currency={currency} />
+      </div>
+
+      {/* Customer insights */}
+      <h3 className="mb-4 mt-8 border-b px-2 pb-2 text-xl font-bold">Customer Insights</h3>
+      <div className="mb-6 grid gap-6 md:grid-cols-2">
+        <RFMSegmentsChart startDate={startDate} endDate={endDate} />
+        <BuyerFrequencyChart startDate={startDate} endDate={endDate} currency={currency} />
+      </div>
+
+      {/* Search analytics */}
+      <h3 className="mb-4 mt-8 border-b px-2 pb-2 text-xl font-bold">Search Analytics</h3>
+      <div className="mb-6 grid gap-6 md:grid-cols-2">
+        <SearchConversionWidget startDate={startDate} endDate={endDate} />
+        <TopSearchesNoClicksChart startDate={startDate} endDate={endDate} limit={10} />
+      </div>
+
+      {/* Inventory intelligence */}
+      <h3 className="mb-4 mt-8 border-b px-2 pb-2 text-xl font-bold">Inventory Intelligence</h3>
+      <div className="mb-6">
+        <InventoryRunwayChart startDate={startDate} endDate={endDate} limit={15} />
+      </div>
+
+      {/* Operational Reports */}
       <h3 className="mb-4 mt-8 border-b px-2 pb-2 text-xl font-bold">Operational Reports</h3>
       <LegacyReportsComponents startDate={startDate} endDate={endDate} />
     </div>
