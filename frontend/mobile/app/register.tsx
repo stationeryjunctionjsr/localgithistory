@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../src/api/client';
 import { colors, shadows } from '../src/theme';
 import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface InputFieldProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -83,9 +84,26 @@ export default function Register() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [sendingOTP, setSendingOTP] = useState(false);
   const [verifyingOTP, setVerifyingOTP] = useState(false);
+  const [deviceId, setDeviceId] = useState('');
   const resendTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    const initDeviceId = async () => {
+      try {
+        let storedId = await AsyncStorage.getItem('device_id');
+        if (!storedId) {
+          storedId = "mobile-" + Date.now() + "-" + Math.random().toString(36).substring(7);
+          await AsyncStorage.setItem('device_id', storedId);
+        }
+        setDeviceId(storedId);
+      } catch (e) {
+        setDeviceId("mobile-" + Date.now()); // fallback
+      }
+    };
+    initDeviceId();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -108,7 +126,6 @@ export default function Register() {
     }
     setSendingOTP(true);
     try {
-      const deviceId = "mobile-" + Date.now() + "-" + Math.random().toString(36).substring(7);
       await api.post('/auth/send-otp', { phone: cleanPhone, purpose: 'register', deviceId });
       setOtpSent(true);
       setCanResend(false);

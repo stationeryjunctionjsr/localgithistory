@@ -120,7 +120,23 @@ async def get_applicable_bundle_schemes(bundle_id: str, current_user: dict = Dep
         raise HTTPException(status_code=404, detail="Bundle not found")
 
     coupons = await coupon_repository.findAll({"isActive": True})
-    business_coupons = [c for c in coupons if "wholesaler" in (c.get("applicableRoles") or [])]
+    
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    business_coupons = []
+    
+    for c in coupons:
+        if "wholesaler" not in (c.get("applicableRoles") or []):
+            continue
+        valid_until = c.get("validUntil")
+        if valid_until:
+            try:
+                end_dt = datetime.fromisoformat(valid_until.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
+                if now > end_dt:
+                    continue
+            except Exception:
+                pass
+        business_coupons.append(c)
 
     applicable_offers = []
     for c in business_coupons:
