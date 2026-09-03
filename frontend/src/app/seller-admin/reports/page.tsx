@@ -303,6 +303,39 @@ const SELLER_REPORTS: ReportDef[] = [
       { header: 'DAYS LEFT', key: 'daysRemaining', display: (row: any) => row.daysRemaining != null ? String(row.daysRemaining) : '∞', sortable: true },
     ],
   },
+  {
+    id: 'discounts-audit',
+    category: 'Order Financials',
+    title: 'Discounts & Coupons Audit',
+    description: 'Per-order coupon and discount breakdown — see which orders had discounts, the coupon codes used, and the net impact on revenue.',
+    endpoint: '/analytics/reports/discounts-audit',
+    columns: [
+      { header: 'ORDER #', key: 'orderNumber', sortable: true },
+      { header: 'CUSTOMER', key: 'customerName', sortable: true },
+      { header: 'COUPON', key: 'couponCode', display: (row: any) => row.couponCode || '—', sortable: true },
+      { header: 'TYPE', key: 'discountType', display: (row: any) => row.discountType || '—', sortable: true },
+      { header: 'GROSS', key: 'grossSales', display: (row: any) => `\u20B9${Number(row.grossSales ?? 0).toFixed(2)}`, sortable: true },
+      { header: 'DISCOUNT', key: 'discount', display: (row: any) => `\u20B9${Number(row.discount ?? 0).toFixed(2)}`, sortable: true },
+      { header: 'DISCOUNT %', key: 'discountPct', display: (row: any) => `${Number(row.discountPct ?? 0).toFixed(1)}%`, sortable: true },
+      { header: 'NET', key: 'netSales', display: (row: any) => `\u20B9${Number(row.netSales ?? 0).toFixed(2)}`, sortable: true },
+    ],
+  },
+  {
+    id: 'products-pct-sold',
+    category: 'Inventory',
+    title: 'Products by % Sold',
+    description: 'Units sold as a percentage of opening stock. Highlights fast-movers and slow-movers for restocking decisions.',
+    endpoint: '/analytics/reports/products-pct-sold',
+    columns: [
+      { header: 'PRODUCT', key: 'name', sortable: true },
+      { header: 'CATEGORY', key: 'category', sortable: true },
+      { header: 'SKU', key: 'sku', sortable: true },
+      { header: 'SOLD', key: 'unitsSold', sortable: true },
+      { header: 'CURRENT STOCK', key: 'currentStock', sortable: true },
+      { header: 'OPENING STOCK', key: 'openingStock', sortable: true },
+      { header: '% SOLD', key: 'pctSold', display: (row: any) => `${Number(row.pctSold ?? 0).toFixed(1)}%`, sortable: true },
+    ],
+  },
 ];
 
 

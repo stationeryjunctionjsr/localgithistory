@@ -32,6 +32,7 @@ import {
   saveGuestCart,
   addGuestWishlistItem,
 } from '../../src/services/guestStore';
+import { trackAddToCart, trackEvent } from '../../src/utils/mobileAnalytics';
 
 interface CartItem {
   _id?: string;
@@ -211,6 +212,11 @@ export default function Cart() {
             try {
               await api.delete(`/cart/${item._id}`);
               fetchCart();
+              // Track cart remove for backend analytics
+              api.post('/tracking/cart-remove', {
+                productId: item.productId || item._id,
+                quantity: item.quantity || 1,
+              }).catch(() => {});
             } catch {
               Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to remove item' });
             }
@@ -232,6 +238,9 @@ export default function Cart() {
         await addGuestCartItem(productId, 1, product);
       }
       fetchCart();
+      // Track cart add for backend analytics
+      api.post('/tracking/cart-add', { productId, quantity: 1 }).catch(() => {});
+      trackAddToCart(productId, product?.name || '', 1, product?.price || 0).catch(() => {});
     } catch {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Could not add to cart' });
     }

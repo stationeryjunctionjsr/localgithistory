@@ -21,6 +21,7 @@ import Toast from 'react-native-toast-message';
 import { useAuth } from '../../src/hooks/useAuth';
 import { usePincode } from '../../src/context/PincodeContext';
 import { trackRecommendationEvent } from '../../src/utils/analytics';
+import { trackProductView, trackEvent } from '../../src/utils/mobileAnalytics';
 import {
   addGuestCartItem,
   getGuestCart,
@@ -170,6 +171,17 @@ export default function ProductDetail() {
     }
   }, [coachMarks.isReady, loading, product]);
 
+  // ── Tracking: fire product view to backend when product loads ──
+  useEffect(() => {
+    if (!product || !productId) return;
+    const name = product.name || '';
+    // Send to /tracking/view so it feeds Most-Viewed Products report
+    api.post('/tracking/view', { productId, productName: name }).catch(() => {});
+    // Also send via mobileAnalytics for GA4 Measurement Protocol
+    trackProductView(productId, name, product.price).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, !!product]);
+
   // Check wishlist status on mount
   useEffect(() => {
     if (!productId) return;
@@ -263,6 +275,10 @@ export default function ProductDetail() {
           strategy: strategy,
         });
       }
+
+      // Track cart-add to backend tracking table (feeds cart abandonment & conversion reports)
+      api.post('/tracking/cart-add', { productId, quantity }).catch(() => {});
+      trackAddToCart(productId, product?.name || '', quantity, product?.price || 0).catch(() => {});
 
       setAddedToCart(true);
       setTimeout(() => {
