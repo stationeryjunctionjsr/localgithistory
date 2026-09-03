@@ -1985,5 +1985,143 @@ class AnalyticsRepository:
         )
 
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # BATCH 2 ADDITIONAL REPORTS
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @cache.ttl_cache(ttl=300)
+    async def get_sales_by_channel_detailed(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[Dict]:
+        """Revenue, order count, and AOV broken down by sales channel (desktop_web / mobile_web / mobile_app)."""
+        orders = await self.order_storage.findAll()
+        orders = self._filter_by_date_range(orders, start_date, end_date)
+
+        CHANNELS = ["desktop_web", "mobile_web", "mobile_app"]
+        stats: dict = {ch: {"revenue": 0.0, "orderCount": 0} for ch in CHANNELS}
+
+        for order in orders:
+            channel = order.get("channel") or "desktop_web"
+            if channel not in stats:
+                channel = "desktop_web"
+            stats[channel]["revenue"] += order.get("total", 0)
+            stats[channel]["orderCount"] += 1
+
+        result = []
+        for channel, data in stats.items():
+            count = data["orderCount"]
+            rev = round(data["revenue"], 2)
+            result.append(
+                {
+                    "channel": channel,
+                    "channelLabel": channel.replace("_", " ").title(),
+                    "orderCount": count,
+                    "revenue": rev,
+                    "aov": round(rev / count, 2) if count > 0 else 0.0,
+                    "revenuePct": 0.0,  # filled below
+                }
+            )
+
+        total_rev = sum(r["revenue"] for r in result)
+        for r in result:
+            r["revenuePct"] = round(r["revenue"] / total_rev * 100, 1) if total_rev > 0 else 0.0
+
+        return sorted(result, key=lambda x: x["revenue"], reverse=True)
+
+    @cache.ttl_cache(ttl=300)
+    async def get_discounts_audit(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """Per-order line-item audit: coupon code, discount type/value, gross, discount applied, net."""
+        orders = await self.order_storage.findAll()
+        orders = self._filter_by_date_range(orders, start_date, end_date)
+
+        if seller_id:
+            orders = [o for o in orders if str(o.get("sellerId", "")) == str(seller_id)]
+
+        users = await self.user_storage.findAll()
+        user_map = {u.get("_id"): u for u in users}
+
+        result = []
+        for order in orders:
+            discount = float(order.get("discount", 0) or 0)
+            if discount == 0 and not order.get("couponCode"):
+                continue  # skip orders with no discount at all
+
+            coupon_info = order.get("couponInfo") or {}
+            user = user_map.get(order.get("user"), {})
+            gross = float(order.get("subtotal", order.get("total", 0)) or 0)
+            net = round(gross - discount, 2)
+
+            result.append(
+                {
+                    "orderId": order.get("_id"),
+                    "orderNumber": order.get("orderNumber", ""),
+                    "customerName": user.get("name", "Unknown"),
+                    "couponCode": order.get("couponCode") or "—",
+                    "discountType": coupon_info.get("discountType", "manual"),
+                    "discountValue": coupon_info.get("discountValue", 0),
+                    "grossSales": round(gross, 2),
+                    "discountApplied": round(discount, 2),
+                    "netAfterDiscount": net,
+                    "discountPct": round(discount / gross * 100, 1) if gross > 0 else 0.0,
+                    "createdAt": order.get("createdAt"),
+                }
+            )
+
+        return sorted(result, key=lambda x: x.get("createdAt", "") or "", reverse=True)
+
+    @cache.ttl_cache(ttl=300)
+    async def get_products_pct_sold(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
+    ) -> List[Dict]:
+        """Units sold in the period as a % of current stock (sell-through by quantity)."""
+        orders = await self.order_storage.findAll()
+        orders = self._filter_by_date_range(orders, start_date, end_date)
+
+        products = await self.product_storage.findAll()
+        if seller_id:
+            products = [p for p in products if str(p.get("sellerId", "")) == str(seller_id)]
+
+        product_map = {str(p.get("_id")): p for p in products}
+
+        units_sold: dict = defaultdict(int)
+        for order in orders:
+            for item in order.get("items", []):
+                pid = str(item.get("product") or item.get("productId") or "")
+                if pid and pid in product_map:
+                    units_sold[pid] += item.get("quantity", 0)
+
+        result = []
+        for pid, product in product_map.items():
+            stock = int(product.get("stock", 0) or 0)
+            sold = units_sold.get(pid, 0)
+            total = stock + sold  # opening stock approximation
+            pct = round(sold / total * 100, 1) if total > 0 else 0.0
+
+            result.append(
+                {
+                    "productId": pid,
+                    "name": product.get("name", "Unknown"),
+                    "category": product.get("category", "Uncategorized"),
+                    "sku": product.get("sku", ""),
+                    "unitsSold": sold,
+                    "currentStock": stock,
+                    "openingStock": total,
+                    "pctSold": pct,
+                }
+            )
+
+        return sorted(result, key=lambda x: x["pctSold"], reverse=True)
+
+
 analytics_repository = AnalyticsRepository()
 

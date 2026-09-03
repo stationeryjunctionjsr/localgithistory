@@ -374,6 +374,10 @@ export default function Reports() {
           'net-sales': '/analytics/reports/net-sales',
           'sales-heatmap': '/analytics/reports/sales-heatmap',
           'inventory-runway': '/analytics/reports/inventory-runway',
+          // Batch 2 reports
+          'sales-by-channel-detailed': '/analytics/reports/sales-by-channel-detailed',
+          'discounts-audit': '/analytics/reports/discounts-audit',
+          'products-pct-sold': '/analytics/reports/products-pct-sold',
         };
 
         const res = await api.get(endpoints[reportId], { params });
@@ -1060,6 +1064,93 @@ export default function Reports() {
           { header: 'SOLD (30D)', key: 'unitsSold30d', sortable: true },
           { header: 'AVG/DAY', key: 'avgDailySales', sortable: true },
           { header: 'DAYS LEFT', key: 'daysRemaining', display: (row: any) => row.daysRemaining != null ? `${row.daysRemaining}` : 'No sales', sortable: true },
+        ],
+      },
+      // ── Sales & Revenue (super_admin only) ────────────────────────────────
+      {
+        id: 'sales-by-channel-detailed',
+        category: 'Sales & Revenue',
+        title: 'Sales by Channel',
+        description: 'Revenue, order count, and average order value broken down by Desktop Web, Mobile Web, and Mobile App.',
+        columns: [
+          { header: 'CHANNEL', key: 'channelLabel', sortable: true },
+          { header: 'ORDERS', key: 'orderCount', sortable: true },
+          {
+            header: 'REVENUE',
+            key: 'revenue',
+            display: (row: any) => `₹${(row.revenue ?? 0).toFixed(2)}`,
+            sortable: true,
+          },
+          {
+            header: 'AOV',
+            key: 'aov',
+            display: (row: any) => `₹${(row.aov ?? 0).toFixed(2)}`,
+            sortable: true,
+          },
+          {
+            header: 'REVENUE SHARE',
+            key: 'revenuePct',
+            display: (row: any) => `${row.revenuePct ?? 0}%`,
+            sortable: true,
+          },
+        ],
+      },
+      // ── Order Financials (seller-accessible) ──────────────────────────────
+      {
+        id: 'discounts-audit',
+        category: 'Order Financials',
+        title: 'Discounts & Coupons Audit',
+        description: 'Per-order line-item breakdown of every coupon code and discount applied — gross sales, discount amount, and net.',
+        columns: [
+          { header: 'ORDER #', key: 'orderNumber', sortable: true },
+          { header: 'CUSTOMER', key: 'customerName', sortable: true },
+          { header: 'COUPON CODE', key: 'couponCode', sortable: true },
+          { header: 'TYPE', key: 'discountType', sortable: true },
+          {
+            header: 'GROSS',
+            key: 'grossSales',
+            display: (row: any) => `₹${(row.grossSales ?? 0).toFixed(2)}`,
+            sortable: true,
+          },
+          {
+            header: 'DISCOUNT',
+            key: 'discountApplied',
+            display: (row: any) => `₹${(row.discountApplied ?? 0).toFixed(2)}`,
+            sortable: true,
+          },
+          {
+            header: 'DISCOUNT %',
+            key: 'discountPct',
+            display: (row: any) => `${row.discountPct ?? 0}%`,
+            sortable: true,
+          },
+          {
+            header: 'NET',
+            key: 'netAfterDiscount',
+            display: (row: any) => `₹${(row.netAfterDiscount ?? 0).toFixed(2)}`,
+            sortable: true,
+          },
+        ],
+      },
+      // ── Inventory (seller-accessible) ─────────────────────────────────────
+      {
+        id: 'products-pct-sold',
+        category: 'Inventory',
+        title: 'Products by % Sold',
+        description: 'Units sold in the selected period as a percentage of opening stock — shows sell-through velocity per product.',
+        columns: [
+          { header: 'PRODUCT', key: 'name', sortable: true },
+          { header: 'CATEGORY', key: 'category', sortable: true },
+          { header: 'SKU', key: 'sku', sortable: true },
+          { header: 'UNITS SOLD', key: 'unitsSold', sortable: true },
+          { header: 'CURRENT STOCK', key: 'currentStock', sortable: true },
+          { header: 'OPENING STOCK', key: 'openingStock', sortable: true },
+          {
+            header: '% SOLD',
+            key: 'pctSold',
+            display: (row: any) => `${row.pctSold ?? 0}%`,
+            sortable: true,
+          },
         ],
       },
     ],

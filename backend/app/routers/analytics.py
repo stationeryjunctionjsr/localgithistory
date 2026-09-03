@@ -835,3 +835,57 @@ async def get_inventory_runway_report(
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+# ── Batch 2 new endpoints ────────────────────────────────────────────────────
+
+@router.get("/reports/sales-by-channel-detailed", response_model=List[Dict])
+async def get_sales_by_channel_detailed_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin")),
+):
+    """Revenue, order count, and AOV by channel (desktop/mobile web/app). Super admin only."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        return await analytics_repository.get_sales_by_channel_detailed(start, end)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/reports/discounts-audit", response_model=List[Dict])
+async def get_discounts_audit_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
+):
+    """Per-order discount/coupon audit. Sellers see only their own orders."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        eff_seller_id = _resolve_seller_id(current_user, seller_id)
+        return await analytics_repository.get_discounts_audit(start, end, seller_id=eff_seller_id)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+@router.get("/reports/products-pct-sold", response_model=List[Dict])
+async def get_products_pct_sold_report(
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    seller_id: Optional[str] = Query(None),
+    current_user: dict = Depends(require_roles("super_admin", "wholesaler")),
+):
+    """Units sold as % of opening stock. Sellers see only their own catalogue."""
+    try:
+        start = parse_date(start_date)
+        end = parse_date(end_date)
+        eff_seller_id = _resolve_seller_id(current_user, seller_id)
+        return await analytics_repository.get_products_pct_sold(start, end, seller_id=eff_seller_id)
+    except Exception as e:
+        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
