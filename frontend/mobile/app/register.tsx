@@ -108,7 +108,8 @@ export default function Register() {
     }
     setSendingOTP(true);
     try {
-      await api.post('/auth/send-otp', { phone: cleanPhone, purpose: 'register' });
+      const deviceId = "mobile-" + Date.now() + "-" + Math.random().toString(36).substring(7);
+      await api.post('/auth/send-otp', { phone: cleanPhone, purpose: 'register', deviceId });
       setOtpSent(true);
       setCanResend(false);
       if (resendTimerRef.current) clearTimeout(resendTimerRef.current);
@@ -146,7 +147,7 @@ export default function Register() {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Full name is required' });
       return;
     }
-    if (!email.trim() || !/\S+@\S+\.\S+/.test(email.trim())) {
+    if (!email.trim() || !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email.trim())) {
       Toast.show({ type: 'error', text1: 'Error', text2: 'A valid email address is required' });
       return;
     }
@@ -158,8 +159,8 @@ export default function Register() {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Passwords do not match' });
       return;
     }
-    if (password.length < 6) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Password must be at least 6 characters' });
+    if (password.length < 8 || !/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])/.test(password)) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Password must be at least 8 chars, and contain upper, lower, and number' });
       return;
     }
     setLoading(true);

@@ -75,9 +75,28 @@ async def upload_banner_image(image: UploadFile = File(...), current_user: dict 
     """Upload banner image (Super Admin only). Uses OCI Object Storage when configured."""
     try:
         from app.services.oci_storage import upload_image_and_return_path
+        from PIL import Image
+        import io
 
         if not image.content_type or not image.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail=f"File {image.filename} is not an image")
+            
+        file_bytes = await image.read()
+        if len(file_bytes) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Image size exceeds the 5MB limit")
+            
+        try:
+            img = Image.open(io.BytesIO(file_bytes))
+            width, height = img.size
+            if width > 4000 or height > 4000:
+                raise HTTPException(status_code=400, detail=f"Image dimensions ({width}x{height}) exceed maximum allowed (4000x4000)")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid image file format")
+            
+        await image.seek(0)
+        
         image_url = await upload_image_and_return_path(image, "banners", filename_prefix="banner")
         return {"imageUrl": image_url, "image": image_url}
     except HTTPException:

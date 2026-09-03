@@ -986,7 +986,7 @@ export default function AuthModal({
             <div>
               <label htmlFor="reg-name" className="mb-1 block text-sm font-medium text-gray-700">Name *</label>
               <input
-                id="reg-name"
+                id="reg-name" required
                 name="name"
                 type="text"
                
@@ -1000,7 +1000,7 @@ export default function AuthModal({
             <div>
               <label htmlFor="reg-email" className="mb-1 block text-sm font-medium text-gray-700">Email *</label>
               <input
-                id="reg-email"
+                id="reg-email" required
                 name="email"
                 type="email"
                
@@ -1015,7 +1015,7 @@ export default function AuthModal({
               <label htmlFor="reg-password" className="mb-1 block text-sm font-medium text-gray-700">Password *</label>
               <div className="relative">
                 <input
-                  id="reg-password"
+                  id="reg-password" required
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                  
@@ -1045,7 +1045,7 @@ export default function AuthModal({
               </label>
               <div className="relative">
                 <input
-                  id="reg-confirm-password"
+                  id="reg-confirm-password" required
                   name="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                  

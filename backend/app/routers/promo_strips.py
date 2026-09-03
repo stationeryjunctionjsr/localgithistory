@@ -69,4 +69,13 @@ async def update_promo_strip(id: str, data: PromoStripUpdate, user: dict = Depen
     return res
 
 
-# Delete endpoint removed per request
+@router.delete("/{id}")
+async def delete_promo_strip(id: str, user: dict = Depends(require_super_admin)):
+    """Admin endpoint to permanently delete a promo strip"""
+    strip = await promo_strip_repository.findById(id)
+    if not strip:
+        raise HTTPException(status_code=404, detail="Promo strip not found")
+
+    await promo_strip_repository.delete(id)
+    cache.invalidate(get_active_promo_strips)
+    return {"message": "Promo strip deleted successfully"}
