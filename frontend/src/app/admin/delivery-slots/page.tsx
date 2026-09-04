@@ -24,17 +24,16 @@ export default function DeliverySlotsPage() {
   const [selectedDates, setSelectedDates] = useState<string[]>([format(new Date(), 'yyyy-MM-dd')]);
   const primaryDate = selectedDates[0];
   const [segment, setSegment] = useState('retail');
-  const [selectedPincodes, setSelectedPincodes] = useState<string[]>([]);
+  const [selectedZoneIds, setSelectedZoneIds] = useState<string[]>(['default']);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [originalSlots, setOriginalSlots] = useState<Slot[]>([]);
   const [configId, setConfigId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Serviceable pincodes (from delivery charges)
-  const [serviceablePincodes, setServiceablePincodes] = useState<string[]>([]);
-  const [pincodeSearch, setPincodeSearch] = useState('');
-  const [loadingPincodes, setLoadingPincodes] = useState(false);
+  // Zones
+  const [zones, setZones] = useState<any[]>([]);
+  const [loadingZones, setLoadingZones] = useState(false);
 
   // Urgent delivery charge (global setting stored in default delivery charge)
   const [urgentDeliveryCharge, setUrgentDeliveryCharge] = useState('');
@@ -46,25 +45,35 @@ export default function DeliverySlotsPage() {
     format(addDays(new Date(), i), 'yyyy-MM-dd')
   );
 
+  // The capacity to auto-fill for new slots — based on first selected real zone's defaultCapacity
+  const primaryZoneCapacity = (() => {
+    const firstRealZone = selectedZoneIds.find(id => id !== 'default');
+    if (firstRealZone) {
+      const zone = zones.find((z: any) => (z._id || z.id) === firstRealZone);
+      return zone?.defaultCapacity ?? 10;
+    }
+    return 10;
+  })();
+
   useEffect(() => {
     fetchConfig();
   }, [primaryDate, segment]);
 
   useEffect(() => {
-    fetchServiceablePincodes();
+    fetchZones();
     fetchUrgentCharge();
   }, []);
 
-  const fetchServiceablePincodes = async () => {
-    setLoadingPincodes(true);
+  const fetchZones = async () => {
+    setLoadingZones(true);
     try {
-      const res = await api.get('/delivery-charges/serviceable-pincodes');
-      setServiceablePincodes(res.data || []);
+      const res = await api.get('/delivery-zones');
+      setZones(res.data || []);
     } catch (err) {
-      console.error('Failed to fetch serviceable pincodes', err);
-      toast.error('Could not load serviceable pincodes');
+      console.error('Failed to fetch zones', err);
+      toast.error('Could not load delivery zones');
     } finally {
-      setLoadingPincodes(false);
+      setLoadingZones(false);
     }
   };
 
@@ -81,13 +90,11 @@ export default function DeliverySlotsPage() {
   const handleSaveUrgentCharge = async () => {
     setSavingUrgent(true);
     try {
-      // Fetch current default charge to preserve all other fields
       const res = await api.get('/delivery-charges/default');
       const existing = res.data || {};
       const payload = {
         ...existing,
         urgentDeliveryCharge: urgentDeliveryCharge ? parseFloat(urgentDeliveryCharge) : null,
-        // ensure required fields
         tiers: existing.tiers || [],
       };
       await api.post('/delivery-charges/default', payload);
@@ -107,7 +114,7 @@ export default function DeliverySlotsPage() {
       if (data && data.length > 0) {
         const config = data[0];
         setConfigId(config._id);
-        setSelectedPincodes(config.pincodes || []);
+        setSelectedZoneIds(config.zoneId ? [config.zoneId] : ['default']);
         setSlots(
           (config.slots || []).map((s: any) => ({
             id: s.id,
@@ -123,7 +130,7 @@ export default function DeliverySlotsPage() {
         );
       } else {
         setConfigId(null);
-        setSelectedPincodes([]);
+        setSelectedZoneIds(['default']);
         setSlots([]);
         setOriginalSlots([]);
       }
@@ -198,26 +205,19 @@ export default function DeliverySlotsPage() {
 
     setSaving(true);
     try {
-      for (const date of selectedDates) {
-        const payload = {
-          segment,
-          date,
-          pincodes: selectedPincodes,
-          slots,
-          isActive: true,
-        };
+      const payload = {
+        segment,
+        date: primaryDate,
+        zoneIds: selectedZoneIds,
+        slots,
+        isActive: true,
+      };
 
-        if (date === primaryDate && configId) {
-          await api.put(`/delivery-slots/${configId}`, payload);
-        } else {
-          const existingRes = await api.get(`/delivery-slots?date=${date}&segment=${segment}`);
-          if (existingRes.data && existingRes.data.length > 0) {
-            await api.put(`/delivery-slots/${existingRes.data[0]._id}`, payload);
-          } else {
-            await api.post(`/delivery-slots`, payload);
-          }
-        }
+      // For multi-date, we send the same zones+slots for each date
+      for (const date of selectedDates) {
+        await api.post(`/delivery-slots`, { ...payload, date });
       }
+
       toast.success(selectedDates.length > 1 ? `Saved slots for ${selectedDates.length} dates` : 'Updated delivery slots');
       fetchConfig();
     } catch (error: any) {
@@ -235,7 +235,7 @@ export default function DeliverySlotsPage() {
         id: Date.now().toString(),
         startTime: '',
         endTime: '',
-        capacity: 0,
+        capacity: primaryZoneCapacity,
         bookedCount: 0,
         isActive: true,
         isUrgent: false,
@@ -252,7 +252,7 @@ export default function DeliverySlotsPage() {
         id: Date.now().toString(),
         startTime: '00:00',
         endTime: '23:59',
-        capacity: 0,
+        capacity: primaryZoneCapacity,
         bookedCount: 0,
         isActive: true,
         isUrgent: false,
@@ -270,7 +270,7 @@ export default function DeliverySlotsPage() {
         id: Date.now().toString(),
         startTime: '09:00',
         endTime: '22:00',
-        capacity: 50,
+        capacity: primaryZoneCapacity,
         bookedCount: 0,
         isActive: true,
         isUrgent: true,
@@ -440,76 +440,72 @@ export default function DeliverySlotsPage() {
                   </div>
                 </div>
 
-                {/* Pincode picker — serviceable pincodes only */}
+                {/* Zone picker */}
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">
-                    Eligible Pincodes
+                    Apply to Zones
                   </label>
                   <p className="mb-2 text-xs text-slate-500">
-                    Only pincodes marked serviceable in Delivery Charges are shown. Leave none
-                    selected to apply to all serviceable pincodes.
+                    Select which zones these slots apply to. Choose <strong>Default</strong> to create a fallback for zones with no specific config that day.
                   </p>
 
-                  {loadingPincodes ? (
-                    <p className="text-sm text-slate-400">Loading pincodes…</p>
-                  ) : serviceablePincodes.length === 0 ? (
-                    <p className="rounded-lg border border-dashed border-slate-300 p-3 text-center text-sm text-slate-400">
-                      No serviceable pincodes found. Add pincodes in Delivery Charges first.
-                    </p>
+                  {loadingZones ? (
+                    <p className="text-sm text-slate-400">Loading zones…</p>
                   ) : (
-                    <>
-                      {/* Search + Select All */}
-                      <div className="mb-2 flex gap-2">
+                    <div className="space-y-1.5 rounded border border-slate-200 bg-white p-2 max-h-52 overflow-y-auto">
+                      {/* Default option */}
+                      <label className="flex cursor-pointer items-center gap-2 rounded p-1.5 text-sm hover:bg-slate-50">
                         <input
-                          type="text"
-                          placeholder="Search pincodes…"
-                          value={pincodeSearch}
-                          onChange={(e) => setPincodeSearch(e.target.value)}
-                          className="flex-1 rounded border border-slate-300 px-2 py-1 text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={toggleAllFiltered}
-                          className="whitespace-nowrap rounded px-3 py-1 text-xs font-medium text-white"
-                          style={{
-                            background: allFilteredSelected
-                              ? 'linear-gradient(135deg,#DC3545 0%,#C82333 100%)'
-                              : 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)',
+                          type="checkbox"
+                          checked={selectedZoneIds.includes('default')}
+                          onChange={() => {
+                            setSelectedZoneIds(prev =>
+                              prev.includes('default') ? prev.filter(id => id !== 'default') : [...prev, 'default']
+                            );
                           }}
-                        >
-                          {allFilteredSelected ? 'Deselect All' : 'Select All'}
-                        </button>
-                      </div>
+                          className="h-4 w-4 rounded text-indigo-600"
+                        />
+                        <span className="font-medium text-slate-700">Default</span>
+                        <span className="ml-auto text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Fallback</span>
+                      </label>
 
-                      {/* Checkbox grid */}
-                      <div className="grid max-h-44 grid-cols-2 gap-1 overflow-y-auto rounded border border-slate-200 bg-white p-2">
-                        {filteredPincodes.map((pc) => (
+                      {/* Real zones */}
+                      {zones.map((zone: any) => {
+                        const id = zone._id || zone.id;
+                        const isSelected = selectedZoneIds.includes(id);
+                        return (
                           <label
-                            key={pc}
-                            className="flex cursor-pointer items-center gap-1.5 rounded p-1 text-sm hover:bg-slate-50"
+                            key={id}
+                            className="flex cursor-pointer items-center gap-2 rounded p-1.5 text-sm hover:bg-slate-50"
                           >
                             <input
                               type="checkbox"
-                              checked={selectedPincodes.includes(pc)}
-                              onChange={() => togglePincode(pc)}
+                              checked={isSelected}
+                              onChange={() => {
+                                setSelectedZoneIds(prev =>
+                                  prev.includes(id) ? prev.filter(z => z !== id) : [...prev, id]
+                                );
+                              }}
                               className="h-4 w-4 rounded text-indigo-600"
                             />
-                            <span>{pc}</span>
+                            <span className="text-slate-700">{zone.name}</span>
+                            <span className="ml-auto text-[10px] text-slate-400">Cap: {zone.defaultCapacity ?? 10}</span>
                           </label>
-                        ))}
-                        {filteredPincodes.length === 0 && (
-                          <p className="col-span-2 py-2 text-center text-xs text-slate-400">
-                            No pincodes match
-                          </p>
-                        )}
-                      </div>
+                        );
+                      })}
 
-                      {selectedPincodes.length > 0 && (
-                        <p className="mt-1 text-xs font-medium text-indigo-600">
-                          {selectedPincodes.length} pincode(s) selected
+                      {zones.length === 0 && (
+                        <p className="py-2 text-center text-xs text-slate-400">
+                          No zones found. Create zones in Delivery Zones first.
                         </p>
                       )}
-                    </>
+                    </div>
+                  )}
+
+                  {selectedZoneIds.length > 0 && (
+                    <p className="mt-1 text-xs font-medium text-indigo-600">
+                      {selectedZoneIds.length} zone(s) selected · default capacity: {primaryZoneCapacity}
+                    </p>
                   )}
                 </div>
               </div>
