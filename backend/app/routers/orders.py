@@ -799,7 +799,6 @@ async def create_order(
         from app.db.storage_factory import get_storage as _get_storage
 
         slot_storage = _get_storage("deliverySlots")
-        zone_storage = _get_storage("deliveryZones")
         seg = "wholesale" if effective_role == "wholesaler" else "retail"
         zip_code = order_data.shippingAddress.get("zipCode", "") if order_data.shippingAddress else ""
 
@@ -812,19 +811,29 @@ async def create_order(
         # ── Resolve zone for the shipping pincode ────────────────────────────
         order_zone_id = None
         if zip_code:
-            all_zones = await zone_storage.findAll({"isActive": True})
-            for _z in all_zones:
-                if zip_code in (_z.get("pincodes") or []):
-                    order_zone_id = str(_z["_id"])
-                    break
+            from app.repositories.zone_seller_cache import get_zone_for_pincode as _get_zone
+            _zone_doc = await _get_zone(zip_code)
+            if _zone_doc:
+                order_zone_id = str(_zone_doc.get("_id") or _zone_doc.get("zoneId", ""))
 
-        slot_configs = await slot_storage.findAll(
-            {
-                "date": target_date,
-                "segment": seg,
-                "isActive": True,
-            }
-        )
+        # ── Resolve slot config: zone-specific first, then "default" fallback ─
+        # New design: one config record per zone per date (zoneId field).
+        # "default" config serves as a fallback for zones with no specific config.
+        _slot_config = None
+        if order_zone_id:
+            _zone_configs = await slot_storage.findAll(
+                {"date": target_date, "segment": seg, "zoneId": order_zone_id, "isActive": True}
+            )
+            if _zone_configs:
+                _slot_config = _zone_configs[0]
+        if not _slot_config:
+            _default_configs = await slot_storage.findAll(
+                {"date": target_date, "segment": seg, "zoneId": "default", "isActive": True}
+            )
+            if _default_configs:
+                _slot_config = _default_configs[0]
+
+        slot_configs = [_slot_config] if _slot_config else []
 
         matched_config = None
         matched_slot = None
@@ -834,17 +843,15 @@ async def create_order(
                 if not sl.get("isActive", True):
                     continue
 
-                # ── Zone-based capacity check ────────────────────────────────
-                if order_zone_id:
-                    zone_caps = sl.get("zoneCapacities") or {}
-                    zc = zone_caps.get(order_zone_id)
-                    if zc is None:
-                        # This config doesn't serve the customer's zone
-                        continue
-                    _cap = zc.get("capacity")
-                    _booked = zc.get("bookedCount", 0)
-                    if _cap is not None and _booked >= _cap:
-                        continue  # Zone capacity full
+                # ── Flat capacity check (new per-zone record design) ─────────
+                # Each config record is already scoped to a zone, so capacity
+                # and bookedCount are flat fields on the slot — no sub-dict needed.
+                _cap = sl.get("capacity")
+                if _cap is None:
+                    _cap = sc.get("zoneDefaultCapacity")
+                _booked = sl.get("bookedCount", 0)
+                if _cap is not None and _booked >= _cap:
+                    continue  # Slot full
 
                 # Match by explicit ID or match by Urgent condition
                 if order_data.isUrgentDelivery and not order_data.deliverySlotId:
@@ -891,13 +898,13 @@ async def create_order(
         if not order_data.isUrgentDelivery or order_data.deliverySlotId:
             is_full_day = matched_slot.get("isFullDay", False)
             if not is_full_day:
-                # Zone-based capacity re-check
-                if order_zone_id:
-                    _zc = (matched_slot.get("zoneCapacities") or {}).get(order_zone_id, {})
-                    _cap = _zc.get("capacity")
-                    _booked = _zc.get("bookedCount", 0)
-                    if _cap is not None and _booked >= _cap:
-                        raise HTTPException(status_code=400, detail="Selected delivery slot is fully booked.")
+                # Flat capacity re-check (per-zone record, no zoneCapacities sub-dict)
+                _cap = matched_slot.get("capacity")
+                if _cap is None:
+                    _cap = matched_config.get("zoneDefaultCapacity")
+                _booked = matched_slot.get("bookedCount", 0)
+                if _cap is not None and _booked >= _cap:
+                    raise HTTPException(status_code=400, detail="Selected delivery slot is fully booked.")
 
                 cutoff_hours = (
                     matched_slot.get("urgentCutoffHours")
@@ -1135,19 +1142,15 @@ async def create_order(
     if selected_slot_info:
         try:
             from app.db.storage_factory import get_storage as _get_storage
+            import json
+            from sqlalchemy import text
+            from app.config.database import get_async_session_factory
 
             slot_storage = _get_storage("deliverySlots")
             config_id = selected_slot_info["configId"]
             slot_id = selected_slot_info["slotId"]
-            slot_zone_id = selected_slot_info.get("zoneId")
             slot_config = await slot_storage.findById(config_id)
             if slot_config:
-                import json
-
-                from sqlalchemy import text
-
-                from app.config.database import get_async_session_factory
-
                 factory = get_async_session_factory()
                 if factory:
                     db_id = slot_config.get("_db_id") or config_id
@@ -1162,16 +1165,9 @@ async def create_order(
                             updated_slots = doc.get("slots", [])
                             for sl in updated_slots:
                                 if sl.get("id") == slot_id:
-                                    if slot_zone_id:
-                                        zone_caps = sl.get("zoneCapacities") or {}
-                                        if slot_zone_id not in zone_caps:
-                                            zone_caps[slot_zone_id] = {"capacity": None, "bookedCount": 0}
-                                        zone_caps[slot_zone_id]["bookedCount"] = (
-                                            zone_caps[slot_zone_id].get("bookedCount", 0) + 1
-                                        )
-                                        sl["zoneCapacities"] = zone_caps
-                                    else:
-                                        sl["bookedCount"] = sl.get("bookedCount", 0) + 1
+                                    # Flat bookedCount increment — per-zone config records
+                                    # each have their own bookedCount directly on the slot.
+                                    sl["bookedCount"] = sl.get("bookedCount", 0) + 1
                                     break
                             doc["slots"] = updated_slots
                             doc["updatedAt"] = datetime.now(__import__("datetime").timezone.utc).isoformat()
