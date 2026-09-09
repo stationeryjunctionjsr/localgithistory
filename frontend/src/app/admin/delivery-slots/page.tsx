@@ -288,26 +288,7 @@ export default function DeliverySlotsPage() {
     setSlots(slots.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
   };
 
-  const togglePincode = (pc: string) => {
-    setSelectedPincodes((prev) =>
-      prev.includes(pc) ? prev.filter((p) => p !== pc) : [...prev, pc]
-    );
-  };
-
-  const filteredPincodes = serviceablePincodes.filter((pc) =>
-    pc.includes(pincodeSearch.trim())
-  );
-
-  const allFilteredSelected =
-    filteredPincodes.length > 0 && filteredPincodes.every((pc) => selectedPincodes.includes(pc));
-
-  const toggleAllFiltered = () => {
-    if (allFilteredSelected) {
-      setSelectedPincodes((prev) => prev.filter((p) => !filteredPincodes.includes(p)));
-    } else {
-      setSelectedPincodes((prev) => Array.from(new Set([...prev, ...filteredPincodes])));
-    }
-  };
+    // Slot configuration requires no pincode filtering anymore, purely zoneId driven
 
   return (
     <AdminLayout>

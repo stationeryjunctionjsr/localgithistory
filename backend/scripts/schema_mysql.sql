@@ -517,6 +517,7 @@ CREATE TABLE `sj_delivery_slots` (
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
   `segment` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `date` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `zone_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT 'default',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
@@ -542,6 +543,8 @@ CREATE TABLE `sj_delivery_zones` (
   `description` varchar(1000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `default_capacity` int NOT NULL DEFAULT '10',
   `urgent_delivery_available` tinyint(1) NOT NULL DEFAULT '0',
+  `customer_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'retail' COMMENT 'retail | business | both',
+  `seller_ids` longtext COLLATE utf8mb4_unicode_ci COMMENT 'JSON array of seller ID strings',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
@@ -1351,8 +1354,10 @@ CREATE TABLE `sj_seller_zones` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` int NOT NULL,
   `zone_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `zone_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT 'external_id of sj_delivery_zones',
   PRIMARY KEY (`id`),
   KEY `fk_usr_zone` (`user_id`),
+  KEY `ix_seller_zones_zone_id` (`zone_id`),
   CONSTRAINT `fk_usr_zone` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

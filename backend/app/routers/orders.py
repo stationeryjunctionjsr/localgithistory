@@ -791,6 +791,7 @@ async def create_order(
     # Slot booking validation
     # ----------------------------------------------------------------
     selected_slot_info = None
+    zone_urgent_available = False  # set from zone if urgent delivery is requested
     if (order_data.deliverySlotId and order_data.deliverySlotDate) or order_data.isUrgentDelivery:
         import datetime as _dt
 
@@ -814,7 +815,9 @@ async def create_order(
             from app.repositories.zone_seller_cache import get_zone_for_pincode as _get_zone
             _zone_doc = await _get_zone(zip_code)
             if _zone_doc:
-                order_zone_id = str(_zone_doc.get("_id") or _zone_doc.get("zoneId", ""))
+                # Use MySQL _id (as string) — consistent with zone_seller_cache key
+                order_zone_id = str(_zone_doc.get("_id") or "")
+                zone_urgent_available = bool(_zone_doc.get("urgentDeliveryAvailable", False))
 
         # ── Resolve slot config: zone-specific first, then "default" fallback ─
         # New design: one config record per zone per date (zoneId field).
@@ -951,20 +954,29 @@ async def create_order(
                 status_code=400, detail="Your pincode is not serviceable. Please contact support for assistance."
             )
 
-        # Check seller-specific serviceability for all items in order
-        seller_ids_in_order = {item.get("sellerId") for item in order_items if item.get("sellerId")}
-        for sid in seller_ids_in_order:
-            sdoc = await user_repository.findById(sid)
-            if sdoc:
-                perms = sdoc.get("sellerPermissions") or {}
-                serv_pincodes = perms.get("serviceablePincodes", [])
-                if serv_pincodes and shipping_zip not in serv_pincodes:
-                    s_name = sdoc.get("companyName") or sdoc.get("name") or "Seller"
-                    ORDER_FAILURES.labels(reason="seller_pincode_not_serviceable").inc()
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Products from seller '{s_name}' cannot be delivered to pincode {shipping_zip}.",
-                    )
+        # Zone-based seller serviceability check
+        # Resolve zone_id if not already set (e.g. non-slot standard orders)
+        if not order_zone_id and shipping_zip:
+            from app.repositories.zone_seller_cache import get_zone_for_pincode as _gz2
+            _z2 = await _gz2(shipping_zip)
+            if _z2:
+                order_zone_id = str(_z2.get("_id") or "")
+
+        if order_zone_id:
+            seller_ids_in_order = {item.get("sellerId") for item in order_items if item.get("sellerId")}
+            for sid in seller_ids_in_order:
+                sdoc = await user_repository.findById(sid)
+                if sdoc:
+                    seller_zone_ids = (sdoc.get("sellerPermissions") or {}).get("serviceableZoneIds", [])
+                    # Empty list = seller hasn't configured zones yet; allow during migration
+                    if seller_zone_ids and order_zone_id not in seller_zone_ids:
+                        s_name = sdoc.get("companyName") or sdoc.get("name") or "Seller"
+                        ORDER_FAILURES.labels(reason="seller_zone_not_serviceable").inc()
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Products from '{s_name}' are not available for delivery to your area.",
+                        )
+
 
     # Calculate delivery charge based on location, user role, and order amount
     # Enhanced logic to handle all scenarios:
@@ -1005,8 +1017,8 @@ async def create_order(
                 # 2. Total before shipping is less than minimum for free delivery
                 if delivery_charge_data.get("isApplicableToRole", True):
                     if order_data.isUrgentDelivery and effective_role in ("customer", "wholesaler"):
-                        if delivery_charge_data.get("urgentDeliveryAvailable"):
-                            # Urgent delivery is determined by pincode eligibility only.
+                        if zone_urgent_available:
+                            # Urgent delivery is determined by the zone's urgentDeliveryAvailable flag.
                             # The cart is treated as a single unit — all items are either
                             # urgent or standard. No per-seller validation needed here.
                             urgent_charge = delivery_charge_data.get("urgentDeliveryCharge")

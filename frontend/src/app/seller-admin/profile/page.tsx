@@ -143,13 +143,6 @@ export default function SellerProfilePage() {
           <div style={{ display: 'flex', gap: 16 }}>
             <span style={{
               fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-              background: user?.sellerPermissions?.allowDeliverySlots ? '#dcfce7' : '#f3f4f6',
-              color: user?.sellerPermissions?.allowDeliverySlots ? '#15803d' : '#9ca3af',
-            }}>
-              {user?.sellerPermissions?.allowDeliverySlots ? '✓' : '✗'} Delivery Slots
-            </span>
-            <span style={{
-              fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
               background: user?.sellerPermissions?.allowUrgentDelivery ? '#dcfce7' : '#f3f4f6',
               color: user?.sellerPermissions?.allowUrgentDelivery ? '#15803d' : '#9ca3af',
             }}>

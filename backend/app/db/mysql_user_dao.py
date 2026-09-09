@@ -25,11 +25,12 @@ def _row_to_doc(r, children: Dict) -> Dict:
     saved_addresses = [a for a in all_addresses if not a.get("isPrimary")]
 
     seller_permissions = {
-        "allowDeliverySlots": bool(getattr(r, "allow_delivery_slots", 0)),
-        "allowUrgentDelivery": bool(getattr(r, "allow_urgent_delivery", 0)),
+        # "allowDeliverySlots": bool(getattr(r, "allow_delivery_slots", 0)),
+        # "allowUrgentDelivery": bool(getattr(r, "allow_urgent_delivery", 0)),
         "serviceablePincodes": children.get("serviceablePincodes", []),
         "urgentPincodes": children.get("urgentPincodes", []),
         "slotPincodes": children.get("slotPincodes", []),
+        "serviceableZoneIds": children.get("serviceableZoneIds", []),
     }
 
     is_seller_admin_val = getattr(r, "is_seller_admin", None)
@@ -116,7 +117,7 @@ class MySQLUserDAO:
 
     async def _fetch_children(self, session, uids: List[int]) -> Dict[int, Dict]:
         children_map = {
-            uid: {"addresses": [], "serviceablePincodes": [], "urgentPincodes": [], "slotPincodes": [], "zones": []}
+            uid: {"addresses": [], "serviceablePincodes": [], "urgentPincodes": [], "slotPincodes": [], "zones": [], "serviceableZoneIds": []}
             for uid in uids
         }
         if not uids:
@@ -160,12 +161,14 @@ class MySQLUserDAO:
                 elif r.pincode_type == "slot":
                     children_map[r.user_id]["slotPincodes"].append(r.pincode)
 
-            # Zones
+            # Zones — read both zone_name (display) and zone_id (external_id for lookups)
             res = await session.execute(
-                text(f"SELECT user_id, zone_name FROM sj_seller_zones WHERE user_id IN ({placeholders})"), chunk_params
+                text(f"SELECT user_id, zone_name, zone_id FROM sj_seller_zones WHERE user_id IN ({placeholders})"), chunk_params
             )
             for r in res.fetchall():
                 children_map[r.user_id]["zones"].append(r.zone_name)
+                if r.zone_id:  # zone_id may be empty string on pre-migration rows
+                    children_map[r.user_id]["serviceableZoneIds"].append(r.zone_id)
         return children_map
 
     async def _replace_children(self, session, uid: int, data: Dict):
@@ -227,10 +230,18 @@ class MySQLUserDAO:
                 {"uid": uid, "p": p},
             )
 
-        # Insert Zones
-        for z in data.get("serviceAreaZones", []):
+        # Insert Zones — serviceAreaZones now carries zone external_ids
+        for zone_ext_id in data.get("serviceAreaZones", []):
+            # Look up the display name from sj_delivery_zones
+            name_res = await session.execute(
+                text("SELECT name FROM sj_delivery_zones WHERE external_id = :eid LIMIT 1"),
+                {"eid": zone_ext_id},
+            )
+            name_row = name_res.fetchone()
+            zone_name = name_row.name if name_row else zone_ext_id  # fallback to id string
             await session.execute(
-                text("INSERT INTO sj_seller_zones (user_id, zone_name) VALUES (:uid, :z)"), {"uid": uid, "z": z}
+                text("INSERT INTO sj_seller_zones (user_id, zone_name, zone_id) VALUES (:uid, :zn, :zi)"),
+                {"uid": uid, "zn": zone_name, "zi": zone_ext_id},
             )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
@@ -430,8 +441,10 @@ class MySQLUserDAO:
                     "is_email_verified": 1 if data.get("isEmailVerified", False) else 0,
                     "referral_code": data.get("referralCode"),
                     "is_seller_admin": 1 if data.get("isSellerAdmin") else 0,
-                    "allow_delivery_slots": 1 if data.get("sellerPermissions", {}).get("allowDeliverySlots") else 0,
-                    "allow_urgent_delivery": 1 if data.get("sellerPermissions", {}).get("allowUrgentDelivery") else 0,
+                    # "allow_delivery_slots": 1 if data.get("sellerPermissions", {}).get("allowDeliverySlots") else 0,
+                    "allow_delivery_slots": 0,
+                    # "allow_urgent_delivery": 1 if data.get("sellerPermissions", {}).get("allowUrgentDelivery") else 0,
+                    "allow_urgent_delivery": 0,
                     "is_on_duty": 1 if data.get("isOnDuty") else 0,
                     "commission_override_pct": data.get("commissionOverridePct"),
                     "created_at": now,
@@ -512,8 +525,10 @@ class MySQLUserDAO:
                     "is_email_verified": 1 if merged.get("isEmailVerified", False) else 0,
                     "referral_code": merged.get("referralCode"),
                     "is_seller_admin": 1 if merged.get("isSellerAdmin") else 0,
-                    "allow_delivery_slots": 1 if merged.get("sellerPermissions", {}).get("allowDeliverySlots") else 0,
-                    "allow_urgent_delivery": 1 if merged.get("sellerPermissions", {}).get("allowUrgentDelivery") else 0,
+                    # "allow_delivery_slots": 1 if merged.get("sellerPermissions", {}).get("allowDeliverySlots") else 0,
+                    "allow_delivery_slots": 0,
+                    # "allow_urgent_delivery": 1 if merged.get("sellerPermissions", {}).get("allowUrgentDelivery") else 0,
+                    "allow_urgent_delivery": 0,
                     "is_on_duty": 1 if merged.get("isOnDuty") else 0,
                     "commission_override_pct": merged.get("commissionOverridePct"),
                     "updated_at": now,

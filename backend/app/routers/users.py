@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from app.models.schemas import UserResponse, UserUpdate, SUPPORTED_LANGUAGES
 from app.repositories.user_repository import user_repository
-from app.utils.auth import get_current_user, require_super_admin
+from app.utils.auth import get_current_user, require_super_admin, require_super_admin_or_seller
 from app.utils.limiter import limiter
 
 router = APIRouter()
@@ -490,3 +490,56 @@ async def verify_email(data: VerifyEmailRequest, request: Request, current_user:
 
     await user_repository.update(user_id, {"isEmailVerified": True})
     return {"message": "Email verified successfully."}
+
+
+# ── Seller Zone Settings ────────────────────────────────────────────────────────
+
+class SellerZoneSettingsUpdate(BaseModel):
+    serviceableZoneIds: List[str]
+
+
+@router.get("/seller-delivery-settings")
+async def get_seller_delivery_settings(
+    current_user: dict = Depends(require_super_admin_or_seller),
+):
+    """Return the seller's current zone selections and all available zones with their pincodes."""
+    from app.db.storage_factory import get_storage
+
+    zones_storage = get_storage("deliveryZones")
+    all_zones = await zones_storage.findAll({"isActive": True})
+
+    current_zone_ids = (current_user.get("sellerPermissions") or {}).get("serviceableZoneIds", [])
+
+    available_zones = [
+        {
+            "id": str(z.get("_id", "")),
+            "name": z.get("name", ""),
+            "pincodes": z.get("pincodes", []),
+            "defaultCapacity": z.get("defaultCapacity", 10),
+            "urgentDeliveryAvailable": bool(z.get("urgentDeliveryAvailable", False)),
+            "customerType": z.get("customerType", "retail"),
+        }
+        for z in all_zones
+    ]
+
+    return {
+        "sellerId": str(current_user.get("_id", "")),
+        "sellerName": current_user.get("companyName") or current_user.get("name", ""),
+        "serviceableZoneIds": current_zone_ids,
+        "availableZones": available_zones,
+    }
+
+
+@router.put("/seller-delivery-settings")
+async def update_seller_delivery_settings(
+    data: SellerZoneSettingsUpdate,
+    current_user: dict = Depends(require_super_admin_or_seller),
+):
+    """Update the seller's zone selections."""
+    from app.repositories.zone_seller_cache import invalidate_zone_cache
+
+    seller_id = str(current_user.get("_id", ""))
+    await user_repository.update(seller_id, {"serviceAreaZones": data.serviceableZoneIds})
+    # Invalidate the full seller-zone cache so changes take effect immediately
+    invalidate_zone_cache()
+    return {"ok": True}

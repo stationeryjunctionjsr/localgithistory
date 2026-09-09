@@ -116,7 +116,8 @@ class DeliveryChargeRepository:
                 urgent_avail = False
                 if default_charge:
                     urgent_charge = default_charge.get("urgentDeliveryCharge")
-                    urgent_avail = default_charge.get("urgentDeliveryAvailable", False)
+                    # urgent_avail = default_charge.get("urgentDeliveryAvailable", False)
+                    urgent_avail = False
 
                 if default_charge and default_charge.get("isActive"):
                     is_applicable = self.isChargeApplicableToRole(default_charge, user_role)
@@ -154,7 +155,8 @@ class DeliveryChargeRepository:
                         "urgentDeliveryCharge": urgent_charge,
                     }
             else:
-                urgent_avail = pincode_charge.get("urgentDeliveryAvailable", False)
+                # urgent_avail = pincode_charge.get("urgentDeliveryAvailable", False)
+                urgent_avail = False
                 # Use pincode-specific tiers or charge
                 if pincode_charge.get("tiers") and len(pincode_charge.get("tiers", [])) > 0:
                     tier_charge = self.calculateTieredCharge(pincode_charge.get("tiers"), order_amount)
@@ -185,7 +187,8 @@ class DeliveryChargeRepository:
         if city_charge:
             # Check role applicability for city-specific charge
             is_applicable = self.isChargeApplicableToRole(city_charge, user_role)
-            urgent_avail = city_charge.get("urgentDeliveryAvailable", False)
+            # urgent_avail = city_charge.get("urgentDeliveryAvailable", False)
+            urgent_avail = False
 
             return {
                 "charge": city_charge.get("charge", 0) if is_applicable else 0,
@@ -201,7 +204,8 @@ class DeliveryChargeRepository:
         default_charge = await self.getDefaultCharge()
         if default_charge and default_charge.get("isActive"):
             is_applicable = self.isChargeApplicableToRole(default_charge, user_role)
-            urgent_avail = default_charge.get("urgentDeliveryAvailable", False)
+            # urgent_avail = default_charge.get("urgentDeliveryAvailable", False)
+            urgent_avail = False
             urgent_charge = default_charge.get("urgentDeliveryCharge")
             
             if not is_applicable:
@@ -331,7 +335,8 @@ class DeliveryChargeRepository:
             "serviceableForWholesaler": charge_data.get("serviceableForWholesaler", False) is True,
             "isActive": charge_data.get("isActive", True),
             "description": charge_data.get("description", ""),
-            "urgentDeliveryAvailable": charge_data.get("urgentDeliveryAvailable", False) is True,
+            # "urgentDeliveryAvailable": charge_data.get("urgentDeliveryAvailable", False) is True,
+            "urgentDeliveryAvailable": False,
             "urgentDeliveryCharge": float(charge_data.get("urgentDeliveryCharge"))
             if charge_data.get("urgentDeliveryCharge") is not None
             else None,

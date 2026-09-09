@@ -258,14 +258,27 @@ TYPED_DOC_DAOS = {
         {"tiers": "tiers"},
         frozenset({"applicableToWholesaler", "applicableToRetailer", "isActive"}),
     ),
+    "deliveryZones": _dao(
+        "sj_delivery_zones",
+        {
+            "name": "name",
+            "description": "description",
+            "defaultCapacity": "default_capacity",
+            "urgentDeliveryAvailable": "urgent_delivery_available",
+            "customerType": "customer_type",
+            "isActive": "is_active",
+        },
+        bool_keys=frozenset({"urgentDeliveryAvailable", "isActive"}),
+    ),
     "deliverySlots": _dao(
         "sj_delivery_slots",
         {
             "segment": "segment",
             "date": "date",
+            "zoneId": "zone_id",
             "isActive": "is_active",
         },
-        {"slots": "slots", "pincodes": "pincodes"},
+        {"slots": "slots"},
         frozenset({"isActive"}),
     ),
     "events": _dao(

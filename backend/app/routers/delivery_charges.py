@@ -163,7 +163,6 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
     # "business" or "both".  A "retail"-only zone has no wholesale slots.
     wholesale_zone_eligible = zone_customer_type in ("business", "both")
 
-    import asyncio
     from datetime import date as dt_date, timedelta
 
     today = dt_date.today()
@@ -171,19 +170,29 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
 
     available_dates = []
 
-    if not is_wholesaler or wholesale_zone_eligible:
-        tasks = [
-            slot_storage.findAll({"date": check_date, "segment": segment, "isActive": True})
-            for check_date in dates_to_check
-        ]
-        results = await asyncio.gather(*tasks)
+    # Resolve zone_id for this pincode (already done above — reuse `zone`)
+    zone_id = str(zone.get("_id", "")) if zone else None
 
-        for check_date, configs in zip(dates_to_check, results):
-            for config in configs:
-                config_pincodes = config.get("pincodes", [])
-                if config_pincodes and pincode not in config_pincodes:
-                    continue
-                for slot in config.get("slots", []):
+    if not is_wholesaler or wholesale_zone_eligible:
+        for check_date in dates_to_check:
+            # Zone-specific config first, then "default" fallback — same logic as
+            # delivery-slots/available and order creation.
+            slot_config = None
+            if zone_id:
+                zone_configs = await slot_storage.findAll(
+                    {"date": check_date, "segment": segment, "zoneId": zone_id, "isActive": True}
+                )
+                if zone_configs:
+                    slot_config = zone_configs[0]
+            if not slot_config:
+                default_configs = await slot_storage.findAll(
+                    {"date": check_date, "segment": segment, "zoneId": "default", "isActive": True}
+                )
+                if default_configs:
+                    slot_config = default_configs[0]
+
+            if slot_config:
+                for slot in slot_config.get("slots", []):
                     if not slot.get("isActive", True):
                         continue
                     cap = slot.get("capacity")
@@ -191,9 +200,6 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
                     if cap is None or (cap - booked) > 0:
                         available_dates.append(check_date)
                         break
-                else:
-                    continue
-                break
 
     return {
         "isServiceable": is_serviceable,

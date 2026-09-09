@@ -30,44 +30,33 @@ test.describe('Flow 5: Admin Panel - Segments and Discounts', () => {
     // Flow 5 specific mocks to prevent 401 redirects
     await page.route('**/api/brands/**', async route => route.fulfill({ json: [] }));
     await page.route('**/api/categories/public**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/categories**', async route => route.fulfill({ json: [] }));
     await page.route('**/api/products/**', async route => route.fulfill({ json: [] }));
     await page.route('**/api/users/**', async route => route.fulfill({ json: [] }));
     await page.route('**/api/bundles/admin/all**', async route => route.fulfill({ json: [] }));
     await page.route('**/api/collections/**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/pincodes/states**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/coupons**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/customer-segments**', async route => route.fulfill({ json: [] }));
+    await page.route('**/api/schemes**', async route => route.fulfill({ json: [] }));
   });
 
   test('Retail Customer Segments renders', async ({ page }) => {
-    await page.route('**/api/customer-segments**', async route => {
-      await route.fulfill({ json: [] });
-    });
-    
     await page.goto('/admin/retail-customer-segments');
-    await expect(page.getByRole('heading', { name: /Retail Customer Segments/i }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /Retail Segments/i }).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('Business Customer Segments renders', async ({ page }) => {
-    await page.route('**/api/customer-segments**', async route => {
-      await route.fulfill({ json: [] });
-    });
-    
     await page.goto('/admin/business-customer-segments');
-    await expect(page.getByRole('heading', { name: /Business Customer Segments/i }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /Business Segments/i }).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('Retail Discounts renders', async ({ page }) => {
-    await page.route('**/api/coupons**', async route => {
-      await route.fulfill({ json: [] });
-    });
-    
     await page.goto('/admin/retail-discounts');
     await expect(page.getByRole('heading', { name: /Retail Discounts/i }).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('Business Discounts renders', async ({ page }) => {
-    await page.route('**/api/schemes**', async route => {
-      await route.fulfill({ json: [] });
-    });
-    
     await page.goto('/admin/business-discounts');
     await expect(page.getByRole('heading', { name: /Business Discounts/i }).first()).toBeVisible({ timeout: 10000 });
   });

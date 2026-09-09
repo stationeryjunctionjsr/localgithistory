@@ -11,7 +11,6 @@ export interface ServiceableSeller {
   companyName: string;
   city?: string;
   allowUrgentDelivery?: boolean;
-  allowDeliverySlots?: boolean;
 }
 
 export interface PincodeData {

@@ -165,10 +165,10 @@ async def _find_next_available_valet(order: dict, skip_valet_ids: list) -> dict 
 
     # Resolve required_pincodes to required_zones
     required_zones = set()
-    from app.routers.delivery_slots import _zone_for_pincode
+    from app.repositories.zone_seller_cache import get_zone_for_pincode
 
     for pin in required_pincodes:
-        zone_doc = await _zone_for_pincode(pin)
+        zone_doc = await get_zone_for_pincode(pin)
         if zone_doc:
             required_zones.add(str(zone_doc["_id"]))
 
@@ -289,9 +289,8 @@ async def _find_next_available_valet_for_return(return_req: dict, skip_valet_ids
         seller = await user_repository.findOne({"role": "super_admin"})
 
     seller_perms = (seller.get("sellerPermissions") or {}) if seller else {}
-    allow_delivery_slots = bool(seller_perms.get("allowDeliverySlots", False))
-
-    slot_id = return_req.get("deliverySlotId") if allow_delivery_slots else None
+    
+    slot_id = return_req.get("deliverySlotId")
     slot_date = return_req.get("deliverySlotDate") or dt_date.today().isoformat()
 
     # Step 1+2: Get all on-duty valets

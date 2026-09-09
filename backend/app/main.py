@@ -557,6 +557,7 @@ from app.routers import (
     coupons,
     delivery_charges,
     delivery_slots,
+    delivery_zones,
     feature_flags,
     google_reviews,
     health,
@@ -591,6 +592,7 @@ app.include_router(banners.router, prefix="/api/banners", tags=["banners"])
 app.include_router(brands.router, prefix="/api/brands", tags=["brands"])
 app.include_router(categories.router, prefix="/api/categories", tags=["categories"])
 app.include_router(upi.router, prefix="/api/upi", tags=["upi"])
+app.include_router(delivery_zones.router, prefix="/api/delivery-zones", tags=["delivery-zones"])
 app.include_router(delivery_charges.router, prefix="/api/delivery-charges", tags=["delivery-charges"])
 app.include_router(delivery_slots.router, prefix="/api/delivery-slots", tags=["delivery-slots"])
 app.include_router(order_feedback.router, prefix="/api/order-feedback", tags=["order-feedback"])

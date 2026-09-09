@@ -307,7 +307,6 @@ TABLES_CONFIG = {
                 False,
                 False,
             ),
-            "pincodes": ("sj_delivery_slot_pincodes", ["pincode"], [""], True, False),
         },
     },
     "sj_delivery_zones": {

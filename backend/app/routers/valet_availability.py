@@ -185,14 +185,9 @@ async def get_all_availability(
     is_seller = current_user.get("isSellerAdmin") or current_user.get("role") == "seller"
     seller_zones = set()
     if is_seller and current_user.get("role") != "super_admin":
-        perms = current_user.get("sellerPermissions") or {}
-        seller_pincodes = perms.get("serviceablePincodes") or []
-        from app.routers.delivery_slots import _zone_for_pincode
-
-        for pin in seller_pincodes:
-            zone_doc = await _zone_for_pincode(pin)
-            if zone_doc:
-                seller_zones.add(str(zone_doc["_id"]))
+        # Use serviceableZoneIds directly — sellers now declare zones, not pincodes
+        zone_ids = (current_user.get("sellerPermissions") or {}).get("serviceableZoneIds") or []
+        seller_zones = set(zone_ids)
 
     enriched = []
     for doc in docs:

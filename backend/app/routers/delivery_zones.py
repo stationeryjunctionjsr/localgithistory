@@ -34,7 +34,6 @@ class ZoneCreate(BaseModel):
     name: str
     description: Optional[str] = None
     pincodes: List[str] = []
-    sellerIds: List[str] = []  # Seller IDs that service this zone
     defaultCapacity: int = 10
     urgentDeliveryAvailable: bool = False
     isActive: bool = True
@@ -45,7 +44,6 @@ class ZoneUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     pincodes: Optional[List[str]] = None
-    sellerIds: Optional[List[str]] = None  # Seller IDs that service this zone
     defaultCapacity: Optional[int] = None
     urgentDeliveryAvailable: Optional[bool] = None
     isActive: Optional[bool] = None

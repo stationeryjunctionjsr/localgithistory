@@ -12,10 +12,6 @@ class StoreUser(HttpUser):
     def view_categories(self):
         self.client.get("/api/categories")
 
-    @task(2)
-    def view_banners(self):
-        self.client.get("/api/banners")
-
     @task(1)
     def view_single_product(self):
         # We'll just hit a random search
