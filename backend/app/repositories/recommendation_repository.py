@@ -876,9 +876,9 @@ class RecommendationRepository:
         sorted_subcats = sorted(subcat_counts.items(), key=lambda x: x[1])
         neglected_set = {subcat for subcat, _ in sorted_subcats[:neglected_count]}
 
-        # 5. Fetch all-time orders to compute best-selling products overall
-        # To avoid massive overhead, we filter orders by these neglected subcategories as we iterate.
-        all_orders = await self.order_storage.findAll()
+        # 5. Fetch recent orders (last 90 days) to compute best-selling products in neglected subcats
+        bestseller_cutoff = datetime.now(timezone.utc) - timedelta(days=90)
+        all_orders = await self.order_storage.findAll({"startDate": bestseller_cutoff.isoformat()})
         
         subcat_product_sales = {}
         for order in all_orders:
@@ -971,24 +971,15 @@ class RecommendationRepository:
         (the bottom round(n/3) by purchase count). Used by bundle Explore scoring to test
         whether a bundle's subCategory falls inside the neglected set.
         """
-        cutoff = datetime.utcnow() - timedelta(days=days)
-        orders = await self.order_storage.findAll({"user": user_id})
-        products = await self.product_storage.findAll()
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        orders, products = await asyncio.gather(
+            self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()}),
+            self.product_storage.findAll({"isActive": True}),
+        )
         product_by_id = {p.get("_id"): p for p in products if p.get("_id")}
 
         subcat_counts = {}
         for o in orders:
-            if o.get("user") != user_id:
-                continue
-            dt = o.get("createdAt")
-            if not dt:
-                continue
-            try:
-                dt = datetime.fromisoformat(str(dt).replace("Z", "+00:00")).replace(tzinfo=None)
-            except Exception:
-                continue
-            if dt < cutoff:
-                continue
             for item in o.get("items", []):
                 pid = item.get("product") or item.get("productId")
                 if not pid:

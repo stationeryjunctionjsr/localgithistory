@@ -102,13 +102,13 @@ class PushNotificationRepository:
         self, userId: Optional[str], subscription: Optional[Dict], expoToken: Optional[str] = None
     ):
         """Register a device for push notifications (web subscription or Expo push token)"""
-        # Determine lookup key: expoToken for native, endpoint for web
-        all_devices = await self.device_storage.findAll()
-
+        # Look up only the matching device — no full table scan
         if expoToken:
-            existing_device = next((d for d in all_devices if d.get("expoToken") == expoToken), None)
+            matches = await self.device_storage.findAll({"expoToken": expoToken})
+            existing_device = matches[0] if matches else None
         elif subscription and subscription.get("endpoint"):
-            existing_device = next((d for d in all_devices if d.get("endpoint") == subscription.get("endpoint")), None)
+            matches = await self.device_storage.findAll({"endpoint": subscription.get("endpoint")})
+            existing_device = matches[0] if matches else None
         else:
             existing_device = None
 
@@ -153,8 +153,7 @@ class PushNotificationRepository:
 
     async def getDeviceSubscriptionsByUser(self, userId: str) -> List[Dict]:
         """Get device subscriptions for a specific user"""
-        devices = await self.device_storage.findAll()
-        user_devices = [d for d in devices if d.get("userId") == userId]
+        user_devices = await self.device_storage.findAll({"userId": userId})
         return [
             {
                 "endpoint": d.get("endpoint"),
