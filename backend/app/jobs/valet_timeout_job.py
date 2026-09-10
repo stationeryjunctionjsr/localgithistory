@@ -128,13 +128,16 @@ async def _find_next_available_valet(order: dict, skip_valet_ids: list) -> dict 
     slot_id = order.get("deliverySlotId")
 
     # ── Determine required pincodes ───────────────────────────────────────────────
+    # NOTE: hasSubOrders/subOrderIds are not stored in the relational DB.
+    # Instead, query sub-orders by parent ID — presence of rows means multi-seller.
     required_pincodes: set[str] = set()
 
-    if order.get("hasSubOrders"):
-        # Multi-seller: collect pincodes for every sub-order's seller
-        from app.repositories.sub_order_repository import sub_order_repository
+    from app.repositories.sub_order_repository import sub_order_repository
 
-        sub_orders = await sub_order_repository.findByParentOrder(str(order["_id"]))
+    sub_orders = await sub_order_repository.findByParentOrder(str(order["_id"]))
+
+    if sub_orders:
+        # Multi-seller: collect pincodes for every sub-order's seller
         for so in sub_orders:
             so_seller_id = so.get("sellerId")
             if so_seller_id:
@@ -147,7 +150,7 @@ async def _find_next_available_valet(order: dict, skip_valet_ids: list) -> dict 
                 if pincode:
                     required_pincodes.add(pincode)
     else:
-        # Single-seller: original logic
+        # Single-seller: use the order's own sellerId
         seller_id = order.get("sellerId")
         if seller_id:
             seller = await user_repository.findById(seller_id)

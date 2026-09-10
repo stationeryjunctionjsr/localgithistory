@@ -1721,22 +1721,22 @@ async def update_order_status(
             raise HTTPException(status_code=403, detail="Order not assigned to you")
 
         # ── Pickup gate: for multi-seller orders, ALL sub-orders must be picked up ──
-        if status_data.status == "delivered" and order.get("hasSubOrders"):
-            sub_order_ids = order.get("subOrderIds") or []
-            if sub_order_ids:
-                not_picked_up = []
-                for _so_id in sub_order_ids:
-                    _so = await sub_order_repository.findById(_so_id)
-                    if _so and _so.get("pickupStatus") != "picked_up":
-                        not_picked_up.append(_so.get("subOrderNumber") or _so_id)
-                if not_picked_up:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            f"Cannot mark as delivered: pickup not yet confirmed for "
-                            f"{len(not_picked_up)} seller(s): {', '.join(not_picked_up)}"
-                        ),
-                    )
+        # NOTE: hasSubOrders/subOrderIds not in relational DB — query sub-orders directly.
+        all_sub_orders = await sub_order_repository.findByParentOrder(order_id)
+        if all_sub_orders:
+            not_picked_up = [
+                so.get("subOrderNumber") or so.get("_id")
+                for so in all_sub_orders
+                if so.get("pickupStatus") != "picked_up"
+            ]
+            if not_picked_up:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Cannot mark as delivered: pickup not yet confirmed for "
+                        f"{len(not_picked_up)} seller(s): {', '.join(str(x) for x in not_picked_up)}"
+                    ),
+                )
         # For COD orders, payment status changes to paid when delivered
         if order.get("paymentMethod") == "cod":
             from datetime import datetime
@@ -2341,10 +2341,12 @@ async def valet_response(
         valet_name = valet.get("name", "The valet") if valet else "The valet"
 
         # ── Multi-seller: propagate assignedValet to all sub-orders, notify each seller ──
-        if order.get("hasSubOrders"):
-            sub_order_ids = order.get("subOrderIds") or []
+        # NOTE: hasSubOrders/subOrderIds not in relational DB — query sub-orders directly.
+        sub_orders_for_order = await sub_order_repository.findByParentOrder(order_id)
+        if sub_orders_for_order:
             notified_sellers: set = set()
-            for _so_id in sub_order_ids:
+            for _so in sub_orders_for_order:
+                _so_id = str(_so.get("_id"))
                 # Set assignedValet on each sub-order so sellers can see who's picking up
                 await sub_order_repository.update(
                     _so_id,
@@ -2353,9 +2355,7 @@ async def valet_response(
                         "pickupStatus": "pending_pickup",
                     },
                 )
-                # Notify each distinct seller once
-                _so = await sub_order_repository.findById(_so_id)
-                _seller_id = _so.get("sellerId") if _so else None
+                _seller_id = _so.get("sellerId")
                 if _seller_id and _seller_id not in notified_sellers:
                     notified_sellers.add(_seller_id)
                     try:

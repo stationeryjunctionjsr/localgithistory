@@ -52,6 +52,9 @@ class MySQLSubOrderDAO:
         "isUrgentDelivery": "is_urgent_delivery",
         "notes": "notes",
         "couponCode": "coupon_code",
+        # Valet pickup tracking
+        "pickupStatus": "pickup_status",
+        "assignedValet": "assigned_valet",
     }
 
     @property
@@ -163,6 +166,12 @@ class MySQLSubOrderDAO:
             doc["dispatchedAt"] = row.dispatched_at.isoformat()
         if row.cancelled_at:
             doc["cancelledAt"] = row.cancelled_at.isoformat()
+
+        # Valet pickup tracking
+        doc["pickupStatus"] = row.pickup_status if row.pickup_status else "pending_pickup"
+        doc["assignedValet"] = row.assigned_valet
+        if row.picked_up_at:
+            doc["pickedUpAt"] = row.picked_up_at.isoformat()
 
         doc["createdAt"] = row.created_at.isoformat() if row.created_at else _now_iso()
         doc["updatedAt"] = row.updated_at.isoformat() if row.updated_at else _now_iso()
@@ -299,6 +308,9 @@ class MySQLSubOrderDAO:
             "billing_city": b_addr.get("city"),
             "billing_state": b_addr.get("state"),
             "billing_pincode": b_addr.get("pincode"),
+            # Valet pickup tracking
+            "pickup_status": data.get("pickupStatus", "pending_pickup"),
+            "assigned_valet": data.get("assignedValet"),
             "created_at": now,
             "updated_at": now,
         }
@@ -312,6 +324,7 @@ class MySQLSubOrderDAO:
                  notes, coupon_code, coupon_info_type, coupon_info_value, commission_status,
                  shipping_name, shipping_phone, shipping_line1, shipping_city, shipping_state, shipping_pincode,
                  billing_name, billing_phone, billing_line1, billing_city, billing_state, billing_pincode,
+                 pickup_status, assigned_valet,
                  created_at, updated_at)
             VALUES
                 (:external_id, :sub_order_number, :parent_order_id, :parent_order_number,
@@ -321,6 +334,7 @@ class MySQLSubOrderDAO:
                  :notes, :coupon_code, :coupon_info_type, :coupon_info_value, :commission_status,
                  :shipping_name, :shipping_phone, :shipping_line1, :shipping_city, :shipping_state, :shipping_pincode,
                  :billing_name, :billing_phone, :billing_line1, :billing_city, :billing_state, :billing_pincode,
+                 :pickup_status, :assigned_valet,
                  :created_at, :updated_at)
         """)
 
@@ -379,6 +393,9 @@ class MySQLSubOrderDAO:
         if "cancelledAt" in data:
             set_clauses.append("cancelled_at = :cancelled_at")
             params["cancelled_at"] = data["cancelledAt"]
+        if "pickedUpAt" in data:
+            set_clauses.append("picked_up_at = :picked_up_at")
+            params["picked_up_at"] = data["pickedUpAt"]
 
         if len(set_clauses) > 1:
             sql = text(f"UPDATE {self.table_name} SET {', '.join(set_clauses)} WHERE id = :row_id")
