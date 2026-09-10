@@ -11,6 +11,7 @@ import { toast } from 'react-toastify';
 export default function Profile() {
   const { user, loading: authLoading, fetchUser } = useAuth();
   const router = useRouter();
+  const [showGuestMenu, setShowGuestMenu] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -324,19 +325,79 @@ export default function Profile() {
     return (
       <div className="flex min-h-screen flex-col bg-gray-50">
         <Header />
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
-          <svg className="h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-          <h2 className="text-xl font-semibold text-gray-800">Sign in to view your profile</h2>
-          <p className="text-gray-500">You need to be logged in to access this page.</p>
-          <button
-            onClick={() => router.push('/login')}
-            className="rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            Sign In
-          </button>
+
+        <div className="container mx-auto flex-1 px-4 py-8 pb-24 md:pb-8 max-w-2xl">
+          {/* Guest Welcome */}
+          <div className="flex flex-col items-center py-10">
+            <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-gray-200">
+              <svg className="h-10 w-10 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <h2 className="mb-2 text-xl font-bold text-gray-800 text-center">Welcome to Stationery Junction</h2>
+            <p className="text-center text-sm text-gray-500">
+              Sign in to access your orders, wishlist, and more
+            </p>
+          </div>
+
+          {/* Guest Menu Options */}
+          <div className="rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden mb-6">
+            {[
+              { label: 'Wishlist', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z', path: '/customer/wishlist', color: 'text-pink-500', bg: 'bg-pink-50' },
+              { label: 'Accessibility Options', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z', path: '/accessibility-statement', color: 'text-purple-500', bg: 'bg-purple-50' },
+              { label: 'Customer Support', icon: 'M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z', path: '/support', color: 'text-green-500', bg: 'bg-green-50' },
+              { label: 'FAQs', icon: 'M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z', path: '/faq', color: 'text-blue-500', bg: 'bg-blue-50' },
+              { label: 'About Us', icon: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z', path: '/about', color: 'text-orange-500', bg: 'bg-orange-50' },
+              { label: 'Privacy Policy', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', path: '/privacy-policy', color: 'text-purple-600', bg: 'bg-purple-50' },
+            ].map((item, idx) => (
+              <button
+                key={idx}
+                onClick={() => router.push(item.path)}
+                className={`w-full flex items-center p-4 hover:bg-gray-50 transition-colors ${idx !== 0 ? 'border-t border-gray-100' : ''}`}
+              >
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.bg} mr-4`}>
+                  <svg className={`h-5 w-5 ${item.color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                  </svg>
+                </div>
+                <span className="flex-1 text-left text-sm font-medium text-gray-700">{item.label}</span>
+                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Layover / Modal for Guest */}
+        {showGuestMenu && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+            <div className="w-full rounded-t-3xl bg-white p-6 pb-8 shadow-xl sm:w-[400px] sm:rounded-2xl">
+              <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-gray-300 sm:hidden" />
+              <h3 className="mb-2 text-2xl font-bold text-gray-900">Get Started</h3>
+              <p className="mb-6 text-sm text-gray-500">Sign in or create an account to continue</p>
+              
+              <button
+                onClick={() => router.push('/login')}
+                className="mb-3 w-full rounded-xl bg-blue-600 py-3.5 text-center text-base font-semibold text-white transition-colors hover:bg-blue-700"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => router.push('/register')}
+                className="mb-4 w-full rounded-xl bg-gray-100 py-3.5 text-center text-base font-semibold text-gray-900 transition-colors hover:bg-gray-200"
+              >
+                Create Account
+              </button>
+              <button
+                onClick={() => setShowGuestMenu(false)}
+                className="w-full text-center text-sm font-medium text-gray-500 hover:text-gray-700"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

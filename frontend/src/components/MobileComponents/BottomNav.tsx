@@ -147,7 +147,7 @@ export default function BottomNav() {
     },
     {
       label: 'Profile',
-      path: user ? `${basePath}/profile` : '/login',
+      path: '/customer/profile',
       icon: (active: boolean) => (
         <svg
           width="22"
