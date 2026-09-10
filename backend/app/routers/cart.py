@@ -45,19 +45,19 @@ async def get_cart(current_user: dict = Depends(get_current_user)):
         user_id = current_user.get("_id")
 
         # Bulk load products
-        product_ids = [item.get("product") for item in cart.get("items", []) if item.get("product")]
+        product_ids = [item.product for item in cart.items if item.product]
         products_map = {}
         if product_ids:
             products = await product_repository.findAll({"allowed_ids": product_ids})
-            products_map = {str(p["_id"]): p for p in products}
+            products_map = {str(p.id): p for p in products}
 
         cart_items = []
-        for item in cart.get("items", []):
-            product = products_map.get(str(item.get("product")))
+        for item in cart.items:
+            product = products_map.get(str(item.product))
             if not product:
                 continue
-            quantity = item.get("quantity", 1)
-            sell_as_case = item.get("sellAsCase", False)
+            quantity = item.quantity
+            sell_as_case = item.sell_as_case
             subtotal = product_repository.calculateTotalPrice(
                 product, role, quantity, sell_as_case=sell_as_case, user_id=user_id
             )
@@ -66,22 +66,22 @@ async def get_cart(current_user: dict = Depends(get_current_user)):
             from app.repositories.stock_reservation_repository import stock_reservation_repository
 
             reserved = await stock_reservation_repository.get_reserved_quantity(
-                product.get("_id"), exclude_user_id=current_user.get("_id")
+                product.id, exclude_user_id=current_user.get("_id")
             )
-            available_stock = max(0, int(product.get("stock", 0)) - reserved)
+            available_stock = max(0, int(product.stock) - reserved)
             is_out_of_stock = quantity > available_stock
 
             cart_items.append(
                 {
-                    "_id": item.get("_id"),
+                    "_id": item.id,
                     "product": {
-                        "_id": product.get("_id"),
-                        "name": product.get("name"),
-                        "sku": product.get("sku"),
-                        "images": product.get("images", []),
-                        "mrp": product.get("mrp"),
-                        "mrpPerCase": product.get("mrpPerCase"),
-                        "quantityPerCase": product.get("quantityPerCase"),
+                        "_id": product.id,
+                        "name": product.name,
+                        "sku": product.sku,
+                        "images": product.images,
+                        "mrp": product.mrp,
+                        "mrpPerCase": product.mrp_per_case,
+                        "quantityPerCase": product.quantity_per_case,
                         "price": price,
                     },
                     "quantity": quantity,
@@ -100,7 +100,7 @@ async def get_cart(current_user: dict = Depends(get_current_user)):
         active_reservations = await stock_reservation_repository.get_user_reservations(current_user.get("_id"))
         earliest_expiry = None
         if active_reservations:
-            expiry_times = [r.get("expiresAt") for r in active_reservations if r.get("expiresAt")]
+            expiry_times = [r.expires_at for r in active_reservations if r.expires_at]
             if expiry_times:
                 earliest_expiry = min(expiry_times)
 

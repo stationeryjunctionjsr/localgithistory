@@ -21,7 +21,7 @@ class MySQLCommissionSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, r, tiers: List[Dict]) -> Dict:
+    def _row_to_dict(self, r, tiers: List[Dict]) -> Dict:
         return {
             "_id": str(r.id),
             "externalId": r.external_id,
@@ -76,7 +76,7 @@ class MySQLCommissionSettingsDAO:
                             }
                         )
 
-        return [self._row_to_doc(r, children_map[r.id]) for r in rows]
+        return [self._row_to_dict(r, children_map[r.id]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

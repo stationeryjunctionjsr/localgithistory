@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from app.db.storage_factory import get_storage
 
@@ -34,18 +34,6 @@ class StockReservationRepository:
         # ... (Oracle CREATE TABLE for sj_stock_reservations)
         # ─────────────────────────────────────────────────────────────────────────
 
-    def _parse_date(self, date_str: str) -> datetime:
-        if not date_str:
-            return datetime.now(timezone.utc)
-        try:
-            clean_str = date_str.replace("Z", "+00:00")
-            dt = datetime.fromisoformat(clean_str)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt
-        except Exception:
-            return datetime.now(timezone.utc)
-
     def _now_iso(self) -> str:
         return datetime.now(timezone.utc).isoformat() + "Z"
 
@@ -59,17 +47,16 @@ class StockReservationRepository:
         now = datetime.now(timezone.utc)
 
         for res in all_res:
-            if exclude_user_id and str(res.get("userId")) == str(exclude_user_id):
+            if exclude_user_id and str(res.user_id) == str(exclude_user_id):
                 continue
 
             # Check expiry
-            expires_at = self._parse_date(res.get("expiresAt"))
-            if expires_at > now:
-                total += int(res.get("quantity", 0))
+            if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) > now:
+                total += int(res.quantity)
 
         return total
 
-    async def get_user_reservations(self, user_id: str) -> List[Dict]:
+    async def get_user_reservations(self, user_id: str) -> List[Any]:
         """Returns all active, non-expired reservations for a user."""
         await self.ensure_table_exists()
         all_res = await self.storage.findAll({"userId": str(user_id), "status": "active"})
@@ -78,13 +65,12 @@ class StockReservationRepository:
         now = datetime.now(timezone.utc)
 
         for res in all_res:
-            expires_at = self._parse_date(res.get("expiresAt"))
-            if expires_at > now:
+            if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) > now:
                 active_res.append(res)
 
         return active_res
 
-    async def reserve_stock(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> Dict:
+    async def reserve_stock(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> Any:
         """Creates or updates a reservation for a product and user."""
         await self.ensure_table_exists()
 
@@ -121,8 +107,8 @@ class StockReservationRepository:
 
         active_res = await self.storage.findAll(query)
         for res in active_res:
-            await self.storage.update(res["_id"], {"status": "released"})
-            logger.info("Released stock reservation %s for user %s", res["_id"], user_id)
+            await self.storage.update(str(res.id), {"status": "released"})
+            logger.info("Released stock reservation %s for user %s", res.id, user_id)
 
     async def fulfill_user_reservations(self, user_id: str, product_id: Optional[str] = None):
         """Marks active reservations for a user as fulfilled (order placed)."""
@@ -135,13 +121,12 @@ class StockReservationRepository:
         now = datetime.now(timezone.utc)
 
         for res in active_res:
-            expires_at = self._parse_date(res.get("expiresAt"))
             # Only fulfill if not already expired
-            if expires_at > now:
-                await self.storage.update(res["_id"], {"status": "fulfilled"})
-                logger.info("Fulfilled stock reservation %s for user %s", res["_id"], user_id)
+            if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) > now:
+                await self.storage.update(str(res.id), {"status": "fulfilled"})
+                logger.info("Fulfilled stock reservation %s for user %s", res.id, user_id)
             else:
-                await self.storage.update(res["_id"], {"status": "expired"})
+                await self.storage.update(str(res.id), {"status": "expired"})
 
     async def cleanup_expired(self):
         """Finds and marks all expired reservations as 'expired'."""
@@ -152,9 +137,8 @@ class StockReservationRepository:
         expired_count = 0
 
         for res in active_res:
-            expires_at = self._parse_date(res.get("expiresAt"))
-            if expires_at <= now:
-                await self.storage.update(res["_id"], {"status": "expired"})
+            if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) <= now:
+                await self.storage.update(str(res.id), {"status": "expired"})
                 expired_count += 1
 
         if expired_count > 0:
@@ -198,7 +182,7 @@ class StockReservationRepository:
                     f"  AND status = 'active' "
                     f"  AND expires_at > :now"
                 ),
-                {"pid": str(product_id), "uid": str(user_id), "now": now.isoformat()},
+                {"pid": str(product_id), "uid": str(user_id), "now": now.replace(tzinfo=None)},
             )
             res_row = res_result.fetchone()
             other_reserved = int(res_row.reserved or 0) if res_row else 0

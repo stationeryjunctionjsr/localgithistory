@@ -45,7 +45,7 @@ class MySQLTrackingDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, r, children: Dict) -> Dict:
+    def _row_to_dict(self, r, children: Dict) -> Dict:
         out = {
             "_id": str(r.id),
             "externalId": r.external_id,
@@ -147,7 +147,7 @@ class MySQLTrackingDAO:
             res = await session.execute(text(query_str), params)
             rows = res.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._row_to_doc(r, c_map[r.id]) for r in rows]
+        return [self._row_to_dict(r, c_map[r.id]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

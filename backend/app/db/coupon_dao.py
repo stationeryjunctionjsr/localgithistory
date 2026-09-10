@@ -31,7 +31,7 @@ class OracleCouponDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, r) -> Dict:
+    def _row_to_dict(self, r) -> Dict:
         return {
             "_id": str(r.id),
             "code": r.code,
@@ -62,7 +62,7 @@ class OracleCouponDAO:
                 )
             )
             rows = result.fetchall()
-        docs = [self._row_to_doc(r) for r in rows]
+        docs = [self._row_to_dict(r) for r in rows]
         if not query:
             return docs
         filtered: List[Dict] = []
@@ -101,7 +101,7 @@ class OracleCouponDAO:
                 {"id": cid},
             )
             row = result.fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()

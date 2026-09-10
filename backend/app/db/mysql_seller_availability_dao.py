@@ -46,7 +46,7 @@ class MySQLSellerAvailabilityDAO:
     def _get_session_factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         doc = {
             "_id": str(row.id),
             "_db_id": str(row.id),
@@ -106,7 +106,7 @@ class MySQLSellerAvailabilityDAO:
                 ),
                 params,
             )
-            return [self._row_to_doc(r) for r in result.fetchall()]
+            return [self._row_to_dict(r) for r in result.fetchall()]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

@@ -12,7 +12,7 @@ class MySQLSellerPayoutDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -66,7 +66,7 @@ class MySQLSellerPayoutDAO:
                 )
             ).fetchall()
         
-        docs = [self._row_to_doc(r) for r in rows]
+        docs = [self._row_to_dict(r) for r in rows]
         for d in docs:
             d["subOrderIds"] = await self._fetch_sub_orders(d["id"])
         return docs
@@ -92,7 +92,7 @@ class MySQLSellerPayoutDAO:
         
         if not row:
             return None
-        doc = self._row_to_doc(row)
+        doc = self._row_to_dict(row)
         doc["subOrderIds"] = await self._fetch_sub_orders(doc["id"])
         return doc
 

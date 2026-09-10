@@ -4,6 +4,7 @@ MySQL DAO for sj_carts (+ sj_cart_items).
 
 import secrets
 from typing import Dict, List, Optional
+from app.models.cart import Cart
 
 from sqlalchemy import text
 
@@ -26,7 +27,7 @@ class MySQLCartDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, r, items: List[Dict]) -> Dict:
+    def _row_to_dict(self, r, items: List[Dict]) -> Dict:
         return {
             "_id": str(r.id),
             "user": str(r.user_id),
@@ -97,7 +98,7 @@ class MySQLCartDAO:
                         }
                     )
 
-        return [self._row_to_doc(r, items_map[r.external_id]) for r in rows]
+        return [Cart.model_validate(self._row_to_dict(r, items_map[r.external_id])) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

@@ -31,7 +31,7 @@ class DynamicRelationalDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, r, children: Dict) -> Dict:
+    def _row_to_dict(self, r, children: Dict) -> Dict:
         out = {"_id": str(r.id), "externalId": getattr(r, "external_id", None)}
         if hasattr(r, "created_at") and r.created_at:
             out["createdAt"] = r.created_at.isoformat()
@@ -138,7 +138,7 @@ class DynamicRelationalDAO:
             res = await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params)
             rows = res.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._row_to_doc(r, c_map[r.id]) for r in rows]
+        return [self._row_to_dict(r, c_map[r.id]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

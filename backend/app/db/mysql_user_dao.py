@@ -12,7 +12,7 @@ from app.config.database import get_async_session_factory
 from app.config.settings import settings
 
 
-def _row_to_doc(r, children: Dict) -> Dict:
+def _row_to_dict(r, children: Dict) -> Dict:
     def clean_terms(t):
         if not t:
             return None
@@ -272,7 +272,8 @@ class MySQLUserDAO:
             ).fetchall()
             children_map = await self._fetch_children(session, [int(r.id) for r in rows])
 
-        docs = [_row_to_doc(r, children_map[int(r.id)]) for r in rows]
+        from app.models.user import User
+        docs = [User.model_validate(_row_to_dict(r, children_map.get(int(r.id), {}))) for r in rows]
         if query:
             filtered = []
             for doc in docs:
@@ -326,7 +327,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return _row_to_doc(row, children_map[int(row.id)])
+        return User.model_validate(_row_to_dict(row, children_map[int(row.id)]))
 
     async def findByEmail(self, email: str) -> Optional[Dict]:
         factory = self._factory()
@@ -350,7 +351,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return _row_to_doc(row, children_map[int(row.id)])
+        return User.model_validate(_row_to_dict(row, children_map[int(row.id)]))
 
     async def findByPhone(self, phone: str) -> Optional[Dict]:
         factory = self._factory()
@@ -377,7 +378,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return _row_to_doc(row, children_map[int(row.id)])
+        return User.model_validate(_row_to_dict(row, children_map[int(row.id)]))
 
     async def findByReferralCode(self, referral_code: str) -> Optional[Dict]:
         factory = self._factory()
@@ -401,7 +402,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return _row_to_doc(row, children_map[int(row.id)])
+        return User.model_validate(_row_to_dict(row, children_map[int(row.id)]))
 
     async def create(self, data: Dict) -> Dict:
         external_id = secrets.token_hex(16)

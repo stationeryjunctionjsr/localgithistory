@@ -38,7 +38,7 @@ def _entry_row_to_dict(entry_id, amount, payment_method, paid_at, image, notes, 
     }
 
 
-def _payment_row_to_doc(r, entries: List[Dict]) -> Dict:
+def _payment_row_to_dict(r, entries: List[Dict]) -> Dict:
     doc = {
         "_id": str(r.id),
         "orderId": r.order_id,
@@ -174,7 +174,7 @@ class MySQLPaymentDAO:
             row.created_at = created_at
             row.updated_at = updated_at
             entries = entries_by_payment.get(id_, [])
-            docs.append(_payment_row_to_doc(row, entries))
+            docs.append(_payment_row_to_dict(row, entries))
         return docs
 
     async def findById(self, id: str) -> Optional[Dict]:
@@ -227,7 +227,7 @@ class MySQLPaymentDAO:
         async with factory() as session:
             entries_by_payment = await self._get_entries_for_payment_ids(session, [pid])
         entries = entries_by_payment.get(pid, [])
-        return _payment_row_to_doc(r, entries)
+        return _payment_row_to_dict(r, entries)
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

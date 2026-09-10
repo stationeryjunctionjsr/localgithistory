@@ -57,7 +57,7 @@ class MySQLDocStore:
     def _get_session_factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         doc = _parse_doc(getattr(row, self.doc_column, None))
         doc["_db_id"] = str(row.id)
         if "_id" not in doc:
@@ -156,7 +156,7 @@ class MySQLDocStore:
             rows = result.fetchall()
             docs = []
             for r in rows:
-                d = self._row_to_doc(r)
+                d = self._row_to_dict(r)
                 if query:
                     match = True
                     for k, v in query.items():

@@ -12,7 +12,7 @@ class MySQLAdDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -77,7 +77,7 @@ class MySQLAdDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -97,7 +97,7 @@ class MySQLAdDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()

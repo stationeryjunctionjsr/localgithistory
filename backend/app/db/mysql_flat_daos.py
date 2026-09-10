@@ -15,7 +15,7 @@ class MySQLReturnSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -43,7 +43,7 @@ class MySQLReturnSettingsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -63,7 +63,7 @@ class MySQLReturnSettingsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -130,7 +130,7 @@ class MySQLOrderFeedbackDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -182,7 +182,7 @@ class MySQLOrderFeedbackDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -202,7 +202,7 @@ class MySQLOrderFeedbackDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -311,7 +311,7 @@ class MySQLPromoStripsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -343,7 +343,7 @@ class MySQLPromoStripsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -363,7 +363,7 @@ class MySQLPromoStripsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -437,7 +437,7 @@ class MySQLPushNotificationsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -505,7 +505,7 @@ class MySQLPushNotificationsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -525,7 +525,7 @@ class MySQLPushNotificationsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -662,7 +662,7 @@ class MySQLCoachMarksDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -710,7 +710,7 @@ class MySQLCoachMarksDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -730,7 +730,7 @@ class MySQLCoachMarksDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -832,7 +832,7 @@ class MySQLCategoryTagsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -868,7 +868,7 @@ class MySQLCategoryTagsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -888,7 +888,7 @@ class MySQLCategoryTagsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -969,7 +969,7 @@ class MySQLGoogle_reviewsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -1009,7 +1009,7 @@ class MySQLGoogle_reviewsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -1029,7 +1029,7 @@ class MySQLGoogle_reviewsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -1111,28 +1111,15 @@ class MySQLGoogle_reviewsDAO:
             await session.commit()
             return res.rowcount > 0
 
+from app.models.stock_reservation import StockReservation
+
 class MySQLStockReservationsDAO:
     TABLE = "sj_stock_reservations"
 
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
-        return {
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "productId": row.product_id,
-            "userId": row.user_id,
-            "quantity": row.quantity,
-            "status": row.status,
-            "expiresAt": row.expires_at,
-
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[StockReservation]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -1161,9 +1148,9 @@ class MySQLStockReservationsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [StockReservation.model_validate(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[StockReservation]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1171,7 +1158,7 @@ class MySQLStockReservationsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[StockReservation]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else 0
         async with factory() as session:
@@ -1181,9 +1168,9 @@ class MySQLStockReservationsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return StockReservation.model_validate(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> StockReservation:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1217,7 +1204,7 @@ class MySQLStockReservationsDAO:
                 if not exp.endswith("+00:00") and "+" not in exp[-6:] and "-" not in exp[-6:]:
                     exp += "+00:00"
             from datetime import datetime
-            params["expiresAt"] = datetime.fromisoformat(exp)
+            params["expiresAt"] = datetime.fromisoformat(exp).replace(tzinfo=None)
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1230,11 +1217,11 @@ class MySQLStockReservationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[StockReservation]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = {**existing.model_dump(by_alias=True), **data}
         now = now_utc()
         pid = int(id) if str(id).isdigit() else 0
         
@@ -1260,7 +1247,7 @@ class MySQLStockReservationsDAO:
                 if not exp.endswith("+00:00") and "+" not in exp[-6:] and "-" not in exp[-6:]:
                     exp += "+00:00"
             from datetime import datetime
-            params["expiresAt"] = datetime.fromisoformat(exp)
+            params["expiresAt"] = datetime.fromisoformat(exp).replace(tzinfo=None)
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1289,7 +1276,7 @@ class MySQLProductNotificationsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -1333,7 +1320,7 @@ class MySQLProductNotificationsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -1353,7 +1340,7 @@ class MySQLProductNotificationsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -1448,7 +1435,7 @@ class MySQLProductReviewsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -1492,7 +1479,7 @@ class MySQLProductReviewsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -1512,7 +1499,7 @@ class MySQLProductReviewsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -1607,7 +1594,7 @@ class MySQLClassificationTagsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -1638,7 +1625,7 @@ class MySQLClassificationTagsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -1658,7 +1645,7 @@ class MySQLClassificationTagsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -1732,7 +1719,7 @@ class MySQLReviewClassificationsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -1772,7 +1759,7 @@ class MySQLReviewClassificationsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -1792,7 +1779,7 @@ class MySQLReviewClassificationsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -1880,7 +1867,7 @@ class MySQLAboutUsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -1920,7 +1907,7 @@ class MySQLAboutUsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -1940,7 +1927,7 @@ class MySQLAboutUsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -2028,7 +2015,7 @@ class MySQLPrivacyPolicyDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -2068,7 +2055,7 @@ class MySQLPrivacyPolicyDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -2088,7 +2075,7 @@ class MySQLPrivacyPolicyDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -2176,7 +2163,7 @@ class MySQLAvailabilityRequestsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -2220,7 +2207,7 @@ class MySQLAvailabilityRequestsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -2240,7 +2227,7 @@ class MySQLAvailabilityRequestsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -2335,7 +2322,7 @@ class MySQLPincodeSearchesDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -2375,7 +2362,7 @@ class MySQLPincodeSearchesDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -2395,7 +2382,7 @@ class MySQLPincodeSearchesDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -2483,7 +2470,7 @@ class MySQLSystemSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -2527,7 +2514,7 @@ class MySQLSystemSettingsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -2547,7 +2534,7 @@ class MySQLSystemSettingsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -2642,7 +2629,7 @@ class MySQLValetPayoutSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -2674,7 +2661,7 @@ class MySQLValetPayoutSettingsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_doc(r) for r in rows]
+        return [self._row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -2694,7 +2681,7 @@ class MySQLValetPayoutSettingsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_doc(row) if row else None
+        return self._row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()

@@ -13,7 +13,7 @@ from sqlalchemy import text
 from app.config.database import get_async_session_factory
 
 
-def _row_to_doc(r) -> Dict:
+def _row_to_dict(r) -> Dict:
     def clob_to_val(c):
         if c is None:
             return None
@@ -144,7 +144,7 @@ class OracleUserDAO:
                 params,
             )
             rows = result.fetchall()
-        docs = [_row_to_doc(r) for r in rows]
+        docs = [_row_to_dict(r) for r in rows]
         if query:
             filtered = []
             for doc in docs:
@@ -195,7 +195,7 @@ class OracleUserDAO:
                 {"id": int(id) if str(id).isdigit() else 0},
             )
             row = result.fetchone()
-        return _row_to_doc(row) if row else None
+        return _row_to_dict(row) if row else None
 
     async def findByEmail(self, email: str) -> Optional[Dict]:
         """Direct SQL lookup by email — avoids full table scan."""
@@ -217,7 +217,7 @@ class OracleUserDAO:
                 {"email": email.lower()},
             )
             row = result.fetchone()
-        return _row_to_doc(row) if row else None
+        return _row_to_dict(row) if row else None
 
     async def findByPhone(self, phone: str) -> Optional[Dict]:
         """Direct SQL lookup by phone — avoids full table scan."""
@@ -245,7 +245,7 @@ class OracleUserDAO:
                 {"phone": phone, "normalized": normalized},
             )
             row = result.fetchone()
-        return _row_to_doc(row) if row else None
+        return _row_to_dict(row) if row else None
 
     async def findByReferralCode(self, referral_code: str) -> Optional[Dict]:
         """Direct SQL lookup by referral_code — avoids full table scan."""
@@ -267,7 +267,7 @@ class OracleUserDAO:
                 {"referral_code": referral_code.upper()},
             )
             row = result.fetchone()
-        return _row_to_doc(row) if row else None
+        return _row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         import json

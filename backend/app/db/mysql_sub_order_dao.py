@@ -70,7 +70,7 @@ class MySQLSubOrderDAO:
     def _get_session_factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, row, items_rows=None) -> Dict:
+    def _row_to_dict(self, row, items_rows=None) -> Dict:
         """Construct the NoSQL-style dictionary from flattened SQL columns."""
         doc = {
             "_id": str(row.id),
@@ -231,7 +231,7 @@ class MySQLSubOrderDAO:
             items_result = await session.execute(text(items_sql))
             items_rows = items_result.fetchall()
 
-            return [self._row_to_doc(r, items_rows) for r in rows]
+            return [self._row_to_dict(r, items_rows) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query, limit=1)

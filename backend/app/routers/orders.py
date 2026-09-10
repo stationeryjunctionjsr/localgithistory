@@ -767,10 +767,10 @@ async def create_order(
         from app.repositories.stock_reservation_repository import stock_reservation_repository
 
         user_res = await stock_reservation_repository.get_user_reservations(current_user["_id"])
-        prod_res = next((r for r in user_res if r.get("productId") == str(product.get("_id"))), None)
+        prod_res = next((r for r in user_res if r.product_id == str(product.get("_id"))), None)
 
         has_valid_reservation = False
-        if prod_res and int(prod_res.get("quantity", 0)) >= quantity:
+        if prod_res and int(prod_res.quantity) >= quantity:
             has_valid_reservation = True
 
         if not has_valid_reservation:

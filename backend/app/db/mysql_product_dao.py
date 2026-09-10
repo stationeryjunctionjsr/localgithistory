@@ -11,6 +11,7 @@ from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
 from app.db.oracle_utils import now_utc
+from app.models.product import Product
 
 
 class MySQLProductDAO:
@@ -22,7 +23,7 @@ class MySQLProductDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, r, children: Dict) -> Dict:
+    def _row_to_dict(self, r, children: Dict) -> Dict:
         return {
             "_id": str(r.id),
             "productId": r.id,
@@ -318,7 +319,7 @@ class MySQLProductDAO:
             rows = (await session.execute(text(query_sql), params_with_pagination)).fetchall()
             children_map = await self._fetch_children_for_products(session, [int(r.id) for r in rows])
 
-        return [self._row_to_doc(r, children_map[int(r.id)]) for r in rows], total_count
+        return [Product.model_validate(self._row_to_dict(r, children_map[int(r.id)])) for r in rows], total_count
 
     async def get_facets(self, query: Dict) -> Dict[str, List[str]]:
         factory = self._factory()
@@ -366,7 +367,7 @@ class MySQLProductDAO:
                 )
             ).fetchall()
             children_map = await self._fetch_children_for_products(session, [int(r.id) for r in rows])
-        return [self._row_to_doc(r, children_map[int(r.id)]) for r in rows]
+        return [Product.model_validate(self._row_to_dict(r, children_map[int(r.id)])) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if set(query.keys()) in ({"_id"}, {"id"}):
@@ -393,7 +394,7 @@ class MySQLProductDAO:
             if not row:
                 return None
             children_map = await self._fetch_children_for_products(session, [pid])
-        return self._row_to_doc(row, children_map[pid])
+        return self._row_to_dict(row, children_map[pid])
 
     async def _replace_children(self, session, pid: int, data: Dict):
         # Delete old

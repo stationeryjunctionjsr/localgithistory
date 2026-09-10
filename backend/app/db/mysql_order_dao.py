@@ -63,7 +63,7 @@ class MySQLOrderDAO:
 
         return items, declines
 
-    def _row_to_doc(self, r, items: List[Dict], declines: List[Dict]) -> Dict:
+    def _row_to_dict(self, r, items: List[Dict], declines: List[Dict]) -> Dict:
         return {
             "_id": str(r.id),
             "orderNumber": r.order_number,
@@ -230,7 +230,7 @@ class MySQLOrderDAO:
                 for dr in decl_result.fetchall():
                     declines_map[dr.parent_id].append({"valetId": str(dr.valet_id), "reason": dr.reason})
 
-            return [self._row_to_doc(r, items_map[int(r.id)], declines_map[int(r.id)]) for r in rows]
+            return [self._row_to_dict(r, items_map[int(r.id)], declines_map[int(r.id)]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -261,7 +261,7 @@ class MySQLOrderDAO:
             if not row:
                 return None
             items, declines = await self._load_children(session, oid)
-        return self._row_to_doc(row, items, declines)
+        return self._row_to_dict(row, items, declines)
 
     async def _replace_children(self, session, order_id: int, items: List[Dict], declines: List[Dict]) -> None:
         await session.execute(

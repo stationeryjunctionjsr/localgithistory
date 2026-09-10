@@ -21,7 +21,7 @@ class MySQLValetAvailabilityDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, r, children: Dict) -> Dict:
+    def _row_to_dict(self, r, children: Dict) -> Dict:
         return {
             "_id": str(r.id),
             "externalId": r.external_id,
@@ -112,7 +112,7 @@ class MySQLValetAvailabilityDAO:
                     for zr in z_res.fetchall():
                         children_map[zr.availability_id]["zones"].append(zr.zone)
 
-        return [self._row_to_doc(r, children_map[r.id]) for r in rows]
+        return [self._row_to_dict(r, children_map[r.id]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

@@ -38,7 +38,7 @@ _TRACKING_CLOB = {
 }
 
 
-def _row_to_doc(r) -> Dict:
+def _row_to_dict(r) -> Dict:
     out = {"_id": str(r.id)}
     # scalar columns -> api keys
     rev = {v: k for k, v in _TRACKING_SCALAR.items()}
@@ -138,7 +138,7 @@ class OracleTrackingDAO:
                 text(f"SELECT {cols} FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params
             )
             rows = result.fetchall()
-        return [_row_to_doc(r) for r in rows]
+        return [_row_to_dict(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -156,7 +156,7 @@ class OracleTrackingDAO:
                 {"id": pid},
             )
             row = result.fetchone()
-        return _row_to_doc(row) if row else None
+        return _row_to_dict(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()

@@ -22,7 +22,7 @@ class MySQLBannerDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_doc(self, r, children: Dict) -> Dict:
+    def _row_to_dict(self, r, children: Dict) -> Dict:
         return {
             "_id": str(r.id),
             "title": r.title,
@@ -111,7 +111,7 @@ class MySQLBannerDAO:
             )
             rows = result.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._row_to_doc(r, c_map[r.id]) for r in rows]
+        return [self._row_to_dict(r, c_map[r.id]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
