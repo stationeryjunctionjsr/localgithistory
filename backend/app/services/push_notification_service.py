@@ -85,10 +85,8 @@ class PushNotificationService:
     async def send_to_all_devices(self, notification: Dict):
         """Send push notification to registered devices based on targeting criteria (Optimized)"""
         try:
-            # 1. Fetch all dependencies in batch
+            # 1. Fetch all registered devices first
             all_devices = await push_notification_repository.device_storage.findAll()
-            all_users = await user_repository.findAll()
-            all_orders = await order_repository.findAll()
 
             target_segment = notification.get("userSegment", "all")
             target_behavior = notification.get("userBehavior", "none")
@@ -98,26 +96,7 @@ class PushNotificationService:
             if reference_date_str:
                 reference_date = datetime.fromisoformat(reference_date_str.replace("Z", "+00:00"))
             else:
-                reference_date = datetime.now()
-
-            # 2. Identify targeted users
-            user_map = {str(u.get("_id")): u for u in all_users}
-
-            # Group orders by user, filtering by reference date
-            orders_per_user = {}
-            for order in all_orders:
-                try:
-                    o_date = datetime.fromisoformat(order.get("createdAt").replace("Z", "+00:00"))
-                    if o_date > reference_date:
-                        continue
-                except Exception as exc:
-                    logger.warning("Failed to parse createdAt for order %s: %s", order.get("_id"), exc)
-                    continue
-
-                uid = str(order.get("user"))
-                if uid not in orders_per_user:
-                    orders_per_user[uid] = []
-                orders_per_user[uid].append(order)
+                reference_date = datetime.now(timezone.utc).replace(tzinfo=None)
 
             # Get unique users who have registered a device
             downloaded_user_ids = set()
@@ -129,15 +108,44 @@ class PushNotificationService:
                 else:
                     has_guest_download = True
 
-            # Filter logic
             targeted_user_ids = set()
-            for u_id in downloaded_user_ids:
-                user = user_map.get(u_id)
-                user_orders = orders_per_user.get(u_id, [])
-                if await self.is_user_targeted(
-                    u_id, notification, user=user, user_orders=user_orders, reference_date=reference_date
-                ):
-                    targeted_user_ids.add(u_id)
+            downloaded_user_ids_list = list(downloaded_user_ids)
+            
+            # Process users in chunks to prevent OOM
+            CHUNK_SIZE = 500
+            for i in range(0, len(downloaded_user_ids_list), CHUNK_SIZE):
+                chunk_uids = downloaded_user_ids_list[i:i + CHUNK_SIZE]
+                
+                # Fetch users and orders only for this chunk
+                chunk_users = await user_repository.findAll({"allowed_ids": chunk_uids})
+                chunk_orders = await order_repository.findAll({"user": {"$in": chunk_uids}})
+                
+                user_map = {str(u.get("_id")): u for u in chunk_users}
+                
+                # Group orders by user, filtering by reference date
+                orders_per_user = {}
+                for order in chunk_orders:
+                    try:
+                        o_date = datetime.fromisoformat(order.get("createdAt", "").replace("Z", "+00:00")).replace(tzinfo=None)
+                        if o_date > reference_date:
+                            continue
+                    except Exception as exc:
+                        logger.warning("Failed to parse createdAt for order %s: %s", order.get("_id"), exc)
+                        continue
+
+                    uid = str(order.get("user"))
+                    if uid not in orders_per_user:
+                        orders_per_user[uid] = []
+                    orders_per_user[uid].append(order)
+                
+                # Filter logic for this chunk
+                for u_id in chunk_uids:
+                    user = user_map.get(u_id)
+                    user_orders = orders_per_user.get(u_id, [])
+                    if await self.is_user_targeted(
+                        u_id, notification, user=user, user_orders=user_orders, reference_date=reference_date
+                    ):
+                        targeted_user_ids.add(u_id)
 
             targeted_guest_match = False
             # Check Guest Users (userId is None)

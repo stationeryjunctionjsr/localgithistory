@@ -8,8 +8,8 @@ class TrackingRepository:
     def __init__(self):
         self.storage = get_storage("tracking")
 
-    async def findAll(self, query: Optional[Dict] = None):
-        return await self.storage.findAll(query or {})
+    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
+        return await self.storage.findAll(query or {}, skip=skip, limit=limit)
 
     async def create(self, tracking_data: Dict):
         tracking = {**tracking_data, "timestamp": tracking_data.get("timestamp") or self._get_current_timestamp()}
@@ -142,10 +142,14 @@ class TrackingRepository:
             }
         )
 
+    # Maximum rows to pull for analytics queries. Prevents OOM on large tables.
+    # Admin-only endpoints so a reasonable cap is acceptable.
+    _ANALYTICS_LIMIT = 100_000
+
     async def getMostSearched(
         self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        all_tracking = await self.findAll({"type": "product_search"})
+        all_tracking = await self.findAll({"type": "product_search"}, limit=self._ANALYTICS_LIMIT)
 
         # Filter by date
         filtered_tracking = []
@@ -180,7 +184,7 @@ class TrackingRepository:
     async def getZeroResultSearches(
         self, limit: int = 50, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        all_tracking = await self.findAll({"type": "product_search"})
+        all_tracking = await self.findAll({"type": "product_search"}, limit=self._ANALYTICS_LIMIT)
 
         filtered_tracking = []
         for track in all_tracking:
@@ -213,7 +217,7 @@ class TrackingRepository:
     async def getMostViewed(
         self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        all_tracking = await self.findAll({"type": "product_view"})
+        all_tracking = await self.findAll({"type": "product_view"}, limit=self._ANALYTICS_LIMIT)
 
         # Filter by date
         filtered_tracking = []
@@ -242,7 +246,7 @@ class TrackingRepository:
         return sorted(view_counts.values(), key=lambda x: x["count"], reverse=True)[:limit]
 
     async def getReturningUsers(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
-        sessions = await self.findAll({"type": "session"})
+        sessions = await self.findAll({"type": "session"}, limit=self._ANALYTICS_LIMIT)
         returning_user_ids = set()
         user_last_seen = {}
 
@@ -279,7 +283,7 @@ class TrackingRepository:
     async def getDropOffPoints(
         self, limit: int = 10, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        drop_offs = await self.findAll({"type": "drop_off"})
+        drop_offs = await self.findAll({"type": "drop_off"}, limit=self._ANALYTICS_LIMIT)
         drop_off_counts = {}
 
         for drop_off in drop_offs:
@@ -302,7 +306,7 @@ class TrackingRepository:
     async def getCartAbandonments(
         self, limit: int = 100, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        abandonments = await self.findAll({"type": "cart_abandonment"})
+        abandonments = await self.findAll({"type": "cart_abandonment"}, limit=self._ANALYTICS_LIMIT)
 
         # Filter by date
         filtered = []
@@ -319,15 +323,12 @@ class TrackingRepository:
     async def getMostAbandonedProducts(
         self, limit: int = 50, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        abandonments = await self.findAll({"type": "cart_abandonment"})
+        abandonments = await self.findAll({"type": "cart_abandonment"}, limit=self._ANALYTICS_LIMIT)
 
         from app.db.storage_factory import get_storage
 
-        product_storage = get_storage("products")
-        products = await product_storage.findAll()
-        product_map = {p.get("_id"): p for p in products}
-
-        abandoned_products = {}
+        # Collect product IDs first, then fetch only those products (avoids full product table scan)
+        abandoned_products: dict = {}
         for a in abandonments:
             ts = self._parse_timestamp(a.get("timestamp"))
             if start_date and ts and ts < start_date:
@@ -352,6 +353,14 @@ class TrackingRepository:
                 abandoned_products[pid]["abandonCount"] += 1
                 abandoned_products[pid]["quantityAbandoned"] += q
                 abandoned_products[pid]["valueLost"] += q * item.get("price", 0)
+
+        # Fetch only the products that actually appeared in abandonment events
+        product_ids_seen = list(abandoned_products.keys())
+        product_map: dict = {}
+        if product_ids_seen:
+            product_storage = get_storage("products")
+            products = await product_storage.findAll({"_id": {"$in": product_ids_seen}})
+            product_map = {p.get("_id"): p for p in products}
 
         result = []
         for pid, stats in abandoned_products.items():
@@ -440,7 +449,7 @@ class TrackingRepository:
         """Count how many searches (last `days`) included each product, for the given segment (customer/wholesaler)."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         # Use database-side filtering for type and segment
-        all_searches = await self.findAll({"type": "product_search", "segment": segment})
+        all_searches = await self.findAll({"type": "product_search", "segment": segment}, limit=self._ANALYTICS_LIMIT)
         counts: Dict[str, int] = {}
         for doc in all_searches:
             ts = self._parse_timestamp(doc.get("timestamp"))
@@ -459,7 +468,7 @@ class TrackingRepository:
         """
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         # Use database-side filtering for type and segment
-        all_searches = await self.findAll({"type": "product_search", "segment": segment})
+        all_searches = await self.findAll({"type": "product_search", "segment": segment}, limit=self._ANALYTICS_LIMIT)
         out: List[Dict] = []
         for doc in all_searches:
             ts = self._parse_timestamp(doc.get("timestamp"))
@@ -480,3 +489,5 @@ class TrackingRepository:
 
 
 tracking_repository = TrackingRepository()
+
+

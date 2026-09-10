@@ -129,7 +129,7 @@ class MySQLFlatBaseDAO:
         # Use dict.fromkeys for uniqueness, then quote
         return [_q(c) for c in dict.fromkeys(cols)]
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[Dict]:
         factory = self._factory()
         if not factory:
             return []
@@ -156,7 +156,7 @@ class MySQLFlatBaseDAO:
 
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT {cols} FROM {self.table_name} WHERE {where_sql} ORDER BY id ASC"), params
+                text(f"SELECT {cols} FROM {self.table_name} WHERE {where_sql} ORDER BY id ASC" + (f" LIMIT {int(limit)}" if limit is not None else "") + (f" OFFSET {int(skip)}" if skip is not None else "")), params
             )
             rows = result.fetchall()
         return [self._row_to_doc(r) for r in rows]
@@ -315,8 +315,36 @@ class MySQLFlatBaseDAO:
             return result.rowcount
 
     async def count(self, query: Optional[Dict] = None) -> int:
-        return len(await self.findAll(query))
+        factory = self._factory()
+        if not factory:
+            return 0
+
+        where_clauses = []
+        params = {}
+        if query:
+            for k, v in query.items():
+                if k in ("_id", "id"):
+                    where_clauses.append("id = :id")
+                    params["id"] = int(v) if str(v).isdigit() else 0
+                elif k in self.scalar_map:
+                    col = self.scalar_map[k]
+                    p = _param(col)
+                    where_clauses.append(f"{_q(col)} = :{p}")
+                    if k in self.bool_api_keys:
+                        params[p] = 1 if v else 0
+                    else:
+                        params[p] = v
+
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+        async with factory() as session:
+            result = await session.execute(
+                text(f"SELECT COUNT(*) FROM {self.table_name} WHERE {where_sql}"), params
+            )
+            count_val = result.scalar()
+        return int(count_val) if count_val else 0
 
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+

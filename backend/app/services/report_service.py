@@ -18,12 +18,15 @@ class ReportService:
     def __init__(self):
         pass
 
-    async def _read_tracking_data(self) -> List[Dict[str, Any]]:
-        """Read all tracking events from the MySQL tracking table."""
+    async def _read_tracking_data(self, start_date: Optional[datetime] = None, limit: int = 50000) -> List[Dict[str, Any]]:
+        """Read tracking events from the MySQL tracking table with a safety limit."""
         try:
             from app.db.storage_factory import get_storage
             storage = get_storage("tracking")
-            records = await storage.findAll()
+            query = {}
+            if start_date:
+                query["timestamp"] = {"$gte": start_date.isoformat()}
+            records = await storage.findAll(query, limit=limit)
             return records if records else []
         except Exception as e:
             logger.error("Error reading tracking data from MySQL: %s", str(e), exc_info=True)
@@ -38,9 +41,13 @@ class ReportService:
             date = datetime.now() - timedelta(days=1)
 
         target_date_str = date.strftime("%Y-%m-%d")
-        events = await self._read_tracking_data()
+        
+        # Start of the target day
+        start_date = datetime.strptime(target_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        
+        events = await self._read_tracking_data(start_date=start_date, limit=100000)
 
-        # Filter events for the target date
+        # Filter events for the exact target date (since we used >= start_date)
         day_events = [e for e in events if e.get("timestamp", "").startswith(target_date_str)]
 
         # Separate search events and conversion events

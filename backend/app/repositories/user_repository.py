@@ -10,8 +10,8 @@ class UserRepository:
     def __init__(self):
         self.storage = get_storage("users")
 
-    async def findAll(self, query: Optional[Dict] = None):
-        return await self.storage.findAll(query or {})
+    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
+        return await self.storage.findAll(query or {}, skip=skip, limit=limit)
 
     async def findById(self, id: str):
         return await self.storage.findById(id)
@@ -228,3 +228,4 @@ class UserRepository:
 
 
 user_repository = UserRepository()
+

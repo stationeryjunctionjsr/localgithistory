@@ -244,15 +244,13 @@ class MySQLUserDAO:
                 {"uid": uid, "zn": zone_name, "zi": zone_ext_id},
             )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[Dict]:
         factory = self._factory()
         if not factory:
             return []
         where_sql, params = self._build_query_conditions(query or {})
         async with factory() as session:
-            rows = (
-                await session.execute(
-                    text(f"""
+            query_str = f"""
                 SELECT id, external_id, user_id_formatted, name, email, password_hash,
                        role, phone, company_name, is_active,
                        approval_status, is_deactivated, credit_limit, credit_used, payment_terms,
@@ -260,7 +258,15 @@ class MySQLUserDAO:
                        is_seller_admin, allow_delivery_slots, allow_urgent_delivery, is_on_duty, commission_override_pct,
                        created_at, updated_at
                 FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC
-            """),
+            """
+            if limit is not None:
+                query_str += f" LIMIT {int(limit)}"
+            if skip is not None:
+                query_str += f" OFFSET {int(skip)}"
+            
+            rows = (
+                await session.execute(
+                    text(query_str),
                     params,
                 )
             ).fetchall()

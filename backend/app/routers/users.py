@@ -12,12 +12,14 @@ from app.utils.limiter import limiter
 router = APIRouter()
 
 
-@router.get("", response_model=List[UserResponse])
-@router.get("/", response_model=List[UserResponse])
+@router.get("")
+@router.get("/")
 async def get_users(
     role: Optional[str] = None,
     approvalStatus: Optional[str] = None,
     isActive: Optional[bool] = None,
+    page: Optional[int] = None,
+    limit: Optional[int] = None,
     current_user: dict = Depends(require_super_admin),
 ):
     query = {}
@@ -28,11 +30,26 @@ async def get_users(
     if isActive is not None:
         query["isActive"] = isActive
 
-    users = await user_repository.findAll(query)
+    if page is not None and limit is not None and limit > 0:
+        page = max(1, page)
+        start = (page - 1) * limit
 
-    # Remove passwords
+        users = await user_repository.findAll(query, skip=start, limit=limit)
+        total = await user_repository.count(query) if hasattr(user_repository, "count") else len(users)
+
+        # Remove passwords
+        users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
+
+        return {
+            "users": [UserResponse(**user) for user in users_without_passwords],
+            "total": total,
+            "page": page,
+            "limit": limit
+        }
+        
+    # No pagination -- return all (backwards compatible), capped at 1000 rows to protect memory
+    users = await user_repository.findAll(query, limit=1000)
     users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
-
     return [UserResponse(**user) for user in users_without_passwords]
 
 

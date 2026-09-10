@@ -120,7 +120,7 @@ class MySQLTrackingDAO:
                 {"tid": tid, "k": str(k), "v": str(v)},
             )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[Dict]:
         factory = self._factory()
         if not factory:
             return []
@@ -137,8 +137,14 @@ class MySQLTrackingDAO:
                     params[k] = v
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        query_str = f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"
+        if limit is not None:
+            query_str += f" LIMIT {int(limit)}"
+        if skip is not None:
+            query_str += f" OFFSET {int(skip)}"
+            
         async with factory() as session:
-            res = await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params)
+            res = await session.execute(text(query_str), params)
             rows = res.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [self._row_to_doc(r, c_map[r.id]) for r in rows]
