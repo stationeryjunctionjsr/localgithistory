@@ -128,8 +128,8 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
                         "name": seller_doc.get("name", ""),
                         "companyName": seller_doc.get("companyName", seller_doc.get("name", "")),
                         "city": seller_doc.get("city") or seller_doc.get("address", {}).get("city"),
-                        "allowUrgentDelivery": bool(perms.get("allowUrgentDelivery", False)),
-                        "allowDeliverySlots": bool(perms.get("allowDeliverySlots", True)),
+                        "allowUrgentDelivery": platform_urgent,
+                        "allowDeliverySlots": True,  # zone slot configs are the gate; set True so frontend defers to slotBookingAvailable
                     })
             except Exception as exc:
                 from app.utils.logger import logger
@@ -148,8 +148,8 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
                         "name": seller_doc.get("name", ""),
                         "companyName": seller_doc.get("companyName", seller_doc.get("name", "")),
                         "city": seller_doc.get("city") or seller_doc.get("address", {}).get("city"),
-                        "allowUrgentDelivery": bool(perms.get("allowUrgentDelivery", False)),
-                        "allowDeliverySlots": bool(perms.get("allowDeliverySlots", True)),
+                        "allowUrgentDelivery": platform_urgent,
+                        "allowDeliverySlots": True,  # zone slot configs are the gate; set True so frontend defers to slotBookingAvailable
                     })
                 except Exception as exc:
                     from app.utils.logger import logger

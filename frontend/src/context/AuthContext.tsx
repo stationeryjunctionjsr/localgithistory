@@ -28,10 +28,7 @@ interface User {
   // Seller admin fields
   isSellerAdmin?: boolean;
   sellerPermissions?: {
-    allowUrgentDelivery?: boolean;
     serviceablePincodes?: string[];
-    urgentPincodes?: string[];
-    slotPincodes?: string[];
   };
   // Valet fields
   isOnDuty?: boolean;

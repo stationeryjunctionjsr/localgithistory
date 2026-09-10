@@ -137,22 +137,7 @@ export default function SellerProfilePage() {
         {field('Phone', 'phone')}
         {field('Email', 'email', true)}
 
-        {/* Permissions banner */}
-        <div style={{ background: '#f0f9ff', borderRadius: 10, padding: '14px 16px', border: '1px solid #bae6fd' }}>
-          <div style={{ fontWeight: 600, fontSize: 13, color: '#0369a1', marginBottom: 8 }}>Seller Permissions</div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <span style={{
-              fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-              background: user?.sellerPermissions?.allowUrgentDelivery ? '#dcfce7' : '#f3f4f6',
-              color: user?.sellerPermissions?.allowUrgentDelivery ? '#15803d' : '#9ca3af',
-            }}>
-              {user?.sellerPermissions?.allowUrgentDelivery ? '✓' : '✗'} Urgent Delivery
-            </span>
-          </div>
-          <p style={{ fontSize: 12, color: '#64748b', marginTop: 8, marginBottom: 0 }}>
-            Contact the platform admin to change permissions.
-          </p>
-        </div>
+        {/* Delivery options are determined by the seller's assigned zone */}
 
         <button
           onClick={handleSave}

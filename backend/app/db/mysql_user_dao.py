@@ -255,7 +255,7 @@ class MySQLUserDAO:
                        role, phone, company_name, is_active,
                        approval_status, is_deactivated, credit_limit, credit_used, payment_terms,
                        assigned_salesperson, is_email_verified, referral_code,
-                       is_seller_admin, allow_delivery_slots, allow_urgent_delivery, is_on_duty, commission_override_pct,
+                       is_seller_admin, is_on_duty, commission_override_pct,
                        created_at, updated_at
                 FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC
             """
@@ -316,7 +316,7 @@ class MySQLUserDAO:
                        role, phone, company_name, is_active,
                        approval_status, is_deactivated, credit_limit, credit_used, payment_terms,
                        assigned_salesperson, is_email_verified, referral_code,
-                       is_seller_admin, allow_delivery_slots, allow_urgent_delivery, is_on_duty, commission_override_pct,
+                       is_seller_admin, is_on_duty, commission_override_pct,
                        created_at, updated_at
                 FROM {self.TABLE} WHERE id = :id
             """),
@@ -340,7 +340,7 @@ class MySQLUserDAO:
                        role, phone, company_name, is_active,
                        approval_status, is_deactivated, credit_limit, credit_used, payment_terms,
                        assigned_salesperson, is_email_verified, referral_code,
-                       is_seller_admin, allow_delivery_slots, allow_urgent_delivery, is_on_duty, commission_override_pct,
+                       is_seller_admin, is_on_duty, commission_override_pct,
                        created_at, updated_at
                 FROM {self.TABLE} WHERE LOWER(email) = :email LIMIT 1
             """),
@@ -367,7 +367,7 @@ class MySQLUserDAO:
                        role, phone, company_name, is_active,
                        approval_status, is_deactivated, credit_limit, credit_used, payment_terms,
                        assigned_salesperson, is_email_verified, referral_code,
-                       is_seller_admin, allow_delivery_slots, allow_urgent_delivery, is_on_duty, commission_override_pct,
+                       is_seller_admin, is_on_duty, commission_override_pct,
                        created_at, updated_at
                 FROM {self.TABLE} WHERE phone = :phone OR REGEXP_REPLACE(phone, '[^0-9]', '') = :normalized LIMIT 1
             """),
@@ -391,7 +391,7 @@ class MySQLUserDAO:
                        role, phone, company_name, is_active,
                        approval_status, is_deactivated, credit_limit, credit_used, payment_terms,
                        assigned_salesperson, is_email_verified, referral_code,
-                       is_seller_admin, allow_delivery_slots, allow_urgent_delivery, is_on_duty, commission_override_pct,
+                       is_seller_admin, is_on_duty, commission_override_pct,
                        created_at, updated_at
                 FROM {self.TABLE} WHERE UPPER(referral_code) = :referral_code LIMIT 1
             """),
@@ -420,12 +420,12 @@ class MySQLUserDAO:
                     external_id, user_id_formatted, name, email, password_hash, role, phone, company_name,
                     is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,
                     assigned_salesperson, is_email_verified, referral_code, is_seller_admin,
-                    allow_delivery_slots, allow_urgent_delivery, is_on_duty, commission_override_pct, created_at, updated_at
+                    is_on_duty, commission_override_pct, created_at, updated_at
                 ) VALUES (
                     :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name,
                     :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,
                     :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,
-                    :allow_delivery_slots, :allow_urgent_delivery, :is_on_duty, :commission_override_pct, :created_at, :updated_at
+                    :is_on_duty, :commission_override_pct, :created_at, :updated_at
                 )
             """),
                 {
@@ -447,10 +447,6 @@ class MySQLUserDAO:
                     "is_email_verified": 1 if data.get("isEmailVerified", False) else 0,
                     "referral_code": data.get("referralCode"),
                     "is_seller_admin": 1 if data.get("isSellerAdmin") else 0,
-                    # "allow_delivery_slots": 1 if data.get("sellerPermissions", {}).get("allowDeliverySlots") else 0,
-                    "allow_delivery_slots": 0,
-                    # "allow_urgent_delivery": 1 if data.get("sellerPermissions", {}).get("allowUrgentDelivery") else 0,
-                    "allow_urgent_delivery": 0,
                     "is_on_duty": 1 if data.get("isOnDuty") else 0,
                     "commission_override_pct": data.get("commissionOverridePct"),
                     "created_at": now,
@@ -507,7 +503,6 @@ class MySQLUserDAO:
                     is_deactivated = :is_deactivated, credit_limit = :credit_limit, credit_used = :credit_used,
                     payment_terms = :payment_terms, assigned_salesperson = :assigned_salesperson,
                     is_email_verified = :is_email_verified, referral_code = :referral_code, is_seller_admin = :is_seller_admin,
-                    allow_delivery_slots = :allow_delivery_slots, allow_urgent_delivery = :allow_urgent_delivery,
                     is_on_duty = :is_on_duty, commission_override_pct = :commission_override_pct, updated_at = :updated_at
                 WHERE id = :id
             """),
@@ -531,10 +526,6 @@ class MySQLUserDAO:
                     "is_email_verified": 1 if merged.get("isEmailVerified", False) else 0,
                     "referral_code": merged.get("referralCode"),
                     "is_seller_admin": 1 if merged.get("isSellerAdmin") else 0,
-                    # "allow_delivery_slots": 1 if merged.get("sellerPermissions", {}).get("allowDeliverySlots") else 0,
-                    "allow_delivery_slots": 0,
-                    # "allow_urgent_delivery": 1 if merged.get("sellerPermissions", {}).get("allowUrgentDelivery") else 0,
-                    "allow_urgent_delivery": 0,
                     "is_on_duty": 1 if merged.get("isOnDuty") else 0,
                     "commission_override_pct": merged.get("commissionOverridePct"),
                     "updated_at": now,
