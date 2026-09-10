@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
@@ -43,7 +43,7 @@ export default function BuyerFrequencyChart({ startDate, endDate, currency }: Bu
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={38} outerRadius={62} dataKey="value" paddingAngle={4}>
                 {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
-              <Tooltip formatter={(v: any, n: any) => [`${v} customers`, n]} />
+              <Tooltip formatter={((v: any, n: any) => [`${v} customers`, n]) as any} />
             </PieChart>
           </ResponsiveContainer>
           <div className="flex flex-1 flex-col gap-2">

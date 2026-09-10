@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -50,7 +50,7 @@ export default function SessionsOverTimeChart({ startDate, endDate }: SessionsOv
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="period" tickFormatter={fmt} tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: any, n: any) => [v.toLocaleString(), n]} labelFormatter={fmt} />
+            <Tooltip formatter={((v: any, n: any) => [v.toLocaleString(), n]) as any} labelFormatter={fmt as any} />
             <Legend />
             <Line type="monotone" dataKey="sessions" stroke="#6366f1" strokeWidth={2} dot={false} name="Sessions" />
             <Line type="monotone" dataKey="uniqueVisitors" stroke="#10b981" strokeWidth={2} dot={false} name="Unique Visitors" />

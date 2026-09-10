@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -60,7 +60,7 @@ export default function SalesByChannelDetailedChart({ startDate, endDate, curren
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis dataKey="channelLabel" tick={{ fontSize:11 }} />
               <YAxis tick={{ fontSize:11 }} tickFormatter={v => active.formatter(v)} width={65} />
-              <Tooltip formatter={(v: any) => [active.formatter(v), active.label]} />
+              <Tooltip formatter={((v: any) => [active.formatter(v), active.label]) as any} />
               <Bar dataKey={active.dataKey} radius={[4,4,0,0]}>
                 {data.map((d,i) => {
                   // eslint-disable-next-line react/jsx-key

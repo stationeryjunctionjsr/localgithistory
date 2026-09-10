@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
@@ -45,7 +45,7 @@ export default function SearchConversionWidget({ startDate, endDate }: SearchCon
                 <Pie data={pieData} cx="50%" cy="50%" innerRadius={32} outerRadius={50} dataKey="value" paddingAngle={3}>
                   <Cell fill="#10b981" /><Cell fill="#e5e7eb" />
                 </Pie>
-                <Tooltip formatter={(v: any, n: any) => [v, n]} />
+                <Tooltip formatter={((v: any, n: any) => [v, n]) as any} />
               </PieChart>
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">

@@ -106,6 +106,7 @@ class MySQLOrderDAO:
             "valetAssignedAt": r.valet_assigned_at.isoformat() + "Z" if getattr(r, "valet_assigned_at", None) else None,
             "valetCascadeCount": getattr(r, "valet_cascade_count", 0),
             "valetDeclineHistory": json_loads(r.valet_decline_history) if getattr(r, "valet_decline_history", None) else [],
+            "isUrgentDelivery": bool(getattr(r, "is_urgent_delivery", False)),
             "shippedAt": r.shipped_at.isoformat() if r.shipped_at else None,
             "deliveredAt": r.delivered_at.isoformat() if r.delivered_at else None,
             "codPaymentReceived": bool(r.cod_payment_received) if r.cod_payment_received is not None else False,
@@ -180,7 +181,7 @@ class MySQLOrderDAO:
                     f"""
                     SELECT id, external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
                            order_type, payment_status, payment_method, upi_payment_screenshot,
-                           ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, valet_decline_history,
+                           ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, valet_decline_history, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                            decline_reason, cancelled_at, cancelled_by, turnaround_hours,
                            created_at, updated_at
@@ -241,7 +242,7 @@ class MySQLOrderDAO:
                     f"""
                     SELECT id, external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
                            order_type, payment_status, payment_method, upi_payment_screenshot,
-                           ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, valet_decline_history,
+                           ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, valet_decline_history, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                            decline_reason, cancelled_at, cancelled_by, turnaround_hours,
                            created_at, updated_at
@@ -296,14 +297,14 @@ class MySQLOrderDAO:
                     INSERT INTO {self.TABLE} (
                         external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
                         order_type, payment_status, payment_method, upi_payment_screenshot,
-                        ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, valet_decline_history,
+                        ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, valet_decline_history, is_urgent_delivery,
                         shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                         decline_reason, cancelled_at, cancelled_by, turnaround_hours,
                         created_at, updated_at
                     ) VALUES (
                         :external_id, :user_id, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
                         :order_type, :payment_status, :payment_method, :upi_payment_screenshot,
-                        :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :valet_decline_history,
+                        :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :valet_decline_history, :is_urgent_delivery,
                                                 :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
                         :decline_reason, :cancelled_at, :cancelled_by, :turnaround_hours,
                         :created_at, :updated_at
@@ -341,6 +342,7 @@ class MySQLOrderDAO:
                     "notes": data.get("notes"),
                     "printed_bill": 1 if data.get("printedBill") else 0,
                                         "assigned_valet": data.get("assignedValet"),
+                    "is_urgent_delivery": 1 if data.get("isUrgentDelivery") else 0,
                     "pending_valet_id": data.get("pendingValetId"),
                     "valet_assigned_at": _to_ts(data.get("valetAssignedAt")),
                     "valet_cascade_count": data.get("valetCascadeCount") or 0,
@@ -402,6 +404,11 @@ class MySQLOrderDAO:
                         notes = :notes,
                         printed_bill = :printed_bill,
                         assigned_valet = :assigned_valet,
+                        pending_valet_id = :pending_valet_id,
+                        valet_assigned_at = :valet_assigned_at,
+                        valet_cascade_count = :valet_cascade_count,
+                        valet_decline_history = :valet_decline_history,
+                        is_urgent_delivery = :is_urgent_delivery,
                         shipped_at = :shipped_at,
                         delivered_at = :delivered_at,
                         cod_payment_received = :cod_payment_received,
@@ -445,6 +452,11 @@ class MySQLOrderDAO:
                     "notes": merged.get("notes"),
                     "printed_bill": 1 if merged.get("printedBill") else 0,
                     "assigned_valet": merged.get("assignedValet"),
+                    "pending_valet_id": merged.get("pendingValetId"),
+                    "valet_assigned_at": _to_ts(merged.get("valetAssignedAt")),
+                    "valet_cascade_count": merged.get("valetCascadeCount") or 0,
+                    "valet_decline_history": json_dumps(merged.get("valetDeclineHistory")) if merged.get("valetDeclineHistory") else "[]",
+                    "is_urgent_delivery": 1 if merged.get("isUrgentDelivery") else 0,
                     "shipped_at": _to_ts(merged.get("shippedAt")),
                     "delivered_at": _to_ts(merged.get("deliveredAt")),
                     "cod_payment_received": 1 if merged.get("codPaymentReceived") else 0,

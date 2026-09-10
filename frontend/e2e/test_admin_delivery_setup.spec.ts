@@ -31,6 +31,6 @@ test.describe('Admin - Delivery Setup (Charges, Pincodes, Zones)', () => {
   test('Delivery Charges renders', async ({ page }) => {
     await page.goto('/admin/delivery-charges');
     await expect(page.getByRole('heading', { name: /Delivery Charges/i }).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('500')).first().toBeVisible({ timeout: 10000 }); // minCartValue
+    await expect(page.getByText('500').first()).toBeVisible({ timeout: 10000 }); // minCartValue
   });
 });

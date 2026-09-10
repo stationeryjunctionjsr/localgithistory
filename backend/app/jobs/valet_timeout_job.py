@@ -175,8 +175,18 @@ async def _find_next_available_valet(order: dict, skip_valet_ids: list) -> dict 
     # Step 1+2: Get all on-duty valets
     all_valets = await user_repository.findAll({"role": "valet", "isOnDuty": True})
 
-    # Filter out skip_valet_ids
-    eligible_valets = [v for v in all_valets if str(v["_id"]) not in skip_valet_ids]
+    # Build skip set — skip_valet_ids may be a list of dicts {"valetId": ...} or plain strings
+    skip_ids: set[str] = set()
+    for entry in skip_valet_ids:
+        if isinstance(entry, dict):
+            vid = entry.get("valetId")
+            if vid:
+                skip_ids.add(str(vid))
+        else:
+            skip_ids.add(str(entry))
+
+    # Filter out already-declined/timed-out valets
+    eligible_valets = [v for v in all_valets if str(v["_id"]) not in skip_ids]
     if not eligible_valets:
         return None
 
@@ -296,49 +306,57 @@ async def _find_next_available_valet_for_return(return_req: dict, skip_valet_ids
     # Step 1+2: Get all on-duty valets
     all_valets = await user_repository.findAll({"role": "valet", "isOnDuty": True})
 
-    # Step 3: Pincode filter (customer pickup location)
-    pincode_valets = [
-        v
-        for v in all_valets
-        if customer_pincode in (v.get("serviceAreaPincodes") or []) and str(v["_id"]) not in skip_valet_ids
-    ]
-    if not pincode_valets:
+    # Build skip set — skip_valet_ids may be dicts {"valetId": ...} or plain strings
+    skip_ids: set[str] = set()
+    for entry in skip_valet_ids:
+        if isinstance(entry, dict):
+            vid = entry.get("valetId")
+            if vid:
+                skip_ids.add(str(vid))
+        else:
+            skip_ids.add(str(entry))
+
+    eligible_valets = [v for v in all_valets if str(v["_id"]) not in skip_ids]
+    if not eligible_valets:
         return None
 
-    # Resolve Zone for customer's pincode
-    customer_zone_id = None
-    zone_storage = get_storage("deliveryZones")
-    all_zones = await zone_storage.findAll({"isActive": True})
-    for z in all_zones:
-        if customer_pincode in z.get("pincodes", []):
-            customer_zone_id = str(z.get("_id"))
-            break
+    # Step 3: Resolve customer pincode → zone (same as forward orders)
+    from app.repositories.zone_seller_cache import get_zone_for_pincode
 
-    # Step 4: Availability filter
+    zone_doc = await get_zone_for_pincode(customer_pincode)
+    if not zone_doc:
+        logger.warning(
+            "[ValetTimeout] Return %s: customer pincode %s not in any zone — cannot route",
+            return_req.get("_id"),
+            customer_pincode,
+        )
+        return None
+    customer_zone_id = str(zone_doc["_id"])
+
+    # Step 4: Availability filter + zone check
     availability_storage = get_storage("valetAvailability")
     query_date = slot_date if slot_id else dt_date.today().isoformat()
     availability_docs = await availability_storage.findAll({"date": query_date})
     avail_map: dict[str, dict] = {doc["valetId"]: doc for doc in availability_docs}
 
     available_valets = []
-    for v in pincode_valets:
+    for v in eligible_valets:
         vid = str(v["_id"])
         avail = avail_map.get(vid)
         if not avail:
             continue
-            
-        # Intersect with valet's active zones
-        if customer_zone_id:
-            valet_daily_zones = avail.get("zones") or []
-            if customer_zone_id not in valet_daily_zones:
-                continue
+
+        # Valet must cover the customer's zone today
+        valet_daily_zones = set(avail.get("zones") or [])
+        if customer_zone_id not in valet_daily_zones:
+            continue
 
         if slot_id:
-            # Slot-based flow: valet must have full_day or matching slot
+            # Slot-based flow: valet must be full_day or have the matching slot
             if avail.get("availabilityType") == "full_day" or slot_id in avail.get("slots", []):
                 available_valets.append(v)
         else:
-            # Normal flow (no slot confirmation required): full_day or has any marked slots
+            # Normal flow: full_day or has any marked slots
             if avail.get("availabilityType") == "full_day" or len(avail.get("slots", [])) > 0:
                 available_valets.append(v)
 

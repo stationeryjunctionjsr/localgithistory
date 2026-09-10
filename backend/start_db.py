@@ -13,9 +13,9 @@ import oci
 
 
 def main():
-    db_type = os.environ.get("DB_TYPE", "oracle").lower()
-    if db_type == "mysql":
-        print("DB_TYPE=mysql — skipping Oracle Autonomous DB startup.", flush=True)
+    db_url = os.environ.get("DATABASE_URL", "").lower()
+    if db_url.startswith("mysql"):
+        print("DATABASE_URL is MySQL — skipping Oracle Autonomous DB startup.", flush=True)
         return
 
     key_content = os.environ.get("OCI_PRIVATE_KEY", "").replace("\\n", "\n")

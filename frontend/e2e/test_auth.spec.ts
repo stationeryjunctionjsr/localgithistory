@@ -78,7 +78,7 @@ test.describe('Flow 1: Sign up and Login', () => {
     await submitBtn.evaluate((btn) => {
       const form = btn.closest('form');
       if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-      else btn.click();
+      else (btn as HTMLElement).click();
     });
     
     // 6. Verify successful login

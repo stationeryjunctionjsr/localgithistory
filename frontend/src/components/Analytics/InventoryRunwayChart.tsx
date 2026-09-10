@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -58,7 +58,7 @@ export default function InventoryRunwayChart({ startDate, endDate, limit = 15 }:
             <XAxis type="number" tick={{ fontSize:11 }} unit=" d" />
             <YAxis dataKey="name" type="category" tick={{ fontSize:10 }} width={110}
               tickFormatter={(v: string) => v.length > 16 ? v.slice(0, 15) + '\u2026' : v} />
-            <Tooltip formatter={(v: any) => [`${v} days`, 'Days Remaining']} labelFormatter={(l: any) => `Product: ${l}`} />
+            <Tooltip formatter={((v: any) => [`${v} days`, 'Days Remaining']) as any} labelFormatter={((l: any) => `Product: ${l}`) as any} />
             <Bar dataKey="daysRemaining" radius={[0,3,3,0]} name="Days Remaining">
               {data.map((row, i) => <Cell key={i} fill={riskColor(row.daysRemaining)} />)}
             </Bar>

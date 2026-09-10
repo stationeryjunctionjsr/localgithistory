@@ -302,15 +302,6 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
                           </span>
                         )}
                       </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          router.push(`${userBasePath}/wishlist`);
-                        }}
-                      >
-                        Wishlist
-                      </button>
                       {user?.role !== 'valet' && (
                         <button
                           className={styles.dropdownItem}
@@ -333,59 +324,6 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
                           Dashboard
                         </button>
                       )}
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          setShowFeedbackModal(true);
-                        }}
-                      >
-                        Give Feedback
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          setShowAccessibilityModal(true);
-                        }}
-                      >
-                        Accessibility Settings
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          router.push('/support');
-                        }}
-                      >
-                        Support
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          router.push('/faq');
-                        }}
-                      >
-                        FAQ
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          router.push('/about');
-                        }}
-                      >
-                        About Us
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          router.push('/privacy-policy');
-                        }}
-                      >
-                        Privacy Policy
                       </button>
                       {user?.role === 'super_admin' && (
                         <button
@@ -424,64 +362,10 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
                         className={styles.dropdownItem}
                         onClick={() => {
                           setShowProfileDropdown(false);
-                          router.push('/customer/wishlist');
-                        }}
-                      >
-                        Wishlist
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
                           router.push('/register');
                         }}
                       >
                         Register
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          setShowAccessibilityModal(true);
-                        }}
-                      >
-                        Accessibility Settings
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          router.push('/support');
-                        }}
-                      >
-                        Support
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          router.push('/faq');
-                        }}
-                      >
-                        FAQ
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          router.push('/about');
-                        }}
-                      >
-                        About Us
-                      </button>
-                      <button
-                        className={styles.dropdownItem}
-                        onClick={() => {
-                          setShowProfileDropdown(false);
-                          router.push('/privacy-policy');
-                        }}
-                      >
-                        Privacy Policy
                       </button>
                     </>
                   )}
