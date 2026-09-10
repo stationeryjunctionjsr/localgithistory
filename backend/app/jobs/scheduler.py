@@ -118,6 +118,8 @@ def start_recommendation_scheduler():
         "interval",
         minutes=1,
         id="valet_timeout_job",
+        max_instances=1,
+        coalesce=True,
     )
     # Seller Availability Tick: Every 15 minutes
     from app.routers.seller_availability import tick_availability_statuses
