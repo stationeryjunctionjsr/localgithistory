@@ -121,11 +121,25 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
 
         role = current_user.get("effectiveRole") or current_user.get("role", "customer")
 
-        available_stock = await product_repository.get_available_stock(
-            item.productId, exclude_user_id=current_user.get("_id")
-        )
-        if available_stock < item.quantity:
-            raise HTTPException(status_code=400, detail=f"Insufficient stock. Available: {available_stock}")
+        # Get existing cart to calculate final quantity
+        cart = await cart_repository.findByUser(current_user.get("_id"))
+        existing_total_qty = 0
+        if cart:
+            existing_total_qty = sum(
+                i.get("quantity", 0) for i in cart.get("items", []) if i.get("product") == item.productId
+            )
+
+        final_qty = existing_total_qty + item.quantity
+
+        from app.repositories.stock_reservation_repository import stock_reservation_repository
+
+        ttl_minutes = 30 if role == "wholesaler" else 10
+        try:
+            await stock_reservation_repository.reserve_stock_checked(
+                product_id=item.productId, user_id=current_user.get("_id"), quantity=final_qty, ttl_minutes=ttl_minutes
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
         sell_as_case = getattr(item, "sellAsCase", False)
 
@@ -141,8 +155,6 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
         elif sell_as_case and role == "customer":
             sell_as_case = False  # Retail: ignore sellAsCase
 
-        # Get existing cart and match item by product + sellAsCase
-        cart = await cart_repository.findByUser(current_user.get("_id"))
         import uuid
 
         new_item = {
@@ -150,7 +162,7 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
             "product": item.productId,
             "quantity": item.quantity,
             "sellAsCase": sell_as_case,
-            "variantAttributes": item.variantAttributes,
+            "variantAttributes": getattr(item, "variantAttributes", None),
         }
 
         if cart:
@@ -166,8 +178,6 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
             )
             if existing_item:
                 new_quantity = existing_item.get("quantity", 0) + item.quantity
-                if available_stock < new_quantity:
-                    raise HTTPException(status_code=400, detail=f"Insufficient stock. Available: {available_stock}")
                 items = cart.get("items", [])
                 for i, it in enumerate(items):
                     if it.get("_id") == existing_item.get("_id"):
@@ -178,18 +188,6 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
                 await cart_repository.addItem(current_user.get("_id"), new_item)
         else:
             await cart_repository.addItem(current_user.get("_id"), new_item)
-
-        # Update stock reservation
-        updated_cart = await cart_repository.findByUser(current_user.get("_id"))
-        final_qty = sum(
-            i.get("quantity", 0) for i in updated_cart.get("items", []) if i.get("product") == item.productId
-        )
-        from app.repositories.stock_reservation_repository import stock_reservation_repository
-
-        ttl_minutes = 30 if role == "wholesaler" else 10
-        await stock_reservation_repository.reserve_stock(
-            product_id=item.productId, user_id=current_user.get("_id"), quantity=final_qty, ttl_minutes=ttl_minutes
-        )
 
         # Automatically remove from wishlist
         from app.repositories.wishlist_repository import wishlist_repository
@@ -235,12 +233,6 @@ async def update_cart_item(
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
 
-        available_stock = await product_repository.get_available_stock(
-            item.get("product"), exclude_user_id=current_user.get("_id")
-        )
-        if available_stock < quantity:
-            raise HTTPException(status_code=400, detail=f"Insufficient stock. Available: {available_stock}")
-
         role = current_user.get("effectiveRole") or current_user.get("role", "customer")
         sell_as_case = item.get("sellAsCase", False)
         if sell_as_case and role == "wholesaler":
@@ -250,26 +242,32 @@ async def update_cart_item(
                     status_code=400, detail=f"Quantity must be a multiple of {qty_per_case} (quantity per case)"
                 )
 
-        # Update item (price is recalculated on GET)
+        # Calculate final_qty BEFORE updating cart
         items = cart.get("items", [])
+        final_qty = 0
+        for it in items:
+            if it.get("_id") == item_id:
+                final_qty += quantity
+            elif it.get("product") == item.get("product"):
+                final_qty += it.get("quantity", 0)
+
+        from app.repositories.stock_reservation_repository import stock_reservation_repository
+        ttl_minutes = 30 if role == "wholesaler" else 10
+        
+        try:
+            await stock_reservation_repository.reserve_stock_checked(
+                product_id=item.get("product"), user_id=current_user.get("_id"), quantity=final_qty, ttl_minutes=ttl_minutes
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        # Apply update
         for i, it in enumerate(items):
             if it.get("_id") == item_id:
                 items[i]["quantity"] = quantity
                 break
 
         await cart_repository.createOrUpdate(current_user.get("_id"), items)
-
-        # Update stock reservation
-        updated_cart = await cart_repository.findByUser(current_user.get("_id"))
-        final_qty = sum(
-            i.get("quantity", 0) for i in updated_cart.get("items", []) if i.get("product") == item.get("product")
-        )
-        from app.repositories.stock_reservation_repository import stock_reservation_repository
-
-        ttl_minutes = 30 if role == "wholesaler" else 10
-        await stock_reservation_repository.reserve_stock(
-            product_id=item.get("product"), user_id=current_user.get("_id"), quantity=final_qty, ttl_minutes=ttl_minutes
-        )
 
         return {"message": "Cart updated"}
     except HTTPException:
