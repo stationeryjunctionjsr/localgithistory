@@ -11,7 +11,6 @@ from app.db.mysql_banner_dao import MySQLBannerDAO
 from app.db.mysql_brand_dao import MySQLBrandDAO
 from app.db.mysql_cart_dao import MySQLCartDAO
 from app.db.mysql_category_dao import MySQLCategoryDAO
-from app.db.mysql_coupon_dao import MySQLCouponDAO
 from app.db.mysql_feature_flag_dao import MySQLFeatureFlagDAO
 from app.db.mysql_order_dao import MySQLOrderDAO
 from app.db.mysql_payment_dao import MySQLPaymentDAO
@@ -48,7 +47,6 @@ _MYSQL_DAO_COLLECTIONS = {
     "carts": MySQLCartDAO,
     "wishlists": MySQLWishlistDAO,
     "sessions": MySQLSessionDAO,
-    "coupons": MySQLCouponDAO,
     "brands": MySQLBrandDAO,
     "categories": MySQLCategoryDAO,
     "banners": MySQLBannerDAO,

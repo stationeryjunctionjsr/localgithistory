@@ -729,6 +729,10 @@ CREATE TABLE `sj_orders` (
   `notes` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `printed_bill` tinyint(1) NOT NULL DEFAULT '0',
   `assigned_valet` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `pending_valet_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `valet_assigned_at` datetime DEFAULT NULL,
+  `valet_cascade_count` int DEFAULT '0',
+  `is_urgent_delivery` tinyint(1) NOT NULL DEFAULT '0',
   `shipped_at` datetime DEFAULT NULL,
   `delivered_at` datetime DEFAULT NULL,
   `cod_payment_received` tinyint(1) NOT NULL DEFAULT '0',
@@ -1106,7 +1110,6 @@ CREATE TABLE `sj_return_requests` (
   `valet_accepted_at` datetime DEFAULT NULL,
   `valet_declined_at` datetime DEFAULT NULL,
   `valet_decline_reason` varchar(1000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `valet_decline_history` longtext COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_return_requests_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1709,3 +1712,13 @@ CREATE TABLE `sj_wishlists` (
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+CREATE TABLE `sj_order_valet_declines` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `parent_id` int NOT NULL,
+  `valet_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_sj_order_valet_declines` (`parent_id`),
+  CONSTRAINT `fk_sj_order_valet_declines` FOREIGN KEY (`parent_id`) REFERENCES `sj_orders` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

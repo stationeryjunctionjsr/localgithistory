@@ -25,6 +25,29 @@ def _dao(
 
 # Collection name -> TypedDocDAO instance (parent-only; no child tables)
 TYPED_DOC_DAOS = {
+    "coupons": _dao(
+        "sj_coupons",
+        {
+            "code": "code",
+            "discountType": "discount_type",
+            "discountValue": "discount_value",
+            "minOrderValue": "min_order_value",
+            "maxUses": "max_uses",
+            "usedCount": "used_count",
+            "validFrom": "start_date",
+            "validUntil": "end_date",
+            "isActive": "is_active",
+            "typeOfDiscount": "type_of_discount",
+            "method": "method",
+            "minRequirementType": "min_requirement_type",
+            "minQuantityOfEligibleItems": "min_quantity_of_eligible_items",
+            "maxDiscountAmount": "max_discount_amount",
+            "appliesToType": "applies_to_type"
+        },
+        {},
+        {"isActive"}
+    ),
+
     "activities": _dao(
         "sj_activities",
         {

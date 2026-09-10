@@ -124,12 +124,6 @@ async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional
 
             seller_ids = set(await _get_sellers_for_zone(zone_str_id))
 
-            # Legacy fallback: if no seller has declared this zone yet, use zone.sellerIds[]
-            if not seller_ids:
-                legacy = zone.get("sellerIds") or []
-                if legacy:
-                    seller_ids = {str(s) for s in legacy}
-
             return zone_str_id, seller_ids
 
         return None, None

@@ -201,6 +201,18 @@ class DynamicRelationalDAO:
 
 
 TABLES_CONFIG = {
+    "sj_coupons": {
+        "api_name": "coupons",
+        "child_tables": {
+            "quantityTiers": ("sj_coupon_quantity_tiers", ["min_qty", "discount_value"], ["minQuantity", "discountValue"], False, False),
+            "applicableRoles": ("sj_coupon_roles", ["role"], [""], True, False),
+            "applicableUserIds": ("sj_coupon_users", ["user_id"], [""], True, False),
+            "applicableCategories": ("sj_coupon_categories", ["category"], [""], True, False),
+            "appliesToValueIds": ("sj_coupon_applies_to_values", ["value_id"], [""], True, False),
+            "excludedProductIds": ("sj_coupon_excluded_products", ["product_id"], [""], True, False)
+        }
+    },
+
     "sj_activities": {
         "api_name": "activities",
         "child_tables": {"meta": ("sj_activity_meta", ["meta_key", "meta_value"], ["key", "value"], False, True)},

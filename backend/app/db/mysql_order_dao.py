@@ -42,7 +42,7 @@ class MySQLOrderDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    async def _load_items(self, session, order_id: int) -> List[Dict]:
+    async def _load_children(self, session, order_id: int) -> tuple[list[dict], list[dict]]:
         result = await session.execute(
             text(
                 f"""
@@ -53,19 +53,17 @@ class MySQLOrderDAO:
             ),
             {"order_id": order_id},
         )
-        rows = result.fetchall()
-        items: List[Dict] = []
-        for r in rows:
-            items.append(
-                {
-                    "product": str(r.product_id),
-                    "quantity": int(r.quantity) if r.quantity is not None else 0,
-                    "price": float(r.price) if r.price is not None else 0.0,
-                }
-            )
-        return items
+        items = [{"product": str(r.product_id), "quantity": int(r.quantity) if r.quantity is not None else 0, "price": float(r.price) if r.price is not None else 0.0} for r in result.fetchall()]
 
-    def _row_to_doc(self, r, items: List[Dict]) -> Dict:
+        decl_res = await session.execute(
+            text("SELECT valet_id, reason FROM sj_order_valet_declines WHERE parent_id = :order_id"),
+            {"order_id": order_id},
+        )
+        declines = [{"valetId": str(r.valet_id), "reason": r.reason} for r in decl_res.fetchall()]
+
+        return items, declines
+
+    def _row_to_doc(self, r, items: List[Dict], declines: List[Dict]) -> Dict:
         return {
             "_id": str(r.id),
             "orderNumber": r.order_number,
@@ -80,9 +78,7 @@ class MySQLOrderDAO:
             "status": r.status,
             "paymentStatus": r.payment_status,
             "paymentMethod": r.payment_method,
-            "upiPaymentScreenshot": json_loads(r.upi_payment_screenshot)
-            if r.upi_payment_screenshot
-            else r.upi_payment_screenshot,
+            "upiPaymentScreenshot": r.upi_payment_screenshot,
             "shippingAddress": {
                 "name": r.ship_name,
                 "phone": r.ship_phone,
@@ -105,7 +101,7 @@ class MySQLOrderDAO:
             "pendingValetId": getattr(r, "pending_valet_id", None),
             "valetAssignedAt": r.valet_assigned_at.isoformat() + "Z" if getattr(r, "valet_assigned_at", None) else None,
             "valetCascadeCount": getattr(r, "valet_cascade_count", 0),
-            "valetDeclineHistory": json_loads(r.valet_decline_history) if getattr(r, "valet_decline_history", None) else [],
+            "valetDeclineHistory": declines,
             "isUrgentDelivery": bool(getattr(r, "is_urgent_delivery", False)),
             "shippedAt": r.shipped_at.isoformat() if r.shipped_at else None,
             "deliveredAt": r.delivered_at.isoformat() if r.delivered_at else None,
@@ -181,7 +177,7 @@ class MySQLOrderDAO:
                     f"""
                     SELECT id, external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
                            order_type, payment_status, payment_method, upi_payment_screenshot,
-                           ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, valet_decline_history, is_urgent_delivery,
+                           ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                            decline_reason, cancelled_at, cancelled_by, turnaround_hours,
                            created_at, updated_at
@@ -202,6 +198,8 @@ class MySQLOrderDAO:
             # Handle MySQL IN limit
             items_map: Dict[int, List[Dict]] = {oid: [] for oid in order_ids}
             chunks = [order_ids[i : i + 999] for i in range(0, len(order_ids), 999)]
+
+            declines_map: Dict[int, List[Dict]] = {oid: [] for oid in order_ids}
 
             for chunk in chunks:
                 chunk_params = {f"oid_{i}": oid for i, oid in enumerate(chunk)}
@@ -224,8 +222,15 @@ class MySQLOrderDAO:
                             "price": float(ir.price) if ir.price is not None else 0.0,
                         }
                     )
+                
+                decl_result = await session.execute(
+                    text(f"SELECT parent_id, valet_id, reason FROM sj_order_valet_declines WHERE parent_id IN ({placeholders})"),
+                    chunk_params,
+                )
+                for dr in decl_result.fetchall():
+                    declines_map[dr.parent_id].append({"valetId": str(dr.valet_id), "reason": dr.reason})
 
-            return [self._row_to_doc(r, items_map[int(r.id)]) for r in rows]
+            return [self._row_to_doc(r, items_map[int(r.id)], declines_map[int(r.id)]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -242,7 +247,7 @@ class MySQLOrderDAO:
                     f"""
                     SELECT id, external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
                            order_type, payment_status, payment_method, upi_payment_screenshot,
-                           ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, valet_decline_history, is_urgent_delivery,
+                           ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                            decline_reason, cancelled_at, cancelled_by, turnaround_hours,
                            created_at, updated_at
@@ -255,10 +260,10 @@ class MySQLOrderDAO:
             row = result.fetchone()
             if not row:
                 return None
-            items = await self._load_items(session, oid)
-        return self._row_to_doc(row, items)
+            items, declines = await self._load_children(session, oid)
+        return self._row_to_doc(row, items, declines)
 
-    async def _replace_items(self, session, order_id: int, items: List[Dict]) -> None:
+    async def _replace_children(self, session, order_id: int, items: List[Dict], declines: List[Dict]) -> None:
         await session.execute(
             text(f"DELETE FROM {self.ITEMS_TABLE} WHERE order_id = :order_id"),
             {"order_id": order_id},
@@ -279,6 +284,16 @@ class MySQLOrderDAO:
                 ),
                 {"order_id": order_id, "product_id": pid, "quantity": qty, "price": price},
             )
+            
+        await session.execute(
+            text("DELETE FROM sj_order_valet_declines WHERE parent_id = :order_id"),
+            {"order_id": order_id},
+        )
+        for d in declines or []:
+            await session.execute(
+                text("INSERT INTO sj_order_valet_declines (parent_id, valet_id, reason) VALUES (:order_id, :vid, :r)"),
+                {"order_id": order_id, "vid": str(d.get("valetId", "")), "r": d.get("reason")}
+            )
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -297,14 +312,14 @@ class MySQLOrderDAO:
                     INSERT INTO {self.TABLE} (
                         external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
                         order_type, payment_status, payment_method, upi_payment_screenshot,
-                        ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, valet_decline_history, is_urgent_delivery,
+                        ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                         shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                         decline_reason, cancelled_at, cancelled_by, turnaround_hours,
                         created_at, updated_at
                     ) VALUES (
                         :external_id, :user_id, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
                         :order_type, :payment_status, :payment_method, :upi_payment_screenshot,
-                        :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :valet_decline_history, :is_urgent_delivery,
+                        :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :is_urgent_delivery,
                                                 :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
                         :decline_reason, :cancelled_at, :cancelled_by, :turnaround_hours,
                         :created_at, :updated_at
@@ -324,9 +339,7 @@ class MySQLOrderDAO:
                     "order_type": data.get("orderType"),
                     "payment_status": data.get("paymentStatus"),
                     "payment_method": data.get("paymentMethod"),
-                    "upi_payment_screenshot": json_dumps(data.get("upiPaymentScreenshot"))
-                    if isinstance(data.get("upiPaymentScreenshot"), (dict, list))
-                    else data.get("upiPaymentScreenshot"),
+                    "upi_payment_screenshot": data.get("upiPaymentScreenshot"),
                     "ship_name": (data.get("shippingAddress") or {}).get("name"),
                     "ship_street": (data.get("shippingAddress") or {}).get("street"),
                     "ship_city": (data.get("shippingAddress") or {}).get("city"),
@@ -346,7 +359,7 @@ class MySQLOrderDAO:
                     "pending_valet_id": data.get("pendingValetId"),
                     "valet_assigned_at": _to_ts(data.get("valetAssignedAt")),
                     "valet_cascade_count": data.get("valetCascadeCount") or 0,
-                    "valet_decline_history": json_dumps(data.get("valetDeclineHistory")) if data.get("valetDeclineHistory") else "[]",
+                    
                     "shipped_at": _to_ts(data.get("shippedAt")),
                     "delivered_at": _to_ts(data.get("deliveredAt")),
                     "cod_payment_received": 1 if data.get("codPaymentReceived") else 0,
@@ -364,7 +377,7 @@ class MySQLOrderDAO:
                 {"eid": external_id},
             )
             new_id = int(r.scalar() or 0)
-            await self._replace_items(session, new_id, data.get("items") or [])
+            await self._replace_children(session, new_id, data.get("items") or [], data.get("valetDeclineHistory") or [])
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -407,7 +420,6 @@ class MySQLOrderDAO:
                         pending_valet_id = :pending_valet_id,
                         valet_assigned_at = :valet_assigned_at,
                         valet_cascade_count = :valet_cascade_count,
-                        valet_decline_history = :valet_decline_history,
                         is_urgent_delivery = :is_urgent_delivery,
                         shipped_at = :shipped_at,
                         delivered_at = :delivered_at,
@@ -434,9 +446,7 @@ class MySQLOrderDAO:
                     "order_type": merged.get("orderType"),
                     "payment_status": merged.get("paymentStatus"),
                     "payment_method": merged.get("paymentMethod"),
-                    "upi_payment_screenshot": json_dumps(merged.get("upiPaymentScreenshot"))
-                    if isinstance(merged.get("upiPaymentScreenshot"), (dict, list))
-                    else merged.get("upiPaymentScreenshot"),
+                    "upi_payment_screenshot": merged.get("upiPaymentScreenshot"),
                     "ship_name": (merged.get("shippingAddress") or {}).get("name"),
                     "ship_street": (merged.get("shippingAddress") or {}).get("street"),
                     "ship_city": (merged.get("shippingAddress") or {}).get("city"),
@@ -455,7 +465,7 @@ class MySQLOrderDAO:
                     "pending_valet_id": merged.get("pendingValetId"),
                     "valet_assigned_at": _to_ts(merged.get("valetAssignedAt")),
                     "valet_cascade_count": merged.get("valetCascadeCount") or 0,
-                    "valet_decline_history": json_dumps(merged.get("valetDeclineHistory")) if merged.get("valetDeclineHistory") else "[]",
+                    
                     "is_urgent_delivery": 1 if merged.get("isUrgentDelivery") else 0,
                     "shipped_at": _to_ts(merged.get("shippedAt")),
                     "delivered_at": _to_ts(merged.get("deliveredAt")),
@@ -468,8 +478,7 @@ class MySQLOrderDAO:
                     "updated_at": now,
                 },
             )
-            if "items" in update_data:
-                await self._replace_items(session, oid, update_data.get("items") or [])
+            await self._replace_children(session, oid, update_data.get("items") or [], merged.get("valetDeclineHistory") or [])
             await session.commit()
         return await self.findById(id)
 
