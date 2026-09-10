@@ -2431,8 +2431,8 @@ async def valet_response(
 
     # ── DECLINE ───────────────────────────────────────────────────────────────
     decline_history = list(order.get("valetDeclineHistory") or [])
-    if valet_id and valet_id not in decline_history:
-        decline_history.append(valet_id)
+    if valet_id and not any(isinstance(d, dict) and d.get("valetId") == valet_id for d in decline_history) and valet_id not in decline_history:
+        decline_history.append({"valetId": valet_id, "reason": "declined"})
 
     await order_repository.update(
         order_id,
