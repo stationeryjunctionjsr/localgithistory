@@ -2117,81 +2117,92 @@ async def get_valet_pending_orders(current_user: dict = Depends(get_current_user
     return [await populate_order(o) for o in orders]
 
 
-class ValetResponseRequest(BaseModel):
-    accept: bool
-    declineReason: Optional[str] = None
-
-
-@router.put("/{order_id}/valet-response", response_model=dict)
-async def valet_response(
-    order_id: str,
-    response_data: ValetResponseRequest,
-    current_user: dict = Depends(get_current_user),
-):
-    order = await order_repository.findById(order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-        
-    if current_user.get("role") != "super_admin":
-        if current_user.get("role") != "valet":
-            raise HTTPException(status_code=403, detail="Access denied")
-        if str(order.get("pendingValetId", "")) != str(current_user["_id"]):
-            raise HTTPException(status_code=403, detail="Order is not assigned to you")
-            
-    if order.get("status") != "pending_valet":
-        raise HTTPException(status_code=400, detail="Order is not pending valet acceptance")
-        
-    from datetime import datetime, timezone
-    now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
-    
-    if response_data.accept:
-        # Generate Invoice
-        from app.routers.invoices import _generate_b2b_invoice_pdf
-        try:
-            invoice = await _generate_b2b_invoice_pdf(order_id)
-        except Exception:
-            invoice = None
-            
-        updated_order = await order_repository.update(order_id, {
-            "status": "shipped",
-            "assignedValet": str(current_user["_id"]),
-            "pendingValetId": None,
-            "shippedAt": now_iso,
-            "invoiceUrl": invoice.get("url") if invoice else None
-        })
-        # Notify seller
-        seller_id = order.get("sellerId")
-        if seller_id:
-            try:
-                from app.services.push_notification_service import push_notification_service
-                await push_notification_service.send_to_user(
-                    seller_id,
-                    {
-                        "title": "Valet Accepted",
-                        "message": f"Valet has accepted order #{order.get('orderNumber', order_id)} and it is now shipped.",
-                        "link": f"/seller/orders/{order_id}",
-                    }
-                )
-            except Exception:
-                pass
-        return await populate_order(updated_order)
-    else:
-        # Declined -> Cascade
-        history = list(order.get("valetDeclineHistory") or [])
-        valet_id_str = str(current_user.get("_id"))
-        if valet_id_str not in history:
-            history.append(valet_id_str)
-            
-        await order_repository.update(order_id, {
-            "valetDeclineHistory": history,
-            "pendingValetId": None
-        })
-        order["valetDeclineHistory"] = history
-        order["pendingValetId"] = None
-        
-        from app.jobs.valet_timeout_job import _cascade_or_revert
-        await _cascade_or_revert(order)
-        return await populate_order(await order_repository.findById(order_id))
+# ── DUPLICATE ROUTE — COMMENTED OUT ──────────────────────────────────────────
+# This block was shadowing the correct multi-seller valet_response implementation
+# below (line ~2266). FastAPI matches routes in registration order, so this
+# simpler version (accept: bool) was intercepting every request and the full
+# multi-seller propagation logic was never reached.
+# The correct implementation uses { "action": "accept" | "decline" } and is
+# defined further below with require_super_admin_or_valet and the full
+# hasSubOrders sub-order propagation logic.
+# DO NOT re-enable this block without removing the duplicate below.
+#
+# class ValetResponseRequest(BaseModel):
+#     accept: bool
+#     declineReason: Optional[str] = None
+#
+#
+# @router.put("/{order_id}/valet-response", response_model=dict)
+# async def valet_response(
+#     order_id: str,
+#     response_data: ValetResponseRequest,
+#     current_user: dict = Depends(get_current_user),
+# ):
+#     order = await order_repository.findById(order_id)
+#     if not order:
+#         raise HTTPException(status_code=404, detail="Order not found")
+#
+#     if current_user.get("role") != "super_admin":
+#         if current_user.get("role") != "valet":
+#             raise HTTPException(status_code=403, detail="Access denied")
+#         if str(order.get("pendingValetId", "")) != str(current_user["_id"]):
+#             raise HTTPException(status_code=403, detail="Order is not assigned to you")
+#
+#     if order.get("status") != "pending_valet":
+#         raise HTTPException(status_code=400, detail="Order is not pending valet acceptance")
+#
+#     from datetime import datetime, timezone
+#     now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
+#
+#     if response_data.accept:
+#         # Generate Invoice
+#         from app.routers.invoices import _generate_b2b_invoice_pdf
+#         try:
+#             invoice = await _generate_b2b_invoice_pdf(order_id)
+#         except Exception:
+#             invoice = None
+#
+#         updated_order = await order_repository.update(order_id, {
+#             "status": "shipped",
+#             "assignedValet": str(current_user["_id"]),
+#             "pendingValetId": None,
+#             "shippedAt": now_iso,
+#             "invoiceUrl": invoice.get("url") if invoice else None
+#         })
+#         # Notify seller
+#         seller_id = order.get("sellerId")
+#         if seller_id:
+#             try:
+#                 from app.services.push_notification_service import push_notification_service
+#                 await push_notification_service.send_to_user(
+#                     seller_id,
+#                     {
+#                         "title": "Valet Accepted",
+#                         "message": f"Valet has accepted order #{order.get('orderNumber', order_id)} and it is now shipped.",
+#                         "link": f"/seller/orders/{order_id}",
+#                     }
+#                 )
+#             except Exception:
+#                 pass
+#         return await populate_order(updated_order)
+#     else:
+#         # Declined -> Cascade
+#         history = list(order.get("valetDeclineHistory") or [])
+#         valet_id_str = str(current_user.get("_id"))
+#         if valet_id_str not in history:
+#             history.append(valet_id_str)
+#
+#         await order_repository.update(order_id, {
+#             "valetDeclineHistory": history,
+#             "pendingValetId": None
+#         })
+#         order["valetDeclineHistory"] = history
+#         order["pendingValetId"] = None
+#
+#         from app.jobs.valet_timeout_job import _cascade_or_revert
+#         await _cascade_or_revert(order)
+#         return await populate_order(await order_repository.findById(order_id))
+# ── END DUPLICATE ROUTE ───────────────────────────────────────────────────────
 
 
 @router.put("/{order_id}/cancel", response_model=dict)
@@ -2548,7 +2559,7 @@ async def confirm_sub_order_pickup(
     all_sub_orders = await sub_order_repository.findByParentOrder(order_id)
     remaining = [s for s in all_sub_orders if s.get("pickupStatus") != "picked_up"]
 
-    datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
+    # now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"  # was a dangling no-op after find-and-replace stripped the assignment; unused in this block
 
     if not remaining:
         # ── All sellers picked up — transition parent to 'out_for_delivery' ──
