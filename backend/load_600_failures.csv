@@ -1,0 +1,13 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+GET,/api/products/public?search=pen,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",77,2026-09-03T15:46:23Z,2026-09-03T15:46:24Z
+GET,/api/categories,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",145,2026-09-03T15:46:23Z,2026-09-03T15:46:24Z
+GET,/api/products/public?limit=20&page=1,"ChunkedEncodingError(ProtocolError('Connection broken: IncompleteRead(0 bytes read, 9625 more expected)', IncompleteRead(0 bytes read, 9625 more expected)))",5,2026-09-03T15:46:23Z,2026-09-03T15:46:23Z
+GET,/api/products/public?search=pen,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",7,2026-09-03T15:46:25Z,2026-09-03T15:46:26Z
+GET,/api/products/public?limit=20&page=1,RemoteDisconnected('Remote end closed connection without response'),18,2026-09-03T15:46:23Z,2026-09-03T15:46:23Z
+GET,/api/categories,"ChunkedEncodingError(ProtocolError('Connection broken: IncompleteRead(0 bytes read, 30 more expected)', IncompleteRead(0 bytes read, 30 more expected)))",2,2026-09-03T15:46:23Z,2026-09-03T15:46:23Z
+GET,/api/categories,HTTPError('401 Client Error: Unauthorized for url: /api/categories'),516,2026-09-03T15:46:12Z,2026-09-03T15:46:22Z
+GET,/api/products/public?limit=20&page=1,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",31,2026-09-03T15:46:26Z,2026-09-03T15:46:26Z
+GET,/api/products/public?limit=20&page=1,"ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)",213,2026-09-03T15:46:23Z,2026-09-03T15:46:24Z
+GET,/api/products/public?search=pen,RemoteDisconnected('Remote end closed connection without response'),5,2026-09-03T15:46:23Z,2026-09-03T15:46:23Z
+GET,/api/categories,"ConnectionRefusedError(10061, '[WinError 10061] No connection could be made because the target machine actively refused it.')",20,2026-09-03T15:46:25Z,2026-09-03T15:46:26Z
+GET,/api/categories,RemoteDisconnected('Remote end closed connection without response'),11,2026-09-03T15:46:23Z,2026-09-03T15:46:23Z
