@@ -393,6 +393,8 @@ export default function ProductCatalog({
         params.append('availability', filters.availability[0]);
       }
       params.append('sort', selectedSort);
+      // Pass pincode so the backend can filter products to the user's delivery zone
+      if (pincode) params.append('pincode', pincode);
 
       let url = endpoint;
       if (params.toString()) {

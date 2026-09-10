@@ -560,6 +560,7 @@ async def get_public_products(
     sort: Optional[str] = None,
     includeFacets: bool = True,
     skinny: bool = False,
+    pincode: Optional[str] = None,
 ):
     """Get all products (public endpoint - no auth required)"""
     role = "customer" # Force role to customer for public endpoint
@@ -591,6 +592,15 @@ async def get_public_products(
     if sort:
         query["sort"] = sort
     query["role"] = role
+
+    # Zone-based seller filter: resolve pincode → zone → seller set so only
+    # products serviceable in the user's zone are returned.
+    # None means pincode was not supplied or not found → fail-open (show all).
+    if pincode:
+        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
+        seller_id_set = await get_seller_ids_for_pincode(pincode)
+        if seller_id_set is not None:
+            query["allowed_seller_ids"] = list(seller_id_set)
 
     if role == "wholesaler":
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
@@ -697,6 +707,7 @@ async def get_products(
     limit: int = 50,
     includeFacets: bool = True,
     skinny: bool = False,
+    pincode: Optional[str] = None,
     current_user: dict = Depends(get_current_user),
 ):
     # Use effectiveRole if user is deactivated
@@ -745,6 +756,13 @@ async def get_products(
         sa_id = await get_super_admin_seller_id()
         if sa_id:
             query["allowed_seller_ids"] = [sa_id]
+    elif pincode:
+        # Zone-based seller filter for retail customers: only show products
+        # serviceable in their zone. None = pincode not in any zone → fail-open.
+        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
+        seller_id_set = await get_seller_ids_for_pincode(pincode)
+        if seller_id_set is not None:
+            query["allowed_seller_ids"] = list(seller_id_set)
 
     if page > 1:
         includeFacets = False
