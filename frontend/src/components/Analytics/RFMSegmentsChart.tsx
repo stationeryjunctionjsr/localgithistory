@@ -50,7 +50,7 @@ export default function RFMSegmentsChart({ startDate, endDate }: RFMSegmentsChar
                 <Pie data={segments} cx="50%" cy="50%" innerRadius={48} outerRadius={78} paddingAngle={3} dataKey="value">
                   {segments.map((seg, i) => <Cell key={i} fill={seg.color} />)}
                 </Pie>
-                <Tooltip formatter={(v: number, n: string) => [`${v} customers`, n]} />
+                <Tooltip formatter={(v: any, n: any) => [`${v} customers`, n]} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>

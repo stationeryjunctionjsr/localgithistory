@@ -434,8 +434,8 @@ async def valet_return_response(
         # Declined -> Cascade
         history = list(ret.get("valetDeclineHistory") or [])
         valet_id_str = str(current_user.get("_id"))
-        if valet_id_str not in history:
-            history.append(valet_id_str)
+        if not any(isinstance(d, dict) and d.get("valetId") == valet_id_str for d in history):
+            history.append({"valetId": valet_id_str, "reason": response_data.declineReason})
             
         await return_request_repository.update(return_id, {
             "valetDeclineHistory": history,

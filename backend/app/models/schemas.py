@@ -768,7 +768,8 @@ class ReturnRequestResponse(BaseModel):
     status: ReturnRequestStatus
     valetId: Optional[str] = None
     valet: Optional[Dict[str, Any]] = None  # populated valet
-    valetDeclineHistory: Optional[List[str]] = None
+    pendingValetId: Optional[str] = None
+    valetDeclineHistory: Optional[List[Dict[str, Any]]] = None
     valetCascadeCount: Optional[int] = None
     valetAssignedAt: Optional[str] = None
     user: Optional[Dict[str, Any]] = None  # populated user

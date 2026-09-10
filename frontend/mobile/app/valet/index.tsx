@@ -108,7 +108,7 @@ export default function ValetDashboard() {
 
   const respondReturnMutation = useMutation({
     mutationFn: async ({ returnId, action }: { returnId: string, action: 'accept' | 'decline' }) => {
-      await api.put(`/returns/${returnId}/valet-response`, { action });
+      await api.put(`/returns/valet/${returnId}/response`, { action });
     },
     onSuccess: (_, variables) => {
       Toast.show({ type: 'success', text1: 'Success', text2: `Return pickup ${variables.action}ed!` });

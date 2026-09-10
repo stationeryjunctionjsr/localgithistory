@@ -8,6 +8,7 @@ import { usePincode } from '@/context/PincodeContext';
 import api from '@/utils/api';
 import Link from 'next/link';
 import { logger } from '@/utils/logger';
+import AccessibilityPanel from '../AccessibilityPanel';
 
 interface CategoryTag {
   _id?: string;
@@ -76,6 +77,7 @@ export default function MobileHeader() {
   }
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showAccessibilityModal, setShowAccessibilityModal] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryTags, setCategoryTags] = useState<CategoryTag[]>([]);
@@ -848,16 +850,49 @@ export default function MobileHeader() {
                   My Account
                 </button>
               ) : (
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    router.push('/login');
-                  }}
-                  className="mb-2 w-full py-2.5 text-sm font-semibold underline"
-                  style={{ color: theme.primary }}
-                >
-                  Sign in / Register
-                </button>
+                <>
+                  <div className="mb-4 flex w-full flex-col space-y-2 px-1">
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        router.push('/customer/wishlist');
+                      }}
+                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm font-medium text-gray-700 transition-colors active:bg-gray-100"
+                    >
+                      <div className="flex items-center gap-3">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+                        </svg>
+                        Wishlist
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setShowAccessibilityModal(true);
+                      }}
+                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm font-medium text-gray-700 transition-colors active:bg-gray-100"
+                    >
+                      <div className="flex items-center gap-3">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 8v4M12 16h.01" />
+                        </svg>
+                        Accessibility Options
+                      </div>
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      router.push('/login');
+                    }}
+                    className="mb-2 w-full py-2.5 text-sm font-semibold underline"
+                    style={{ color: theme.primary }}
+                  >
+                    Sign in / Register
+                  </button>
+                </>
               )}
               <p className="text-center text-[10px] font-medium text-gray-400">
                 v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}
@@ -886,6 +921,11 @@ export default function MobileHeader() {
           }
         }
       `}</style>
+      
+      <AccessibilityPanel
+        isOpen={showAccessibilityModal}
+        onClose={() => setShowAccessibilityModal(false)}
+      />
     </>
   );
 }

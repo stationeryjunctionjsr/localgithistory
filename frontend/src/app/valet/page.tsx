@@ -972,43 +972,8 @@ export default function ValetDashboard() {
                           </div>
                         )}
 
-                        {ret.deliverySlot && (
-                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
-                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
-                          </div>
-                        )}
-
-                        {ret.deliverySlot && (
-                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
-                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
-                          </div>
-                        )}
-
-                        {ret.deliverySlot && (
-                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
-                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
-                          </div>
-                        )}
-
-                        {ret.deliverySlot && (
-                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
-                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
-                          </div>
-                        )}
-
-                        {ret.deliverySlot && (
-                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
-                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
-                          </div>
-                        )}
-
                         <div>
                           <div className="mb-1 text-xs uppercase text-gray-500">📍 Pickup Address</div>
-                        {ret.deliverySlot && (
-                          <div className="mb-3 text-xs bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg border border-purple-200 font-medium inline-block">
-                            📅 Scheduled Pickup Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime} ({ret.deliverySlot.date})
-                          </div>
-                        )}
                           <div className="text-sm">
                             {ret.user?.address ? formatAddress({
                               street: ret.user.address.street,

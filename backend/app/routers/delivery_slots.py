@@ -109,7 +109,7 @@ async def get_available_slots(
 
     utc_now = _dt.datetime.now(timezone.utc)
     ist_offset = _dt.timedelta(hours=5, minutes=30)
-    now_ist = utc_now + ist_offset
+    now_ist = (utc_now + ist_offset).replace(tzinfo=None)  # naive IST for comparison with strptime results
 
     config = await _resolve_zone_config(pincode, date, segment)
     if not config:
@@ -189,7 +189,7 @@ async def get_dates_with_slots(
 
     utc_now = _dt.datetime.now(timezone.utc)
     ist_offset = _dt.timedelta(hours=5, minutes=30)
-    now_ist = utc_now + ist_offset
+    now_ist = (utc_now + ist_offset).replace(tzinfo=None)  # naive IST for comparison with strptime results
 
     today = now_ist.date()
     available_dates = []

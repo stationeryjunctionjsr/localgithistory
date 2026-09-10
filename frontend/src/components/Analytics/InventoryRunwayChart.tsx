@@ -58,7 +58,7 @@ export default function InventoryRunwayChart({ startDate, endDate, limit = 15 }:
             <XAxis type="number" tick={{ fontSize:11 }} unit=" d" />
             <YAxis dataKey="name" type="category" tick={{ fontSize:10 }} width={110}
               tickFormatter={(v: string) => v.length > 16 ? v.slice(0, 15) + '\u2026' : v} />
-            <Tooltip formatter={(v: number) => [`${v} days`, 'Days Remaining']} labelFormatter={(l: string) => `Product: ${l}`} />
+            <Tooltip formatter={(v: any) => [`${v} days`, 'Days Remaining']} labelFormatter={(l: any) => `Product: ${l}`} />
             <Bar dataKey="daysRemaining" radius={[0,3,3,0]} name="Days Remaining">
               {data.map((row, i) => <Cell key={i} fill={riskColor(row.daysRemaining)} />)}
             </Bar>

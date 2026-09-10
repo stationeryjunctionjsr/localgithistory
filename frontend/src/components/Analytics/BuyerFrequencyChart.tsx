@@ -26,7 +26,7 @@ export default function BuyerFrequencyChart({ startDate, endDate, currency }: Bu
     } catch (e) { logger.error('customer-frequency', e); setData([]); } finally { setLoading(false); }
   };
 
-  const fmt = (v: number) => currency === 'USD' ? `$${(v / 82).toFixed(0)}` : `\u20B9${Math.round(v).toLocaleString('en-IN')}`;
+  const fmt = (v: any) => currency === 'USD' ? `$${(v / 82).toFixed(0)}` : `\u20B9${Math.round(v).toLocaleString('en-IN')}`;
   const pieData = data.map(d => ({ name: d.type, value: d.customers }));
 
   return (
@@ -43,7 +43,7 @@ export default function BuyerFrequencyChart({ startDate, endDate, currency }: Bu
               <Pie data={pieData} cx="50%" cy="50%" innerRadius={38} outerRadius={62} dataKey="value" paddingAngle={4}>
                 {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
-              <Tooltip formatter={(v: number, n: string) => [`${v} customers`, n]} />
+              <Tooltip formatter={(v: any, n: any) => [`${v} customers`, n]} />
             </PieChart>
           </ResponsiveContainer>
           <div className="flex flex-1 flex-col gap-2">

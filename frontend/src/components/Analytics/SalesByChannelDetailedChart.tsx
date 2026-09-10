@@ -27,7 +27,7 @@ export default function SalesByChannelDetailedChart({ startDate, endDate, curren
     } catch (e) { logger.error('sales-by-channel-detailed', e); setData([]); } finally { setLoading(false); }
   };
 
-  const fmt = (v: number) => currency === 'USD' ? `$${(v/82).toFixed(0)}` : `\u20B9${Math.round(v).toLocaleString('en-IN')}`;
+  const fmt = (v: any) => currency === 'USD' ? `$${(v/82).toFixed(0)}` : `\u20B9${Math.round(v).toLocaleString('en-IN')}`;
   const TABS: {key:TabKey;label:string;dataKey:string;formatter:(v:number)=>string}[] = [
     {key:'revenue',label:'Revenue',dataKey:'revenue',formatter:fmt},
     {key:'orders',label:'Orders',dataKey:'orderCount',formatter:(v)=>v.toLocaleString()},
@@ -60,7 +60,7 @@ export default function SalesByChannelDetailedChart({ startDate, endDate, curren
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis dataKey="channelLabel" tick={{ fontSize:11 }} />
               <YAxis tick={{ fontSize:11 }} tickFormatter={v => active.formatter(v)} width={65} />
-              <Tooltip formatter={(v: number) => [active.formatter(v), active.label]} />
+              <Tooltip formatter={(v: any) => [active.formatter(v), active.label]} />
               <Bar dataKey={active.dataKey} radius={[4,4,0,0]}>
                 {data.map((d,i) => {
                   // eslint-disable-next-line react/jsx-key

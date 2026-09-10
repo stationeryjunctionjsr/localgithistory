@@ -507,8 +507,8 @@ async def run_valet_timeout_job():
                     pending_valet_id = order.get("pendingValetId")
                     if pending_valet_id:
                         history = list(order.get("valetDeclineHistory") or [])
-                        if pending_valet_id not in history:
-                            history.append(pending_valet_id)
+                        if not any(isinstance(d, dict) and d.get("valetId") == pending_valet_id for d in history):
+                            history.append({"valetId": pending_valet_id, "reason": "timeout"})
                         order["valetDeclineHistory"] = history
 
                         await order_repository.update(
@@ -545,8 +545,8 @@ async def run_valet_timeout_job():
                     pending_valet_id = ret.get("pendingValetId")
                     if pending_valet_id:
                         history = list(ret.get("valetDeclineHistory") or [])
-                        if pending_valet_id not in history:
-                            history.append(pending_valet_id)
+                        if not any(isinstance(d, dict) and d.get("valetId") == pending_valet_id for d in history):
+                            history.append({"valetId": pending_valet_id, "reason": "timeout"})
                         ret["valetDeclineHistory"] = history
 
                         await return_request_repository.update(

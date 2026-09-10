@@ -38,7 +38,7 @@ export default function TopSearchesNoClicksChart({ startDate, endDate, limit = 1
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
             <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
             <YAxis dataKey="term" type="category" tick={{ fontSize: 11 }} width={90} />
-            <Tooltip formatter={(v: number) => [v, 'Searches']} />
+            <Tooltip formatter={(v: any) => [v, 'Searches']} />
             <Bar dataKey="searchCount" fill="#f59e0b" radius={[0, 3, 3, 0]} name="Searches" />
           </BarChart>
         </ResponsiveContainer>

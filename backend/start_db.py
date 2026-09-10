@@ -13,6 +13,11 @@ import oci
 
 
 def main():
+    db_type = os.environ.get("DB_TYPE", "oracle").lower()
+    if db_type == "mysql":
+        print("DB_TYPE=mysql — skipping Oracle Autonomous DB startup.", flush=True)
+        return
+
     key_content = os.environ.get("OCI_PRIVATE_KEY", "").replace("\\n", "\n")
     if key_content.startswith('"') and key_content.endswith('"'):
         key_content = key_content[1:-1]

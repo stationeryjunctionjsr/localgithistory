@@ -25,7 +25,7 @@ export default function BounceRateChart({ startDate, endDate }: BounceRateChartP
   };
 
   const avg = data.length > 0 ? (data.reduce((s, d) => s + (d.bounceRate || 0), 0) / data.length).toFixed(1) : '—';
-  const fmt = (p: string) => p ? new Date(p).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '';
+  const fmt = (p: any) => p ? new Date(p).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '';
 
   return (
     <div className="rounded-lg bg-white p-4 shadow-md">
@@ -52,7 +52,7 @@ export default function BounceRateChart({ startDate, endDate }: BounceRateChartP
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="period" tickFormatter={fmt} tick={{ fontSize: 11 }} />
             <YAxis unit="%" tick={{ fontSize: 11 }} domain={[0, 100]} />
-            <Tooltip formatter={(v: number) => [`${v}%`, 'Bounce Rate']} labelFormatter={fmt} />
+            <Tooltip formatter={(v: any) => [`${v}%`, 'Bounce Rate']} labelFormatter={fmt} />
             <Area type="monotone" dataKey="bounceRate" stroke="#ef4444" strokeWidth={2} fill="url(#bounceGrad)" />
           </AreaChart>
         </ResponsiveContainer>

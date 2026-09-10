@@ -169,11 +169,11 @@ async def get_favourites_page(
     all_states: list = ranked_data["states"]
     all_cities: list = ranked_data["cities"]
 
-    # Fetch all products once and build a lookup map
+    # Fetch all active products once and build a lookup map
     from app.db.storage_factory import get_storage as _get_storage
 
     product_storage = _get_storage("products")
-    all_products = await product_storage.findAll()
+    all_products = await product_storage.findAll({"isActive": True})
     product_map: dict = {p["_id"]: p for p in all_products if p.get("_id")}
 
     # Collect filter option lists from the full ranked set (before product-level filters)

@@ -253,6 +253,7 @@ export default function ReturnsManagement() {
                         {ret.deliverySlot && (
                           <div className="text-[10px] text-purple-600 font-medium mt-0.5">
                             Slot: {ret.deliverySlot.startTime} - {ret.deliverySlot.endTime}
+                            {ret.deliverySlot.date && ` (${new Date(ret.deliverySlot.date).toLocaleDateString()})`}
                           </div>
                         )}
                       </td>
