@@ -1,3 +1,11 @@
+from app.models.schemas import MessageResponse
+from typing import Dict, Any, List
+from pydantic import BaseModel
+
+class BundlesResponse(BaseModel):
+    bundles: List[Dict[str, Any]]
+    total: int
+
 """
 Product Bundle Router
 ---------------------
@@ -151,7 +159,7 @@ async def _validate_bundle_items(items: List[BundleItemSchema]):
 # ─── Public endpoints ──────────────────────────────────────────────────────────
 
 
-@router.get("/search")
+@router.get("/search", response_model=BundlesResponse)
 async def search_bundles(
     q: Optional[str] = None,
     category: Optional[str] = None,
@@ -246,8 +254,8 @@ async def search_bundles(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=BundlesResponse)
+@router.get("/", response_model=BundlesResponse)
 @cache.ttl_cache(ttl=300.0)
 async def list_active_bundles():
     """List all active bundles with enriched product details (public)."""
@@ -265,7 +273,7 @@ async def list_active_bundles():
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/product/{product_id}")
+@router.get("/product/{product_id}", response_model=List[Dict[str, Any]])
 @cache.ttl_cache(ttl=300.0)
 async def list_bundles_for_product(product_id: str):
     """List all active bundles containing a specific product, sorted by salesCount descending."""
@@ -285,7 +293,7 @@ async def list_bundles_for_product(product_id: str):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/admin/all")
+@router.get("/admin/all", response_model=BundlesResponse)
 async def list_all_bundles(current_user: dict = Depends(require_super_admin)):
     """List ALL bundles (including inactive) for admin management."""
     try:
@@ -303,7 +311,7 @@ async def list_all_bundles(current_user: dict = Depends(require_super_admin)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/{bundle_id}")
+@router.get("/{bundle_id}", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=300.0)
 async def get_bundle(bundle_id: str):
     """Get a single active bundle with full product details (public)."""
@@ -321,7 +329,7 @@ async def get_bundle(bundle_id: str):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("/{bundle_id}/add-to-cart")
+@router.post("/{bundle_id}/add-to-cart", response_model=MessageResponse)
 async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_current_user)):
     """
     Add all items from a bundle to the user's cart.
@@ -416,7 +424,7 @@ async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_cu
 # ─── Admin endpoints ───────────────────────────────────────────────────────────
 
 
-@router.post("/admin")
+@router.post("/admin", response_model=Dict[str, Any])
 async def create_bundle(payload: CreateBundleRequest, current_user: dict = Depends(require_super_admin)):
     """Admin: create a new product bundle."""
     try:
@@ -447,7 +455,7 @@ async def create_bundle(payload: CreateBundleRequest, current_user: dict = Depen
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/admin/{bundle_id}")
+@router.put("/admin/{bundle_id}", response_model=Dict[str, Any])
 async def update_bundle(
     bundle_id: str,
     payload: UpdateBundleRequest,
@@ -489,7 +497,7 @@ async def update_bundle(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.delete("/admin/{bundle_id}")
+@router.delete("/admin/{bundle_id}", response_model=MessageResponse)
 async def delete_bundle(bundle_id: str, current_user: dict = Depends(require_super_admin)):
     """Admin: permanently delete a bundle."""
     try:

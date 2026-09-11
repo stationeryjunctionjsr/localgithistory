@@ -1,3 +1,5 @@
+from app.models.schemas import MessageResponse
+from typing import Dict, Any, List
 import csv
 import io
 from typing import List, Optional
@@ -30,7 +32,7 @@ async def _upload_product_image(image: UploadFile) -> str:
     return await upload_image_and_return_path(image, "products", filename_prefix="product")
 
 
-@router.post("/upload-images", status_code=status.HTTP_200_OK)
+@router.post("/upload-images", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
 async def upload_product_images(
     images: List[UploadFile] = File(...), current_user: dict = Depends(require_super_admin)
 ):
@@ -51,7 +53,7 @@ async def upload_product_images(
         )
 
 
-@router.post("/upload-csv", status_code=status.HTTP_200_OK)
+@router.post("/upload-csv", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
 async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are allowed")
@@ -344,7 +346,7 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
     )
 
 
-@router.get("/suggest")
+@router.get("/suggest", response_model=Dict[str, Any])
 async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = None, role: str = "customer"):
     """Lightweight autocomplete endpoint returning matching product names, brands, and categories"""
     if len(q) < 2:
@@ -877,7 +879,7 @@ async def update_product(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{product_id}")
+@router.delete("/{product_id}", response_model=MessageResponse)
 async def delete_product(product_id: str, current_user: dict = Depends(require_super_admin)):
     product = await product_repository.delete(product_id)
     if not product:
@@ -886,7 +888,7 @@ async def delete_product(product_id: str, current_user: dict = Depends(require_s
     return {"message": "Product deleted successfully"}
 
 
-@router.post("/bulk-update")
+@router.post("/bulk-update", response_model=MessageResponse)
 async def bulk_update_products(update_data: BulkUpdateData, current_user: dict = Depends(require_super_admin)):
     results = []
     for product_id in update_data.ids:
@@ -910,7 +912,7 @@ class ProductTagAction(BaseModel):
     searchTagId: str
 
 
-@router.post("/{product_id}/search-tags")
+@router.post("/{product_id}/search-tags", response_model=Dict[str, Any])
 async def add_search_tag_to_product(
     product_id: str, action: ProductTagAction, current_user: dict = Depends(require_super_admin)
 ):
@@ -928,7 +930,7 @@ async def add_search_tag_to_product(
     return {"message": "Search tag added to product"}
 
 
-@router.delete("/{product_id}/search-tags/{search_tag_id}")
+@router.delete("/{product_id}/search-tags/{search_tag_id}", response_model=MessageResponse)
 async def remove_search_tag_from_product(
     product_id: str, search_tag_id: str, current_user: dict = Depends(require_super_admin)
 ):
@@ -946,7 +948,7 @@ async def remove_search_tag_from_product(
     return {"message": "Search tag removed from product"}
 
 
-@router.get("/{product_id}/search-tags")
+@router.get("/{product_id}/search-tags", response_model=List[Dict[str, Any]])
 async def get_product_search_tags(product_id: str, current_user: dict = Depends(require_super_admin)):
     """Get all resolved search tags for a specific product"""
     product = await product_repository.findById(product_id)
@@ -971,7 +973,7 @@ class NotifyMeRequest(BaseModel):
     email: Optional[str] = None
 
 
-@router.post("/{product_id}/notify-me", status_code=status.HTTP_200_OK)
+@router.post("/{product_id}/notify-me", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 async def notify_me(
     product_id: str,
     data: NotifyMeRequest,
@@ -1003,7 +1005,7 @@ async def notify_me(
     await product_notification_repository.create_notification(product_id, email, user_id)
     return {"message": "Notification registered successfully", "email": email}
 
-@router.post("/upload-videos")
+@router.post("/upload-videos", response_model=Dict[str, Any])
 async def upload_videos(
     files: List[UploadFile] = File(...),
     current_user: dict = Depends(require_super_admin)
