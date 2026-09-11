@@ -75,7 +75,7 @@ async def get_serviceable_pincodes(current_user: dict = Depends(require_super_ad
     pincodes = [
         c["pincode"]
         for c in charges
-        if c.get("pincode") and (c.get("serviceableForCustomer") or c.get("serviceableForWholesaler"))
+        if c.pincode and (c.serviceable_for_customer or c.serviceable_for_wholesaler)
     ]
     return sorted(set(pincodes))
 
@@ -105,8 +105,8 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
 
     # ── Zone metadata (urgent delivery flag + customerType + seller IDs) ───────
     zone = await get_zone_for_pincode(pincode)
-    platform_urgent = bool(zone.get("urgentDeliveryAvailable", False)) if zone else False
-    zone_customer_type = zone.get("customerType", "retail") if zone else "retail"
+    platform_urgent = bool((zone.urgent_delivery_available if zone.urgent_delivery_available is not None else False)) if zone else False
+    zone_customer_type = (zone.customer_type if zone.customer_type is not None else "retail") if zone else "retail"
 
     is_wholesaler = (userRole == "wholesaler")
 
@@ -171,7 +171,7 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
     available_dates = []
 
     # Resolve zone_id for this pincode (already done above — reuse `zone`)
-    zone_id = str(zone.get("_id", "")) if zone else None
+    zone_id = str((zone.id or "")) if zone else None
 
     if not is_wholesaler or wholesale_zone_eligible:
         for check_date in dates_to_check:
@@ -193,10 +193,10 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
 
             if slot_config:
                 for slot in slot_config.get("slots", []):
-                    if not slot.get("isActive", True):
+                    if not (slot.is_active if slot.is_active is not None else True):
                         continue
-                    cap = slot.get("capacity")
-                    booked = slot.get("bookedCount", 0)
+                    cap = slot.capacity
+                    booked = (slot.booked_count if slot.booked_count is not None else 0)
                     if cap is None or (cap - booked) > 0:
                         available_dates.append(check_date)
                         break
@@ -271,25 +271,25 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
 
     for row in csv_reader:
         try:
-            serviceable_for_customer = row.get("serviceableForCustomer", "true").lower() == "true"
-            urgent_delivery_available = row.get("urgentDeliveryAvailable", "false").lower() == "true"
+            serviceable_for_customer = (row.serviceable_for_customer if row.serviceable_for_customer is not None else "true").lower() == "true"
+            urgent_delivery_available = (row.urgent_delivery_available if row.urgent_delivery_available is not None else "false").lower() == "true"
 
             # Based on the retail serviceable yes or no, the urgent delivery values will be set.
             if not serviceable_for_customer:
                 urgent_delivery_available = False
 
             charge_data = {
-                "pincode": row.get("pincode", "").strip() or None,
-                "state": row.get("state", "").strip(),
-                "city": row.get("city", "").strip(),
-                "district": row.get("district", "").strip(),
-                "charge": float(row.get("charge", 0)),
-                "minCartValue": float(row.get("minCartValue", 0)),
-                "isActive": row.get("isActive", "true").lower() == "true",
+                "pincode": (row.pincode or "").strip() or None,
+                "state": (row.state or "").strip(),
+                "city": (row.city or "").strip(),
+                "district": (row.district or "").strip(),
+                "charge": float((row.charge if row.charge is not None else 0)),
+                "minCartValue": float((row.min_cart_value if row.min_cart_value is not None else 0)),
+                "isActive": (row.is_active if row.is_active is not None else "true").lower() == "true",
                 "serviceableForCustomer": serviceable_for_customer,
                 "urgentDeliveryAvailable": urgent_delivery_available,
-                "urgentDeliveryCharge": float(row.get("urgentDeliveryCharge"))
-                if row.get("urgentDeliveryCharge", "").strip()
+                "urgentDeliveryCharge": float(row.urgent_delivery_charge)
+                if (row.urgent_delivery_charge or "").strip()
                 else None,
             }
 

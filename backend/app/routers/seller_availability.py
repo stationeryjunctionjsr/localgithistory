@@ -51,7 +51,7 @@ MIN_LEAD_HOURS = 3  # Seller must schedule at least 3 hours before the window st
 
 
 def _require_seller(current_user: dict):
-    if current_user.get("role") not in ("seller", "super_admin"):
+    if current_user.role not in ("seller", "super_admin"):
         raise HTTPException(status_code=403, detail="Only seller accounts can access this endpoint")
 
 
@@ -97,7 +97,7 @@ async def get_all_unavailable_seller_ids() -> Set[str]:
             start = datetime.fromisoformat(doc["startAt"].replace("Z", ""))
             end = datetime.fromisoformat(doc["endAt"].replace("Z", ""))
             if start <= current_utc <= end:
-                seller_id = doc.get("sellerId")
+                seller_id = doc.seller_id
                 if seller_id:
                     unavailable_sellers.add(str(seller_id))
         except Exception:
@@ -112,7 +112,7 @@ async def _enrich_with_seller_name(docs: list) -> list:
     """Add sellerName to each doc for admin display."""
     from app.repositories.user_repository import user_repository
 
-    seller_ids = list({doc.get("sellerId") for doc in docs if doc.get("sellerId")})
+    seller_ids = list({doc.seller_id for doc in docs if doc.seller_id})
     sellers_map: Dict[str, dict] = {}
     for sid in seller_ids:
         seller = await user_repository.findById(sid)
@@ -120,13 +120,13 @@ async def _enrich_with_seller_name(docs: list) -> list:
             sellers_map[sid] = seller
     enriched = []
     for doc in docs:
-        sid = doc.get("sellerId", "")
+        sid = (doc.seller_id or "")
         seller = sellers_map.get(sid, {})
         enriched.append(
             {
                 **doc,
-                "sellerName": seller.get("name", ""),
-                "sellerEmail": seller.get("email", ""),
+                "sellerName": (seller.name or ""),
+                "sellerEmail": (seller.email or ""),
             }
         )
     return enriched
@@ -233,15 +233,15 @@ async def cancel_availability_window(
     if not doc:
         raise HTTPException(status_code=404, detail="Availability window not found")
 
-    if str(doc.get("sellerId")) != str(current_user["_id"]):
+    if str(doc.seller_id) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="You can only cancel your own windows")
 
-    if doc.get("status") == "active":
+    if doc.status == "active":
         raise HTTPException(
             status_code=400,
             detail="Cannot cancel a window that is already active. It will expire automatically.",
         )
-    if doc.get("status") in ("ended", "cancelled"):
+    if doc.status in ("ended", "cancelled"):
         raise HTTPException(status_code=400, detail="This window has already ended or been cancelled.")
 
     await storage.update(window_id, {"status": "cancelled"})

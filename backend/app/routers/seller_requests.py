@@ -40,10 +40,10 @@ async def populate_request(request):
     return {
         **request,
         "user": {
-            "_id": user.get("_id") if user else None,
-            "name": user.get("name") if user else "Unknown",
-            "email": user.get("email") if user else "Unknown",
-            "role": user.get("role") if user else "unknown",
+            "_id": user.id if user else None,
+            "name": user.name if user else "Unknown",
+            "email": user.email if user else "Unknown",
+            "role": user.role if user else "unknown",
         },
         "responses": populated_responses,
     }
@@ -56,8 +56,8 @@ async def get_seller_requests(
 ):
     query = {}
 
-    if current_user.get("role") != "super_admin":
-        query["user"] = current_user.get("_id")
+    if current_user.role != "super_admin":
+        query["user"] = current_user.id
 
     if status:
         query["status"] = status
@@ -77,7 +77,7 @@ async def get_seller_request(request_id: str, current_user: dict = Depends(get_c
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if current_user.get("role") != "super_admin" and request.get("user") != current_user.get("_id"):
+    if current_user.role != "super_admin" and request.get("user") != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     populated_request = await populate_request(request)
@@ -91,7 +91,7 @@ async def create_seller_request(request_data: SellerRequestCreate, current_user:
     # but super_admin can also create requests if they want, or we can check role.
     request = await seller_request_repository.create(
         {
-            "user": current_user.get("_id"),
+            "user": current_user.id,
             "subject": request_data.subject,
             "description": request_data.description,
             "category": request_data.category or "general",
@@ -126,15 +126,15 @@ async def add_request_response(
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if current_user.get("role") != "super_admin" and request.get("user") != current_user.get("_id"):
+    if current_user.role != "super_admin" and request.get("user") != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    is_admin_response = current_user.get("role") == "super_admin"
+    is_admin_response = current_user.role == "super_admin"
 
     await seller_request_repository.addResponse(
         request_id,
         {
-            "user": current_user.get("_id"),
+            "user": current_user.id,
             "message": response_data.message,
             "attachments": response_data.attachments or [],
             "isAdminResponse": is_admin_response,

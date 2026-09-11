@@ -64,7 +64,7 @@ async def get_pending_approvals(current_user: dict = Depends(require_super_admin
 @router.get("/profile", response_model=UserResponse)
 async def get_my_profile(current_user: dict = Depends(get_current_user)):
     """Get current authenticated user's profile"""
-    user_id = current_user.get("_id")
+    user_id = current_user.id
     if not user_id:
         raise HTTPException(status_code=400, detail="Could not identify current user")
 
@@ -93,7 +93,7 @@ async def update_my_preferences(
             status_code=400,
             detail=f"Unsupported language '{data.preferredLanguage}'. Supported: {sorted(SUPPORTED_LANGUAGES)}",
         )
-    user_id = current_user.get("_id")
+    user_id = current_user.id
     await user_repository.update(user_id, {"preferredLanguage": data.preferredLanguage})
     return {"preferredLanguage": data.preferredLanguage}
 
@@ -101,7 +101,7 @@ async def update_my_preferences(
 
 @router.put("/me/deactivate", response_model=UserResponse)
 async def deactivate_own_account(current_user: dict = Depends(get_current_user)):
-    user_id = current_user.get("_id")
+    user_id = current_user.id
     if not user_id:
         raise HTTPException(status_code=400, detail="Could not identify current user")
 
@@ -109,11 +109,11 @@ async def deactivate_own_account(current_user: dict = Depends(get_current_user))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.get("role") == "super_admin":
+    if user.role == "super_admin":
         raise HTTPException(status_code=400, detail="Super admin accounts cannot self-deactivate")
 
     update_data = {"isActive": False}
-    if user.get("role") == "wholesaler":
+    if user.role == "wholesaler":
         update_data["isDeactivated"] = True
 
     updated_user = await user_repository.update(user_id, update_data)
@@ -129,8 +129,8 @@ async def update_duty_status(
     data: DutyStatusRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    user_id = current_user.get("_id")
-    if current_user.get("role") != "valet":
+    user_id = current_user.id
+    if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can update duty status")
     
     await user_repository.update(user_id, {"isOnDuty": data.isOnDuty})
@@ -182,7 +182,7 @@ async def get_available_valets(
     
     load_map = {str(v.get("_id", "")): 0 for v in available_valets}
     for o in active_orders:
-        av_id = o.get("assignedValet") or o.get("pendingValetId")
+        av_id = o.assigned_valet or o.pending_valet_id
         if type(av_id) == dict:
             av_id = av_id.get("_id")
         av_id = str(av_id) if av_id else ""
@@ -212,7 +212,7 @@ async def approve_user(user_id: str, current_user: dict = Depends(require_super_
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.get("role") != "wholesaler":
+    if user.role != "wholesaler":
         raise HTTPException(status_code=400, detail="Only business customers require approval")
 
     updated_user = await user_repository.update(user_id, {"approvalStatus": "approved", "isActive": True})
@@ -249,20 +249,20 @@ async def update_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.get("role") == "super_admin":
+    if user.role == "super_admin":
         raise HTTPException(status_code=400, detail="Cannot change super admin role")
 
     # Validate Company Name and Address when changing to wholesaler (Business Customer)
     if role_data.role == "wholesaler":
-        company_name = user.get("companyName") or ""
-        address = user.get("address") or {}
+        company_name = user.company_name or ""
+        address = user.address or {}
 
         if not company_name or not company_name.strip():
             raise HTTPException(
                 status_code=400,
                 detail="Company name is required for Business customer. Please update the user's profile with Company Name before changing the role.",
             )
-        if not address.get("street") or not str(address.get("street")).strip():
+        if not address.street or not str(address.street).strip():
             raise HTTPException(
                 status_code=400,
                 detail="Address is required for Business customer. Please update the user's profile with Address before changing the role.",
@@ -283,9 +283,9 @@ async def update_user_role(
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str, current_user: dict = Depends(get_current_user)):
     # Convert both IDs to strings for proper comparison
-    current_user_id = str(current_user.get("_id", ""))
+    current_user_id = str((current_user.id or ""))
     requested_user_id = str(user_id)
-    if current_user.get("role") != "super_admin" and current_user_id != requested_user_id:
+    if current_user.role != "super_admin" and current_user_id != requested_user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     user = await user_repository.findById(user_id)
@@ -298,12 +298,12 @@ async def get_user(user_id: str, current_user: dict = Depends(get_current_user))
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(user_id: str, user_data: UserUpdate, current_user: dict = Depends(get_current_user)):
     # Convert both IDs to strings for proper comparison
-    current_user_id = str(current_user.get("_id", ""))
+    current_user_id = str((current_user.id or ""))
     requested_user_id = str(user_id)
-    if current_user.get("role") != "super_admin" and current_user_id != requested_user_id:
+    if current_user.role != "super_admin" and current_user_id != requested_user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if current_user.get("role") != "super_admin":
+    if current_user.role != "super_admin":
         # Non-super admins cannot change certain fields
         update_dict = user_data.dict(exclude_unset=True)
         for key in ["role", "approvalStatus", "isActive", "creditLimit"]:
@@ -326,7 +326,7 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: dict = 
             update_dict["isEmailVerified"] = False
 
     # If super admin is changing role to wholesaler, validate Company Name and Address
-    if current_user.get("role") == "super_admin" and "role" in update_dict and update_dict["role"] == "wholesaler":
+    if current_user.role == "super_admin" and "role" in update_dict and update_dict["role"] == "wholesaler":
         final_company_name = (
             update_dict.get("companyName") if "companyName" in update_dict else existing_user.get("companyName")
         )
@@ -370,7 +370,7 @@ async def deactivate_user(user_id: str, current_user: dict = Depends(require_sup
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.get("role") != "wholesaler":
+    if user.role != "wholesaler":
         raise HTTPException(status_code=400, detail="Only business customers can be deactivated")
 
     updated_user = await user_repository.update(user_id, {"isDeactivated": True})
@@ -395,7 +395,7 @@ async def mark_user_as_valet(user_id: str, current_user: dict = Depends(require_
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.get("role") == "super_admin":
+    if user.role == "super_admin":
         raise HTTPException(status_code=400, detail="Cannot mark super admin as valet")
 
     updated_user = await user_repository.update(user_id, {"role": "valet"})
@@ -412,9 +412,9 @@ async def change_password(
     user_id: str, password_data: PasswordChangeRequest, current_user: dict = Depends(get_current_user)
 ):
     # Convert both IDs to strings for proper comparison
-    current_user_id = str(current_user.get("_id", ""))
+    current_user_id = str((current_user.id or ""))
     requested_user_id = str(user_id)
-    is_admin = current_user.get("role") == "super_admin"
+    is_admin = current_user.role == "super_admin"
     if not is_admin and current_user_id != requested_user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -431,7 +431,7 @@ async def change_password(
             raise HTTPException(status_code=400, detail="currentPassword is required")
         from app.utils.auth import verify_password
 
-        stored_hash = user.get("password", "")
+        stored_hash = (user.password or "")
         if not stored_hash or not verify_password(password_data.currentPassword, stored_hash):
             raise HTTPException(status_code=400, detail="Current password is incorrect")
 
@@ -446,7 +446,7 @@ async def delete_user(user_id: str, current_user: dict = Depends(require_super_a
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user.get("role") == "super_admin":
+    if user.role == "super_admin":
         raise HTTPException(status_code=400, detail="Cannot delete super admin")
 
     await user_repository.delete(user_id)
@@ -461,12 +461,12 @@ class VerifyEmailRequest(BaseModel):
 @router.post("/request-email-verification")
 @limiter.limit("5/minute")
 async def request_email_verification(request: Request, current_user: dict = Depends(get_current_user)):
-    user_id = current_user.get("_id")
+    user_id = current_user.id
     user = await user_repository.findById(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    email = user.get("email")
+    email = user.email
     if not email:
         raise HTTPException(status_code=400, detail="No email address associated with your profile.")
 
@@ -490,12 +490,12 @@ async def request_email_verification(request: Request, current_user: dict = Depe
 @router.post("/verify-email")
 @limiter.limit("5/minute")
 async def verify_email(data: VerifyEmailRequest, request: Request, current_user: dict = Depends(get_current_user)):
-    user_id = current_user.get("_id")
+    user_id = current_user.id
     user = await user_repository.findById(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    email = user.get("email")
+    email = user.email
     if not email:
         raise HTTPException(status_code=400, detail="No email address associated with your profile.")
 
@@ -525,7 +525,7 @@ async def get_seller_delivery_settings(
     zones_storage = get_storage("deliveryZones")
     all_zones = await zones_storage.findAll({"isActive": True})
 
-    current_zone_ids = (current_user.get("sellerPermissions") or {}).get("serviceableZoneIds", [])
+    current_zone_ids = (current_user.seller_permissions or {}).get("serviceableZoneIds", [])
 
     available_zones = [
         {
@@ -540,8 +540,8 @@ async def get_seller_delivery_settings(
     ]
 
     return {
-        "sellerId": str(current_user.get("_id", "")),
-        "sellerName": current_user.get("companyName") or current_user.get("name", ""),
+        "sellerId": str((current_user.id or "")),
+        "sellerName": current_user.company_name or (current_user.name or ""),
         "serviceableZoneIds": current_zone_ids,
         "availableZones": available_zones,
     }
@@ -555,7 +555,7 @@ async def update_seller_delivery_settings(
     """Update the seller's zone selections."""
     from app.repositories.zone_seller_cache import invalidate_zone_cache
 
-    seller_id = str(current_user.get("_id", ""))
+    seller_id = str((current_user.id or ""))
     await user_repository.update(seller_id, {"serviceAreaZones": data.serviceableZoneIds})
     # Invalidate the full seller-zone cache so changes take effect immediately
     invalidate_zone_cache()

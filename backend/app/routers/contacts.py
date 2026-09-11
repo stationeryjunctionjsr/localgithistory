@@ -13,7 +13,7 @@ router = APIRouter()
 @router.get("", response_model=List[ContactResponse])
 @router.get("/", response_model=List[ContactResponse])
 async def get_contacts(current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") == "super_admin":
+    if current_user.role == "super_admin":
         contacts = await contact_repository.findAll()
     else:
         contacts = await contact_repository.findAll({"isActive": True})

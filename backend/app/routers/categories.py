@@ -79,21 +79,21 @@ async def get_available_categories(pincode: Optional[str] = None, role: Optional
     products = await product_repository._get_lightweight_search_catalog("customer", None)
 
     for p in products:
-        p_seller_ids = p.get("catalogSellerIds") or []
+        p_seller_ids = p.catalog_seller_ids or []
         # Check if the product has any overlap with the zone's seller IDs
         if any(sid in seller_id_set for sid in p_seller_ids):
-            cat = p.get("category")
+            cat = p.category
             if cat:
                 result["categoryNames"].add(cat)
                 if cat not in result["subCategories"]:
                     result["subCategories"][cat] = set()
-                sub = p.get("subCategory")
+                sub = p.sub_category
                 if sub:
                     result["subCategories"][cat].add(sub)
-            brand = p.get("brand")
+            brand = p.brand
             if brand:
                 result["brandNames"].add(brand)
-            collections = p.get("resolvedCollectionNames") or []
+            collections = p.resolved_collection_names or []
             for col in collections:
                 result["collectionNames"].add(col)
 
@@ -115,16 +115,16 @@ async def get_public_categories(forHomepage: bool = False):
         categories = await category_repository.findAll()
         active_categories = []
         for cat in categories:
-            if cat.get("isActive") is False:
+            if cat.is_active is False:
                 continue
-            if forHomepage and not cat.get("showInMobileHomepage"):
+            if forHomepage and not cat.show_in_mobile_homepage:
                 continue
-            tag = cat.get("categoryTag")
-            tags = cat.get("categoryTags", [])
+            tag = cat.category_tag
+            tags = (cat.category_tags or [])
             if not tag and tags:
                 tag = tags[0] if isinstance(tags, list) and tags else ""
             active_categories.append(
-                {**cat, "categoryTag": tag or "", "categoryTags": [tag] if tag else [], "gst": cat.get("gst", 0)}
+                {**cat, "categoryTag": tag or "", "categoryTags": [tag] if tag else [], "gst": (cat.gst if cat.gst is not None else 0)}
             )
         return active_categories
     except Exception as e:
@@ -141,17 +141,17 @@ async def get_tag_categories(tag_name: str):
         target_tag = tag_name.lower()
         matching_cats = []
         for cat in categories:
-            if cat.get("isActive") is False:
+            if cat.is_active is False:
                 continue
 
-            tag = cat.get("categoryTag")
-            tags = cat.get("categoryTags", [])
+            tag = cat.category_tag
+            tags = (cat.category_tags or [])
             if not tag and tags:
                 tag = tags[0] if isinstance(tags, list) and tags else ""
 
             if (tag or "").lower() == target_tag:
                 matching_cats.append(
-                    {**cat, "categoryTag": tag or "", "categoryTags": [tag] if tag else [], "gst": cat.get("gst", 0)}
+                    {**cat, "categoryTag": tag or "", "categoryTags": [tag] if tag else [], "gst": (cat.gst if cat.gst is not None else 0)}
                 )
         return matching_cats
     except Exception as e:
@@ -173,22 +173,22 @@ async def get_tag_brands(tag_name: str):
         matching_cat_names = [
             cat["name"]
             for cat in categories
-            if cat.get("isActive") is not False and (cat.get("categoryTag") or "").lower() == target_tag
+            if cat.is_active is not False and (cat.category_tag or "").lower() == target_tag
         ]
 
         # 2. Get all products in these categories
         products = await product_repository.findAll()
         associated_brands = set()
         for p in products:
-            if p.get("isActive", True) and p.get("category") in matching_cat_names:
-                brand_name = p.get("brand")
+            if (p.is_active if p.is_active is not None else True) and p.category in matching_cat_names:
+                brand_name = p.brand
                 if brand_name:
                     associated_brands.add(brand_name.lower())
 
         # 3. Get brand details for matching brand names
         all_brands = await brand_repository.findAll()
         matching_brands = [
-            b for b in all_brands if b.get("isActive", True) and b.get("name", "").lower() in associated_brands
+            b for b in all_brands if (b.is_active if b.is_active is not None else True) and (b.name or "").lower() in associated_brands
         ]
 
         return matching_brands
@@ -225,8 +225,8 @@ async def get_categories(current_user: dict = Depends(require_super_admin)):
         categories_with_tags = []
         for cat in categories:
             # Migration logic for response
-            tag = cat.get("categoryTag")
-            tags = cat.get("categoryTags", [])
+            tag = cat.category_tag
+            tags = (cat.category_tags or [])
 
             if not tag and tags:
                 tag = tags[0] if isinstance(tags, list) and tags else ""
@@ -235,7 +235,7 @@ async def get_categories(current_user: dict = Depends(require_super_admin)):
                 **cat,
                 "categoryTag": tag or "",
                 "categoryTags": [tag] if tag else [],
-                "gst": cat.get("gst", 0),
+                "gst": (cat.gst if cat.gst is not None else 0),
             }
             categories_with_tags.append(cat_with_tags)
         return categories_with_tags
@@ -251,7 +251,7 @@ async def get_category(category_id: str, current_user: dict = Depends(require_su
         category = await category_repository.findById(category_id)
         if not category:
             raise HTTPException(status_code=404, detail="Category not found")
-        category["gst"] = category.get("gst", 0)
+        category["gst"] = (category.gst if category.gst is not None else 0)
         return category
     except HTTPException:
         raise
@@ -291,7 +291,7 @@ async def create_category(category: CategoryBase, current_user: dict = Depends(r
         all_categories = await category_repository.findAll()
         name_lower = category.name.strip().lower()
         for cat in all_categories:
-            if cat.get("name", "").strip().lower() == name_lower:
+            if (cat.name or "").strip().lower() == name_lower:
                 raise HTTPException(status_code=400, detail="Category with this name already exists")
 
         category_data = {
@@ -333,7 +333,7 @@ async def update_category(
             all_categories = await category_repository.findAll()
             name_lower = category_update.name.strip().lower()
             for cat in all_categories:
-                if cat.get("name", "").strip().lower() == name_lower and str(cat.get("_id")) != str(category_id):
+                if (cat.name or "").strip().lower() == name_lower and str(cat.id) != str(category_id):
                     raise HTTPException(status_code=400, detail=f"Category with name '{category_update.name}' already exists")
             update_data["name"] = category_update.name.strip()
 

@@ -35,12 +35,12 @@ async def check_referral_eligibility(current_user: dict = Depends(get_current_us
         from app.repositories.order_repository import order_repository
 
         # 1. Must be retail customer (customer role)
-        role = current_user.get("effectiveRole") or current_user.get("role", "customer")
+        role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
         if role != "customer":
             return {"eligible": False, "message": "Referral discount is only available for retail customers"}
 
         # 2. Must be first order (0 orders)
-        user_id = current_user.get("_id")
+        user_id = current_user.id
         order_count = await order_repository.countByUser(user_id)
         if order_count > 0:
             return {"eligible": False, "message": "Referral discount is only available on your first order"}
@@ -82,7 +82,7 @@ async def verify_referral_code(payload: ReferralVerifyRequest, current_user: dic
         raise HTTPException(status_code=400, detail="Invalid referral code")
 
     # Cannot refer self
-    if str(referrer.get("_id")) == str(current_user.get("_id")):
+    if str(referrer.get("_id")) == str(current_user.id):
         raise HTTPException(status_code=400, detail="You cannot use your own referral code")
 
     # Return details

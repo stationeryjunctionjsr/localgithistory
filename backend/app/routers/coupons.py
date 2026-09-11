@@ -28,9 +28,9 @@ async def validate_coupon(
     category: Optional[str] = None,
     current_user: dict = Depends(get_current_user),
 ):
-    user_role = current_user.get("role", "customer")
+    user_role = (current_user.role if current_user.role is not None else "customer")
     validation = await coupon_repository.validateCoupon(
-        code, user_role, amount, current_user.get("_id"), category, None
+        code, user_role, amount, current_user.id, category, None
     )
     if not validation["valid"]:
         raise HTTPException(status_code=400, detail=validation["message"])
@@ -48,13 +48,13 @@ async def validate_coupon(
 @router.post("/validate")
 async def validate_coupon_with_cart(body: CouponValidateCart, current_user: dict = Depends(get_current_user)):
     """Validate discount using cart items; eligible subtotal is computed from items matching Applies to."""
-    user_role = current_user.get("role", "customer")
+    user_role = (current_user.role if current_user.role is not None else "customer")
     cart_items = [
         {
-            "product": it.get("productId"),
-            "productId": it.get("productId"),
-            "quantity": it.get("quantity", 0),
-            "sellAsCase": it.get("sellAsCase", False),
+            "product": it.product_id,
+            "productId": it.product_id,
+            "quantity": (it.quantity if it.quantity is not None else 0),
+            "sellAsCase": (it.sell_as_case if it.sell_as_case is not None else False),
         }
         for it in (body.items or [])
     ]
@@ -62,7 +62,7 @@ async def validate_coupon_with_cart(body: CouponValidateCart, current_user: dict
         body.code,
         user_role,
         0.0,
-        current_user.get("_id"),
+        current_user.id,
         None,
         None,
         cart_items=cart_items,

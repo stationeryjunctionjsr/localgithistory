@@ -83,7 +83,7 @@ async def track_beacon(
     await tracking_repository.create(
         {
             "type": "beacon",
-            "userId": current_user.get("_id") if current_user else None,
+            "userId": current_user.id if current_user else None,
             **payload,
         }
     )
@@ -97,9 +97,9 @@ async def track_search(
     payload: TrackSearchRequest,
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
-    segment = "wholesaler" if (current_user and current_user.get("role") == "wholesaler") else "customer"
+    segment = "wholesaler" if (current_user and current_user.role == "wholesaler") else "customer"
     await tracking_repository.trackSearch(
-        current_user.get("_id") if current_user else None,
+        current_user.id if current_user else None,
         payload.searchTerm,
         payload.resultsCount,
         payload.sessionId,
@@ -117,7 +117,7 @@ async def track_view(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackProductView(
-        current_user.get("_id") if current_user else None, payload.productId, payload.productName, payload.sessionId
+        current_user.id if current_user else None, payload.productId, payload.productName, payload.sessionId
     )
     return {"message": "View tracked"}
 
@@ -130,7 +130,7 @@ async def track_click(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackProductClick(
-        current_user.get("_id") if current_user else None,
+        current_user.id if current_user else None,
         payload.productId,
         payload.productName,
         payload.source,
@@ -147,7 +147,7 @@ async def track_cart_abandonment(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartAbandonment(
-        current_user.get("_id") if current_user else None, payload.cartItems, payload.cartValue, payload.sessionId
+        current_user.id if current_user else None, payload.cartItems, payload.cartValue, payload.sessionId
     )
     return {"message": "Cart abandonment tracked"}
 
@@ -160,7 +160,7 @@ async def track_session(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackSession(
-        current_user.get("_id") if current_user else None, payload.sessionId, payload.isReturning
+        current_user.id if current_user else None, payload.sessionId, payload.isReturning
     )
     return {"message": "Session tracked"}
 
@@ -173,7 +173,7 @@ async def track_page_view(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackPageView(
-        current_user.get("_id") if current_user else None, payload.page, payload.sessionId
+        current_user.id if current_user else None, payload.page, payload.sessionId
     )
     return {"message": "Page view tracked"}
 
@@ -186,7 +186,7 @@ async def track_drop_off(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackDropOff(
-        current_user.get("_id") if current_user else None, payload.page, payload.reason, payload.sessionId
+        current_user.id if current_user else None, payload.page, payload.reason, payload.sessionId
     )
     return {"message": "Drop-off tracked"}
 
@@ -200,7 +200,7 @@ async def track_frontend_error(
 ):
     from app.utils.logger import logger
 
-    user_id = current_user.get("_id") if current_user else "anonymous"
+    user_id = current_user.id if current_user else "anonymous"
     error_msg = (
         f"[FRONTEND] Critical Error from user {user_id}\n"
         f"Message: {payload.message}\n"
@@ -239,7 +239,7 @@ async def track_cart_item_remove(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartItemRemove(
-        current_user.get("_id") if current_user else None, payload.productId, payload.quantity, payload.sessionId
+        current_user.id if current_user else None, payload.productId, payload.quantity, payload.sessionId
     )
     return {"message": "Cart item removal tracked"}
 
@@ -252,7 +252,7 @@ async def track_cart_item_add(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartAdd(
-        current_user.get("_id") if current_user else None, payload.productId, payload.quantity, payload.sessionId
+        current_user.id if current_user else None, payload.productId, payload.quantity, payload.sessionId
     )
     return {"message": "Cart item addition tracked"}
 
@@ -265,7 +265,7 @@ async def track_filter_click(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackFilterClick(
-        current_user.get("_id") if current_user else None, payload.filterType, payload.filterValue, payload.sessionId
+        current_user.id if current_user else None, payload.filterType, payload.filterValue, payload.sessionId
     )
     return {"message": "Filter click tracked"}
 
@@ -277,7 +277,7 @@ async def get_recent_searches(
     current_user: Optional[dict] = Depends(get_optional_user),
     req: Request = None,
 ):
-    user_id = current_user.get("_id") if current_user else None
+    user_id = current_user.id if current_user else None
     return await tracking_repository.getRecentUserSearches(user_id, sessionId, limit)
 
 
@@ -287,7 +287,7 @@ async def clear_recent_searches(
     current_user: Optional[dict] = Depends(get_optional_user),
     req: Request = None,
 ):
-    user_id = current_user.get("_id") if current_user else None
+    user_id = current_user.id if current_user else None
     await tracking_repository.clearRecentSearches(user_id, sessionId)
     return {"ok": True}
 
@@ -403,8 +403,8 @@ async def get_most_abandoned_products(
 
 @router.post("/notify-pincode")
 async def track_notify_pincode(data: dict, current_user: Optional[dict] = Depends(get_optional_user)):
-    user_id = current_user.get("_id") if current_user else None
-    user_email = current_user.get("email") if current_user else data.get("email")
+    user_id = current_user.id if current_user else None
+    user_email = current_user.email if current_user else data.get("email")
     
     # Store the notification request
     record = {

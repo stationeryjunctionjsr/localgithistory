@@ -36,7 +36,7 @@ def _resolve_product_seller_id(product: dict, pincode_seller_ids: set) -> Option
     Falls back to product.sellerId (top-level legacy field) if no match found.
     Returns None only if truly no seller is configured.
     """
-    sellers = product.get("sellers") or []
+    sellers = product.sellers or []
     if sellers and pincode_seller_ids:
         for s in sellers:
             if (
@@ -46,7 +46,7 @@ def _resolve_product_seller_id(product: dict, pincode_seller_ids: set) -> Option
             ):
                 return str(s["sellerId"])
     # Fallback: top-level sellerId (set on product creation)
-    return product.get("sellerId")
+    return product.seller_id
 
 
 # Helper function to create order notification
@@ -61,13 +61,13 @@ async def create_order_notification(order):
                 "userId": super_admin.id,
                 "type": "new_order",
                 "title": "New Order Received",
-                "message": f'New order "{order.get("orderNumber", order.id)}" worth ₹{order.get("total", 0):.2f} received',
+                "message": f'New order "{(order.order_number if order.order_number is not None else order.id)}" worth ₹{(order.total if order.total is not None else 0):.2f} received',
                 "data": {
                     "orderId": order.id,
-                    "orderNumber": order.get("orderNumber", order.id),
-                    "amount": order.get("total", 0),
+                    "orderNumber": (order.order_number if order.order_number is not None else order.id),
+                    "amount": (order.total if order.total is not None else 0),
                     "userId": order.user,
-                    "createdAt": order.get("createdAt"),
+                    "createdAt": order.created_at,
                 },
             }
         )
@@ -82,20 +82,20 @@ async def create_payment_notification(payment):
         if not super_admin:
             return
 
-        payment_id = payment.get("paymentId") or payment.id
+        payment_id = payment.payment_id or payment.id
         await notification_repository.create(
             {
                 "userId": super_admin.id,
                 "type": "new_payment",
                 "title": "New Payment Received",
-                "message": f'New payment "{payment_id}" worth ₹{payment.get("totalAmount", 0):.2f} received',
+                "message": f'New payment "{payment_id}" worth ₹{(payment.total_amount if payment.total_amount is not None else 0):.2f} received',
                 "data": {
                     "paymentId": payment.id,
                     "paymentIdFormatted": payment_id,
-                    "orderId": payment.get("orderId"),
-                    "amount": payment.get("totalAmount", 0),
-                    "paymentMethod": payment.get("paymentMethod"),
-                    "createdAt": payment.get("createdAt") or datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
+                    "orderId": payment.order_id,
+                    "amount": (payment.total_amount if payment.total_amount is not None else 0),
+                    "paymentMethod": payment.payment_method,
+                    "createdAt": payment.created_at or datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
                 },
             }
         )
@@ -154,12 +154,12 @@ async def populate_orders(orders: List[dict]):
     for order in orders:
         if order.user:
             user_ids.add(str(order.user))
-        if order.get("assignedValet"):
+        if order.assigned_valet:
             valet_ids.add(str(order["assignedValet"]))
         if order.id:
             order_ids.add(str(order.id))
-        for item in order.get("items", []):
-            if item.get("product"):
+        for item in (order.items or []):
+            if item.product:
                 product_ids.add(str(item["product"]))
 
     # 2. Bulk fetch users, valets, payments, and products with smart database-level queries
@@ -180,20 +180,20 @@ async def populate_orders(orders: List[dict]):
     if order_ids:
         payments = await payment_repository.findAll({"allowed_order_ids": list(order_ids)})
         for p in payments:
-            oid = p.get("orderId")
+            oid = p.order_id
             if oid:
-                payments_map[str(oid)] = p.get("paymentEntries") or []
+                payments_map[str(oid)] = p.payment_entries or []
 
     # 3. Populate each order using the maps
     populated_orders = []
     for order in orders:
         user = users_map.get(str(order.user))
-        valet = users_map.get(str(order.get("assignedValet"))) if order.get("assignedValet") else None
+        valet = users_map.get(str(order.assigned_valet)) if order.assigned_valet else None
         payment_entries = payments_map.get(str(order.id), [])
 
         populated_items = []
-        for item in order.get("items", []):
-            prod_id = str(item.get("product"))
+        for item in (order.items or []):
+            prod_id = str(item.product)
             product = products_map.get(prod_id)
             populated_items.append(
                 {**item, "product": product if product else {"_id": prod_id, "name": "Product not found"}}
@@ -204,12 +204,12 @@ async def populate_orders(orders: List[dict]):
             "user": {
                 "_id": user.id,
                 "userId": user.user_id,
-                "userIdFormatted": user.get("userIdFormatted"),
+                "userIdFormatted": user.user_id_formatted,
                 "name": user.name,
                 "email": user.email,
-                "companyName": user.get("companyName"),
-                "gstin": user.get("gstin"),
-                "locationLink": user.get("locationLink"),
+                "companyName": user.company_name,
+                "gstin": user.gstin,
+                "locationLink": user.location_link,
             }
             if user
             else None,
@@ -218,7 +218,7 @@ async def populate_orders(orders: List[dict]):
             "valet": {
                 "_id": valet.id,
                 "userId": valet.user_id,
-                "userIdFormatted": valet.get("userIdFormatted"),
+                "userIdFormatted": valet.user_id_formatted,
                 "name": valet.name,
                 "email": valet.email,
             }
@@ -226,8 +226,8 @@ async def populate_orders(orders: List[dict]):
             else None,
         }
 
-        if order.get("declineReason"):
-            populated_order["declineReason"] = order.get("declineReason")
+        if order.decline_reason:
+            populated_order["declineReason"] = order.decline_reason
         populated_orders.append(populated_order)
 
     return populated_orders
@@ -310,7 +310,7 @@ async def get_order(order_id: str, current_user: dict = Depends(get_current_user
         if order.user != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
     elif current_user.role == "valet":
-        if order.get("assignedValet") != current_user.id:
+        if order.assigned_valet != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
 
     populated_order = await populate_order(order)
@@ -343,14 +343,14 @@ async def create_order(
 
     # Determine effective role (if deactivated wholesaler, treat as customer)
     effective_role = "customer"
-    if user.get("isDeactivated") and user.role == "wholesaler":
+    if user.is_deactivated and user.role == "wholesaler":
         effective_role = "customer"
     else:
-        effective_role = user.get("role", "customer")
+        effective_role = (user.role if user.role is not None else "customer")
 
     # Block wholesaler if they have overdue credit dues (unverified payments do not count)
     if effective_role == "wholesaler":
-        terms_days = user.get("paymentTerms")
+        terms_days = user.payment_terms
         if terms_days is None:
             terms_days = 30
         else:
@@ -366,14 +366,14 @@ async def create_order(
         has_overdue = False
 
         for p in user_payments:
-            if p.get("paymentMethod") == "credit":
+            if p.payment_method == "credit":
                 verified_paid = sum(
-                    entry.get("amount", 0.0) for entry in (p.get("paymentEntries") or []) if entry.get("verified")
+                    entry.get("amount", 0.0) for entry in (p.payment_entries or []) if entry.get("verified")
                 )
-                effective_due = p.get("totalAmount", 0.0) - verified_paid
+                effective_due = (p.total_amount if p.total_amount is not None else 0.0) - verified_paid
 
                 if effective_due > 0:
-                    order_date_str = p.get("orderDate") or p.get("createdAt")
+                    order_date_str = p.order_date or p.created_at
                     if order_date_str:
                         try:
                             from datetime import timedelta
@@ -430,13 +430,13 @@ async def create_order(
         if not cart or not cart.items:
             ORDER_FAILURES.labels(reason="empty_cart").inc()
             raise HTTPException(status_code=400, detail="Your cart is empty")
-        cart_items = cart.get("items", [])
+        cart_items = (cart.items or [])
     # Pre-load all products referenced in cart items in a single batch query (eliminates N+1)
     _cart_product_ids = list(
         {
-            str(item.get("product") or item.product_id)
+            str(item.product or item.product_id)
             for item in cart_items
-            if item.get("product") or item.product_id
+            if item.product or item.product_id
         }
     )
     _cart_products_list = (
@@ -447,10 +447,10 @@ async def create_order(
     # Calculate initial subtotal and base shipping before coupon application
     temp_subtotal = 0.0
     for item in cart_items:
-        p = _cart_products_map.get(str(item.get("product") or item.product_id))
+        p = _cart_products_map.get(str(item.product or item.product_id))
         if p:
-            qty = item.get("quantity", 0)
-            sell_as_case = item.get("sellAsCase", False)
+            qty = (item.quantity if item.quantity is not None else 0)
+            sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
             temp_subtotal += product_repository.calculateTotalPrice(
                 p, effective_role, qty, sell_as_case=sell_as_case, user_id=current_user.id
             )
@@ -546,13 +546,13 @@ async def create_order(
             best.get("bxgyItemIndices")
             c = best["coupon"]
             applied_coupon_id = c.id
-            coupon_code = c.get("code") or ("AUTO-" + (applied_coupon_id or "")[:8])
+            coupon_code = c.code or ("AUTO-" + (applied_coupon_id or "")[:8])
             coupon_info = {
                 "code": coupon_code,
-                "discountType": c.get("discountType"),
-                "discountValue": c.get("discountValue"),
+                "discountType": c.discount_type,
+                "discountValue": c.discount_value,
                 "discountAmount": coupon_discount,
-                "typeOfDiscount": c.get("typeOfDiscount"),
+                "typeOfDiscount": c.type_of_discount,
             }
 
     # Calculate totals with GST (after coupon discount)
@@ -567,13 +567,13 @@ async def create_order(
     eligible_subtotal_for_discount = None
     item_totals = []
     for idx, item in enumerate(cart_items):
-        product = _cart_products_map.get(str(item.get("product") or item.product_id))
+        product = _cart_products_map.get(str(item.product or item.product_id))
         if not product:
             raise HTTPException(
-                status_code=400, detail=f"Product not found: {item.get('product') or item.product_id}"
+                status_code=400, detail=f"Product not found: {item.product or item.product_id}"
             )
-        quantity = item.get("quantity", 0)
-        sell_as_case = item.get("sellAsCase", False)
+        quantity = (item.quantity if item.quantity is not None else 0)
+        sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
 
         ignore_auto = False
         if is_override and eligible_item_indices is not None and idx in eligible_item_indices:
@@ -716,13 +716,13 @@ async def create_order(
         final_item_total = max(0.0, item_total_after_coupon - item_referral_discount)
 
         # Calculate total single physical units
-        qty_per_case = int(product.get("quantityPerCase") or 1)
+        qty_per_case = int(product.quantity_per_case or 1)
         total_single_units = (quantity * qty_per_case) if sell_as_case else quantity
 
         single_unit_price = final_item_total / total_single_units if total_single_units > 0 else 0.0
 
         # GST Calculation per single unit
-        gst_percent = product.get("gst", 0) if gst_enabled else 0
+        gst_percent = (product.gst if product.gst is not None else 0) if gst_enabled else 0
         gst_multiplier = 1 + (gst_percent / 100)
         single_unit_taxable_value = single_unit_price / gst_multiplier if gst_multiplier > 0 else single_unit_price
         single_unit_cgst = single_unit_taxable_value * (gst_percent / 200) if gst_percent > 0 else 0
@@ -963,7 +963,7 @@ async def create_order(
                 order_zone_id = str(_z2.id or "")
 
         if order_zone_id:
-            seller_ids_in_order = {item.get("sellerId") for item in order_items if item.get("sellerId")}
+            seller_ids_in_order = {item.seller_id for item in order_items if item.seller_id}
             for sid in seller_ids_in_order:
                 sdoc = await user_repository.findById(sid)
                 if sdoc:
@@ -1099,14 +1099,14 @@ async def create_order(
     # Check credit limit for credit payment method
     if order_data.paymentMethod == "credit":
         # Initialize credit if not set
-        if user.get("creditUsed") is None:
+        if user.credit_used is None:
             await user_repository.update(current_user.id, {"creditUsed": 0})
             user["creditUsed"] = 0
-        if user.get("creditLimit") is None:
+        if user.credit_limit is None:
             await user_repository.update(current_user.id, {"creditLimit": 0})
             user["creditLimit"] = 0
 
-        if (user.get("creditUsed", 0) + total) > user.get("creditLimit", 0):
+        if ((user.credit_used if user.credit_used is not None else 0) + total) > (user.credit_limit if user.credit_limit is not None else 0):
             ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()
             raise HTTPException(status_code=400, detail="Credit limit exceeded")
 
@@ -1123,7 +1123,7 @@ async def create_order(
     order = await order_repository.create(
         {
             "user": current_user.id,
-            "sessionId": current_user.get("sessionId"),
+            "sessionId": current_user.session_id,
             "items": order_items,
             "subtotalBeforeCoupon": round(subtotal_before_coupon, 2),
             "subtotal": round(subtotal, 2),
@@ -1174,7 +1174,7 @@ async def create_order(
                         row = result.fetchone()
                         if row and row.doc:
                             doc = json.loads(row.doc)
-                            updated_slots = doc.get("slots", [])
+                            updated_slots = (doc.slots or [])
                             for sl in updated_slots:
                                 if sl.get("id") == slot_id:
                                     # Flat bookedCount increment — per-zone config records
@@ -1202,7 +1202,7 @@ async def create_order(
     # Increment sales volume for product bundles included in this order.
     # Increment by the actual number of bundle copies purchased (not always +1).
     try:
-        unique_bundle_ids = {item.get("bundleId") for item in cart_items if item.get("bundleId")}
+        unique_bundle_ids = {item.bundle_id for item in cart_items if item.bundle_id}
         for b_id in unique_bundle_ids:
             from app.repositories.bundle_repository import bundle_repository
 
@@ -1239,7 +1239,7 @@ async def create_order(
 
         # Build variant_combinations arg expected by decrement_stock_atomic
         variant_combos = None
-        if item.get("variantAttributes"):
+        if item.variant_attributes:
             variant_combos = [{"attributes": item["variantAttributes"], "quantity": item.quantity}]
 
         new_stock = await product_repository.decrement_stock_atomic(
@@ -1256,7 +1256,7 @@ async def create_order(
                 item["product"],
                 order.id,
             )
-            new_stock = max(0, (product.get("stock", 0) or 0) - item.quantity)
+            new_stock = max(0, ((product.stock if product.stock is not None else 0) or 0) - item.quantity)
 
         # Fulfil the stock reservation for this user + product
         from app.repositories.stock_reservation_repository import stock_reservation_repository
@@ -1269,8 +1269,8 @@ async def create_order(
 
         if product.category:
             cat = await category_repository.findByName(product.category)
-            if cat and cat.get("minimumQuantity"):
-                threshold = cat.get("minimumQuantity")
+            if cat and cat.minimum_quantity:
+                threshold = cat.minimum_quantity
                 if new_stock < threshold:
                     should_notify = True
 
@@ -1283,10 +1283,10 @@ async def create_order(
                             "userId": super_admin.id,
                             "type": "low_stock",
                             "title": "Low Stock Alert",
-                            "message": f'Product "{product.get("sku")}" - "{product.name}" has {new_stock} pieces left',
+                            "message": f'Product "{product.sku}" - "{product.name}" has {new_stock} pieces left',
                             "data": {
                                 "productId": product.id,
-                                "sku": product.get("sku"),
+                                "sku": product.sku,
                                 "productName": product.name,
                                 "quantity": new_stock,
                                 "category": product.category,
@@ -1325,7 +1325,7 @@ async def create_order(
         "orderId": order.id,
         "userId": user_for_payment.user_id,  # Use userId instead of customerId
         "customerName": user_for_payment.name,
-        "orderDate": order.get("createdAt"),
+        "orderDate": order.created_at,
         "paymentMethod": order_data.paymentMethod,
         "totalAmount": total,
     }
@@ -1341,7 +1341,7 @@ async def create_order(
                 "amount": total,
                 "image": screenshot_path,
                 "verified": False,
-                "createdAt": order.get("createdAt"),
+                "createdAt": order.created_at,
             }
         ]
     elif order_data.paymentMethod == "credit":
@@ -1395,7 +1395,7 @@ async def create_order(
                 oi["sellerId"] = super_admin_id
 
         # Build a lookup of sellerId -> seller user doc (for name)
-        seller_ids_in_order = {item.get("sellerId") for item in order_items if item.get("sellerId")}
+        seller_ids_in_order = {item.seller_id for item in order_items if item.seller_id}
         seller_docs = {}
         for sid in seller_ids_in_order:
             sdoc = await user_repository.findById(sid)
@@ -1412,7 +1412,7 @@ async def create_order(
 
         # Only split if multiple seller groups exist
         if len(groups) > 1:
-            parent_order_number = order.get("orderNumber", str(order.id))
+            parent_order_number = (order.order_number if order.order_number is not None else str(order.id))
             sub_order_ids = []
 
             # Build per-seller delivery option lookup from request
@@ -1503,7 +1503,7 @@ async def create_order(
                     "notes": order_data.notes,
                     "couponCode": coupon_code,
                     "couponInfo": coupon_info,
-                    "createdAt": order.get("createdAt"),
+                    "createdAt": order.created_at,
                 }
                 sub = await sub_order_repository.create(sub_order_data)
                 sub_order_ids.append(str(sub.id))
@@ -1566,11 +1566,11 @@ async def update_order_tracking(
     # Sellers can only update their own sub-orders' parent orders
     if is_seller_admin(current_user):
         seller_id = str(current_user.id)
-        sub_order_ids = order.get("subOrderIds") or []
+        sub_order_ids = order.sub_order_ids or []
         seller_has_sub = False
         for so_id in sub_order_ids:
             so = await sub_order_repository.findById(so_id)
-            if so and str(so.get("sellerId", "")) == seller_id:
+            if so and str((so.seller_id or "")) == seller_id:
                 seller_has_sub = True
                 break
         if not seller_has_sub:
@@ -1591,7 +1591,7 @@ async def update_order_tracking(
             str(order.user),
             {
                 "title": "Order Shipped",
-                "message": f"Your order #{order.get('orderNumber', order_id)} has been shipped. Tracking ID: {data.trackingId}",
+                "message": f"Your order #{(order.order_number if order.order_number is not None else order_id)} has been shipped. Tracking ID: {data.trackingId}",
                 "data": {"orderId": order_id, "trackingId": data.trackingId, "type": "order_shipped"},
             },
         )
@@ -1625,14 +1625,14 @@ async def update_delivery_charge(
         raise HTTPException(status_code=400, detail="Can only update delivery charge before order is dispatched")
 
     new_delivery_charge = request.newDeliveryCharge
-    old_delivery_charge = order.get("shipping", 0)
+    old_delivery_charge = (order.shipping if order.shipping is not None else 0)
     difference = new_delivery_charge - old_delivery_charge
 
     if difference == 0:
         raise HTTPException(status_code=400, detail="New delivery charge is same as current charge")
 
     # Update order totals
-    new_total = order.get("total", 0) + difference
+    new_total = (order.total if order.total is not None else 0) + difference
 
     await order_repository.update(order_id, {"shipping": new_delivery_charge, "total": new_total})
 
@@ -1640,17 +1640,17 @@ async def update_delivery_charge(
     payments = await payment_repository.findByOrderId(order_id)
     if payments and len(payments) > 0:
         payment = payments[0]
-        payment_method = order.get("paymentMethod", "cod")
+        payment_method = (order.payment_method if order.payment_method is not None else "cod")
 
         if payment_method == "upi":
             # For UPI: Update amount remaining (to be settled during delivery as COD)
-            new_amount_remaining = payment.get("amountRemaining", 0) + difference
+            new_amount_remaining = (payment.amount_remaining if payment.amount_remaining is not None else 0) + difference
             await payment_repository.update(
                 payment.id, {"totalAmount": new_total, "amountRemaining": new_amount_remaining}
             )
         elif payment_method in ["credit", "cod"]:
             # For Credit/COD: Update amount remaining
-            new_amount_remaining = payment.get("amountRemaining", 0) + difference
+            new_amount_remaining = (payment.amount_remaining if payment.amount_remaining is not None else 0) + difference
             await payment_repository.update(
                 payment.id, {"totalAmount": new_total, "amountRemaining": new_amount_remaining}
             )
@@ -1680,7 +1680,7 @@ async def _compute_fulfillment_status(sub_order_ids: list) -> Optional[str]:
     for so_id in sub_order_ids:
         so = await sub_order_repository.findById(so_id)
         if so:
-            statuses.append(so.get("status", "pending"))
+            statuses.append((so.status if so.status is not None else "pending"))
 
     if not statuses:
         return None
@@ -1717,7 +1717,7 @@ async def update_order_status(
     if current_user.role == "valet":
         if status_data.status != "delivered":
             raise HTTPException(status_code=403, detail="Valet can only mark orders as delivered")
-        if order.get("assignedValet") != current_user.id:
+        if order.assigned_valet != current_user.id:
             raise HTTPException(status_code=403, detail="Order not assigned to you")
 
         # ── Pickup gate: for multi-seller orders, ALL sub-orders must be picked up ──
@@ -1725,9 +1725,9 @@ async def update_order_status(
         all_sub_orders = await sub_order_repository.findByParentOrder(order_id)
         if all_sub_orders:
             not_picked_up = [
-                so.get("subOrderNumber") or so.id
+                so.sub_order_number or so.id
                 for so in all_sub_orders
-                if so.get("pickupStatus") != "picked_up"
+                if so.pickup_status != "picked_up"
             ]
             if not_picked_up:
                 raise HTTPException(
@@ -1738,7 +1738,7 @@ async def update_order_status(
                     ),
                 )
         # For COD orders, payment status changes to paid when delivered
-        if order.get("paymentMethod") == "cod":
+        if order.payment_method == "cod":
             from datetime import datetime
 
             update_data["paymentStatus"] = "paid"
@@ -1752,8 +1752,8 @@ async def update_order_status(
 
         # Increment deliveredCount on the slot
         try:
-            config_id = order.get("deliverySlotConfigId")
-            slot_id = order.get("deliverySlotId")
+            config_id = order.delivery_slot_config_id
+            slot_id = order.delivery_slot_id
             if config_id and slot_id:
                 from app.db.storage_factory import get_storage as _get_storage
                 slot_storage = _get_storage("deliverySlots")
@@ -1766,9 +1766,9 @@ async def update_order_status(
                             break
                     await slot_storage.update(config_id, {"slots": slots_list})
         except Exception as e:
-            logger.error("Failed to increment deliveredCount for config %s slot %s: %s", order.get("deliverySlotConfigId"), order.get("deliverySlotId"), str(e), exc_info=True)
+            logger.error("Failed to increment deliveredCount for config %s slot %s: %s", order.delivery_slot_config_id, order.delivery_slot_id, str(e), exc_info=True)
 
-        if order.get("paymentMethod") == "cod" and "paymentStatus" not in update_data:
+        if order.payment_method == "cod" and "paymentStatus" not in update_data:
             update_data["paymentStatus"] = "paid"
             update_data["codPaymentReceived"] = True
             update_data["codPaymentReceivedAt"] = datetime.now(__import__("datetime").timezone.utc).isoformat()
@@ -1778,16 +1778,16 @@ async def update_order_status(
             if existing_payment and len(existing_payment) > 0:
                 payment = existing_payment[0]
                 # Check if payment entry exists, if not add one
-                if payment.get("paymentEntries") and len(payment.get("paymentEntries", [])) > 0:
+                if payment.payment_entries and len((payment.payment_entries or [])) > 0:
                     # Update existing payment entry
                     await payment_repository.updatePaymentEntry(
                         payment.id,
                         payment["paymentEntries"][0].get("entryId"),
-                        {"amount": order.get("total") or payment.get("totalAmount"), "verified": False},
+                        {"amount": order.total or payment.total_amount, "verified": False},
                     )
                     updated_payment = await payment_repository.update(
                         payment.id,
-                        {"amountPaid": order.get("total") or payment.get("totalAmount"), "amountRemaining": 0},
+                        {"amountPaid": order.total or payment.total_amount, "amountRemaining": 0},
                     )
                     # Create notification for COD payment
                     await create_payment_notification(updated_payment)
@@ -1795,7 +1795,7 @@ async def update_order_status(
                     # Add new payment entry for COD payment received
                     updated_payment_with_entry = await payment_repository.addPaymentEntry(
                         payment.id,
-                        {"amount": order.get("total") or payment.get("totalAmount"), "image": None, "verified": False},
+                        {"amount": order.total or payment.total_amount, "image": None, "verified": False},
                     )
                     # Create notification for COD payment
                     await create_payment_notification(
@@ -1804,7 +1804,7 @@ async def update_order_status(
                             "paymentId": updated_payment_with_entry.get("paymentId")
                             or updated_payment_with_entry.id,
                             "orderId": updated_payment_with_entry.get("orderId"),
-                            "totalAmount": order.get("total", payment.get("totalAmount", 0)),
+                            "totalAmount": (order.total if order.total is not None else payment.get("totalAmount", 0)),
                             "paymentMethod": "cod",
                             "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
                         }
@@ -1817,15 +1817,15 @@ async def update_order_status(
                         "orderId": order.id,
                         "userId": user.user_id if user else None,  # Use userId instead of customerId
                         "customerName": user.name if user else "Unknown",
-                        "orderDate": order.get("createdAt"),
+                        "orderDate": order.created_at,
                         "paymentMethod": "cod",
-                        "totalAmount": order.get("total", 0),
-                        "amountPaid": order.get("total", 0),
+                        "totalAmount": (order.total if order.total is not None else 0),
+                        "amountPaid": (order.total if order.total is not None else 0),
                         "amountRemaining": 0,
                         "paymentEntries": [
                             {
                                 "entryId": 1,
-                                "amount": order.get("total", 0),
+                                "amount": (order.total if order.total is not None else 0),
                                 "image": None,
                                 "verified": False,
                                 "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat(),
@@ -1846,17 +1846,17 @@ async def update_order_status(
                 )
     elif status_data.status == "cancelled":
         # For cancelled orders, restore stock and refund credit if credit payment
-        if order.get("paymentMethod") == "credit":
+        if order.payment_method == "credit":
             user = await user_repository.findById(order.user)
-            if user and user.get("creditUsed"):
-                new_credit_used = max(0, (user.get("creditUsed", 0) or 0) - (order.get("total", 0) or 0))
+            if user and user.credit_used:
+                new_credit_used = max(0, ((user.credit_used if user.credit_used is not None else 0) or 0) - ((order.total if order.total is not None else 0) or 0))
                 await user_repository.update(order.user, {"creditUsed": new_credit_used})
 
         # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
         # cannot race against this restoration and produce a wrong stock count.
-        for item in order.get("items", []):
-            if item.get("product") and item.quantity:
-                await product_repository.increment_stock_atomic(str(item.get("product")), int(item.get("quantity", 0)))
+        for item in (order.items or []):
+            if item.product and item.quantity:
+                await product_repository.increment_stock_atomic(str(item.product), int((item.quantity if item.quantity is not None else 0)))
 
         from datetime import datetime
 
@@ -1974,10 +1974,10 @@ async def accept_order(order_id: str, current_user: dict = Depends(require_super
         raise HTTPException(status_code=400, detail="Only pending orders can be accepted")
 
     # UPI orders must have a verified payment entry before acceptance
-    if order.get("paymentMethod") == "upi":
+    if order.payment_method == "upi":
         payments = await payment_repository.findByOrderId(order_id)
         payment = payments[0] if payments else None
-        entries = (payment.get("paymentEntries") or []) if payment else []
+        entries = (payment.payment_entries or []) if payment else []
         any_verified = any(entry.get("verified") for entry in entries)
         if not any_verified:
             raise HTTPException(status_code=400, detail="UPI payment must be verified before accepting the order")
@@ -2001,27 +2001,27 @@ async def decline_order(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    if order.get("paymentMethod") == "upi":
+    if order.payment_method == "upi":
         raise HTTPException(status_code=400, detail="UPI orders cannot be declined")
 
-    if order.get("paymentMethod") not in ["cod", "credit"]:
+    if order.payment_method not in ["cod", "credit"]:
         raise HTTPException(status_code=400, detail="Only COD and Credit orders can be declined")
 
     if order.status != "pending":
         raise HTTPException(status_code=400, detail="Only pending orders can be declined")
 
     # For credit orders, refund credit used
-    if order.get("paymentMethod") == "credit":
+    if order.payment_method == "credit":
         user = await user_repository.findById(order.user)
-        if user and user.get("creditUsed"):
-            new_credit_used = max(0, (user.get("creditUsed", 0) or 0) - (order.get("total", 0) or 0))
+        if user and user.credit_used:
+            new_credit_used = max(0, ((user.credit_used if user.credit_used is not None else 0) or 0) - ((order.total if order.total is not None else 0) or 0))
             await user_repository.update(order.user, {"creditUsed": new_credit_used})
 
     # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
     # cannot race against this restoration and produce a wrong stock count.
-    for item in order.get("items", []):
-        if item.get("product") and item.quantity:
-            await product_repository.increment_stock_atomic(str(item.get("product")), int(item.get("quantity", 0)))
+    for item in (order.items or []):
+        if item.product and item.quantity:
+            await product_repository.increment_stock_atomic(str(item.product), int((item.quantity if item.quantity is not None else 0)))
 
     updated_order = await order_repository.update(
         order_id, {"status": "declined", "declineReason": decline_data.reason}
@@ -2049,7 +2049,7 @@ async def dispatch_order(
 
     # Sellers can only dispatch orders that belong to them
     if is_seller_admin(current_user):
-        if str(order.get("sellerId", "")) != str(current_user.id):
+        if str((order.seller_id or "")) != str(current_user.id):
             raise HTTPException(status_code=403, detail="You can only dispatch your own orders")
 
     if order.status != "processing":
@@ -2062,7 +2062,7 @@ async def dispatch_order(
     from datetime import datetime
 
     now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
-    is_urgent = order.get("isUrgentDelivery", False)
+    is_urgent = (order.is_urgent_delivery if order.is_urgent_delivery is not None else False)
     timeout_minutes = 5 if is_urgent else 20
 
     updated_order = await order_repository.update(
@@ -2086,7 +2086,7 @@ async def dispatch_order(
             {
                 "title": "New Delivery Request",
                 "message": (
-                    f"You have a new delivery order #{order.get('orderNumber', order_id)}. "
+                    f"You have a new delivery order #{(order.order_number if order.order_number is not None else order_id)}. "
                     f"Please respond within {timeout_label}."
                 ),
                 "link": f"/valet/orders/{order_id}",
@@ -2145,7 +2145,7 @@ async def get_valet_pending_orders(current_user: dict = Depends(get_current_user
 #     if current_user.role != "super_admin":
 #         if current_user.role != "valet":
 #             raise HTTPException(status_code=403, detail="Access denied")
-#         if str(order.get("pendingValetId", "")) != str(current_user.id):
+#         if str((order.pending_valet_id or "")) != str(current_user.id):
 #             raise HTTPException(status_code=403, detail="Order is not assigned to you")
 #
 #     if order.status != "pending_valet":
@@ -2170,7 +2170,7 @@ async def get_valet_pending_orders(current_user: dict = Depends(get_current_user
 #             "invoiceUrl": invoice.get("url") if invoice else None
 #         })
 #         # Notify seller
-#         seller_id = order.get("sellerId")
+#         seller_id = order.seller_id
 #         if seller_id:
 #             try:
 #                 from app.services.push_notification_service import push_notification_service
@@ -2178,7 +2178,7 @@ async def get_valet_pending_orders(current_user: dict = Depends(get_current_user
 #                     seller_id,
 #                     {
 #                         "title": "Valet Accepted",
-#                         "message": f"Valet has accepted order #{order.get('orderNumber', order_id)} and it is now shipped.",
+#                         "message": f"Valet has accepted order #{(order.order_number if order.order_number is not None else order_id)} and it is now shipped.",
 #                         "link": f"/seller/orders/{order_id}",
 #                     }
 #                 )
@@ -2187,7 +2187,7 @@ async def get_valet_pending_orders(current_user: dict = Depends(get_current_user
 #         return await populate_order(updated_order)
 #     else:
 #         # Declined -> Cascade
-#         history = list(order.get("valetDeclineHistory") or [])
+#         history = list(order.valet_decline_history or [])
 #         valet_id_str = str(current_user.id)
 #         if valet_id_str not in history:
 #             history.append(valet_id_str)
@@ -2217,7 +2217,7 @@ async def cancel_order(order_id: str, current_user: dict = Depends(get_current_u
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Only COD/Credit orders can be cancelled
-    if order.get("paymentMethod") not in ["cod", "credit"]:
+    if order.payment_method not in ["cod", "credit"]:
         raise HTTPException(status_code=400, detail="Only COD and Credit orders can be cancelled")
 
     # Orders can only be cancelled before they are Accepted (status is still 'pending')
@@ -2225,17 +2225,17 @@ async def cancel_order(order_id: str, current_user: dict = Depends(get_current_u
         raise HTTPException(status_code=400, detail="Orders can only be cancelled before they are accepted")
 
     # For credit orders, refund credit used
-    if order.get("paymentMethod") == "credit":
+    if order.payment_method == "credit":
         user = await user_repository.findById(order.user)
-        if user and user.get("creditUsed"):
-            new_credit_used = max(0, (user.get("creditUsed", 0) or 0) - (order.get("total", 0) or 0))
+        if user and user.credit_used:
+            new_credit_used = max(0, ((user.credit_used if user.credit_used is not None else 0) or 0) - ((order.total if order.total is not None else 0) or 0))
             await user_repository.update(order.user, {"creditUsed": new_credit_used})
 
     # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
     # cannot race against this restoration and produce a wrong stock count.
-    for item in order.get("items", []):
-        if item.get("product") and item.quantity:
-            await product_repository.increment_stock_atomic(str(item.get("product")), int(item.get("quantity", 0)))
+    for item in (order.items or []):
+        if item.product and item.quantity:
+            await product_repository.increment_stock_atomic(str(item.product), int((item.quantity if item.quantity is not None else 0)))
 
     from datetime import datetime
 
@@ -2299,12 +2299,12 @@ async def valet_response(
 
     # Valets can only respond to orders assigned to them
     if current_user.role == "valet":
-        if str(order.get("pendingValetId", "")) != str(current_user.id):
+        if str((order.pending_valet_id or "")) != str(current_user.id):
             raise HTTPException(status_code=403, detail="This order is not assigned to you")
 
     # Check if the offer window has expired
-    assigned_at_str = order.get("valetAssignedAt", "")
-    is_urgent = order.get("isUrgentDelivery", False)
+    assigned_at_str = (order.valet_assigned_at or "")
+    is_urgent = (order.is_urgent_delivery if order.is_urgent_delivery is not None else False)
     timeout_minutes = 5 if is_urgent else 20
     if assigned_at_str:
         try:
@@ -2320,8 +2320,8 @@ async def valet_response(
             pass
 
     now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
-    valet_id = str(current_user.id) if current_user.role == "valet" else str(order.get("pendingValetId", ""))
-    seller_id = order.get("sellerId")
+    valet_id = str(current_user.id) if current_user.role == "valet" else str((order.pending_valet_id or ""))
+    seller_id = order.seller_id
 
     # ── ACCEPT ────────────────────────────────────────────────────────────────
     if response_data.action == "accept":
@@ -2338,7 +2338,7 @@ async def valet_response(
 
         # Fetch valet details once for notifications
         valet = await user_repository.findById(valet_id)
-        valet_name = valet.get("name", "The valet") if valet else "The valet"
+        valet_name = (valet.name if valet.name is not None else "The valet") if valet else "The valet"
 
         # ── Multi-seller: propagate assignedValet to all sub-orders, notify each seller ──
         # NOTE: hasSubOrders/subOrderIds not in relational DB — query sub-orders directly.
@@ -2366,7 +2366,7 @@ async def valet_response(
                             {
                                 "title": "Valet is Coming to Pick Up",
                                 "message": (
-                                    f"{valet_name} accepted order #{order.get('orderNumber', order_id)} "
+                                    f"{valet_name} accepted order #{(order.order_number if order.order_number is not None else order_id)} "
                                     "and will collect your items soon."
                                 ),
                                 "link": f"/seller/orders/{order_id}",
@@ -2389,7 +2389,7 @@ async def valet_response(
                         seller_id,
                         {
                             "title": "Order Dispatched",
-                            "message": f"{valet_name} accepted order #{order.get('orderNumber', order_id)} and is on the way.",
+                            "message": f"{valet_name} accepted order #{(order.order_number if order.order_number is not None else order_id)} and is on the way.",
                             "link": f"/seller/orders/{order_id}",
                             "data": {"orderId": order_id, "type": "valet_accepted"},
                         },
@@ -2430,7 +2430,7 @@ async def valet_response(
         return populated_order
 
     # ── DECLINE ───────────────────────────────────────────────────────────────
-    decline_history = list(order.get("valetDeclineHistory") or [])
+    decline_history = list(order.valet_decline_history or [])
     if valet_id and not any(isinstance(d, dict) and d.get("valetId") == valet_id for d in decline_history) and valet_id not in decline_history:
         decline_history.append({"valetId": valet_id, "reason": "declined"})
 
@@ -2441,7 +2441,7 @@ async def valet_response(
             "valetDeclineReason": response_data.declineReason or "",
             "valetDeclineHistory": decline_history,
             "pendingValetId": None,
-            "valetCascadeCount": (order.get("valetCascadeCount") or 0) + 1,
+            "valetCascadeCount": (order.valet_cascade_count or 0) + 1,
         },
     )
 
@@ -2470,7 +2470,7 @@ async def valet_response(
                 {
                     "title": "New Delivery Request",
                     "message": (
-                        f"You have a new delivery order #{order.get('orderNumber', order_id)}. "
+                        f"You have a new delivery order #{(order.order_number if order.order_number is not None else order_id)}. "
                         f"Please respond within {timeout_label}."
                     ),
                     "link": f"/valet/orders/{order_id}",
@@ -2495,7 +2495,7 @@ async def valet_response(
                     {
                         "title": "No Valets Available — Reassign Required",
                         "message": (
-                            f"All valets declined order #{order.get('orderNumber', order_id)}. "
+                            f"All valets declined order #{(order.order_number if order.order_number is not None else order_id)}. "
                             "Please assign a valet manually."
                         ),
                         "link": f"/seller/orders/{order_id}",
@@ -2531,7 +2531,7 @@ async def confirm_sub_order_pickup(
 
     # Only the assigned valet (or super admin) may confirm pickups
     if current_user.role == "valet":
-        if str(order.get("assignedValet", "")) != str(current_user.id):
+        if str((order.assigned_valet or "")) != str(current_user.id):
             raise HTTPException(status_code=403, detail="This order is not assigned to you")
 
     # Guard: order must be in 'shipped' state (valet accepted, pickups in progress)
@@ -2545,11 +2545,11 @@ async def confirm_sub_order_pickup(
     sub_order = await sub_order_repository.findById(sub_order_id)
     if not sub_order:
         raise HTTPException(status_code=404, detail="Sub-order not found")
-    if str(sub_order.get("parentOrderId", "")) != str(order_id):
+    if str((sub_order.parent_order_id or "")) != str(order_id):
         raise HTTPException(status_code=400, detail="Sub-order does not belong to this order")
 
     # Idempotency: already picked up
-    if sub_order.get("pickupStatus") == "picked_up":
+    if sub_order.pickup_status == "picked_up":
         raise HTTPException(status_code=400, detail="Pickup already confirmed for this seller")
 
     # Mark this sub-order as picked up (pickedUpAt is auto-stamped by the repository)
@@ -2578,7 +2578,7 @@ async def confirm_sub_order_pickup(
                 {
                     "title": "Your Order is On the Way! 🚴",
                     "message": (
-                        f"Your order #{order.get('orderNumber', order_id)} has been collected "
+                        f"Your order #{(order.order_number if order.order_number is not None else order_id)} has been collected "
                         "from all sellers and is now heading to you."
                     ),
                     "link": f"/orders/{order_id}",
@@ -2628,7 +2628,7 @@ async def settle_credit(
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Check if order payment method is credit
-    if order.get("paymentMethod") != "credit":
+    if order.payment_method != "credit":
         raise HTTPException(status_code=400, detail="This order is not a credit order")
 
     user = await user_repository.findById(current_user.id)
@@ -2642,8 +2642,7 @@ async def settle_credit(
     payment = payments[0]
 
     settle_amount = float(settle_data.amount)
-    remaining_amount = payment.get(
-        "amountRemaining", payment.get("totalAmount", 0) - (payment.get("amountPaid", 0) or 0)
+    remaining_amount = (payment.amount_remaining if payment.amount_remaining is not None else payment.get("totalAmount", 0) - ((payment.amount_paid if payment.amount_paid is not None else 0) or 0)
     )
 
     if settle_amount > remaining_amount:
@@ -2656,7 +2655,7 @@ async def settle_credit(
     )
 
     # Update user credit
-    new_credit_used = max(0, (user.get("creditUsed", 0) or 0) - settle_amount)
+    new_credit_used = max(0, ((user.credit_used if user.credit_used is not None else 0) or 0) - settle_amount)
     await user_repository.update(current_user.id, {"creditUsed": new_credit_used})
 
     # Update payment record
@@ -2736,7 +2735,7 @@ async def download_invoice(order_id: str, current_user: dict = Depends(get_curre
     if not is_owner and not is_super_admin:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not order.get("invoicePath"):
+    if not order.invoice_path:
         raise HTTPException(status_code=404, detail="Invoice not generated yet")
 
     file_path = Path(DATA_DIR).parent / order["invoicePath"].lstrip("/")
@@ -2745,7 +2744,7 @@ async def download_invoice(order_id: str, current_user: dict = Depends(get_curre
         raise HTTPException(status_code=404, detail="Invoice file not found")
 
     return FileResponse(
-        str(file_path), media_type="application/pdf", filename=f"invoice-{order.get('orderNumber', order_id)}.pdf"
+        str(file_path), media_type="application/pdf", filename=f"invoice-{(order.order_number if order.order_number is not None else order_id)}.pdf"
     )
 
 
@@ -2784,7 +2783,7 @@ async def get_seller_order(
     sub_order = await sub_order_repository.findById(sub_order_id)
     if not sub_order:
         raise HTTPException(status_code=404, detail="Sub-order not found")
-    if str(sub_order.get("sellerId")) != str(current_user.id):
+    if str(sub_order.seller_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Access denied.")
     return sub_order
 
@@ -2803,7 +2802,7 @@ async def update_seller_order_status(
     sub_order = await sub_order_repository.findById(sub_order_id)
     if not sub_order:
         raise HTTPException(status_code=404, detail="Sub-order not found")
-    if str(sub_order.get("sellerId")) != str(current_user.id):
+    if str(sub_order.seller_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Access denied.")
 
     allowed_statuses = ["pending", "confirmed", "processing", "shipped", "out_for_delivery", "cancelled"]
@@ -2831,7 +2830,7 @@ async def update_seller_order_status(
     updated = await sub_order_repository.update(sub_order_id, update_fields)
 
     # Bubble up: recalculate parent fulfillmentStatus
-    parent_id = sub_order.get("parentOrderId")
+    parent_id = sub_order.parent_order_id
     if parent_id:
         parent = await order_repository.findById(parent_id)
         if parent and parent.get("subOrderIds"):

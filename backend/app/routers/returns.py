@@ -26,22 +26,22 @@ async def populate_return_request(request: Dict) -> Dict:
 
     populated_items = []
     for item in request.get("items", []):
-        product = await product_repository.findById(item.get("productId"))
+        product = await product_repository.findById(item.product_id)
         populated_items.append(
-            {**item, "product": product if product else {"_id": item.get("productId"), "name": "Product not found"}}
+            {**item, "product": product if product else {"_id": item.product_id, "name": "Product not found"}}
         )
 
     return {
         **request,
         "user": {
-            "_id": user.get("_id"),
-            "name": user.get("name"),
-            "email": user.get("email"),
-            "phone": user.get("phone"),
+            "_id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "phone": user.phone,
         }
         if user
         else None,
-        "valet": {"_id": valet.get("_id"), "name": valet.get("name")} if valet else None,
+        "valet": {"_id": valet.id, "name": valet.name} if valet else None,
         "items": populated_items,
     }
 
@@ -49,10 +49,10 @@ async def populate_return_request(request: Dict) -> Dict:
 @router.get("/my-returns", response_model=List[ReturnRequestResponse])
 async def get_my_returns(current_user: dict = Depends(get_current_user)):
     """Customer gets their return requests"""
-    if current_user.get("role") not in ["customer", "wholesaler"]:
+    if current_user.role not in ["customer", "wholesaler"]:
         raise HTTPException(status_code=403, detail="Only customers can view their returns")
 
-    requests = await return_request_repository.findAll({"userId": current_user.get("_id")})
+    requests = await return_request_repository.findAll({"userId": current_user.id})
     return [await populate_return_request(req) for req in requests]
 
 
@@ -69,11 +69,11 @@ async def get_all_returns(status: Optional[str] = None, current_user: dict = Dep
 @router.get("/valet/assigned", response_model=List[ReturnRequestResponse])
 async def get_valet_returns(current_user: dict = Depends(require_super_admin_or_valet)):
     """Valet gets returns assigned to them"""
-    if current_user.get("role") != "valet":
+    if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can view assigned returns")
 
     requests = await return_request_repository.findAll(
-        {"valetId": current_user.get("_id"), "status": ReturnRequestStatus.ASSIGNED.value}
+        {"valetId": current_user.id, "status": ReturnRequestStatus.ASSIGNED.value}
     )
     return [await populate_return_request(req) for req in requests]
 
@@ -85,17 +85,17 @@ async def check_return_eligibility(order_id: str, current_user: dict = Depends(g
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    if order.get("user") != current_user.get("_id") and current_user.get("role") != "super_admin":
+    if order.user != current_user.id and current_user.role != "super_admin":
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if current_user.get("role") not in ["customer", "super_admin"]:
+    if current_user.role not in ["customer", "super_admin"]:
         return {"eligibleItems": [], "reason": "Only retail customers can return items"}
 
     # Must be delivered
-    if order.get("status") != "delivered":
+    if order.status != "delivered":
         return {"eligibleItems": [], "reason": "Order is not delivered yet"}
 
-    delivered_at_str = order.get("deliveredAt")
+    delivered_at_str = order.delivered_at
     if not delivered_at_str:
         return {"eligibleItems": [], "reason": "Delivery date not found"}
 
@@ -119,30 +119,30 @@ async def check_return_eligibility(order_id: str, current_user: dict = Depends(g
     existing_returns = await return_request_repository.findByOrderId(order_id)
     returned_items_qty = {}  # map of productId to quantity already returned/requested
     for req in existing_returns:
-        if req.get("status") in [
+        if req.status in [
             ReturnRequestStatus.PENDING,
             ReturnRequestStatus.ASSIGNED,
             ReturnRequestStatus.COLLECTED,
             ReturnRequestStatus.RETURNED,
         ]:
-            for item in req.get("items", []):
-                pid = item.get("productId")
-                returned_items_qty[pid] = returned_items_qty.get(pid, 0) + item.get("quantity", 0)
+            for item in (req.items or []):
+                pid = item.product_id
+                returned_items_qty[pid] = returned_items_qty.get(pid, 0) + (item.quantity if item.quantity is not None else 0)
 
     # Check which items are from returnable categories
     eligible_items = []
-    for item in order.get("items", []):
-        pid = item.get("product")
+    for item in (order.items or []):
+        pid = item.product
         product = await product_repository.findById(pid)
         if not product:
             continue
 
-        cat_name = product.get("category")
+        cat_name = product.category
         category = await category_repository.findByName(cat_name)
 
-        is_returnable = category and category.get("isReturnable", False)
+        is_returnable = category and (category.is_returnable if category.is_returnable is not None else False)
 
-        ordered_qty = item.get("quantity", 0)
+        ordered_qty = (item.quantity if item.quantity is not None else 0)
         returned_qty = returned_items_qty.get(pid, 0)
         available_qty = max(0, ordered_qty - returned_qty)
 
@@ -150,17 +150,17 @@ async def check_return_eligibility(order_id: str, current_user: dict = Depends(g
             eligible_items.append(
                 {
                     "productId": pid,
-                    "name": product.get("name"),
+                    "name": product.name,
                     "maxQuantity": available_qty,
-                    "price": item.get("price"),
-                    "image": product.get("images", [None])[0] if product.get("images") else None,
+                    "price": item.price,
+                    "image": (product.images if product.images is not None else [None])[0] if product.images else None,
                 }
             )
 
     # Calculate return delivery charge (reusing order delivery logic if possible, or computing a return charge)
     # For now, we fetch base delivery charge for customer's pincode
     delivery_charge = 0
-    shipping_address = order.get("shippingAddress", {})
+    shipping_address = (order.shipping_address or {})
     if shipping_address:
         charge_data = await delivery_charge_repository.getChargeForLocation(
             shipping_address.get("state", ""),
@@ -183,7 +183,7 @@ async def check_return_eligibility(order_id: str, current_user: dict = Depends(g
 @router.post("/request", response_model=ReturnRequestResponse)
 async def create_return_request(request_data: ReturnRequestCreate, current_user: dict = Depends(get_current_user)):
     """Customer submits a return request"""
-    if current_user.get("role") != "customer":
+    if current_user.role != "customer":
         raise HTTPException(status_code=403, detail="Only retail customers can create return requests")
 
     eligibility = await check_return_eligibility(request_data.orderId, current_user)
@@ -216,7 +216,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
     created = await return_request_repository.create(
         {
             "orderId": request_data.orderId,
-            "userId": current_user.get("_id"),
+            "userId": current_user.id,
             "items": [i.dict() for i in request_data.items],
             "paymentMethod": request_data.paymentMethod,
             "upiPaymentScreenshot": screenshot_path,
@@ -314,10 +314,10 @@ async def valet_collect(request_id: str, current_user: dict = Depends(require_su
     if not req:
         raise HTTPException(status_code=404, detail="Return request not found")
 
-    if current_user.get("role") == "valet" and req.get("valetId") != current_user.get("_id"):
+    if current_user.role == "valet" and req.valet_id != current_user.id:
         raise HTTPException(status_code=403, detail="Return request not assigned to you")
 
-    if req.get("status") != ReturnRequestStatus.ASSIGNED.value:
+    if req.status != ReturnRequestStatus.ASSIGNED.value:
         raise HTTPException(status_code=400, detail="Return request is not in ASSIGNED state")
 
     updated = await return_request_repository.update(request_id, {"status": ReturnRequestStatus.COLLECTED.value})
@@ -334,28 +334,28 @@ async def complete_return(
     if not req:
         raise HTTPException(status_code=404, detail="Return request not found")
 
-    if req.get("status") not in [ReturnRequestStatus.COLLECTED.value, ReturnRequestStatus.ASSIGNED.value]:
+    if req.status not in [ReturnRequestStatus.COLLECTED.value, ReturnRequestStatus.ASSIGNED.value]:
         raise HTTPException(status_code=400, detail="Return request must be collected first")
 
     updated = await return_request_repository.update(request_id, {"status": ReturnRequestStatus.RETURNED.value})
 
     # Optionally: Restock items
-    for item in req.get("items", []):
+    for item in (req.items or []):
         try:
-            product = await product_repository.findById(item.get("productId"))
+            product = await product_repository.findById(item.product_id)
             if product:
                 await product_repository.update(
-                    product.get("_id"), {"stock": product.get("stock", 0) + item.get("quantity", 0)}
+                    product.id, {"stock": (product.stock if product.stock is not None else 0) + (item.quantity if item.quantity is not None else 0)}
                 )
         except (ValueError, KeyError, TypeError) as e:
             logger.warning(
-                "Data error restocking product %s for return %s: %s", item.get("productId"), req.get("_id"), str(e)
+                "Data error restocking product %s for return %s: %s", item.product_id, req.id, str(e)
             )
         except Exception as e:
             logger.error(
                 "Unexpected error restocking product %s for return %s: %s",
-                item.get("productId"),
-                req.get("_id"),
+                item.product_id,
+                req.id,
                 str(e),
                 exc_info=True,
             )
@@ -378,7 +378,7 @@ async def reject_return(
         raise HTTPException(status_code=404, detail="Return request not found")
 
     updated = await return_request_repository.update(
-        request_id, {"status": ReturnRequestStatus.REJECTED.value, "notes": update_data.notes or req.get("notes")}
+        request_id, {"status": ReturnRequestStatus.REJECTED.value, "notes": update_data.notes or req.notes}
     )
 
     return await populate_return_request(updated)
@@ -388,7 +388,7 @@ from pydantic import BaseModel
 
 @router.get("/valet/pending")
 async def get_valet_pending_returns(current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") != "valet":
+    if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can view pending assignments")
     returns = await return_request_repository.findAll({
         "status": "pending_valet",
@@ -410,8 +410,8 @@ async def valet_return_response(
     if not ret:
         raise HTTPException(status_code=404, detail="Return request not found")
         
-    if current_user.get("role") != "super_admin":
-        if current_user.get("role") != "valet":
+    if current_user.role != "super_admin":
+        if current_user.role != "valet":
             raise HTTPException(status_code=403, detail="Access denied")
         if str(ret.get("pendingValetId", "")) != str(current_user["_id"]):
             raise HTTPException(status_code=403, detail="Return is not assigned to you")
@@ -433,7 +433,7 @@ async def valet_return_response(
     else:
         # Declined -> Cascade
         history = list(ret.get("valetDeclineHistory") or [])
-        valet_id_str = str(current_user.get("_id"))
+        valet_id_str = str(current_user.id)
         if not any(isinstance(d, dict) and d.get("valetId") == valet_id_str for d in history):
             history.append({"valetId": valet_id_str, "reason": response_data.declineReason})
             

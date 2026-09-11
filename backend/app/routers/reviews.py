@@ -39,7 +39,7 @@ class ClassificationUpdate(BaseModel):
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_review(review_data: ReviewCreate, current_user: dict = Depends(get_current_user)):
     """Submit a rating and review for a delivered product."""
-    user_id = str(current_user.get("_id"))
+    user_id = str(current_user.id)
     product_id = str(review_data.productId)
 
     # 1. Verify that the product exists
@@ -51,9 +51,9 @@ async def create_review(review_data: ReviewCreate, current_user: dict = Depends(
     orders = await order_repository.findAll({"user": user_id, "status": "delivered"})
     has_purchased = False
     for order in orders:
-        items = order.get("items", [])
+        items = (order.items or [])
         for item in items:
-            if str(item.get("product")) == product_id:
+            if str(item.product) == product_id:
                 has_purchased = True
                 break
         if has_purchased:
@@ -69,10 +69,10 @@ async def create_review(review_data: ReviewCreate, current_user: dict = Depends(
     classifications = await review_classification_repository.findAll({"isActive": True})
     valid_class = False
     for c in classifications:
-        if c.get("name", "").strip().lower() == review_data.classification.strip().lower():
+        if (c.name or "").strip().lower() == review_data.classification.strip().lower():
             valid_class = True
             # Normalize key
-            review_data.classification = c.get("name")
+            review_data.classification = c.name
             break
 
     if not valid_class:
@@ -85,7 +85,7 @@ async def create_review(review_data: ReviewCreate, current_user: dict = Depends(
     review = {
         "productId": product_id,
         "userId": user_id,
-        "userName": current_user.get("name", "Verified Buyer"),
+        "userName": (current_user.name if current_user.name is not None else "Verified Buyer"),
         "rating": review_data.rating,
         "comment": review_data.comment.strip(),
         "classification": review_data.classification,
@@ -103,7 +103,7 @@ async def get_product_reviews(product_id: str):
     reviews = await product_review_repository.findAll({"productId": str(product_id), "status": "approved"})
 
     # Sort reviews by creation date descending (newest first)
-    reviews.sort(key=lambda r: r.get("createdAt", ""), reverse=True)
+    reviews.sort(key=lambda r: (r.created_at or ""), reverse=True)
     return reviews
 
 
@@ -126,7 +126,7 @@ async def admin_get_all_reviews(status_filter: Optional[str] = None, current_use
     reviews = await product_review_repository.findAll(query)
 
     # Sort by creation date descending
-    reviews.sort(key=lambda r: r.get("createdAt", ""), reverse=True)
+    reviews.sort(key=lambda r: (r.created_at or ""), reverse=True)
     return reviews
 
 
@@ -141,11 +141,11 @@ async def admin_approve_review(review_id: str, current_user: dict = Depends(requ
 
     # Recalculate average rating for the product
     try:
-        product_id = review.get("productId")
+        product_id = review.product_id
         if product_id:
             all_approved = await product_review_repository.findAll({"productId": product_id, "status": "approved"})
             if all_approved:
-                avg_rating = sum(int(r.get("rating", 0)) for r in all_approved) / len(all_approved)
+                avg_rating = sum(int((r.rating if r.rating is not None else 0)) for r in all_approved) / len(all_approved)
                 await product_repository.update(
                     product_id, {"rating": round(avg_rating, 2), "reviews": len(all_approved)}
                 )
@@ -166,11 +166,11 @@ async def admin_remove_review(review_id: str, current_user: dict = Depends(requi
 
     # Recalculate average rating for the product
     try:
-        product_id = review.get("productId")
+        product_id = review.product_id
         if product_id:
             all_approved = await product_review_repository.findAll({"productId": product_id, "status": "approved"})
             if all_approved:
-                avg_rating = sum(int(r.get("rating", 0)) for r in all_approved) / len(all_approved)
+                avg_rating = sum(int((r.rating if r.rating is not None else 0)) for r in all_approved) / len(all_approved)
                 await product_repository.update(
                     product_id, {"rating": round(avg_rating, 2), "reviews": len(all_approved)}
                 )
@@ -199,7 +199,7 @@ async def admin_create_classification(
 
     existing = await review_classification_repository.findAll()
     for c in existing:
-        if c.get("name", "").strip().lower() == name.lower():
+        if (c.name or "").strip().lower() == name.lower():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Classification already exists")
 
     created = await review_classification_repository.create({"name": name, "isActive": True})
@@ -224,7 +224,7 @@ async def admin_update_classification(
         # Check uniqueness
         all_classes = await review_classification_repository.findAll()
         for c in all_classes:
-            if c.get("_id") != class_id and c.get("name", "").strip().lower() == name.lower():
+            if c.id != class_id and (c.name or "").strip().lower() == name.lower():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, detail="Classification name already in use"
                 )

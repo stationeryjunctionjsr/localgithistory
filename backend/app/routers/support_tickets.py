@@ -22,14 +22,14 @@ class PriorityUpdate(BaseModel):
 
 async def populate_ticket(ticket):
     """Populate ticket with user data"""
-    user = await user_repository.findById(ticket.get("user"))
+    user = await user_repository.findById(ticket.user)
     assigned_to = None
-    if ticket.get("assignedTo"):
+    if ticket.assigned_to:
         assigned_to = await user_repository.findById(ticket["assignedTo"])
 
     # Populate response users
     populated_responses = []
-    for response in ticket.get("responses", []):
+    for response in (ticket.responses or []):
         response_user = await user_repository.findById(response.get("user"))
         populated_responses.append(
             {
@@ -48,10 +48,10 @@ async def populate_ticket(ticket):
     return {
         **ticket,
         "user": {
-            "_id": user.get("_id") if user else None,
-            "name": user.get("name") if user else ticket.get("name"),
-            "email": user.get("email") if user else ticket.get("email"),
-            "role": user.get("role") if user else "guest",
+            "_id": user.id if user else None,
+            "name": user.name if user else ticket.name,
+            "email": user.email if user else ticket.email,
+            "role": user.role if user else "guest",
         },
         "assignedTo": {
             "_id": assigned_to.get("_id"),
@@ -71,8 +71,8 @@ async def get_support_tickets(
 ):
     query = {}
 
-    if current_user.get("role") != "super_admin":
-        query["user"] = current_user.get("_id")
+    if current_user.role != "super_admin":
+        query["user"] = current_user.id
 
     if status:
         query["status"] = status
@@ -92,7 +92,7 @@ async def get_support_ticket(ticket_id: str, current_user: dict = Depends(get_cu
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    if current_user.get("role") != "super_admin" and ticket.get("user") != current_user.get("_id"):
+    if current_user.role != "super_admin" and ticket.user != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     populated_ticket = await populate_ticket(ticket)
@@ -106,7 +106,7 @@ async def create_support_ticket(
 ):
     ticket = await support_ticket_repository.create(
         {
-            "user": current_user.get("_id") if current_user else None,
+            "user": current_user.id if current_user else None,
             "name": ticket_data.name,
             "email": ticket_data.email,
             "phone": ticket_data.phone,
@@ -149,15 +149,15 @@ async def add_ticket_response(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    if current_user.get("role") != "super_admin" and ticket.get("user") != current_user.get("_id"):
+    if current_user.role != "super_admin" and ticket.user != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    is_admin_response = current_user.get("role") == "super_admin"
+    is_admin_response = current_user.role == "super_admin"
 
     await support_ticket_repository.addResponse(
         ticket_id,
         {
-            "user": current_user.get("_id"),
+            "user": current_user.id,
             "message": response_data.message,
             "attachments": response_data.attachments or [],
             "isAdminResponse": is_admin_response,

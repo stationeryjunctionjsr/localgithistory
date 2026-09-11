@@ -51,7 +51,7 @@ async def toggle_promo_strip(id: str, user: dict = Depends(require_super_admin))
     if not strip:
         raise HTTPException(status_code=404, detail="Promo strip not found")
 
-    res = await promo_strip_repository.update(id, {"isActive": not strip.get("isActive", True)})
+    res = await promo_strip_repository.update(id, {"isActive": not (strip.is_active if strip.is_active is not None else True)})
     cache.invalidate(get_active_promo_strips)
     return res
 

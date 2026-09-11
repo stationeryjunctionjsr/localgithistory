@@ -30,9 +30,9 @@ async def get_schemes(current_user: dict = Depends(require_wholesaler)):
     business_coupons = []
     
     for c in coupons:
-        if "wholesaler" not in (c.get("applicableRoles") or []):
+        if "wholesaler" not in (c.applicable_roles or []):
             continue
-        valid_until = c.get("validUntil")
+        valid_until = c.valid_until
         if valid_until:
             try:
                 end_dt = datetime.fromisoformat(valid_until.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
@@ -73,9 +73,9 @@ async def get_applicable_schemes(product_id: str, current_user: dict = Depends(r
     business_coupons = []
     
     for c in coupons:
-        if "wholesaler" not in (c.get("applicableRoles") or []):
+        if "wholesaler" not in (c.applicable_roles or []):
             continue
-        valid_until = c.get("validUntil")
+        valid_until = c.valid_until
         if valid_until:
             try:
                 end_dt = datetime.fromisoformat(valid_until.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
@@ -88,10 +88,10 @@ async def get_applicable_schemes(product_id: str, current_user: dict = Depends(r
     applicable_offers = []
     for c in business_coupons:
         # Check if product is eligible
-        applies_to_type = c.get("appliesToType") or "all"
-        applies_to_ids = c.get("appliesToValueIds") or []
+        applies_to_type = c.applies_to_type or "all"
+        applies_to_ids = c.applies_to_value_ids or []
         is_eligible = await coupon_repository._product_eligible_async(
-            product, applies_to_type, applies_to_ids, c.get("excludedProductIds")
+            product, applies_to_type, applies_to_ids, c.excluded_product_ids
         )
 
         if is_eligible:
@@ -126,9 +126,9 @@ async def get_applicable_bundle_schemes(bundle_id: str, current_user: dict = Dep
     business_coupons = []
     
     for c in coupons:
-        if "wholesaler" not in (c.get("applicableRoles") or []):
+        if "wholesaler" not in (c.applicable_roles or []):
             continue
-        valid_until = c.get("validUntil")
+        valid_until = c.valid_until
         if valid_until:
             try:
                 end_dt = datetime.fromisoformat(valid_until.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
@@ -140,10 +140,10 @@ async def get_applicable_bundle_schemes(bundle_id: str, current_user: dict = Dep
 
     applicable_offers = []
     for c in business_coupons:
-        applies_to_type = c.get("appliesToType") or "all"
-        applies_to_ids = c.get("appliesToValueIds") or []
+        applies_to_type = c.applies_to_type or "all"
+        applies_to_ids = c.applies_to_value_ids or []
         is_eligible = await coupon_repository._bundle_eligible_async(
-            bundle, applies_to_type, applies_to_ids, c.get("excludedProductIds")
+            bundle, applies_to_type, applies_to_ids, c.excluded_product_ids
         )
 
         if is_eligible:

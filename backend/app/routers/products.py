@@ -70,7 +70,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
         grouped_products = {}
         for idx, row in enumerate(csv_data):
             row_num = idx + 2
-            name = row.get("name", "").strip()
+            name = (row.name or "").strip()
 
             if not name:
                 errors.append({"row": row_num, "error": "Missing product name"})
@@ -153,7 +153,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                     except ValueError:
                         row_stock = 0
 
-                    row_sku = row.get("sku", "").strip()
+                    row_sku = (row.sku or "").strip()
 
                     attributes = {}
                     # dynamically look for Attribute X and Variant X columns
@@ -264,27 +264,27 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
     writer.writerow(headers)
 
     for p in products:
-        name = p.get("name", "")
-        category = p.get("category", "")
-        sub_category = p.get("subCategory") or ""
-        description = p.get("description") or ""
+        name = (p.name or "")
+        category = (p.category or "")
+        sub_category = p.sub_category or ""
+        description = p.description or ""
         brand = p.brand or ""
-        mrp = p.get("mrp", "")
+        mrp = (p.mrp or "")
         mrp_per_case = p.mrp_per_case if p.mrp_per_case is not None else ""
-        quantity_per_case = p.get("quantityPerCase") if p.get("quantityPerCase") is not None else ""
+        quantity_per_case = p.quantity_per_case if p.quantity_per_case is not None else ""
 
-        images_list = p.get("images", [])
+        images_list = (p.images or [])
         images = ",".join(images_list) if isinstance(images_list, list) else (images_list or "")
 
-        videos_list = p.get("videos", [])
+        videos_list = (p.videos or [])
         videos = ",".join(videos_list) if isinstance(videos_list, list) else (videos_list or "")
 
-        is_active = "true" if p.get("isActive", True) else "false"
-        product_id = p.get("productIdFormatted") or (
+        is_active = "true" if (p.is_active if p.is_active is not None else True) else "false"
+        product_id = p.product_id_formatted or (
             f"PDT-{p.product_id}" if p.product_id is not None else ""
         )
 
-        combinations = p.get("variants", []) or []
+        combinations = (p.variants or []) or []
         if combinations:
             for idx, combo in enumerate(combinations):
                 combo_mrp = combo.price if combo.price is not None else mrp
@@ -327,7 +327,7 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
                 mrp,
                 mrp_per_case,
                 quantity_per_case,
-                p.get("stock", 0),
+                (p.stock if p.stock is not None else 0),
                 *attr_cols,
                 images,
                 videos,
@@ -379,7 +379,7 @@ async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = Non
     categories = set()
 
     for p in active_products:
-        name = p.get("name", "")
+        name = (p.name or "")
         name_lower = name.lower()
         if all(t in name_lower for t in tokens):
             if p.brand:
@@ -388,9 +388,9 @@ async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = Non
                 categories.add(p.category)
                 
             if len(products) < limit:
-                display_image = p.get("displayImage") or (p.get("images")[0] if p.get("images") else None)
+                display_image = p.display_image or (p.images[0] if p.images else None)
                 products.append({
-                    "productId": str(p.get("_id", p.product_id)),
+                    "productId": str((p.id if p.id is not None else p.product_id)),
                     "name": name,
                     "productName": name,
                     "displayImage": display_image
@@ -422,13 +422,13 @@ async def populate_product_discounts(
     # Filter applicable ones for the current role and user (behavior matched)
     applicable_discounts = []
     for c in active_discounts:
-        if role not in c.get("applicableRoles", []):
+        if role not in (c.applicable_roles or []):
             continue
-        applicable_user_ids = c.get("applicableUserIds") or []
+        applicable_user_ids = c.applicable_user_ids or []
         if applicable_user_ids:
             if not user_id or str(user_id) not in [str(x) for x in applicable_user_ids]:
                 continue
-        behavior = c.get("userBehavior")
+        behavior = c.user_behavior
         if behavior and behavior != "none":
             if not user_id or not await coupon_repository._user_matches_behavior(
                 user_id, behavior, user_behavior_cache=user_behavior_cache
@@ -446,21 +446,21 @@ async def populate_product_discounts(
         auto_discount_type = "percentage"
         default_coupon = None
 
-        pid = str(p.get("_id", ""))
+        pid = str((p.id or ""))
         for c in applicable_discounts:
-            affected = c.get("_affected_product_ids") or set()
+            affected = c._affected_product_ids or set()
             if pid in affected:
                 pct = 0.0
-                val = float(c.get("discountValue") or 0)
-                if c.get("discountType") == "percentage":
+                val = float(c.discount_value or 0)
+                if c.discount_type == "percentage":
                     pct = val
-                elif c.get("discountType") == "fixed":
+                elif c.discount_type == "fixed":
                     if mrp > 0:
                         pct = (val / mrp) * 100
                 if pct > auto_discount_pct:
                     auto_discount_pct = pct
                     auto_discount_value = val
-                    auto_discount_type = c.get("discountType")
+                    auto_discount_type = c.discount_type
                     default_coupon = c
 
         # Apply default discount to price
@@ -620,7 +620,7 @@ async def get_public_products(
 
     if skinny:
         for p in products:
-            p["displayImage"] = p.get("displayImage") or (p.get("images")[0] if p.get("images") else None)
+            p["displayImage"] = p.display_image or (p.images[0] if p.images else None)
             p.pop("description", None)
             p.pop("variants", None)
             p.pop("videos", None)
@@ -663,7 +663,7 @@ async def get_public_product(product_id: str, role: str = "customer", response: 
     role = "customer" # Force role to customer for public endpoint
     product = await product_repository.findById(product_id)
 
-    if not product or not product.get("isActive", True):
+    if not product or not (product.is_active if product.is_active is not None else True):
         raise HTTPException(status_code=404, detail="Product not found")
 
     # Add dynamic tags for guest users and resolve search tags
@@ -711,7 +711,7 @@ async def get_products(
     current_user: dict = Depends(get_current_user),
 ):
     # Use effectiveRole if user is deactivated
-    effective_role = current_user.get("effectiveRole") or current_user.get("role", "customer")
+    effective_role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
     user_id = current_user.id
 
     query = {}
@@ -776,7 +776,7 @@ async def get_products(
 
     if skinny:
         for p in products:
-            p["displayImage"] = p.get("displayImage") or (p.get("images")[0] if p.get("images") else None)
+            p["displayImage"] = p.display_image or (p.images[0] if p.images else None)
             p.pop("description", None)
             p.pop("variants", None)
             p.pop("videos", None)
@@ -812,11 +812,11 @@ async def get_products(
 async def get_product(product_id: str, current_user: dict = Depends(get_current_user)):
     product = await product_repository.findById(product_id)
 
-    if not product or not product.get("isActive", True):
+    if not product or not (product.is_active if product.is_active is not None else True):
         raise HTTPException(status_code=404, detail="Product not found")
 
     # Use effectiveRole if user is deactivated
-    effective_role = current_user.get("effectiveRole") or current_user.get("role", "customer")
+    effective_role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
     user_id = current_user.id
 
     # Add dynamic tags for a single product too
@@ -828,9 +828,9 @@ async def get_product(product_id: str, current_user: dict = Depends(get_current_
 
     # Legacy - min order quantity removed but kept for backward compatibility
     if effective_role == "wholesaler":
-        product["minOrderQuantity"] = product.get("b2bMinOrderQuantity", 10)
+        product["minOrderQuantity"] = (product.b2b_min_order_quantity if product.b2b_min_order_quantity is not None else 10)
     else:
-        product["minOrderQuantity"] = product.get("minOrderQuantity", 1)
+        product["minOrderQuantity"] = (product.min_order_quantity if product.min_order_quantity is not None else 1)
 
     # Ensure tags and variations arrays exist
     if "tags" not in product or product["tags"] is None:
@@ -851,9 +851,9 @@ async def create_product(product_data: ProductCreate, current_user: dict = Depen
         sku_lower = product_data.sku.strip().lower()
         
         for p in existing_products:
-            if p.get("name", "").strip().lower() == name_lower:
+            if (p.name or "").strip().lower() == name_lower:
                 raise HTTPException(status_code=400, detail=f"Product with name '{product_data.name}' already exists")
-            if p.get("sku", "").strip().lower() == sku_lower:
+            if (p.sku or "").strip().lower() == sku_lower:
                 raise HTTPException(status_code=400, detail=f"Product with SKU '{product_data.sku}' already exists")
                 
         product = await product_repository.create(product_data.dict())

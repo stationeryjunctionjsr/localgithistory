@@ -92,13 +92,13 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
         product = await product_repository.findById(item["productId"])
         if not product:
             continue
-        mrp = product.get("mrp") or 0
-        qty = item.get("quantity", 1)
+        mrp = product.mrp or 0
+        qty = (item.quantity if item.quantity is not None else 1)
         line_mrp = mrp * qty
         total_mrp += line_mrp
 
         # Available stock (no user to exclude for public endpoint)
-        stock = product.get("stock", 0)
+        stock = (product.stock if product.stock is not None else 0)
         if stock < qty:
             fully_available = False
 
@@ -107,11 +107,11 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
                 "productId": item["productId"],
                 "quantity": qty,
                 "product": {
-                    "_id": product.get("_id"),
-                    "name": product.get("name"),
-                    "sku": product.get("sku"),
+                    "_id": product.id,
+                    "name": product.name,
+                    "sku": product.sku,
                     "mrp": mrp,
-                    "images": product.get("images", []),
+                    "images": (product.images or []),
                     "stock": stock,
                 },
                 "lineMrp": line_mrp,
@@ -123,7 +123,7 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
         bundle.get("displayImage")
         or bundle.get("imageUrl")
         or next(
-            (item["product"]["images"][0] for item in enriched_items if item.get("product") and item["product"].get("images")),
+            (item["product"]["images"][0] for item in enriched_items if item.product and item["product"].get("images")),
             None,
         )
     )
@@ -221,13 +221,13 @@ async def search_bundles(
                 if not eff_categories or not eff_brands:
                     # Inherit from components
                     for item in eb.get("items", []):
-                        pid = item.get("productId")
+                        pid = item.product_id
                         p = product_map.get(str(pid))
                         if p:
-                            c = p.get("category")
+                            c = p.category
                             if c:
-                                eff_categories.add((c.get("name") if isinstance(c, dict) else c).lower())
-                            b_name = p.get("brand")
+                                eff_categories.add((c.name if isinstance(c, dict) else c).lower())
+                            b_name = p.brand
                             if b_name:
                                 eff_brands.add(b_name.lower())
 
@@ -238,7 +238,7 @@ async def search_bundles(
 
                 enriched_bundles.append(eb)
             except Exception as e:
-                logger.warning("Could not enrich bundle %s: %s", b.get("_id"), e)
+                logger.warning("Could not enrich bundle %s: %s", b.id, e)
 
         return {"bundles": enriched_bundles[:limit], "total": len(enriched_bundles[:limit])}
     except Exception as e:
@@ -258,7 +258,7 @@ async def list_active_bundles():
             try:
                 enriched.append(await _enrich_bundle(b))
             except Exception as e:
-                logger.warning("Could not enrich bundle %s: %s", b.get("_id"), e)
+                logger.warning("Could not enrich bundle %s: %s", b.id, e)
         return {"bundles": enriched, "total": len(enriched)}
     except Exception as e:
         logger.error("Error listing bundles: %s", str(e), exc_info=True)
@@ -276,7 +276,7 @@ async def list_bundles_for_product(product_id: str):
             try:
                 enriched.append(await _enrich_bundle(b))
             except Exception as e:
-                logger.warning("Could not enrich bundle %s: %s", b.get("_id"), e)
+                logger.warning("Could not enrich bundle %s: %s", b.id, e)
         # Sort by salesCount descending
         enriched.sort(key=lambda x: x.get("salesCount", 0), reverse=True)
         return {"bundles": enriched}
@@ -295,7 +295,7 @@ async def list_all_bundles(current_user: dict = Depends(require_super_admin)):
             try:
                 enriched.append(await _enrich_bundle(b))
             except Exception as e:
-                logger.warning("Could not enrich bundle %s: %s", b.get("_id"), e)
+                logger.warning("Could not enrich bundle %s: %s", b.id, e)
                 enriched.append(b)
         return {"bundles": enriched, "total": len(enriched)}
     except Exception as e:
@@ -337,18 +337,18 @@ async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_cu
         if not bundle or not bundle.get("isActive", True):
             raise HTTPException(status_code=404, detail="Bundle not found")
 
-        user_id = current_user.get("_id")
-        role = current_user.get("effectiveRole") or current_user.get("role", "customer")
+        user_id = current_user.id
+        role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
         ttl_minutes = 30 if role == "wholesaler" else 10
 
         # Validate stock before touching the cart
         for item in bundle.get("items", []):
             product = await product_repository.findById(item["productId"])
-            if not product or not product.get("isActive"):
+            if not product or not product.is_active:
                 raise HTTPException(status_code=400, detail=f"Product {item['productId']} is no longer available")
             available = await product_repository.get_available_stock(item["productId"], exclude_user_id=user_id)
             if available < item["quantity"]:
-                pname = product.get("name", item["productId"])
+                pname = (product.name if product.name is not None else item["productId"])
                 raise HTTPException(
                     status_code=400,
                     detail=f"Insufficient stock for '{pname}'. Available: {available}, required: {item['quantity']}",
@@ -372,13 +372,13 @@ async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_cu
 
             if cart:
                 existing = next(
-                    (i for i in cart.get("items", []) if i.get("product") == pid and i.get("bundleId") == bundle_id),
+                    (i for i in (cart.items or []) if i.get("product") == pid and i.get("bundleId") == bundle_id),
                     None,
                 )
                 if existing:
-                    items = cart.get("items", [])
+                    items = (cart.items or [])
                     for i, it in enumerate(items):
-                        if it.get("_id") == existing["_id"]:
+                        if it.id == existing["_id"]:
                             items[i]["quantity"] = existing["quantity"] + qty
                             break
                     await cart_repository.createOrUpdate(user_id, items)

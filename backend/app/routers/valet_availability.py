@@ -56,7 +56,7 @@ class ValetAvailabilityCreate(BaseModel):
 
 
 def _require_valet(current_user: dict):
-    if current_user.get("role") != "valet":
+    if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can access this endpoint")
 
 
@@ -95,7 +95,7 @@ async def mark_availability(
             slot["id"]
             for config in slot_configs
             for slot in config.get("slots", [])
-            if slot.get("isActive", True) and slot.get("id")
+            if (slot.is_active if slot.is_active is not None else True) and slot.id
         }
         invalid_slots = [s for s in data.slots if s not in all_valid_slot_ids]
         if invalid_slots:
@@ -108,7 +108,7 @@ async def mark_availability(
     valet_id = str(current_user["_id"])
 
     # Validate zones are within valet's permitted zones
-    permitted_zones = set(current_user.get("serviceAreaZones") or [])
+    permitted_zones = set(current_user.service_area_zones or [])
     invalid_zones = [z for z in data.zones if z not in permitted_zones]
     if invalid_zones:
         raise HTTPException(
@@ -152,7 +152,7 @@ async def get_my_availability(
     valet_id = str(current_user["_id"])
     all_docs = await storage.findAll({"valetId": valet_id})
 
-    return [doc for doc in all_docs if doc.get("date") in upcoming_dates]
+    return [doc for doc in all_docs if doc.date in upcoming_dates]
 
 
 @router.get("", response_model=List[Dict[str, Any]])
@@ -174,7 +174,7 @@ async def get_all_availability(
     # Enrich with valet name for admin display
     from app.repositories.user_repository import user_repository
 
-    valet_ids = list({doc.get("valetId") for doc in docs if doc.get("valetId")})
+    valet_ids = list({doc.valet_id for doc in docs if doc.valet_id})
     valets_map: Dict[str, dict] = {}
     for vid in valet_ids:
         valet = await user_repository.findById(vid)
@@ -182,31 +182,31 @@ async def get_all_availability(
             valets_map[vid] = valet
 
     # Determine seller's service area if applicable
-    is_seller = current_user.get("isSellerAdmin") or current_user.get("role") == "seller"
+    is_seller = current_user.is_seller_admin or current_user.role == "seller"
     seller_zones = set()
-    if is_seller and current_user.get("role") != "super_admin":
+    if is_seller and current_user.role != "super_admin":
         # Use serviceableZoneIds directly — sellers now declare zones, not pincodes
-        zone_ids = (current_user.get("sellerPermissions") or {}).get("serviceableZoneIds") or []
+        zone_ids = (current_user.seller_permissions or {}).get("serviceableZoneIds") or []
         seller_zones = set(zone_ids)
 
     enriched = []
     for doc in docs:
-        vid = doc.get("valetId", "")
+        vid = (doc.valet_id or "")
         valet = valets_map.get(vid, {})
 
         # Filter for sellers
-        if is_seller and current_user.get("role") != "super_admin":
+        if is_seller and current_user.role != "super_admin":
             # Compare valet's daily selected zones with seller's zones
-            valet_daily_zones = set(doc.get("zones") or [])
+            valet_daily_zones = set(doc.zones or [])
             if not seller_zones.intersection(valet_daily_zones):
                 continue
 
         enriched.append(
             {
                 **doc,
-                "valetName": valet.get("name", ""),
-                "valetPhone": valet.get("phone", ""),
-                "serviceAreaZones": valet.get("serviceAreaZones", []),
+                "valetName": (valet.name or ""),
+                "valetPhone": (valet.phone or ""),
+                "serviceAreaZones": (valet.service_area_zones or []),
             }
         )
 
@@ -227,7 +227,7 @@ async def delete_availability(
     if not doc:
         raise HTTPException(status_code=404, detail="Availability entry not found")
 
-    if str(doc.get("valetId")) != str(current_user["_id"]):
+    if str(doc.valet_id) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="You can only delete your own availability entries")
 
     # Prevent deleting past entries

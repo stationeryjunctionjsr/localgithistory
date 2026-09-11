@@ -36,13 +36,13 @@ async def get_cart(current_user: dict = Depends(get_current_user)):
 
         await coupon_repository.get_active_automatic_product_discounts()
 
-        cart = await cart_repository.findByUser(current_user.get("_id"))
+        cart = await cart_repository.findByUser(current_user.id)
         if not cart:
-            cart = await cart_repository.createOrUpdate(current_user.get("_id"), [])
+            cart = await cart_repository.createOrUpdate(current_user.id, [])
 
         # Populate products and adjust pricing
-        role = current_user.get("effectiveRole") or current_user.get("role", "customer")
-        user_id = current_user.get("_id")
+        role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
+        user_id = current_user.id
 
         # Bulk load products
         product_ids = [item.product for item in cart.items if item.product]
@@ -66,7 +66,7 @@ async def get_cart(current_user: dict = Depends(get_current_user)):
             from app.repositories.stock_reservation_repository import stock_reservation_repository
 
             reserved = await stock_reservation_repository.get_reserved_quantity(
-                product.id, exclude_user_id=current_user.get("_id")
+                product.id, exclude_user_id=current_user.id
             )
             available_stock = max(0, int(product.stock) - reserved)
             is_out_of_stock = quantity > available_stock
@@ -97,7 +97,7 @@ async def get_cart(current_user: dict = Depends(get_current_user)):
         # Get earliest expiry for active reservations to display countdown timer in frontend
         from app.repositories.stock_reservation_repository import stock_reservation_repository
 
-        active_reservations = await stock_reservation_repository.get_user_reservations(current_user.get("_id"))
+        active_reservations = await stock_reservation_repository.get_user_reservations(current_user.id)
         earliest_expiry = None
         if active_reservations:
             expiry_times = [r.expires_at for r in active_reservations if r.expires_at]
@@ -116,17 +116,17 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
     """Add item to cart"""
     try:
         product = await product_repository.findById(item.productId)
-        if not product or not product.get("isActive"):
+        if not product or not product.is_active:
             raise HTTPException(status_code=404, detail="Product not found")
 
-        role = current_user.get("effectiveRole") or current_user.get("role", "customer")
+        role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
 
         # Get existing cart to calculate final quantity
-        cart = await cart_repository.findByUser(current_user.get("_id"))
+        cart = await cart_repository.findByUser(current_user.id)
         existing_total_qty = 0
         if cart:
             existing_total_qty = sum(
-                i.get("quantity", 0) for i in cart.get("items", []) if i.get("product") == item.productId
+                i.get("quantity", 0) for i in (cart.items or []) if i.get("product") == item.productId
             )
 
         final_qty = existing_total_qty + item.quantity
@@ -136,7 +136,7 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
         ttl_minutes = 30 if role == "wholesaler" else 10
         try:
             await stock_reservation_repository.reserve_stock_checked(
-                product_id=item.productId, user_id=current_user.get("_id"), quantity=final_qty, ttl_minutes=ttl_minutes
+                product_id=item.productId, user_id=current_user.id, quantity=final_qty, ttl_minutes=ttl_minutes
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -145,8 +145,8 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
 
         # Business ordering by case: quantity must be multiple of quantityPerCase
         if sell_as_case and role == "wholesaler":
-            qty_per_case = product.get("quantityPerCase") or 0
-            if not qty_per_case or product.get("mrpPerCase") is None:
+            qty_per_case = product.quantity_per_case or 0
+            if not qty_per_case or product.mrp_per_case is None:
                 raise HTTPException(status_code=400, detail="Product does not support case pricing")
             if item.quantity % qty_per_case != 0:
                 raise HTTPException(
@@ -169,7 +169,7 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
             existing_item = next(
                 (
                     i
-                    for i in cart.get("items", [])
+                    for i in (cart.items or [])
                     if i.get("product") == item.productId
                     and i.get("sellAsCase") == sell_as_case
                     and i.get("variantAttributes") == getattr(item, "variantAttributes", None)
@@ -178,27 +178,27 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
             )
             if existing_item:
                 new_quantity = existing_item.get("quantity", 0) + item.quantity
-                items = cart.get("items", [])
+                items = (cart.items or [])
                 for i, it in enumerate(items):
-                    if it.get("_id") == existing_item.get("_id"):
+                    if it.id == existing_item.get("_id"):
                         items[i]["quantity"] = new_quantity
                         break
-                await cart_repository.createOrUpdate(current_user.get("_id"), items)
+                await cart_repository.createOrUpdate(current_user.id, items)
             else:
-                await cart_repository.addItem(current_user.get("_id"), new_item)
+                await cart_repository.addItem(current_user.id, new_item)
         else:
-            await cart_repository.addItem(current_user.get("_id"), new_item)
+            await cart_repository.addItem(current_user.id, new_item)
 
         # Automatically remove from wishlist
         from app.repositories.wishlist_repository import wishlist_repository
 
-        await wishlist_repository.removeItem(current_user.get("_id"), item.productId)
+        await wishlist_repository.removeItem(current_user.id, item.productId)
 
         # Track the addition
         from app.repositories.tracking_repository import tracking_repository
 
         await tracking_repository.trackCartAdd(
-            current_user.get("_id"), item.productId, item.quantity, getattr(item, "sessionId", None)
+            current_user.id, item.productId, item.quantity, getattr(item, "sessionId", None)
         )
 
         return {"message": "Item added to cart"}
@@ -215,11 +215,11 @@ async def update_cart_item(
 ):
     """Update cart item quantity - allows decreasing below minimum (price adjusts automatically)"""
     try:
-        cart = await cart_repository.findByUser(current_user.get("_id"))
+        cart = await cart_repository.findByUser(current_user.id)
         if not cart:
             raise HTTPException(status_code=404, detail="Cart not found")
 
-        item = next((i for i in cart.get("items", []) if i.get("_id") == item_id), None)
+        item = next((i for i in (cart.items or []) if i.get("_id") == item_id), None)
         if not item:
             raise HTTPException(status_code=404, detail="Cart item not found")
 
@@ -229,45 +229,45 @@ async def update_cart_item(
         if quantity < 1:
             raise HTTPException(status_code=400, detail="Quantity must be at least 1")
 
-        product = await product_repository.findById(item.get("product"))
+        product = await product_repository.findById(item.product)
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
 
-        role = current_user.get("effectiveRole") or current_user.get("role", "customer")
-        sell_as_case = item.get("sellAsCase", False)
+        role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
+        sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
         if sell_as_case and role == "wholesaler":
-            qty_per_case = product.get("quantityPerCase") or 0
+            qty_per_case = product.quantity_per_case or 0
             if qty_per_case and quantity % qty_per_case != 0:
                 raise HTTPException(
                     status_code=400, detail=f"Quantity must be a multiple of {qty_per_case} (quantity per case)"
                 )
 
         # Calculate final_qty BEFORE updating cart
-        items = cart.get("items", [])
+        items = (cart.items or [])
         final_qty = 0
         for it in items:
-            if it.get("_id") == item_id:
+            if it.id == item_id:
                 final_qty += quantity
-            elif it.get("product") == item.get("product"):
-                final_qty += it.get("quantity", 0)
+            elif it.product == item.product:
+                final_qty += (it.quantity if it.quantity is not None else 0)
 
         from app.repositories.stock_reservation_repository import stock_reservation_repository
         ttl_minutes = 30 if role == "wholesaler" else 10
         
         try:
             await stock_reservation_repository.reserve_stock_checked(
-                product_id=item.get("product"), user_id=current_user.get("_id"), quantity=final_qty, ttl_minutes=ttl_minutes
+                product_id=item.product, user_id=current_user.id, quantity=final_qty, ttl_minutes=ttl_minutes
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
         # Apply update
         for i, it in enumerate(items):
-            if it.get("_id") == item_id:
+            if it.id == item_id:
                 items[i]["quantity"] = quantity
                 break
 
-        await cart_repository.createOrUpdate(current_user.get("_id"), items)
+        await cart_repository.createOrUpdate(current_user.id, items)
 
         return {"message": "Cart updated"}
     except HTTPException:
@@ -281,32 +281,32 @@ async def update_cart_item(
 async def remove_cart_item(item_id: str, current_user: dict = Depends(get_current_user)):
     """Remove item from cart"""
     try:
-        cart = await cart_repository.findByUser(current_user.get("_id"))
+        cart = await cart_repository.findByUser(current_user.id)
         if cart:
-            item = next((i for i in cart.get("items", []) if i.get("_id") == item_id), None)
+            item = next((i for i in (cart.items or []) if i.get("_id") == item_id), None)
             if item:
-                product_id = item.get("product")
-                await cart_repository.removeItem(current_user.get("_id"), item_id)
+                product_id = item.product
+                await cart_repository.removeItem(current_user.id, item_id)
 
                 # Recalculate remaining qty of this product in cart (if any, e.g. other variants)
-                updated_cart = await cart_repository.findByUser(current_user.get("_id"))
+                updated_cart = await cart_repository.findByUser(current_user.id)
                 final_qty = sum(
                     i.get("quantity", 0) for i in updated_cart.get("items", []) if i.get("product") == product_id
                 )
                 from app.repositories.stock_reservation_repository import stock_reservation_repository
 
                 if final_qty > 0:
-                    role = current_user.get("effectiveRole") or current_user.get("role", "customer")
+                    role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
                     ttl_minutes = 30 if role == "wholesaler" else 10
                     await stock_reservation_repository.reserve_stock(
                         product_id=product_id,
-                        user_id=current_user.get("_id"),
+                        user_id=current_user.id,
                         quantity=final_qty,
                         ttl_minutes=ttl_minutes,
                     )
                 else:
                     await stock_reservation_repository.release_user_reservations(
-                        user_id=current_user.get("_id"), product_id=product_id
+                        user_id=current_user.id, product_id=product_id
                     )
         return {"message": "Item removed from cart"}
     except Exception as e:
@@ -319,10 +319,10 @@ async def remove_cart_item(item_id: str, current_user: dict = Depends(get_curren
 async def clear_cart(current_user: dict = Depends(get_current_user)):
     """Clear cart"""
     try:
-        await cart_repository.clearCart(current_user.get("_id"))
+        await cart_repository.clearCart(current_user.id)
         from app.repositories.stock_reservation_repository import stock_reservation_repository
 
-        await stock_reservation_repository.release_user_reservations(current_user.get("_id"))
+        await stock_reservation_repository.release_user_reservations(current_user.id)
         return {"message": "Cart cleared"}
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
@@ -335,7 +335,7 @@ async def save_for_later(request: SaveForLaterRequest, current_user: dict = Depe
     try:
         from app.repositories.wishlist_repository import wishlist_repository
 
-        await wishlist_repository.addItem(current_user.get("_id"), {"product": request.productId})
+        await wishlist_repository.addItem(current_user.id, {"product": request.productId})
         return {"message": "Item saved for later"}
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
@@ -346,7 +346,7 @@ async def save_for_later(request: SaveForLaterRequest, current_user: dict = Depe
 async def get_saved_for_later(current_user: dict = Depends(get_current_user)):
     """Get saved for later items"""
     try:
-        saved = await cart_repository.getSavedForLater(current_user.get("_id"))
+        saved = await cart_repository.getSavedForLater(current_user.id)
         return saved or {"items": []}
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)

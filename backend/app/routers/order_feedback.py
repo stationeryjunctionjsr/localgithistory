@@ -22,10 +22,10 @@ async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: dict
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
 
-        if order.get("user") != current_user.get("_id"):
+        if order.user != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
 
-        if order.get("status") != "delivered":
+        if order.status != "delivered":
             raise HTTPException(status_code=400, detail="Order must be delivered before providing feedback")
 
         # Check if feedback already exists
@@ -36,7 +36,7 @@ async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: dict
     feedback = await order_feedback_repository.create(
         {
             "orderId": feedback_data.orderId,
-            "userId": current_user.get("_id"),
+            "userId": current_user.id,
             "rating": feedback_data.rating,
             "comment": feedback_data.comment or "",
             "deliveryRating": feedback_data.deliveryRating,
@@ -50,7 +50,7 @@ async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: dict
 
 @router.get("/eligible", response_model=dict)
 async def get_eligible_feedback_order(current_user: dict = Depends(get_current_user)):
-    user_id = current_user.get("_id")
+    user_id = current_user.id
 
     # get all 'delivered' orders for the user
     # Wait, order_repository.findAll might not be the correct method if we don't have it.
@@ -65,7 +65,7 @@ async def get_eligible_feedback_order(current_user: dict = Depends(get_current_u
     # order orders by deliveredAt or createdAt descending
     orders.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
     feedback_order_ids = set(f.get("orderId") for f in feedbacks)
-    orders_without_feedback = [o for o in orders if o.get("_id") not in feedback_order_ids]
+    orders_without_feedback = [o for o in orders if o.id not in feedback_order_ids]
 
     if not orders_without_feedback:
         return {"eligibleOrderId": None}
@@ -114,7 +114,7 @@ async def get_feedback_by_order(order_id: str, current_user: dict = Depends(get_
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    if order.get("user") != current_user.get("_id") and current_user.get("role") != "super_admin":
+    if order.user != current_user.id and current_user.role != "super_admin":
         raise HTTPException(status_code=403, detail="Access denied")
 
     return feedback
@@ -130,7 +130,7 @@ async def get_all_feedback(current_user: dict = Depends(require_super_admin)):
         if "userId" in f:
             user = await user_repository.findById(f["userId"])
             if user:
-                f["user"] = {"name": user.get("name", "Unknown"), "email": user.get("email", "")}
+                f["user"] = {"name": (user.name if user.name is not None else "Unknown"), "email": (user.email or "")}
 
     # sort by createdAt descending
     feedbacks.sort(key=lambda x: x.get("createdAt", ""), reverse=True)

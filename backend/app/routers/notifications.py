@@ -21,8 +21,8 @@ async def get_notifications(
     """Get all notifications for user"""
     try:
         filters = {}
-        if current_user.get("role") != "super_admin":
-            filters["userId"] = current_user.get("_id") or current_user.get("id")
+        if current_user.role != "super_admin":
+            filters["userId"] = current_user.id or current_user.id
 
         if isRead is not None:
             filters["isRead"] = isRead
@@ -45,8 +45,8 @@ async def get_unread_count(current_user: dict = Depends(get_current_user)):
     """Get count of unread notifications for user"""
     try:
         filters = {"isRead": False}
-        if current_user.get("role") != "super_admin":
-            filters["userId"] = current_user.get("_id") or current_user.get("id")
+        if current_user.role != "super_admin":
+            filters["userId"] = current_user.id or current_user.id
             
         notifications = await notification_repository.findAll(filters)
         return {"count": len(notifications)}
@@ -59,7 +59,7 @@ async def get_unread_count(current_user: dict = Depends(get_current_user)):
 async def mark_all_read(current_user: dict = Depends(get_current_user)):
     """Mark all notifications as read and acknowledged"""
     try:
-        user_id = current_user.get("_id") or current_user.get("id")
+        user_id = current_user.id or current_user.id
         update_data = {"isRead": True, "isAcknowledged": True}
         unread = await notification_repository.findAll({"isRead": False, "userId": user_id})
         unack = await notification_repository.findAll({"isAcknowledged": False, "userId": user_id})
@@ -83,9 +83,9 @@ async def _get_and_verify_notification(notification_id: str, current_user: dict)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
         
-    if current_user.get("role") != "super_admin":
-        user_id = current_user.get("_id") or current_user.get("id")
-        if notification.get("userId") != user_id:
+    if current_user.role != "super_admin":
+        user_id = current_user.id or current_user.id
+        if notification.user_id != user_id:
             raise HTTPException(status_code=403, detail="Not authorized to access this notification")
             
     return notification

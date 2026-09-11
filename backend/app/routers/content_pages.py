@@ -156,8 +156,8 @@ async def get_privacy_version_history(user: dict = Depends(require_super_admin))
     if not doc:
         return {"version": 0, "versionHistory": []}
     return {
-        "version": doc.get("version", 1),
-        "versionHistory": doc.get("versionHistory", []),
+        "version": (doc.version if doc.version is not None else 1),
+        "versionHistory": (doc.version_history or []),
     }
 
 
@@ -173,7 +173,7 @@ async def _notify_all_users_of_privacy_update(last_updated: str, version: str) -
         all_users = await user_repository.findAll()
 
         # Notify every user that has an email address
-        recipients = [u for u in all_users if u.get("email")]
+        recipients = [u for u in all_users if u.email]
 
         logger.info(
             "Privacy policy v%d updated — notifying %d user(s) via email",
@@ -203,7 +203,7 @@ async def _notify_all_users_of_privacy_update(last_updated: str, version: str) -
                     failed += 1
                     logger.error(
                         "Failed to send privacy policy email to %s: %s",
-                        user.get("email"),
+                        user.email,
                         exc,
                     )
 

@@ -51,11 +51,11 @@ async def log_activity(
     if not action:
         raise HTTPException(status_code=400, detail="action (or type) is required")
     device = parse_device(request, default_type="web") if request else {}
-    user_id = current_user.get("_id") if current_user else None
+    user_id = current_user.id if current_user else None
     is_guest = user_id is None
     return await activity_repository.log_activity(user_id, sid, action, meta, device, is_guest=is_guest)
 
 
 @router.post("/promote")
 async def promote_guest(body: PromoteGuestBody, request: Request, current_user: dict = Depends(get_current_user)):
-    return await activity_repository.promote_guest_activities(body.sessionId, current_user.get("_id"))
+    return await activity_repository.promote_guest_activities(body.sessionId, current_user.id)

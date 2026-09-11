@@ -89,27 +89,27 @@ async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, r
     delivery_records = [
         {
             "type": "delivery",
-            "orderId": str(o.get("_id")),
-            "orderNumber": o.get("orderNumber"),
-            "deliveredAt": o.get("deliveredAt"),
+            "orderId": str(o.id),
+            "orderNumber": o.order_number,
+            "deliveredAt": o.delivered_at,
             "amount": delivery_rate,
-            "status": o.get("status"),
+            "status": o.status,
         }
         for o in orders
-        if o.get("status") == "delivered"
+        if o.status == "delivered"
     ]
 
     return_records = [
         {
             "type": "return_pickup",
-            "returnId": str(r.get("_id")),
-            "orderId": r.get("orderId"),
-            "collectedAt": r.get("collectedAt"),
+            "returnId": str(r.id),
+            "orderId": r.order_id,
+            "collectedAt": r.collected_at,
             "amount": return_rate,
-            "status": r.get("status"),
+            "status": r.status,
         }
         for r in returns
-        if r.get("valetStatus") in ("collected", "returned") or r.get("status") in ("collected", "returned")
+        if r.valet_status in ("collected", "returned") or r.status in ("collected", "returned")
     ]
 
     total_deliveries = len(delivery_records)
@@ -132,7 +132,7 @@ async def get_my_valet_earnings(
     current_user: dict = Depends(get_current_user),
 ):
     """Get earnings summary for the currently authenticated valet."""
-    if current_user.get("role") != "valet":
+    if current_user.role != "valet":
         from fastapi import HTTPException
 
         raise HTTPException(status_code=403, detail="Only valets can access this endpoint")
@@ -161,7 +161,7 @@ async def get_valet_earnings_by_id(
     from app.repositories.user_repository import user_repository
 
     valet = await user_repository.findById(valet_id)
-    if not valet or valet.get("role") != "valet":
+    if not valet or valet.role != "valet":
         raise HTTPException(status_code=404, detail="Valet not found")
 
     settings = await _get_settings()
@@ -169,6 +169,6 @@ async def get_valet_earnings_by_id(
     returns = await return_request_repository.findAll({"valetId": valet_id})
 
     result = await _compute_valet_earnings(valet_id, settings, orders, returns)
-    result["valetName"] = valet.get("name", "")
-    result["valetPhone"] = valet.get("phone", "")
+    result["valetName"] = (valet.name or "")
+    result["valetPhone"] = (valet.phone or "")
     return result

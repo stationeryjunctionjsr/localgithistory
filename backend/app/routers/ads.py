@@ -16,19 +16,19 @@ events_storage = get_storage("tracking")
 @router.get("/summary")
 async def get_ads_summary(_: dict = Depends(require_super_admin)):
     ads = await storage.findAll({})
-    total_views = sum([ad.get("stats", {}).get("impressions", 0) for ad in ads])
-    total_clicks = sum([ad.get("stats", {}).get("clicks", 0) for ad in ads])
-    active_campaigns = len([ad for ad in ads if ad.get("status") == "active"])
+    total_views = sum([(ad.stats or {}).get("impressions", 0) for ad in ads])
+    total_clicks = sum([(ad.stats or {}).get("clicks", 0) for ad in ads])
+    active_campaigns = len([ad for ad in ads if ad.status == "active"])
 
     return {
         "total_ads": len(ads),
         "active": active_campaigns,
-        "paused": len([ad for ad in ads if ad.get("status") == "paused"]),
-        "draft": len([ad for ad in ads if ad.get("status") == "draft"]),
+        "paused": len([ad for ad in ads if ad.status == "paused"]),
+        "draft": len([ad for ad in ads if ad.status == "draft"]),
         "total_impressions": total_views,
         "total_clicks": total_clicks,
-        "total_conversions": sum([ad.get("stats", {}).get("conversions", 0) for ad in ads]),
-        "total_spend_estimate": sum([ad.get("budget_daily", 0) for ad in ads if ad.get("status") == "active"]),
+        "total_conversions": sum([(ad.stats or {}).get("conversions", 0) for ad in ads]),
+        "total_spend_estimate": sum([(ad.budget_daily if ad.budget_daily is not None else 0) for ad in ads if ad.status == "active"]),
         "overall_ctr": (total_clicks / total_views * 100) if total_views > 0 else 0,
     }
 
@@ -86,7 +86,7 @@ async def track_ad_event(ad_id: str, event: dict, current_user: Optional[dict] =
     if not ad:
         raise HTTPException(status_code=404, detail="Ad not found")
 
-    stats = ad.get("stats", {})
+    stats = (ad.stats or {})
     if event_type == "view":
         stats["impressions"] = stats.get("impressions", 0) + 1
     elif event_type == "click":

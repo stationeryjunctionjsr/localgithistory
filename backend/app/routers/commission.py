@@ -90,7 +90,7 @@ async def resolve_commission_pct(order_total: float, seller_id: Optional[str]) -
     if seller_id:
         seller = await user_repository.findById(seller_id)
         if seller:
-            override = seller.get("commissionOverridePct")
+            override = seller.commission_override_pct
             if override is not None:
                 return float(override)
 
@@ -114,7 +114,7 @@ async def resolve_commission_pct(order_total: float, seller_id: Optional[str]) -
 
 
 async def is_return_period_over(sub_order: dict) -> bool:
-    delivered_at_raw = sub_order.get("deliveredAt")
+    delivered_at_raw = sub_order.delivered_at
     if not delivered_at_raw:
         return False
 
@@ -146,11 +146,11 @@ async def stamp_commission_on_delivery(sub_order: dict) -> dict:
     Returns a dict of fields to merge into the sub-order update payload.
     Only stamps if there is a seller (platform-only orders have no commission).
     """
-    seller_id = sub_order.get("sellerId")
+    seller_id = sub_order.seller_id
     if not seller_id:
         return {"commissionStatus": None, "commissionPct": None, "commissionAmount": None}
 
-    order_total = float(sub_order.get("subtotal") or sub_order.get("total", 0))
+    order_total = float(sub_order.subtotal or (sub_order.total if sub_order.total is not None else 0))
     pct = await resolve_commission_pct(order_total, seller_id)
     amount = round(order_total * pct / 100, 2)
 
@@ -172,11 +172,11 @@ async def maybe_realize_commission(sub_order: dict) -> dict:
     elapsed, promote it to 'realized' and persist the change.
     Returns the (potentially updated) sub-order dict.
     """
-    if sub_order.get("commissionStatus") != "unrealized":
+    if sub_order.commission_status != "unrealized":
         return sub_order
 
     # Do not realize if a return is in progress or completed for this sub-order
-    if sub_order.get("returnStatus") in ("pending", "pending_valet", "assigned", "collected", "approved", "returned"):
+    if sub_order.return_status in ("pending", "pending_valet", "assigned", "collected", "approved", "returned"):
         return sub_order
 
     if await is_return_period_over(sub_order):
@@ -297,7 +297,7 @@ async def set_seller_commission_override(
     seller = await user_repository.findById(seller_id)
     if not seller:
         raise HTTPException(status_code=404, detail="Seller not found")
-    if not seller.get("isSellerAdmin"):
+    if not seller.is_seller_admin:
         raise HTTPException(status_code=400, detail="User is not a marketplace seller")
 
     updated = await user_repository.update(seller_id, {"commissionOverridePct": payload.commissionOverridePct})
@@ -370,6 +370,6 @@ async def realize_pending_commissions(
                 await sub_order_storage.update(updated["_id"], updated)
                 promoted += 1
         except Exception as e:
-            logger.warning("Failed to realize commission for sub-order %s: %s", so.get("_id"), e)
+            logger.warning("Failed to realize commission for sub-order %s: %s", so.id, e)
             errors += 1
     return {"promoted": promoted, "errors": errors, "checked": len(candidates)}

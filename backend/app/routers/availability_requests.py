@@ -30,9 +30,9 @@ async def create_availability_request(
     """Create a product availability request for a specific pincode.
     Can be submitted by authenticated users or guests (providing name/email).
     """
-    user_id = current_user.get("_id") if current_user else None
-    user_name = (current_user.get("name") if current_user else None) or data.userName
-    user_email = (current_user.get("email") if current_user else None) or data.userEmail
+    user_id = current_user.id if current_user else None
+    user_name = (current_user.name if current_user else None) or data.userName
+    user_email = (current_user.email if current_user else None) or data.userEmail
 
     record = {
         "productId": data.productId,
@@ -65,14 +65,14 @@ async def list_availability_requests(
 
     # Apply filters
     if pincode:
-        all_requests = [r for r in all_requests if r.get("pincode") == pincode.strip()]
+        all_requests = [r for r in all_requests if r.pincode == pincode.strip()]
     if status_filter:
-        all_requests = [r for r in all_requests if r.get("status") == status_filter]
+        all_requests = [r for r in all_requests if r.status == status_filter]
     if productId:
-        all_requests = [r for r in all_requests if r.get("productId") == productId]
+        all_requests = [r for r in all_requests if r.product_id == productId]
 
     # Sort newest first
-    all_requests.sort(key=lambda r: r.get("createdAt", ""), reverse=True)
+    all_requests.sort(key=lambda r: (r.created_at or ""), reverse=True)
 
     total = len(all_requests)
     start = (page - 1) * limit
@@ -91,7 +91,7 @@ async def fulfill_availability_request(
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if req.get("status") == "fulfilled":
+    if req.status == "fulfilled":
         raise HTTPException(status_code=400, detail="Request already fulfilled")
 
     # Mark fulfilled
@@ -100,15 +100,15 @@ async def fulfill_availability_request(
         {
             "status": "fulfilled",
             "fulfilledAt": datetime.now(timezone.utc).isoformat(),
-            "fulfilledBy": current_user.get("_id"),
+            "fulfilledBy": current_user.id,
         },
     )
 
-    product_id = req.get("productId")
-    product_name = req.get("productName", "Your requested product")
-    pincode = req.get("pincode")
-    user_id = req.get("userId")
-    user_email = req.get("userEmail")
+    product_id = req.product_id
+    product_name = (req.product_name if req.product_name is not None else "Your requested product")
+    pincode = req.pincode
+    user_id = req.user_id
+    user_email = req.user_email
 
     notification_payload = {
         "title": "Product Now Available! 🎉",
@@ -152,7 +152,7 @@ async def fulfill_availability_request(
                         from app.services.push_notification_service import push_notification_service
 
                         r = await push_notification_service.send_to_user(ev_user_id, notification_payload)
-                        notify_push += r.get("deliveredCount", 0)
+                        notify_push += (r.delivered_count if r.delivered_count is not None else 0)
                     except Exception:
                         pass
                 if ev_email:

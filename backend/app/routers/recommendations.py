@@ -42,10 +42,10 @@ async def get_recommendations(
     Get recommendation components by segment. Auth optional (guests get Customer Favourites + Trending Now only).
     """
     try:
-        user_id = current_user.get("_id") if current_user else None
+        user_id = current_user.id if current_user else None
         role = None
         if current_user:
-            role = (current_user.get("effectiveRole") or current_user.get("role") or "").strip()
+            role = (current_user.effective_role or current_user.role or "").strip()
             if role not in ("wholesaler", "customer"):
                 role = "customer"
 
@@ -136,11 +136,11 @@ async def get_favourites_page(
     """
     if not current_user:
         raise HTTPException(status_code=401, detail="Authentication required")
-    role = (current_user.get("effectiveRole") or current_user.get("role") or "").strip()
+    role = (current_user.effective_role or current_user.role or "").strip()
     if role != "wholesaler":
         raise HTTPException(status_code=403, detail="Wholesaler access only")
 
-    user_id = current_user.get("_id")
+    user_id = current_user.id
     kind = "customer" if type == "customer" else "business"
 
     # Auto-resolve city from profile when not explicitly provided
@@ -174,7 +174,7 @@ async def get_favourites_page(
 
     product_storage = _get_storage("products")
     all_products = await product_storage.findAll({"isActive": True})
-    product_map: dict = {p["_id"]: p for p in all_products if p.get("_id")}
+    product_map: dict = {p["_id"]: p for p in all_products if p.id}
 
     # Collect filter option lists from the full ranked set (before product-level filters)
     categories_seen: set = set()
@@ -184,11 +184,11 @@ async def get_favourites_page(
         p = product_map.get(pid)
         if not p:
             continue
-        if p.get("category"):
+        if p.category:
             categories_seen.add(p["category"])
-        if p.get("subCategory"):
+        if p.sub_category:
             sub_categories_seen.add(p["subCategory"])
-        if p.get("brand"):
+        if p.brand:
             brands_seen.add(p["brand"])
 
     # Apply product-level filters and build response
@@ -205,17 +205,17 @@ async def get_favourites_page(
         if not p:
             continue
         # Product-level filters
-        if category_lower and (p.get("category") or "").lower() != category_lower:
+        if category_lower and (p.category or "").lower() != category_lower:
             continue
-        if sub_category_lower and (p.get("subCategory") or "").lower() != sub_category_lower:
+        if sub_category_lower and (p.sub_category or "").lower() != sub_category_lower:
             continue
-        if brand_lower and (p.get("brand") or "").lower() != brand_lower:
+        if brand_lower and (p.brand or "").lower() != brand_lower:
             continue
         if want_available is not None:
-            in_stock = (p.get("stock") or 0) > 0
+            in_stock = (p.stock or 0) > 0
             if in_stock != want_available:
                 continue
-        price = p.get("price") or 0
+        price = p.price or 0
         if min_price is not None and price < min_price:
             continue
         if max_price is not None and price > max_price:
@@ -270,10 +270,10 @@ async def get_recommendation_metrics(days: int = 30, current_user: dict = Depend
         try:
             activities = await storage.findAll({"action": action})
             for doc in activities:
-                created = doc.get("createdAt") or ""
+                created = doc.created_at or ""
                 if created < cutoff:
                     continue
-                slot = (doc.get("meta") or {}).get("slot", "unknown")
+                slot = (doc.meta or {}).get("slot", "unknown")
                 if slot not in by_slot:
                     by_slot[slot] = {"section_view": 0, "product_view": 0, "add_to_cart": 0}
                 if action == "recommendation_section_view":
@@ -323,7 +323,7 @@ async def track_recommendation_event(
     if body.productName:
         meta["productName"] = body.productName
     device = parse_device(request, default_type="web")
-    user_id = current_user.get("_id") if current_user else None
+    user_id = current_user.id if current_user else None
     is_guest = user_id is None
     await activity_repository.log_activity(
         user_id=user_id,

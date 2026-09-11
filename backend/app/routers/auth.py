@@ -90,7 +90,7 @@ async def check_phone(data: CheckPhoneRequest, request: Request):
             raise HTTPException(status_code=400, detail="Enter a valid 10-digit phone number or email")
         user = await user_repository.findByPhone(normalized_phone)
 
-    exists = bool(user and user.get("password"))
+    exists = bool(user and user.password)
     import hashlib
     import asyncio
 
@@ -350,16 +350,16 @@ async def login(login_data: LoginRequest, request: Request):
     if not password_match:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    if not user.get("isActive", True):
+    if not (user.is_active if user.is_active is not None else True):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is inactive")
 
     # Check approval status for wholesaler
-    if user.get("role") == "wholesaler":
-        if user.get("approvalStatus") != "approved":
+    if user.role == "wholesaler":
+        if user.approval_status != "approved":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your account is pending approval by Super Admin. Please wait for approval.",
-                headers={"X-Approval-Status": user.get("approvalStatus", "pending")},
+                headers={"X-Approval-Status": (user.approval_status if user.approval_status is not None else "pending")},
             )
 
     device = parse_device(request, default_type="web")
@@ -373,10 +373,10 @@ async def login(login_data: LoginRequest, request: Request):
     refresh_token = create_refresh_token(user["_id"], session["_id"], refresh_id)
     # Calculate effective role
     effective_role = "customer"
-    if user.get("isDeactivated") and user.get("role") == "wholesaler":
+    if user.is_deactivated and user.role == "wholesaler":
         effective_role = "customer"
     else:
-        effective_role = user.get("role", "customer")
+        effective_role = (user.role if user.role is not None else "customer")
 
     user_response_dict = {**user, "effectiveRole": effective_role}
     user_response = UserResponse(**user_response_dict)
@@ -443,15 +443,15 @@ async def refresh_tokens(payload: RefreshRequest, request: Request):
     refresh_token = create_refresh_token(user_id, session_id, new_refresh_id)
 
     user = await user_repository.findById(user_id)
-    if not user or not user.get("isActive", True):
+    if not user or not (user.is_active if user.is_active is not None else True):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
     # Calculate effective role
     effective_role = "customer"
-    if user.get("isDeactivated") and user.get("role") == "wholesaler":
+    if user.is_deactivated and user.role == "wholesaler":
         effective_role = "customer"
     else:
-        effective_role = user.get("role", "customer")
+        effective_role = (user.role if user.role is not None else "customer")
 
     user_copy = dict(user)
     user_copy.pop("password", None)
@@ -469,7 +469,7 @@ class LogoutRequest(BaseModel):
 
 @router.post("/logout")
 async def logout(request: LogoutRequest, current_user: dict = Depends(get_current_user)):
-    session_id = request.sessionId or current_user.get("sessionId")
+    session_id = request.sessionId or current_user.session_id
     if session_id:
         await session_repository.revoke_session(session_id, "logout")
     response = JSONResponse(content={"message": "Logged out"})
@@ -527,12 +527,12 @@ async def delete_own_account(current_user: dict = Depends(get_current_user)):
     All active sessions are revoked before deletion so any in-flight tokens
     immediately become invalid.
     """
-    user_id = current_user.get("_id") or current_user.get("id")
+    user_id = current_user.id or current_user.id
     if not user_id:
         raise HTTPException(status_code=400, detail="Could not identify user from token")
 
     # Revoke current session so the token cannot be reused after deletion
-    session_id = current_user.get("sessionId")
+    session_id = current_user.session_id
     if session_id:
         try:
             await session_repository.revoke_session(session_id, "self_deletion")
@@ -555,10 +555,10 @@ async def delete_own_account(current_user: dict = Depends(get_current_user)):
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     # Calculate effective role
     effective_role = "customer"
-    if current_user.get("isDeactivated") and current_user.get("role") == "wholesaler":
+    if current_user.is_deactivated and current_user.role == "wholesaler":
         effective_role = "customer"
     else:
-        effective_role = current_user.get("role", "customer")
+        effective_role = (current_user.role if current_user.role is not None else "customer")
 
     user_response_dict = {**current_user, "effectiveRole": effective_role}
     return UserResponse(**user_response_dict)

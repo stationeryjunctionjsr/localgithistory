@@ -64,7 +64,7 @@ async def create_push_notification(
             "scheduledFor": None if publishNow == "true" else scheduledFor,
             "userSegment": userSegment,
             "userBehavior": userBehavior,
-            "createdBy": current_user.get("id"),
+            "createdBy": current_user.id,
         }
 
         # Handle image upload
@@ -144,7 +144,7 @@ async def update_push_notification(
         updated = await push_notification_repository.update(notification_id, update_data)
 
         # If publishing now and wasn't published before, send immediately
-        if publishNow == "true" and notification.get("status") != "published":
+        if publishNow == "true" and notification.status != "published":
             try:
                 from app.services.push_notification_service import push_notification_service
 
@@ -169,7 +169,7 @@ async def delete_push_notification(notification_id: str, current_user: dict = De
             raise HTTPException(status_code=404, detail="Notification not found")
 
         # Delete image if exists
-        if notification.get("image"):
+        if notification.image:
             image_path = Path(notification["image"].lstrip("/"))
             if image_path.exists():
                 image_path.unlink()
@@ -194,8 +194,8 @@ async def get_push_notification_analytics(notification_id: str, current_user: di
         devices = await push_notification_repository.getAllDeviceSubscriptions()
 
         return {
-            "deliveredCount": notification.get("deliveredCount", 0),
-            "readCount": notification.get("readCount", 0),
+            "deliveredCount": (notification.delivered_count if notification.delivered_count is not None else 0),
+            "readCount": (notification.read_count if notification.read_count is not None else 0),
             "totalDevices": len(devices),
         }
     except HTTPException:
@@ -291,7 +291,7 @@ async def register_device(
         if not userId and credentials:
             try:
                 current_user = await verify_token(credentials.credentials)
-                userId = current_user.get("_id") or current_user.get("userId")
+                userId = current_user.id or current_user.user_id
             except Exception as e:
                 # Not authenticated or invalid token — continue as guest
                 logger.warning("Optional device registration auth token verification failed: %s", str(e))
@@ -319,14 +319,14 @@ async def mark_notification_read(
             raise HTTPException(status_code=404, detail="Notification not found")
 
         # Ownership/User-link validation: Only published notifications can be marked read by users
-        if notification.get("status") != "published":
+        if notification.status != "published":
             raise HTTPException(status_code=403, detail="Cannot mark unpublished notification as read")
 
         # Strict Ownership/Membership Validation
-        user_id = str(current_user.get("_id") or current_user.get("id"))
+        user_id = str(current_user.id or current_user.id)
 
         # Strict Ownership/Membership Validation
-        targeted_ids = notification.get("targetedUserIds")
+        targeted_ids = notification.targeted_user_ids
         if targeted_ids is not None:
             # High-performance O(1) check for new notifications
             if user_id not in [str(tid) for tid in targeted_ids]:

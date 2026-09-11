@@ -28,9 +28,9 @@ def _resolve_seller_id(current_user: dict, requested_seller_id: Optional[str] = 
     - Sellers (wholesaler role): always scoped to their own _id, ignores any requested_seller_id.
     - Super admin: uses requested_seller_id if provided, otherwise None (all sellers).
     """
-    role = current_user.get("role", "")
+    role = (current_user.role or "")
     if role == "wholesaler":
-        return current_user.get("_id")
+        return current_user.id
     # super_admin / admin
     return requested_seller_id
 

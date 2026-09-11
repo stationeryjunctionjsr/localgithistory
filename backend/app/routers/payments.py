@@ -23,7 +23,7 @@ async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
     from app.repositories.order_repository import order_repository
 
     # 1. Get user credit terms (default to 30 days)
-    terms_days = current_user.get("paymentTerms")
+    terms_days = current_user.payment_terms
     if terms_days is None:
         terms_days = 30
     else:
@@ -33,18 +33,18 @@ async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
             terms_days = 30
 
     # 2. Get all payments for this user
-    user_payments = await payment_repository.findAll({"userId": current_user.get("userId")})
+    user_payments = await payment_repository.findAll({"userId": current_user.user_id})
     unpaid_credit_bills = []
 
     for p in user_payments:
         # Check if it is a credit payment
-        if p.get("paymentMethod") == "credit":
+        if p.payment_method == "credit":
             # Calculate verified amount paid
             verified_paid = sum(
-                entry.get("amount", 0.0) for entry in (p.get("paymentEntries") or []) if entry.get("verified")
+                entry.get("amount", 0.0) for entry in (p.payment_entries or []) if entry.get("verified")
             )
             # Calculate effective remaining due amount
-            effective_due = p.get("totalAmount", 0.0) - verified_paid
+            effective_due = (p.total_amount if p.total_amount is not None else 0.0) - verified_paid
             if effective_due > 0:
                 unpaid_credit_bills.append((p, effective_due))
 
@@ -58,16 +58,16 @@ async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
         total_dues += effective_due
 
         # Retrieve order details to get orderNumber or fallback to orderId
-        order_number = bill.get("orderId")
+        order_number = bill.order_id
         try:
-            order = await order_repository.findById(bill.get("orderId"))
+            order = await order_repository.findById(bill.order_id)
             if order:
-                order_number = order.get("orderNumber", bill.get("orderId"))
+                order_number = (order.order_number if order.order_number is not None else bill.order_id)
         except Exception:
             pass
 
         # Parse orderDate as naive UTC datetime
-        order_date_str = bill.get("orderDate") or bill.get("createdAt")
+        order_date_str = bill.order_date or bill.created_at
         if order_date_str:
             try:
                 order_date = (
@@ -103,15 +103,15 @@ async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
 
         bills_info.append(
             {
-                "orderId": bill.get("orderId"),
+                "orderId": bill.order_id,
                 "orderNumber": order_number,
                 "amountRemaining": effective_due,
-                "totalAmount": bill.get("totalAmount", 0.0),
+                "totalAmount": (bill.total_amount if bill.total_amount is not None else 0.0),
                 "orderDate": order_date_str,
                 "dueDate": due_date.isoformat() + "Z",
                 "timeRemaining": time_remaining_str,
                 "overdue": is_overdue,
-                "paymentId": bill.get("_id"),
+                "paymentId": bill.id,
             }
         )
 
@@ -175,16 +175,16 @@ async def get_payments(
     payments = await payment_repository.findAll(query or None)
 
     # Bulk-fetch all referenced orders in one query to avoid N+1 DB calls
-    order_ids = list({p.get("orderId") for p in payments if p.get("orderId")})
+    order_ids = list({p.order_id for p in payments if p.order_id})
     orders_list = await order_repository.findAll({"_id": {"$in": order_ids}}) if order_ids else []
-    order_map = {str(o.get("_id")): o for o in orders_list}
+    order_map = {str(o.id): o for o in orders_list}
 
     enhanced_payments = []
     for payment in payments:
-        order = order_map.get(str(payment.get("orderId")))
+        order = order_map.get(str(payment.order_id))
         enhanced_payments.append({
             **payment,
-            "orderNumber": order.get("orderNumber") if order else payment.get("orderId"),
+            "orderNumber": order.order_number if order else payment.order_id,
         })
 
     return enhanced_payments
@@ -230,11 +230,11 @@ async def submit_credit_settlement(
 
         # Verify the order belongs to the user — use str() on both sides to
         # guard against type mismatches (int vs str IDs across storage backends).
-        if str(order.get("user")) != str(current_user.get("_id")):
+        if str(order.user) != str(current_user.id):
             raise HTTPException(status_code=403, detail="Not authorized to settle this order")
 
         # Verify the order is a credit order
-        if order.get("paymentMethod") != "credit":
+        if order.payment_method != "credit":
             raise HTTPException(status_code=400, detail="This order is not a credit order")
 
         # Find the payment record
@@ -256,10 +256,10 @@ async def submit_credit_settlement(
             raise HTTPException(status_code=400, detail="Amount must be strictly positive")
 
         # Verify amount doesn't exceed remaining amount (using freshly-read value)
-        if settlement_data.amount > payment.get("amountRemaining", 0):
+        if settlement_data.amount > (payment.amount_remaining if payment.amount_remaining is not None else 0):
             raise HTTPException(
                 status_code=400,
-                detail=f"Settlement amount ({settlement_data.amount}) exceeds remaining amount ({payment.get('amountRemaining', 0)})",
+                detail=f"Settlement amount ({settlement_data.amount}) exceeds remaining amount ({(payment.amount_remaining if payment.amount_remaining is not None else 0)})",
             )
 
         # Upload screenshot to OCI
@@ -271,7 +271,7 @@ async def submit_credit_settlement(
 
         # Add payment entry
         updated_payment = await payment_repository.addPaymentEntry(
-            payment.get("_id"),
+            payment.id,
             {
                 "amount": float(settlement_data.amount),
                 "image": screenshot_path,

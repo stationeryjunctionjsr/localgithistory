@@ -224,7 +224,7 @@ async def seed_system_segments():
                 logger.info("Seeding system segment: %s (%s)", behavior_name, seg_type)
                 criteria = FilterCriteria(role=role, behavior=behavior_id)
                 users = await run_segment_filter(criteria)
-                user_ids = [str(u.get("_id", u.get("id"))) for u in users]
+                user_ids = [str((u.id if u.id is not None else u.id)) for u in users]
 
                 await customer_segments_repository.create(
                     {
@@ -253,15 +253,15 @@ async def refresh_segment(segment_id: str, admin: dict = Depends(require_super_a
     if not segment:
         raise HTTPException(status_code=404, detail="Segment not found")
 
-    filters = segment.get("filters", {})
+    filters = (segment.filters or {})
     if not filters:
-        return {"status": "success", "message": "No filters to re-apply", "userIds": segment.get("userIds", [])}
+        return {"status": "success", "message": "No filters to re-apply", "userIds": (segment.user_ids or [])}
 
-    role = "customer" if segment.get("type") == "retail" else "wholesaler"
+    role = "customer" if segment.type == "retail" else "wholesaler"
     criteria = FilterCriteria(role=role, **filters)
 
     users = await run_segment_filter(criteria)
-    user_ids = [str(u.get("_id", u.get("id"))) for u in users]
+    user_ids = [str((u.id if u.id is not None else u.id)) for u in users]
 
     from datetime import datetime, timezone
 

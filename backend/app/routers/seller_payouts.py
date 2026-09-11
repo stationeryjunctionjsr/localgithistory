@@ -87,13 +87,13 @@ async def create_seller_payout(
     from app.repositories.user_repository import user_repository
 
     seller = await user_repository.findById(data.sellerId)
-    if not seller or not seller.get("isSellerAdmin"):
+    if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
 
     now = datetime.now(timezone.utc).isoformat() + "Z"
     payout_doc = {
         "sellerId": data.sellerId,
-        "sellerName": seller.get("companyName") or seller.get("name") or "",
+        "sellerName": seller.company_name or seller.name or "",
         "amount": data.amount,
         "periodStart": data.periodStart,
         "periodEnd": data.periodEnd,
@@ -128,7 +128,7 @@ async def settle_all_seller_payouts(
     from app.repositories.user_repository import user_repository
 
     seller = await user_repository.findById(seller_id)
-    if not seller or not seller.get("isSellerAdmin"):
+    if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
 
     # Fetch all realized sub-orders
@@ -138,14 +138,14 @@ async def settle_all_seller_payouts(
         raise HTTPException(status_code=400, detail="No realized sub-orders found to settle")
 
     # Calculate total payout
-    total_amount = sum(float(so.get("total") or 0) - float(so.get("commissionAmount") or 0) for so in sub_orders)
+    total_amount = sum(float(so.total or 0) - float(so.commission_amount or 0) for so in sub_orders)
 
     sub_order_ids = [str(so["_id"]) for so in sub_orders]
 
     now = datetime.now(timezone.utc).isoformat() + "Z"
     payout_doc = {
         "sellerId": seller_id,
-        "sellerName": seller.get("companyName") or seller.get("name") or "",
+        "sellerName": seller.company_name or seller.name or "",
         "amount": round(total_amount, 2),
         "status": "paid",
         "notes": "Bulk settlement of all realized sub-orders",
@@ -207,7 +207,7 @@ async def get_all_seller_payout_summaries(
 
     # Merge seller name into the summary
     for i, seller in enumerate(sellers):
-        results[i]["sellerName"] = seller.get("companyName") or seller.get("name") or "Unknown"
+        results[i]["sellerName"] = seller.company_name or seller.name or "Unknown"
 
     return results
 
@@ -220,28 +220,28 @@ async def _get_seller_summary(seller_id: str) -> Dict[str, Any]:
 
     # Commission values
     comm_realized = sum(
-        float(so.get("commissionAmount") or 0)
+        float(so.commission_amount or 0)
         for so in sub_orders
-        if so.get("commissionStatus") in ("realized", "paid")
+        if so.commission_status in ("realized", "paid")
     )
-    comm_paid = sum(float(so.get("commissionAmount") or 0) for so in sub_orders if so.get("commissionStatus") == "paid")
+    comm_paid = sum(float(so.commission_amount or 0) for so in sub_orders if so.commission_status == "paid")
     comm_unrealized = sum(
-        float(so.get("commissionAmount") or 0) for so in sub_orders if so.get("commissionStatus") == "unrealized"
+        float(so.commission_amount or 0) for so in sub_orders if so.commission_status == "unrealized"
     )
 
     # Sub-order values
     val_realized = sum(
-        float(so.get("total") or 0) for so in sub_orders if so.get("commissionStatus") in ("realized", "paid")
+        float(so.total or 0) for so in sub_orders if so.commission_status in ("realized", "paid")
     )
-    val_paid = sum(float(so.get("total") or 0) for so in sub_orders if so.get("commissionStatus") == "paid")
-    val_unrealized = sum(float(so.get("total") or 0) for so in sub_orders if so.get("commissionStatus") == "unrealized")
+    val_paid = sum(float(so.total or 0) for so in sub_orders if so.commission_status == "paid")
+    val_unrealized = sum(float(so.total or 0) for so in sub_orders if so.commission_status == "unrealized")
 
     # Tax (GST) values
     tax_realized = sum(
-        float(so.get("tax") or 0) for so in sub_orders if so.get("commissionStatus") in ("realized", "paid")
+        float(so.tax or 0) for so in sub_orders if so.commission_status in ("realized", "paid")
     )
-    tax_paid = sum(float(so.get("tax") or 0) for so in sub_orders if so.get("commissionStatus") == "paid")
-    tax_unrealized = sum(float(so.get("tax") or 0) for so in sub_orders if so.get("commissionStatus") == "unrealized")
+    tax_paid = sum(float(so.tax or 0) for so in sub_orders if so.commission_status == "paid")
+    tax_unrealized = sum(float(so.tax or 0) for so in sub_orders if so.commission_status == "unrealized")
 
     # Net Payout (Sub-order Value - Commission)
     payout_realized = round(val_realized - comm_realized, 2)

@@ -17,13 +17,13 @@ class WishlistItemRequest(BaseModel):
 
 
 def get_role_for_pricing(user: dict) -> str:
-    effective_role = user.get("effectiveRole") or user.get("role", "customer")
+    effective_role = user.effective_role or (user.role if user.role is not None else "customer")
     return effective_role
 
 
 def get_min_quantity_for_role(product: dict, role: str) -> int:
     if role == "wholesaler":
-        qty_per_case = product.get("quantityPerCase") or 0
+        qty_per_case = product.quantity_per_case or 0
         if qty_per_case > 0:
             return qty_per_case
         return 1
@@ -35,7 +35,7 @@ def get_min_quantity_for_role(product: dict, role: str) -> int:
 async def get_wishlist(current_user: dict = Depends(get_current_user)):
     """Get user's wishlist"""
     try:
-        wishlist = await wishlist_repository.findByUser(current_user.get("_id"))
+        wishlist = await wishlist_repository.findByUser(current_user.id)
         if not wishlist or not wishlist.get("items"):
             return {"items": [], "itemCount": 0}
 
@@ -50,31 +50,31 @@ async def get_wishlist(current_user: dict = Depends(get_current_user)):
             elif isinstance(it, str):
                 norm_items.append({"product": it, "quantity": 1})
 
-        product_ids = [item.get("product") for item in norm_items if item.get("product")]
+        product_ids = [item.product for item in norm_items if item.product]
         products_map = {}
         if product_ids:
             products = await product_repository.findAll({"allowed_ids": product_ids})
             products_map = {str(p["_id"]): p for p in products}
 
         for item in norm_items:
-            product = products_map.get(str(item.get("product")))
-            if not product or product.get("isActive") is False:
+            product = products_map.get(str(item.product))
+            if not product or product.is_active is False:
                 continue
 
-            quantity = item.get("quantity", 1)
+            quantity = (item.quantity if item.quantity is not None else 1)
             price = product_repository.getPriceForRole(product, role_for_pricing, quantity)
 
             populated_items.append(
                 {
                     **item,
                     "product": {
-                        "_id": product.get("_id"),
-                        "name": product.get("name"),
-                        "sku": product.get("sku"),
-                        "images": product.get("images", []),
-                        "mrp": product.get("mrp"),
-                        "mrpPerCase": product.get("mrpPerCase"),
-                        "quantityPerCase": product.get("quantityPerCase"),
+                        "_id": product.id,
+                        "name": product.name,
+                        "sku": product.sku,
+                        "images": (product.images or []),
+                        "mrp": product.mrp,
+                        "mrpPerCase": product.mrp_per_case,
+                        "quantityPerCase": product.quantity_per_case,
                         "price": price,
                     },
                 }
@@ -92,19 +92,19 @@ async def add_to_wishlist(item: WishlistItemRequest, current_user: dict = Depend
     """Add item to wishlist"""
     try:
         product = await product_repository.findById(item.productId)
-        if not product or product.get("isActive") is False:
+        if not product or product.is_active is False:
             raise HTTPException(status_code=404, detail="Product not found")
 
         role_for_pricing = get_role_for_pricing(current_user)
         min_qty = get_min_quantity_for_role(product, role_for_pricing)
 
-        await wishlist_repository.addItem(current_user.get("_id"), {"product": item.productId, "quantity": min_qty})
+        await wishlist_repository.addItem(current_user.id, {"product": item.productId, "quantity": min_qty})
 
         # Track the addition
         from app.repositories.tracking_repository import tracking_repository
 
         await tracking_repository.trackWishlistAdd(
-            current_user.get("_id"), item.productId, getattr(item, "sessionId", None)
+            current_user.id, item.productId, getattr(item, "sessionId", None)
         )
 
         return {"message": "Added to wishlist"}
@@ -119,7 +119,7 @@ async def add_to_wishlist(item: WishlistItemRequest, current_user: dict = Depend
 async def remove_from_wishlist(product_id: str, current_user: dict = Depends(get_current_user)):
     """Remove item from wishlist"""
     try:
-        removed = await wishlist_repository.removeItem(current_user.get("_id"), product_id)
+        removed = await wishlist_repository.removeItem(current_user.id, product_id)
         if not removed:
             raise HTTPException(status_code=404, detail="Wishlist item not found")
         return {"message": "Removed from wishlist"}
@@ -135,7 +135,7 @@ async def remove_from_wishlist(product_id: str, current_user: dict = Depends(get
 async def clear_wishlist(current_user: dict = Depends(get_current_user)):
     """Clear wishlist"""
     try:
-        await wishlist_repository.clear(current_user.get("_id"))
+        await wishlist_repository.clear(current_user.id)
         return {"message": "Wishlist cleared"}
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
