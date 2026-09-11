@@ -11,7 +11,7 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("", response_model=Dict[str, Any]
+@router.get("", response_model=Dict[str, Any])
 @router.get("/")
 async def get_notifications(
     isRead: Optional[bool] = Query(None),

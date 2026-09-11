@@ -15,7 +15,7 @@ router = APIRouter()
 optional_security = HTTPBearer(auto_error=False)
 
 
-@router.get("", response_model=Dict[str, Any]
+@router.get("", response_model=Dict[str, Any])
 @router.get("/")
 async def get_push_notifications(
     status: Optional[str] = Query(None),

@@ -25,7 +25,7 @@ class CategoryTagUpdate(BaseModel):
     isActive: Optional[bool] = None
 
 
-@router.get("", response_model=Dict[str, Any]
+@router.get("", response_model=Dict[str, Any])
 @router.get("/")
 async def get_category_tags(current_user: dict = Depends(require_super_admin)):
     """Get all category tags (Super Admin only)"""

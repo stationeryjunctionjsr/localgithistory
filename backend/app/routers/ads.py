@@ -15,7 +15,7 @@ storage = get_storage("ads")
 events_storage = get_storage("tracking")
 
 
-@router.get("/summary", response_model=Dict[str, Any]
+@router.get("/summary", response_model=Dict[str, Any])
 async def get_ads_summary(_: dict = Depends(require_super_admin)):
     ads = await storage.findAll({})
     total_views = sum([(ad.stats or {}).get("impressions", 0) for ad in ads])
