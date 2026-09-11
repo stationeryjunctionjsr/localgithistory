@@ -225,7 +225,7 @@ class MySQLFlatBaseDAO:
             return None
         now = now_utc()
         params = self._doc_to_params(merged, now)
-        params["id"] = int(id) if str(id).isdigit() else None
+        params["id"] = int(id) if str(id).isdigit() else 0
         params["updated_at"] = now
 
         bind_params = {"id": params["id"]}
@@ -248,7 +248,7 @@ class MySQLFlatBaseDAO:
         factory = self._factory()
         if not factory:
             return False
-        pk = int(id) if str(id).isdigit() else None
+        pk = int(id) if str(id).isdigit() else 0
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.table_name} WHERE id = :id"),
@@ -276,13 +276,13 @@ class MySQLFlatBaseDAO:
             for k, v in query.items():
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
+                    params["id"] = int(v) if str(v).isdigit() else 0
                 elif k in self.scalar_map:
                     col = self.scalar_map[k]
                     p = _param(col)
                     where_clauses.append(f"{_q(col)} = :{p}")
                     if k in self.bool_api_keys:
-                        params[p] = 1 if v else None
+                        params[p] = 1 if v else 0
                     else:
                         params[p] = v
 
@@ -298,7 +298,7 @@ class MySQLFlatBaseDAO:
                 param_key = f"u_{_param(col)}"
                 set_parts.append(f"{_q(col)} = :{param_key}")
                 if k in self.bool_api_keys:
-                    params[param_key] = 1 if v else None
+                    params[param_key] = 1 if v else 0
                 else:
                     params[param_key] = v
             elif k in self.clob_map:
@@ -326,13 +326,13 @@ class MySQLFlatBaseDAO:
             for k, v in query.items():
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
+                    params["id"] = int(v) if str(v).isdigit() else 0
                 elif k in self.scalar_map:
                     col = self.scalar_map[k]
                     p = _param(col)
                     where_clauses.append(f"{_q(col)} = :{p}")
                     if k in self.bool_api_keys:
-                        params[p] = 1 if v else None
+                        params[p] = 1 if v else 0
                     else:
                         params[p] = v
 
@@ -343,7 +343,7 @@ class MySQLFlatBaseDAO:
                 text(f"SELECT COUNT(*) FROM {self.table_name} WHERE {where_sql}"), params
             )
             count_val = result.scalar()
-        return int(count_val) if count_val else None
+        return int(count_val) if count_val else 0
 
     find_all = findAll
     find_by_id = findById

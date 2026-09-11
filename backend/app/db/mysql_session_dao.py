@@ -137,7 +137,7 @@ class MySQLSessionDAO:
                     "last_active_at": _to_ts(data.get("lastActiveAt")),
                     "revoked_at": _to_ts(data.get("revokedAt")),
                     "revoked_reason": data.get("revokedReason"),
-                    "is_guest": 1 if data.get("isGuest") else None,
+                    "is_guest": 1 if data.get("isGuest") else 0,
                     "comments": data.get("comment"),
                     "created_at": now,
                     "updated_at": now,
@@ -160,7 +160,7 @@ class MySQLSessionDAO:
         if not factory:
             return None
         now = now_utc()
-        sid = int(id) if str(id).isdigit() else None
+        sid = int(id) if str(id).isdigit() else 0
         user_id_raw = merged.get("userId") or merged.get("user")
         user_id = int(user_id_raw) if str(user_id_raw or "").isdigit() else None
         if user_id is None:
@@ -191,7 +191,7 @@ class MySQLSessionDAO:
                     "last_active_at": _to_ts(merged.get("lastActiveAt")),
                     "revoked_at": _to_ts(merged.get("revokedAt")),
                     "revoked_reason": merged.get("revokedReason"),
-                    "is_guest": 1 if merged.get("isGuest") else None,
+                    "is_guest": 1 if merged.get("isGuest") else 0,
                     "comments": merged.get("comment"),
                     "updated_at": now,
                 },
@@ -204,7 +204,7 @@ class MySQLSessionDAO:
         factory = self._factory()
         if not factory:
             return
-        sid = int(session_id) if str(session_id).isdigit() else None
+        sid = int(session_id) if str(session_id).isdigit() else 0
         if not sid:
             return
         now = now_utc()
@@ -240,7 +240,7 @@ class MySQLSessionDAO:
         factory = self._factory()
         if not factory:
             return False
-        sid = int(id) if str(id).isdigit() else None
+        sid = int(id) if str(id).isdigit() else 0
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),

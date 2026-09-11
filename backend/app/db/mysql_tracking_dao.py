@@ -222,7 +222,7 @@ class MySQLTrackingDAO:
         now = now_utc()
 
         updates = ["updated_at = :u"]
-        params = {"id": int(id) if str(id).isdigit() else None, "u": now}
+        params = {"id": int(id) if str(id).isdigit() else 0, "u": now}
         
         for api_k, db_col in _TRACKING_SCALAR.items():
             val = None
@@ -250,7 +250,7 @@ class MySQLTrackingDAO:
         factory = self._factory()
         async with factory() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"), params)
-            await self._replace_children(session, int(id) if str(id).isdigit() else None, new_data)
+            await self._replace_children(session, int(id) if str(id).isdigit() else 0, new_data)
             await session.commit()
         return await self.findById(id)
 
@@ -258,7 +258,7 @@ class MySQLTrackingDAO:
         factory = self._factory()
         async with factory() as session:
             res = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else None}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else 0}
             )
             await session.commit()
             return res.rowcount > 0
@@ -275,7 +275,7 @@ class MySQLTrackingDAO:
                 params[k] = v
             elif k in ("_id", "id"):
                 where_clauses.append("id = :id")
-                params["id"] = int(v) if str(v).isdigit() else None
+                params["id"] = int(v) if str(v).isdigit() else 0
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
             res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE {where_sql}"), params)

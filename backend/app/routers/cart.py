@@ -62,14 +62,14 @@ async def get_cart(current_user: dict = Depends(get_current_user)):
             subtotal = product_repository.calculateTotalPrice(
                 product, role, quantity, sell_as_case=sell_as_case, user_id=user_id
             )
-            price = ((subtotal or 0) / quantity) if quantity else 0  # effective price per unit for display
+            price = (subtotal / quantity) if quantity else 0  # effective price per unit for display
 
             from app.repositories.stock_reservation_repository import stock_reservation_repository
 
             reserved = await stock_reservation_repository.get_reserved_quantity(
                 product.id, exclude_user_id=current_user.id
             )
-            available_stock = max(0, int(product.stock or 0) - reserved)
+            available_stock = max(0, int(product.stock) - reserved)
             is_out_of_stock = quantity > available_stock
 
             cart_items.append(

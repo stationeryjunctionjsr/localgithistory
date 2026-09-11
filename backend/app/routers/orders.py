@@ -740,7 +740,7 @@ async def create_order(
         total_cgst += cgst
         total_sgst += sgst
 
-        effective_price = ((item_total_before_coupon or 0) / quantity) if quantity else 0
+        effective_price = (item_total_before_coupon / quantity) if quantity else 0
 
         order_items.append(
             {

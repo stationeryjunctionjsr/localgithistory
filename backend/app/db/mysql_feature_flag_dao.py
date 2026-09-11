@@ -133,7 +133,7 @@ class MySQLFeatureFlagDAO:
         if not factory:
             return None
         now = now_utc()
-        fid = int(id) if str(id).isdigit() else None
+        fid = int(id) if str(id).isdigit() else 0
         async with factory() as session:
             await session.execute(
                 text(
@@ -153,7 +153,7 @@ class MySQLFeatureFlagDAO:
                     "flag_id": merged.get("id"),
                     "name": merged.get("name"),
                     "description": merged.get("description"),
-                    "enabled": 1 if merged.get("enabled", True) else None,
+                    "enabled": 1 if merged.get("enabled", True) else 0,
                     "category": merged.get("category"),
                     "updated_at": now,
                 },
@@ -165,7 +165,7 @@ class MySQLFeatureFlagDAO:
         factory = self._factory()
         if not factory:
             return False
-        fid = int(id) if str(id).isdigit() else None
+        fid = int(id) if str(id).isdigit() else 0
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),

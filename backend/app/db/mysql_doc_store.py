@@ -265,7 +265,7 @@ class MySQLDocStore:
             if "isActive" in data:
                 cols.append("is_active")
                 vals.append(":is_active")
-                params["is_active"] = 1 if data.get("isActive") else None
+                params["is_active"] = 1 if data.get("isActive") else 0
             if "validFrom" in data:
                 cols.append("start_date")
                 vals.append(":start_date")
@@ -319,7 +319,7 @@ class MySQLDocStore:
         async with factory() as session:
             result = await session.execute(
                 text(f"SELECT {cols} FROM {self.table_name} WHERE id = :id"),
-                {"id": int(db_id) if str(db_id).isdigit() else None},
+                {"id": int(db_id) if str(db_id).isdigit() else 0},
             )
             row = result.fetchone()
             if not row:
@@ -362,7 +362,7 @@ class MySQLDocStore:
                     )
                 if "isActive" in update_data:
                     update_sql += ", is_active = :is_active"
-                    params["is_active"] = 1 if update_data["isActive"] else None
+                    params["is_active"] = 1 if update_data["isActive"] else 0
                 if "validFrom" in update_data:
                     update_sql += ", start_date = :start_date"
                     params["start_date"] = _to_datetime(update_data["validFrom"])
@@ -388,7 +388,7 @@ class MySQLDocStore:
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.table_name} WHERE id = :id"),
-                {"id": int(db_id) if str(db_id).isdigit() else None},
+                {"id": int(db_id) if str(db_id).isdigit() else 0},
             )
             await session.commit()
             return result.rowcount > 0

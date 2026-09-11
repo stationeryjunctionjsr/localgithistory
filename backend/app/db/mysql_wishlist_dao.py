@@ -96,7 +96,7 @@ class MySQLWishlistDAO:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
-        user_id = int(data.get("user", 0)) if str(data.get("user", "0")).isdigit() else None
+        user_id = int(data.get("user", 0)) if str(data.get("user", "0")).isdigit() else 0
         items = data.get("items", [])
 
         async with factory() as session:
@@ -132,7 +132,7 @@ class MySQLWishlistDAO:
 
         factory = self._factory()
         now = now_utc()
-        wid = int(id) if str(id).isdigit() else None
+        wid = int(id) if str(id).isdigit() else 0
 
         async with factory() as session:
             await session.execute(
@@ -146,7 +146,7 @@ class MySQLWishlistDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        wid = int(id) if str(id).isdigit() else None
+        wid = int(id) if str(id).isdigit() else 0
         async with factory() as session:
             await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": wid})
             result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": wid})

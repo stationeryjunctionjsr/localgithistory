@@ -138,9 +138,9 @@ class MySQLCommissionSettingsDAO:
         async with factory() as session:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET default_commission_pct = :pct, updated_at = :upd WHERE id = :id"),
-                {"id": int(id) if str(id).isdigit() else None, "pct": merged.get("defaultCommissionPct", 5.0), "upd": now},
+                {"id": int(id) if str(id).isdigit() else 0, "pct": merged.get("defaultCommissionPct", 5.0), "upd": now},
             )
-            await self._replace_children(session, int(id) if str(id).isdigit() else None, merged)
+            await self._replace_children(session, int(id) if str(id).isdigit() else 0, merged)
             await session.commit()
         return await self.findById(id)
 
@@ -150,7 +150,7 @@ class MySQLCommissionSettingsDAO:
             return False
         async with factory() as session:
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else None}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else 0}
             )
             await session.commit()
             return result.rowcount > 0

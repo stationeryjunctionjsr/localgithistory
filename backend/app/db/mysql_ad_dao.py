@@ -159,7 +159,7 @@ class MySQLAdDAO:
             merged["stats"] = {**(existing.stats or {}), **data["stats"]}
 
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else None
+        pid = int(id) if str(id).isdigit() else 0
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -203,7 +203,7 @@ class MySQLAdDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else None
+        pid = int(id) if str(id).isdigit() else 0
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),

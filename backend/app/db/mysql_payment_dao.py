@@ -309,7 +309,7 @@ class MySQLPaymentDAO:
         if not factory:
             return None
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else None
+        pid = int(id) if str(id).isdigit() else 0
         async with factory() as session:
             await session.execute(
                 text(
@@ -353,7 +353,7 @@ class MySQLPaymentDAO:
                             "paid_at": paid_at,
                             "image": entry.get("image"),
                             "notes": entry.get("notes", ""),
-                            "verified": 1 if entry.get("verified") else None,
+                            "verified": 1 if entry.get("verified") else 0,
                             "created_at": now,
                         },
                     )
@@ -364,7 +364,7 @@ class MySQLPaymentDAO:
         factory = self._factory()
         if not factory:
             return False
-        pid = int(id) if str(id).isdigit() else None
+        pid = int(id) if str(id).isdigit() else 0
         async with factory() as session:
             await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": pid})
             result = await session.execute(text(f"DELETE FROM {self.PAYMENTS_TABLE} WHERE id = :id"), {"id": pid})
