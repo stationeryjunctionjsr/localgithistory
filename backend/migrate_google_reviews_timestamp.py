@@ -2,7 +2,7 @@
 Migration: Alter SJ_GOOGLE_REVIEWS.LAST_UPDATED from VARCHAR2 to TIMESTAMP(6)
 
 The column was VARCHAR2(64) so Oracle returned Oracle-formatted date strings like
-'04-JUN-26' instead of ISO 8601. The typed_doc_dao.py _row_to_doc() method calls
+'04-JUN-26' instead of ISO 8601. The typed_doc_dao.py _row_to_dict() method calls
 .isoformat() on datetime objects but leaves strings as-is, so the VARCHAR2 column
 was returned as a non-parseable Oracle date string.
 

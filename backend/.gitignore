@@ -36,3 +36,6 @@ object_storage/
 Thumbs.db
 desktop.ini
 
+
+scratch_*.py
+audit_migration.py

@@ -27,7 +27,7 @@ c = re.sub(
 )
 
 # In findAll/find_paginated, we need to pass children_map
-c = re.sub(r"def _row_to_doc\(self, r\)", "def _row_to_doc(self, r, children)", c)
+c = re.sub(r"def _row_to_dict\(self, r\)", "def _row_to_dict(self, r, children)", c)
 
 # Need to update SELECT columns in all 5 places
 select_pattern = r"role,\s*phone,\s*company_name,\s*address,\s*saved_addresses,\s*is_active,.*?is_seller_admin,\s*seller_permissions,\s*service_area_zones,\s*is_on_duty,\s*commission_override_pct,"
