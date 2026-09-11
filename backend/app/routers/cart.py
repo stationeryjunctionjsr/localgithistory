@@ -1,3 +1,4 @@
+from app.models.schemas import CartResponse, SavedForLaterResponse, MessageResponse
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -27,8 +28,8 @@ class CartItemUpdateRequest(BaseModel):
     quantity: int
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=CartResponse)
+@router.get("/", response_model=CartResponse)
 async def get_cart(current_user: dict = Depends(get_current_user)):
     """Get user's cart"""
     try:
@@ -110,8 +111,8 @@ async def get_cart(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("")
-@router.post("/")
+@router.post("", response_model=MessageResponse)
+@router.post("/", response_model=MessageResponse)
 async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_current_user)):
     """Add item to cart"""
     try:
@@ -209,7 +210,7 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/{item_id}")
+@router.put("/{item_id}", response_model=MessageResponse)
 async def update_cart_item(
     item_id: str, update_data: CartItemUpdateRequest, current_user: dict = Depends(get_current_user)
 ):
@@ -277,7 +278,7 @@ async def update_cart_item(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.delete("/{item_id}")
+@router.delete("/{item_id}", response_model=MessageResponse)
 async def remove_cart_item(item_id: str, current_user: dict = Depends(get_current_user)):
     """Remove item from cart"""
     try:
@@ -314,8 +315,8 @@ async def remove_cart_item(item_id: str, current_user: dict = Depends(get_curren
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.delete("")
-@router.delete("/")
+@router.delete("", response_model=MessageResponse)
+@router.delete("/", response_model=MessageResponse)
 async def clear_cart(current_user: dict = Depends(get_current_user)):
     """Clear cart"""
     try:
@@ -329,7 +330,7 @@ async def clear_cart(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("/save-for-later")
+@router.post("/save-for-later", response_model=MessageResponse)
 async def save_for_later(request: SaveForLaterRequest, current_user: dict = Depends(get_current_user)):
     """Save item for later"""
     try:
@@ -342,7 +343,7 @@ async def save_for_later(request: SaveForLaterRequest, current_user: dict = Depe
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/saved-for-later")
+@router.get("/saved-for-later", response_model=SavedForLaterResponse)
 async def get_saved_for_later(current_user: dict = Depends(get_current_user)):
     """Get saved for later items"""
     try:

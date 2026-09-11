@@ -1412,3 +1412,30 @@ class ReferralSegmentSetting(BaseModel):
 class ReferralSettingsResponse(BaseModel):
     retail: ReferralSegmentSetting
     business: ReferralSegmentSetting
+
+class PaginatedUsersResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    users: List[UserResponse]
+    totalCount: int = Field(alias="totalCount")
+    page: int
+    limit: int
+
+class PreferencesResponse(BaseModel):
+    preferredLanguage: str
+
+class DutyStatusResponse(BaseModel):
+    isOnDuty: bool
+    message: str
+
+class MessageResponse(BaseModel):
+    message: str
+
+class CartResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    items: List[Dict[str, Any]]
+    subtotal: float
+    itemCount: int = Field(alias="itemCount")
+    expiresAt: Optional[str] = Field(alias="expiresAt")
+
+class SavedForLaterResponse(BaseModel):
+    items: List[Dict[str, Any]]

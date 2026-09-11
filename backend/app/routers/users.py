@@ -4,7 +4,8 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
-from app.models.schemas import UserResponse, UserUpdate, SUPPORTED_LANGUAGES
+from app.models.schemas import UserResponse, UserUpdate, SUPPORTED_LANGUAGES, PaginatedUsersResponse, PreferencesResponse, DutyStatusResponse, MessageResponse
+from typing import Dict, Any
 from app.repositories.user_repository import user_repository
 from app.utils.auth import get_current_user, require_super_admin, require_super_admin_or_seller
 from app.utils.limiter import limiter
@@ -12,8 +13,8 @@ from app.utils.limiter import limiter
 router = APIRouter()
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=PaginatedUsersResponse)
+@router.get("/", response_model=PaginatedUsersResponse)
 async def get_users(
     role: Optional[str] = None,
     approvalStatus: Optional[str] = None,
@@ -79,7 +80,7 @@ class UserPreferencesUpdate(BaseModel):
     preferredLanguage: str
 
 
-@router.patch("/me/preferences")
+@router.patch("/me/preferences", response_model=PreferencesResponse)
 async def update_my_preferences(
     data: UserPreferencesUpdate,
     current_user: dict = Depends(get_current_user),
@@ -124,7 +125,7 @@ class DutyStatusRequest(BaseModel):
     isOnDuty: bool
 
 
-@router.put("/me/duty-status")
+@router.put("/me/duty-status", response_model=DutyStatusResponse)
 async def update_duty_status(
     data: DutyStatusRequest,
     current_user: dict = Depends(get_current_user),
@@ -407,7 +408,7 @@ class PasswordChangeRequest(BaseModel):
     currentPassword: Optional[str] = None
 
 
-@router.put("/{user_id}/password")
+@router.put("/{user_id}/password", response_model=MessageResponse)
 async def change_password(
     user_id: str, password_data: PasswordChangeRequest, current_user: dict = Depends(get_current_user)
 ):
@@ -439,7 +440,7 @@ async def change_password(
     return {"message": "Password changed successfully"}
 
 
-@router.delete("/{user_id}")
+@router.delete("/{user_id}", response_model=MessageResponse)
 async def delete_user(user_id: str, current_user: dict = Depends(require_super_admin)):
     user = await user_repository.findById(user_id)
 
@@ -458,7 +459,7 @@ class VerifyEmailRequest(BaseModel):
     code: str
 
 
-@router.post("/request-email-verification")
+@router.post("/request-email-verification", response_model=MessageResponse)
 @limiter.limit("5/minute")
 async def request_email_verification(request: Request, current_user: dict = Depends(get_current_user)):
     user_id = current_user.id
@@ -487,7 +488,7 @@ async def request_email_verification(request: Request, current_user: dict = Depe
     return response_data
 
 
-@router.post("/verify-email")
+@router.post("/verify-email", response_model=MessageResponse)
 @limiter.limit("5/minute")
 async def verify_email(data: VerifyEmailRequest, request: Request, current_user: dict = Depends(get_current_user)):
     user_id = current_user.id
@@ -515,7 +516,7 @@ class SellerZoneSettingsUpdate(BaseModel):
     serviceableZoneIds: List[str]
 
 
-@router.get("/seller-delivery-settings")
+@router.get("/seller-delivery-settings", response_model=Dict[str, Any])
 async def get_seller_delivery_settings(
     current_user: dict = Depends(require_super_admin_or_seller),
 ):
@@ -547,7 +548,7 @@ async def get_seller_delivery_settings(
     }
 
 
-@router.put("/seller-delivery-settings")
+@router.put("/seller-delivery-settings", response_model=Dict[str, Any])
 async def update_seller_delivery_settings(
     data: SellerZoneSettingsUpdate,
     current_user: dict = Depends(require_super_admin_or_seller),
