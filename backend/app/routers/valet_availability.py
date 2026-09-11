@@ -1,3 +1,4 @@
+from app.models.schemas import MessageResponse
 """
 Valet Availability Router
 

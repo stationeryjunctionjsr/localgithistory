@@ -1,3 +1,4 @@
+from app.models.schemas import MessageResponse
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Query, status
