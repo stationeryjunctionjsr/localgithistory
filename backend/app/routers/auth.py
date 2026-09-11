@@ -410,25 +410,25 @@ async def refresh_tokens(payload: RefreshRequest, request: Request):
     from app.utils.auth import INACTIVITY_DAYS
 
     session = await session_repository.check_inactivity_and_revoke(session, INACTIVITY_DAYS)
-    if session.get("status") != "active":
+    if session.status != "active":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
                 "code": ERR_SESSION_REVOKED,
-                "revokedAt": session.get("revokedAt"),
-                "reason": session.get("revokedReason"),
+                "revokedAt": session.revoked_at,
+                "reason": session.revoked_reason,
             },
         )
 
-    if session.get("refreshTokenId") != refresh_id:
+    if session.refresh_token_id != refresh_id:
         # refresh token mismatched -> revoke
         session = await session_repository.revoke_session(session_id, "refresh_mismatch")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
                 "code": ERR_SESSION_REVOKED,
-                "revokedAt": session.get("revokedAt"),
-                "reason": session.get("revokedReason"),
+                "revokedAt": session.revoked_at,
+                "reason": session.revoked_reason,
             },
         )
 

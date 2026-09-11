@@ -63,7 +63,7 @@ async def get_eligible_feedback_order(current_user: dict = Depends(get_current_u
     feedbacks = await order_feedback_repository.findByUser(user_id)
 
     # order orders by deliveredAt or createdAt descending
-    orders.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+    orders.sort(key=lambda x: (x.created_at or ""), reverse=True)
     feedback_order_ids = set(f.get("orderId") for f in feedbacks)
     orders_without_feedback = [o for o in orders if o.id not in feedback_order_ids]
 
@@ -78,7 +78,7 @@ async def get_eligible_feedback_order(current_user: dict = Depends(get_current_u
 
     # User HAS given feedback
     # Get the latest feedback
-    feedbacks.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+    feedbacks.sort(key=lambda x: (x.created_at or ""), reverse=True)
     latest_feedback = feedbacks[0]
     from datetime import datetime, timezone
 
@@ -133,6 +133,6 @@ async def get_all_feedback(current_user: dict = Depends(require_super_admin)):
                 f["user"] = {"name": (user.name if user.name is not None else "Unknown"), "email": (user.email or "")}
 
     # sort by createdAt descending
-    feedbacks.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+    feedbacks.sort(key=lambda x: (x.created_at or ""), reverse=True)
 
     return feedbacks

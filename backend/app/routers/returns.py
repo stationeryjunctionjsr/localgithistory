@@ -110,7 +110,7 @@ async def check_return_eligibility(order_id: str, current_user: dict = Depends(g
         return {"eligibleItems": [], "reason": "Error processing delivery date"}
 
     settings = await return_settings_repository.get_settings()
-    return_days = settings.get("returnDays", 7)
+    return_days = (settings.return_days if settings.return_days is not None else 7)
 
     if datetime.now(timezone.utc) > delivered_at + timedelta(days=return_days):
         return {"eligibleItems": [], "reason": f"Return window of {return_days} days has expired"}
@@ -234,7 +234,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
         if super_admin:
             await notification_repository.create(
                 {
-                    "userId": super_admin.get("_id"),
+                    "userId": super_admin.id,
                     "type": "new_return",
                     "title": "New Return Request",
                     "message": f"New return request for order {request_data.orderId}",

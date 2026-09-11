@@ -288,7 +288,7 @@ async def submit_credit_settlement(
                 payment_id = updated_payment.get("paymentId") or updated_payment.get("_id")
                 await notification_repository.create(
                     {
-                        "userId": super_admin.get("_id"),
+                        "userId": super_admin.id,
                         "type": "new_payment",
                         "title": "New Payment Received",
                         "message": f'New payment "{payment_id}" worth ₹{settlement_data.amount:.2f} received',

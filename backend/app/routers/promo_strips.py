@@ -32,7 +32,7 @@ async def get_promo_strips():
 async def get_active_promo_strips():
     """Public endpoint to get only active promo strips"""
     strips = await promo_strip_repository.findAll()
-    return [s for s in strips if s.get("isActive", True)]
+    return [s for s in strips if (s.is_active if s.is_active is not None else True)]
 
 
 @router.post("")

@@ -54,8 +54,8 @@ async def get_delivery_charge_by_location(
     total_charge = charge
 
     default_charge = await delivery_charge_repository.getDefaultCharge()
-    if default_charge and default_charge.get("deliveryChargeGst"):
-        gst_percentage = default_charge.get("deliveryChargeGstPercentage", 18.0)
+    if default_charge and default_charge.delivery_charge_gst:
+        gst_percentage = (default_charge.delivery_charge_gst_percentage if default_charge.delivery_charge_gst_percentage is not None else 18.0)
         if charge > 0:
             gst_amount = round(charge * (gst_percentage / 100), 2)
             total_charge = round(charge + gst_amount, 2)
@@ -122,12 +122,12 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
             try:
                 seller_doc = await user_repository.findById(sa_id)
                 if seller_doc:
-                    perms = seller_doc.get("sellerPermissions") or {}
+                    perms = seller_doc.seller_permissions or {}
                     serviceable_sellers.append({
-                        "id": str(seller_doc.get("_id", sa_id)),
-                        "name": seller_doc.get("name", ""),
-                        "companyName": seller_doc.get("companyName", seller_doc.get("name", "")),
-                        "city": seller_doc.get("city") or seller_doc.get("address", {}).get("city"),
+                        "id": str((seller_doc.id if seller_doc.id is not None else sa_id)),
+                        "name": (seller_doc.name or ""),
+                        "companyName": (seller_doc.company_name if seller_doc.company_name is not None else seller_doc.get("name", "")),
+                        "city": seller_doc.city or (seller_doc.address or {}).get("city"),
                         "allowUrgentDelivery": platform_urgent,
                         "allowDeliverySlots": True,  # zone slot configs are the gate; set True so frontend defers to slotBookingAvailable
                     })
@@ -142,12 +142,12 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
                     seller_doc = await user_repository.findById(sid)
                     if not seller_doc:
                         continue
-                    perms = seller_doc.get("sellerPermissions") or {}
+                    perms = seller_doc.seller_permissions or {}
                     serviceable_sellers.append({
-                        "id": str(seller_doc.get("_id", sid)),
-                        "name": seller_doc.get("name", ""),
-                        "companyName": seller_doc.get("companyName", seller_doc.get("name", "")),
-                        "city": seller_doc.get("city") or seller_doc.get("address", {}).get("city"),
+                        "id": str((seller_doc.id if seller_doc.id is not None else sid)),
+                        "name": (seller_doc.name or ""),
+                        "companyName": (seller_doc.company_name if seller_doc.company_name is not None else seller_doc.get("name", "")),
+                        "city": seller_doc.city or (seller_doc.address or {}).get("city"),
                         "allowUrgentDelivery": platform_urgent,
                         "allowDeliverySlots": True,  # zone slot configs are the gate; set True so frontend defers to slotBookingAvailable
                     })

@@ -96,8 +96,8 @@ async def resolve_commission_pct(order_total: float, seller_id: Optional[str]) -
 
     # 2. Fall through to global tiers
     settings = await _get_settings()
-    tiers: list = settings.get("tiers", [])
-    default_pct: float = settings.get("defaultCommissionPct", 5.0)
+    tiers: list = (settings.tiers or [])
+    default_pct: float = (settings.default_commission_pct if settings.default_commission_pct is not None else 5.0)
 
     for tier in sorted(tiers, key=lambda t: t.get("minOrderValue", 0)):
         min_v = tier.get("minOrderValue", 0)
@@ -124,7 +124,7 @@ async def is_return_period_over(sub_order: dict) -> bool:
         return False
 
     settings = await return_settings_repository.get_settings()
-    return_days: int = int(settings.get("returnDays", 7))
+    return_days: int = int((settings.return_days if settings.return_days is not None else 7))
     realize_at = delivered_at + timedelta(days=return_days)
 
     now = datetime.now(timezone.utc)
@@ -197,8 +197,8 @@ async def maybe_realize_commission(sub_order: dict) -> dict:
 async def get_commission_tiers(current_user: dict = Depends(require_super_admin)):
     settings = await _get_settings()
     return {
-        "tiers": settings.get("tiers", []),
-        "defaultCommissionPct": settings.get("defaultCommissionPct", 5.0),
+        "tiers": (settings.tiers or []),
+        "defaultCommissionPct": (settings.default_commission_pct if settings.default_commission_pct is not None else 5.0),
     }
 
 
@@ -256,20 +256,20 @@ async def update_commission_tiers(
 async def list_sellers_commission(current_user: dict = Depends(require_super_admin)):
     sellers = await user_repository.findAll({"role": "wholesaler", "isSellerAdmin": True})
     settings = await _get_settings()
-    tiers = settings.get("tiers", [])
-    default_pct = settings.get("defaultCommissionPct", 5.0)
+    tiers = (settings.tiers or [])
+    default_pct = (settings.default_commission_pct if settings.default_commission_pct is not None else 5.0)
 
     result = []
     for s in sellers:
-        override = s.get("commissionOverridePct")
+        override = s.commission_override_pct
         result.append(
             {
-                "id": str(s.get("_id", "")),
-                "name": s.get("name", ""),
-                "email": s.get("email", ""),
-                "phone": s.get("phone", ""),
-                "companyName": s.get("companyName", ""),
-                "isActive": s.get("isActive", True),
+                "id": str((s.id or "")),
+                "name": (s.name or ""),
+                "email": (s.email or ""),
+                "phone": (s.phone or ""),
+                "companyName": (s.company_name or ""),
+                "isActive": (s.is_active if s.is_active is not None else True),
                 "commissionOverridePct": override,
                 "effectiveCommissionType": "override" if override is not None else "tiers",
                 "effectiveTiersSummary": (
@@ -277,7 +277,7 @@ async def list_sellers_commission(current_user: dict = Depends(require_super_adm
                     if override is not None
                     else f"{len(tiers)} tier(s), default {default_pct}%"
                 ),
-                "createdAt": s.get("createdAt", ""),
+                "createdAt": (s.created_at or ""),
             }
         )
     return result

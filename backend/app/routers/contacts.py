@@ -18,7 +18,7 @@ async def get_contacts(current_user: dict = Depends(get_current_user)):
     else:
         contacts = await contact_repository.findAll({"isActive": True})
 
-    contacts.sort(key=lambda x: x.get("displayOrder", 0))
+    contacts.sort(key=lambda x: (x.display_order if x.display_order is not None else 0))
     return contacts
 
 
@@ -26,7 +26,7 @@ async def get_contacts(current_user: dict = Depends(get_current_user)):
 @cache.ttl_cache(ttl=3600.0)
 async def get_public_contacts():
     contacts = await contact_repository.findAll({"isActive": True})
-    contacts.sort(key=lambda x: x.get("displayOrder", 0))
+    contacts.sort(key=lambda x: (x.display_order if x.display_order is not None else 0))
     return contacts
 
 

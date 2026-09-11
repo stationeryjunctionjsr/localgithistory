@@ -47,14 +47,14 @@ async def check_referral_eligibility(current_user: dict = Depends(get_current_us
 
         # 3. Referral scheme must be active globally for retail
         settings = await referral_repository.get_settings()
-        retail_settings = settings.get("retail", {})
-        if not retail_settings.get("isActive", False) or retail_settings.get("discountValue", 0) <= 0:
+        retail_settings = (settings.retail or {})
+        if not (retail_settings.is_active if retail_settings.is_active is not None else False) or (retail_settings.discount_value if retail_settings.discount_value is not None else 0) <= 0:
             return {"eligible": False, "message": "Referral program is not active at the moment"}
 
         return {
             "eligible": True,
-            "discountType": retail_settings.get("discountType"),
-            "discountValue": retail_settings.get("discountValue"),
+            "discountType": retail_settings.discount_type,
+            "discountValue": retail_settings.discount_value,
         }
     except Exception as e:
         from app.utils.logger import logger
@@ -87,12 +87,12 @@ async def verify_referral_code(payload: ReferralVerifyRequest, current_user: dic
 
     # Return details
     settings = await referral_repository.get_settings()
-    retail_settings = settings.get("retail", {})
+    retail_settings = (settings.retail or {})
 
     return {
         "valid": True,
-        "discountType": retail_settings.get("discountType"),
-        "discountValue": retail_settings.get("discountValue"),
+        "discountType": retail_settings.discount_type,
+        "discountValue": retail_settings.discount_value,
         "referrerName": referrer.get("name", "Another user"),
     }
 
@@ -100,9 +100,9 @@ async def verify_referral_code(payload: ReferralVerifyRequest, current_user: dic
 @router.get("/scheme", response_model=ReferralPublicSchemeResponse)
 async def get_public_scheme(current_user: dict = Depends(get_current_user)):
     settings = await referral_repository.get_settings()
-    retail_settings = settings.get("retail", {})
+    retail_settings = (settings.retail or {})
     return {
-        "isActive": retail_settings.get("isActive", False),
-        "discountType": retail_settings.get("discountType", "percentage"),
-        "discountValue": retail_settings.get("discountValue", 0.0),
+        "isActive": (retail_settings.is_active if retail_settings.is_active is not None else False),
+        "discountType": (retail_settings.discount_type if retail_settings.discount_type is not None else "percentage"),
+        "discountValue": (retail_settings.discount_value if retail_settings.discount_value is not None else 0.0),
     }

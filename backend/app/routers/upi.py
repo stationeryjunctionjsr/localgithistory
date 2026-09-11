@@ -20,7 +20,7 @@ class UPIUpdateRequest(BaseModel):
 async def get_upi_details(current_user: dict = Depends(get_current_user)):
     # Find super admin user
     super_admin = await user_repository.findOne({"role": "super_admin"})
-    if super_admin and super_admin.get("upiId") and super_admin.get("qrCodeUrl"):
+    if super_admin and super_admin.upi_id and super_admin.qr_code_url:
         return {
             "upiId": super_admin["upiId"],
             "qrCodeUrl": super_admin["qrCodeUrl"],

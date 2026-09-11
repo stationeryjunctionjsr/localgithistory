@@ -145,10 +145,10 @@ async def get_available_valets(
 ):
     # 1. Get on-duty valets
     all_valets = await user_repository.findAll({"role": "valet"})
-    on_duty = [v for v in all_valets if v.get("isOnDuty")]
+    on_duty = [v for v in all_valets if v.is_on_duty]
     
     # 2. Filter by service area
-    in_area = [v for v in on_duty if pincode in v.get("serviceAreaPincodes", [])]
+    in_area = [v for v in on_duty if pincode in (v.service_area_pincodes or [])]
     if not in_area:
         return []
         
@@ -162,7 +162,7 @@ async def get_available_valets(
     avail_map = {str(a.get("userId", "")): a for a in today_avails}
     available_valets = []
     for v in in_area:
-        vid = str(v.get("_id", ""))
+        vid = str((v.id or ""))
         a = avail_map.get(vid)
         if not a:
             continue
@@ -180,7 +180,7 @@ async def get_available_valets(
         "status": {"$in": ["pending_valet", "shipped", "return_pickup"]}
     })
     
-    load_map = {str(v.get("_id", "")): 0 for v in available_valets}
+    load_map = {str((v.id or "")): 0 for v in available_valets}
     for o in active_orders:
         av_id = o.assigned_valet or o.pending_valet_id
         if type(av_id) == dict:
@@ -192,14 +192,14 @@ async def get_available_valets(
     # Check max capacity & add load count
     final_valets = []
     for v in available_valets:
-        load = load_map[str(v.get("_id", ""))]
+        load = load_map[str((v.id or ""))]
         v["activeOrderCount"] = load
-        max_cap = v.get("maxConcurrentOrders", 3)
+        max_cap = (v.max_concurrent_orders if v.max_concurrent_orders is not None else 3)
         if load < max_cap:
             final_valets.append(v)
             
     # Sort least busy first
-    final_valets.sort(key=lambda v: v.get("activeOrderCount", 0))
+    final_valets.sort(key=lambda v: (v.active_order_count if v.active_order_count is not None else 0))
     
     users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in final_valets]
     return [UserResponse(**user) for user in users_without_passwords]

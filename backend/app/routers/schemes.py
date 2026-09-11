@@ -43,7 +43,7 @@ async def get_schemes(current_user: dict = Depends(require_wholesaler)):
         business_coupons.append(c)
 
     # Sort by createdAt descending
-    business_coupons.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+    business_coupons.sort(key=lambda x: (x.created_at or ""), reverse=True)
 
     # We will return the full coupon objects so the frontend has all fields it needs
     # to display "Buy X Get Y" and "Amount off products" details.

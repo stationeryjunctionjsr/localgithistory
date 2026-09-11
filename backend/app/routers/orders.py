@@ -40,9 +40,9 @@ def _resolve_product_seller_id(product: dict, pincode_seller_ids: set) -> Option
     if sellers and pincode_seller_ids:
         for s in sellers:
             if (
-                s.get("isActive", True)
-                and s.get("requestStatus", "approved") == "approved"
-                and str(s.get("sellerId", "")) in pincode_seller_ids
+                (s.is_active if s.is_active is not None else True)
+                and (s.request_status if s.request_status is not None else "approved") == "approved"
+                and str((s.seller_id or "")) in pincode_seller_ids
             ):
                 return str(s["sellerId"])
     # Fallback: top-level sellerId (set on product creation)
@@ -652,7 +652,7 @@ async def create_order(
 
         ref_settings = await referral_repository.get_settings()
         retail_settings = ref_settings.get("retail", {})
-        if not retail_settings.get("isActive", False) or retail_settings.get("discountValue", 0) <= 0:
+        if not (retail_settings.is_active if retail_settings.is_active is not None else False) or (retail_settings.discount_value if retail_settings.discount_value is not None else 0) <= 0:
             raise HTTPException(status_code=400, detail="Referral program is not active at the moment")
 
         # 4. Valid referrer user
@@ -665,8 +665,8 @@ async def create_order(
             raise HTTPException(status_code=400, detail="You cannot use your own referral code")
 
         # If all valid, calculate discount using latest settings
-        discount_type = retail_settings.get("discountType")
-        discount_value = retail_settings.get("discountValue", 0)
+        discount_type = retail_settings.discount_type
+        discount_value = (retail_settings.discount_value if retail_settings.discount_value is not None else 0)
 
         if discount_type == "percentage":
             referral_discount = subtotal_after_coupon * (discount_value / 100)
@@ -843,32 +843,32 @@ async def create_order(
 
         for sc in slot_configs:
             for sl in sc.get("slots", []):
-                if not sl.get("isActive", True):
+                if not (sl.is_active if sl.is_active is not None else True):
                     continue
 
                 # ── Flat capacity check (new per-zone record design) ─────────
                 # Each config record is already scoped to a zone, so capacity
                 # and bookedCount are flat fields on the slot — no sub-dict needed.
-                _cap = sl.get("capacity")
+                _cap = sl.capacity
                 if _cap is None:
                     _cap = sc.get("zoneDefaultCapacity")
-                _booked = sl.get("bookedCount", 0)
+                _booked = (sl.booked_count if sl.booked_count is not None else 0)
                 if _cap is not None and _booked >= _cap:
                     continue  # Slot full
 
                 # Match by explicit ID or match by Urgent condition
                 if order_data.isUrgentDelivery and not order_data.deliverySlotId:
-                    if sl.get("isUrgent", False):
+                    if (sl.is_urgent if sl.is_urgent is not None else False):
                         # Check cutoff
                         cutoff = (
-                            sl.get("urgentCutoffHours")
-                            if sl.get("urgentCutoffHours") is not None
-                            else sl.get("cutoffHours")
+                            sl.urgent_cutoff_hours
+                            if sl.urgent_cutoff_hours is not None
+                            else sl.cutoff_hours
                         )
                         if cutoff is not None:
                             ist = pytz.timezone("Asia/Kolkata")
                             now_ist = _dt.datetime.now(ist)
-                            anchor_time_str = sl.get("endTime", "")  # urgent → end time
+                            anchor_time_str = (sl.end_time or "")  # urgent → end time
                             try:
                                 anchor_ist = ist.localize(
                                     _dt.datetime.strptime(f"{target_date} {anchor_time_str}", "%Y-%m-%d %H:%M")
@@ -882,7 +882,7 @@ async def create_order(
                         matched_slot = sl
                         break
                 else:
-                    if sl.get("id") == order_data.deliverySlotId:
+                    if sl.id == order_data.deliverySlotId:
                         matched_config = sc
                         matched_slot = sl
                         break
@@ -899,27 +899,27 @@ async def create_order(
 
         # Re-check capacity & cutoffs for standard slot selection
         if not order_data.isUrgentDelivery or order_data.deliverySlotId:
-            is_full_day = matched_slot.get("isFullDay", False)
+            is_full_day = (matched_slot.is_full_day if matched_slot.is_full_day is not None else False)
             if not is_full_day:
                 # Flat capacity re-check (per-zone record, no zoneCapacities sub-dict)
-                _cap = matched_slot.get("capacity")
+                _cap = matched_slot.capacity
                 if _cap is None:
                     _cap = matched_config.get("zoneDefaultCapacity")
-                _booked = matched_slot.get("bookedCount", 0)
+                _booked = (matched_slot.booked_count if matched_slot.booked_count is not None else 0)
                 if _cap is not None and _booked >= _cap:
                     raise HTTPException(status_code=400, detail="Selected delivery slot is fully booked.")
 
                 cutoff_hours = (
-                    matched_slot.get("urgentCutoffHours")
-                    if matched_slot.get("isUrgent") and matched_slot.get("urgentCutoffHours") is not None
-                    else matched_slot.get("cutoffHours")
+                    matched_slot.urgent_cutoff_hours
+                    if matched_slot.is_urgent and matched_slot.urgent_cutoff_hours is not None
+                    else matched_slot.cutoff_hours
                 )
                 if cutoff_hours is not None:
                     ist = pytz.timezone("Asia/Kolkata")
                     now_ist = _dt.datetime.now(ist)
-                    is_urgent = matched_slot.get("isUrgent", False)
+                    is_urgent = (matched_slot.is_urgent if matched_slot.is_urgent is not None else False)
                     anchor_time_str = (
-                        matched_slot.get("endTime", "") if is_urgent else matched_slot.get("startTime", "")
+                        (matched_slot.end_time or "") if is_urgent else (matched_slot.start_time or "")
                     )
                     try:
                         anchor_ist = ist.localize(
@@ -937,7 +937,7 @@ async def create_order(
             "date": matched_config["date"],
             "startTime": matched_slot["startTime"],
             "endTime": matched_slot["endTime"],
-            "isUrgent": matched_slot.get("isUrgent", False),
+            "isUrgent": (matched_slot.is_urgent if matched_slot.is_urgent is not None else False),
         }
 
         if selected_slot_info["isUrgent"]:
@@ -1060,8 +1060,8 @@ async def create_order(
     delivery_gst = 0.0
     if shipping_net_to_charge > 0:
         default_charge = await delivery_charge_repository.getDefaultCharge()
-        if default_charge and default_charge.get("deliveryChargeGst"):
-            gst_percentage = float(default_charge.get("deliveryChargeGstPercentage", 18.0))
+        if default_charge and default_charge.delivery_charge_gst:
+            gst_percentage = float((default_charge.delivery_charge_gst_percentage if default_charge.delivery_charge_gst_percentage is not None else 18.0))
             gst_multiplier = 1 + (gst_percentage / 100)
 
             # Shipping is inclusive of taxes. Extract base charge and tax.
@@ -1078,8 +1078,8 @@ async def create_order(
     # In case of shipping discount, store base shipping (exclusive of tax) in shipping field so PDF invoices sum up correctly
     if is_shipping_discount:
         # Since base_shipping was inclusive, we must also extract its base value
-        if default_charge and default_charge.get("deliveryChargeGst"):
-            gst_percentage = float(default_charge.get("deliveryChargeGstPercentage", 18.0))
+        if default_charge and default_charge.delivery_charge_gst:
+            gst_percentage = float((default_charge.delivery_charge_gst_percentage if default_charge.delivery_charge_gst_percentage is not None else 18.0))
             gst_multiplier = 1 + (gst_percentage / 100)
             shipping = round(base_shipping / gst_multiplier, 2)
         else:
@@ -1176,10 +1176,10 @@ async def create_order(
                             doc = json.loads(row.doc)
                             updated_slots = (doc.slots or [])
                             for sl in updated_slots:
-                                if sl.get("id") == slot_id:
+                                if sl.id == slot_id:
                                     # Flat bookedCount increment — per-zone config records
                                     # each have their own bookedCount directly on the slot.
-                                    sl["bookedCount"] = sl.get("bookedCount", 0) + 1
+                                    sl["bookedCount"] = (sl.booked_count if sl.booked_count is not None else 0) + 1
                                     break
                             doc["slots"] = updated_slots
                             doc["updatedAt"] = datetime.now(__import__("datetime").timezone.utc).isoformat()
@@ -1210,7 +1210,7 @@ async def create_order(
             if bundle:
                 # Determine how many full copies of this bundle were in the order.
                 # Use the first bundle item spec as the reference: copies = cart_qty / spec_qty.
-                bundle_items_in_order = [i for i in cart_items if i.get("bundleId") == b_id]
+                bundle_items_in_order = [i for i in cart_items if i.bundle_id == b_id]
                 bundle_specs = bundle.items or []
                 copies = 1  # default
                 if bundle_specs and bundle_items_in_order:
@@ -1221,12 +1221,12 @@ async def create_order(
                         (
                             i
                             for i in bundle_items_in_order
-                            if str(i.get("product", "")) == spec_pid or str(i.get("productId", "")) == spec_pid
+                            if str((i.product or "")) == spec_pid or str((i.product_id or "")) == spec_pid
                         ),
                         bundle_items_in_order[0],
                     )
                     copies = max(1, ref_item.get("quantity", spec_qty) // spec_qty)
-                new_sales = bundle.get("salesCount", 0) + copies
+                new_sales = (bundle.sales_count if bundle.sales_count is not None else 0) + copies
                 await bundle_repository.update(b_id, {"salesCount": new_sales})
     except Exception as e:
         logger.error("Failed to increment bundle salesCount: %s", str(e), exc_info=True)
@@ -1438,9 +1438,9 @@ async def create_order(
                 sub_number = sub_order_repository._generate_sub_order_number(parent_order_number, idx)
 
                 # Per-group subtotal / tax
-                grp_subtotal = sum(i.get("subtotal", 0) for i in items_group)
-                grp_tax = sum(i.get("cgst", 0) + i.get("sgst", 0) for i in items_group)
-                grp_discount = sum(i.get("couponDiscount", 0) + i.get("referralDiscount", 0) for i in items_group)
+                grp_subtotal = sum((i.subtotal if i.subtotal is not None else 0) for i in items_group)
+                grp_tax = sum((i.cgst if i.cgst is not None else 0) + (i.sgst if i.sgst is not None else 0) for i in items_group)
+                grp_discount = sum((i.coupon_discount if i.coupon_discount is not None else 0) + (i.referral_discount if i.referral_discount is not None else 0) for i in items_group)
 
                 # ── Delivery charge: always 0 on sub-orders ──────────────────
                 # Delivery is charged once on the parent order based on the
@@ -1761,8 +1761,8 @@ async def update_order_status(
                 if slot_config:
                     slots_list = slot_config.get("slots", [])
                     for sl in slots_list:
-                        if sl.get("id") == slot_id:
-                            sl["deliveredCount"] = sl.get("deliveredCount", 0) + 1
+                        if sl.id == slot_id:
+                            sl["deliveredCount"] = (sl.delivered_count if sl.delivered_count is not None else 0) + 1
                             break
                     await slot_storage.update(config_id, {"slots": slots_list})
         except Exception as e:
@@ -1935,12 +1935,12 @@ async def update_order_status(
                         populated_order,
                         payment_for_invoice,
                         {
-                            "name": super_admin.get("name", "Stationery Junction")
+                            "name": (super_admin.name if super_admin.name is not None else "Stationery Junction")
                             if super_admin
                             else "Stationery Junction",
-                            "companyName": super_admin.get("companyName", "") if super_admin else "",
-                            "gstin": super_admin.get("gstin", "") if super_admin else "",
-                            "address": super_admin.get("address", {}) if super_admin else {},
+                            "companyName": (super_admin.company_name or "") if super_admin else "",
+                            "gstin": (super_admin.gstin or "") if super_admin else "",
+                            "address": (super_admin.address or {}) if super_admin else {},
                         },
                     )
                     invoice_path = await save_invoice_pdf(pdf_buffer, order_id)
@@ -2410,12 +2410,12 @@ async def valet_response(
                         populated_for_invoice,
                         payment_record,
                         {
-                            "name": super_admin.get("name", "Stationery Junction")
+                            "name": (super_admin.name if super_admin.name is not None else "Stationery Junction")
                             if super_admin
                             else "Stationery Junction",
-                            "companyName": super_admin.get("companyName", "") if super_admin else "",
-                            "gstin": super_admin.get("gstin", "") if super_admin else "",
-                            "address": super_admin.get("address", {}) if super_admin else {},
+                            "companyName": (super_admin.company_name or "") if super_admin else "",
+                            "gstin": (super_admin.gstin or "") if super_admin else "",
+                            "address": (super_admin.address or {}) if super_admin else {},
                         },
                     )
                     invoice_path = await save_invoice_pdf(pdf_buffer, updated_order.id)
@@ -2557,7 +2557,7 @@ async def confirm_sub_order_pickup(
 
     # Re-fetch all sibling sub-orders to check if ALL pickups are done
     all_sub_orders = await sub_order_repository.findByParentOrder(order_id)
-    remaining = [s for s in all_sub_orders if s.get("pickupStatus") != "picked_up"]
+    remaining = [s for s in all_sub_orders if s.pickup_status != "picked_up"]
 
     # now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"  # was a dangling no-op after find-and-replace stripped the assignment; unused in this block
 
@@ -2697,10 +2697,10 @@ async def generate_invoice(order_id: str, current_user: dict = Depends(require_s
         populated_order,
         payment,
         {
-            "name": super_admin.get("name", "Stationery Junction"),
-            "companyName": super_admin.get("companyName", ""),
-            "gstin": super_admin.get("gstin", ""),
-            "address": super_admin.get("address", {}),
+            "name": (super_admin.name if super_admin.name is not None else "Stationery Junction"),
+            "companyName": (super_admin.company_name or ""),
+            "gstin": (super_admin.gstin or ""),
+            "address": (super_admin.address or {}),
         },
     )
 

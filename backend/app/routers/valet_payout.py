@@ -47,9 +47,9 @@ async def get_valet_payout_settings(current_user: dict = Depends(require_super_a
     """Fetch global valet payout charge settings."""
     settings = await _get_settings()
     return {
-        "deliveryChargePerOrder": settings.get("deliveryChargePerOrder", 0.0),
-        "returnPickupChargePerOrder": settings.get("returnPickupChargePerOrder", 0.0),
-        "updatedAt": settings.get("updatedAt"),
+        "deliveryChargePerOrder": (settings.delivery_charge_per_order if settings.delivery_charge_per_order is not None else 0.0),
+        "returnPickupChargePerOrder": (settings.return_pickup_charge_per_order if settings.return_pickup_charge_per_order is not None else 0.0),
+        "updatedAt": settings.updated_at,
     }
 
 
@@ -83,8 +83,8 @@ from app.utils.auth import get_current_user
 
 async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, returns: list) -> dict:
     """Compute earnings summary for a valet from their completed orders and return pickups."""
-    delivery_rate = float(settings.get("deliveryChargePerOrder", 0.0))
-    return_rate = float(settings.get("returnPickupChargePerOrder", 0.0))
+    delivery_rate = float((settings.delivery_charge_per_order if settings.delivery_charge_per_order is not None else 0.0))
+    return_rate = float((settings.return_pickup_charge_per_order if settings.return_pickup_charge_per_order is not None else 0.0))
 
     delivery_records = [
         {

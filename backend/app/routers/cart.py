@@ -126,7 +126,7 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
         existing_total_qty = 0
         if cart:
             existing_total_qty = sum(
-                i.get("quantity", 0) for i in (cart.items or []) if i.get("product") == item.productId
+                (i.quantity if i.quantity is not None else 0) for i in (cart.items or []) if i.product == item.productId
             )
 
         final_qty = existing_total_qty + item.quantity
@@ -170,9 +170,9 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
                 (
                     i
                     for i in (cart.items or [])
-                    if i.get("product") == item.productId
-                    and i.get("sellAsCase") == sell_as_case
-                    and i.get("variantAttributes") == getattr(item, "variantAttributes", None)
+                    if i.product == item.productId
+                    and i.sell_as_case == sell_as_case
+                    and i.variant_attributes == getattr(item, "variantAttributes", None)
                 ),
                 None,
             )
@@ -219,7 +219,7 @@ async def update_cart_item(
         if not cart:
             raise HTTPException(status_code=404, detail="Cart not found")
 
-        item = next((i for i in (cart.items or []) if i.get("_id") == item_id), None)
+        item = next((i for i in (cart.items or []) if i.id == item_id), None)
         if not item:
             raise HTTPException(status_code=404, detail="Cart item not found")
 
@@ -283,7 +283,7 @@ async def remove_cart_item(item_id: str, current_user: dict = Depends(get_curren
     try:
         cart = await cart_repository.findByUser(current_user.id)
         if cart:
-            item = next((i for i in (cart.items or []) if i.get("_id") == item_id), None)
+            item = next((i for i in (cart.items or []) if i.id == item_id), None)
             if item:
                 product_id = item.product
                 await cart_repository.removeItem(current_user.id, item_id)
@@ -291,7 +291,7 @@ async def remove_cart_item(item_id: str, current_user: dict = Depends(get_curren
                 # Recalculate remaining qty of this product in cart (if any, e.g. other variants)
                 updated_cart = await cart_repository.findByUser(current_user.id)
                 final_qty = sum(
-                    i.get("quantity", 0) for i in updated_cart.get("items", []) if i.get("product") == product_id
+                    (i.quantity if i.quantity is not None else 0) for i in (updated_cart.items or []) if i.product == product_id
                 )
                 from app.repositories.stock_reservation_repository import stock_reservation_repository
 
