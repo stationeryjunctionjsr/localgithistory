@@ -6,7 +6,7 @@ from app.models.core import DictCompatibleModel
 class ReferralSegment(DictCompatibleModel):
     segment: str
     discount_type: str = Field(default="percentage", alias="discountType")
-    discount_value: float = Field(default=0.0, alias="discountValue")
+    discount_value: Optional[float] = Field(default=None, alias="discountValue")
     is_active: bool = Field(default=False, alias="isActive")
 
 class ReferralSettings(DictCompatibleModel):

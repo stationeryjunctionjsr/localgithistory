@@ -174,7 +174,7 @@ class ProductBase(BaseModel):
     mrp: float  # MRP per unit (retail; also used for business when selling by unit)
     mrpPerCase: Optional[float] = None  # MRP per case (business only)
     quantityPerCase: Optional[int] = None  # Units per case (for business case pricing and stock)
-    stock: int = 0  # Total units (reduced by units sold or by cases * quantityPerCase)
+    stock: Optional[int] = None  # Total units (reduced by units sold or by cases * quantityPerCase)
     images: Optional[List[str]] = None  # Array of image URLs/paths
     videos: Optional[List[str]] = None  # Array of video URLs/paths
     isActive: bool = True
@@ -259,7 +259,7 @@ class BannerBase(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: str
-    displayOrder: int = 0
+    displayOrder: Optional[int] = None
     startDate: str
     endDate: Optional[str] = None
     isActive: bool = True
@@ -376,7 +376,7 @@ class ContactBase(BaseModel):
     email: Optional[str] = None
     description: Optional[str] = None
     isActive: bool = True
-    displayOrder: int = 0
+    displayOrder: Optional[int] = None
     socialMedia: Optional[SocialMedia] = None
 
     @field_validator("addresses")
@@ -578,7 +578,7 @@ class CoachMarkBase(BaseModel):
     title: str
     description: str
     screenName: Optional[str] = None
-    sequenceOrder: int = 0
+    sequenceOrder: Optional[int] = None
     isActive: bool = True
 
 
@@ -645,7 +645,7 @@ class CollectionBase(BaseModel):
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     isActive: bool = True
-    displayOrder: int = 0
+    displayOrder: Optional[int] = None
     productIds: List[str] = []
     visiblePages: List[str] = ["Home"]
     userSegments: List[str] = ["all"]
@@ -811,7 +811,7 @@ class SkinnyProductResponse(BaseModel):
     mrp: float
     mrpPerCase: Optional[float] = None
     quantityPerCase: Optional[int] = None
-    stock: int = 0
+    stock: Optional[int] = None
     isActive: bool = True
     tags: Optional[List[str]] = None
     price: Optional[float] = None
@@ -941,7 +941,7 @@ class CouponUpdate(BaseModel):
 
 class CouponResponse(CouponBase):
     id: str = Field(alias="_id")
-    usedCount: int = 0
+    usedCount: Optional[int] = None
     createdAt: str
     updatedAt: str
 
@@ -984,7 +984,7 @@ class BannerBase(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: str
-    displayOrder: int = 0
+    displayOrder: Optional[int] = None
     startDate: str
     endDate: Optional[str] = None
     isActive: bool = True
@@ -1101,7 +1101,7 @@ class ContactBase(BaseModel):
     email: Optional[str] = None
     description: Optional[str] = None
     isActive: bool = True
-    displayOrder: int = 0
+    displayOrder: Optional[int] = None
     socialMedia: Optional[SocialMedia] = None
 
     @field_validator("addresses")
@@ -1303,7 +1303,7 @@ class CoachMarkBase(BaseModel):
     title: str
     description: str
     screenName: Optional[str] = None
-    sequenceOrder: int = 0
+    sequenceOrder: Optional[int] = None
     isActive: bool = True
 
 
@@ -1370,7 +1370,7 @@ class CollectionBase(BaseModel):
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     isActive: bool = True
-    displayOrder: int = 0
+    displayOrder: Optional[int] = None
     productIds: List[str] = []
     visiblePages: List[str] = ["Home"]
     userSegments: List[str] = ["all"]

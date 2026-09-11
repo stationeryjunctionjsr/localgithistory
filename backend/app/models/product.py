@@ -16,9 +16,9 @@ class Product(DictCompatibleModel):
     mrp: Optional[float] = None
     mrp_per_case: Optional[float] = Field(default=None, alias="mrpPerCase")
     quantity_per_case: Optional[int] = Field(default=None, alias="quantityPerCase")
-    stock: int = 0
-    rating: float = 0.0
-    reviews: int = 0
+    stock: Optional[int] = None
+    rating: Optional[float] = None
+    reviews: Optional[int] = None
     images: List[str] = []
     videos: List[str] = []
     is_active: bool = Field(default=True, alias="isActive")

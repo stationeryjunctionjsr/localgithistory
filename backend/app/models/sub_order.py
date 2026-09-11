@@ -6,8 +6,8 @@ from app.models.core import DictCompatibleModel
 class SubOrderItem(DictCompatibleModel):
     product_id: Optional[str] = Field(default=None, alias='productId')
     name: Optional[str] = None
-    qty: int = 0
-    price: float = 0.0
+    qty: Optional[int] = None
+    price: Optional[float] = None
 
 class SubOrder(DictCompatibleModel):
     id: str = Field(default="", alias='_id')
@@ -18,12 +18,12 @@ class SubOrder(DictCompatibleModel):
     seller_id: Optional[str] = Field(default=None, alias='sellerId')
     seller_name: Optional[str] = Field(default=None, alias='sellerName')
     user_id: Optional[str] = Field(default=None, alias='user')
-    subtotal: float = 0.0
-    tax: float = 0.0
-    shipping: float = 0.0
+    subtotal: Optional[float] = None
+    tax: Optional[float] = None
+    shipping: Optional[float] = None
     delivery_gst: float = Field(default=0.0, alias='deliveryGst')
-    discount: float = 0.0
-    total: float = 0.0
+    discount: Optional[float] = None
+    total: Optional[float] = None
     order_type: Optional[str] = Field(default=None, alias='orderType')
     status: str = "pending"
     payment_method: Optional[str] = Field(default=None, alias='paymentMethod')

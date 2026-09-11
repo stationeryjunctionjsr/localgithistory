@@ -5,7 +5,7 @@ from app.models.core import DictCompatibleModel
 
 class PaymentEntry(DictCompatibleModel):
     entry_id: Optional[str] = Field(default=None, alias="entryId")
-    amount: float = 0.0
+    amount: Optional[float] = None
     payment_method: Optional[str] = Field(default=None, alias="paymentMethod")
     paid_at: Optional[datetime] = Field(default=None, alias="paidAt")
     image: Optional[str] = None
@@ -20,9 +20,9 @@ class Payment(DictCompatibleModel):
     user_id_formatted: Optional[str] = Field(default=None, alias="userIdFormatted")
     customer_name: Optional[str] = Field(default=None, alias="customerName")
     order_date: Optional[datetime] = Field(default=None, alias="orderDate")
-    amount_paid: float = Field(default=0.0, alias="amountPaid")
-    amount_remaining: float = Field(default=0.0, alias="amountRemaining")
-    total_amount: float = Field(default=0.0, alias="totalAmount")
+    amount_paid: Optional[float] = Field(default=None, alias="amountPaid")
+    amount_remaining: Optional[float] = Field(default=None, alias="amountRemaining")
+    total_amount: Optional[float] = Field(default=None, alias="totalAmount")
     payment_id: Optional[str] = Field(default=None, alias="paymentId")
     payment_entries: List[PaymentEntry] = Field(default=[], alias="paymentEntries")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")

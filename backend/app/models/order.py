@@ -16,11 +16,11 @@ class Order(DictCompatibleModel):
     order_number: Optional[str] = Field(default=None, alias="orderNumber")
     user: str
     status: Optional[str] = None
-    total: float = 0.0
-    subtotal: float = 0.0
-    tax: float = 0.0
-    shipping: float = 0.0
-    discount: float = 0.0
+    total: Optional[float] = None
+    subtotal: Optional[float] = None
+    tax: Optional[float] = None
+    shipping: Optional[float] = None
+    discount: Optional[float] = None
     order_type: Optional[str] = Field(default=None, alias="orderType")
     payment_status: Optional[str] = Field(default=None, alias="paymentStatus")
     payment_method: Optional[str] = Field(default=None, alias="paymentMethod")
