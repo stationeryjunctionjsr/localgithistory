@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -72,7 +74,7 @@ class TrackErrorRequest(BaseModel):
     sessionId: Optional[str] = None
 
 
-@router.post("/beacon")
+@router.post("/beacon", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_beacon(
     request: Request,
@@ -90,7 +92,7 @@ async def track_beacon(
     return {"message": "Beacon tracked"}
 
 
-@router.post("/search")
+@router.post("/search", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_search(
     request: Request,
@@ -109,7 +111,7 @@ async def track_search(
     return {"message": "Search tracked"}
 
 
-@router.post("/view")
+@router.post("/view", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_view(
     request: Request,
@@ -122,7 +124,7 @@ async def track_view(
     return {"message": "View tracked"}
 
 
-@router.post("/click")
+@router.post("/click", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_click(
     request: Request,
@@ -139,7 +141,7 @@ async def track_click(
     return {"message": "Click tracked"}
 
 
-@router.post("/cart-abandonment")
+@router.post("/cart-abandonment", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_cart_abandonment(
     request: Request,
@@ -152,7 +154,7 @@ async def track_cart_abandonment(
     return {"message": "Cart abandonment tracked"}
 
 
-@router.post("/session")
+@router.post("/session", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_session(
     request: Request,
@@ -165,7 +167,7 @@ async def track_session(
     return {"message": "Session tracked"}
 
 
-@router.post("/page-view")
+@router.post("/page-view", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_page_view(
     request: Request,
@@ -178,7 +180,7 @@ async def track_page_view(
     return {"message": "Page view tracked"}
 
 
-@router.post("/drop-off")
+@router.post("/drop-off", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_drop_off(
     request: Request,
@@ -191,7 +193,7 @@ async def track_drop_off(
     return {"message": "Drop-off tracked"}
 
 
-@router.post("/error")
+@router.post("/error", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_frontend_error(
     request: Request,
@@ -231,7 +233,7 @@ class TrackFilterClickRequest(BaseModel):
     sessionId: Optional[str] = None
 
 
-@router.post("/cart-remove")
+@router.post("/cart-remove", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_cart_item_remove(
     request: Request,
@@ -244,7 +246,7 @@ async def track_cart_item_remove(
     return {"message": "Cart item removal tracked"}
 
 
-@router.post("/cart-add")
+@router.post("/cart-add", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_cart_item_add(
     request: Request,
@@ -257,7 +259,7 @@ async def track_cart_item_add(
     return {"message": "Cart item addition tracked"}
 
 
-@router.post("/filter-click")
+@router.post("/filter-click", response_model=MessageResponse)
 @limiter.limit("60/minute")
 async def track_filter_click(
     request: Request,
@@ -270,7 +272,7 @@ async def track_filter_click(
     return {"message": "Filter click tracked"}
 
 
-@router.get("/recent")
+@router.get("/recent", response_model=Any)
 async def get_recent_searches(
     sessionId: Optional[str] = None,
     limit: int = Query(5, ge=1, le=20),
@@ -281,7 +283,7 @@ async def get_recent_searches(
     return await tracking_repository.getRecentUserSearches(user_id, sessionId, limit)
 
 
-@router.delete("/recent")
+@router.delete("/recent", response_model=MessageResponse)
 async def clear_recent_searches(
     sessionId: Optional[str] = None,
     current_user: Optional[dict] = Depends(get_optional_user),
@@ -292,7 +294,7 @@ async def clear_recent_searches(
     return {"ok": True}
 
 
-@router.get("/suggestions")
+@router.get("/suggestions", response_model=Any)
 async def get_search_suggestions(
     limit: int = Query(5, ge=1, le=20), current_user: Optional[dict] = Depends(get_optional_user),
     req: Request = None,
@@ -309,7 +311,7 @@ async def get_search_suggestions(
     }
 
 
-@router.get("/most-searched")
+@router.get("/most-searched", response_model=Any)
 async def get_most_searched(
     limit: int = Query(5, ge=1, le=100),
     start_date: Optional[str] = Query(None),
@@ -322,7 +324,7 @@ async def get_most_searched(
     return most_searched
 
 
-@router.get("/zero-result-searches")
+@router.get("/zero-result-searches", response_model=Any)
 async def get_zero_result_searches(
     limit: int = Query(50, ge=1, le=1000),
     start_date: Optional[str] = Query(None),
@@ -335,7 +337,7 @@ async def get_zero_result_searches(
     return zero_results
 
 
-@router.get("/most-viewed")
+@router.get("/most-viewed", response_model=Any)
 async def get_most_viewed(
     limit: int = Query(5, ge=1, le=100),
     start_date: Optional[str] = Query(None),
@@ -348,7 +350,7 @@ async def get_most_viewed(
     return most_viewed
 
 
-@router.get("/returning-users")
+@router.get("/returning-users", response_model=Any)
 async def get_returning_users(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -360,7 +362,7 @@ async def get_returning_users(
     return users
 
 
-@router.get("/drop-off-points")
+@router.get("/drop-off-points", response_model=Any)
 async def get_drop_off_points(
     limit: int = Query(10, ge=1, le=100),
     start_date: Optional[str] = Query(None),
@@ -373,7 +375,7 @@ async def get_drop_off_points(
     return drop_off_points
 
 
-@router.get("/cart-abandonments")
+@router.get("/cart-abandonments", response_model=Any)
 async def get_cart_abandonments(
     limit: int = Query(100, ge=1, le=1000),
     start_date: Optional[str] = Query(None),
@@ -386,7 +388,7 @@ async def get_cart_abandonments(
     return abandonments
 
 
-@router.get("/most-abandoned-products")
+@router.get("/most-abandoned-products", response_model=Any)
 async def get_most_abandoned_products(
     limit: int = Query(50, ge=1, le=1000),
     start_date: Optional[str] = Query(None),
@@ -401,7 +403,7 @@ async def get_most_abandoned_products(
 
 
 
-@router.post("/notify-pincode")
+@router.post("/notify-pincode", response_model=MessageResponse)
 async def track_notify_pincode(data: dict, current_user: Optional[dict] = Depends(get_optional_user)):
     user_id = current_user.id if current_user else None
     user_email = current_user.email if current_user else data.get("email")
