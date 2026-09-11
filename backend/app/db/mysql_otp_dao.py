@@ -4,7 +4,8 @@ Replaces the in-memory dict-based OTP store with DB-backed persistence and TTL.
 """
 
 from datetime import timedelta
-from typing import Dict, Optional
+from typing import Dict
+from app.models.otp import Otp, Optional
 
 from sqlalchemy import text
 

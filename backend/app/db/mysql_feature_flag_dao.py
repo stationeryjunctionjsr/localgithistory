@@ -5,7 +5,8 @@ This table uses `flag_id` (business key) instead of `external_id`.
 We still expose `_id` as numeric PK string for consistency with other DAOs in this codebase.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.feature_flag import FeatureFlag, List, Optional
 
 from sqlalchemy import text
 
@@ -87,7 +88,7 @@ class MySQLFeatureFlagDAO:
                 {"id": fid},
             )
             row = result.fetchone()
-        return self._row_to_dict(row) if row else None
+        return FeatureFlag.model_validate(self._row_to_dict(row)) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()

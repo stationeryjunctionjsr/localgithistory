@@ -1,5 +1,6 @@
 import secrets
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.seller_payout import SellerPayout, List, Optional
 
 from sqlalchemy import text
 

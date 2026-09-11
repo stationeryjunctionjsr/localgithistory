@@ -4,7 +4,8 @@ MySQL DAO for sj_sessions. Implements FileStorage-like interface for 'sessions'.
 
 import secrets
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.session import Session, List, Optional
 
 from sqlalchemy import text
 
@@ -102,7 +103,7 @@ class MySQLSessionDAO:
                 {"id": sid},
             )
             row = result.fetchone()
-        return self._row_to_dict(row) if row else None
+        return Session.model_validate(self._row_to_dict(row)) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()

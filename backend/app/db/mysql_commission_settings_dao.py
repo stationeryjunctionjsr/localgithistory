@@ -3,7 +3,8 @@ MySQL DAO for sj_commission_settings (Relational).
 """
 
 import secrets
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.commission_settings import CommissionSettings, List, Optional
 
 from sqlalchemy import text
 
@@ -76,7 +77,7 @@ class MySQLCommissionSettingsDAO:
                             }
                         )
 
-        return [self._row_to_dict(r, children_map[r.id]) for r in rows]
+        return [CommissionSettings.model_validate(self._row_to_dict(r, children_map[r.id]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

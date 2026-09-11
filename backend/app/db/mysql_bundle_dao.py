@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.bundle import Bundle, List, Optional
 
 from sqlalchemy import text
 

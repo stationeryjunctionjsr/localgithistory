@@ -49,6 +49,7 @@ from app.config.settings import settings
 
 
 class MySQLFlatBaseDAO:
+    pydantic_model = None
     def __init__(
         self,
         table_name: str,

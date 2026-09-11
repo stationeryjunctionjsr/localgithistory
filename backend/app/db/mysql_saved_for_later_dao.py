@@ -5,7 +5,8 @@ Exposes virtual doc per user: { _id: user_id, user: user_id, items: [ { productI
 
 import secrets
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.saved_for_later import SavedForLater, List, Optional
 
 from sqlalchemy import text
 
@@ -52,8 +53,9 @@ class MySQLSavedForLaterDAO:
             for r in rows
         ]
 
-    def _doc(self, user_id: str, items: List[Dict]) -> Dict:
-        return {"_id": user_id, "user": user_id, "items": items}
+    def _doc(self, user_id: str, items: List[Dict]) -> Any:
+        return SavedForLater.model_validate({
+            "_id": user_id, "user": user_id, "items": items})
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         factory = self._factory()

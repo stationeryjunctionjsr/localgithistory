@@ -5,7 +5,6 @@ class DictCompatibleModel(BaseModel):
     """A bridge model that supports fast dictionary-like access via aliases to ease migration."""
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='allow')
     
-    _alias_map: ClassVar[Optional[Dict[str, str]]] = None
 
     @classmethod
     def _get_alias_map(cls) -> Dict[str, str]:

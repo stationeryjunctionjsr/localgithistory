@@ -4,7 +4,8 @@ MySQL DAO for sj_tracking. Fully relational with child tables.
 
 import secrets
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.tracking import Tracking, List, Optional
 
 from sqlalchemy import text
 
@@ -147,7 +148,7 @@ class MySQLTrackingDAO:
             res = await session.execute(text(query_str), params)
             rows = res.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._row_to_dict(r, c_map[r.id]) for r in rows]
+        return [Tracking.model_validate(self._row_to_dict(r, c_map[r.id]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

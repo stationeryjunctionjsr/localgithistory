@@ -4,7 +4,8 @@ Fully relational with child tables for user_segments and visibility_rules.
 """
 
 import secrets
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.banner import Banner, List, Optional
 
 from sqlalchemy import text
 
@@ -111,7 +112,7 @@ class MySQLBannerDAO:
             )
             rows = result.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._row_to_dict(r, c_map[r.id]) for r in rows]
+        return [Banner.model_validate(self._row_to_dict(r, c_map[r.id]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

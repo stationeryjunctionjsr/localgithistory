@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.faq_section import FaqSection, List, Optional
 
 from sqlalchemy import text
 

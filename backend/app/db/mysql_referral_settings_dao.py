@@ -4,7 +4,8 @@ Exposes single virtual doc: { _id, retail: { segment, discountType, discountValu
 """
 
 import secrets
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.referral_settings import ReferralSettings, List, Optional
 
 from sqlalchemy import text
 
@@ -33,10 +34,10 @@ class MySQLReferralSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _doc(self, rows_by_segment: Dict[str, any]) -> Dict:
+    def _doc(self, rows_by_segment: Dict[str, any]) -> Any:
         retail = rows_by_segment.get("retail")
         business = rows_by_segment.get("business")
-        return {
+        return ReferralSettings.model_validate({
             "_id": "1",
             "retail": _row_to_segment(retail)
             if retail
@@ -44,7 +45,7 @@ class MySQLReferralSettingsDAO:
             "business": _row_to_segment(business)
             if business
             else {"segment": "business", "discountType": "percentage", "discountValue": 0, "isActive": False},
-        }
+        })
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         doc = await self._get_settings_doc()

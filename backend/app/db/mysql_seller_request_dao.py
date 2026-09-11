@@ -4,7 +4,8 @@ MySQL DAO for sj_seller_requests. Implements FileStorage-like interface.
 
 import secrets
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.seller_request import SellerRequest, List, Optional
 
 from sqlalchemy import text
 
@@ -142,7 +143,7 @@ class MySQLSellerRequestDAO:
             )
             rows = result.fetchall()
             children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-        return [self._row_to_dict(r, children_map[int(r.id)]) for r in rows]
+        return [SellerRequest.model_validate(self._row_to_dict(r, children_map[int(r.id)]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

@@ -10,7 +10,8 @@ Assumptions (matches current MySQLUserDAO / MySQLDocStore behavior):
 
 import secrets
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.order import Order, List, Optional
 
 from sqlalchemy import text
 

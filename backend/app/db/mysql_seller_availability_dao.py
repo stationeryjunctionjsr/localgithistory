@@ -6,7 +6,8 @@ Table: sj_seller_availability
 
 import secrets
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.seller_availability import SellerAvailability, List, Optional
 
 from sqlalchemy import text
 

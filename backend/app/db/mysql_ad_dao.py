@@ -1,5 +1,6 @@
 import secrets
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.ad import Ad, List, Optional
 
 from sqlalchemy import text
 
@@ -77,7 +78,7 @@ class MySQLAdDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [Ad.model_validate(self._row_to_dict(r) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -97,7 +98,7 @@ class MySQLAdDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return Ad.model_validate(self._row_to_dict(row)) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()

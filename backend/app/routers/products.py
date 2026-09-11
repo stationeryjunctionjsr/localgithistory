@@ -88,7 +88,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                 main_row = rows[0]
                 row_number = main_row["_row_number"]
 
-                if not main_row.get("category") or not main_row.get("mrp"):
+                if not main_row.category or not main_row.mrp:
                     errors.append(
                         {
                             "row": row_number,
@@ -99,15 +99,15 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                     continue
 
                 # Check if category exists, if not assign to "Others"
-                category_name = main_row["category"].strip()
+                category_name = main_row.category.strip()
                 existing_category = await category_repository.findByName(category_name)
                 if not existing_category:
                     category_name = "Others"
 
                 mrp_per_case = None
-                if main_row.get("mrpPerCase") and str(main_row.get("mrpPerCase", "")).strip():
+                if main_row.mrp_per_case and str(main_row.get("mrpPerCase", "")).strip():
                     try:
-                        mrp_per_case = float(main_row["mrpPerCase"])
+                        mrp_per_case = float(main_row.mrp_per_case)
                     except (ValueError, TypeError) as e:
                         logger.warning("Invalid mrpPerCase in CSV row %s: %s", row_number, str(e))
                 qty_per_case = None
@@ -126,7 +126,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                     "description": main_row.get("description", "").strip(),
                     "brand": main_row.get("brand", "").strip(),
                     "collection": main_row.get("collection", "").strip() or None,
-                    "mrp": float(main_row["mrp"]),  # MRP per unit (required)
+                    "mrp": float(main_row.mrp),  # MRP per unit (required)
                     "mrpPerCase": mrp_per_case,
                     "quantityPerCase": qty_per_case,
                     "stock": 0,
@@ -143,13 +143,13 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                 for row in rows:
                     try:
                         row_price = (
-                            float(row["mrp"]) if row.get("mrp") and str(row.get("mrp")).strip() else product_data["mrp"]
+                            float(row.mrp) if row.mrp and str(row.mrp).strip() else product_data.mrp
                         )
                     except ValueError:
-                        row_price = product_data["mrp"]
+                        row_price = product_data.mrp
 
                     try:
-                        row_stock = int(row["stock"]) if row.get("stock") and str(row.get("stock")).strip() else 0
+                        row_stock = int(row.stock) if row.stock and str(row.stock).strip() else 0
                     except ValueError:
                         row_stock = 0
 
@@ -173,7 +173,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                         )
                     elif len(rows) == 1:
                         # No attributes, just update base stock and sku if it's the only row
-                        product_data["stock"] = row_stock
+                        product_data.stock = row_stock
                         if not product_data["sku"]:
                             product_data["sku"] = row_sku
 
@@ -191,15 +191,15 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
                     existing = await products_col.findOne({"sku": product_data["sku"]})
                 else:
                     # Also try matching by exact name to avoid duplicates if SKU isn't set either
-                    existing = await products_col.findOne({"name": product_data["name"]})
+                    existing = await products_col.findOne({"name": product_data.name})
 
                 if existing:
-                    await product_repository.update(existing["_id"], product_data)
-                    product_id_to_show = product_data.get("productIdFormatted", product_data["name"])
+                    await product_repository.update(existing.id, product_data)
+                    product_id_to_show = product_data.get("productIdFormatted", product_data.name)
                     results.append({"product": product_id_to_show, "action": "updated"})
                 else:
                     await product_repository.create(product_data)
-                    results.append({"product": product_data["name"], "action": "created"})
+                    results.append({"product": product_data.name, "action": "created"})
             except (ValueError, TypeError, KeyError) as e:
                 errors.append(
                     {"row": main_row.get("_row_number", "N/A"), "product": name, "error": f"Data error: {str(e)}"}
@@ -268,9 +268,9 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
         category = p.get("category", "")
         sub_category = p.get("subCategory") or ""
         description = p.get("description") or ""
-        brand = p.get("brand") or ""
+        brand = p.brand or ""
         mrp = p.get("mrp", "")
-        mrp_per_case = p.get("mrpPerCase") if p.get("mrpPerCase") is not None else ""
+        mrp_per_case = p.mrp_per_case if p.mrp_per_case is not None else ""
         quantity_per_case = p.get("quantityPerCase") if p.get("quantityPerCase") is not None else ""
 
         images_list = p.get("images", [])
@@ -281,14 +281,14 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
 
         is_active = "true" if p.get("isActive", True) else "false"
         product_id = p.get("productIdFormatted") or (
-            f"PDT-{p.get('productId')}" if p.get("productId") is not None else ""
+            f"PDT-{p.product_id}" if p.product_id is not None else ""
         )
 
         combinations = p.get("variants", []) or []
         if combinations:
             for idx, combo in enumerate(combinations):
-                combo_mrp = combo.get("price") if combo.get("price") is not None else mrp
-                combo_stock = combo.get("stock") if combo.get("stock") is not None else 0
+                combo_mrp = combo.price if combo.price is not None else mrp
+                combo_stock = combo.stock if combo.stock is not None else 0
 
                 combo_attrs = combo.get("attributes", {}) or {}
                 attr_cols = [""] * 10
@@ -382,15 +382,15 @@ async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = Non
         name = p.get("name", "")
         name_lower = name.lower()
         if all(t in name_lower for t in tokens):
-            if p.get("brand"):
-                brands.add(p.get("brand"))
-            if p.get("category"):
-                categories.add(p.get("category"))
+            if p.brand:
+                brands.add(p.brand)
+            if p.category:
+                categories.add(p.category)
                 
             if len(products) < limit:
                 display_image = p.get("displayImage") or (p.get("images")[0] if p.get("images") else None)
                 products.append({
-                    "productId": str(p.get("_id", p.get("productId"))),
+                    "productId": str(p.get("_id", p.product_id)),
                     "name": name,
                     "productName": name,
                     "displayImage": display_image
@@ -401,7 +401,7 @@ async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = Non
 
     return {
         "products": products,
-        "suggestions": [p["name"] for p in products],
+        "suggestions": [p.name for p in products],
         "brands": list(brands)[:3],
         "categories": list(categories)[:3]
     }
@@ -437,7 +437,7 @@ async def populate_product_discounts(
         applicable_discounts.append(c)
 
     for p in products_list:
-        mrp = float(p.get("mrp") or 0)
+        mrp = float(p.mrp or 0)
         p["originalPrice"] = mrp
 
         # Check automatic product discounts
@@ -465,7 +465,7 @@ async def populate_product_discounts(
 
         # Apply default discount to price
         final_price = product_repository.getPriceForRole(p, role, 1, user_id=user_id)
-        p["price"] = final_price
+        p.price = final_price
 
         if default_coupon:
             p["defaultDiscountPercentage"] = round(auto_discount_pct, 2)
@@ -566,7 +566,7 @@ async def get_public_products(
     role = "customer" # Force role to customer for public endpoint
     query = {}
     if category:
-        query["category"] = category
+        query.category = category
     if categories:
         query["categories"] = categories  # Comma-separated list of categories
     if subCategory:
@@ -574,7 +574,7 @@ async def get_public_products(
     if search:
         query["search"] = search
     if brand:
-        query["brand"] = brand
+        query.brand = brand
     if collection:
         query["collection"] = collection
     if categoryTag:
@@ -591,7 +591,7 @@ async def get_public_products(
         query["availability"] = availability
     if sort:
         query["sort"] = sort
-    query["role"] = role
+    query.role = role
 
     # Zone-based seller filter: resolve pincode → zone → seller set so only
     # products serviceable in the user's zone are returned.
@@ -712,11 +712,11 @@ async def get_products(
 ):
     # Use effectiveRole if user is deactivated
     effective_role = current_user.get("effectiveRole") or current_user.get("role", "customer")
-    user_id = current_user.get("_id")
+    user_id = current_user.id
 
     query = {}
     if category:
-        query["category"] = category
+        query.category = category
     if categories:
         query["categories"] = categories  # Comma-separated list of categories
     if subCategory:
@@ -724,7 +724,7 @@ async def get_products(
     if search:
         query["search"] = search
     if brand:
-        query["brand"] = brand
+        query.brand = brand
     if collection:
         query["collection"] = collection
     if categoryTag:
@@ -742,13 +742,13 @@ async def get_products(
     if sort:
         query["sort"] = sort
     if status == "active":
-        query["isActive"] = True
+        query.is_active = True
     elif status == "inactive":
-        query["isActive"] = False
+        query.is_active = False
     elif status == "all":
         query["includeInactive"] = True
 
-    query["role"] = effective_role
+    query.role = effective_role
     query["user_id"] = user_id
 
     if effective_role == "wholesaler":
@@ -817,7 +817,7 @@ async def get_product(product_id: str, current_user: dict = Depends(get_current_
 
     # Use effectiveRole if user is deactivated
     effective_role = current_user.get("effectiveRole") or current_user.get("role", "customer")
-    user_id = current_user.get("_id")
+    user_id = current_user.id
 
     # Add dynamic tags for a single product too
     products_list = await product_repository.add_dynamic_tags([product], effective_role, user_id)
@@ -892,7 +892,7 @@ async def bulk_update_products(update_data: BulkUpdateData, current_user: dict =
     for product_id in update_data.ids:
         data = {}
         if update_data.isActive is not None:
-            data["isActive"] = update_data.isActive
+            data.is_active = update_data.isActive
         if update_data.isExclusive is not None:
             data["isExclusive"] = update_data.isExclusive
 
@@ -963,7 +963,7 @@ async def get_product_search_tags(product_id: str, current_user: dict = Depends(
 
     return {
         "resolvedTags": resolved,
-        "allTags": [{"_id": t.get("_id"), "name": t.get("name"), "type": t.get("type")} for t in all_tags],
+        "allTags": [{"_id": t.id, "name": t.name, "type": t.get("type")} for t in all_tags],
     }
 
 
@@ -981,8 +981,8 @@ async def notify_me(
     email = None
     user_id = None
     if current_user:
-        email = current_user.get("email")
-        user_id = current_user.get("_id")
+        email = current_user.email
+        user_id = current_user.id
 
     # If user is not logged in or has no email, check data.email
     if not email:

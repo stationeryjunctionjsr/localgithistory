@@ -12,7 +12,6 @@ class CartItem(DictCompatibleModel):
     bundle_name: Optional[str] = Field(default=None, alias="bundleName")
 
 class Cart(DictCompatibleModel):
-    id: str = Field(alias="_id")
     user: str
     items: List[CartItem] = []
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")

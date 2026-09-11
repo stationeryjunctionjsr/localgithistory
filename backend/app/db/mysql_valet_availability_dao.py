@@ -3,7 +3,8 @@ MySQL DAO for sj_valet_availability (Relational).
 """
 
 import secrets
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.valet_availability import ValetAvailability, List, Optional
 
 from sqlalchemy import text
 
@@ -112,7 +113,7 @@ class MySQLValetAvailabilityDAO:
                     for zr in z_res.fetchall():
                         children_map[zr.availability_id]["zones"].append(zr.zone)
 
-        return [self._row_to_dict(r, children_map[r.id]) for r in rows]
+        return [ValetAvailability.model_validate(self._row_to_dict(r, children_map[r.id]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

@@ -6,7 +6,8 @@ Table: sj_sub_orders and sj_sub_order_items
 
 import secrets
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.sub_order import SubOrder, List, Optional
 
 from sqlalchemy import text
 
@@ -231,7 +232,7 @@ class MySQLSubOrderDAO:
             items_result = await session.execute(text(items_sql))
             items_rows = items_result.fetchall()
 
-            return [self._row_to_dict(r, items_rows) for r in rows]
+            return [SubOrder.model_validate(self._row_to_dict(r, items_rows) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query, limit=1)

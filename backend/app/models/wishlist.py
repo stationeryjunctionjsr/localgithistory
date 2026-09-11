@@ -1,0 +1,17 @@
+from datetime import datetime
+from typing import Optional, List, Any, Dict
+from pydantic import Field
+from app.models.core import DictCompatibleModel
+
+class Wishlist(DictCompatibleModel):
+    id: str = Field(default=None, alias='_id')
+    user: Optional[Any] = Field(default=None, alias='user')
+    items: Optional[Any] = Field(default=None, alias='items')
+    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
+    updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
+    wid: Optional[Any] = Field(default=None, alias='wid')
+    pid: Optional[Any] = Field(default=None, alias='pid')
+    external_id: Optional[Any] = Field(default=None, alias='external_id')
+    user_id: Optional[Any] = Field(default=None, alias='user_id')
+    eid: Optional[Any] = Field(default=None, alias='eid')
+    u: Optional[Any] = Field(default=None, alias='u')

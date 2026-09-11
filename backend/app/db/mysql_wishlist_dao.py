@@ -3,7 +3,8 @@ MySQL DAO for sj_wishlists. Fully relational.
 """
 
 import secrets
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.wishlist import Wishlist, List, Optional
 
 from sqlalchemy import text
 
@@ -82,7 +83,7 @@ class MySQLWishlistDAO:
             )
             rows = result.fetchall()
             items_map = await self._fetch_items(session, [r.id for r in rows])
-        return [self._row_to_dict(r, items_map[r.id]) for r in rows]
+        return [Wishlist.model_validate(self._row_to_dict(r, items_map[r.id]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

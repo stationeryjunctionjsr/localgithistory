@@ -5,7 +5,8 @@ Assembles paymentEntries from child table; create/update write entries as separa
 
 import secrets
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict
+from app.models.payment import Payment, List, Optional
 
 from sqlalchemy import bindparam, text
 

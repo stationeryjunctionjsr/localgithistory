@@ -4,7 +4,8 @@ Implements database-backed persistence and TTL for email verification codes.
 """
 
 from datetime import timedelta
-from typing import Dict, Optional
+from typing import Dict
+from app.models.email_otp import EmailOtp, Optional
 
 from sqlalchemy import text
 

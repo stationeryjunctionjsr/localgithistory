@@ -1,0 +1,48 @@
+from datetime import datetime
+from typing import Optional, List, Any, Dict
+from pydantic import Field
+from app.models.core import DictCompatibleModel
+
+class OrderAddress(DictCompatibleModel):
+    name: Optional[str] = None
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    phone: Optional[str] = None
+
+class Order(DictCompatibleModel):
+    id: str = Field(alias="_id")
+    order_number: Optional[str] = Field(default=None, alias="orderNumber")
+    user: str
+    status: Optional[str] = None
+    total: float = 0.0
+    subtotal: float = 0.0
+    tax: float = 0.0
+    shipping: float = 0.0
+    discount: float = 0.0
+    order_type: Optional[str] = Field(default=None, alias="orderType")
+    payment_status: Optional[str] = Field(default=None, alias="paymentStatus")
+    payment_method: Optional[str] = Field(default=None, alias="paymentMethod")
+    upi_payment_screenshot: Optional[str] = Field(default=None, alias="upiPaymentScreenshot")
+    shipping_address: OrderAddress = Field(default_factory=OrderAddress, alias="shippingAddress")
+    billing_address: OrderAddress = Field(default_factory=OrderAddress, alias="billingAddress")
+    notes: Optional[str] = None
+    printed_bill: bool = Field(default=False, alias="printedBill")
+    assigned_valet: Optional[str] = Field(default=None, alias="assignedValet")
+    pending_valet_id: Optional[str] = Field(default=None, alias="pendingValetId")
+    valet_assigned_at: Optional[datetime] = Field(default=None, alias="valetAssignedAt")
+    valet_cascade_count: Optional[int] = Field(default=0, alias="valetCascadeCount")
+    is_urgent_delivery: bool = Field(default=False, alias="isUrgentDelivery")
+    shipped_at: Optional[datetime] = Field(default=None, alias="shippedAt")
+    delivered_at: Optional[datetime] = Field(default=None, alias="deliveredAt")
+    cod_payment_received: bool = Field(default=False, alias="codPaymentReceived")
+    cod_payment_received_at: Optional[datetime] = Field(default=None, alias="codPaymentReceivedAt")
+    decline_reason: Optional[str] = Field(default=None, alias="declineReason")
+    cancelled_at: Optional[datetime] = Field(default=None, alias="cancelledAt")
+    cancelled_by: Optional[str] = Field(default=None, alias="cancelledBy")
+    turnaround_hours: Optional[float] = Field(default=None, alias="turnaroundHours")
+    items: List[Any] = []
+    valet_decline_history: List[Any] = Field(default=[], alias="valetDeclineHistory")
+    created_at: Optional[datetime] = Field(default=None, alias="createdAt")
+    updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
