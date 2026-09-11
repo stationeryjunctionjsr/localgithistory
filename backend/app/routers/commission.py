@@ -152,7 +152,9 @@ async def stamp_commission_on_delivery(sub_order: dict) -> dict:
     if not seller_id:
         return {"commissionStatus": None, "commissionPct": None, "commissionAmount": None}
 
-    order_total = float(sub_order.subtotal or (sub_order.total if sub_order.total is not None else 0))
+    if sub_order.subtotal is None and sub_order.total is None:
+        raise ValueError(f"Data Integrity Error: Sub order {sub_order.id} is missing both subtotal and total for commission calculation")
+    order_total = float(sub_order.subtotal if sub_order.subtotal is not None else sub_order.total)
     pct = await resolve_commission_pct(order_total, seller_id)
     amount = round(order_total * pct / 100, 2)
 

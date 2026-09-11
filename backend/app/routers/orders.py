@@ -611,6 +611,8 @@ async def create_order(
             and eligible_subtotal_for_discount > 0
             and idx in (eligible_item_indices or [])
         ):
+            if eligible_subtotal_for_discount is None:
+                raise ValueError("Data Integrity Error: Missing eligible subtotal for coupon discount allocation")
             coupon_discount_ratio = coupon_discount / eligible_subtotal_for_discount
             item_coupon_discount = item_total_before_coupon * coupon_discount_ratio
         elif coupon_discount > 0 and initial_subtotal > 0:
@@ -672,6 +674,8 @@ async def create_order(
         discount_value = (retail_settings.discount_value if retail_settings.discount_value is not None else 0)
 
         if discount_type == "percentage":
+            if subtotal_after_coupon is None or discount_value is None:
+                raise ValueError("Data Integrity Error: Missing values for referral discount calculation")
             referral_discount = subtotal_after_coupon * (discount_value / 100)
         else:  # fixed
             referral_discount = min(discount_value, subtotal_after_coupon)

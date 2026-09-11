@@ -387,6 +387,8 @@ async def add_bundle_to_cart(bundle_id: str, current_user: dict = Depends(get_cu
                     items = (cart.items or [])
                     for i, it in enumerate(items):
                         if it.id == existing["_id"]:
+                            if qty is None:
+                                raise ValueError("Data Integrity Error: Bundle item missing quantity")
                             items[i]["quantity"] = existing["quantity"] + qty
                             break
                     await cart_repository.createOrUpdate(user_id, items)

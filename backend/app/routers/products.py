@@ -440,7 +440,9 @@ async def populate_product_discounts(
         applicable_discounts.append(c)
 
     for p in products_list:
-        mrp = float(p.mrp or 0)
+        if p.mrp is None:
+            raise ValueError(f"Data Integrity Error: Product {p.id} is missing MRP")
+        mrp = float(p.mrp)
         p["originalPrice"] = mrp
 
         # Check automatic product discounts
