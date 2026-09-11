@@ -532,7 +532,7 @@ class MySQLProductDAO:
         merged = {**existing, **update_data}
         factory = self._factory()
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
 
         async with factory() as session:
             await session.execute(
@@ -554,7 +554,7 @@ class MySQLProductDAO:
                     "mrp_per_case": merged.get("mrpPerCase"),
                     "quantity_per_case": merged.get("quantityPerCase"),
                     "stock": merged.get("stock"),
-                    "is_active": 1 if merged.get("isActive", True) else 0,
+                    "is_active": 1 if merged.get("isActive", True) else None,
                     "rating": merged.get("rating", 0.0),
                     "reviews": merged.get("reviews", 0),
                     "updated_at": now,
@@ -566,7 +566,7 @@ class MySQLProductDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pid})
             await session.commit()

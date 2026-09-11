@@ -146,7 +146,7 @@ class MySQLCartDAO:
         external_id = secrets.token_hex(16)
 
         user_id_raw = data.get("user")
-        uid = int(user_id_raw) if user_id_raw and str(user_id_raw).isdigit() else 0
+        uid = int(user_id_raw) if user_id_raw and str(user_id_raw).isdigit() else None
 
         async with factory() as session:
             await session.execute(
@@ -187,7 +187,7 @@ class MySQLCartDAO:
         if not factory:
             return None
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
 
         # We only really update items for carts
         async with factory() as session:
@@ -211,7 +211,7 @@ class MySQLCartDAO:
         factory = self._factory()
         if not factory:
             return False
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             r = await session.execute(text(f"SELECT external_id FROM {self.TABLE} WHERE id = :id"), {"id": pid})
             eid = r.scalar()

@@ -438,17 +438,17 @@ class MySQLUserDAO:
                     "role": data.get("role", "customer"),
                     "phone": data.get("phone") or None,
                     "company_name": data.get("companyName"),
-                    "is_active": 1 if data.get("isActive", True) else 0,
+                    "is_active": 1 if data.get("isActive", True) else None,
                     "approval_status": data.get("approvalStatus", "approved"),
-                    "is_deactivated": 1 if data.get("isDeactivated") else 0,
+                    "is_deactivated": 1 if data.get("isDeactivated") else None,
                     "credit_limit": data.get("creditLimit", 0),
                     "credit_used": data.get("creditUsed", 0),
                     "payment_terms": str(data.get("paymentTerms", "30")),
                     "assigned_salesperson": data.get("assignedSalesperson"),
-                    "is_email_verified": 1 if data.get("isEmailVerified", False) else 0,
+                    "is_email_verified": 1 if data.get("isEmailVerified", False) else None,
                     "referral_code": data.get("referralCode"),
-                    "is_seller_admin": 1 if data.get("isSellerAdmin") else 0,
-                    "is_on_duty": 1 if data.get("isOnDuty") else 0,
+                    "is_seller_admin": 1 if data.get("isSellerAdmin") else None,
+                    "is_on_duty": 1 if data.get("isOnDuty") else None,
                     "commission_override_pct": data.get("commissionOverridePct"),
                     "created_at": now,
                     "updated_at": now,
@@ -468,7 +468,7 @@ class MySQLUserDAO:
         if not factory:
             return False
         
-        uid = int(id) if str(id).isdigit() else 0
+        uid = int(id) if str(id).isdigit() else None
         if uid == 0:
             return False
             
@@ -508,31 +508,31 @@ class MySQLUserDAO:
                 WHERE id = :id
             """),
                 {
-                    "id": int(id) if str(id).isdigit() else 0,
+                    "id": int(id) if str(id).isdigit() else None,
                     "name": merged.get("name"),
                     "email": merged.get("email"),
                     "password_hash": merged.get("password"),
                     "role": merged.get("role"),
                     "phone": merged.get("phone") or None,
                     "company_name": merged.get("companyName"),
-                    "is_active": 1 if merged.get("isActive", True) else 0,
+                    "is_active": 1 if merged.get("isActive", True) else None,
                     "approval_status": merged.get("approvalStatus"),
-                    "is_deactivated": 1 if merged.get("isDeactivated") else 0,
+                    "is_deactivated": 1 if merged.get("isDeactivated") else None,
                     "credit_limit": merged.get("creditLimit", 0),
                     "credit_used": merged.get("creditUsed", 0),
                     "payment_terms": str(merged.get("paymentTerms"))
                     if merged.get("paymentTerms") is not None
                     else None,
                     "assigned_salesperson": merged.get("assignedSalesperson"),
-                    "is_email_verified": 1 if merged.get("isEmailVerified", False) else 0,
+                    "is_email_verified": 1 if merged.get("isEmailVerified", False) else None,
                     "referral_code": merged.get("referralCode"),
-                    "is_seller_admin": 1 if merged.get("isSellerAdmin") else 0,
-                    "is_on_duty": 1 if merged.get("isOnDuty") else 0,
+                    "is_seller_admin": 1 if merged.get("isSellerAdmin") else None,
+                    "is_on_duty": 1 if merged.get("isOnDuty") else None,
                     "commission_override_pct": merged.get("commissionOverridePct"),
                     "updated_at": now,
                 },
             )
-            await self._replace_children(session, int(id) if str(id).isdigit() else 0, merged)
+            await self._replace_children(session, int(id) if str(id).isdigit() else None, merged)
             await session.commit()
         return await self.findById(id)
 
@@ -542,7 +542,7 @@ class MySQLUserDAO:
             return False
         async with factory() as session:
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else 0}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else None}
             )
             await session.commit()
             return result.rowcount > 0

@@ -163,7 +163,7 @@ class MySQLValetAvailabilityDAO:
         if not factory:
             return None
         now = now_utc()
-        pk = int(id) if str(id).isdigit() else 0
+        pk = int(id) if str(id).isdigit() else None
 
         async with factory() as session:
             await session.execute(
@@ -187,7 +187,7 @@ class MySQLValetAvailabilityDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pk = int(id) if str(id).isdigit() else 0
+        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": pk})
             await session.commit()

@@ -138,7 +138,7 @@ class MySQLSellerPayoutDAO:
         
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -168,7 +168,7 @@ class MySQLSellerPayoutDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),

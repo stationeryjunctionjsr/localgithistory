@@ -95,7 +95,7 @@ class MySQLReturnSettingsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -115,7 +115,7 @@ class MySQLReturnSettingsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -194,7 +194,7 @@ class MySQLOrderFeedbackDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -258,7 +258,7 @@ class MySQLOrderFeedbackDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -296,7 +296,7 @@ class MySQLOrderFeedbackDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -332,7 +332,7 @@ class MySQLPromoStripsDAO:
             params["text"] = query["text"]
         if "isActive" in query:
             where_clauses.append("is_active = :isActive")
-            params["isActive"] = 1 if query["isActive"] else 0
+            params["isActive"] = 1 if query["isActive"] else None
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
@@ -355,7 +355,7 @@ class MySQLPromoStripsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -399,7 +399,7 @@ class MySQLPromoStripsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -408,7 +408,7 @@ class MySQLPromoStripsDAO:
             params["text"] = merged["text"]
         if "isActive" in merged:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged["isActive"] else 0
+            params["isActive"] = 1 if merged["isActive"] else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -422,7 +422,7 @@ class MySQLPromoStripsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -517,7 +517,7 @@ class MySQLPushNotificationsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -597,7 +597,7 @@ class MySQLPushNotificationsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -647,7 +647,7 @@ class MySQLPushNotificationsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -699,7 +699,7 @@ class MySQLCoachMarksDAO:
             params["sequenceOrder"] = query["sequenceOrder"]
         if "isActive" in query:
             where_clauses.append("is_active = :isActive")
-            params["isActive"] = 1 if query["isActive"] else 0
+            params["isActive"] = 1 if query["isActive"] else None
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
@@ -722,7 +722,7 @@ class MySQLCoachMarksDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -782,7 +782,7 @@ class MySQLCoachMarksDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -803,7 +803,7 @@ class MySQLCoachMarksDAO:
             params["sequenceOrder"] = merged["sequenceOrder"]
         if "isActive" in merged:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged["isActive"] else 0
+            params["isActive"] = 1 if merged["isActive"] else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -817,7 +817,7 @@ class MySQLCoachMarksDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -857,7 +857,7 @@ class MySQLCategoryTagsDAO:
             params["description"] = query["description"]
         if "isActive" in query:
             where_clauses.append("is_active = :isActive")
-            params["isActive"] = 1 if query["isActive"] else 0
+            params["isActive"] = 1 if query["isActive"] else None
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
@@ -880,7 +880,7 @@ class MySQLCategoryTagsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -928,7 +928,7 @@ class MySQLCategoryTagsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -940,7 +940,7 @@ class MySQLCategoryTagsDAO:
             params["description"] = merged["description"]
         if "isActive" in merged:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged["isActive"] else 0
+            params["isActive"] = 1 if merged["isActive"] else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -954,7 +954,7 @@ class MySQLCategoryTagsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -1021,7 +1021,7 @@ class MySQLGoogle_reviewsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -1073,7 +1073,7 @@ class MySQLGoogle_reviewsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -1102,7 +1102,7 @@ class MySQLGoogle_reviewsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -1160,7 +1160,7 @@ class MySQLStockReservationsDAO:
 
     async def findById(self, id: str) -> Optional[StockReservation]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -1223,7 +1223,7 @@ class MySQLStockReservationsDAO:
             return None
         merged = {**existing.model_dump(by_alias=True), **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -1261,7 +1261,7 @@ class MySQLStockReservationsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -1332,7 +1332,7 @@ class MySQLProductNotificationsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -1388,7 +1388,7 @@ class MySQLProductNotificationsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -1420,7 +1420,7 @@ class MySQLProductNotificationsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -1491,7 +1491,7 @@ class MySQLProductReviewsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -1547,7 +1547,7 @@ class MySQLProductReviewsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -1579,7 +1579,7 @@ class MySQLProductReviewsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -1614,7 +1614,7 @@ class MySQLClassificationTagsDAO:
             params["name"] = query["name"]
         if "isActive" in query:
             where_clauses.append("is_active = :isActive")
-            params["isActive"] = 1 if query["isActive"] else 0
+            params["isActive"] = 1 if query["isActive"] else None
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
@@ -1637,7 +1637,7 @@ class MySQLClassificationTagsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -1681,7 +1681,7 @@ class MySQLClassificationTagsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -1690,7 +1690,7 @@ class MySQLClassificationTagsDAO:
             params["name"] = merged["name"]
         if "isActive" in merged:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged["isActive"] else 0
+            params["isActive"] = 1 if merged["isActive"] else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1704,7 +1704,7 @@ class MySQLClassificationTagsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -1771,7 +1771,7 @@ class MySQLReviewClassificationsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -1823,7 +1823,7 @@ class MySQLReviewClassificationsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -1852,7 +1852,7 @@ class MySQLReviewClassificationsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -1896,7 +1896,7 @@ class MySQLAboutUsDAO:
             params["version"] = query["version"]
         if "isPublished" in query:
             where_clauses.append("is_published = :isPublished")
-            params["isPublished"] = 1 if query["isPublished"] else 0
+            params["isPublished"] = 1 if query["isPublished"] else None
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
@@ -1919,7 +1919,7 @@ class MySQLAboutUsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -1971,7 +1971,7 @@ class MySQLAboutUsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -1986,7 +1986,7 @@ class MySQLAboutUsDAO:
             params["version"] = merged["version"]
         if "isPublished" in merged:
             updates.append("is_published = :isPublished")
-            params["isPublished"] = 1 if merged["isPublished"] else 0
+            params["isPublished"] = 1 if merged["isPublished"] else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2000,7 +2000,7 @@ class MySQLAboutUsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -2044,7 +2044,7 @@ class MySQLPrivacyPolicyDAO:
             params["effectiveDate"] = query["effectiveDate"]
         if "isActive" in query:
             where_clauses.append("is_active = :isActive")
-            params["isActive"] = 1 if query["isActive"] else 0
+            params["isActive"] = 1 if query["isActive"] else None
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
@@ -2067,7 +2067,7 @@ class MySQLPrivacyPolicyDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -2119,7 +2119,7 @@ class MySQLPrivacyPolicyDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -2134,7 +2134,7 @@ class MySQLPrivacyPolicyDAO:
             params["effectiveDate"] = merged["effectiveDate"]
         if "isActive" in merged:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged["isActive"] else 0
+            params["isActive"] = 1 if merged["isActive"] else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2148,7 +2148,7 @@ class MySQLPrivacyPolicyDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -2219,7 +2219,7 @@ class MySQLAvailabilityRequestsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -2275,7 +2275,7 @@ class MySQLAvailabilityRequestsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -2307,7 +2307,7 @@ class MySQLAvailabilityRequestsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -2348,7 +2348,7 @@ class MySQLPincodeSearchesDAO:
             params["query"] = query["query"]
         if "isServiceable" in query:
             where_clauses.append("is_serviceable = :isServiceable")
-            params["isServiceable"] = 1 if query["isServiceable"] else 0
+            params["isServiceable"] = 1 if query["isServiceable"] else None
         if "timestamp" in query:
             where_clauses.append("timestamp = :timestamp")
             params["timestamp"] = query["timestamp"]
@@ -2374,7 +2374,7 @@ class MySQLPincodeSearchesDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -2426,7 +2426,7 @@ class MySQLPincodeSearchesDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -2438,7 +2438,7 @@ class MySQLPincodeSearchesDAO:
             params["query"] = merged["query"]
         if "isServiceable" in merged:
             updates.append("is_serviceable = :isServiceable")
-            params["isServiceable"] = 1 if merged["isServiceable"] else 0
+            params["isServiceable"] = 1 if merged["isServiceable"] else None
         if "timestamp" in merged:
             updates.append("timestamp = :timestamp")
             params["timestamp"] = merged["timestamp"]
@@ -2455,7 +2455,7 @@ class MySQLPincodeSearchesDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -2491,10 +2491,10 @@ class MySQLSystemSettingsDAO:
         params = {}
         if "maintenanceMode" in query:
             where_clauses.append("maintenance_mode = :maintenanceMode")
-            params["maintenanceMode"] = 1 if query["maintenanceMode"] else 0
+            params["maintenanceMode"] = 1 if query["maintenanceMode"] else None
         if "allowSignups" in query:
             where_clauses.append("allow_signups = :allowSignups")
-            params["allowSignups"] = 1 if query["allowSignups"] else 0
+            params["allowSignups"] = 1 if query["allowSignups"] else None
         if "maxUploadSizeMb" in query:
             where_clauses.append("max_upload_size_mb = :maxUploadSizeMb")
             params["maxUploadSizeMb"] = query["maxUploadSizeMb"]
@@ -2526,7 +2526,7 @@ class MySQLSystemSettingsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -2582,16 +2582,16 @@ class MySQLSystemSettingsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
         if "maintenanceMode" in merged:
             updates.append("maintenance_mode = :maintenanceMode")
-            params["maintenanceMode"] = 1 if merged["maintenanceMode"] else 0
+            params["maintenanceMode"] = 1 if merged["maintenanceMode"] else None
         if "allowSignups" in merged:
             updates.append("allow_signups = :allowSignups")
-            params["allowSignups"] = 1 if merged["allowSignups"] else 0
+            params["allowSignups"] = 1 if merged["allowSignups"] else None
         if "maxUploadSizeMb" in merged:
             updates.append("max_upload_size_mb = :maxUploadSizeMb")
             params["maxUploadSizeMb"] = merged["maxUploadSizeMb"]
@@ -2614,7 +2614,7 @@ class MySQLSystemSettingsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -2673,7 +2673,7 @@ class MySQLValetPayoutSettingsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(
@@ -2717,7 +2717,7 @@ class MySQLValetPayoutSettingsDAO:
             return None
         merged = {**existing, **data}
         now = now_utc()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
@@ -2740,7 +2740,7 @@ class MySQLValetPayoutSettingsDAO:
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             res = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
