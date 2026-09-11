@@ -1439,3 +1439,19 @@ class CartResponse(BaseModel):
 
 class SavedForLaterResponse(BaseModel):
     items: List[Dict[str, Any]]
+
+class CheckPhoneResponse(BaseModel):
+    status: str
+    message: str
+
+class VerifyOtpResponse(BaseModel):
+    valid: bool
+    message: str
+
+class Msg91WebhookResponse(BaseModel):
+    status: str
+
+class VerifyMsg91TokenResponse(BaseModel):
+    valid: bool
+    phone: Optional[str] = None
+    token: Optional[str] = None

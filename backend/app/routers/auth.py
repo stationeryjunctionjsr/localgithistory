@@ -1,3 +1,4 @@
+from app.models.schemas import MessageResponse, CheckPhoneResponse, VerifyOtpResponse, Msg91WebhookResponse, VerifyMsg91TokenResponse
 import os
 from typing import Optional
 from uuid import uuid4
@@ -70,7 +71,7 @@ class VerifyMsg91Request(BaseModel):
     phone: Optional[str] = None
 
 
-@router.post("/check-phone")
+@router.post("/check-phone", response_model=CheckPhoneResponse)
 @limiter.limit("10/minute")
 async def check_phone(data: CheckPhoneRequest, request: Request):
     """Check if a phone number or email belongs to a registered user with a real password."""
@@ -98,7 +99,7 @@ async def check_phone(data: CheckPhoneRequest, request: Request):
     return {"exists": exists}
 
 
-@router.post("/send-otp")
+@router.post("/send-otp", response_model=MessageResponse)
 @limiter.limit("5/minute")
 async def send_otp(data: SendOTPRequest, request: Request):
     try:
@@ -158,7 +159,7 @@ async def send_otp(data: SendOTPRequest, request: Request):
         raise HTTPException(status_code=500, detail="Server error")
 
 
-@router.post("/verify-otp")
+@router.post("/verify-otp", response_model=VerifyOtpResponse)
 @limiter.limit("5/minute")
 async def verify_otp_endpoint(data: VerifyOTPRequest, request: Request):
     try:
@@ -179,7 +180,7 @@ async def verify_otp_endpoint(data: VerifyOTPRequest, request: Request):
         raise HTTPException(status_code=500, detail="Server error")
 
 
-@router.post("/msg91-webhook")
+@router.post("/msg91-webhook", response_model=Msg91WebhookResponse)
 async def msg91_webhook(request: Request, x_msg91_secret: Optional[str] = Header(None, alias="X-MSG91-Secret")):
     expected_secret = os.getenv("MSG91_WEBHOOK_SECRET")
     if not expected_secret:
@@ -205,7 +206,7 @@ async def msg91_webhook(request: Request, x_msg91_secret: Optional[str] = Header
         return {"status": "error", "message": "Webhook processing error"}
 
 
-@router.post("/verify-msg91-token")
+@router.post("/verify-msg91-token", response_model=VerifyMsg91TokenResponse)
 @limiter.limit("10/minute")
 async def verify_msg91_token_endpoint(data: VerifyMsg91Request, request: Request):
     """Verify a token directly from the MSG91 Widget/SDK."""
@@ -467,7 +468,7 @@ class LogoutRequest(BaseModel):
     sessionId: Optional[str] = None
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=MessageResponse)
 async def logout(request: LogoutRequest, current_user: dict = Depends(get_current_user)):
     session_id = request.sessionId or current_user.session_id
     if session_id:
@@ -485,7 +486,7 @@ class ForgotPasswordRequest(BaseModel):
     msg91Token: Optional[str] = None
 
 
-@router.post("/forgot-password")
+@router.post("/forgot-password", response_model=MessageResponse)
 @limiter.limit("3/minute")
 async def forgot_password(data: ForgotPasswordRequest, request: Request):
     try:
@@ -520,7 +521,7 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Server error")
 
 
-@router.delete("/me", status_code=200)
+@router.delete("/me", status_code=200, response_model=MessageResponse)
 async def delete_own_account(current_user: dict = Depends(get_current_user)):
     """GDPR / DPDP right-to-erasure: authenticated user permanently deletes their own account.
 

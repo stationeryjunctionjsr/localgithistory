@@ -1,3 +1,5 @@
+from app.models.schemas import MessageResponse
+from typing import List, Dict, Any
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -38,7 +40,7 @@ class CategoryUpdate(BaseModel):
     isReturnable: Optional[bool] = None
 
 
-@router.get("/available")
+@router.get("/available", response_model=List[Dict[str, Any]])
 @cache.ttl_cache(ttl=300.0)
 async def get_available_categories(pincode: Optional[str] = None, role: Optional[str] = "customer"):
     """
@@ -107,7 +109,7 @@ async def get_available_categories(pincode: Optional[str] = None, role: Optional
 
 
 
-@router.get("/public")
+@router.get("/public", response_model=List[Dict[str, Any]])
 @cache.ttl_cache(ttl=300.0)
 async def get_public_categories(forHomepage: bool = False):
     """Get active categories (public endpoint). If forHomepage=true, only categories with display-in-homepage enabled (web & mobile)."""
@@ -132,7 +134,7 @@ async def get_public_categories(forHomepage: bool = False):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/public/tags/{tag_name}/categories")
+@router.get("/public/tags/{tag_name}/categories", response_model=List[Dict[str, Any]])
 @cache.ttl_cache(ttl=300.0)
 async def get_tag_categories(tag_name: str):
     """Get active categories associated with a specific tag"""
@@ -159,7 +161,7 @@ async def get_tag_categories(tag_name: str):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/public/tags/{tag_name}/brands")
+@router.get("/public/tags/{tag_name}/brands", response_model=List[Dict[str, Any]])
 @cache.ttl_cache(ttl=300.0)
 async def get_tag_brands(tag_name: str):
     """Get brands associated with a specific tag via categories and products"""
@@ -215,8 +217,8 @@ def _invalidate_category_caches():
         pass
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=List[Dict[str, Any]])
+@router.get("/", response_model=List[Dict[str, Any]])
 async def get_categories(current_user: dict = Depends(require_super_admin)):
     """Get all categories (Super Admin only)"""
     try:
@@ -244,7 +246,7 @@ async def get_categories(current_user: dict = Depends(require_super_admin)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/{category_id}")
+@router.get("/{category_id}", response_model=Dict[str, Any])
 async def get_category(category_id: str, current_user: dict = Depends(require_super_admin)):
     """Get category by ID (Super Admin only)"""
     try:
@@ -282,8 +284,8 @@ async def upload_category_images(
         raise HTTPException(status_code=500, detail="Server error")
 
 
-@router.post("")
-@router.post("/")
+@router.post("", response_model=Dict[str, Any])
+@router.post("/", response_model=Dict[str, Any])
 async def create_category(category: CategoryBase, current_user: dict = Depends(require_super_admin)):
     """Create a new category (Super Admin only)"""
     try:
@@ -317,7 +319,7 @@ async def create_category(category: CategoryBase, current_user: dict = Depends(r
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/{category_id}")
+@router.put("/{category_id}", response_model=Dict[str, Any])
 async def update_category(
     category_id: str, category_update: CategoryUpdate, current_user: dict = Depends(require_super_admin)
 ):
@@ -371,7 +373,7 @@ async def update_category(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.delete("/{category_id}")
+@router.delete("/{category_id}", response_model=MessageResponse)
 async def delete_category(category_id: str, current_user: dict = Depends(require_super_admin)):
     """Delete a category (soft delete) (Super Admin only)"""
     try:

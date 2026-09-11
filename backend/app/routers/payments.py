@@ -1,3 +1,15 @@
+from app.models.schemas import MessageResponse
+from typing import List, Dict, Any
+from pydantic import BaseModel
+
+class DuesResponse(BaseModel):
+    dues: List[Dict[str, Any]]
+    totalOwed: float
+
+class SettlementResponse(BaseModel):
+    message: str
+    payment: Dict[str, Any]
+
 from datetime import datetime
 from typing import Optional
 
@@ -15,7 +27,7 @@ router = APIRouter()
 require_wholesaler = require_roles("wholesaler")
 
 
-@router.get("/dues")
+@router.get("/dues", response_model=DuesResponse)
 async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
     """Retrieve credit dues information for the logged-in wholesaler"""
     from datetime import datetime, timezone, timedelta
@@ -150,8 +162,8 @@ class CreditSettlementRequest(BaseModel):
     upiPaymentScreenshot: str
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=List[Dict[str, Any]])
+@router.get("/", response_model=List[Dict[str, Any]])
 async def get_payments(
     orderId: Optional[str] = Query(None),
     userId: Optional[str] = Query(None),
@@ -190,7 +202,7 @@ async def get_payments(
     return enhanced_payments
 
 
-@router.get("/{payment_id}")
+@router.get("/{payment_id}", response_model=Dict[str, Any])
 async def get_payment(payment_id: str, current_user: dict = Depends(require_super_admin)):
     """Get single payment (Super Admin only)"""
     payment = await payment_repository.findById(payment_id)
@@ -199,7 +211,7 @@ async def get_payment(payment_id: str, current_user: dict = Depends(require_supe
     return payment
 
 
-@router.put("/{payment_id}/verify-entry/{entry_id}")
+@router.put("/{payment_id}/verify-entry/{entry_id}", response_model=Dict[str, Any])
 async def verify_payment_entry(
     payment_id: str, entry_id: int, verify_data: VerifyEntryRequest, current_user: dict = Depends(require_super_admin)
 ):
@@ -215,7 +227,7 @@ async def verify_payment_entry(
         raise HTTPException(status_code=500, detail="Server error")
 
 
-@router.post("/credit-settlement")
+@router.post("/credit-settlement", response_model=SettlementResponse)
 async def submit_credit_settlement(
     settlement_data: CreditSettlementRequest, current_user: dict = Depends(require_wholesaler)
 ):
