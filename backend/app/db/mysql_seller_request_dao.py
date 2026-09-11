@@ -229,7 +229,7 @@ class MySQLSellerRequestDAO:
                     WHERE id = :id
                 """),
                 {
-                    "id": int(id) if str(id).isdigit() else 0,
+                    "id": int(id) if str(id).isdigit() else None,
                     "user_id": merged.get("user"),
                     "subject": merged.get("subject", ""),
                     "description": merged.get("description", ""),
@@ -241,7 +241,7 @@ class MySQLSellerRequestDAO:
                     "updated_at": now,
                 },
             )
-            await self._replace_children(session, int(id) if str(id).isdigit() else 0, merged)
+            await self._replace_children(session, int(id) if str(id).isdigit() else None, merged)
             await session.commit()
         return await self.findById(id)
 
@@ -251,7 +251,7 @@ class MySQLSellerRequestDAO:
             return False
         async with factory() as session:
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else 0}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else None}
             )
             await session.commit()
             return result.rowcount > 0

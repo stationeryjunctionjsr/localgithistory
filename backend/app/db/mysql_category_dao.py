@@ -182,7 +182,7 @@ class MySQLCategoryDAO:
 
         factory = self._factory()
         now = now_utc()
-        cid = int(id) if str(id).isdigit() else 0
+        cid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             await session.execute(
                 text(
@@ -219,7 +219,7 @@ class MySQLCategoryDAO:
         factory = self._factory()
         async with factory() as session:
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else 0}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else None}
             )
             await session.commit()
             return result.rowcount > 0

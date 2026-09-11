@@ -177,7 +177,7 @@ class DynamicRelationalDAO:
         merged = {**existing, **data}
         now = now_utc()
         updates = ["updated_at = :u"]
-        params = {"id": int(id) if str(id).isdigit() else 0, "u": now}
+        params = {"id": int(id) if str(id).isdigit() else None, "u": now}
         for api_k, db_col in self.scalar_map.items():
             if api_k in merged:
                 updates.append(f"{db_col} = :s_{api_k}")
@@ -186,7 +186,7 @@ class DynamicRelationalDAO:
         factory = self._factory()
         async with factory() as session:
             await session.execute(text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"), params)
-            await self._replace_children(session, int(id) if str(id).isdigit() else 0, merged)
+            await self._replace_children(session, int(id) if str(id).isdigit() else None, merged)
             await session.commit()
         return await self.findById(id)
 
@@ -194,7 +194,7 @@ class DynamicRelationalDAO:
         factory = self._factory()
         async with factory() as session:
             res = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else 0}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"), {"id": int(id) if str(id).isdigit() else None}
             )
             await session.commit()
             return res.rowcount > 0

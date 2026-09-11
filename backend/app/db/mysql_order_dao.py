@@ -354,16 +354,16 @@ class MySQLOrderDAO:
                     "bill_pincode": (data.get("billingAddress") or {}).get("pincode"),
                     "bill_phone": (data.get("billingAddress") or {}).get("phone"),
                     "notes": data.get("notes"),
-                    "printed_bill": 1 if data.get("printedBill") else 0,
+                    "printed_bill": 1 if data.get("printedBill") else None,
                                         "assigned_valet": data.get("assignedValet"),
-                    "is_urgent_delivery": 1 if data.get("isUrgentDelivery") else 0,
+                    "is_urgent_delivery": 1 if data.get("isUrgentDelivery") else None,
                     "pending_valet_id": data.get("pendingValetId"),
                     "valet_assigned_at": _to_ts(data.get("valetAssignedAt")),
                     "valet_cascade_count": data.get("valetCascadeCount") or 0,
                     
                     "shipped_at": _to_ts(data.get("shippedAt")),
                     "delivered_at": _to_ts(data.get("deliveredAt")),
-                    "cod_payment_received": 1 if data.get("codPaymentReceived") else 0,
+                    "cod_payment_received": 1 if data.get("codPaymentReceived") else None,
                     "cod_payment_received_at": _to_ts(data.get("codPaymentReceivedAt")),
                     "decline_reason": data.get("declineReason"),
                     "cancelled_at": _to_ts(data.get("cancelledAt")),
@@ -391,7 +391,7 @@ class MySQLOrderDAO:
         if not factory:
             return None
         now = now_utc()
-        oid = int(id) if str(id).isdigit() else 0
+        oid = int(id) if str(id).isdigit() else None
         user_id = int(merged.get("user")) if str(merged.get("user", "")).isdigit() else None
         if user_id is None:
             return None
@@ -461,16 +461,16 @@ class MySQLOrderDAO:
                     "bill_pincode": (merged.get("billingAddress") or {}).get("pincode"),
                     "bill_phone": (merged.get("billingAddress") or {}).get("phone"),
                     "notes": merged.get("notes"),
-                    "printed_bill": 1 if merged.get("printedBill") else 0,
+                    "printed_bill": 1 if merged.get("printedBill") else None,
                     "assigned_valet": merged.get("assignedValet"),
                     "pending_valet_id": merged.get("pendingValetId"),
                     "valet_assigned_at": _to_ts(merged.get("valetAssignedAt")),
                     "valet_cascade_count": merged.get("valetCascadeCount") or 0,
                     
-                    "is_urgent_delivery": 1 if merged.get("isUrgentDelivery") else 0,
+                    "is_urgent_delivery": 1 if merged.get("isUrgentDelivery") else None,
                     "shipped_at": _to_ts(merged.get("shippedAt")),
                     "delivered_at": _to_ts(merged.get("deliveredAt")),
-                    "cod_payment_received": 1 if merged.get("codPaymentReceived") else 0,
+                    "cod_payment_received": 1 if merged.get("codPaymentReceived") else None,
                     "cod_payment_received_at": _to_ts(merged.get("codPaymentReceivedAt")),
                     "decline_reason": merged.get("declineReason"),
                     "cancelled_at": _to_ts(merged.get("cancelledAt")),
@@ -487,7 +487,7 @@ class MySQLOrderDAO:
         factory = self._factory()
         if not factory:
             return False
-        oid = int(id) if str(id).isdigit() else 0
+        oid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             # order_items has ON DELETE CASCADE, but delete explicitly is fine too
             await session.execute(

@@ -128,7 +128,7 @@ class MySQLBrandDAO:
         if not factory:
             return None
         now = now_utc()
-        bid = int(id) if str(id).isdigit() else 0
+        bid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             await session.execute(
                 text(
@@ -147,7 +147,7 @@ class MySQLBrandDAO:
                     "name": merged.get("name"),
                     "slug": merged.get("slug"),
                     "image_url": merged.get("imageUrl"),
-                    "is_active": 1 if merged.get("isActive", True) else 0,
+                    "is_active": 1 if merged.get("isActive", True) else None,
                     "updated_at": now,
                 },
             )
@@ -158,7 +158,7 @@ class MySQLBrandDAO:
         factory = self._factory()
         if not factory:
             return False
-        bid = int(id) if str(id).isdigit() else 0
+        bid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
