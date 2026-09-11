@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 """
 Commission management router.
 
@@ -193,7 +195,7 @@ async def maybe_realize_commission(sub_order: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/tiers")
+@router.get("/tiers", response_model=Dict[str, Any])
 async def get_commission_tiers(current_user: dict = Depends(require_super_admin)):
     settings = await _get_settings()
     return {
@@ -207,7 +209,7 @@ async def get_commission_tiers(current_user: dict = Depends(require_super_admin)
 # ---------------------------------------------------------------------------
 
 
-@router.put("/tiers")
+@router.put("/tiers", response_model=MessageResponse)
 async def update_commission_tiers(
     payload: TiersPayload,
     current_user: dict = Depends(require_super_admin),
@@ -252,7 +254,7 @@ async def update_commission_tiers(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/sellers")
+@router.get("/sellers", response_model=Dict[str, Any])
 async def list_sellers_commission(current_user: dict = Depends(require_super_admin)):
     sellers = await user_repository.findAll({"role": "wholesaler", "isSellerAdmin": True})
     settings = await _get_settings()
@@ -288,7 +290,7 @@ async def list_sellers_commission(current_user: dict = Depends(require_super_adm
 # ---------------------------------------------------------------------------
 
 
-@router.put("/sellers/{seller_id}/override")
+@router.put("/sellers/{seller_id}/override", response_model=Dict[str, Any])
 async def set_seller_commission_override(
     seller_id: str,
     payload: SellerOverridePayload,
@@ -313,7 +315,7 @@ async def set_seller_commission_override(
 # ---------------------------------------------------------------------------
 
 
-@router.delete("/sellers/{seller_id}/override")
+@router.delete("/sellers/{seller_id}/override", response_model=MessageResponse)
 async def remove_seller_commission_override(
     seller_id: str,
     current_user: dict = Depends(require_super_admin),
@@ -331,7 +333,7 @@ async def remove_seller_commission_override(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/calculate")
+@router.get("/calculate", response_model=Dict[str, Any])
 async def preview_commission(
     order_value: float,
     seller_id: Optional[str] = None,

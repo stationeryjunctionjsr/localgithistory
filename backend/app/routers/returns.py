@@ -1,3 +1,4 @@
+from typing import Dict, Any, List
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
@@ -78,7 +79,7 @@ async def get_valet_returns(current_user: dict = Depends(require_super_admin_or_
     return [await populate_return_request(req) for req in requests]
 
 
-@router.get("/order/{order_id}/eligibility")
+@router.get("/order/{order_id}/eligibility", response_model=Dict[str, Any])
 async def check_return_eligibility(order_id: str, current_user: dict = Depends(get_current_user)):
     """Check which items in an order are eligible for return"""
     order = await order_repository.findById(order_id)
@@ -386,7 +387,7 @@ async def reject_return(
 
 from pydantic import BaseModel
 
-@router.get("/valet/pending")
+@router.get("/valet/pending", response_model=List[Dict[str, Any]])
 async def get_valet_pending_returns(current_user: dict = Depends(get_current_user)):
     if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can view pending assignments")
