@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 import time
 
 from fastapi import APIRouter
@@ -15,7 +17,7 @@ class HealthResponse(BaseModel):
     db: str
 
 
-@router.get("/health/live")
+@router.get("/health/live", response_model=Dict[str, Any])
 async def check_liveness():
     """Lightweight liveness check (no DB). Returns 200 if the process is running."""
     return {"status": "ok", "uptime_seconds": round(time.time() - APP_START_TIME, 2), "timestamp": time.time()}

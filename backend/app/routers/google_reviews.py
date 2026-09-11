@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from fastapi import APIRouter, HTTPException
 
 from app.repositories.google_review_repository import google_review_repository
@@ -7,13 +9,13 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("/rating")
+@router.get("/rating", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=300.0)
 async def get_google_rating():
     return await google_review_repository.get_latest_rating()
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=Dict[str, Any])
 async def refresh_google_rating():
     try:
         result = await google_review_repository.fetch_and_update()

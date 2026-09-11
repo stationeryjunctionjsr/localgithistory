@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -13,7 +15,7 @@ storage = get_storage("ads")
 events_storage = get_storage("tracking")
 
 
-@router.get("/summary")
+@router.get("/summary", response_model=Dict[str, Any]
 async def get_ads_summary(_: dict = Depends(require_super_admin)):
     ads = await storage.findAll({})
     total_views = sum([(ad.stats or {}).get("impressions", 0) for ad in ads])
@@ -33,7 +35,7 @@ async def get_ads_summary(_: dict = Depends(require_super_admin)):
     }
 
 
-@router.get("/")
+@router.get("/", response_model=Dict[str, Any])
 async def get_all_ads(placement: Optional[str] = None, active_only: bool = Query(False)):
     query = {}
     if active_only:
@@ -42,13 +44,13 @@ async def get_all_ads(placement: Optional[str] = None, active_only: bool = Query
     return {"ads": ads}
 
 
-@router.post("/")
+@router.post("/", response_model=Dict[str, Any])
 async def create_ad(ad_data: dict, _: dict = Depends(require_super_admin)):
     new_ad = await storage.create(ad_data)
     return new_ad
 
 
-@router.put("/{ad_id}")
+@router.put("/{ad_id}", response_model=Dict[str, Any])
 async def update_ad(ad_id: str, ad_data: dict, _: dict = Depends(require_super_admin)):
     updated = await storage.update(ad_id, ad_data)
     if not updated:
@@ -57,7 +59,7 @@ async def update_ad(ad_id: str, ad_data: dict, _: dict = Depends(require_super_a
 
 
 
-@router.patch("/{ad_id}/status")
+@router.patch("/{ad_id}/status", response_model=Dict[str, Any])
 async def update_ad_status(ad_id: str, payload: dict, _: dict = Depends(require_super_admin)):
     status = payload.get("status")
     if not status:
@@ -68,7 +70,7 @@ async def update_ad_status(ad_id: str, payload: dict, _: dict = Depends(require_
         raise HTTPException(status_code=404, detail="Ad not found")
     return {"message": f"Ad status updated to {status}"}
 
-@router.delete("/{ad_id}")
+@router.delete("/{ad_id}", response_model=MessageResponse)
 async def delete_ad(ad_id: str, _: dict = Depends(require_super_admin)):
     success = await storage.delete(ad_id)
     if not success:
@@ -76,7 +78,7 @@ async def delete_ad(ad_id: str, _: dict = Depends(require_super_admin)):
     return {"message": "Ad deleted"}
 
 
-@router.post("/{ad_id}/track")
+@router.post("/{ad_id}/track", response_model=Dict[str, Any])
 async def track_ad_event(ad_id: str, event: dict, current_user: Optional[dict] = Depends(get_optional_user)):
     event_type = event.get("type")
     if event_type not in ["view", "click"]:

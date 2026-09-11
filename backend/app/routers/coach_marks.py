@@ -40,7 +40,7 @@ async def update_coach_mark(id: str, mark_update: CoachMarkUpdate, current_user:
     return await coach_mark_repository.update(id, mark_update.model_dump(exclude_unset=True))
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", response_model=MessageResponse)
 async def delete_coach_mark(id: str, current_user: dict = Depends(require_super_admin)):
     await coach_mark_repository.delete(id)
     return {"message": "Coach mark deleted"}

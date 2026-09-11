@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -9,7 +11,7 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", response_model=Dict[str, Any]
 @router.get("/")
 async def get_notifications(
     isRead: Optional[bool] = Query(None),
@@ -40,7 +42,7 @@ async def get_notifications(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/unread-count")
+@router.get("/unread-count", response_model=Dict[str, Any])
 async def get_unread_count(current_user: dict = Depends(get_current_user)):
     """Get count of unread notifications for user"""
     try:
@@ -55,7 +57,7 @@ async def get_unread_count(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/read-all")
+@router.put("/read-all", response_model=Dict[str, Any])
 async def mark_all_read(current_user: dict = Depends(get_current_user)):
     """Mark all notifications as read and acknowledged"""
     try:
@@ -91,7 +93,7 @@ async def _get_and_verify_notification(notification_id: str, current_user: dict)
     return notification
 
 
-@router.put("/{notification_id}/acknowledge")
+@router.put("/{notification_id}/acknowledge", response_model=Dict[str, Any])
 async def acknowledge_notification(notification_id: str, current_user: dict = Depends(get_current_user)):
     """Acknowledge a notification"""
     try:
@@ -105,7 +107,7 @@ async def acknowledge_notification(notification_id: str, current_user: dict = De
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/{notification_id}/read")
+@router.put("/{notification_id}/read", response_model=Dict[str, Any])
 async def mark_notification_read(notification_id: str, current_user: dict = Depends(get_current_user)):
     """Mark notification as read"""
     try:
@@ -119,7 +121,7 @@ async def mark_notification_read(notification_id: str, current_user: dict = Depe
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.delete("/{notification_id}")
+@router.delete("/{notification_id}", response_model=MessageResponse)
 async def delete_notification(notification_id: str, current_user: dict = Depends(get_current_user)):
     """Delete a notification"""
     try:

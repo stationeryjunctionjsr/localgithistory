@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models.schemas import OrderFeedbackCreate, OrderFeedbackResponse
@@ -120,8 +122,8 @@ async def get_feedback_by_order(order_id: str, current_user: dict = Depends(get_
     return feedback
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=Dict[str, Any])
+@router.get("/", response_model=Dict[str, Any])
 async def get_all_feedback(current_user: dict = Depends(require_super_admin)):
     feedbacks = await order_feedback_repository.findAll()
 

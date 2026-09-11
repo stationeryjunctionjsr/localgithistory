@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, Any, List, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -21,7 +21,7 @@ async def get_coupons(isActive: Optional[bool] = None, current_user: dict = Depe
     return [CouponResponse(**coupon) for coupon in coupons]
 
 
-@router.get("/validate/{code}")
+@router.get("/validate/{code}", response_model=Dict[str, Any])
 async def validate_coupon(
     code: str,
     amount: float = Query(...),
@@ -45,7 +45,7 @@ async def validate_coupon(
     }
 
 
-@router.post("/validate")
+@router.post("/validate", response_model=Dict[str, Any])
 async def validate_coupon_with_cart(body: CouponValidateCart, current_user: dict = Depends(get_current_user)):
     """Validate discount using cart items; eligible subtotal is computed from items matching Applies to."""
     user_role = (current_user.role if current_user.role is not None else "customer")
@@ -140,7 +140,7 @@ async def update_coupon(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{coupon_id}")
+@router.delete("/{coupon_id}", response_model=MessageResponse)
 async def delete_coupon(coupon_id: str, current_user: dict = Depends(require_super_admin)):
     result = await coupon_repository.delete(coupon_id)
     if not result:

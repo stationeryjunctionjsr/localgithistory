@@ -1,3 +1,4 @@
+from app.models.schemas import MessageResponse
 """
 Seller Payout Ledger Router
 
@@ -13,7 +14,7 @@ Endpoints:
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Dict, Any, List, Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -168,7 +169,7 @@ async def settle_all_seller_payouts(
     return created
 
 
-@router.get("/my-summary")
+@router.get("/my-summary", response_model=Dict[str, Any])
 async def get_my_seller_payout_summary(
     current_user: dict = Depends(get_current_user),
 ):
@@ -178,7 +179,7 @@ async def get_my_seller_payout_summary(
     return await _get_seller_summary(str(current_user["_id"]))
 
 
-@router.get("/summary/{seller_id}")
+@router.get("/summary/{seller_id}", response_model=Dict[str, Any])
 async def get_seller_payout_summary(
     seller_id: str,
     current_user: dict = Depends(require_super_admin),
@@ -187,7 +188,7 @@ async def get_seller_payout_summary(
     return await _get_seller_summary(seller_id)
 
 
-@router.get("/summaries")
+@router.get("/summaries", response_model=Dict[str, Any])
 async def get_all_seller_payout_summaries(
     current_user: dict = Depends(require_super_admin),
 ):

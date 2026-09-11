@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, Any, List, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -35,8 +35,8 @@ class ClassificationUpdate(BaseModel):
 # --- Customer Endpoints ---
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=Dict[str, Any])
 async def create_review(review_data: ReviewCreate, current_user: dict = Depends(get_current_user)):
     """Submit a rating and review for a delivered product."""
     user_id = str(current_user.id)
@@ -96,7 +96,7 @@ async def create_review(review_data: ReviewCreate, current_user: dict = Depends(
     return {"message": "Review submitted successfully and is pending moderation.", "review": created}
 
 
-@router.get("/product/{product_id}")
+@router.get("/product/{product_id}", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=600.0)
 async def get_product_reviews(product_id: str):
     """Retrieve all approved reviews for a product."""
@@ -107,7 +107,7 @@ async def get_product_reviews(product_id: str):
     return reviews
 
 
-@router.get("/classifications")
+@router.get("/classifications", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=3600.0)
 async def get_active_classifications():
     """Retrieve all active review classifications."""
@@ -117,7 +117,7 @@ async def get_active_classifications():
 # --- Admin Endpoints ---
 
 
-@router.get("/admin/list")
+@router.get("/admin/list", response_model=Dict[str, Any])
 async def admin_get_all_reviews(status_filter: Optional[str] = None, current_user: dict = Depends(require_super_admin)):
     """Get all reviews in the system, optionally filtered by status (super admin only)."""
     query = {}
@@ -130,7 +130,7 @@ async def admin_get_all_reviews(status_filter: Optional[str] = None, current_use
     return reviews
 
 
-@router.post("/admin/{review_id}/approve")
+@router.post("/admin/{review_id}/approve", response_model=Dict[str, Any])
 async def admin_approve_review(review_id: str, current_user: dict = Depends(require_super_admin)):
     """Approve a product review to make it publicly visible (super admin only)."""
     review = await product_review_repository.findById(review_id)
@@ -155,7 +155,7 @@ async def admin_approve_review(review_id: str, current_user: dict = Depends(requ
     return {"message": "Review approved successfully", "review": updated}
 
 
-@router.post("/admin/{review_id}/remove")
+@router.post("/admin/{review_id}/remove", response_model=Dict[str, Any])
 async def admin_remove_review(review_id: str, current_user: dict = Depends(require_super_admin)):
     """Reject/remove a review so it is hidden from the public (super admin only)."""
     review = await product_review_repository.findById(review_id)
@@ -182,13 +182,13 @@ async def admin_remove_review(review_id: str, current_user: dict = Depends(requi
     return {"message": "Review removed successfully", "review": updated}
 
 
-@router.get("/admin/classifications")
+@router.get("/admin/classifications", response_model=Dict[str, Any])
 async def admin_get_classifications(current_user: dict = Depends(require_super_admin)):
     """Retrieve all review classifications (super admin only)."""
     return await review_classification_repository.findAll()
 
 
-@router.post("/admin/classifications")
+@router.post("/admin/classifications", response_model=Dict[str, Any])
 async def admin_create_classification(
     class_data: ClassificationCreate, current_user: dict = Depends(require_super_admin)
 ):
@@ -206,7 +206,7 @@ async def admin_create_classification(
     return {"message": "Classification created successfully", "classification": created}
 
 
-@router.put("/admin/classifications/{class_id}")
+@router.put("/admin/classifications/{class_id}", response_model=Dict[str, Any])
 async def admin_update_classification(
     class_id: str, class_data: ClassificationUpdate, current_user: dict = Depends(require_super_admin)
 ):

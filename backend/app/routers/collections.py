@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -11,7 +13,7 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("/public")
+@router.get("/public", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=300.0)
 async def get_public_collections(
     visiblePage: Optional[str] = None,
@@ -31,7 +33,7 @@ async def get_collections(current_user: dict = Depends(require_super_admin)):
     return await collection_repository.findAll()
 
 
-@router.get("/{collection_id}/products")
+@router.get("/{collection_id}/products", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=600.0)
 async def get_collection_products(collection_id: str):
     """Get products belonging to a collection (public endpoint)."""
@@ -53,7 +55,7 @@ async def get_collection(collection_id: str, current_user: dict = Depends(requir
     return collection
 
 
-@router.post("/upload-image", status_code=status.HTTP_200_OK)
+@router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
 async def upload_collection_image(image: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
     """Upload collection cover image (super_admin only). Uses OCI Object Storage when configured."""
     try:
@@ -100,7 +102,7 @@ async def update_collection(
     return collection
 
 
-@router.delete("/{collection_id}")
+@router.delete("/{collection_id}", response_model=MessageResponse)
 async def delete_collection(collection_id: str, current_user: dict = Depends(require_super_admin)):
     ok = await collection_repository.delete(collection_id)
     if not ok:

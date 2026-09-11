@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from typing import Optional
 
 from fastapi import APIRouter, Query
@@ -10,7 +12,7 @@ from app.utils.cache import cache
 router = APIRouter()
 
 
-@router.get("/version")
+@router.get("/version", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=3600.0)
 async def get_version(platform: Optional[str] = Query(None)):
     """App version info for force-update checks (web / mobile)."""
@@ -29,7 +31,7 @@ async def get_version(platform: Optional[str] = Query(None)):
     }
 
 
-@router.get("/maintenance")
+@router.get("/maintenance", response_model=Dict[str, Any])
 async def get_maintenance_status():
     """Public status for scheduled upgrade / maintenance screens."""
     return {

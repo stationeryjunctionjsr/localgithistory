@@ -227,7 +227,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
         raise HTTPException(status_code=500, detail=f"Error processing CSV file: {str(e)}")
 
 
-@router.get("/export-csv")
+@router.get("/export-csv", response_class=StreamingResponse)
 async def export_csv(current_user: dict = Depends(require_super_admin)):
     """
     Export all products from the Oracle database to a CSV file.

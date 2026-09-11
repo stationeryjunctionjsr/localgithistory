@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -23,7 +25,7 @@ class CategoryTagUpdate(BaseModel):
     isActive: Optional[bool] = None
 
 
-@router.get("")
+@router.get("", response_model=Dict[str, Any]
 @router.get("/")
 async def get_category_tags(current_user: dict = Depends(require_super_admin)):
     """Get all category tags (Super Admin only)"""
@@ -35,7 +37,7 @@ async def get_category_tags(current_user: dict = Depends(require_super_admin)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/active")
+@router.get("/active", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=300.0)
 async def get_active_category_tags():
     """Get active category tags (public endpoint)"""
@@ -48,8 +50,8 @@ async def get_active_category_tags():
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("")
-@router.post("/")
+@router.post("", response_model=Dict[str, Any])
+@router.post("/", response_model=Dict[str, Any])
 async def create_category_tag(tag: CategoryTagBase, current_user: dict = Depends(require_super_admin)):
     """Create a new category tag (Super Admin only)"""
     try:
@@ -78,7 +80,7 @@ async def create_category_tag(tag: CategoryTagBase, current_user: dict = Depends
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/{tag_id}")
+@router.put("/{tag_id}", response_model=Dict[str, Any])
 async def update_category_tag(
     tag_id: str, tag_update: CategoryTagUpdate, current_user: dict = Depends(require_super_admin)
 ):
@@ -123,7 +125,7 @@ async def update_category_tag(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.delete("/{tag_id}")
+@router.delete("/{tag_id}", response_model=MessageResponse)
 async def hide_category_tag(tag_id: str, current_user: dict = Depends(require_super_admin)):
     """Hide a category tag (soft delete) (Super Admin only)"""
     try:

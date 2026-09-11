@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -16,7 +18,7 @@ class UPIUpdateRequest(BaseModel):
     qrCodeUrl: Optional[str] = None
 
 
-@router.get("/details")
+@router.get("/details", response_model=Dict[str, Any])
 async def get_upi_details(current_user: dict = Depends(get_current_user)):
     # Find super admin user
     super_admin = await user_repository.findOne({"role": "super_admin"})
@@ -35,7 +37,7 @@ async def get_upi_details(current_user: dict = Depends(get_current_user)):
     }
 
 
-@router.put("/details")
+@router.put("/details", response_model=Dict[str, Any])
 async def update_upi_details(upi_data: UPIUpdateRequest, current_user: dict = Depends(require_super_admin)):
     """Update UPI payment details (Super Admin only)"""
     if not upi_data.upiId:
@@ -52,7 +54,7 @@ async def update_upi_details(upi_data: UPIUpdateRequest, current_user: dict = De
     return {"message": "UPI details updated successfully", "upiId": upi_data.upiId, "qrCodeUrl": upi_data.qrCodeUrl}
 
 
-@router.post("/upload-qr", status_code=status.HTTP_200_OK)
+@router.post("/upload-qr", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
 async def upload_upi_qr(image: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
     """Upload UPI QR Code image (Super Admin only)"""
     try:

@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -25,14 +27,14 @@ class CustomerSegmentUpdate(BaseModel):
     isActive: Optional[bool] = None
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=Dict[str, Any])
+@router.get("/", response_model=Dict[str, Any])
 async def get_segments(type: Optional[str] = None, admin: dict = Depends(require_super_admin)):
     segments = await customer_segments_repository.get_all(type)
     return segments
 
 
-@router.get("/{segment_id}")
+@router.get("/{segment_id}", response_model=Dict[str, Any])
 async def get_segment(segment_id: str, admin: dict = Depends(require_super_admin)):
     segment = await customer_segments_repository.get_by_id(segment_id)
     if not segment:
@@ -40,8 +42,8 @@ async def get_segment(segment_id: str, admin: dict = Depends(require_super_admin
     return segment
 
 
-@router.post("")
-@router.post("/")
+@router.post("", response_model=Dict[str, Any])
+@router.post("/", response_model=Dict[str, Any])
 async def create_segment(segment: CustomerSegmentCreate, admin: dict = Depends(require_super_admin)):
     data = segment.model_dump()
     data["_id"] = str(uuid.uuid4())
@@ -50,7 +52,7 @@ async def create_segment(segment: CustomerSegmentCreate, admin: dict = Depends(r
     return created
 
 
-@router.put("/{segment_id}")
+@router.put("/{segment_id}", response_model=Dict[str, Any])
 async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin: dict = Depends(require_super_admin)):
     existing = await customer_segments_repository.get_by_id(segment_id)
     if not existing:
@@ -67,7 +69,7 @@ async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin:
     return updated
 
 
-@router.delete("/{segment_id}")
+@router.delete("/{segment_id}", response_model=MessageResponse)
 async def delete_segment(segment_id: str, admin: dict = Depends(require_super_admin)):
     success = await customer_segments_repository.delete(segment_id)
     if not success:
@@ -242,12 +244,12 @@ async def seed_system_segments():
             await asyncio.sleep(0.5)
 
 
-@router.post("/filter")
+@router.post("/filter", response_model=Dict[str, Any])
 async def filter_users(criteria: FilterCriteria, admin: dict = Depends(require_super_admin)):
     return await run_segment_filter(criteria)
 
 
-@router.post("/{segment_id}/refresh")
+@router.post("/{segment_id}/refresh", response_model=Dict[str, Any])
 async def refresh_segment(segment_id: str, admin: dict = Depends(require_super_admin)):
     segment = await customer_segments_repository.get_by_id(segment_id)
     if not segment:

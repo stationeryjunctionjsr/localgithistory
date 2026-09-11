@@ -175,7 +175,7 @@ async def get_available_slots(
     return matched_slots
 
 
-@router.get("/dates-with-slots")
+@router.get("/dates-with-slots", response_model=Dict[str, Any])
 async def get_dates_with_slots(
     pincode: str = Query(...),
     segment: str = Query("retail"),
@@ -252,7 +252,7 @@ async def get_dates_with_slots(
     }
 
 
-@router.post("/{config_id}/book-slot")
+@router.post("/{config_id}/book-slot", response_model=Dict[str, Any])
 async def book_slot(config_id: str, slot_id: str = Query(...)):
     """
     Internal endpoint — atomically increments bookedCount for a specific slot.
@@ -345,7 +345,7 @@ async def update_delivery_slot_config(
     return updated
 
 
-@router.delete("/{config_id}")
+@router.delete("/{config_id}", response_model=MessageResponse)
 async def delete_delivery_slot_config(config_id: str, current_user: dict = Depends(require_super_admin)):
     result = await storage.delete(config_id)
     if not result:

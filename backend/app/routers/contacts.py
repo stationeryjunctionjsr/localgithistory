@@ -55,7 +55,7 @@ async def update_contact(
     return contact
 
 
-@router.delete("/{contact_id}")
+@router.delete("/{contact_id}", response_model=MessageResponse)
 async def delete_contact(contact_id: str, current_user: dict = Depends(require_super_admin)):
     result = await contact_repository.delete(contact_id)
     if not result:

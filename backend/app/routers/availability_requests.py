@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -21,8 +23,8 @@ class AvailabilityRequestCreate(BaseModel):
     userEmail: Optional[str] = None
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=Dict[str, Any])
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=Dict[str, Any])
 async def create_availability_request(
     data: AvailabilityRequestCreate,
     current_user: Optional[dict] = Depends(get_optional_user),
@@ -50,8 +52,8 @@ async def create_availability_request(
     return result
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=Dict[str, Any])
+@router.get("/", response_model=Dict[str, Any])
 async def list_availability_requests(
     pincode: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
@@ -81,7 +83,7 @@ async def list_availability_requests(
     return {"requests": paginated, "total": total, "page": page, "limit": limit}
 
 
-@router.post("/{request_id}/fulfill")
+@router.post("/{request_id}/fulfill", response_model=Dict[str, Any])
 async def fulfill_availability_request(
     request_id: str,
     current_user: dict = Depends(require_super_admin),

@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 """
 Delivery Zones router.
 
@@ -79,7 +81,7 @@ async def _check_pincode_conflicts(
 from app.config.database import get_async_session_factory
 from sqlalchemy import text
 
-@router.get("/for-pincode")
+@router.get("/for-pincode", response_model=Dict[str, Any])
 async def get_zone_for_pincode(pincode: str = Query(..., description="6-digit pincode")):
     """
     Public endpoint - resolve which zone a pincode belongs to.
@@ -190,7 +192,7 @@ async def update_zone(
     return updated
 
 
-@router.delete("/{zone_id}")
+@router.delete("/{zone_id}", response_model=MessageResponse)
 async def delete_zone(
     zone_id: str,
     current_user: dict = Depends(require_super_admin),

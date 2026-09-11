@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -30,8 +32,8 @@ def get_min_quantity_for_role(product: dict, role: str) -> int:
     return 1
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=List[Dict[str, Any]])
+@router.get("/", response_model=Dict[str, Any])
 async def get_wishlist(current_user: dict = Depends(get_current_user)):
     """Get user's wishlist"""
     try:
@@ -86,8 +88,8 @@ async def get_wishlist(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("")
-@router.post("/")
+@router.post("", response_model=Dict[str, Any])
+@router.post("/", response_model=Dict[str, Any])
 async def add_to_wishlist(item: WishlistItemRequest, current_user: dict = Depends(get_current_user)):
     """Add item to wishlist"""
     try:
@@ -115,7 +117,7 @@ async def add_to_wishlist(item: WishlistItemRequest, current_user: dict = Depend
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.delete("/{product_id}")
+@router.delete("/{product_id}", response_model=MessageResponse)
 async def remove_from_wishlist(product_id: str, current_user: dict = Depends(get_current_user)):
     """Remove item from wishlist"""
     try:
@@ -130,8 +132,8 @@ async def remove_from_wishlist(product_id: str, current_user: dict = Depends(get
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.delete("")
-@router.delete("/")
+@router.delete("", response_model=MessageResponse)
+@router.delete("/", response_model=MessageResponse)
 async def clear_wishlist(current_user: dict = Depends(get_current_user)):
     """Clear wishlist"""
     try:

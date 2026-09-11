@@ -145,7 +145,7 @@ async def toggle_feature_flag(flag_id: str, current_user: dict = Depends(require
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.delete("/{flag_id}", status_code=status.HTTP_200_OK)
+@router.delete("/{flag_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
 async def delete_feature_flag(flag_id: str, current_user: dict = Depends(require_super_admin)):
     """Delete feature flag (Super Admin only)"""
     try:

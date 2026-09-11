@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, Any, List, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
@@ -70,7 +70,7 @@ async def get_banners(
     return [BannerResponse(**banner) for banner in banners]
 
 
-@router.post("/upload-image", status_code=status.HTTP_200_OK)
+@router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
 async def upload_banner_image(image: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
     """Upload banner image (Super Admin only). Uses OCI Object Storage when configured."""
     try:
@@ -131,7 +131,7 @@ async def update_banner(banner_id: str, banner_data: BannerUpdate, current_user:
     return BannerResponse(**banner)
 
 
-@router.delete("/{banner_id}")
+@router.delete("/{banner_id}", response_model=MessageResponse)
 async def delete_banner(banner_id: str, current_user: dict = Depends(require_super_admin)):
     result = await banner_repository.delete(banner_id)
     if not result:

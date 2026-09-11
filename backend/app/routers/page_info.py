@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 import json
 from pathlib import Path
 
@@ -9,7 +11,7 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("/{page_id}")
+@router.get("/{page_id}", response_model=Dict[str, Any])
 async def get_page_info(page_id: str, current_user: dict = Depends(require_super_admin)):
     """Get page information for super admin"""
     try:
@@ -35,8 +37,8 @@ async def get_page_info(page_id: str, current_user: dict = Depends(require_super
         raise HTTPException(status_code=500, detail="Server error")
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=Dict[str, Any])
+@router.get("/", response_model=Dict[str, Any])
 async def get_all_page_info(current_user: dict = Depends(require_super_admin)):
     """Get all page information for super admin"""
     try:

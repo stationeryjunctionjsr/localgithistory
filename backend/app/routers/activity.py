@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -37,7 +39,7 @@ class PromoteGuestBody(BaseModel):
     userId: Optional[str] = None
 
 
-@router.post("")
+@router.post("", response_model=Dict[str, Any])
 async def log_activity(
     body: LogActivityBody,
     request: Request = None,
@@ -56,6 +58,6 @@ async def log_activity(
     return await activity_repository.log_activity(user_id, sid, action, meta, device, is_guest=is_guest)
 
 
-@router.post("/promote")
+@router.post("/promote", response_model=Dict[str, Any])
 async def promote_guest(body: PromoteGuestBody, request: Request, current_user: dict = Depends(get_current_user)):
     return await activity_repository.promote_guest_activities(body.sessionId, current_user.id)

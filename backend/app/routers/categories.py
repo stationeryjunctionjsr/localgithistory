@@ -262,7 +262,7 @@ async def get_category(category_id: str, current_user: dict = Depends(require_su
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("/upload-images")
+@router.post("/upload-images", response_model=Dict[str, Any])
 async def upload_category_images(
     images: List[UploadFile] = File(...), current_user: dict = Depends(require_super_admin)
 ):

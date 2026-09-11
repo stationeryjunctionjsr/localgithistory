@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 """
 Valet payout settings router.
 
@@ -42,7 +44,7 @@ class ValetPayoutSettingsPayload(BaseModel):
     returnPickupChargePerOrder: float = Field(..., ge=0, description="Fixed amount paid to valet per return pickup")
 
 
-@router.get("/settings")
+@router.get("/settings", response_model=Dict[str, Any])
 async def get_valet_payout_settings(current_user: dict = Depends(require_super_admin)):
     """Fetch global valet payout charge settings."""
     settings = await _get_settings()
@@ -53,7 +55,7 @@ async def get_valet_payout_settings(current_user: dict = Depends(require_super_a
     }
 
 
-@router.put("/settings")
+@router.put("/settings", response_model=Dict[str, Any])
 async def update_valet_payout_settings(
     payload: ValetPayoutSettingsPayload,
     current_user: dict = Depends(require_super_admin),
@@ -127,7 +129,7 @@ async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, r
     }
 
 
-@router.get("/earnings/me")
+@router.get("/earnings/me", response_model=Dict[str, Any])
 async def get_my_valet_earnings(
     current_user: dict = Depends(get_current_user),
 ):
@@ -148,7 +150,7 @@ async def get_my_valet_earnings(
     return await _compute_valet_earnings(valet_id, settings, orders, returns)
 
 
-@router.get("/earnings/{valet_id}")
+@router.get("/earnings/{valet_id}", response_model=Dict[str, Any])
 async def get_valet_earnings_by_id(
     valet_id: str,
     current_user: dict = Depends(require_super_admin),

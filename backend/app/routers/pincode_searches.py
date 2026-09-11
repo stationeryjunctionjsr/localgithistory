@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -8,8 +10,8 @@ from app.utils.auth import require_super_admin
 router = APIRouter(prefix="/admin/pincode-searches", tags=["admin-pincode-searches"])
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=Dict[str, Any])
+@router.get("/", response_model=Dict[str, Any])
 async def get_pincode_searches(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
@@ -30,7 +32,7 @@ async def get_pincode_searches(
     )
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=Dict[str, Any])
 async def get_pincode_search_stats(
     current_user: dict = Depends(require_super_admin),
 ):

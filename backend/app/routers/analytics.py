@@ -1,5 +1,6 @@
+from app.models.schemas import MessageResponse
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Dict, Any, List, Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
@@ -148,7 +149,7 @@ async def get_dashboard_data(
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
-@router.get("/reports/bundle-performance")
+@router.get("/reports/bundle-performance", response_model=Dict[str, Any])
 async def get_bundle_performance(current_user: dict = Depends(require_roles("super_admin"))):
     """
     Get detailed bundle performance reports.

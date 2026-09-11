@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 import asyncio
 import os
 from typing import List, Optional
@@ -64,23 +66,23 @@ class PrivacyPolicyUpdate(BaseModel):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@router.get("/faq/public")
+@router.get("/faq/public", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=3600.0)
 async def get_public_faq():
     return await faq_repository.find_all()
 
 
-@router.get("/faq")
+@router.get("/faq", response_model=Dict[str, Any])
 async def get_all_faq(user: dict = Depends(require_super_admin)):
     return await faq_repository.find_all()
 
 
-@router.post("/faq")
+@router.post("/faq", response_model=Dict[str, Any])
 async def create_faq_section(data: FAQSectionCreate, user: dict = Depends(require_super_admin)):
     return await faq_repository.create_section(data.dict())
 
 
-@router.put("/faq/{section_id}")
+@router.put("/faq/{section_id}", response_model=Dict[str, Any])
 async def update_faq_section(section_id: str, data: FAQSectionUpdate, user: dict = Depends(require_super_admin)):
     existing = await faq_repository.find_by_id(section_id)
     if not existing:
@@ -88,7 +90,7 @@ async def update_faq_section(section_id: str, data: FAQSectionUpdate, user: dict
     return await faq_repository.update_section(section_id, data.dict(exclude_none=True))
 
 
-@router.delete("/faq/{section_id}")
+@router.delete("/faq/{section_id}", response_model=MessageResponse)
 async def delete_faq_section(section_id: str, user: dict = Depends(require_super_admin)):
     existing = await faq_repository.find_by_id(section_id)
     if not existing:
@@ -101,20 +103,20 @@ async def delete_faq_section(section_id: str, user: dict = Depends(require_super
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@router.get("/about/public")
+@router.get("/about/public", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=3600.0)
 async def get_public_about():
     doc = await about_repository.get()
     return doc or {}
 
 
-@router.get("/about")
+@router.get("/about", response_model=Dict[str, Any])
 async def get_about(user: dict = Depends(require_super_admin)):
     doc = await about_repository.get()
     return doc or {}
 
 
-@router.put("/about")
+@router.put("/about", response_model=Dict[str, Any])
 async def update_about(data: AboutUsUpdate, user: dict = Depends(require_super_admin)):
     return await about_repository.upsert(data.dict(exclude_none=True))
 
@@ -124,20 +126,20 @@ async def update_about(data: AboutUsUpdate, user: dict = Depends(require_super_a
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@router.get("/privacy/public")
+@router.get("/privacy/public", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=3600.0)
 async def get_public_privacy():
     doc = await privacy_repository.get()
     return doc or {}
 
 
-@router.get("/privacy")
+@router.get("/privacy", response_model=Dict[str, Any])
 async def get_privacy(user: dict = Depends(require_super_admin)):
     doc = await privacy_repository.get()
     return doc or {}
 
 
-@router.put("/privacy")
+@router.put("/privacy", response_model=Dict[str, Any])
 async def update_privacy(data: PrivacyPolicyUpdate, user: dict = Depends(require_super_admin)):
     result = await privacy_repository.upsert(data.dict(exclude_none=True))
 
@@ -149,7 +151,7 @@ async def update_privacy(data: PrivacyPolicyUpdate, user: dict = Depends(require
     return result
 
 
-@router.get("/privacy/history")
+@router.get("/privacy/history", response_model=Dict[str, Any])
 async def get_privacy_version_history(user: dict = Depends(require_super_admin)):
     """Return the full version history of the Privacy Policy."""
     doc = await privacy_repository.get()

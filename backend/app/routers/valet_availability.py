@@ -13,7 +13,7 @@ Endpoints:
 
 from datetime import date as dt_date
 from datetime import timedelta
-from typing import Any, Dict, List, Optional
+from typing import Dict, Any, List, Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ValidationInfo, field_validator
@@ -215,7 +215,7 @@ async def get_all_availability(
     return enriched
 
 
-@router.delete("/{doc_id}")
+@router.delete("/{doc_id}", response_model=MessageResponse)
 async def delete_availability(
     doc_id: str,
     current_user: dict = Depends(get_current_user),

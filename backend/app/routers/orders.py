@@ -2108,7 +2108,7 @@ async def dispatch_order(
     return populated_order
 
 
-@router.get("/valet/pending")
+@router.get("/valet/pending", response_model=List[Dict[str, Any]])
 async def get_valet_pending_orders(current_user: dict = Depends(get_current_user)):
     if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can view pending assignments")
@@ -2717,7 +2717,7 @@ async def generate_invoice(order_id: str, current_user: dict = Depends(require_s
     return {"message": "Invoice generated successfully", "invoicePath": invoice_path}
 
 
-@router.get("/{order_id}/invoice")
+@router.get("/{order_id}/invoice", response_class=FileResponse)
 async def download_invoice(order_id: str, current_user: dict = Depends(get_current_user)):
     """Download invoice PDF for an order"""
     from pathlib import Path

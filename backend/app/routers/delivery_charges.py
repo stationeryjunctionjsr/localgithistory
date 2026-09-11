@@ -1,6 +1,6 @@
 import csv
 import io
-from typing import Any, Dict, List, Optional
+from typing import Dict, Any, List, Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 
@@ -33,7 +33,7 @@ async def get_default_delivery_charge(current_user: dict = Depends(require_super
     return default_charge
 
 
-@router.get("/location")
+@router.get("/location", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=3600.0)
 async def get_delivery_charge_by_location(
     state: str = Query(...),
@@ -80,7 +80,7 @@ async def get_serviceable_pincodes(current_user: dict = Depends(require_super_ad
     return sorted(set(pincodes))
 
 
-@router.get("/check-serviceability")
+@router.get("/check-serviceability", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=3600.0)
 async def check_serviceability(pincode: str = Query(...), userRole: Optional[str] = Query("customer")):
     """Check if a pincode is serviceable for a user role. Also returns slot booking availability
@@ -255,7 +255,7 @@ async def set_default_delivery_charge(
     return default_charge
 
 
-@router.post("/upload-csv", status_code=status.HTTP_200_OK)
+@router.post("/upload-csv", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
 async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV file")
@@ -324,7 +324,7 @@ async def update_delivery_charge(
     return charge
 
 
-@router.delete("/default")
+@router.delete("/default", response_model=MessageResponse)
 async def delete_default_charge(current_user: dict = Depends(require_super_admin)):
     """Delete default delivery charge"""
     result = await delivery_charge_repository.deleteDefaultCharge()
@@ -333,7 +333,7 @@ async def delete_default_charge(current_user: dict = Depends(require_super_admin
     return {"message": "Default delivery charge deleted successfully"}
 
 
-@router.delete("/{charge_id}")
+@router.delete("/{charge_id}", response_model=MessageResponse)
 async def delete_delivery_charge(charge_id: str, current_user: dict = Depends(require_super_admin)):
     result = await delivery_charge_repository.delete(charge_id)
     if not result:

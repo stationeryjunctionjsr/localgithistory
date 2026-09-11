@@ -16,7 +16,7 @@ Endpoints:
 
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Set
+from typing import Dict, Any, List, Any, Dict, List, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, validator
@@ -221,7 +221,7 @@ async def get_all_seller_availability(
     return enriched
 
 
-@router.delete("/{window_id}")
+@router.delete("/{window_id}", response_model=MessageResponse)
 async def cancel_availability_window(
     window_id: str,
     current_user: dict = Depends(get_current_user),
@@ -255,7 +255,7 @@ async def cancel_availability_window(
     return {"message": "Availability window cancelled"}
 
 
-@router.post("/tick", include_in_schema=False)
+@router.post("/tick", include_in_schema=False, response_model=Dict[str, Any])
 async def tick_availability_statuses(
     current_user: dict = Depends(require_super_admin),
 ):

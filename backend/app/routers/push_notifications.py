@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from pathlib import Path
 from typing import Optional
 
@@ -13,7 +15,7 @@ router = APIRouter()
 optional_security = HTTPBearer(auto_error=False)
 
 
-@router.get("")
+@router.get("", response_model=Dict[str, Any]
 @router.get("/")
 async def get_push_notifications(
     status: Optional[str] = Query(None),
@@ -38,8 +40,8 @@ async def get_push_notifications(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("")
-@router.post("/")
+@router.post("", response_model=Dict[str, Any])
+@router.post("/", response_model=Dict[str, Any])
 async def create_push_notification(
     title: str = Form(...),
     message: str = Form(...),
@@ -95,7 +97,7 @@ async def create_push_notification(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/{notification_id}")
+@router.put("/{notification_id}", response_model=Dict[str, Any])
 async def update_push_notification(
     notification_id: str,
     title: Optional[str] = Form(None),
@@ -160,7 +162,7 @@ async def update_push_notification(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.delete("/{notification_id}")
+@router.delete("/{notification_id}", response_model=MessageResponse)
 async def delete_push_notification(notification_id: str, current_user: dict = Depends(require_super_admin)):
     """Delete a push notification"""
     try:
@@ -183,7 +185,7 @@ async def delete_push_notification(notification_id: str, current_user: dict = De
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/{notification_id}/analytics")
+@router.get("/{notification_id}/analytics", response_model=Dict[str, Any])
 async def get_push_notification_analytics(notification_id: str, current_user: dict = Depends(require_super_admin)):
     """Get analytics for a push notification"""
     try:
@@ -205,7 +207,7 @@ async def get_push_notification_analytics(notification_id: str, current_user: di
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/inbox")
+@router.get("/inbox", response_model=Dict[str, Any])
 async def get_notification_inbox():
     """Return published notifications for the user-facing inbox (public endpoint)."""
     try:
@@ -236,7 +238,7 @@ class DeviceRegistrationRequest(BaseModel):
     expoToken: Optional[str] = None
 
 
-@router.get("/vapid-public-key")
+@router.get("/vapid-public-key", response_model=Dict[str, Any])
 async def get_vapid_public_key():
     """Get VAPID public key for client-side subscription"""
     try:
@@ -256,7 +258,7 @@ async def get_vapid_public_key():
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/{notification_id}")
+@router.get("/{notification_id}", response_model=Dict[str, Any])
 async def get_push_notification(notification_id: str, current_user: dict = Depends(require_super_admin)):
     """Get push notification by ID"""
     try:
@@ -271,7 +273,7 @@ async def get_push_notification(notification_id: str, current_user: dict = Depen
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("/register-device")
+@router.post("/register-device", response_model=Dict[str, Any])
 async def register_device(
     request: DeviceRegistrationRequest, credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security)
 ):
@@ -307,7 +309,7 @@ async def register_device(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("/{notification_id}/mark-read")
+@router.post("/{notification_id}/mark-read", response_model=Dict[str, Any])
 async def mark_notification_read(
     notification_id: str,
     current_user: dict = Depends(get_current_user),

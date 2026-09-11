@@ -1,3 +1,5 @@
+from typing import Dict, Any, List
+from app.models.schemas import MessageResponse
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.models.schemas import SearchTagCreate, SearchTagUpdate
@@ -9,20 +11,20 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=Dict[str, Any])
+@router.get("/", response_model=Dict[str, Any])
 @cache.ttl_cache(ttl=300.0)
 async def get_all_tags():
     return await search_tag_repository.findAll()
 
 
-@router.post("")
-@router.post("/")
+@router.post("", response_model=Dict[str, Any])
+@router.post("/", response_model=Dict[str, Any])
 async def create_tag(tag: SearchTagCreate, admin: dict = Depends(require_super_admin)):
     return await search_tag_repository.create(tag.model_dump())
 
 
-@router.put("/{id}")
+@router.put("/{id}", response_model=Dict[str, Any])
 async def update_tag(id: str, tag_update: SearchTagUpdate, admin: dict = Depends(require_super_admin)):
     logger.info("Updating search tag id=%s", id)
     tag = await search_tag_repository.findById(id)
@@ -40,7 +42,7 @@ async def update_tag(id: str, tag_update: SearchTagUpdate, admin: dict = Depends
     return await search_tag_repository.update(id, tag_update.model_dump(exclude_unset=True))
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", response_model=MessageResponse)
 async def delete_tag(id: str, admin: dict = Depends(require_super_admin)):
     await search_tag_repository.delete(id)
     return {"message": "Tag deleted"}
