@@ -1,3 +1,5 @@
+from app.schemas.orders import PaginatedOrdersResponse, PaginatedSubOrdersResponse, DeliveryChargeUpdateResponse
+from typing import Dict, Any
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -241,8 +243,8 @@ async def populate_order(order: dict) -> Optional[dict]:
     return res[0] if res else None
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=PaginatedOrdersResponse)
+@router.get("/", response_model=PaginatedOrdersResponse)
 async def get_orders(
     status: Optional[str] = None,
     paymentMethod: Optional[str] = None,
@@ -298,7 +300,7 @@ async def get_orders(
     return populated_orders
 
 
-@router.get("/{order_id}", response_model=dict)
+@router.get("/{order_id}", response_model=Dict[str, Any])
 async def get_order(order_id: str, current_user: dict = Depends(get_current_user)):
     order = await order_repository.findById(order_id)
 
@@ -317,8 +319,8 @@ async def get_order(order_id: str, current_user: dict = Depends(get_current_user
     return populated_order
 
 
-@router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def create_order(
     request: Request,
@@ -1552,7 +1554,7 @@ class TrackingUpdateRequest(BaseModel):
     courierPartner: Optional[str] = None
 
 
-@router.put("/{order_id}/tracking", response_model=dict)
+@router.put("/{order_id}/tracking", response_model=Dict[str, Any])
 async def update_order_tracking(
     order_id: str,
     data: TrackingUpdateRequest,
@@ -1605,7 +1607,7 @@ class UpdateDeliveryChargeRequest(BaseModel):
     newDeliveryCharge: float
 
 
-@router.put("/{order_id}/delivery-charge")
+@router.put("/{order_id}/delivery-charge", response_model=DeliveryChargeUpdateResponse)
 async def update_delivery_charge(
     order_id: str, request: UpdateDeliveryChargeRequest, current_user: dict = Depends(require_super_admin)
 ):
@@ -1700,7 +1702,7 @@ async def _compute_fulfillment_status(sub_order_ids: list) -> Optional[str]:
     return "unfulfilled"
 
 
-@router.put("/{order_id}/status", response_model=dict)
+@router.put("/{order_id}/status", response_model=Dict[str, Any])
 async def update_order_status(
     order_id: str,
     status_data: OrderStatusUpdate,
@@ -1963,7 +1965,7 @@ async def update_order_status(
     return populated_order
 
 
-@router.put("/{order_id}/accept", response_model=dict)
+@router.put("/{order_id}/accept", response_model=Dict[str, Any])
 async def accept_order(order_id: str, current_user: dict = Depends(require_super_admin)):
     """Accept order (Pending -> Processing)"""
     order = await order_repository.findById(order_id)
@@ -1992,7 +1994,7 @@ class DeclineOrderRequest(BaseModel):
     reason: str
 
 
-@router.put("/{order_id}/decline", response_model=dict)
+@router.put("/{order_id}/decline", response_model=Dict[str, Any])
 async def decline_order(
     order_id: str, decline_data: DeclineOrderRequest, current_user: dict = Depends(require_super_admin)
 ):
@@ -2031,7 +2033,7 @@ async def decline_order(
     return populated_order
 
 
-@router.put("/{order_id}/dispatch", response_model=dict)
+@router.put("/{order_id}/dispatch", response_model=Dict[str, Any])
 async def dispatch_order(
     order_id: str,
     valet_data: AssignValetRequest,
@@ -2132,7 +2134,7 @@ async def get_valet_pending_orders(current_user: dict = Depends(get_current_user
 #     declineReason: Optional[str] = None
 #
 #
-# @router.put("/{order_id}/valet-response", response_model=dict)
+# @router.put("/{order_id}/valet-response", response_model=Dict[str, Any])
 # async def valet_response(
 #     order_id: str,
 #     response_data: ValetResponseRequest,
@@ -2205,7 +2207,7 @@ async def get_valet_pending_orders(current_user: dict = Depends(get_current_user
 # ── END DUPLICATE ROUTE ───────────────────────────────────────────────────────
 
 
-@router.put("/{order_id}/cancel", response_model=dict)
+@router.put("/{order_id}/cancel", response_model=Dict[str, Any])
 async def cancel_order(order_id: str, current_user: dict = Depends(get_current_user)):
     """Cancel order (Customer/Wholesaler only, before Accept)"""
     order = await order_repository.findById(order_id)
@@ -2248,7 +2250,7 @@ async def cancel_order(order_id: str, current_user: dict = Depends(get_current_u
     return populated_order
 
 
-@router.put("/{order_id}/assign-valet", response_model=dict)
+@router.put("/{order_id}/assign-valet", response_model=Dict[str, Any])
 async def assign_valet(
     order_id: str, valet_data: AssignValetRequest, current_user: dict = Depends(require_super_admin)
 ):
@@ -2274,7 +2276,7 @@ class ValetResponseRequest(BaseModel):
     declineReason: Optional[str] = None
 
 
-@router.put("/{order_id}/valet-response", response_model=dict)
+@router.put("/{order_id}/valet-response", response_model=Dict[str, Any])
 async def valet_response(
     order_id: str,
     response_data: ValetResponseRequest,
@@ -2512,7 +2514,7 @@ async def valet_response(
 # ─── Valet Confirms Pickup from a Seller (multi-seller orders) ────────────────
 
 
-@router.put("/{order_id}/sub-orders/{sub_order_id}/confirm-pickup", response_model=dict)
+@router.put("/{order_id}/sub-orders/{sub_order_id}/confirm-pickup", response_model=Dict[str, Any])
 async def confirm_sub_order_pickup(
     order_id: str,
     sub_order_id: str,
@@ -2613,7 +2615,7 @@ class SettleCreditRequest(BaseModel):
     upiPaymentScreenshot: Optional[str] = None
 
 
-@router.post("/{order_id}/settle-credit", response_model=dict)
+@router.post("/{order_id}/settle-credit", response_model=Dict[str, Any])
 async def settle_credit(
     order_id: str, settle_data: SettleCreditRequest, current_user: dict = Depends(get_current_user)
 ):
@@ -2668,7 +2670,7 @@ async def settle_credit(
     return {"message": "Credit settled successfully", "payment": updated_payment, "remainingCredit": new_credit_used}
 
 
-@router.post("/{order_id}/generate-invoice", response_model=dict)
+@router.post("/{order_id}/generate-invoice", response_model=Dict[str, Any])
 async def generate_invoice(order_id: str, current_user: dict = Depends(require_super_admin)):
     """Generate invoice for an order (Super Admin only)"""
     from datetime import datetime
@@ -2751,7 +2753,7 @@ async def download_invoice(order_id: str, current_user: dict = Depends(get_curre
 # ─── Seller Admin Order Endpoints ───
 
 
-@router.get("/seller-orders", response_model=dict)
+@router.get("/seller-orders", response_model=Dict[str, Any])
 async def get_seller_orders(
     status: Optional[str] = None,
     page: int = 1,
@@ -2774,7 +2776,7 @@ async def get_seller_orders(
     }
 
 
-@router.get("/seller-orders/{sub_order_id}", response_model=dict)
+@router.get("/seller-orders/{sub_order_id}", response_model=Dict[str, Any])
 async def get_seller_order(
     sub_order_id: str,
     current_user: dict = Depends(require_seller_admin),
@@ -2792,7 +2794,7 @@ class SubOrderStatusUpdate(BaseModel):
     status: str
 
 
-@router.put("/seller-orders/{sub_order_id}/status", response_model=dict)
+@router.put("/seller-orders/{sub_order_id}/status", response_model=Dict[str, Any])
 async def update_seller_order_status(
     sub_order_id: str,
     status_data: SubOrderStatusUpdate,
@@ -2841,7 +2843,7 @@ async def update_seller_order_status(
     return updated
 
 
-@router.get("/admin/sub-orders", response_model=dict)
+@router.get("/admin/sub-orders", response_model=Dict[str, Any])
 async def get_all_sub_orders(
     sellerId: Optional[str] = None,
     status: Optional[str] = None,

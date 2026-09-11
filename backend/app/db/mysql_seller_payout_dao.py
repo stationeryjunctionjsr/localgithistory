@@ -5,7 +5,7 @@ from app.models.seller_payout import SellerPayout, List, Optional
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
-from app.db.oracle_utils import now_utc
+from app.db.db_utils import now_utc
 
 class MySQLSellerPayoutDAO:
     TABLE = "sj_seller_payouts"

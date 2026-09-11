@@ -282,7 +282,7 @@ class MySQLUserDAO:
                     if k in ("allowed_ids",):
                         continue
                     if k in ("_id", "id"):
-                        if doc.get("_id") != str(v) and doc.get("id") != v:
+                        if doc.id != str(v) and doc.id != v:
                             match = False
                             break
                     elif doc.get(k) != v:

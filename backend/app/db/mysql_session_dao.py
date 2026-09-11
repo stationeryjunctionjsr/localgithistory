@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
-from app.db.oracle_utils import json_dumps, json_loads, now_utc
+from app.db.db_utils import json_dumps, json_loads, now_utc
 
 
 def _to_ts(value: Optional[str]) -> Optional[datetime]:

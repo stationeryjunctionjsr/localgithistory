@@ -15,7 +15,7 @@ load_dotenv()
 
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.db.oracle_utils import json_dumps, now_utc
+from app.db.db_utils import json_dumps, now_utc
 
 NOW = now_utc()
 

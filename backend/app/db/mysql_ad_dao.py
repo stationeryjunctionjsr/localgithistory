@@ -5,7 +5,7 @@ from app.models.ad import Ad, List, Optional
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
-from app.db.oracle_utils import now_utc
+from app.db.db_utils import now_utc
 
 class MySQLAdDAO:
     TABLE = "sj_ads"
@@ -156,7 +156,7 @@ class MySQLAdDAO:
         
         merged = {**existing, **data}
         if "stats" in data:
-            merged["stats"] = {**existing.get("stats", {}), **data["stats"]}
+            merged["stats"] = {**(existing.stats or {}), **data["stats"]}
 
         now = now_utc()
         pid = int(id) if str(id).isdigit() else 0

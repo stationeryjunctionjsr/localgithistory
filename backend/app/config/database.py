@@ -20,12 +20,6 @@ def get_database_url() -> str | None:
     if not url:
         return None
     # Ensure async driver for SQLAlchemy asyncio
-    # if url.startswith("oracle:"):
-    #     url = "oracle+oracledb_async:" + url[6:]
-    # elif url.startswith("oracle+oracledb:"):
-    #     url = "oracle+oracledb_async:" + url[16:]
-    # elif not url.startswith("oracle+oracledb_async:") and not url.startswith("mysql"):
-    #     pass
     if url.startswith("mysql"):
         if url.startswith("mysql://"):
             url = url.replace("mysql://", "mysql+aiomysql://", 1)
@@ -49,11 +43,6 @@ def get_async_engine():
         return None
 
     connect_args = {}
-    # wallet_path = os.environ.get("WALLET_PATH")
-    # if wallet_path and DATABASE_URL and DATABASE_URL.startswith("oracle"):
-    #     connect_args["config_dir"] = wallet_path
-    #     connect_args["wallet_location"] = wallet_path
-    #     connect_args["wallet_password"] = os.environ.get("WALLET_PASSWORD", "WalletPassword123#")
 
     import sys
 

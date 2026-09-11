@@ -36,9 +36,6 @@ from app.db.mysql_ad_dao import MySQLAdDAO
 from app.db.mysql_seller_payout_dao import MySQLSellerPayoutDAO
 from app.utils.file_storage import FileStorage
 
-# Oracle DAOs commented out since project moved to 100% relational DB (MySQL)
-# from app.db.banner_dao import OracleBannerDAO
-# from app.db.brand_dao import OracleBrandDAO
 
 _MYSQL_DAO_COLLECTIONS = {
     "users": MySQLUserDAO,

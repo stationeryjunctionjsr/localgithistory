@@ -307,7 +307,7 @@ class MySQLDocStore:
         existing = await self.findById(id)
         if not existing:
             return None
-        db_id = existing.get("_db_id") or id
+        db_id = getattr(existing, "_db_id", None) or id
         factory = self._get_session_factory()
         if not factory:
             return None
@@ -381,7 +381,7 @@ class MySQLDocStore:
         existing = await self.findById(id)
         if not existing:
             return False
-        db_id = existing.get("_db_id") or id
+        db_id = getattr(existing, "_db_id", None) or id
         factory = self._get_session_factory()
         if not factory:
             return False
