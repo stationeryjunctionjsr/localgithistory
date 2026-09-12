@@ -1,9 +1,10 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 from typing import Dict, Any, List, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.models.schemas import CouponCreate, CouponResponse, CouponUpdate, CouponValidateCart
+from app.models.schemas import CouponCreate, CouponValidationResponse, CouponResponse, CouponUpdate, CouponValidateCart
 from app.repositories.coupon_repository import coupon_repository
 from app.repositories.product_repository import product_repository
 from app.utils.auth import get_current_user, require_super_admin
@@ -13,21 +14,21 @@ router = APIRouter()
 
 @router.get("", response_model=List[CouponResponse])
 @router.get("/", response_model=List[CouponResponse])
-async def get_coupons(isActive: Optional[bool] = None, current_user: dict = Depends(require_super_admin)):
+async def get_coupons(isActive: Optional[bool] = None, current_user: User = Depends(require_super_admin)):
     query = {}
     if isActive is not None:
         query["isActive"] = isActive
 
     coupons = await coupon_repository.findAll(query)
-    return [CouponResponse(**coupon) for coupon in coupons]
+    return coupons
 
 
-@router.get("/validate/{code}", response_model=Dict[str, Any])
+@router.get("/validate/{code}", response_model=CouponValidationResponse)
 async def validate_coupon(
     code: str,
     amount: float = Query(...),
     category: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     user_role = (current_user.role if current_user.role is not None else "customer")
     validation = await coupon_repository.validateCoupon(
@@ -46,8 +47,8 @@ async def validate_coupon(
     }
 
 
-@router.post("/validate", response_model=Dict[str, Any])
-async def validate_coupon_with_cart(body: CouponValidateCart, current_user: dict = Depends(get_current_user)):
+@router.post("/validate", response_model=CouponValidationResponse)
+async def validate_coupon_with_cart(body: CouponValidateCart, current_user: User = Depends(get_current_user)):
     """Validate discount using cart items; eligible subtotal is computed from items matching Applies to."""
     user_role = (current_user.role if current_user.role is not None else "customer")
     cart_items = [
@@ -84,11 +85,11 @@ async def validate_coupon_with_cart(body: CouponValidateCart, current_user: dict
 
 
 @router.get("/{coupon_id}", response_model=CouponResponse)
-async def get_coupon(coupon_id: str, current_user: dict = Depends(require_super_admin)):
+async def get_coupon(coupon_id: str, current_user: User = Depends(require_super_admin)):
     coupon = await coupon_repository.findById(coupon_id)
     if not coupon:
         raise HTTPException(status_code=404, detail="Coupon not found")
-    return CouponResponse(**coupon)
+    return CouponResponse(**(coupon if hasattr(coupon, 'model_dump') else coupon))
 
 
 @router.post("", response_model=CouponResponse, status_code=status.HTTP_201_CREATED)
@@ -97,14 +98,14 @@ async def create_coupon(
     coupon_data: CouponCreate,
     resolution: Optional[str] = Query(None),
     force: bool = Query(False),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     try:
-        data = coupon_data.dict()
-        data["resolution"] = resolution
-        data["force"] = force
-        coupon = await coupon_repository.create(data)
-        return CouponResponse(**coupon)
+        payload = CouponCreateInternal(**coupon_data)
+        payload.resolution = resolution
+        payload.force = force
+        coupon = await coupon_repository.create(payload)
+        return CouponResponse(**(coupon if hasattr(coupon, 'model_dump') else coupon))
     except ValueError as e:
         from app.repositories.coupon_repository import OverlapConflictError
 
@@ -121,16 +122,16 @@ async def update_coupon(
     coupon_data: CouponUpdate,
     resolution: Optional[str] = Query(None),
     force: bool = Query(False),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     try:
-        data = coupon_data.dict(exclude_unset=True)
-        data["resolution"] = resolution
-        data["force"] = force
+        data = coupon_data
+        data.resolution = resolution
+        data.force = force
         coupon = await coupon_repository.update(coupon_id, data)
         if not coupon:
             raise HTTPException(status_code=404, detail="Coupon not found")
-        return CouponResponse(**coupon)
+        return CouponResponse(**(coupon if hasattr(coupon, 'model_dump') else coupon))
     except ValueError as e:
         from app.repositories.coupon_repository import OverlapConflictError
 
@@ -142,7 +143,7 @@ async def update_coupon(
 
 
 @router.delete("/{coupon_id}", response_model=MessageResponse)
-async def delete_coupon(coupon_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_coupon(coupon_id: str, current_user: User = Depends(require_super_admin)):
     result = await coupon_repository.delete(coupon_id)
     if not result:
         raise HTTPException(status_code=404, detail="Coupon not found")

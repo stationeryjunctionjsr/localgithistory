@@ -19,16 +19,16 @@ class CustomerSegmentsRepository:
     async def get_by_id(self, segment_id: str) -> Optional[Dict]:
         return await self.storage.findById(segment_id)
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Any) -> Dict:
         now = datetime.datetime.now(timezone.utc).isoformat()
         if "_id" not in data and "id" not in data:
-            data["_id"] = str(uuid.uuid4())
-        data["createdAt"] = data.get("createdAt", now)
-        data["updatedAt"] = data.get("updatedAt", now)
+            data._id = str(uuid.uuid4())
+        data.createdAt = getattr(data, 'createdAt', now)
+        data.updatedAt = getattr(data, 'updatedAt', now)
         return await self.storage.create(data)
 
-    async def update(self, segment_id: str, data: Dict) -> Optional[Dict]:
-        data["updatedAt"] = datetime.datetime.now(timezone.utc).isoformat()
+    async def update(self, segment_id: str, data: Any) -> Optional[Dict]:
+        data.updatedAt = datetime.datetime.now(timezone.utc).isoformat()
         return await self.storage.update(segment_id, data)
 
     async def delete(self, segment_id: str) -> bool:

@@ -44,7 +44,7 @@ class PushNotificationRepository:
         """Get a push notification by ID"""
         return await self.storage.findById(id)
 
-    async def create(self, notification_data: Dict):
+    async def create(self, notification_data: Any):
         """Create a new push notification"""
         notification = {
             "title": notification_data.get("title", ""),
@@ -63,16 +63,16 @@ class PushNotificationRepository:
         }
         return await self.storage.create(notification)
 
-    async def update(self, id: str, update_data: Dict):
+    async def update(self, id: str, update_data: Any):
         """Update a push notification"""
-        update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
+        update_data.updatedAt = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str):
         """Delete a push notification"""
         return await self.storage.delete(id)
 
-    async def updateStats(self, id: str, stats: Dict, userId: Optional[str] = None):
+    async def updateStats(self, id: str, stats: Any, userId: Optional[str] = None):
         """Update delivery/read statistics for a notification"""
         notification = await self.findById(id)
         if notification:
@@ -142,11 +142,11 @@ class PushNotificationRepository:
         # Return subscriptions including expoToken for mobile devices
         return [
             {
-                "userId": d.get("userId"),
-                "endpoint": d.get("endpoint"),
-                "keys": d.get("keys", {}),
-                "expoToken": d.get("expoToken"),
-                "_id": d.get("_id"),
+                "userId": getattr(d, "userId", None),
+                "endpoint": getattr(d, "endpoint", None),
+                "keys": getattr(d, 'keys', {}),
+                "expoToken": getattr(d, "expoToken", None),
+                "_id": getattr(d, "_id", None),
             }
             for d in devices
         ]
@@ -156,10 +156,10 @@ class PushNotificationRepository:
         user_devices = await self.device_storage.findAll({"userId": userId})
         return [
             {
-                "endpoint": d.get("endpoint"),
-                "keys": d.get("keys", {}),
-                "expoToken": d.get("expoToken"),
-                "_id": d.get("_id"),
+                "endpoint": getattr(d, "endpoint", None),
+                "keys": getattr(d, 'keys', {}),
+                "expoToken": getattr(d, "expoToken", None),
+                "_id": getattr(d, "_id", None),
             }
             for d in user_devices
         ]

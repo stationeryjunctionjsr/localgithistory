@@ -109,13 +109,13 @@ class MySQLTrackingDAO:
         await session.execute(text("DELETE FROM sj_tracking_products WHERE tracking_id = :tid"), {"tid": tid})
         await session.execute(text("DELETE FROM sj_tracking_payload WHERE tracking_id = :tid"), {"tid": tid})
 
-        for pid in data.get("productIds", []):
+        for pid in (data.productIds if getattr(data, 'productIds', None) is not None else []):
             await session.execute(
                 text("INSERT INTO sj_tracking_products (tracking_id, product_id) VALUES (:tid, :pid)"),
                 {"tid": tid, "pid": str(pid)},
             )
 
-        for k, v in data.get("payload", {}).items():
+        for k, v in (data.payload if getattr(data, 'payload', None) is not None else {}).items():
             await session.execute(
                 text("INSERT INTO sj_tracking_payload (tracking_id, payload_key, payload_value) VALUES (:tid, :k, :v)"),
                 {"tid": tid, "k": str(k), "v": str(v)},
@@ -166,7 +166,7 @@ class MySQLTrackingDAO:
         params = {"eid": external_id, "c": now, "u": now}
         
         # We mutate a copy of payload so we can pop off known scalars
-        payload = data.get("payload", {})
+        payload = (data.payload if getattr(data, 'payload', None) is not None else {})
         if not isinstance(payload, dict):
             payload = {}
         payload = dict(payload)
@@ -214,7 +214,7 @@ class MySQLTrackingDAO:
             
         merged = {**existing, **data}
         
-        payload = merged.get("payload", {})
+        payload = (merged.payload if getattr(merged, 'payload', None) is not None else {})
         if not isinstance(payload, dict):
             payload = {}
         payload = dict(payload)

@@ -1,4 +1,5 @@
-from app.models.schemas import MessageResponse
+from app.models.user import User
+from app.models.schemas import MessageResponse, ProductReviewResponse, ClassificationTagResponse, ReviewActionResponse, ClassificationActionResponse
 from datetime import datetime
 from typing import Dict, Any, List, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -37,8 +38,8 @@ class ClassificationUpdate(BaseModel):
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=MessageResponse)
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=Dict[str, Any])
-async def create_review(review_data: ReviewCreate, current_user: dict = Depends(get_current_user)):
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=ReviewActionResponse)
+async def create_review(review_data: ReviewCreate, current_user: User = Depends(get_current_user)):
     """Submit a rating and review for a delivered product."""
     user_id = str(current_user.id)
     product_id = str(review_data.productId)
@@ -97,7 +98,7 @@ async def create_review(review_data: ReviewCreate, current_user: dict = Depends(
     return {"message": "Review submitted successfully and is pending moderation.", "review": created}
 
 
-@router.get("/product/{product_id}", response_model=Dict[str, Any])
+@router.get("/product/{product_id}", response_model=List[ProductReviewResponse])
 @cache.ttl_cache(ttl=600.0)
 async def get_product_reviews(product_id: str):
     """Retrieve all approved reviews for a product."""
@@ -108,7 +109,7 @@ async def get_product_reviews(product_id: str):
     return reviews
 
 
-@router.get("/classifications", response_model=Dict[str, Any])
+@router.get("/classifications", response_model=List[ClassificationTagResponse])
 @cache.ttl_cache(ttl=3600.0)
 async def get_active_classifications():
     """Retrieve all active review classifications."""
@@ -118,8 +119,8 @@ async def get_active_classifications():
 # --- Admin Endpoints ---
 
 
-@router.get("/admin/list", response_model=Dict[str, Any])
-async def admin_get_all_reviews(status_filter: Optional[str] = None, current_user: dict = Depends(require_super_admin)):
+@router.get("/admin/list", response_model=List[ProductReviewResponse])
+async def admin_get_all_reviews(status_filter: Optional[str] = None, current_user: User = Depends(require_super_admin)):
     """Get all reviews in the system, optionally filtered by status (super admin only)."""
     query = {}
     if status_filter:
@@ -131,8 +132,8 @@ async def admin_get_all_reviews(status_filter: Optional[str] = None, current_use
     return reviews
 
 
-@router.post("/admin/{review_id}/approve", response_model=Dict[str, Any])
-async def admin_approve_review(review_id: str, current_user: dict = Depends(require_super_admin)):
+@router.post("/admin/{review_id}/approve", response_model=ReviewActionResponse)
+async def admin_approve_review(review_id: str, current_user: User = Depends(require_super_admin)):
     """Approve a product review to make it publicly visible (super admin only)."""
     review = await product_review_repository.findById(review_id)
     if not review:
@@ -156,8 +157,8 @@ async def admin_approve_review(review_id: str, current_user: dict = Depends(requ
     return {"message": "Review approved successfully", "review": updated}
 
 
-@router.post("/admin/{review_id}/remove", response_model=Dict[str, Any])
-async def admin_remove_review(review_id: str, current_user: dict = Depends(require_super_admin)):
+@router.post("/admin/{review_id}/remove", response_model=ReviewActionResponse)
+async def admin_remove_review(review_id: str, current_user: User = Depends(require_super_admin)):
     """Reject/remove a review so it is hidden from the public (super admin only)."""
     review = await product_review_repository.findById(review_id)
     if not review:
@@ -183,15 +184,15 @@ async def admin_remove_review(review_id: str, current_user: dict = Depends(requi
     return {"message": "Review removed successfully", "review": updated}
 
 
-@router.get("/admin/classifications", response_model=Dict[str, Any])
-async def admin_get_classifications(current_user: dict = Depends(require_super_admin)):
+@router.get("/admin/classifications", response_model=List[ClassificationTagResponse])
+async def admin_get_classifications(current_user: User = Depends(require_super_admin)):
     """Retrieve all review classifications (super admin only)."""
     return await review_classification_repository.findAll()
 
 
-@router.post("/admin/classifications", response_model=Dict[str, Any])
+@router.post("/admin/classifications", response_model=ClassificationActionResponse)
 async def admin_create_classification(
-    class_data: ClassificationCreate, current_user: dict = Depends(require_super_admin)
+    class_data: ClassificationCreate, current_user: User = Depends(require_super_admin)
 ):
     """Create a new review classification (super admin only)."""
     name = class_data.name.strip()
@@ -207,9 +208,9 @@ async def admin_create_classification(
     return {"message": "Classification created successfully", "classification": created}
 
 
-@router.put("/admin/classifications/{class_id}", response_model=Dict[str, Any])
+@router.put("/admin/classifications/{class_id}", response_model=ClassificationActionResponse)
 async def admin_update_classification(
-    class_id: str, class_data: ClassificationUpdate, current_user: dict = Depends(require_super_admin)
+    class_id: str, class_data: ClassificationUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Update a review classification (super admin only)."""
     existing = await review_classification_repository.findById(class_id)

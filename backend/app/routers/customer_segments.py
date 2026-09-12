@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 import uuid
@@ -13,6 +14,24 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
+
+class CustomerSegmentResponse(BaseModel):
+    id: str = Field(alias="_id")
+    name: str
+    type: str
+    userIds: List[str]
+    filters: Optional[Dict[str, Any]] = None
+    isActive: bool
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class RefreshSegmentResponse(BaseModel):
+    matchedUsersCount: int
+    matchedUserIds: List[str]
+
+class FilterSegmentResponse(BaseModel):
+    users: List[Dict[str, Any]]
+
 class CustomerSegmentCreate(BaseModel):
     name: str
     type: str  # 'retail' | 'business'
@@ -27,38 +46,38 @@ class CustomerSegmentUpdate(BaseModel):
     isActive: Optional[bool] = None
 
 
-@router.get("", response_model=Dict[str, Any])
-@router.get("/", response_model=Dict[str, Any])
-async def get_segments(type: Optional[str] = None, admin: dict = Depends(require_super_admin)):
+@router.get("", response_model=List[CustomerSegmentResponse])
+@router.get("/", response_model=List[CustomerSegmentResponse])
+async def get_segments(type: Optional[str] = None, admin: User = Depends(require_super_admin)):
     segments = await customer_segments_repository.get_all(type)
     return segments
 
 
-@router.get("/{segment_id}", response_model=Dict[str, Any])
-async def get_segment(segment_id: str, admin: dict = Depends(require_super_admin)):
+@router.get("/{segment_id}", response_model=CustomerSegmentResponse)
+async def get_segment(segment_id: str, admin: User = Depends(require_super_admin)):
     segment = await customer_segments_repository.get_by_id(segment_id)
     if not segment:
         raise HTTPException(status_code=404, detail="Segment not found")
     return segment
 
 
-@router.post("", response_model=Dict[str, Any])
-@router.post("/", response_model=Dict[str, Any])
-async def create_segment(segment: CustomerSegmentCreate, admin: dict = Depends(require_super_admin)):
-    data = segment.model_dump()
-    data["_id"] = str(uuid.uuid4())
-    data["isActive"] = True
+@router.post("", response_model=CustomerSegmentResponse)
+@router.post("/", response_model=CustomerSegmentResponse)
+async def create_segment(segment: CustomerSegmentCreate, admin: User = Depends(require_super_admin)):
+    data = segment
+    data._id = str(uuid.uuid4())
+    data.isActive = True
     created = await customer_segments_repository.create(data)
     return created
 
 
-@router.put("/{segment_id}", response_model=Dict[str, Any])
-async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin: dict = Depends(require_super_admin)):
+@router.put("/{segment_id}", response_model=CustomerSegmentResponse)
+async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin: User = Depends(require_super_admin)):
     existing = await customer_segments_repository.get_by_id(segment_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Segment not found")
 
-    update_data = {k: v for k, v in segment.model_dump(exclude_unset=True).items()}
+    update_data = {k: v for k, v in segment.items()}
     # Support direct toggle of isActive if passed in extra data
     # Note: request.json() is async and needs the actual request object injected in the route
     # For now, we'll rely on the schema or a more explicit approach.
@@ -70,7 +89,7 @@ async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin:
 
 
 @router.delete("/{segment_id}", response_model=MessageResponse)
-async def delete_segment(segment_id: str, admin: dict = Depends(require_super_admin)):
+async def delete_segment(segment_id: str, admin: User = Depends(require_super_admin)):
     success = await customer_segments_repository.delete(segment_id)
     if not success:
         raise HTTPException(status_code=404, detail="Segment not found")
@@ -244,13 +263,13 @@ async def seed_system_segments():
             await asyncio.sleep(0.5)
 
 
-@router.post("/filter", response_model=Dict[str, Any])
-async def filter_users(criteria: FilterCriteria, admin: dict = Depends(require_super_admin)):
+@router.post("/filter", response_model=FilterSegmentResponse)
+async def filter_users(criteria: FilterCriteria, admin: User = Depends(require_super_admin)):
     return await run_segment_filter(criteria)
 
 
-@router.post("/{segment_id}/refresh", response_model=Dict[str, Any])
-async def refresh_segment(segment_id: str, admin: dict = Depends(require_super_admin)):
+@router.post("/{segment_id}/refresh", response_model=RefreshSegmentResponse)
+async def refresh_segment(segment_id: str, admin: User = Depends(require_super_admin)):
     segment = await customer_segments_repository.get_by_id(segment_id)
     if not segment:
         raise HTTPException(status_code=404, detail="Segment not found")

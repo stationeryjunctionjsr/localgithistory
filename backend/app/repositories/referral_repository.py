@@ -43,7 +43,7 @@ class ReferralRepository:
             }
         return doc
 
-    async def update_settings(self, update_data: Dict) -> Dict:
+    async def update_settings(self, update_data: Any) -> Dict:
         settings = await self.get_settings()
         return await self.storage.update(settings["_id"], update_data)
 

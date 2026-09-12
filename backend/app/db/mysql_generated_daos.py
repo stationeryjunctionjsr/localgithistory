@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
-from app.db.typed_doc_configs import TYPED_DOC_DAOS
+from app.db.flat_relational_configs import FLAT_RELATIONAL_DAOS
 from app.db.db_utils import now_utc
 
 
@@ -17,11 +17,11 @@ class DynamicRelationalDAO:
     def __init__(self, table_name: str, config: Dict):
         self.table_name = table_name
         self.config = config
-        # Fetch the original scalar_map from the old typed_doc config
+        # Fetch the original scalar_map from the old config
         api_name = config["api_name"]
-        self.typed_doc_dao = TYPED_DOC_DAOS.get(api_name)
-        self.scalar_map = self.typed_doc_dao.scalar_map if self.typed_doc_dao else {}
-        self.bool_keys = self.typed_doc_dao.bool_api_keys if self.typed_doc_dao else set()
+        self.flat_relational_dao = FLAT_RELATIONAL_DAOS.get(api_name)
+        self.scalar_map = self.flat_relational_dao.scalar_map if self.flat_relational_dao else {}
+        self.bool_keys = self.flat_relational_dao.bool_api_keys if self.flat_relational_dao else set()
 
     @property
     def TABLE(self):
@@ -31,7 +31,7 @@ class DynamicRelationalDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, children: Dict) -> Dict:
+    def _row_to_dict(self, r, children: Dict) -> Any:
         out = {"_id": str(r.id), "externalId": getattr(r, "external_id", None)}
         if hasattr(r, "created_at") and r.created_at:
             out["createdAt"] = r.created_at.isoformat()
@@ -45,7 +45,8 @@ class DynamicRelationalDAO:
             out[api_key] = val
         for k, v in children.items():
             out[k] = v
-        return out
+        schema_cls = self.flat_relational_dao.schema_cls if getattr(self, "flat_relational_dao", None) else None
+        return schema_cls(**out) if schema_cls else out
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}
@@ -119,7 +120,7 @@ class DynamicRelationalDAO:
                         params[f"v{i}"] = str(item.get(a_col, ""))
                     await session.execute(sql, params)
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
         factory = self._factory()
         if not factory:
             return []
@@ -140,14 +141,14 @@ class DynamicRelationalDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [self._row_to_dict(r, c_map[r.id]) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Any]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Any]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> Any:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -170,7 +171,7 @@ class DynamicRelationalDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -335,3 +336,7 @@ TABLES_CONFIG = {
 GENERATED_DAOS = {}
 for t, conf in TABLES_CONFIG.items():
     GENERATED_DAOS[conf["api_name"]] = DynamicRelationalDAO(t, conf)
+
+
+
+

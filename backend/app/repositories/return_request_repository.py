@@ -80,38 +80,38 @@ class ReturnRequestRepository:
     async def findByOrderId(self, order_id: str) -> List[Dict]:
         return await self.findAll({"orderId": order_id})
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Any) -> Dict:
         return_id = await self.generateReturnId()
         request = {
             "id": return_id,
             "returnId": return_id,
-            "orderId": data["orderId"],
-            "userId": data["userId"],
-            "items": data["items"],
-            "paymentMethod": data["paymentMethod"],
-            "upiPaymentScreenshot": data.get("upiPaymentScreenshot"),
-            "notes": data.get("notes"),
-            "status": data.get("status", "pending"),
-            "sellerId": data.get("sellerId"),
-            "deliverySlotId": data.get("deliverySlotId"),
-            "deliverySlotConfigId": data.get("deliverySlotConfigId"),
-            "deliverySlotDate": data.get("deliverySlotDate"),
-            "valetId": data.get("valetId"),
-            "pendingValetId": data.get("pendingValetId"),
-            "valetAssignedAt": data.get("valetAssignedAt"),
-            "valetCascadeCount": data.get("valetCascadeCount", 0),
-            "valetDeclineHistory": data.get("valetDeclineHistory", []),
-            "valetAcceptedAt": data.get("valetAcceptedAt"),
-            "valetDeclinedAt": data.get("valetDeclinedAt"),
-            "valetDeclineReason": data.get("valetDeclineReason"),
-            "deliveryCharge": data.get("deliveryCharge", 0),
+            "orderId": data.orderId,
+            "userId": data.userId,
+            "items": data.items,
+            "paymentMethod": data.paymentMethod,
+            "upiPaymentScreenshot": getattr(data, "upiPaymentScreenshot", None),
+            "notes": getattr(data, "notes", None),
+            "status": getattr(data, 'status', "pending"),
+            "sellerId": getattr(data, "sellerId", None),
+            "deliverySlotId": getattr(data, "deliverySlotId", None),
+            "deliverySlotConfigId": getattr(data, "deliverySlotConfigId", None),
+            "deliverySlotDate": getattr(data, "deliverySlotDate", None),
+            "valetId": getattr(data, "valetId", None),
+            "pendingValetId": getattr(data, "pendingValetId", None),
+            "valetAssignedAt": getattr(data, "valetAssignedAt", None),
+            "valetCascadeCount": getattr(data, 'valetCascadeCount', 0),
+            "valetDeclineHistory": getattr(data, 'valetDeclineHistory', []),
+            "valetAcceptedAt": getattr(data, "valetAcceptedAt", None),
+            "valetDeclinedAt": getattr(data, "valetDeclinedAt", None),
+            "valetDeclineReason": getattr(data, "valetDeclineReason", None),
+            "deliveryCharge": getattr(data, 'deliveryCharge', 0),
             "createdAt": datetime.utcnow().isoformat(),
             "updatedAt": datetime.utcnow().isoformat(),
         }
         return await self.storage.create(request)
 
-    async def update(self, id: str, update_data: Dict) -> Dict:
-        update_data["updatedAt"] = datetime.utcnow().isoformat()
+    async def update(self, id: str, update_data: Any) -> Dict:
+        update_data.updatedAt = datetime.utcnow().isoformat()
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str) -> Dict:

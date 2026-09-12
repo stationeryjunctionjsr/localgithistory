@@ -1,5 +1,7 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
+from app.models.product import Product
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -32,9 +34,9 @@ def get_min_quantity_for_role(product: dict, role: str) -> int:
     return 1
 
 
-@router.get("", response_model=List[Dict[str, Any]])
-@router.get("/", response_model=Dict[str, Any])
-async def get_wishlist(current_user: dict = Depends(get_current_user)):
+@router.get("", response_model=List[Product])
+@router.get("/", response_model=List[Product])
+async def get_wishlist(current_user: User = Depends(get_current_user)):
     """Get user's wishlist"""
     try:
         wishlist = await wishlist_repository.findByUser(current_user.id)
@@ -90,7 +92,7 @@ async def get_wishlist(current_user: dict = Depends(get_current_user)):
 
 @router.post("", response_model=Dict[str, Any])
 @router.post("/", response_model=Dict[str, Any])
-async def add_to_wishlist(item: WishlistItemRequest, current_user: dict = Depends(get_current_user)):
+async def add_to_wishlist(item: WishlistItemRequest, current_user: User = Depends(get_current_user)):
     """Add item to wishlist"""
     try:
         product = await product_repository.findById(item.productId)
@@ -118,7 +120,7 @@ async def add_to_wishlist(item: WishlistItemRequest, current_user: dict = Depend
 
 
 @router.delete("/{product_id}", response_model=MessageResponse)
-async def remove_from_wishlist(product_id: str, current_user: dict = Depends(get_current_user)):
+async def remove_from_wishlist(product_id: str, current_user: User = Depends(get_current_user)):
     """Remove item from wishlist"""
     try:
         removed = await wishlist_repository.removeItem(current_user.id, product_id)
@@ -134,7 +136,7 @@ async def remove_from_wishlist(product_id: str, current_user: dict = Depends(get
 
 @router.delete("", response_model=MessageResponse)
 @router.delete("/", response_model=MessageResponse)
-async def clear_wishlist(current_user: dict = Depends(get_current_user)):
+async def clear_wishlist(current_user: User = Depends(get_current_user)):
     """Clear wishlist"""
     try:
         await wishlist_repository.clear(current_user.id)

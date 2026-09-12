@@ -1,3 +1,4 @@
+from app.models.schemas import Address, CartItem, OrderItem, VisibilityRule, SellerPermissions
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
@@ -34,8 +35,8 @@ class SubOrder(DictCompatibleModel):
     coupon_code: Optional[str] = Field(default=None, alias='couponCode')
     coupon_info: Optional[Dict] = Field(default=None, alias='couponInfo')
     commission_status: str = Field(default="unrealized", alias='commissionStatus')
-    shipping_address: Optional[Dict] = Field(default=None, alias='shippingAddress')
-    billing_address: Optional[Dict] = Field(default=None, alias='billingAddress')
+    shipping_address: Optional['Address'] = Field(default=None, alias='shippingAddress')
+    billing_address: Optional['Address'] = Field(default=None, alias='billingAddress')
     pickup_status: str = Field(default="pending_pickup", alias='pickupStatus')
     assigned_valet: Optional[str] = Field(default=None, alias='assignedValet')
     items: List[SubOrderItem] = []

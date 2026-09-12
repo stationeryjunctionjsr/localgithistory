@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 from typing import List, Dict, Any
 from typing import List, Optional
@@ -40,7 +41,7 @@ class CategoryUpdate(BaseModel):
     isReturnable: Optional[bool] = None
 
 
-@router.get("/available", response_model=List[Dict[str, Any]])
+@router.get("/available", response_model=List[Category])
 @cache.ttl_cache(ttl=300.0)
 async def get_available_categories(pincode: Optional[str] = None, role: Optional[str] = "customer"):
     """
@@ -109,7 +110,7 @@ async def get_available_categories(pincode: Optional[str] = None, role: Optional
 
 
 
-@router.get("/public", response_model=List[Dict[str, Any]])
+@router.get("/public", response_model=List[Category])
 @cache.ttl_cache(ttl=300.0)
 async def get_public_categories(forHomepage: bool = False):
     """Get active categories (public endpoint). If forHomepage=true, only categories with display-in-homepage enabled (web & mobile)."""
@@ -134,7 +135,7 @@ async def get_public_categories(forHomepage: bool = False):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/public/tags/{tag_name}/categories", response_model=List[Dict[str, Any]])
+@router.get("/public/tags/{tag_name}/categories", response_model=List[Category])
 @cache.ttl_cache(ttl=300.0)
 async def get_tag_categories(tag_name: str):
     """Get active categories associated with a specific tag"""
@@ -161,7 +162,7 @@ async def get_tag_categories(tag_name: str):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/public/tags/{tag_name}/brands", response_model=List[Dict[str, Any]])
+@router.get("/public/tags/{tag_name}/brands", response_model=List[Any])
 @cache.ttl_cache(ttl=300.0)
 async def get_tag_brands(tag_name: str):
     """Get brands associated with a specific tag via categories and products"""
@@ -217,9 +218,9 @@ def _invalidate_category_caches():
         pass
 
 
-@router.get("", response_model=List[Dict[str, Any]])
-@router.get("/", response_model=List[Dict[str, Any]])
-async def get_categories(current_user: dict = Depends(require_super_admin)):
+@router.get("", response_model=List[Category])
+@router.get("/", response_model=List[Category])
+async def get_categories(current_user: User = Depends(require_super_admin)):
     """Get all categories (Super Admin only)"""
     try:
         categories = await category_repository.findAll()
@@ -246,15 +247,15 @@ async def get_categories(current_user: dict = Depends(require_super_admin)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/{category_id}", response_model=Dict[str, Any])
-async def get_category(category_id: str, current_user: dict = Depends(require_super_admin)):
+@router.get("/{category_id}", response_model=Category)
+async def get_category(category_id: str, current_user: User = Depends(require_super_admin)):
     """Get category by ID (Super Admin only)"""
     try:
         category = await category_repository.findById(category_id)
         if not category:
             raise HTTPException(status_code=404, detail="Category not found")
         category["gst"] = (category.gst if category.gst is not None else 0)
-        return category
+        return category if hasattr(category, "model_dump") else category
     except HTTPException:
         raise
     except Exception as e:
@@ -262,9 +263,9 @@ async def get_category(category_id: str, current_user: dict = Depends(require_su
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("/upload-images", response_model=Dict[str, Any])
+@router.post("/upload-images", response_model=Dict[str, List[str]])
 async def upload_category_images(
-    images: List[UploadFile] = File(...), current_user: dict = Depends(require_super_admin)
+    images: List[UploadFile] = File(...), current_user: User = Depends(require_super_admin)
 ):
     """Upload category images (Super Admin only). Uses OCI Object Storage when configured."""
     try:
@@ -284,9 +285,9 @@ async def upload_category_images(
         raise HTTPException(status_code=500, detail="Server error")
 
 
-@router.post("", response_model=Dict[str, Any])
-@router.post("/", response_model=Dict[str, Any])
-async def create_category(category: CategoryBase, current_user: dict = Depends(require_super_admin)):
+@router.post("", response_model=Category)
+@router.post("/", response_model=Category)
+async def create_category(category: CategoryBase, current_user: User = Depends(require_super_admin)):
     """Create a new category (Super Admin only)"""
     try:
         # Check if category with same name already exists (case-insensitive)
@@ -319,9 +320,9 @@ async def create_category(category: CategoryBase, current_user: dict = Depends(r
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/{category_id}", response_model=Dict[str, Any])
+@router.put("/{category_id}", response_model=Category)
 async def update_category(
-    category_id: str, category_update: CategoryUpdate, current_user: dict = Depends(require_super_admin)
+    category_id: str, category_update: CategoryUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Update a category (Super Admin only)"""
     try:
@@ -337,27 +338,27 @@ async def update_category(
             for cat in all_categories:
                 if (cat.name or "").strip().lower() == name_lower and str(cat.id) != str(category_id):
                     raise HTTPException(status_code=400, detail=f"Category with name '{category_update.name}' already exists")
-            update_data["name"] = category_update.name.strip()
+            update_data.name = category_update.name.strip()
 
         if category_update.description is not None:
-            update_data["description"] = category_update.description
+            update_data.description = category_update.description
         if category_update.images is not None:
-            update_data["images"] = category_update.images
+            update_data.images = category_update.images
         if category_update.subCategories is not None:
-            update_data["subCategories"] = category_update.subCategories
+            update_data.subCategories = category_update.subCategories
         if category_update.minimumQuantity is not None:
-            update_data["minimumQuantity"] = category_update.minimumQuantity
+            update_data.minimumQuantity = category_update.minimumQuantity
         # Always update categoryTags if it's provided in the request (even if empty list)
         if category_update.categoryTag is not None:
-            update_data["categoryTag"] = category_update.categoryTag
+            update_data.categoryTag = category_update.categoryTag
         if category_update.isActive is not None:
-            update_data["isActive"] = category_update.isActive
+            update_data.isActive = category_update.isActive
         if category_update.showInMobileHomepage is not None:
-            update_data["showInMobileHomepage"] = category_update.showInMobileHomepage
+            update_data.showInMobileHomepage = category_update.showInMobileHomepage
         if category_update.gst is not None:
-            update_data["gst"] = category_update.gst
+            update_data.gst = category_update.gst
         if category_update.isReturnable is not None:
-            update_data["isReturnable"] = category_update.isReturnable
+            update_data.isReturnable = category_update.isReturnable
 
         # Ensure we have at least one field to update
         if not update_data:
@@ -365,7 +366,7 @@ async def update_category(
 
         updated_category = await category_repository.update(category_id, update_data)
         _invalidate_category_caches()
-        return updated_category
+        return updated if hasattr(updated, "model_dump") else updated_category
     except HTTPException:
         raise
     except Exception as e:
@@ -374,7 +375,7 @@ async def update_category(
 
 
 @router.delete("/{category_id}", response_model=MessageResponse)
-async def delete_category(category_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_category(category_id: str, current_user: User = Depends(require_super_admin)):
     """Delete a category (soft delete) (Super Admin only)"""
     try:
         category = await category_repository.findById(category_id)

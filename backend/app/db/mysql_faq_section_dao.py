@@ -37,7 +37,7 @@ class MySQLFaqSectionDAO(MySQLFlatBaseDAO):
             await session.execute(text("DELETE FROM sj_faq_items WHERE section_id = :sid"), {"sid": section_id})
             if items:
                 params = [
-                    {"sid": section_id, "q": item.get("question", ""), "a": item.get("answer", "")} for item in items
+                    {"sid": section_id, "q": (item.question if getattr(item, 'question', None) is not None else ""), "a": (item.answer if getattr(item, 'answer', None) is not None else "")} for item in items
                 ]
                 await session.execute(
                     text("INSERT INTO sj_faq_items (section_id, question, answer) VALUES (:sid, :q, :a)"), params

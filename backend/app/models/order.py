@@ -12,6 +12,7 @@ class OrderAddress(DictCompatibleModel):
     phone: Optional[str] = None
 
 class Order(DictCompatibleModel):
+    session_id: Optional[str] = Field(default=None, alias="sessionId")
     id: str = Field(alias="_id")
     order_number: Optional[str] = Field(default=None, alias="orderNumber")
     user: str

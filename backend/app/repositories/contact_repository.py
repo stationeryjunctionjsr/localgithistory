@@ -13,7 +13,7 @@ class ContactRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def create(self, contact_data: Dict):
+    async def create(self, contact_data: Any):
         # Ensure addresses array has max 2 items
         addresses = contact_data.get("addresses", [])
         if len(addresses) > 2:
@@ -35,9 +35,9 @@ class ContactRepository:
 
         return await self.storage.create(contact)
 
-    async def update(self, id: str, update_data: Dict):
+    async def update(self, id: str, update_data: Any):
         # If email is explicitly None, remove it from the contact
-        if "email" in update_data and update_data["email"] is None:
+        if "email" in update_data and update_data.email is None:
             # Get the current contact
             contact = await self.storage.findById(id)
             if contact:

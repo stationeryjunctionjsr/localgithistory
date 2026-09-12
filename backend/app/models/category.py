@@ -8,6 +8,7 @@ class Category(DictCompatibleModel):
     name: str
     description: Optional[str] = None
     is_active: bool = Field(default=True, alias='isActive')
+    show_in_mobile_homepage: bool = Field(default=False, alias='showInMobileHomepage')
     category_tag: Optional[str] = Field(default=None, alias='categoryTag')
     minimum_quantity: Optional[int] = Field(default=None, alias='minimumQuantity')
     gst: Optional[float] = None

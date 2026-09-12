@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -35,10 +36,10 @@ async def populate_ticket(ticket):
             {
                 **response,
                 "user": {
-                    "_id": response_user.get("_id"),
-                    "name": response_user.get("name"),
-                    "email": response_user.get("email"),
-                    "role": response_user.get("role"),
+                    "_id": response_getattr(user, "id", None),
+                    "name": response_getattr(user, "name", None),
+                    "email": response_getattr(user, "email", None),
+                    "role": response_getattr(user, "role", None),
                 }
                 if response_user
                 else None,
@@ -64,10 +65,10 @@ async def populate_ticket(ticket):
     }
 
 
-@router.get("", response_model=List[dict])
-@router.get("/", response_model=List[dict])
+@router.get("", response_model=List[SupportTicketResponse])
+@router.get("/", response_model=List[SupportTicketResponse])
 async def get_support_tickets(
-    status: Optional[str] = None, priority: Optional[str] = None, current_user: dict = Depends(get_current_user)
+    status: Optional[str] = None, priority: Optional[str] = None, current_user: User = Depends(get_current_user)
 ):
     query = {}
 
@@ -85,8 +86,8 @@ async def get_support_tickets(
     return populated_tickets
 
 
-@router.get("/{ticket_id}", response_model=dict)
-async def get_support_ticket(ticket_id: str, current_user: dict = Depends(get_current_user)):
+@router.get("/{ticket_id}", response_model=SupportTicketResponse)
+async def get_support_ticket(ticket_id: str, current_user: User = Depends(get_current_user)):
     ticket = await support_ticket_repository.findById(ticket_id)
 
     if not ticket:
@@ -99,8 +100,8 @@ async def get_support_ticket(ticket_id: str, current_user: dict = Depends(get_cu
     return populated_ticket
 
 
-@router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SupportTicketResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=SupportTicketResponse, status_code=status.HTTP_201_CREATED)
 async def create_support_ticket(
     ticket_data: SupportTicketCreate, current_user: Optional[dict] = Depends(get_optional_user)
 ):
@@ -123,9 +124,9 @@ async def create_support_ticket(
     return populated_ticket
 
 
-@router.put("/{ticket_id}/status", response_model=dict)
+@router.put("/{ticket_id}/status", response_model=SupportTicketResponse)
 async def update_ticket_status(
-    ticket_id: str, status_data: StatusUpdate, current_user: dict = Depends(require_super_admin)
+    ticket_id: str, status_data: StatusUpdate, current_user: User = Depends(require_super_admin)
 ):
     ticket = await support_ticket_repository.findById(ticket_id)
     if not ticket:
@@ -133,7 +134,7 @@ async def update_ticket_status(
 
     update_data = {"status": status_data.status}
     if status_data.assignedTo:
-        update_data["assignedTo"] = status_data.assignedTo
+        update_data.assignedTo = status_data.assignedTo
 
     updated_ticket = await support_ticket_repository.update(ticket_id, update_data)
     populated_ticket = await populate_ticket(updated_ticket)
@@ -141,9 +142,9 @@ async def update_ticket_status(
     return populated_ticket
 
 
-@router.post("/{ticket_id}/response", response_model=dict)
+@router.post("/{ticket_id}/response", response_model=SupportTicketResponse)
 async def add_ticket_response(
-    ticket_id: str, response_data: TicketResponseCreate, current_user: dict = Depends(get_current_user)
+    ticket_id: str, response_data: TicketResponseCreate, current_user: User = Depends(get_current_user)
 ):
     ticket = await support_ticket_repository.findById(ticket_id)
     if not ticket:
@@ -170,9 +171,9 @@ async def add_ticket_response(
     return populated_ticket
 
 
-@router.put("/{ticket_id}/priority", response_model=dict)
+@router.put("/{ticket_id}/priority", response_model=SupportTicketResponse)
 async def update_ticket_priority(
-    ticket_id: str, priority_data: PriorityUpdate, current_user: dict = Depends(require_super_admin)
+    ticket_id: str, priority_data: PriorityUpdate, current_user: User = Depends(require_super_admin)
 ):
     ticket = await support_ticket_repository.update(ticket_id, {"priority": priority_data.priority})
 

@@ -178,60 +178,59 @@ class MySQLUserDAO:
         await session.execute(text("DELETE FROM sj_seller_zones WHERE user_id = :uid"), {"uid": uid})
 
         # Insert Addresses
-        address = data.get("address")
-        saved_addresses = data.get("savedAddresses", [])
-        if address and isinstance(address, dict):
+        address = getattr(data, "address", None)
+        saved_addresses = getattr(data, "savedAddresses", [])
+        if address:
             await session.execute(
                 text(
                     "INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone) VALUES (:uid, 1, :st, :c, :s, :p, :ph)"
                 ),
                 {
                     "uid": uid,
-                    "st": address.get("street"),
-                    "c": address.get("city"),
-                    "s": address.get("state"),
-                    "p": address.get("pincode"),
-                    "ph": address.get("phone"),
+                    "st": address.street,
+                    "c": address.city,
+                    "s": address.state,
+                    "p": address.pincode,
+                    "ph": getattr(address, "phone", None),
                 },
             )
         for a in saved_addresses:
-            if isinstance(a, dict) and a != address:
+            if a != address:
                 await session.execute(
                     text(
                         "INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone) VALUES (:uid, 0, :st, :c, :s, :p, :ph)"
                     ),
                     {
                         "uid": uid,
-                        "st": a.get("street"),
-                        "c": a.get("city"),
-                        "s": a.get("state"),
-                        "p": a.get("pincode"),
-                        "ph": a.get("phone"),
+                        "st": a.street,
+                        "c": a.city,
+                        "s": a.state,
+                        "p": a.pincode,
+                        "ph": getattr(a, "phone", None),
                     },
                 )
 
         # Insert Permissions & Pincodes
-        seller_perms = data.get("sellerPermissions", {})
-        for p in seller_perms.get("serviceablePincodes", []):
-            await session.execute(
-                text(
-                    "INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'serviceable')"
-                ),
-                {"uid": uid, "p": p},
-            )
-        for p in seller_perms.get("urgentPincodes", []):
-            await session.execute(
-                text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'urgent')"),
-                {"uid": uid, "p": p},
-            )
-        for p in seller_perms.get("slotPincodes", []):
-            await session.execute(
-                text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'slot')"),
-                {"uid": uid, "p": p},
-            )
+        seller_perms = getattr(data, "sellerPermissions", None)
+        if seller_perms:
+            for p in getattr(seller_perms, "serviceablePincodes", []):
+                await session.execute(
+                    text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'serviceable')"),
+                    {"uid": uid, "p": p},
+                )
+            for p in getattr(seller_perms, "urgentPincodes", []):
+                await session.execute(
+                    text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'urgent')"),
+                    {"uid": uid, "p": p},
+                )
+            for p in getattr(seller_perms, "slotPincodes", []):
+                await session.execute(
+                    text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'slot')"),
+                    {"uid": uid, "p": p},
+                )
 
         # Insert Zones — serviceAreaZones now carries zone external_ids
-        for zone_ext_id in data.get("serviceAreaZones", []):
+        for zone_ext_id in getattr(data, "serviceAreaZones", []):
             # Look up the display name from sj_delivery_zones
             name_res = await session.execute(
                 text("SELECT name FROM sj_delivery_zones WHERE external_id = :eid LIMIT 1"),
@@ -432,24 +431,24 @@ class MySQLUserDAO:
                 {
                     "external_id": external_id,
                     "user_id_formatted": user_id_formatted,
-                    "name": data.get("name") or "Customer",
-                    "email": data.get("email"),
-                    "password_hash": data.get("password"),
-                    "role": data.get("role", "customer"),
-                    "phone": data.get("phone") or None,
-                    "company_name": data.get("companyName"),
-                    "is_active": 1 if data.get("isActive", True) else None,
-                    "approval_status": data.get("approvalStatus", "approved"),
-                    "is_deactivated": 1 if data.get("isDeactivated") else None,
-                    "credit_limit": data.get("creditLimit", 0),
-                    "credit_used": data.get("creditUsed", 0),
-                    "payment_terms": str(data.get("paymentTerms", "30")),
-                    "assigned_salesperson": data.get("assignedSalesperson"),
-                    "is_email_verified": 1 if data.get("isEmailVerified", False) else None,
-                    "referral_code": data.get("referralCode"),
-                    "is_seller_admin": 1 if data.get("isSellerAdmin") else None,
-                    "is_on_duty": 1 if data.get("isOnDuty") else None,
-                    "commission_override_pct": data.get("commissionOverridePct"),
+                    "name": data.name or "Customer",
+                    "email": data.email,
+                    "password_hash": data.password,
+                    "role": (data.role if getattr(data, 'role', None) is not None else "customer"),
+                    "phone": data.phone or None,
+                    "company_name": data.companyName,
+                    "is_active": 1 if (data.isActive if getattr(data, 'isActive', None) is not None else True) else None,
+                    "approval_status": (data.approvalStatus if getattr(data, 'approvalStatus', None) is not None else "approved"),
+                    "is_deactivated": 1 if data.isDeactivated else None,
+                    "credit_limit": (data.creditLimit if getattr(data, 'creditLimit', None) is not None else 0),
+                    "credit_used": (data.creditUsed if getattr(data, 'creditUsed', None) is not None else 0),
+                    "payment_terms": str((data.paymentTerms if getattr(data, 'paymentTerms', None) is not None else "30")),
+                    "assigned_salesperson": data.assignedSalesperson,
+                    "is_email_verified": 1 if (data.isEmailVerified if getattr(data, 'isEmailVerified', None) is not None else False) else None,
+                    "referral_code": data.referralCode,
+                    "is_seller_admin": 1 if data.isSellerAdmin else None,
+                    "is_on_duty": 1 if data.isOnDuty else None,
+                    "commission_override_pct": data.commissionOverridePct,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -509,26 +508,26 @@ class MySQLUserDAO:
             """),
                 {
                     "id": int(id) if str(id).isdigit() else None,
-                    "name": merged.get("name"),
-                    "email": merged.get("email"),
-                    "password_hash": merged.get("password"),
-                    "role": merged.get("role"),
-                    "phone": merged.get("phone") or None,
-                    "company_name": merged.get("companyName"),
-                    "is_active": 1 if merged.get("isActive", True) else None,
-                    "approval_status": merged.get("approvalStatus"),
-                    "is_deactivated": 1 if merged.get("isDeactivated") else None,
-                    "credit_limit": merged.get("creditLimit", 0),
-                    "credit_used": merged.get("creditUsed", 0),
-                    "payment_terms": str(merged.get("paymentTerms"))
-                    if merged.get("paymentTerms") is not None
+                    "name": merged.name,
+                    "email": merged.email,
+                    "password_hash": merged.password,
+                    "role": merged.role,
+                    "phone": merged.phone or None,
+                    "company_name": merged.companyName,
+                    "is_active": 1 if (merged.isActive if getattr(merged, 'isActive', None) is not None else True) else None,
+                    "approval_status": merged.approvalStatus,
+                    "is_deactivated": 1 if merged.isDeactivated else None,
+                    "credit_limit": (merged.creditLimit if getattr(merged, 'creditLimit', None) is not None else 0),
+                    "credit_used": (merged.creditUsed if getattr(merged, 'creditUsed', None) is not None else 0),
+                    "payment_terms": str(merged.paymentTerms)
+                    if merged.paymentTerms is not None
                     else None,
-                    "assigned_salesperson": merged.get("assignedSalesperson"),
-                    "is_email_verified": 1 if merged.get("isEmailVerified", False) else None,
-                    "referral_code": merged.get("referralCode"),
-                    "is_seller_admin": 1 if merged.get("isSellerAdmin") else None,
-                    "is_on_duty": 1 if merged.get("isOnDuty") else None,
-                    "commission_override_pct": merged.get("commissionOverridePct"),
+                    "assigned_salesperson": merged.assignedSalesperson,
+                    "is_email_verified": 1 if (merged.isEmailVerified if getattr(merged, 'isEmailVerified', None) is not None else False) else None,
+                    "referral_code": merged.referralCode,
+                    "is_seller_admin": 1 if merged.isSellerAdmin else None,
+                    "is_on_duty": 1 if merged.isOnDuty else None,
+                    "commission_override_pct": merged.commissionOverridePct,
                     "updated_at": now,
                 },
             )

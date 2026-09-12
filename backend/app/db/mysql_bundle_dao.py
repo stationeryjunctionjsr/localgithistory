@@ -5,6 +5,7 @@ from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.db.mysql_flat_base_dao import MySQLFlatBaseDAO
+from app.models.schemas import BundleResponse
 
 
 class MySQLBundleDAO(MySQLFlatBaseDAO):
@@ -21,6 +22,7 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
             },
             
             bool_api_keys=frozenset({"isActive"}),
+            schema_cls=BundleResponse,
         )
 
     async def _fetch_products(self, bundle_id: str) -> List[Dict]:

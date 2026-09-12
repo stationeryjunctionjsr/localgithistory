@@ -20,9 +20,9 @@ class DeliveryChargeRepository:
         for dc in all_charges:
             if (
                 dc.get("isActive")
-                and dc.get("state", "").lower() == state.lower()
-                and dc.get("city", "").lower() == city.lower()
-                and dc.get("district", "").lower() == district.lower()
+                and dc.get("state", "").lower() == (state or "").lower()
+                and dc.get("city", "").lower() == (city or "").lower()
+                and dc.get("district", "").lower() == (district or "").lower()
                 and not dc.get("pincode")
             ):  # Old location-based charges don't have pincode
                 return dc
@@ -55,7 +55,7 @@ class DeliveryChargeRepository:
         defaults = await self.default_storage.findAll()
         return defaults[0] if defaults else None
 
-    async def setDefaultCharge(self, default_data: Dict):
+    async def setDefaultCharge(self, default_data: Any):
         existing = await self.getDefaultCharge()
 
         # Validate tiers
@@ -254,7 +254,7 @@ class DeliveryChargeRepository:
             "urgentDeliveryCharge": None,
         }
 
-    def isChargeApplicableToRole(self, charge_data: Dict, user_role: str) -> bool:
+    def isChargeApplicableToRole(self, charge_data: Any, user_role: str) -> bool:
         """Check if delivery charge is applicable to the user's role"""
         if not charge_data:
             return True  # Default to applicable if no data
@@ -302,7 +302,7 @@ class DeliveryChargeRepository:
             "tier": last_tier,
         }
 
-    async def create(self, charge_data: Dict):
+    async def create(self, charge_data: Any):
         # Check if pincode already exists
         if charge_data.get("pincode"):
             existing = await self.findByPincode(charge_data.get("pincode"))
@@ -327,8 +327,8 @@ class DeliveryChargeRepository:
             "district": charge_data.get("district", ""),
             # If default is applied, don't store charge/minCartValue/tiers
             "applyDefaultCharge": apply_default,
-            "charge": None if apply_default else float(charge_data.get("charge", 0)),
-            "minCartValue": None if apply_default else float(charge_data.get("minCartValue", 0)),
+            "charge": None if apply_default else float(charge_data.get("charge") or 0),
+            "minCartValue": None if apply_default else float(charge_data.get("minCartValue") or 0),
             "tiers": None if apply_default else (charge_data.get("tiers", [])),
             # Serviceability flags
             "serviceableForCustomer": charge_data.get("serviceableForCustomer", False) is True,
@@ -344,16 +344,16 @@ class DeliveryChargeRepository:
 
         return await self.storage.create(charge)
 
-    async def update(self, id: str, update_data: Dict):
+    async def update(self, id: str, update_data: Any):
         if "charge" in update_data:
-            update_data["charge"] = float(update_data["charge"])
+            update_data.charge = float(update_data.charge)
         if "minCartValue" in update_data:
-            update_data["minCartValue"] = float(update_data["minCartValue"])
-        if "urgentDeliveryCharge" in update_data and update_data["urgentDeliveryCharge"] is not None:
-            update_data["urgentDeliveryCharge"] = float(update_data["urgentDeliveryCharge"])
+            update_data.minCartValue = float(update_data.minCartValue)
+        if "urgentDeliveryCharge" in update_data and update_data.urgentDeliveryCharge is not None:
+            update_data.urgentDeliveryCharge = float(update_data.urgentDeliveryCharge)
         # Update role applicability if provided
         if "applicableToWholesaler" in update_data:
-            update_data["applicableToWholesaler"] = bool(update_data["applicableToWholesaler"])
+            update_data.applicableToWholesaler = bool(update_data.applicableToWholesaler)
 
         return await self.storage.update(id, update_data)
 

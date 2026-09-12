@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from pathlib import Path
@@ -15,13 +16,13 @@ router = APIRouter()
 optional_security = HTTPBearer(auto_error=False)
 
 
-@router.get("", response_model=Dict[str, Any])
+@router.get("", response_model=List[PushNotificationResponse])
 @router.get("/")
 async def get_push_notifications(
     status: Optional[str] = Query(None),
     startDate: Optional[str] = Query(None),
     endDate: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Get all push notifications (super admin only)"""
     try:
@@ -40,8 +41,8 @@ async def get_push_notifications(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("", response_model=Dict[str, Any])
-@router.post("/", response_model=Dict[str, Any])
+@router.post("", response_model=PushNotificationResponse)
+@router.post("/", response_model=PushNotificationResponse)
 async def create_push_notification(
     title: str = Form(...),
     message: str = Form(...),
@@ -51,7 +52,7 @@ async def create_push_notification(
     publishNow: str = Form("true"),
     userSegment: str = Form("all"),
     userBehavior: str = Form("none"),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Create a new push notification"""
     try:
@@ -97,7 +98,7 @@ async def create_push_notification(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/{notification_id}", response_model=Dict[str, Any])
+@router.put("/{notification_id}", response_model=PushNotificationResponse)
 async def update_push_notification(
     notification_id: str,
     title: Optional[str] = Form(None),
@@ -108,7 +109,7 @@ async def update_push_notification(
     publishNow: Optional[str] = Form(None),
     userSegment: Optional[str] = Form(None),
     userBehavior: Optional[str] = Form(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Update a push notification"""
     try:
@@ -118,28 +119,28 @@ async def update_push_notification(
 
         update_data = {}
         if title is not None:
-            update_data["title"] = title
+            update_data.title = title
         if message is not None:
-            update_data["message"] = message
+            update_data.message = message
         if link is not None:
-            update_data["link"] = link
+            update_data.link = link
         if scheduledFor is not None or publishNow is not None:
             if publishNow == "true":
-                update_data["scheduledFor"] = None
-                update_data["status"] = "published"
+                update_data.scheduledFor = None
+                update_data.status = "published"
             else:
-                update_data["scheduledFor"] = scheduledFor
-                update_data["status"] = "scheduled" if scheduledFor else "published"
+                update_data.scheduledFor = scheduledFor
+                update_data.status = "scheduled" if scheduledFor else "published"
         if userSegment is not None:
-            update_data["userSegment"] = userSegment
+            update_data.userSegment = userSegment
         if userBehavior is not None:
-            update_data["userBehavior"] = userBehavior
+            update_data.userBehavior = userBehavior
 
         # Handle image upload
         if image and image.filename:
             from app.services.oci_storage import upload_image_and_return_path
 
-            update_data["image"] = await upload_image_and_return_path(
+            update_data.image = await upload_image_and_return_path(
                 image, "push-notifications", filename_prefix="notification"
             )
 
@@ -163,7 +164,7 @@ async def update_push_notification(
 
 
 @router.delete("/{notification_id}", response_model=MessageResponse)
-async def delete_push_notification(notification_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_push_notification(notification_id: str, current_user: User = Depends(require_super_admin)):
     """Delete a push notification"""
     try:
         notification = await push_notification_repository.findById(notification_id)
@@ -185,8 +186,8 @@ async def delete_push_notification(notification_id: str, current_user: dict = De
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/{notification_id}/analytics", response_model=Dict[str, Any])
-async def get_push_notification_analytics(notification_id: str, current_user: dict = Depends(require_super_admin)):
+@router.get("/{notification_id}/analytics", response_model=PushAnalyticsResponse)
+async def get_push_notification_analytics(notification_id: str, current_user: User = Depends(require_super_admin)):
     """Get analytics for a push notification"""
     try:
         notification = await push_notification_repository.findById(notification_id)
@@ -207,7 +208,7 @@ async def get_push_notification_analytics(notification_id: str, current_user: di
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/inbox", response_model=Dict[str, Any])
+@router.get("/inbox", response_model=List[PushNotificationResponse])
 async def get_notification_inbox():
     """Return published notifications for the user-facing inbox (public endpoint)."""
     try:
@@ -232,13 +233,32 @@ async def get_notification_inbox():
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
+
+from pydantic import Field
+class PushNotificationResponse(BaseModel):
+    id: str = Field(alias="_id")
+    title: str
+    message: str
+    link: Optional[str] = None
+    targetSegmentId: Optional[str] = None
+    status: str
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class PushAnalyticsResponse(BaseModel):
+    delivered: int
+    clicked: int
+
+class VapidKeyResponse(BaseModel):
+    publicKey: str
+
 class DeviceRegistrationRequest(BaseModel):
     userId: Optional[str] = None
     subscription: Optional[dict] = None
     expoToken: Optional[str] = None
 
 
-@router.get("/vapid-public-key", response_model=Dict[str, Any])
+@router.get("/vapid-public-key", response_model=VapidKeyResponse)
 async def get_vapid_public_key():
     """Get VAPID public key for client-side subscription"""
     try:
@@ -258,8 +278,8 @@ async def get_vapid_public_key():
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/{notification_id}", response_model=Dict[str, Any])
-async def get_push_notification(notification_id: str, current_user: dict = Depends(require_super_admin)):
+@router.get("/{notification_id}", response_model=PushNotificationResponse)
+async def get_push_notification(notification_id: str, current_user: User = Depends(require_super_admin)):
     """Get push notification by ID"""
     try:
         notification = await push_notification_repository.findById(notification_id)
@@ -312,7 +332,7 @@ async def register_device(
 @router.post("/{notification_id}/mark-read", response_model=Dict[str, Any])
 async def mark_notification_read(
     notification_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Mark notification as read (for analytics). Requires authentication and published status."""
     try:

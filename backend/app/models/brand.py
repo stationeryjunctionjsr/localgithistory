@@ -9,5 +9,6 @@ class Brand(DictCompatibleModel):
     slug: str
     image_url: Optional[str] = Field(default=None, alias='imageUrl')
     is_active: bool = Field(default=True, alias='isActive')
+    show_in_mobile_homepage: bool = Field(default=False, alias='showInMobileHomepage')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')
     updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')

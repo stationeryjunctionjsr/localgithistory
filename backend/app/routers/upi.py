@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from typing import Optional
@@ -18,8 +19,8 @@ class UPIUpdateRequest(BaseModel):
     qrCodeUrl: Optional[str] = None
 
 
-@router.get("/details", response_model=Dict[str, Any])
-async def get_upi_details(current_user: dict = Depends(get_current_user)):
+@router.get("/details", response_model=UPIDetailsResponse)
+async def get_upi_details(current_user: User = Depends(get_current_user)):
     # Find super admin user
     super_admin = await user_repository.findOne({"role": "super_admin"})
     if super_admin and super_admin.upi_id and super_admin.qr_code_url:
@@ -37,8 +38,8 @@ async def get_upi_details(current_user: dict = Depends(get_current_user)):
     }
 
 
-@router.put("/details", response_model=Dict[str, Any])
-async def update_upi_details(upi_data: UPIUpdateRequest, current_user: dict = Depends(require_super_admin)):
+@router.put("/details", response_model=UPIDetailsResponse)
+async def update_upi_details(upi_data: UPIUpdateRequest, current_user: User = Depends(require_super_admin)):
     """Update UPI payment details (Super Admin only)"""
     if not upi_data.upiId:
         raise HTTPException(status_code=400, detail="UPI ID is required")
@@ -54,8 +55,8 @@ async def update_upi_details(upi_data: UPIUpdateRequest, current_user: dict = De
     return {"message": "UPI details updated successfully", "upiId": upi_data.upiId, "qrCodeUrl": upi_data.qrCodeUrl}
 
 
-@router.post("/upload-qr", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
-async def upload_upi_qr(image: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
+@router.post("/upload-qr", status_code=status.HTTP_200_OK, response_model=UploadQRResponse)
+async def upload_upi_qr(image: UploadFile = File(...), current_user: User = Depends(require_super_admin)):
     """Upload UPI QR Code image (Super Admin only)"""
     try:
         # Validate file

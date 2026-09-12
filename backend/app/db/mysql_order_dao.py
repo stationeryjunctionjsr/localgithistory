@@ -270,12 +270,12 @@ class MySQLOrderDAO:
             {"order_id": order_id},
         )
         for it in items or []:
-            pid_raw = it.get("product")
+            pid_raw = getattr(it, "product", None)
             pid = int(pid_raw) if str(pid_raw).isdigit() else None
             if pid is None:
                 continue
-            qty = it.get("quantity", 0) or 0
-            price = it.get("price", 0) or 0
+            qty = getattr(it, "quantity", 0) or 0
+            price = getattr(it, "price", 0) or 0
             await session.execute(
                 text(
                     f"""
@@ -293,7 +293,7 @@ class MySQLOrderDAO:
         for d in declines or []:
             await session.execute(
                 text("INSERT INTO sj_order_valet_declines (parent_id, valet_id, reason) VALUES (:order_id, :vid, :r)"),
-                {"order_id": order_id, "vid": str(d.get("valetId", "")), "r": d.get("reason")}
+                {"order_id": order_id, "vid": str(getattr(d, "valetId", "")), "r": getattr(d, "reason", None)}
             )
 
     async def create(self, data: Dict) -> Dict:
@@ -302,7 +302,7 @@ class MySQLOrderDAO:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
         external_id = secrets.token_hex(16)
-        user_id = int(data.get("user")) if str(data.get("user", "")).isdigit() else None
+        user_id = int(getattr(data, "user", None)) if str(getattr(data, "user", "")).isdigit() else None
         if user_id is None:
             raise ValueError("Order user must be numeric id when using MySQL")
 
@@ -330,46 +330,46 @@ class MySQLOrderDAO:
                 {
                     "external_id": external_id,
                     "user_id": user_id,
-                    "order_number": data.get("orderNumber"),
-                    "status": data.get("status"),
-                    "total": data.get("total", 0),
-                    "subtotal": data.get("subtotal", 0),
-                    "tax": data.get("tax", 0),
-                    "shipping": data.get("shipping", 0),
-                    "discount": data.get("discount", 0),
-                    "order_type": data.get("orderType"),
-                    "payment_status": data.get("paymentStatus"),
-                    "payment_method": data.get("paymentMethod"),
-                    "upi_payment_screenshot": data.get("upiPaymentScreenshot"),
-                    "ship_name": (data.get("shippingAddress") or {}).get("name"),
-                    "ship_street": (data.get("shippingAddress") or {}).get("street"),
-                    "ship_city": (data.get("shippingAddress") or {}).get("city"),
-                    "ship_state": (data.get("shippingAddress") or {}).get("state"),
-                    "ship_pincode": (data.get("shippingAddress") or {}).get("pincode"),
-                    "ship_phone": (data.get("shippingAddress") or {}).get("phone"),
-                    "bill_name": (data.get("billingAddress") or {}).get("name"),
-                    "bill_street": (data.get("billingAddress") or {}).get("street"),
-                    "bill_city": (data.get("billingAddress") or {}).get("city"),
-                    "bill_state": (data.get("billingAddress") or {}).get("state"),
-                    "bill_pincode": (data.get("billingAddress") or {}).get("pincode"),
-                    "bill_phone": (data.get("billingAddress") or {}).get("phone"),
-                    "notes": data.get("notes"),
-                    "printed_bill": 1 if data.get("printedBill") else None,
-                                        "assigned_valet": data.get("assignedValet"),
-                    "is_urgent_delivery": 1 if data.get("isUrgentDelivery") else None,
-                    "pending_valet_id": data.get("pendingValetId"),
-                    "valet_assigned_at": _to_ts(data.get("valetAssignedAt")),
-                    "valet_cascade_count": data.get("valetCascadeCount") or 0,
+                    "order_number": getattr(data, "orderNumber", None),
+                    "status": getattr(data, "status", None),
+                    "total": getattr(data, "total", 0),
+                    "subtotal": getattr(data, "subtotal", 0),
+                    "tax": getattr(data, "tax", 0),
+                    "shipping": getattr(data, "shipping", 0),
+                    "discount": getattr(data, "discount", 0),
+                    "order_type": getattr(data, "orderType", None),
+                    "payment_status": getattr(data, "paymentStatus", None),
+                    "payment_method": getattr(data, "paymentMethod", None),
+                    "upi_payment_screenshot": getattr(data, "upiPaymentScreenshot", None),
+                    "ship_name": (getattr(data, "shippingAddress", None) or {}).get("name"),
+                    "ship_street": (getattr(data, "shippingAddress", None) or {}).get("street"),
+                    "ship_city": (getattr(data, "shippingAddress", None) or {}).get("city"),
+                    "ship_state": (getattr(data, "shippingAddress", None) or {}).get("state"),
+                    "ship_pincode": (getattr(data, "shippingAddress", None) or {}).get("pincode"),
+                    "ship_phone": (getattr(data, "shippingAddress", None) or {}).get("phone"),
+                    "bill_name": (getattr(data, "billingAddress", None) or {}).get("name"),
+                    "bill_street": (getattr(data, "billingAddress", None) or {}).get("street"),
+                    "bill_city": (getattr(data, "billingAddress", None) or {}).get("city"),
+                    "bill_state": (getattr(data, "billingAddress", None) or {}).get("state"),
+                    "bill_pincode": (getattr(data, "billingAddress", None) or {}).get("pincode"),
+                    "bill_phone": (getattr(data, "billingAddress", None) or {}).get("phone"),
+                    "notes": getattr(data, "notes", None),
+                    "printed_bill": 1 if getattr(data, "printedBill", None) else None,
+                                        "assigned_valet": getattr(data, "assignedValet", None),
+                    "is_urgent_delivery": 1 if getattr(data, "isUrgentDelivery", None) else None,
+                    "pending_valet_id": getattr(data, "pendingValetId", None),
+                    "valet_assigned_at": _to_ts(getattr(data, "valetAssignedAt", None)),
+                    "valet_cascade_count": getattr(data, "valetCascadeCount", None) or 0,
                     
-                    "shipped_at": _to_ts(data.get("shippedAt")),
-                    "delivered_at": _to_ts(data.get("deliveredAt")),
-                    "cod_payment_received": 1 if data.get("codPaymentReceived") else None,
-                    "cod_payment_received_at": _to_ts(data.get("codPaymentReceivedAt")),
-                    "decline_reason": data.get("declineReason"),
-                    "cancelled_at": _to_ts(data.get("cancelledAt")),
-                    "cancelled_by": data.get("cancelledBy"),
-                    "turnaround_hours": data.get("turnaroundHours"),
-                    "created_at": _to_ts(data.get("createdAt")) or now,
+                    "shipped_at": _to_ts(getattr(data, "shippedAt", None)),
+                    "delivered_at": _to_ts(getattr(data, "deliveredAt", None)),
+                    "cod_payment_received": 1 if getattr(data, "codPaymentReceived", None) else None,
+                    "cod_payment_received_at": _to_ts(getattr(data, "codPaymentReceivedAt", None)),
+                    "decline_reason": getattr(data, "declineReason", None),
+                    "cancelled_at": _to_ts(getattr(data, "cancelledAt", None)),
+                    "cancelled_by": getattr(data, "cancelledBy", None),
+                    "turnaround_hours": getattr(data, "turnaroundHours", None),
+                    "created_at": _to_ts(getattr(data, "createdAt", None)) or now,
                     "updated_at": now,
                 },
             )
@@ -378,7 +378,7 @@ class MySQLOrderDAO:
                 {"eid": external_id},
             )
             new_id = int(r.scalar() or 0)
-            await self._replace_children(session, new_id, data.get("items") or [], data.get("valetDeclineHistory") or [])
+            await self._replace_children(session, new_id, getattr(data, "items", None) or [], getattr(data, "valetDeclineHistory", None) or [])
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -392,7 +392,7 @@ class MySQLOrderDAO:
             return None
         now = now_utc()
         oid = int(id) if str(id).isdigit() else None
-        user_id = int(merged.get("user")) if str(merged.get("user", "")).isdigit() else None
+        user_id = int(getattr(update_data, "user", None)) if str(getattr(update_data, "user", "")).isdigit() else None
         if user_id is None:
             return None
 
@@ -437,49 +437,49 @@ class MySQLOrderDAO:
                 {
                     "id": oid,
                     "user_id": user_id,
-                    "order_number": merged.get("orderNumber"),
-                    "status": merged.get("status"),
-                    "total": merged.get("total", 0),
-                    "subtotal": merged.get("subtotal", 0),
-                    "tax": merged.get("tax", 0),
-                    "shipping": merged.get("shipping", 0),
-                    "discount": merged.get("discount", 0),
-                    "order_type": merged.get("orderType"),
-                    "payment_status": merged.get("paymentStatus"),
-                    "payment_method": merged.get("paymentMethod"),
-                    "upi_payment_screenshot": merged.get("upiPaymentScreenshot"),
-                    "ship_name": (merged.get("shippingAddress") or {}).get("name"),
-                    "ship_street": (merged.get("shippingAddress") or {}).get("street"),
-                    "ship_city": (merged.get("shippingAddress") or {}).get("city"),
-                    "ship_state": (merged.get("shippingAddress") or {}).get("state"),
-                    "ship_pincode": (merged.get("shippingAddress") or {}).get("pincode"),
-                    "ship_phone": (merged.get("shippingAddress") or {}).get("phone"),
-                    "bill_name": (merged.get("billingAddress") or {}).get("name"),
-                    "bill_street": (merged.get("billingAddress") or {}).get("street"),
-                    "bill_city": (merged.get("billingAddress") or {}).get("city"),
-                    "bill_state": (merged.get("billingAddress") or {}).get("state"),
-                    "bill_pincode": (merged.get("billingAddress") or {}).get("pincode"),
-                    "bill_phone": (merged.get("billingAddress") or {}).get("phone"),
-                    "notes": merged.get("notes"),
-                    "printed_bill": 1 if merged.get("printedBill") else None,
-                    "assigned_valet": merged.get("assignedValet"),
-                    "pending_valet_id": merged.get("pendingValetId"),
-                    "valet_assigned_at": _to_ts(merged.get("valetAssignedAt")),
-                    "valet_cascade_count": merged.get("valetCascadeCount") or 0,
+                    "order_number": getattr(update_data, "orderNumber", None),
+                    "status": getattr(update_data, "status", None),
+                    "total": getattr(update_data, "total", 0),
+                    "subtotal": getattr(update_data, "subtotal", 0),
+                    "tax": getattr(update_data, "tax", 0),
+                    "shipping": getattr(update_data, "shipping", 0),
+                    "discount": getattr(update_data, "discount", 0),
+                    "order_type": getattr(update_data, "orderType", None),
+                    "payment_status": getattr(update_data, "paymentStatus", None),
+                    "payment_method": getattr(update_data, "paymentMethod", None),
+                    "upi_payment_screenshot": getattr(update_data, "upiPaymentScreenshot", None),
+                    "ship_name": (getattr(update_data, "shippingAddress", None) or {}).get("name"),
+                    "ship_street": (getattr(update_data, "shippingAddress", None) or {}).get("street"),
+                    "ship_city": (getattr(update_data, "shippingAddress", None) or {}).get("city"),
+                    "ship_state": (getattr(update_data, "shippingAddress", None) or {}).get("state"),
+                    "ship_pincode": (getattr(update_data, "shippingAddress", None) or {}).get("pincode"),
+                    "ship_phone": (getattr(update_data, "shippingAddress", None) or {}).get("phone"),
+                    "bill_name": (getattr(update_data, "billingAddress", None) or {}).get("name"),
+                    "bill_street": (getattr(update_data, "billingAddress", None) or {}).get("street"),
+                    "bill_city": (getattr(update_data, "billingAddress", None) or {}).get("city"),
+                    "bill_state": (getattr(update_data, "billingAddress", None) or {}).get("state"),
+                    "bill_pincode": (getattr(update_data, "billingAddress", None) or {}).get("pincode"),
+                    "bill_phone": (getattr(update_data, "billingAddress", None) or {}).get("phone"),
+                    "notes": getattr(update_data, "notes", None),
+                    "printed_bill": 1 if getattr(update_data, "printedBill", None) else None,
+                    "assigned_valet": getattr(update_data, "assignedValet", None),
+                    "pending_valet_id": getattr(update_data, "pendingValetId", None),
+                    "valet_assigned_at": _to_ts(getattr(update_data, "valetAssignedAt", None)),
+                    "valet_cascade_count": getattr(update_data, "valetCascadeCount", None) or 0,
                     
-                    "is_urgent_delivery": 1 if merged.get("isUrgentDelivery") else None,
-                    "shipped_at": _to_ts(merged.get("shippedAt")),
-                    "delivered_at": _to_ts(merged.get("deliveredAt")),
-                    "cod_payment_received": 1 if merged.get("codPaymentReceived") else None,
-                    "cod_payment_received_at": _to_ts(merged.get("codPaymentReceivedAt")),
-                    "decline_reason": merged.get("declineReason"),
-                    "cancelled_at": _to_ts(merged.get("cancelledAt")),
-                    "cancelled_by": merged.get("cancelledBy"),
-                    "turnaround_hours": merged.get("turnaroundHours"),
+                    "is_urgent_delivery": 1 if getattr(update_data, "isUrgentDelivery", None) else None,
+                    "shipped_at": _to_ts(getattr(update_data, "shippedAt", None)),
+                    "delivered_at": _to_ts(getattr(update_data, "deliveredAt", None)),
+                    "cod_payment_received": 1 if getattr(update_data, "codPaymentReceived", None) else None,
+                    "cod_payment_received_at": _to_ts(getattr(update_data, "codPaymentReceivedAt", None)),
+                    "decline_reason": getattr(update_data, "declineReason", None),
+                    "cancelled_at": _to_ts(getattr(update_data, "cancelledAt", None)),
+                    "cancelled_by": getattr(update_data, "cancelledBy", None),
+                    "turnaround_hours": getattr(update_data, "turnaroundHours", None),
                     "updated_at": now,
                 },
             )
-            await self._replace_children(session, oid, update_data.get("items") or [], merged.get("valetDeclineHistory") or [])
+            await self._replace_children(session, oid, update_getattr(data, "items", None) or [], getattr(update_data, "valetDeclineHistory", None) or [])
             await session.commit()
         return await self.findById(id)
 
@@ -525,7 +525,7 @@ class MySQLOrderDAO:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d.get("_id")):
+            if await self.delete(getattr(d, "_id", None)):
                 deleted += 1
         return {"deletedCount": deleted}
 

@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -27,10 +28,10 @@ async def populate_request(request):
             {
                 **response,
                 "user": {
-                    "_id": response_user.get("_id"),
-                    "name": response_user.get("name"),
-                    "email": response_user.get("email"),
-                    "role": response_user.get("role"),
+                    "_id": response_getattr(user, "id", None),
+                    "name": response_getattr(user, "name", None),
+                    "email": response_getattr(user, "email", None),
+                    "role": response_getattr(user, "role", None),
                 }
                 if response_user
                 else None,
@@ -49,10 +50,10 @@ async def populate_request(request):
     }
 
 
-@router.get("", response_model=List[dict])
-@router.get("/", response_model=List[dict])
+@router.get("", response_model=List[SellerRequestResponse])
+@router.get("/", response_model=List[SellerRequestResponse])
 async def get_seller_requests(
-    status: Optional[str] = None, priority: Optional[str] = None, current_user: dict = Depends(get_current_user)
+    status: Optional[str] = None, priority: Optional[str] = None, current_user: User = Depends(get_current_user)
 ):
     query = {}
 
@@ -70,8 +71,8 @@ async def get_seller_requests(
     return populated_requests
 
 
-@router.get("/{request_id}", response_model=dict)
-async def get_seller_request(request_id: str, current_user: dict = Depends(get_current_user)):
+@router.get("/{request_id}", response_model=SellerRequestResponse)
+async def get_seller_request(request_id: str, current_user: User = Depends(get_current_user)):
     request = await seller_request_repository.findById(request_id)
 
     if not request:
@@ -84,9 +85,9 @@ async def get_seller_request(request_id: str, current_user: dict = Depends(get_c
     return populated_request
 
 
-@router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_seller_request(request_data: SellerRequestCreate, current_user: dict = Depends(get_current_user)):
+@router.post("", response_model=SellerRequestResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=SellerRequestResponse, status_code=status.HTTP_201_CREATED)
+async def create_seller_request(request_data: SellerRequestCreate, current_user: User = Depends(get_current_user)):
     # Depending on requirements, we might want to restrict this to sellers only,
     # but super_admin can also create requests if they want, or we can check role.
     request = await seller_request_repository.create(
@@ -104,9 +105,9 @@ async def create_seller_request(request_data: SellerRequestCreate, current_user:
     return populated_request
 
 
-@router.put("/{request_id}/status", response_model=dict)
+@router.put("/{request_id}/status", response_model=SellerRequestResponse)
 async def update_request_status(
-    request_id: str, status_data: StatusUpdate, current_user: dict = Depends(require_super_admin)
+    request_id: str, status_data: StatusUpdate, current_user: User = Depends(require_super_admin)
 ):
     request = await seller_request_repository.findById(request_id)
     if not request:
@@ -118,9 +119,9 @@ async def update_request_status(
     return populated_request
 
 
-@router.post("/{request_id}/response", response_model=dict)
+@router.post("/{request_id}/response", response_model=SellerRequestResponse)
 async def add_request_response(
-    request_id: str, response_data: SellerRequestResponseCreate, current_user: dict = Depends(get_current_user)
+    request_id: str, response_data: SellerRequestResponseCreate, current_user: User = Depends(get_current_user)
 ):
     request = await seller_request_repository.findById(request_id)
     if not request:

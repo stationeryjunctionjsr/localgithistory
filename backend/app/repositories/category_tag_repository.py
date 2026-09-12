@@ -25,7 +25,7 @@ class CategoryTagRepository:
                 return tag
         return None
 
-    async def create(self, tag_data: Dict) -> Dict:
+    async def create(self, tag_data: Any) -> Dict:
         tag = {
             "name": tag_data["name"],
             "description": tag_data.get("description", ""),
@@ -35,7 +35,7 @@ class CategoryTagRepository:
         }
         return await self.storage.create(tag)
 
-    async def update(self, id: str, update_data: Dict) -> Dict:
+    async def update(self, id: str, update_data: Any) -> Dict:
         updates = {**update_data, "updatedAt": self._get_timestamp()}
         return await self.storage.update(id, updates)
 

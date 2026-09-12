@@ -43,13 +43,13 @@ class MySQLValetAvailabilityDAO:
             text("DELETE FROM sj_valet_availability_zones WHERE availability_id = :vid"), {"vid": vid}
         )
 
-        for slot in data.get("slots", []):
+        for slot in (data.slots if getattr(data, 'slots', None) is not None else []):
             await session.execute(
                 text("INSERT INTO sj_valet_availability_slots (availability_id, slot) VALUES (:vid, :s)"),
                 {"vid": vid, "s": str(slot)},
             )
 
-        for zone in data.get("zones", []):
+        for zone in (data.zones if getattr(data, 'zones', None) is not None else []):
             await session.execute(
                 text("INSERT INTO sj_valet_availability_zones (availability_id, zone) VALUES (:vid, :z)"),
                 {"vid": vid, "z": str(zone)},
@@ -137,9 +137,9 @@ class MySQLValetAvailabilityDAO:
                 """),
                 {
                     "external_id": external_id,
-                    "valet_id": str(data.get("valetId", "")),
-                    "date": data.get("date"),
-                    "availability_type": data.get("availabilityType", ""),
+                    "valet_id": str((data.valetId if getattr(data, 'valetId', None) is not None else "")),
+                    "date": data.date,
+                    "availability_type": (data.availabilityType if getattr(data, 'availabilityType', None) is not None else ""),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -174,9 +174,9 @@ class MySQLValetAvailabilityDAO:
                 """),
                 {
                     "id": pk,
-                    "valet_id": str(merged.get("valetId", "")),
-                    "date": merged.get("date"),
-                    "atype": merged.get("availabilityType", ""),
+                    "valet_id": str((merged.valetId if getattr(merged, 'valetId', None) is not None else "")),
+                    "date": merged.date,
+                    "atype": (merged.availabilityType if getattr(merged, 'availabilityType', None) is not None else ""),
                     "up": now,
                 },
             )

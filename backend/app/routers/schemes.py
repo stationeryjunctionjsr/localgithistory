@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,14 +10,14 @@ from app.utils.auth import check_roles, get_current_user
 router = APIRouter()
 
 
-def require_wholesaler(current_user: dict = Depends(get_current_user)):
+def require_wholesaler(current_user: User = Depends(get_current_user)):
     """Only Business Segment (wholesaler) users can access schemes."""
     return check_roles(current_user, "wholesaler")
 
 
 @router.get("", response_model=List[CouponResponse])
 @router.get("/", response_model=List[CouponResponse])
-async def get_schemes(current_user: dict = Depends(require_wholesaler)):
+async def get_schemes(current_user: User = Depends(require_wholesaler)):
     """
     List all active discount schemes for the Business Segment (wholesaler).
     These are essentially coupons where applicableRoles includes 'wholesaler'.
@@ -50,12 +51,12 @@ async def get_schemes(current_user: dict = Depends(require_wholesaler)):
     out = []
     for c in business_coupons:
         # We need to map _id to id if returning as dict, or just return as CouponResponse
-        out.append(CouponResponse(**c))
+        out.append(CouponResponse(**(c if hasattr(c, 'model_dump') else c)))
     return out
 
 
 @router.get("/applicable/{product_id}", response_model=List[dict])
-async def get_applicable_schemes(product_id: str, current_user: dict = Depends(require_wholesaler)):
+async def get_applicable_schemes(product_id: str, current_user: User = Depends(require_wholesaler)):
     """
     Get all active schemes applicable to a given product.
     Calculates the final effective unit price for each.
@@ -102,14 +103,14 @@ async def get_applicable_schemes(product_id: str, current_user: dict = Depends(r
 
     out = []
     for c in applicable_offers:
-        cr = CouponResponse(**c).model_dump(by_alias=True)
+        cr = CouponResponse(**(c if hasattr(c, 'model_dump') else c)).model_dump(by_alias=True)
         out.append(cr)
 
     return out
 
 
 @router.get("/applicable/bundle/{bundle_id}", response_model=List[dict])
-async def get_applicable_bundle_schemes(bundle_id: str, current_user: dict = Depends(require_wholesaler)):
+async def get_applicable_bundle_schemes(bundle_id: str, current_user: User = Depends(require_wholesaler)):
     """
     Get all active schemes applicable to a given bundle.
     """
@@ -151,7 +152,7 @@ async def get_applicable_bundle_schemes(bundle_id: str, current_user: dict = Dep
 
     out = []
     for c in applicable_offers:
-        cr = CouponResponse(**c).model_dump(by_alias=True)
+        cr = CouponResponse(**(c if hasattr(c, 'model_dump') else c)).model_dump(by_alias=True)
         out.append(cr)
 
     return out

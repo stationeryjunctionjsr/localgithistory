@@ -41,7 +41,7 @@ def _to_ts(val) -> Optional[datetime]:
 from app.config.settings import settings
 
 
-class TypedDocDAO:
+class FlatRelationalDAO:
     def __init__(
         self,
         table_name: str,
@@ -50,7 +50,9 @@ class TypedDocDAO:
         *,
         has_external_id: bool = True,
         bool_api_keys: Optional[Set[str]] = None,
+        schema_cls=None,
     ):
+        self.schema_cls = schema_cls
         self._raw_table_name = table_name
         self.scalar_map = scalar_map
         self.clob_map = clob_map or {}
@@ -65,7 +67,7 @@ class TypedDocDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r) -> Dict:
+    def _row_to_dict(self, r) -> Any:
         out = {"_id": str(r.id)}
         rev = {v: k for k, v in self.scalar_map.items()}
         for col, api_key in rev.items():
@@ -92,7 +94,7 @@ class TypedDocDAO:
             out["createdAt"] = r.created_at.isoformat()
         if hasattr(r, "updated_at") and r.updated_at:
             out["updatedAt"] = r.updated_at.isoformat()
-        return out
+        return self.schema_cls(**out) if self.schema_cls else out
 
     def _doc_to_params(self, data: Dict, now: datetime) -> Dict:
         params = {"created_at": now, "updated_at": now}
@@ -320,3 +322,5 @@ class TypedDocDAO:
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+
+

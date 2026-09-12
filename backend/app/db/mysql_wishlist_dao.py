@@ -50,7 +50,7 @@ class MySQLWishlistDAO:
     async def _replace_items(self, session, wid: int, items: List):
         await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": wid})
         for item in items:
-            pid = item.get("product") if isinstance(item, dict) else item
+            pid = item.product if isinstance(item, dict) else item
             if pid:
                 await session.execute(
                     text("INSERT INTO sj_wishlist_items (wishlist_id, product_id) VALUES (:wid, :pid)"),
@@ -96,8 +96,8 @@ class MySQLWishlistDAO:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
-        user_id = int(data.get("user", 0)) if str(data.get("user", "0")).isdigit() else None
-        items = data.get("items", [])
+        user_id = int((data.user if getattr(data, 'user', None) is not None else 0)) if str((data.user if getattr(data, 'user', None) is not None else "0")).isdigit() else None
+        items = (data.items if getattr(data, 'items', None) is not None else [])
 
         async with factory() as session:
             await session.execute(
@@ -139,7 +139,7 @@ class MySQLWishlistDAO:
                 text(f"UPDATE {self.TABLE} SET updated_at = :u WHERE id = :id"), {"id": wid, "u": now}
             )
             if "items" in update_data:
-                await self._replace_items(session, wid, update_data["items"])
+                await self._replace_items(session, wid, update_data.items)
             await session.commit()
 
         return await self.findById(id)
@@ -158,7 +158,7 @@ class MySQLWishlistDAO:
         docs = await self.findAll(query)
         if not docs:
             return 0
-        wids = [int(d["_id"]) for d in docs if str(d.get("_id", "")).isdigit()]
+        wids = [int(d._id) for d in docs if str((d._id if getattr(d, '_id', None) is not None else "")).isdigit()]
         if not wids:
             return 0
         async with factory() as session:

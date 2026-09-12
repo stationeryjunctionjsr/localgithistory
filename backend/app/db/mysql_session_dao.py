@@ -72,7 +72,7 @@ class MySQLSessionDAO:
             match = True
             for k, v in query.items():
                 if k in ("_id", "id"):
-                    if str(d.get("_id")) != str(v):
+                    if str(d._id) != str(v):
                         match = False
                         break
                 elif d.get(k) != v:
@@ -111,7 +111,7 @@ class MySQLSessionDAO:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
         external_id = secrets.token_hex(16)
-        user_id_raw = data.get("userId") or data.get("user")
+        user_id_raw = data.userId or data.user
         user_id = int(user_id_raw) if str(user_id_raw or "").isdigit() else None
         if user_id is None:
             raise ValueError("Session user must be numeric id when using MySQL")
@@ -132,13 +132,13 @@ class MySQLSessionDAO:
                 {
                     "external_id": external_id,
                     "user_id": user_id,
-                    "refresh_token_id": data.get("refreshTokenId"),
-                    "status": data.get("status"),
-                    "last_active_at": _to_ts(data.get("lastActiveAt")),
-                    "revoked_at": _to_ts(data.get("revokedAt")),
-                    "revoked_reason": data.get("revokedReason"),
-                    "is_guest": 1 if data.get("isGuest") else None,
-                    "comments": data.get("comment"),
+                    "refresh_token_id": data.refreshTokenId,
+                    "status": data.status,
+                    "last_active_at": _to_ts(data.lastActiveAt),
+                    "revoked_at": _to_ts(data.revokedAt),
+                    "revoked_reason": data.revokedReason,
+                    "is_guest": 1 if data.isGuest else None,
+                    "comments": data.comment,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -161,7 +161,7 @@ class MySQLSessionDAO:
             return None
         now = now_utc()
         sid = int(id) if str(id).isdigit() else None
-        user_id_raw = merged.get("userId") or merged.get("user")
+        user_id_raw = merged.userId or merged.user
         user_id = int(user_id_raw) if str(user_id_raw or "").isdigit() else None
         if user_id is None:
             return None
@@ -186,13 +186,13 @@ class MySQLSessionDAO:
                 {
                     "id": sid,
                     "user_id": user_id,
-                    "refresh_token_id": merged.get("refreshTokenId"),
-                    "status": merged.get("status"),
-                    "last_active_at": _to_ts(merged.get("lastActiveAt")),
-                    "revoked_at": _to_ts(merged.get("revokedAt")),
-                    "revoked_reason": merged.get("revokedReason"),
-                    "is_guest": 1 if merged.get("isGuest") else None,
-                    "comments": merged.get("comment"),
+                    "refresh_token_id": merged.refreshTokenId,
+                    "status": merged.status,
+                    "last_active_at": _to_ts(merged.lastActiveAt),
+                    "revoked_at": _to_ts(merged.revokedAt),
+                    "revoked_reason": merged.revokedReason,
+                    "is_guest": 1 if merged.isGuest else None,
+                    "comments": merged.comment,
                     "updated_at": now,
                 },
             )
@@ -253,7 +253,7 @@ class MySQLSessionDAO:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d.get("_id")):
+            if await self.delete(d._id):
                 deleted += 1
         return {"deletedCount": deleted}
 

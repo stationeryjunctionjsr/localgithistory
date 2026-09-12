@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 from typing import List, Dict, Any
 from pydantic import BaseModel
@@ -28,7 +29,7 @@ require_wholesaler = require_roles("wholesaler")
 
 
 @router.get("/dues", response_model=DuesResponse)
-async def get_wholesaler_dues(current_user: dict = Depends(require_wholesaler)):
+async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
     """Retrieve credit dues information for the logged-in wholesaler"""
     from datetime import datetime, timezone, timedelta
     from app.repositories.payment_repository import payment_repository
@@ -156,20 +157,40 @@ class VerifyEntryRequest(BaseModel):
     verified: bool
 
 
+
+class PaymentEntryResponse(BaseModel):
+    id: str = Field(alias="_id")
+    orderId: str
+    amount: float
+    method: str
+    status: str
+    verified: bool
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class PaymentResponse(BaseModel):
+    id: str = Field(alias="_id")
+    orderId: str
+    amount: float
+    entries: List[PaymentEntryResponse]
+    status: str
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
 class CreditSettlementRequest(BaseModel):
     orderId: str
     amount: float
     upiPaymentScreenshot: str
 
 
-@router.get("", response_model=List[Dict[str, Any]])
-@router.get("/", response_model=List[Dict[str, Any]])
+@router.get("", response_model=List[PaymentResponse])
+@router.get("/", response_model=List[PaymentResponse])
 async def get_payments(
     orderId: Optional[str] = Query(None),
     userId: Optional[str] = Query(None),
     startDate: Optional[str] = Query(None),
     endDate: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Get all payments (Super Admin only)"""
     from app.repositories.order_repository import order_repository
@@ -202,8 +223,8 @@ async def get_payments(
     return enhanced_payments
 
 
-@router.get("/{payment_id}", response_model=Dict[str, Any])
-async def get_payment(payment_id: str, current_user: dict = Depends(require_super_admin)):
+@router.get("/{payment_id}", response_model=PaymentResponse)
+async def get_payment(payment_id: str, current_user: User = Depends(require_super_admin)):
     """Get single payment (Super Admin only)"""
     payment = await payment_repository.findById(payment_id)
     if not payment:
@@ -211,9 +232,9 @@ async def get_payment(payment_id: str, current_user: dict = Depends(require_supe
     return payment
 
 
-@router.put("/{payment_id}/verify-entry/{entry_id}", response_model=Dict[str, Any])
+@router.put("/{payment_id}/verify-entry/{entry_id}", response_model=PaymentResponse)
 async def verify_payment_entry(
-    payment_id: str, entry_id: int, verify_data: VerifyEntryRequest, current_user: dict = Depends(require_super_admin)
+    payment_id: str, entry_id: int, verify_data: VerifyEntryRequest, current_user: User = Depends(require_super_admin)
 ):
     """Verify a payment entry (Super Admin only)"""
     try:
@@ -229,7 +250,7 @@ async def verify_payment_entry(
 
 @router.post("/credit-settlement", response_model=SettlementResponse)
 async def submit_credit_settlement(
-    settlement_data: CreditSettlementRequest, current_user: dict = Depends(require_wholesaler)
+    settlement_data: CreditSettlementRequest, current_user: User = Depends(require_wholesaler)
 ):
     """Submit a credit settlement payment (Wholesaler only)"""
     from app.repositories.order_repository import order_repository

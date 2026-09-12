@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 """
@@ -71,6 +72,29 @@ class CommissionTier(BaseModel):
 
     model_config = {"populate_by_name": True}
 
+
+
+class TiersResponse(BaseModel):
+    tiers: List[CommissionTier]
+    defaultCommissionPct: float
+
+class SellerCommissionInfo(BaseModel):
+    id: str = Field(alias="_id")
+    name: str
+    email: str
+    phone: Optional[str] = None
+    overrideCommissionPct: Optional[float] = None
+    effectiveCommissionPct: float
+    currentTier: Optional[str] = None
+
+class CommissionPreviewResponse(BaseModel):
+    orderValue: float
+    commissionPct: float
+    commissionAmount: float
+
+class RealizeCommissionResponse(BaseModel):
+    processed: int
+    realized: int
 
 class TiersPayload(BaseModel):
     tiers: List[CommissionTier]
@@ -197,8 +221,8 @@ async def maybe_realize_commission(sub_order: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/tiers", response_model=Dict[str, Any])
-async def get_commission_tiers(current_user: dict = Depends(require_super_admin)):
+@router.get("/tiers", response_model=TiersResponse)
+async def get_commission_tiers(current_user: User = Depends(require_super_admin)):
     settings = await _get_settings()
     return {
         "tiers": (settings.tiers or []),
@@ -214,12 +238,12 @@ async def get_commission_tiers(current_user: dict = Depends(require_super_admin)
 @router.put("/tiers", response_model=MessageResponse)
 async def update_commission_tiers(
     payload: TiersPayload,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     # Assign stable IDs if missing
     tiers_data = []
     for t in payload.tiers:
-        d = t.model_dump()
+        d = t
         if not d.get("id"):
             d["id"] = str(uuid4())
         tiers_data.append(d)
@@ -256,8 +280,8 @@ async def update_commission_tiers(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/sellers", response_model=Dict[str, Any])
-async def list_sellers_commission(current_user: dict = Depends(require_super_admin)):
+@router.get("/sellers", response_model=List[SellerCommissionInfo])
+async def list_sellers_commission(current_user: User = Depends(require_super_admin)):
     sellers = await user_repository.findAll({"role": "wholesaler", "isSellerAdmin": True})
     settings = await _get_settings()
     tiers = (settings.tiers or [])
@@ -296,7 +320,7 @@ async def list_sellers_commission(current_user: dict = Depends(require_super_adm
 async def set_seller_commission_override(
     seller_id: str,
     payload: SellerOverridePayload,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     seller = await user_repository.findById(seller_id)
     if not seller:
@@ -320,7 +344,7 @@ async def set_seller_commission_override(
 @router.delete("/sellers/{seller_id}/override", response_model=MessageResponse)
 async def remove_seller_commission_override(
     seller_id: str,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     seller = await user_repository.findById(seller_id)
     if not seller:
@@ -335,11 +359,11 @@ async def remove_seller_commission_override(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/calculate", response_model=Dict[str, Any])
+@router.get("/calculate", response_model=CommissionPreviewResponse)
 async def preview_commission(
     order_value: float,
     seller_id: Optional[str] = None,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     pct = await resolve_commission_pct(order_value, seller_id)
     amount = round(order_value * pct / 100, 2)
@@ -351,9 +375,9 @@ async def preview_commission(
     }
 
 
-@router.post("/realize-pending", response_model=dict)
+@router.post("/realize-pending", response_model=RealizeCommissionResponse)
 async def realize_pending_commissions(
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """
     Promote unrealized commissions whose return window has elapsed to realized.

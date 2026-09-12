@@ -10,6 +10,24 @@ router = APIRouter()
 APP_START_TIME = time.time()
 
 
+
+class LivenessResponse(BaseModel):
+    status: str
+    uptime_seconds: float
+    timestamp: float
+
+
+class LivenessResponse(BaseModel):
+    status: str
+    uptime_seconds: float
+    timestamp: float
+
+
+class LivenessResponse(BaseModel):
+    status: str
+    uptime_seconds: float
+    timestamp: float
+
 class HealthResponse(BaseModel):
     status: str
     uptime_seconds: float
@@ -17,7 +35,7 @@ class HealthResponse(BaseModel):
     db: str
 
 
-@router.get("/health/live", response_model=Dict[str, Any])
+@router.get("/health/live", response_model=LivenessResponse)
 async def check_liveness():
     """Lightweight liveness check (no DB). Returns 200 if the process is running."""
     return {"status": "ok", "uptime_seconds": round(time.time() - APP_START_TIME, 2), "timestamp": time.time()}
@@ -68,6 +86,6 @@ async def check_health():
     )
 
     if db_status == "unreachable":
-        return JSONResponse(status_code=503, content=payload.model_dump())
+        return JSONResponse(status_code=503, content=payload)
 
     return payload

@@ -1,3 +1,4 @@
+from app.models.user import User
 from fastapi.responses import StreamingResponse
 from app.models.schemas import MessageResponse
 from typing import Dict, Any, List
@@ -33,9 +34,9 @@ async def _upload_product_image(image: UploadFile) -> str:
     return await upload_image_and_return_path(image, "products", filename_prefix="product")
 
 
-@router.post("/upload-images", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
+@router.post("/upload-images", status_code=status.HTTP_200_OK, response_model=UploadImagesResponse)
 async def upload_product_images(
-    images: List[UploadFile] = File(...), current_user: dict = Depends(require_super_admin)
+    images: List[UploadFile] = File(...), current_user: User = Depends(require_super_admin)
 ):
     """Upload product images (Super Admin only). Uses OCI Object Storage when configured."""
     try:
@@ -54,8 +55,8 @@ async def upload_product_images(
         )
 
 
-@router.post("/upload-csv", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
-async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
+@router.post("/upload-csv", status_code=status.HTTP_200_OK, response_model=UploadCSVResponse)
+async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(require_super_admin)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are allowed")
 
@@ -229,7 +230,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
 
 
 @router.get("/export-csv", response_class=StreamingResponse)
-async def export_csv(current_user: dict = Depends(require_super_admin)):
+async def export_csv(current_user: User = Depends(require_super_admin)):
     """
     Export all products from the Oracle database to a CSV file.
     If no products are present, only headers are returned.
@@ -347,7 +348,7 @@ async def export_csv(current_user: dict = Depends(require_super_admin)):
     )
 
 
-@router.get("/suggest", response_model=Dict[str, Any])
+@router.get("/suggest", response_model=SearchSuggestResponse)
 async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = None, role: str = "customer"):
     """Lightweight autocomplete endpoint returning matching product names, brands, and categories"""
     if len(q) < 2:
@@ -642,7 +643,7 @@ async def get_public_products(
         if "variations" not in product or product["variations"] is None:
             product["variations"] = []
 
-        products_with_pricing.append(ProductResponse(**product))
+        products_with_pricing.append(ProductResponse(**(product if hasattr(product, 'model_dump') else product)))
 
     # Tell browsers and CDNs to cache public product lists for 5 minutes
     # (matches the server-side TTL cache). stale-while-revalidate allows serving
@@ -687,7 +688,7 @@ async def get_public_product(product_id: str, role: str = "customer", response: 
         # 15-minute browser/CDN cache for individual product pages
         response.headers["Cache-Control"] = "public, max-age=900, stale-while-revalidate=60"
 
-    return ProductResponse(**product)
+    return ProductResponse(**(product if hasattr(product, 'model_dump') else product))
 
 
 @router.get("", response_model=PaginatedProductResponse)
@@ -713,7 +714,7 @@ async def get_products(
     includeFacets: bool = True,
     skinny: bool = False,
     pincode: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     # Use effectiveRole if user is deactivated
     effective_role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
@@ -798,7 +799,7 @@ async def get_products(
         if "variations" not in product or product["variations"] is None:
             product["variations"] = []
 
-        products_with_pricing.append(ProductResponse(**product))
+        products_with_pricing.append(ProductResponse(**(product if hasattr(product, 'model_dump') else product)))
 
     return {
         "products": products_with_pricing,
@@ -814,7 +815,7 @@ async def get_products(
 
 @router.get("/{product_id}", response_model=ProductResponse)
 @cache.ttl_cache(ttl=900.0)
-async def get_product(product_id: str, current_user: dict = Depends(get_current_user)):
+async def get_product(product_id: str, current_user: User = Depends(get_current_user)):
     product = await product_repository.findById(product_id)
 
     if not product or not (product.is_active if product.is_active is not None else True):
@@ -843,17 +844,17 @@ async def get_product(product_id: str, current_user: dict = Depends(get_current_
     if "variations" not in product or product["variations"] is None:
         product["variations"] = []
 
-    return ProductResponse(**product)
+    return ProductResponse(**(product if hasattr(product, 'model_dump') else product))
 
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-async def create_product(product_data: ProductCreate, current_user: dict = Depends(require_super_admin)):
+async def create_product(product_data: ProductCreate, current_user: User = Depends(require_super_admin)):
     try:
         # Check for duplicate name or SKU
         existing_products = await product_repository.findAll()
         name_lower = product_data.name.strip().lower()
-        sku_lower = product_data.sku.strip().lower()
+        sku_lower = (product_data.sku or "").strip().lower()
         
         for p in existing_products:
             if (p.name or "").strip().lower() == name_lower:
@@ -861,29 +862,29 @@ async def create_product(product_data: ProductCreate, current_user: dict = Depen
             if (p.sku or "").strip().lower() == sku_lower:
                 raise HTTPException(status_code=400, detail=f"Product with SKU '{product_data.sku}' already exists")
                 
-        product = await product_repository.create(product_data.dict())
+        product = await product_repository.create(product_data)
         _invalidate_product_caches()
-        return ProductResponse(**product)
+        return ProductResponse(**(product if hasattr(product, 'model_dump') else product))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(
-    product_id: str, product_data: ProductUpdate, current_user: dict = Depends(require_super_admin)
+    product_id: str, product_data: ProductUpdate, current_user: User = Depends(require_super_admin)
 ):
     try:
-        product = await product_repository.update(product_id, product_data.dict(exclude_unset=True))
+        product = await product_repository.update(product_id, product_data)
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
         _invalidate_product_caches()
-        return ProductResponse(**product)
+        return ProductResponse(**(product if hasattr(product, 'model_dump') else product))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/{product_id}", response_model=MessageResponse)
-async def delete_product(product_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_product(product_id: str, current_user: User = Depends(require_super_admin)):
     product = await product_repository.delete(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -892,14 +893,14 @@ async def delete_product(product_id: str, current_user: dict = Depends(require_s
 
 
 @router.post("/bulk-update", response_model=MessageResponse)
-async def bulk_update_products(update_data: BulkUpdateData, current_user: dict = Depends(require_super_admin)):
+async def bulk_update_products(update_data: BulkUpdateData, current_user: User = Depends(require_super_admin)):
     results = []
     for product_id in update_data.ids:
         data = {}
         if update_data.isActive is not None:
             data.is_active = update_data.isActive
         if update_data.isExclusive is not None:
-            data["isExclusive"] = update_data.isExclusive
+            data.isExclusive = update_data.isExclusive
 
         if data:
             await product_repository.update(product_id, data)
@@ -911,13 +912,30 @@ async def bulk_update_products(update_data: BulkUpdateData, current_user: dict =
     return {"message": f"Successfully updated {len(results)} products", "updatedIds": results}
 
 
+
+class UploadImagesResponse(BaseModel):
+    urls: List[str]
+
+class UploadCSVResponse(BaseModel):
+    success: bool
+    imported: int
+    failed: int
+
+class UploadVideosResponse(BaseModel):
+    urls: List[str]
+
+class SearchSuggestResponse(BaseModel):
+    products: List[Dict[str, Any]]
+    brands: List[Dict[str, Any]]
+    categories: List[Dict[str, Any]]
+
 class ProductTagAction(BaseModel):
     searchTagId: str
 
 
 @router.post("/{product_id}/search-tags", response_model=Dict[str, Any])
 async def add_search_tag_to_product(
-    product_id: str, action: ProductTagAction, current_user: dict = Depends(require_super_admin)
+    product_id: str, action: ProductTagAction, current_user: User = Depends(require_super_admin)
 ):
     """Add a search tag to a specific product (adds to productIds, removes from excludedProductIds)"""
     product = await product_repository.findById(product_id)
@@ -935,7 +953,7 @@ async def add_search_tag_to_product(
 
 @router.delete("/{product_id}/search-tags/{search_tag_id}", response_model=MessageResponse)
 async def remove_search_tag_from_product(
-    product_id: str, search_tag_id: str, current_user: dict = Depends(require_super_admin)
+    product_id: str, search_tag_id: str, current_user: User = Depends(require_super_admin)
 ):
     """Remove a search tag from a specific product (adds to excludedProductIds, removes from productIds)"""
     product = await product_repository.findById(product_id)
@@ -952,7 +970,7 @@ async def remove_search_tag_from_product(
 
 
 @router.get("/{product_id}/search-tags", response_model=List[Dict[str, Any]])
-async def get_product_search_tags(product_id: str, current_user: dict = Depends(require_super_admin)):
+async def get_product_search_tags(product_id: str, current_user: User = Depends(require_super_admin)):
     """Get all resolved search tags for a specific product"""
     product = await product_repository.findById(product_id)
     if not product:
@@ -1008,10 +1026,10 @@ async def notify_me(
     await product_notification_repository.create_notification(product_id, email, user_id)
     return {"message": "Notification registered successfully", "email": email}
 
-@router.post("/upload-videos", response_model=Dict[str, Any])
+@router.post("/upload-videos", response_model=UploadVideosResponse)
 async def upload_videos(
     files: List[UploadFile] = File(...),
-    current_user: dict = Depends(require_super_admin)
+    current_user: User = Depends(require_super_admin)
 ):
     from app.utils.oci_storage import upload_file_to_oci
     import uuid

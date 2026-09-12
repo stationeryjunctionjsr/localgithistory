@@ -40,8 +40,8 @@ class GoogleReviewRepository:
                 response = await client.get(url, headers=headers)
                 if response.status_code == 200:
                     data = response.json()
-                    rating = data.get("rating")
-                    count = data.get("userRatingCount")
+                    rating = getattr(data, "rating", None)
+                    count = getattr(data, "userRatingCount", None)
 
                     if rating is not None and count is not None:
                         return {"rating": float(rating), "reviewCount": str(count)}
@@ -141,7 +141,7 @@ class GoogleReviewRepository:
             logger.error("Error fetching Google reviews: %s", str(e), exc_info=True)
             raise e
 
-    async def _update_storage(self, new_data: Dict):
+    async def _update_storage(self, new_data: Any):
         existing = await self.storage.findAll()
         if existing:
             for doc in existing:

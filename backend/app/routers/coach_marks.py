@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 from typing import List
 
@@ -29,19 +30,19 @@ async def get_coach_mark(id: str):
 
 @router.post("", response_model=CoachMarkResponse)
 @router.post("/", response_model=CoachMarkResponse)
-async def create_coach_mark(mark: CoachMarkCreate, current_user: dict = Depends(require_super_admin)):
-    return await coach_mark_repository.create(mark.model_dump())
+async def create_coach_mark(mark: CoachMarkCreate, current_user: User = Depends(require_super_admin)):
+    return await coach_mark_repository.create(mark)
 
 
 @router.put("/{id}", response_model=CoachMarkResponse)
-async def update_coach_mark(id: str, mark_update: CoachMarkUpdate, current_user: dict = Depends(require_super_admin)):
+async def update_coach_mark(id: str, mark_update: CoachMarkUpdate, current_user: User = Depends(require_super_admin)):
     mark = await coach_mark_repository.findById(id)
     if not mark:
         raise HTTPException(status_code=404, detail="Coach mark not found")
-    return await coach_mark_repository.update(id, mark_update.model_dump(exclude_unset=True))
+    return await coach_mark_repository.update(id, mark_update)
 
 
 @router.delete("/{id}", response_model=MessageResponse)
-async def delete_coach_mark(id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_coach_mark(id: str, current_user: User = Depends(require_super_admin)):
     await coach_mark_repository.delete(id)
     return {"message": "Coach mark deleted"}

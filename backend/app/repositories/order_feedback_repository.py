@@ -19,7 +19,7 @@ class OrderFeedbackRepository:
     async def findByUser(self, user_id: str):
         return await self.storage.findAll({"userId": user_id})
 
-    async def create(self, feedback_data: Dict):
+    async def create(self, feedback_data: Any):
         feedback = {
             "orderId": feedback_data.get("orderId"),
             "userId": feedback_data["userId"],
@@ -32,11 +32,11 @@ class OrderFeedbackRepository:
 
         return await self.storage.create(feedback)
 
-    async def update(self, id: str, update_data: Dict):
+    async def update(self, id: str, update_data: Any):
         if "rating" in update_data:
-            update_data["rating"] = int(update_data["rating"])
-        if "deliveryRating" in update_data and update_data["deliveryRating"]:
-            update_data["deliveryRating"] = int(update_data["deliveryRating"])
+            update_data.rating = int(update_data.rating)
+        if "deliveryRating" in update_data and update_data.deliveryRating:
+            update_data.deliveryRating = int(update_data.deliveryRating)
 
         return await self.storage.update(id, update_data)
 

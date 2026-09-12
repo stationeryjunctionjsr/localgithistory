@@ -41,10 +41,10 @@ class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
 
     def _flatten_filters(self, data: Dict) -> Dict:
         # Move keys from 'filters' directly into data so they get mapped by scalar_map
-        if "filters" in data and isinstance(data["filters"], dict):
-            for k, v in data["filters"].items():
+        if "filters" in data and isinstance(data.filters, dict):
+            for k, v in data.filters.items():
                 data[k] = v
-            del data["filters"]
+            del data.filters
         return data
 
     def _unflatten_filters(self, data: Dict) -> Dict:
@@ -67,7 +67,7 @@ class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
             if k in data and data[k] is not None:
                 filters[k] = data.pop(k)
         if filters:
-            data["filters"] = filters
+            data.filters = filters
         return data
 
     async def _fetch_user_ids(self, segment_id: str) -> List[str]:

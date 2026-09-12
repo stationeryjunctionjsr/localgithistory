@@ -16,7 +16,7 @@ class UserRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def findOne(self, query: Dict):
+    async def findOne(self, query: Any):
         return await self.storage.findOne(query)
 
     async def findByEmail(self, email: str):
@@ -46,7 +46,7 @@ class UserRepository:
                 return user
         return None
 
-    async def create(self, user_data: Dict):
+    async def create(self, user_data: Any) -> User:
         # Check if user with email already exists (only if email is provided)
         email = user_data.get("email")
         if email:
@@ -117,36 +117,36 @@ class UserRepository:
 
         return await self.storage.create(user)
 
-    async def update(self, id: str, update_data: Dict):
+    async def update(self, id: str, update_data: Any):
         # Don't allow updating email to an existing one
         if "email" in update_data:
-            existing = await self.findByEmail(update_data["email"])
+            existing = await self.findByEmail(update_data.email)
             if existing and existing.get("_id") != id:
                 raise ValueError("Email already in use")
-            update_data["email"] = update_data["email"].lower()
+            update_data.email = update_data.email.lower()
 
         # Don't allow updating phone to an existing one
         if "phone" in update_data:
-            existing_phone = await self.findByPhone(update_data["phone"])
+            existing_phone = await self.findByPhone(update_data.phone)
             if existing_phone and existing_phone.get("_id") != id:
                 raise ValueError("Phone number already in use")
 
         # Hash password if provided
         if "password" in update_data:
-            update_data["password"] = get_password_hash(update_data["password"])
+            update_data.password = get_password_hash(update_data.password)
 
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str):
         return await self.storage.delete(id)
 
-    async def addSavedAddress(self, user_id: str, address: Dict):
+    async def addSavedAddress(self, user_id: str, address: Any):
         """Add a new address to user's saved addresses list uniquely."""
         user = await self.findById(user_id)
         if not user:
             return None
 
-        saved_addresses = user.get("savedAddresses", [])
+        saved_addresses = getattr(user, "saved_addresses", [])
 
         # Simple duplicate check
         is_duplicate = False
@@ -165,19 +165,19 @@ class UserRepository:
 
         return saved_addresses
 
-    def compare_password(self, user: Dict, candidate_password: str) -> bool:
-        if not user or not user.get("password"):
+    def compare_password(self, user: Any, candidate_password: str) -> bool:
+        if not user or not getattr(user, "password", None):
             logger.warning(
                 "compare_password: User or password missing, userId=%s, hasPassword=%s",
-                user.get("_id") if user else None,
-                bool(user.get("password") if user else False),
+                getattr(user, "id", None) if user else None,
+                bool(getattr(user, "password", None) if user else False),
             )
             return False
         if not candidate_password:
             logger.warning("compare_password: Candidate password missing")
             return False
         try:
-            return verify_password(candidate_password, user.get("password", ""))
+            return verify_password(candidate_password, getattr(user, "password", ""))
         except Exception as e:
             logger.error("compare_password error: %s", str(e), exc_info=True)
             return False
@@ -187,13 +187,13 @@ class UserRepository:
         users = await self.findAll()
         updated_count = 0
         for user in users:
-            if not user.get("referralCode"):
+            if not getattr(user, "referral_code", None):
                 code = await get_unique_referral_code(self)
-                await self.update(user["_id"], {"referralCode": code})
+                await self.update(user.id, {"referralCode": code})
                 updated_count += 1
         return updated_count
 
-    async def adjust_credit(self, user_id: str, amount: float) -> Optional[Dict]:
+    async def adjust_credit(self, user_id: str, amount: float) -> Optional[User]:
         """
         Atomically adjust user credit (positive = consume, negative = refund).
         Uses SELECT FOR UPDATE on the relational table.

@@ -13,7 +13,9 @@ class MySQLAdDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Ad:
+        return Ad(**self._row_to_dict_raw(row))
+    def _row_to_dict_raw(self, row) -> dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -121,22 +123,25 @@ class MySQLAdDAO:
             "meta_pixel_id": "meta_pixel_id", "notes": "notes", "launched_at": "launched_at"
         }
         for api_k, db_k in scalar_map.items():
-            if api_k in data:
+            val = getattr(data, api_k, None)
+            if val is not None:
                 cols.append(db_k)
                 vals.append(f":{api_k}")
-                params[api_k] = data[api_k]
+                params[api_k] = val
         
-        stats = data.get("stats") or {}
+        stats = getattr(data, "stats", None)
         stats_map = {
             "impressions": "impressions", "clicks": "clicks", "leads": "leads", "purchases": "purchases",
             "add_to_cart": "add_to_cart", "conversions": "conversions", "conversion_value": "conversion_value",
             "ctr": "ctr", "cvr": "cvr"
         }
-        for api_k, db_k in stats_map.items():
-            if api_k in stats:
-                cols.append(db_k)
-                vals.append(f":s_{api_k}")
-                params[f"s_{api_k}"] = stats[api_k]
+        if stats:
+            for api_k, db_k in stats_map.items():
+                val = getattr(stats, api_k, None)
+                if val is not None:
+                    cols.append(db_k)
+                    vals.append(f":s_{api_k}")
+                    params[f"s_{api_k}"] = val
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -211,3 +216,4 @@ class MySQLAdDAO:
             )
             await session.commit()
             return res.rowcount > 0
+

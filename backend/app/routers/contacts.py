@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 from typing import List
 
@@ -13,7 +14,7 @@ router = APIRouter()
 
 @router.get("", response_model=List[ContactResponse])
 @router.get("/", response_model=List[ContactResponse])
-async def get_contacts(current_user: dict = Depends(get_current_user)):
+async def get_contacts(current_user: User = Depends(get_current_user)):
     if current_user.role == "super_admin":
         contacts = await contact_repository.findAll()
     else:
@@ -41,23 +42,23 @@ async def get_contact(contact_id: str):
 
 @router.post("", response_model=ContactResponse, status_code=201)
 @router.post("/", response_model=ContactResponse, status_code=201)
-async def create_contact(contact_data: ContactCreate, current_user: dict = Depends(require_super_admin)):
-    contact = await contact_repository.create(contact_data.dict())
+async def create_contact(contact_data: ContactCreate, current_user: User = Depends(require_super_admin)):
+    contact = await contact_repository.create(contact_data)
     return contact
 
 
 @router.put("/{contact_id}", response_model=ContactResponse)
 async def update_contact(
-    contact_id: str, contact_data: ContactUpdate, current_user: dict = Depends(require_super_admin)
+    contact_id: str, contact_data: ContactUpdate, current_user: User = Depends(require_super_admin)
 ):
-    contact = await contact_repository.update(contact_id, contact_data.dict(exclude_unset=True))
+    contact = await contact_repository.update(contact_id, contact_data)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     return contact
 
 
 @router.delete("/{contact_id}", response_model=MessageResponse)
-async def delete_contact(contact_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_contact(contact_id: str, current_user: User = Depends(require_super_admin)):
     result = await contact_repository.delete(contact_id)
     if not result:
         raise HTTPException(status_code=404, detail="Contact not found")

@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse, CheckPhoneResponse, VerifyOtpResponse, Msg91WebhookResponse, VerifyMsg91TokenResponse
 import os
 from typing import Optional
@@ -245,7 +246,7 @@ async def register(user_data: RegisterRequest, request: Request):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a valid 10-digit phone number")
 
         # Always create as customer
-        user_dict = user_data.dict()
+        user_dict = user_data
         user_dict["role"] = "customer"
         user_dict["approvalStatus"] = "approved"
         user_dict["phone"] = normalized_phone
@@ -300,22 +301,22 @@ async def register(user_data: RegisterRequest, request: Request):
         # Create session and tokens
         device = parse_device(request, default_type="web")
         refresh_id = str(uuid4())
-        session = await session_repository.create_session(user["_id"], device, refresh_id)
+        session = await session_repository.create_session(user.id, device, refresh_id)
 
-        access_token = create_access_token(user["_id"], session["_id"])
-        refresh_token = create_refresh_token(user["_id"], session["_id"], refresh_id)
+        access_token = create_access_token(user.id, session.id)
+        refresh_token = create_refresh_token(user.id, session.id, refresh_id)
 
-        user_response = UserResponse(**user)
+        user_response = UserResponse(**(user if hasattr(user, 'model_dump') else user))
 
         auth_data = AuthResponse(
             token=access_token,
             refreshToken=refresh_token,
-            sessionId=session["_id"],
+            sessionId=session.id,
             user=user_response,
             message="Registration successful.",
         )
-        response = JSONResponse(content=auth_data.dict(), status_code=201)
-        set_auth_cookies(response, access_token, refresh_token, session["_id"])
+        response = JSONResponse(content=auth_data, status_code=201)
+        set_auth_cookies(response, access_token, refresh_token, session.id)
         return response
     except HTTPException as he:
         logger.warning(f"[REGISTER] HTTPException: status={he.status_code} detail={he.detail}")
@@ -366,12 +367,12 @@ async def login(login_data: LoginRequest, request: Request):
     device = parse_device(request, default_type="web")
     refresh_id = str(uuid4())
     # create session
-    session = await session_repository.create_session(user["_id"], device, refresh_id)
+    session = await session_repository.create_session(user.id, device, refresh_id)
     # revoke other sessions is disabled to allow signing into and remaining active on multiple devices
-    # await session_repository.revoke_other_sessions(user["_id"], exclude_session_id=session["_id"])
+    # await session_repository.revoke_other_sessions(user.id, exclude_session_id=session.id)
 
-    access_token = create_access_token(user["_id"], session["_id"])
-    refresh_token = create_refresh_token(user["_id"], session["_id"], refresh_id)
+    access_token = create_access_token(user.id, session.id)
+    refresh_token = create_refresh_token(user.id, session.id, refresh_id)
     # Calculate effective role
     effective_role = "customer"
     if user.is_deactivated and user.role == "wholesaler":
@@ -379,14 +380,14 @@ async def login(login_data: LoginRequest, request: Request):
     else:
         effective_role = (user.role if user.role is not None else "customer")
 
-    user_response_dict = {**user, "effectiveRole": effective_role}
-    user_response = UserResponse(**user_response_dict)
+    user_response_dict = {**(user if hasattr(user, 'model_dump') else user), "effectiveRole": effective_role}
+    user_response = UserResponse(**(user_response_dict if hasattr(user_response_dict, 'model_dump') else user_response_dict))
 
     auth_data = AuthResponse(
-        token=access_token, refreshToken=refresh_token, sessionId=session["_id"], user=user_response
+        token=access_token, refreshToken=refresh_token, sessionId=session.id, user=user_response
     )
-    response = JSONResponse(content=auth_data.dict())
-    set_auth_cookies(response, access_token, refresh_token, session["_id"])
+    response = JSONResponse(content=auth_data)
+    set_auth_cookies(response, access_token, refresh_token, session.id)
     return response
 
 
@@ -456,10 +457,10 @@ async def refresh_tokens(payload: RefreshRequest, request: Request):
 
     user_copy = dict(user)
     user_copy.pop("password", None)
-    user_response_dict = {**user_copy, "effectiveRole": effective_role}
-    user_response = UserResponse(**user_response_dict)
+    user_response_dict = {**(user_copy if hasattr(user_copy, 'model_dump') else user_copy), "effectiveRole": effective_role}
+    user_response = UserResponse(**(user_response_dict if hasattr(user_response_dict, 'model_dump') else user_response_dict))
     auth_data = AuthResponse(token=access_token, refreshToken=refresh_token, sessionId=session_id, user=user_response)
-    response = JSONResponse(content=auth_data.dict())
+    response = JSONResponse(content=auth_data)
     set_auth_cookies(response, access_token, refresh_token, session_id)
     return response
 
@@ -469,7 +470,7 @@ class LogoutRequest(BaseModel):
 
 
 @router.post("/logout", response_model=MessageResponse)
-async def logout(request: LogoutRequest, current_user: dict = Depends(get_current_user)):
+async def logout(request: LogoutRequest, current_user: User = Depends(get_current_user)):
     session_id = request.sessionId or current_user.session_id
     if session_id:
         await session_repository.revoke_session(session_id, "logout")
@@ -512,7 +513,7 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found with this phone number")
 
         # Update password (UserRepository.update will handle hashing)
-        await user_repository.update(user["_id"], {"password": data.newPassword})
+        await user_repository.update(user.id, {"password": data.newPassword})
 
         return {"message": "Password reset successful"}
     except HTTPException:
@@ -522,7 +523,7 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):
 
 
 @router.delete("/me", status_code=200, response_model=MessageResponse)
-async def delete_own_account(current_user: dict = Depends(get_current_user)):
+async def delete_own_account(current_user: User = Depends(get_current_user)):
     """GDPR / DPDP right-to-erasure: authenticated user permanently deletes their own account.
 
     All active sessions are revoked before deletion so any in-flight tokens
@@ -553,7 +554,7 @@ async def delete_own_account(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: dict = Depends(get_current_user)):
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
     # Calculate effective role
     effective_role = "customer"
     if current_user.is_deactivated and current_user.role == "wholesaler":
@@ -561,5 +562,5 @@ async def get_current_user_info(current_user: dict = Depends(get_current_user)):
     else:
         effective_role = (current_user.role if current_user.role is not None else "customer")
 
-    user_response_dict = {**current_user, "effectiveRole": effective_role}
-    return UserResponse(**user_response_dict)
+    user_response_dict = {**(current_user if hasattr(current_user, 'model_dump') else current_user), "effectiveRole": effective_role}
+    return UserResponse(**(user_response_dict if hasattr(user_response_dict, 'model_dump') else user_response_dict))

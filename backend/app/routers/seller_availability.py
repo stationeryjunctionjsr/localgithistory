@@ -1,3 +1,4 @@
+from app.models.user import User
 """
 Seller Store Availability Router
 
@@ -30,6 +31,22 @@ storage = get_storage("sellerAvailability")
 
 # ─── Schemas ─────────────────────────────────────────────────────────────────
 
+
+
+class SellerAvailabilityResponse(BaseModel):
+    id: str = Field(alias="_id")
+    sellerId: str
+    startDate: str
+    endDate: str
+    reason: Optional[str] = None
+    status: str
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class TickResponse(BaseModel):
+    processed: int
+    expired: int
+    activated: int
 
 class SellerAvailabilityCreate(BaseModel):
     startAt: str  # ISO 8601 datetime, e.g. "2026-08-17T14:00:00"
@@ -135,11 +152,11 @@ async def _enrich_with_seller_name(docs: list) -> list:
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 
-@router.post("", response_model=Dict[str, Any], status_code=201)
-@router.post("/", response_model=Dict[str, Any], status_code=201)
+@router.post("", response_model=SellerAvailabilityResponse, status_code=201)
+@router.post("/", response_model=SellerAvailabilityResponse, status_code=201)
 async def schedule_unavailability(
     data: SellerAvailabilityCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Schedule a store unavailability window.
@@ -169,7 +186,7 @@ async def schedule_unavailability(
     if start_dt < now:
         raise HTTPException(status_code=400, detail="Cannot schedule unavailability in the past.")
 
-    seller_id = str(current_user["_id"])
+    seller_id = str(current_user.id)
     payload = {
         "sellerId": seller_id,
         "startAt": data.startAt,
@@ -189,25 +206,25 @@ async def schedule_unavailability(
     return created
 
 
-@router.get("/my", response_model=List[Dict[str, Any]])
+@router.get("/my", response_model=List[SellerAvailabilityResponse])
 async def get_my_availability_windows(
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Return own upcoming and recent availability windows."""
     _require_seller(current_user)
-    seller_id = str(current_user["_id"])
+    seller_id = str(current_user.id)
     docs = await storage.findAll({"sellerId": seller_id})
     # Sort by startAt descending (most recent first)
     docs.sort(key=lambda d: d.get("startAt", ""), reverse=True)
     return docs
 
 
-@router.get("", response_model=List[Dict[str, Any]])
-@router.get("/", response_model=List[Dict[str, Any]])
+@router.get("", response_model=List[SellerAvailabilityResponse])
+@router.get("/", response_model=List[SellerAvailabilityResponse])
 async def get_all_seller_availability(
     sellerId: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Admin: view all sellers' availability windows."""
     query: Dict[str, Any] = {}
@@ -224,7 +241,7 @@ async def get_all_seller_availability(
 @router.delete("/{window_id}", response_model=MessageResponse)
 async def cancel_availability_window(
     window_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Cancel a scheduled availability window. Only allowed before it becomes active."""
     _require_seller(current_user)
@@ -233,7 +250,7 @@ async def cancel_availability_window(
     if not doc:
         raise HTTPException(status_code=404, detail="Availability window not found")
 
-    if str(doc.seller_id) != str(current_user["_id"]):
+    if str(doc.seller_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="You can only cancel your own windows")
 
     if doc.status == "active":
@@ -255,9 +272,9 @@ async def cancel_availability_window(
     return {"message": "Availability window cancelled"}
 
 
-@router.post("/tick", include_in_schema=False, response_model=Dict[str, Any])
+@router.post("/tick", include_in_schema=False, response_model=TickResponse)
 async def tick_availability_statuses(
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """
     Internal: advance status transitions for scheduled/active windows.

@@ -1,10 +1,12 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 import asyncio
 import time as _time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from fastapi import APIRouter, Depends
+from app.models.product import Product, HTTPException, Request, Query
 from pydantic import BaseModel
 
 from app.repositories.activity_repository import activity_repository
@@ -34,8 +36,8 @@ class RecommendationEventBody(BaseModel):
     strategy: Optional[str] = None  # 'trending' | 'user_favorites' | 'explore' for bandit reward update
 
 
-@router.get("", response_model=Dict[str, Any])
-@router.get("/", response_model=Dict[str, Any])
+@router.get("", response_model=List[Product])
+@router.get("/", response_model=List[Product])
 async def get_recommendations(
     current_user: Optional[dict] = Depends(get_optional_user),
     pincode: Optional[str] = Query(None)
@@ -115,7 +117,7 @@ async def get_recommendations(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/favourites", response_model=Dict[str, Any])
+@router.get("/favourites", response_model=List[Product])
 async def get_favourites_page(
     type: str = "customer",
     state: Optional[str] = None,
@@ -127,7 +129,7 @@ async def get_favourites_page(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     days: int = 60,
-    current_user: dict = Depends(get_optional_user),
+    current_user: User = Depends(get_optional_user),
 ):
     """
     Full ranked favourites list for the wholesaler 'View All' pages.
@@ -251,7 +253,7 @@ async def get_favourites_page(
 
 
 @router.get("/metrics", response_model=Dict[str, Any])
-async def get_recommendation_metrics(days: int = 30, current_user: dict = Depends(require_super_admin)):
+async def get_recommendation_metrics(days: int = 30, current_user: User = Depends(require_super_admin)):
     """
     Return recommendation engagement metrics for the last N days.
     Use this to see if the section is viewed, and if product views / add-to-cart are healthy.

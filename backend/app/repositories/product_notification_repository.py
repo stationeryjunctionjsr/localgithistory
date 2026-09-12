@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, Any, List, Optional
 from sqlalchemy import text
 
 from app.db.storage_factory import get_storage

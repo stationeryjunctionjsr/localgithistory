@@ -1,3 +1,4 @@
+from app.models.user import User
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
 
@@ -24,13 +25,13 @@ async def get_referral_settings(admin=Depends(require_super_admin)):
 @router.put("/settings", response_model=ReferralSettingsResponse)
 async def update_referral_settings(settings: ReferralSettingsResponse, admin=Depends(require_super_admin)):
     # Convert Pydantic model to dict for storage
-    update_data = {"retail": settings.retail.dict(), "business": settings.business.dict()}
+    update_data = {"retail": settings.retail, "business": settings.business}
     updated = await referral_repository.update_settings(update_data)
     return updated
 
 
 @router.get("/check-eligibility", response_model=ReferralEligibilityResponse)
-async def check_referral_eligibility(current_user: dict = Depends(get_current_user)):
+async def check_referral_eligibility(current_user: User = Depends(get_current_user)):
     try:
         from app.repositories.order_repository import order_repository
 
@@ -64,7 +65,7 @@ async def check_referral_eligibility(current_user: dict = Depends(get_current_us
 
 
 @router.post("/verify", response_model=ReferralVerifyResponse)
-async def verify_referral_code(payload: ReferralVerifyRequest, current_user: dict = Depends(get_current_user)):
+async def verify_referral_code(payload: ReferralVerifyRequest, current_user: User = Depends(get_current_user)):
     code = payload.code.strip().upper()
     if not code:
         raise HTTPException(status_code=400, detail="Referral code is required")
@@ -98,7 +99,7 @@ async def verify_referral_code(payload: ReferralVerifyRequest, current_user: dic
 
 
 @router.get("/scheme", response_model=ReferralPublicSchemeResponse)
-async def get_public_scheme(current_user: dict = Depends(get_current_user)):
+async def get_public_scheme(current_user: User = Depends(get_current_user)):
     settings = await referral_repository.get_settings()
     retail_settings = (settings.retail or {})
     return {

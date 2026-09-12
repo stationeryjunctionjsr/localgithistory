@@ -1,8 +1,9 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from app.models.schemas import BrandCreate, BrandUpdate
+from app.models.schemas import BrandCreate, BrandUpdate, BrandResponse
 from app.repositories.brand_repository import brand_repository
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache
@@ -11,35 +12,35 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("/public", response_model=Dict[str, Any])
+@router.get("/public", response_model=List[BrandResponse])
 @cache.ttl_cache(ttl=300.0)
 async def get_public_brands(forHomepage: bool = False):
     """Active brands with name and logo. If forHomepage=true, only brands with display-in-homepage enabled (web & mobile)."""
     brands = await brand_repository.findActive()
     if forHomepage:
-        featured = [b for b in brands if b.show_in_mobile_homepage]
+        featured = [b for b in brands if b.showInMobileHomepage]
         if featured:
             brands = featured
     return [
         {
-            "_id": b["_id"],
+            "_id": b.id,
             "name": (b.name or ""),
-            "logoUrl": (b.logo_url or "") or "",
-            "showInMobileHomepage": b.show_in_mobile_homepage,
+            "logoUrl": (b.image_url or "") or "",
+            "showInMobileHomepage": b.showInMobileHomepage,
         }
         for b in brands
     ]
 
 
-@router.get("", response_model=Dict[str, Any])
-@router.get("/", response_model=Dict[str, Any])
-async def get_brands(current_user: dict = Depends(require_super_admin)):
+@router.get("", response_model=List[BrandResponse])
+@router.get("/", response_model=List[BrandResponse])
+async def get_brands(current_user: User = Depends(require_super_admin)):
     """All brands (super_admin only)."""
     return await brand_repository.findAll()
 
 
-@router.post("/upload-logo", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
-async def upload_brand_logo(image: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
+@router.post("/upload-logo", status_code=status.HTTP_200_OK, response_model=Dict[str, str])
+async def upload_brand_logo(image: UploadFile = File(...), current_user: User = Depends(require_super_admin)):
     """Upload brand logo (super_admin only). Uses OCI Object Storage when configured."""
     try:
         from app.services.oci_storage import upload_image_and_return_path
@@ -65,17 +66,17 @@ def _invalidate_brand_caches():
         pass
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=Dict[str, Any])
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=Dict[str, Any])
-async def create_brand(data: BrandCreate, current_user: dict = Depends(require_super_admin)):
-    brand = await brand_repository.create(data.model_dump())
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=BrandResponse)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=BrandResponse)
+async def create_brand(data: BrandCreate, current_user: User = Depends(require_super_admin)):
+    brand = await brand_repository.create(data)
     _invalidate_brand_caches()
     return brand
 
 
-@router.put("/{brand_id}", response_model=Dict[str, Any])
-async def update_brand(brand_id: str, data: BrandUpdate, current_user: dict = Depends(require_super_admin)):
-    brand = await brand_repository.update(brand_id, data.model_dump(exclude_unset=True))
+@router.put("/{brand_id}", response_model=BrandResponse)
+async def update_brand(brand_id: str, data: BrandUpdate, current_user: User = Depends(require_super_admin)):
+    brand = await brand_repository.update(brand_id, data)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     _invalidate_brand_caches()
@@ -83,7 +84,7 @@ async def update_brand(brand_id: str, data: BrandUpdate, current_user: dict = De
 
 
 @router.delete("/{brand_id}", response_model=MessageResponse)
-async def delete_brand(brand_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_brand(brand_id: str, current_user: User = Depends(require_super_admin)):
     ok = await brand_repository.delete(brand_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Brand not found")

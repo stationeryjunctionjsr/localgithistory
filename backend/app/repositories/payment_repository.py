@@ -50,13 +50,13 @@ class PaymentRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def findOne(self, query: Dict):
+    async def findOne(self, query: Any):
         return await self.storage.findOne(query)
 
     async def findByOrderId(self, order_id: str):
         return await self.storage.findAll({"orderId": order_id})
 
-    async def create(self, payment_data: Dict):
+    async def create(self, payment_data: Any):
         payment = {
             "orderId": payment_data["orderId"],
             "userId": payment_data.get("userId") or payment_data.get("customerId"),  # Use userId instead of customerId
@@ -90,11 +90,11 @@ class PaymentRepository:
 
         return await self.storage.create(payment)
 
-    async def update(self, id: str, update_data: Dict):
-        update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
+    async def update(self, id: str, update_data: Any):
+        update_data.updatedAt = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
 
-    async def addPaymentEntry(self, payment_id: str, entry_data: Dict):
+    async def addPaymentEntry(self, payment_id: str, entry_data: Any):
         payment = await self.findById(payment_id)
         if not payment:
             raise ValueError("Payment not found")
@@ -120,7 +120,7 @@ class PaymentRepository:
 
         return await self.update(payment_id, payment)
 
-    async def updatePaymentEntry(self, payment_id: str, entry_id: int, update_data: Dict):
+    async def updatePaymentEntry(self, payment_id: str, entry_id: int, update_data: Any):
         payment = await self.findById(payment_id)
         if not payment:
             raise ValueError("Payment not found")

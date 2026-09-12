@@ -162,7 +162,7 @@ class MySQLDocStore:
                     for k, v in query.items():
                         if k in ("_id", "id"):
                             # Compare as strings but try to normalize
-                            if str(d.get("_id")) != str(v):
+                            if str(d._id) != str(v):
                                 match = False
                                 break
                         elif isinstance(v, dict) and any(
@@ -219,7 +219,7 @@ class MySQLDocStore:
         external_id = secrets.token_hex(16)
         now = datetime.now(timezone.utc)
         # Keep custom string _id if provided in data
-        custom_id = data.get("_id")
+        custom_id = data._id
         payload = {k: v for k, v in data.items() if k not in ("createdAt", "updatedAt")}
         if not custom_id or str(custom_id).isdigit():
             payload.pop("_id", None)
@@ -240,40 +240,40 @@ class MySQLDocStore:
         if self._raw_table_name == "sj_coupons":
             cols.append("used_count")
             vals.append(":used_count")
-            params["used_count"] = int(data.get("usedCount") or 0)
+            params["used_count"] = int(data.usedCount or 0)
 
             if "code" in data:
                 cols.append("code")
                 vals.append(":code")
-                params["code"] = data.get("code")
+                params["code"] = data.code
             if "discountType" in data:
                 cols.append("discount_type")
                 vals.append(":discount_type")
-                params["discount_type"] = data.get("discountType")
+                params["discount_type"] = data.discountType
             if "discountValue" in data:
                 cols.append("discount_value")
                 vals.append(":discount_value")
-                params["discount_value"] = float(data.get("discountValue") or 0)
+                params["discount_value"] = float(data.discountValue or 0)
             if "minPurchaseAmount" in data:
                 cols.append("min_order_value")
                 vals.append(":min_order_value")
-                params["min_order_value"] = float(data.get("minPurchaseAmount") or 0)
+                params["min_order_value"] = float(data.minPurchaseAmount or 0)
             if "usageLimit" in data:
                 cols.append("max_uses")
                 vals.append(":max_uses")
-                params["max_uses"] = int(data.get("usageLimit")) if data.get("usageLimit") is not None else None
+                params["max_uses"] = int(data.usageLimit) if data.usageLimit is not None else None
             if "isActive" in data:
                 cols.append("is_active")
                 vals.append(":is_active")
-                params["is_active"] = 1 if data.get("isActive") else None
+                params["is_active"] = 1 if data.isActive else None
             if "validFrom" in data:
                 cols.append("start_date")
                 vals.append(":start_date")
-                params["start_date"] = _to_datetime(data.get("validFrom"))
+                params["start_date"] = _to_datetime(data.validFrom)
             if "validUntil" in data:
                 cols.append("end_date")
                 vals.append(":end_date")
-                params["end_date"] = _to_datetime(data.get("validUntil"))
+                params["end_date"] = _to_datetime(data.validUntil)
 
         cols_str = ", ".join(cols)
         vals_str = ", ".join(vals)
@@ -342,33 +342,33 @@ class MySQLDocStore:
             if self._raw_table_name == "sj_coupons":
                 if "usedCount" in update_data:
                     update_sql += ", used_count = :used_count"
-                    params["used_count"] = int(update_data["usedCount"])
+                    params["used_count"] = int(update_data.usedCount)
                 if "code" in update_data:
                     update_sql += ", code = :code"
-                    params["code"] = update_data["code"]
+                    params["code"] = update_data.code
                 if "discountType" in update_data:
                     update_sql += ", discount_type = :discount_type"
-                    params["discount_type"] = update_data["discountType"]
+                    params["discount_type"] = update_data.discountType
                 if "discountValue" in update_data:
                     update_sql += ", discount_value = :discount_value"
-                    params["discount_value"] = float(update_data["discountValue"])
+                    params["discount_value"] = float(update_data.discountValue)
                 if "minPurchaseAmount" in update_data:
                     update_sql += ", min_order_value = :min_order_value"
-                    params["min_order_value"] = float(update_data["minPurchaseAmount"])
+                    params["min_order_value"] = float(update_data.minPurchaseAmount)
                 if "usageLimit" in update_data:
                     update_sql += ", max_uses = :max_uses"
                     params["max_uses"] = (
-                        int(update_data["usageLimit"]) if update_data["usageLimit"] is not None else None
+                        int(update_data.usageLimit) if update_data.usageLimit is not None else None
                     )
                 if "isActive" in update_data:
                     update_sql += ", is_active = :is_active"
-                    params["is_active"] = 1 if update_data["isActive"] else None
+                    params["is_active"] = 1 if update_data.isActive else None
                 if "validFrom" in update_data:
                     update_sql += ", start_date = :start_date"
-                    params["start_date"] = _to_datetime(update_data["validFrom"])
+                    params["start_date"] = _to_datetime(update_data.validFrom)
                 if "validUntil" in update_data:
                     update_sql += ", end_date = :end_date"
-                    params["end_date"] = _to_datetime(update_data["validUntil"])
+                    params["end_date"] = _to_datetime(update_data.validUntil)
 
             await session.execute(
                 text(f"UPDATE {self.table_name} {update_sql} WHERE id = :id"),
@@ -397,7 +397,7 @@ class MySQLDocStore:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            eid = d.get("_id")
+            eid = d._id
             if eid and await self.delete(eid):
                 deleted += 1
         return {"deletedCount": deleted}

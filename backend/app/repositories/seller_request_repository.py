@@ -31,7 +31,7 @@ class SellerRequestRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def create(self, request_data: Dict):
+    async def create(self, request_data: Any):
         request = {
             "requestNumber": self.generateRequestNumber(),
             "user": request_data.get("user"),
@@ -49,15 +49,15 @@ class SellerRequestRepository:
 
         return await self.storage.create(request)
 
-    async def update(self, id: str, update_data: Dict):
-        if update_data.get("status") == "resolved" and "resolvedAt" not in update_data:
-            update_data["resolvedAt"] = datetime.now(timezone.utc).isoformat()
-        elif update_data.get("status") == "closed" and "closedAt" not in update_data:
-            update_data["closedAt"] = datetime.now(timezone.utc).isoformat()
+    async def update(self, id: str, update_data: Any):
+        if getattr(update_data, "status", None) == "resolved" and "resolvedAt" not in update_data:
+            update_data.resolvedAt = datetime.now(timezone.utc).isoformat()
+        elif getattr(update_data, "status", None) == "closed" and "closedAt" not in update_data:
+            update_data.closedAt = datetime.now(timezone.utc).isoformat()
 
         return await self.storage.update(id, update_data)
 
-    async def addResponse(self, request_id: str, response_data: Dict):
+    async def addResponse(self, request_id: str, response_data: Any):
         request = await self.findById(request_id)
         if not request:
             raise ValueError("Request not found")

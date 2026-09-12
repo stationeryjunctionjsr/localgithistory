@@ -9,7 +9,7 @@ class SessionRepository:
     def __init__(self):
         self.storage = get_storage("sessions")
 
-    async def create_session(self, user_id: Optional[str], device: Dict, refresh_token_id: str) -> Dict:
+    async def create_session(self, user_id: Optional[str], device: Any, refresh_token_id: str) -> Dict:
         return await self.storage.create(
             {
                 "userId": user_id,
@@ -30,12 +30,13 @@ class SessionRepository:
     async def find_by_id(self, session_id: str) -> Optional[Dict]:
         return await self.storage.findById(session_id)
 
-    async def update_session(self, session_id: str, updates: Dict) -> Optional[Dict]:
+    async def update_session(self, session_id: str, updates: Any) -> Optional[Dict]:
         existing = await self.storage.findById(session_id)
         if not existing:
             return None
-        existing.update(updates)
-        return await self.storage.update(session_id, existing)
+        existing_dict = existing.model_dump(by_alias=True) if hasattr(existing, 'model_dump') else dict(existing)
+        existing_dict.update(updates)
+        return await self.storage.update(session_id, existing_dict)
 
     async def revoke_session(self, session_id: str, reason: str) -> Optional[Dict]:
         return await self.update_session(
@@ -64,15 +65,15 @@ class SessionRepository:
                 updates["device"] = device
             await self.update_session(session_id, updates)
 
-    async def check_inactivity_and_revoke(self, session: Dict, max_inactive_days: int) -> Dict:
-        last_active = session.get("lastActiveAt")
+    async def check_inactivity_and_revoke(self, session: Any, max_inactive_days: int) -> Dict:
+        last_active = getattr(session, "last_active_at", None)
         if last_active:
             try:
                 dt = datetime.fromisoformat(last_active.replace("Z", "+00:00"))
                 if datetime.now(timezone.utc) - dt > timedelta(days=max_inactive_days):
-                    return await self.revoke_session(session["_id"], "inactive")
+                    return await self.revoke_session(session.id, "inactive")
             except Exception as e:
-                logger.warning("Invalid lastActiveAt for session %s: %s", session.get("_id"), str(e))
+                logger.warning("Invalid lastActiveAt for session %s: %s", getattr(session, "id", None), str(e))
         return session
 
     async def delete_all_for_user(self, user_id: str) -> None:

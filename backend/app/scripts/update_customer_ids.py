@@ -39,7 +39,7 @@ async def update_customer_ids():
         # Sort users: super admin first, then by creation date
         def sort_key(user):
             # Super admin first
-            if user.get("role") == "super_admin":
+            if getattr(user, "role", None) == "super_admin":
                 return (0, user.get("createdAt", ""))
             # Then by creation date
             return (1, user.get("createdAt", ""))
@@ -51,23 +51,23 @@ async def update_customer_ids():
 
         for user in sorted_users:
             # Skip if already has correct customerId
-            if user.get("customerId") == customer_id:
+            if getattr(user, "user_id_formatted", None) == customer_id:
                 logger.info(
                     "User %s (%s) already has customerId %s",
-                    user.get("_id"),
-                    user.get("name"),
+                    getattr(user, "id", None),
+                    getattr(user, "name", None),
                     customer_id,
                 )
                 customer_id += 1
                 continue
 
             # Update user with customerId
-            await storage.update(user.get("_id"), {"customerId": customer_id})
+            await storage.update(getattr(user, "id", None), {"customerId": customer_id})
             logger.info(
                 "Updated user %s (%s, role: %s) with customerId %s",
-                user.get("_id"),
-                user.get("name"),
-                user.get("role"),
+                getattr(user, "id", None),
+                getattr(user, "name", None),
+                getattr(user, "role", None),
                 customer_id,
             )
             updated_count += 1

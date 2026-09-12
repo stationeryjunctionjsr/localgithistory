@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import CartResponse, SavedForLaterResponse, MessageResponse
 from typing import Dict, Optional
 
@@ -30,7 +31,7 @@ class CartItemUpdateRequest(BaseModel):
 
 @router.get("", response_model=CartResponse)
 @router.get("/", response_model=CartResponse)
-async def get_cart(current_user: dict = Depends(get_current_user)):
+async def get_cart(current_user: User = Depends(get_current_user)):
     """Get user's cart"""
     try:
         from app.repositories.coupon_repository import coupon_repository
@@ -97,7 +98,7 @@ async def get_cart(current_user: dict = Depends(get_current_user)):
                 }
             )
 
-        subtotal = sum(item["subtotal"] for item in cart_items)
+        subtotal = sum(item.subtotal for item in cart_items)
 
         # Get earliest expiry for active reservations to display countdown timer in frontend
         from app.repositories.stock_reservation_repository import stock_reservation_repository
@@ -117,7 +118,7 @@ async def get_cart(current_user: dict = Depends(get_current_user)):
 
 @router.post("", response_model=MessageResponse)
 @router.post("/", response_model=MessageResponse)
-async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_current_user)):
+async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_current_user)):
     """Add item to cart"""
     try:
         product = await product_repository.findById(item.productId)
@@ -216,7 +217,7 @@ async def add_to_cart(item: CartItemRequest, current_user: dict = Depends(get_cu
 
 @router.put("/{item_id}", response_model=MessageResponse)
 async def update_cart_item(
-    item_id: str, update_data: CartItemUpdateRequest, current_user: dict = Depends(get_current_user)
+    item_id: str, update_data: CartItemUpdateRequest, current_user: User = Depends(get_current_user)
 ):
     """Update cart item quantity - allows decreasing below minimum (price adjusts automatically)"""
     try:
@@ -283,7 +284,7 @@ async def update_cart_item(
 
 
 @router.delete("/{item_id}", response_model=MessageResponse)
-async def remove_cart_item(item_id: str, current_user: dict = Depends(get_current_user)):
+async def remove_cart_item(item_id: str, current_user: User = Depends(get_current_user)):
     """Remove item from cart"""
     try:
         cart = await cart_repository.findByUser(current_user.id)
@@ -321,7 +322,7 @@ async def remove_cart_item(item_id: str, current_user: dict = Depends(get_curren
 
 @router.delete("", response_model=MessageResponse)
 @router.delete("/", response_model=MessageResponse)
-async def clear_cart(current_user: dict = Depends(get_current_user)):
+async def clear_cart(current_user: User = Depends(get_current_user)):
     """Clear cart"""
     try:
         await cart_repository.clearCart(current_user.id)
@@ -335,7 +336,7 @@ async def clear_cart(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/save-for-later", response_model=MessageResponse)
-async def save_for_later(request: SaveForLaterRequest, current_user: dict = Depends(get_current_user)):
+async def save_for_later(request: SaveForLaterRequest, current_user: User = Depends(get_current_user)):
     """Save item for later"""
     try:
         from app.repositories.wishlist_repository import wishlist_repository
@@ -348,7 +349,7 @@ async def save_for_later(request: SaveForLaterRequest, current_user: dict = Depe
 
 
 @router.get("/saved-for-later", response_model=SavedForLaterResponse)
-async def get_saved_for_later(current_user: dict = Depends(get_current_user)):
+async def get_saved_for_later(current_user: User = Depends(get_current_user)):
     """Get saved for later items"""
     try:
         saved = await cart_repository.getSavedForLater(current_user.id)

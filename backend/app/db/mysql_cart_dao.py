@@ -113,13 +113,13 @@ class MySQLCartDAO:
             {"cart_id": cart_external_id},
         )
         for it in items or []:
-            pid_raw = it.get("product")
+            pid_raw = it.product
             if not pid_raw:
                 continue
-            qty = it.get("quantity", 0) or 0
-            sell_as_case = 1 if it.get("sellAsCase") else 0
-            bundle_id = it.get("bundleId")
-            bundle_name = it.get("bundleName")
+            qty = (it.quantity if getattr(it, 'quantity', None) is not None else 0) or 0
+            sell_as_case = 1 if it.sellAsCase else 0
+            bundle_id = it.bundleId
+            bundle_name = it.bundleName
 
             await session.execute(
                 text(
@@ -145,7 +145,7 @@ class MySQLCartDAO:
         now = now_utc()
         external_id = secrets.token_hex(16)
 
-        user_id_raw = data.get("user")
+        user_id_raw = data.user
         uid = int(user_id_raw) if user_id_raw and str(user_id_raw).isdigit() else None
 
         async with factory() as session:
@@ -173,7 +173,7 @@ class MySQLCartDAO:
             )
             new_id = r.scalar()
 
-            await self._replace_items(session, external_id, data.get("items") or [])
+            await self._replace_items(session, external_id, data.items or [])
             await session.commit()
 
         return await self.findById(str(new_id))
@@ -201,7 +201,7 @@ class MySQLCartDAO:
             eid = r.scalar()
 
             if "items" in update_data:
-                await self._replace_items(session, eid, update_data.get("items") or [])
+                await self._replace_items(session, eid, update_data.items or [])
 
             await session.commit()
 
@@ -232,7 +232,7 @@ class MySQLCartDAO:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d.get("_id")):
+            if await self.delete(d._id):
                 deleted += 1
         return {"deletedCount": deleted}
 

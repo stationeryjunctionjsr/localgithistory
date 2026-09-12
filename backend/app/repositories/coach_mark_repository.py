@@ -24,16 +24,16 @@ class CoachMarkRepository:
                 return mark
         return None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Any) -> Dict:
         mark = {
             **data,
-            "isActive": data.get("isActive", True),
+            "isActive": getattr(data, 'isActive', True),
             "createdAt": self._get_timestamp(),
             "updatedAt": self._get_timestamp(),
         }
         return await self.storage.create(mark)
 
-    async def update(self, id: str, update_data: Dict) -> Dict:
+    async def update(self, id: str, update_data: Any) -> Dict:
         updates = {**update_data, "updatedAt": self._get_timestamp()}
         return await self.storage.update(id, updates)
 

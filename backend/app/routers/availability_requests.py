@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from datetime import datetime, timezone
@@ -23,8 +24,8 @@ class AvailabilityRequestCreate(BaseModel):
     userEmail: Optional[str] = None
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=Dict[str, Any])
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=Dict[str, Any])
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=AvailabilityRequestResponse)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=AvailabilityRequestResponse)
 async def create_availability_request(
     data: AvailabilityRequestCreate,
     current_user: Optional[dict] = Depends(get_optional_user),
@@ -52,15 +53,15 @@ async def create_availability_request(
     return result
 
 
-@router.get("", response_model=Dict[str, Any])
-@router.get("/", response_model=Dict[str, Any])
+@router.get("", response_model=AvailabilityRequestListResponse)
+@router.get("/", response_model=AvailabilityRequestListResponse)
 async def list_availability_requests(
     pincode: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
     productId: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(50, le=200),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """List all availability requests. Admin only."""
     all_requests = await _storage.findAll({})
@@ -86,7 +87,7 @@ async def list_availability_requests(
 @router.post("/{request_id}/fulfill", response_model=Dict[str, Any])
 async def fulfill_availability_request(
     request_id: str,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Mark a request as fulfilled and notify the user via push + email."""
     req = await _storage.findById(request_id)
@@ -106,11 +107,11 @@ async def fulfill_availability_request(
         },
     )
 
-    product_id = req.product_id
-    product_name = (req.product_name if req.product_name is not None else "Your requested product")
+    product_id = req.productId
+    product_name = (req.productName if req.productName is not None else "Your requested product")
     pincode = req.pincode
-    user_id = req.user_id
-    user_email = req.user_email
+    user_id = req.userId
+    user_email = req.userEmail
 
     notification_payload = {
         "title": "Product Now Available! 🎉",

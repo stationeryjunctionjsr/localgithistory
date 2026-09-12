@@ -144,7 +144,7 @@ class BannerRepository:
 
         return active_banners
 
-    async def create(self, banner_data: Dict):
+    async def create(self, banner_data: Any):
         # Derive legacy fields for backward compatibility and admin table visibility
         user_segments = banner_data.get("userSegments", ["all"])
         visibility_rules = banner_data.get("visibilityRules", [])
@@ -174,15 +174,15 @@ class BannerRepository:
 
         return await self.storage.create(banner)
 
-    async def update(self, id: str, update_data: Dict):
+    async def update(self, id: str, update_data: Any):
         # Sync legacy fields if new ones are provided
         if "userSegments" in update_data:
-            segments = update_data["userSegments"]
-            update_data["targetAudience"] = segments[0] if segments else "all"
+            segments = update_data.userSegments
+            update_data.targetAudience = segments[0] if segments else "all"
 
         if "visibilityRules" in update_data:
-            rules = update_data["visibilityRules"]
-            update_data["position"] = rules[0].get("pageType", "homepage") if rules else "homepage"
+            rules = update_data.visibilityRules
+            update_data.position = rules[0].get("pageType", "homepage") if rules else "homepage"
 
         return await self.storage.update(id, update_data)
 
@@ -191,3 +191,4 @@ class BannerRepository:
 
 
 banner_repository = BannerRepository()
+

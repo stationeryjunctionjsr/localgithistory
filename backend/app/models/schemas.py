@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
@@ -74,7 +73,7 @@ class BannerPosition(str, Enum):
 
 # User Schemas
 class UserBase(BaseModel):
-    name: Optional[str] = None
+        name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: UserRole
     phone: Optional[str] = None
@@ -86,6 +85,54 @@ class UserBase(BaseModel):
     referralCode: Optional[str] = Field(default=None, description="Referral code used to sign up")
     isEmailVerified: Optional[bool] = False
     preferredLanguage: Optional[str] = Field(default="en", description="User's preferred UI language (BCP-47 code, e.g. 'hi', 'ta')")
+    approvalStatus: Optional[str] = "approved"
+    isDeactivated: Optional[bool] = False
+    creditLimit: Optional[float] = 0
+    creditUsed: Optional[float] = 0
+    paymentTerms: Optional[str] = "30"
+    assignedSalesperson: Optional[str] = None
+    isSellerAdmin: Optional[bool] = False
+    isOnDuty: Optional[bool] = False
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
+    password: Optional[str] = None
+    approvalStatus: Optional[str] = "approved"
+    isDeactivated: Optional[bool] = False
+    creditLimit: Optional[float] = 0
+    creditUsed: Optional[float] = 0
+    paymentTerms: Optional[str] = "30"
+    assignedSalesperson: Optional[str] = None
+    isSellerAdmin: Optional[bool] = False
+    isOnDuty: Optional[bool] = False
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
+    password: Optional[str] = None
+    approvalStatus: Optional[str] = "approved"
+    isDeactivated: Optional[bool] = False
+    creditLimit: Optional[float] = 0
+    creditUsed: Optional[float] = 0
+    paymentTerms: Optional[str] = "30"
+    assignedSalesperson: Optional[str] = None
+    isSellerAdmin: Optional[bool] = False
+    isOnDuty: Optional[bool] = False
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
+    password: Optional[str] = None
+    approvalStatus: Optional[str] = "approved"
+    isDeactivated: Optional[bool] = False
+    creditLimit: Optional[float] = 0
+    creditUsed: Optional[float] = 0
+    paymentTerms: Optional[str] = "30"
+    assignedSalesperson: Optional[str] = None
+    isSellerAdmin: Optional[bool] = False
+    isOnDuty: Optional[bool] = False
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
+    password: Optional[str] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -110,7 +157,7 @@ SUPPORTED_LANGUAGES = {"en", "hi", "bn", "te", "mr", "ta", "gu", "kn", "ml", "pa
 
 
 class UserUpdate(BaseModel):
-    name: Optional[str] = None
+        name: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     alternatePhone: Optional[str] = None
@@ -121,6 +168,48 @@ class UserUpdate(BaseModel):
     locationLink: Optional[str] = None
     approvalStatus: Optional[ApprovalStatus] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     creditLimit: Optional[float] = None
     paymentTerms: Optional[int] = None
     assignedSalesperson: Optional[str] = None
@@ -156,15 +245,66 @@ class UserResponse(UserBase):
 
 # Product Variation Schema
 class ProductVariation(BaseModel):
-    name: str  # Variation name (e.g., "Color", "Size", "Pages")
+        name: str  # Variation name (e.g., "Color", "Size", "Pages")
     type: str  # Variation type (e.g., "color", "size", "pages", "quantity")
     options: List[Dict[str, Any]]  # List of options with value, price, stock, etc.
     # Example: [{"value": "Red", "priceModifier": 0, "stock": 10}, {"value": "Blue", "priceModifier": 5, "stock": 15}]
 
 
 # Product Schemas
-class ProductBase(BaseModel):
+
+class ProductReviewResponse(BaseModel):
+    id: str = Field(alias="_id")
+    productId: str
+    userId: str
+    rating: int
+    reviewText: Optional[str] = None
+    status: str
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class ClassificationTagResponse(BaseModel):
+    id: str = Field(alias="_id")
     name: str
+    isActive: bool
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class ReviewActionResponse(BaseModel):
+    message: str
+    review: ProductReviewResponse
+
+class ClassificationActionResponse(BaseModel):
+    message: str
+    classification: ClassificationTagResponse
+
+
+class BundleItemResponse(BaseModel):
+    productId: str
+    productName: Optional[str] = None
+    quantity: int
+    image: Optional[str] = None
+    price: Optional[float] = None
+    discountPrice: Optional[float] = None
+
+class BundleResponse(BaseModel):
+    id: str = Field(alias="_id")
+    name: str
+    description: Optional[str] = None
+    price: float
+    discountPercentage: Optional[float] = None
+    isActive: bool
+    salesCount: Optional[int] = None
+    items: List[BundleItemResponse] = []
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class BundlesListResponse(BaseModel):
+    bundles: List[BundleResponse]
+    total: int
+
+class ProductBase(BaseModel):
+        name: str
     sku: Optional[str] = None
     category: str
     subCategory: Optional[str] = None
@@ -187,6 +327,11 @@ class ProductBase(BaseModel):
     variants: Optional[List[Dict[str, Any]]] = Field(
         default=None, description="Actual combinations of attributes with stock and price"
     )
+    sellers: Optional[List[Dict[str, Any]]] = None
+    catalogSellerIds: Optional[List[str]] = None
+    rating: Optional[float] = None
+    reviews: Optional[int] = None
+    details: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -208,7 +353,7 @@ class ProductCreate(ProductBase):
 
 
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
+        name: Optional[str] = None
     sku: Optional[str] = None
     category: Optional[str] = None
     subCategory: Optional[str] = None
@@ -222,6 +367,48 @@ class ProductUpdate(BaseModel):
     images: Optional[List[str]] = None
     videos: Optional[List[str]] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     isExclusive: Optional[bool] = None
     tags: Optional[List[str]] = None
     variations: Optional[List[Dict[str, Any]]] = None
@@ -229,8 +416,19 @@ class ProductUpdate(BaseModel):
     variants: Optional[List[Dict[str, Any]]] = None
 
 
+
+class CouponValidationDetail(BaseModel):
+    code: str
+    discountType: str
+    discountValue: float
+
+class CouponValidationResponse(BaseModel):
+    valid: bool
+    coupon: Optional[CouponValidationDetail] = None
+    discount: float
+
 class CouponValidateCart(BaseModel):
-    """Validate discount against cart: backend computes eligible subtotal from items."""
+        """Validate discount against cart: backend computes eligible subtotal from items."""
 
     code: str
     items: List[Dict[str, Any]]  # [{ productId, quantity, sellAsCase? }]
@@ -239,7 +437,7 @@ class CouponValidateCart(BaseModel):
 
 # Discount Scheme Schemas (Business Segment / wholesaler)
 class SchemeResponse(BaseModel):
-    id: str = Field(alias="_id")
+        id: str = Field(alias="_id")
     name: str
     description: Optional[str] = None
     discountType: str  # percentage | fixed
@@ -256,7 +454,7 @@ class SchemeResponse(BaseModel):
 
 # Banner Schemas
 class BannerBase(BaseModel):
-    title: Optional[str] = None
+        title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: str
     displayOrder: Optional[int] = None
@@ -276,13 +474,55 @@ class BannerCreate(BannerBase):
 
 
 class BannerUpdate(BaseModel):
-    title: Optional[str] = None
+        title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     displayOrder: Optional[int] = None
     startDate: Optional[str] = None
     endDate: Optional[str] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     isPublished: Optional[bool] = None
     visibilityRules: Optional[List[Dict[str, Any]]] = None
     userSegments: Optional[List[str]] = None
@@ -293,26 +533,98 @@ class BannerResponse(BannerBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Brand Schemas
-class BrandCreate(BaseModel):
+
+class BrandResponse(BaseModel):
+    id: str = Field(alias="_id")
     name: str
+    slug: str
+    logoUrl: Optional[str] = None
+    showInMobileHomepage: bool = False
+    isActive: bool = True
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class BrandCreate(BaseModel):
+        name: str
     logoUrl: Optional[str] = ""
     showInMobileHomepage: bool = False
+    isActive: Optional[bool] = True
+    isActive: Optional[bool] = True
 
 
 class BrandUpdate(BaseModel):
-    name: Optional[str] = None
+        name: Optional[str] = None
     logoUrl: Optional[str] = None
     showInMobileHomepage: Optional[bool] = None
+    isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
 
 
 # Auth Schemas
 class LoginRequest(BaseModel):
-    email: Optional[EmailStr] = None
+        email: Optional[EmailStr] = None
     phone: Optional[str] = None
     password: str
 
@@ -325,7 +637,7 @@ class LoginRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    # name and email are Optional at the API level to support the checkout
+        # name and email are Optional at the API level to support the checkout
     # registration flow (which only requires phone + password).
     # The regular Create Account pages enforce name & email via frontend validation.
     name: Optional[str] = None
@@ -341,7 +653,7 @@ class RegisterRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    token: str
+        token: str
     refreshToken: Optional[str] = None
     sessionId: Optional[str] = None
     user: UserResponse
@@ -350,7 +662,7 @@ class AuthResponse(BaseModel):
 
 # Contact Schemas
 class Address(BaseModel):
-    address: Optional[str] = None
+        address: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
     district: Optional[str] = None
@@ -362,7 +674,7 @@ class Address(BaseModel):
 
 
 class SocialMedia(BaseModel):
-    instagram: Optional[str] = None
+        instagram: Optional[str] = None
     facebook: Optional[str] = None
     twitter: Optional[str] = None
     whatsapp: Optional[str] = None
@@ -371,7 +683,7 @@ class SocialMedia(BaseModel):
 
 
 class ContactBase(BaseModel):
-    addresses: Optional[List[Address]] = None  # Up to 2 addresses
+        addresses: Optional[List[Address]] = None  # Up to 2 addresses
     phoneNumbers: Optional[List[str]] = None  # Up to 3 phone numbers
     email: Optional[str] = None
     description: Optional[str] = None
@@ -412,11 +724,53 @@ class ContactCreate(ContactBase):
 
 
 class ContactUpdate(BaseModel):
-    addresses: Optional[List[Address]] = None
+        addresses: Optional[List[Address]] = None
     phoneNumbers: Optional[List[str]] = None
     email: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     displayOrder: Optional[int] = None
     socialMedia: Optional[SocialMedia] = None
 
@@ -425,13 +779,14 @@ class ContactResponse(ContactBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Support Ticket Schemas
 class SupportTicketBase(BaseModel):
-    name: str
+        name: str
     email: str
     phone: str
     company: Optional[str] = None
@@ -447,13 +802,13 @@ class SupportTicketCreate(SupportTicketBase):
 
 
 class SupportTicketUpdate(BaseModel):
-    status: Optional[str] = None  # open, in_progress, resolved, closed
+        status: Optional[str] = None  # open, in_progress, resolved, closed
     priority: Optional[str] = None
     assignedTo: Optional[str] = None
 
 
 class TicketResponseCreate(BaseModel):
-    message: str
+        message: str
     attachments: Optional[List[str]] = None
 
 
@@ -468,13 +823,14 @@ class SupportTicketResponse(SupportTicketBase):
     closedAt: Optional[str] = None
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Delivery Charge Schemas
 class DeliveryChargeBase(BaseModel):
-    pincode: str
+        pincode: str
     state: str
     city: Optional[str] = ""
     district: str
@@ -497,7 +853,7 @@ class DeliveryChargeCreate(DeliveryChargeBase):
 
 
 class DeliveryChargeUpdate(BaseModel):
-    pincode: Optional[str] = None
+        pincode: Optional[str] = None
     state: Optional[str] = None
     city: Optional[str] = None
     district: Optional[str] = None
@@ -509,6 +865,48 @@ class DeliveryChargeUpdate(BaseModel):
 
     serviceableForWholesaler: Optional[bool] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     description: Optional[str] = None
 
 
@@ -523,12 +921,12 @@ class DeliveryChargeResponse(DeliveryChargeBase):
 
 # Default Delivery Charge Schema
 class DeliveryTier(BaseModel):
-    maxAmount: Union[float, str]  # Can be a number or "Infinity"
+        maxAmount: Union[float, str]  # Can be a number or "Infinity"
     charge: float
 
 
 class DefaultDeliveryChargeBase(BaseModel):
-    tiers: List[DeliveryTier]
+        tiers: List[DeliveryTier]
     applicableToWholesaler: bool = True
     deliveryChargeGst: bool = False
     deliveryChargeGstPercentage: float = 18.0
@@ -551,7 +949,7 @@ class DefaultDeliveryChargeResponse(DefaultDeliveryChargeBase):
 
 # Order Feedback Schemas
 class OrderFeedbackBase(BaseModel):
-    orderId: Optional[str] = None
+        orderId: Optional[str] = None
     rating: int  # 1-5
     comment: Optional[str] = None
     deliveryRating: Optional[int] = None  # 1-5
@@ -568,13 +966,14 @@ class OrderFeedbackResponse(OrderFeedbackBase):
     userId: str
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Coach Mark Schemas
 class CoachMarkBase(BaseModel):
-    anchorId: str
+        anchorId: str
     title: str
     description: str
     screenName: Optional[str] = None
@@ -587,23 +986,66 @@ class CoachMarkCreate(CoachMarkBase):
 
 
 class CoachMarkUpdate(BaseModel):
-    title: Optional[str] = None
+        title: Optional[str] = None
     description: Optional[str] = None
     sequenceOrder: Optional[int] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
 
 
 class CoachMarkResponse(CoachMarkBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Search Tag Schemas
 class SearchTagBase(BaseModel):
-    tagId: Optional[str] = None
+        tagId: Optional[str] = None
     name: str
     type: Literal["Occasion", "Intent", "Recipient"]
     isActive: bool = True
@@ -620,9 +1062,51 @@ class SearchTagCreate(SearchTagBase):
 
 
 class SearchTagUpdate(BaseModel):
-    name: Optional[str] = None
+        name: Optional[str] = None
     type: Optional[Literal["Occasion", "Intent", "Recipient"]] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     categories: Optional[List[str]] = None
     subCategories: Optional[List[str]] = None
     brands: Optional[List[str]] = None
@@ -635,13 +1119,14 @@ class SearchTagResponse(SearchTagBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Collection Schemas
 class CollectionBase(BaseModel):
-    name: str
+        name: str
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     isActive: bool = True
@@ -657,10 +1142,52 @@ class CollectionCreate(CollectionBase):
 
 
 class CollectionUpdate(BaseModel):
-    name: Optional[str] = None
+        name: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     displayOrder: Optional[int] = None
     productIds: Optional[List[str]] = None
     visiblePages: Optional[List[str]] = None
@@ -672,50 +1199,51 @@ class CollectionResponse(CollectionBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Referral Schemas
 class ReferralSegmentSetting(BaseModel):
-    segment: str  # "retail" or "business"
+        segment: str  # "retail" or "business"
     discountType: DiscountType = DiscountType.PERCENTAGE
     discountValue: float = 0
     isActive: bool = False
 
 
 class ReferralSettingsResponse(BaseModel):
-    retail: ReferralSegmentSetting
+        retail: ReferralSegmentSetting
     business: ReferralSegmentSetting
 
 
 class ReferralVerifyRequest(BaseModel):
-    code: str
+        code: str
 
 
 class ReferralVerifyResponse(BaseModel):
-    valid: bool
+        valid: bool
     discountType: DiscountType
     discountValue: float
     referrerName: str
 
 
 class ReferralEligibilityResponse(BaseModel):
-    eligible: bool
+        eligible: bool
     discountType: Optional[DiscountType] = None
     discountValue: Optional[float] = None
     message: Optional[str] = None
 
 
 class ReferralPublicSchemeResponse(BaseModel):
-    isActive: bool
+        isActive: bool
     discountType: DiscountType
     discountValue: float
 
 
 # Return Feature Schemas
 class ReturnSettingsBase(BaseModel):
-    returnDays: int = 7
+        returnDays: int = 7
 
 
 class ReturnSettingsResponse(ReturnSettingsBase):
@@ -723,17 +1251,17 @@ class ReturnSettingsResponse(ReturnSettingsBase):
 
 
 class ReturnSettingsUpdate(BaseModel):
-    returnDays: Optional[int] = None
+        returnDays: Optional[int] = None
 
 
 class ReturnItemSchema(BaseModel):
-    productId: str
+        productId: str
     quantity: int
     reason: str
 
 
 class ReturnRequestBase(BaseModel):
-    orderId: str
+        orderId: str
     items: List[ReturnItemSchema]
     sellerId: Optional[str] = None
     deliverySlotId: Optional[str] = None
@@ -748,14 +1276,14 @@ class ReturnRequestCreate(ReturnRequestBase):
 
 
 class ReturnRequestUpdate(BaseModel):
-    status: Optional[ReturnRequestStatus] = None
+        status: Optional[ReturnRequestStatus] = None
     valetId: Optional[str] = None
     deliveryCharge: Optional[float] = None
     notes: Optional[str] = None
 
 
 class ReturnRequestResponse(BaseModel):
-    id: str = Field(alias="_id")
+        id: str = Field(alias="_id")
     orderId: str
     userId: str
     items: List[Dict[str, Any]]  # populated items
@@ -776,6 +1304,7 @@ class ReturnRequestResponse(BaseModel):
     deliveryCharge: float
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
@@ -794,12 +1323,13 @@ class ProductResponse(ProductBase):
     gst: Optional[float] = 0  # Evaluated from category level
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class SkinnyProductResponse(BaseModel):
-    id: str = Field(alias="_id")
+        id: str = Field(alias="_id")
     productId: Optional[int] = None
     productIdFormatted: Optional[str] = None
     name: str
@@ -822,12 +1352,13 @@ class SkinnyProductResponse(BaseModel):
     displayImage: Optional[str] = None
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class PaginatedProductResponse(BaseModel):
-    products: List[Union[ProductResponse, SkinnyProductResponse]]
+        products: List[Union[ProductResponse, SkinnyProductResponse]]
     totalCount: int
     brands: Optional[List[str]] = None
     categories: Optional[List[str]] = None
@@ -839,7 +1370,7 @@ class PaginatedProductResponse(BaseModel):
 
 # Discount (Coupon) Schemas
 class QuantityTier(BaseModel):
-    quantity: int
+        quantity: int
     discount: float
 
 
@@ -847,7 +1378,7 @@ class QuantityTier(BaseModel):
 # method: discount_code | automatic
 # applicableUserIds: when set, only these user ids can use (Selective Retail/Business)
 class CouponBase(BaseModel):
-    typeOfDiscount: str = (
+        typeOfDiscount: str = (
         "product_discount"  # product_discount | buy_x_get_y | total_order_discount | shipping_discount
     )
     code: Optional[str] = None  # required when method=discount_code; null for automatic
@@ -904,6 +1435,8 @@ class CouponCreate(CouponBase):
 
 
 class CouponUpdate(BaseModel):
+        resolution: Optional[str] = None
+    force: bool = False
     typeOfDiscount: Optional[str] = None
     code: Optional[str] = None
     method: Optional[str] = None
@@ -918,6 +1451,48 @@ class CouponUpdate(BaseModel):
     validUntil: Optional[str] = None
     usageLimit: Optional[int] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     applicableRoles: Optional[List[str]] = None
     applicableUserIds: Optional[List[str]] = None
     applicableCategories: Optional[List[str]] = None
@@ -944,18 +1519,30 @@ class CouponResponse(CouponBase):
     usedCount: Optional[int] = None
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 class CouponValidate(BaseModel):
-    code: str
+        code: str
     amount: float
     category: Optional[str] = None
 
 
+
+class CouponValidationDetail(BaseModel):
+    code: str
+    discountType: str
+    discountValue: float
+
+class CouponValidationResponse(BaseModel):
+    valid: bool
+    coupon: Optional[CouponValidationDetail] = None
+    discount: float
+
 class CouponValidateCart(BaseModel):
-    """Validate discount against cart: backend computes eligible subtotal from items."""
+        """Validate discount against cart: backend computes eligible subtotal from items."""
 
     code: str
     items: List[Dict[str, Any]]  # [{ productId, quantity, sellAsCase? }]
@@ -964,7 +1551,7 @@ class CouponValidateCart(BaseModel):
 
 # Discount Scheme Schemas (Business Segment / wholesaler)
 class SchemeResponse(BaseModel):
-    id: str = Field(alias="_id")
+        id: str = Field(alias="_id")
     name: str
     description: Optional[str] = None
     discountType: str  # percentage | fixed
@@ -981,7 +1568,7 @@ class SchemeResponse(BaseModel):
 
 # Banner Schemas
 class BannerBase(BaseModel):
-    title: Optional[str] = None
+        title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: str
     displayOrder: Optional[int] = None
@@ -1001,13 +1588,55 @@ class BannerCreate(BannerBase):
 
 
 class BannerUpdate(BaseModel):
-    title: Optional[str] = None
+        title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     displayOrder: Optional[int] = None
     startDate: Optional[str] = None
     endDate: Optional[str] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     isPublished: Optional[bool] = None
     visibilityRules: Optional[List[Dict[str, Any]]] = None
     userSegments: Optional[List[str]] = None
@@ -1018,26 +1647,98 @@ class BannerResponse(BannerBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Brand Schemas
-class BrandCreate(BaseModel):
+
+class BrandResponse(BaseModel):
+    id: str = Field(alias="_id")
     name: str
+    slug: str
+    logoUrl: Optional[str] = None
+    showInMobileHomepage: bool = False
+    isActive: bool = True
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class BrandCreate(BaseModel):
+        name: str
     logoUrl: Optional[str] = ""
     showInMobileHomepage: bool = False
+    isActive: Optional[bool] = True
+    isActive: Optional[bool] = True
 
 
 class BrandUpdate(BaseModel):
-    name: Optional[str] = None
+        name: Optional[str] = None
     logoUrl: Optional[str] = None
     showInMobileHomepage: Optional[bool] = None
+    isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
 
 
 # Auth Schemas
 class LoginRequest(BaseModel):
-    email: Optional[EmailStr] = None
+        email: Optional[EmailStr] = None
     phone: Optional[str] = None
     password: str
 
@@ -1050,7 +1751,7 @@ class LoginRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    # name and email are Optional at the API level to support the checkout
+        # name and email are Optional at the API level to support the checkout
     # registration flow (which only requires phone + password).
     # The regular Create Account pages enforce name & email via frontend validation.
     name: Optional[str] = None
@@ -1066,7 +1767,7 @@ class RegisterRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    token: str
+        token: str
     refreshToken: Optional[str] = None
     sessionId: Optional[str] = None
     user: UserResponse
@@ -1075,7 +1776,7 @@ class AuthResponse(BaseModel):
 
 # Contact Schemas
 class Address(BaseModel):
-    address: Optional[str] = None
+        address: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
     district: Optional[str] = None
@@ -1087,7 +1788,7 @@ class Address(BaseModel):
 
 
 class SocialMedia(BaseModel):
-    instagram: Optional[str] = None
+        instagram: Optional[str] = None
     facebook: Optional[str] = None
     twitter: Optional[str] = None
     whatsapp: Optional[str] = None
@@ -1096,7 +1797,7 @@ class SocialMedia(BaseModel):
 
 
 class ContactBase(BaseModel):
-    addresses: Optional[List[Address]] = None  # Up to 2 addresses
+        addresses: Optional[List[Address]] = None  # Up to 2 addresses
     phoneNumbers: Optional[List[str]] = None  # Up to 3 phone numbers
     email: Optional[str] = None
     description: Optional[str] = None
@@ -1137,11 +1838,53 @@ class ContactCreate(ContactBase):
 
 
 class ContactUpdate(BaseModel):
-    addresses: Optional[List[Address]] = None
+        addresses: Optional[List[Address]] = None
     phoneNumbers: Optional[List[str]] = None
     email: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     displayOrder: Optional[int] = None
     socialMedia: Optional[SocialMedia] = None
 
@@ -1150,13 +1893,14 @@ class ContactResponse(ContactBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Support Ticket Schemas
 class SupportTicketBase(BaseModel):
-    name: str
+        name: str
     email: str
     phone: str
     company: Optional[str] = None
@@ -1172,13 +1916,13 @@ class SupportTicketCreate(SupportTicketBase):
 
 
 class SupportTicketUpdate(BaseModel):
-    status: Optional[str] = None  # open, in_progress, resolved, closed
+        status: Optional[str] = None  # open, in_progress, resolved, closed
     priority: Optional[str] = None
     assignedTo: Optional[str] = None
 
 
 class TicketResponseCreate(BaseModel):
-    message: str
+        message: str
     attachments: Optional[List[str]] = None
 
 
@@ -1193,13 +1937,14 @@ class SupportTicketResponse(SupportTicketBase):
     closedAt: Optional[str] = None
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Delivery Charge Schemas
 class DeliveryChargeBase(BaseModel):
-    pincode: str
+        pincode: str
     state: str
     city: Optional[str] = ""
     district: str
@@ -1222,7 +1967,7 @@ class DeliveryChargeCreate(DeliveryChargeBase):
 
 
 class DeliveryChargeUpdate(BaseModel):
-    pincode: Optional[str] = None
+        pincode: Optional[str] = None
     state: Optional[str] = None
     city: Optional[str] = None
     district: Optional[str] = None
@@ -1234,6 +1979,48 @@ class DeliveryChargeUpdate(BaseModel):
 
     serviceableForWholesaler: Optional[bool] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     description: Optional[str] = None
 
 
@@ -1248,12 +2035,12 @@ class DeliveryChargeResponse(DeliveryChargeBase):
 
 # Default Delivery Charge Schema
 class DeliveryTier(BaseModel):
-    maxAmount: Union[float, str]  # Can be a number or "Infinity"
+        maxAmount: Union[float, str]  # Can be a number or "Infinity"
     charge: float
 
 
 class DefaultDeliveryChargeBase(BaseModel):
-    tiers: List[DeliveryTier]
+        tiers: List[DeliveryTier]
     applicableToWholesaler: bool = True
     deliveryChargeGst: bool = False
     deliveryChargeGstPercentage: float = 18.0
@@ -1276,7 +2063,7 @@ class DefaultDeliveryChargeResponse(DefaultDeliveryChargeBase):
 
 # Order Feedback Schemas
 class OrderFeedbackBase(BaseModel):
-    orderId: Optional[str] = None
+        orderId: Optional[str] = None
     rating: int  # 1-5
     comment: Optional[str] = None
     deliveryRating: Optional[int] = None  # 1-5
@@ -1293,13 +2080,14 @@ class OrderFeedbackResponse(OrderFeedbackBase):
     userId: str
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Coach Mark Schemas
 class CoachMarkBase(BaseModel):
-    anchorId: str
+        anchorId: str
     title: str
     description: str
     screenName: Optional[str] = None
@@ -1312,23 +2100,66 @@ class CoachMarkCreate(CoachMarkBase):
 
 
 class CoachMarkUpdate(BaseModel):
-    title: Optional[str] = None
+        title: Optional[str] = None
     description: Optional[str] = None
     sequenceOrder: Optional[int] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
 
 
 class CoachMarkResponse(CoachMarkBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Search Tag Schemas
 class SearchTagBase(BaseModel):
-    tagId: Optional[str] = None
+        tagId: Optional[str] = None
     name: str
     type: Literal["Occasion", "Intent", "Recipient"]
     isActive: bool = True
@@ -1345,9 +2176,51 @@ class SearchTagCreate(SearchTagBase):
 
 
 class SearchTagUpdate(BaseModel):
-    name: Optional[str] = None
+        name: Optional[str] = None
     type: Optional[Literal["Occasion", "Intent", "Recipient"]] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     categories: Optional[List[str]] = None
     subCategories: Optional[List[str]] = None
     brands: Optional[List[str]] = None
@@ -1360,13 +2233,14 @@ class SearchTagResponse(SearchTagBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Collection Schemas
 class CollectionBase(BaseModel):
-    name: str
+        name: str
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     isActive: bool = True
@@ -1382,10 +2256,52 @@ class CollectionCreate(CollectionBase):
 
 
 class CollectionUpdate(BaseModel):
-    name: Optional[str] = None
+        name: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     isActive: Optional[bool] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
+    sellerPermissions: Optional[SellerPermissions] = None
+    serviceAreaZones: Optional[List[str]] = None
+    referralCode: Optional[str] = None
     displayOrder: Optional[int] = None
     productIds: Optional[List[str]] = None
     visiblePages: Optional[List[str]] = None
@@ -1397,61 +2313,170 @@ class CollectionResponse(CollectionBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
+    user: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # Referral Schemas
 class ReferralSegmentSetting(BaseModel):
-    segment: str  # "retail" or "business"
+        segment: str  # "retail" or "business"
     discountType: DiscountType = DiscountType.PERCENTAGE
     discountValue: float = 0
     isActive: bool = False
 
 
 class ReferralSettingsResponse(BaseModel):
-    retail: ReferralSegmentSetting
+        retail: ReferralSegmentSetting
     business: ReferralSegmentSetting
 
 class PaginatedUsersResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+        model_config = ConfigDict(populate_by_name=True)
     users: List[UserResponse]
     totalCount: int = Field(alias="totalCount")
     page: int
     limit: int
 
 class PreferencesResponse(BaseModel):
-    preferredLanguage: str
+        preferredLanguage: str
 
 class DutyStatusResponse(BaseModel):
-    isOnDuty: bool
+        isOnDuty: bool
     message: str
 
 class MessageResponse(BaseModel):
-    message: str
+        message: str
 
 class CartResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+        model_config = ConfigDict(populate_by_name=True)
     items: List[Dict[str, Any]]
     subtotal: float
     itemCount: int = Field(alias="itemCount")
     expiresAt: Optional[str] = Field(alias="expiresAt")
 
 class SavedForLaterResponse(BaseModel):
-    items: List[Dict[str, Any]]
+        items: List[Dict[str, Any]]
 
 class CheckPhoneResponse(BaseModel):
-    status: str
+        status: str
     message: str
 
 class VerifyOtpResponse(BaseModel):
-    valid: bool
+        valid: bool
     message: str
 
 class Msg91WebhookResponse(BaseModel):
-    status: str
+        status: str
 
 class VerifyMsg91TokenResponse(BaseModel):
-    valid: bool
+        valid: bool
     phone: Optional[str] = None
     token: Optional[str] = None
+
+
+class AdStats(BaseModel):
+        impressions: Optional[int] = 0
+    clicks: Optional[int] = 0
+    leads: Optional[int] = 0
+    purchases: Optional[int] = 0
+    add_to_cart: Optional[int] = 0
+    conversions: Optional[int] = 0
+    conversion_value: Optional[float] = 0.0
+    ctr: Optional[float] = 0.0
+    cvr: Optional[float] = 0.0
+
+class AdBase(BaseModel):
+        name: Optional[str] = None
+    platform: Optional[str] = None
+    objective: Optional[str] = None
+    status: Optional[str] = None
+    budget_daily: Optional[float] = None
+    budget_total: Optional[float] = None
+    currency: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    target_url: Optional[str] = None
+    headline: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    google_campaign_id: Optional[str] = None
+    google_ad_group_id: Optional[str] = None
+    meta_campaign_id: Optional[str] = None
+    meta_ad_set_id: Optional[str] = None
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
+    google_conversion_id: Optional[str] = None
+    google_conversion_label: Optional[str] = None
+    meta_pixel_id: Optional[str] = None
+    notes: Optional[str] = None
+    launched_at: Optional[str] = None
+    stats: Optional[AdStats] = Field(default_factory=AdStats)
+
+class AdCreate(AdBase):
+    name: str
+    platform: str
+
+class AdUpdate(AdBase):
+    pass
+
+class AdStatusUpdate(BaseModel):
+        status: str
+
+
+class OrderAddress(BaseModel):
+        name: Optional[str] = None
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    phone: Optional[str] = None
+
+class OrderCreateInternal(BaseModel):
+        user: str
+    userRole: Optional[str] = None
+    sessionId: Optional[str] = None
+    items: List[Any] = Field(default_factory=list)
+    subtotal: float
+    tax: float = 0.0
+    shipping: float = 0.0
+    discount: float = 0.0
+    total: float
+    orderType: str
+    status: str = "pending"
+    paymentStatus: str = "pending"
+    paymentMethod: str = "cod"
+    upiPaymentScreenshot: Optional[str] = None
+    shippingAddress: Optional[OrderAddress] = None
+    billingAddress: Optional[OrderAddress] = None
+    notes: Optional[str] = ""
+    printedBill: bool = False
+    isUrgentDelivery: bool = False
+    orderNumber: Optional[str] = None
+
+
+
+class CouponCreateInternal(CouponBase):
+    resolution: Optional[str] = None
+    force: bool = False
+    displayId: Optional[str] = None
+    usedCount: int = 0
+
+
+
+class PromoStripBase(BaseModel):
+    text: str
+    isActive: Optional[bool] = True
+
+class PromoStripCreate(PromoStripBase):
+    pass
+
+class PromoStripUpdate(BaseModel):
+    text: Optional[str] = None
+    isActive: Optional[bool] = None
+
+class PromoStripResponse(PromoStripBase):
+    id: str = Field(alias='_id')
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+

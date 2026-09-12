@@ -58,7 +58,7 @@ class MySQLFeatureFlagDAO:
             match = True
             for k, v in query.items():
                 if k in ("_id",):
-                    if str(d.get("_id")) != str(v):
+                    if str(d._id) != str(v):
                         match = False
                         break
                 elif d.get(k) != v:
@@ -95,7 +95,7 @@ class MySQLFeatureFlagDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        flag_id = data.get("id") or data.get("flagId") or data.get("flag_id")
+        flag_id = data.id or data.flagId or data.flag_id
         if not flag_id:
             raise ValueError("featureFlags requires `id` (flag_id)")
         async with factory() as session:
@@ -108,10 +108,10 @@ class MySQLFeatureFlagDAO:
                 ),
                 {
                     "flag_id": flag_id,
-                    "name": data.get("name"),
-                    "description": data.get("description"),
-                    "enabled": 1 if data.get("enabled", True) else 0,
-                    "category": data.get("category"),
+                    "name": data.name,
+                    "description": data.description,
+                    "enabled": 1 if (data.enabled if getattr(data, 'enabled', None) is not None else True) else 0,
+                    "category": data.category,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -150,11 +150,11 @@ class MySQLFeatureFlagDAO:
                 ),
                 {
                     "id": fid,
-                    "flag_id": merged.get("id"),
-                    "name": merged.get("name"),
-                    "description": merged.get("description"),
-                    "enabled": 1 if merged.get("enabled", True) else None,
-                    "category": merged.get("category"),
+                    "flag_id": merged.id,
+                    "name": merged.name,
+                    "description": merged.description,
+                    "enabled": 1 if (merged.enabled if getattr(merged, 'enabled', None) is not None else True) else None,
+                    "category": merged.category,
                     "updated_at": now,
                 },
             )
@@ -178,7 +178,7 @@ class MySQLFeatureFlagDAO:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d.get("_id")):
+            if await self.delete(d._id):
                 deleted += 1
         return {"deletedCount": deleted}
 

@@ -11,7 +11,7 @@ class TrackingRepository:
     async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
         return await self.storage.findAll(query or {}, skip=skip, limit=limit)
 
-    async def create(self, tracking_data: Dict):
+    async def create(self, tracking_data: Any):
         tracking = {**tracking_data, "timestamp": tracking_data.get("timestamp") or self._get_current_timestamp()}
         return await self.storage.create(tracking)
 
@@ -38,7 +38,7 @@ class TrackingRepository:
             "segment": segment,
         }
         if product_ids is not None:
-            payload["productIds"] = product_ids
+            payload.productIds = product_ids
         return await self.create(payload)
 
     async def trackProductView(
@@ -251,14 +251,14 @@ class TrackingRepository:
         user_last_seen = {}
 
         for session in sessions:
-            ts = self._parse_timestamp(session.get("timestamp"))
+            ts = self._parse_timestamp(getattr(session, "timestamp", None))
             if start_date and ts and ts < start_date:
                 continue
             if end_date and ts and ts > end_date:
                 continue
 
-            uid = session.get("userId")
-            if session.get("isReturning") and uid:
+            uid = getattr(session, "user_id", None)
+            if getattr(session, "is_returning", None) and uid:
                 returning_user_ids.add(uid)
                 if ts:
                     if uid not in user_last_seen or ts > user_last_seen[uid]:
@@ -337,7 +337,7 @@ class TrackingRepository:
                 continue
 
             for item in a.get("cartItems", []):
-                pid = item.get("product") or item.get("productId")
+                pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if not pid:
                     continue
 
@@ -349,10 +349,10 @@ class TrackingRepository:
                         "valueLost": 0.0,
                     }
 
-                q = item.get("quantity", 1)
+                q = getattr(item, 'quantity', 1)
                 abandoned_products[pid]["abandonCount"] += 1
                 abandoned_products[pid]["quantityAbandoned"] += q
-                abandoned_products[pid]["valueLost"] += q * item.get("price", 0)
+                abandoned_products[pid]["valueLost"] += q * getattr(item, 'price', 0)
 
         # Fetch only the products that actually appeared in abandonment events
         product_ids_seen = list(abandoned_products.keys())

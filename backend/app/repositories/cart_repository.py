@@ -10,11 +10,11 @@ class CartRepository:
     async def findByUser(self, user_id: str):
         return await self.storage.findOne({"user": user_id})
 
-    async def create(self, cart_data: Dict):
+    async def create(self, cart_data: Any):
         cart = {"user": cart_data["user"], "items": cart_data.get("items", [])}
         return await self.storage.create(cart)
 
-    async def update(self, id: str, update_data: Dict):
+    async def update(self, id: str, update_data: Any):
         return await self.storage.update(id, update_data)
 
     async def clearCart(self, user_id: str):
@@ -42,16 +42,16 @@ class CartRepository:
             (
                 i
                 for i, it in enumerate(items)
-                if it.get("product") == item.get("product")
-                and it.get("variantAttributes") == item.get("variantAttributes")
-                and it.get("sellAsCase") == item.get("sellAsCase")
+                if getattr(it, "product", None) == getattr(item, "product", None)
+                and getattr(it, "variantAttributes", None) == getattr(item, "variantAttributes", None)
+                and getattr(it, "sellAsCase", None) == getattr(item, "sellAsCase", None)
             ),
             None,
         )
 
         if existing_item_index is not None:
-            items[existing_item_index]["quantity"] += item.get("quantity", 0)
-            items[existing_item_index]["price"] = item.get("price")
+            items[existing_item_index]["quantity"] += getattr(item, 'quantity', 0)
+            items[existing_item_index]["price"] = getattr(item, "price", None)
         else:
             items.append(item)
 
@@ -63,7 +63,7 @@ class CartRepository:
             raise ValueError("Cart not found")
 
         items = cart.get("items", [])
-        items = [item for item in items if item.get("_id") != item_id]
+        items = [item for item in items if getattr(item, "_id", None) != item_id]
         return await self.createOrUpdate(user_id, items)
 
     async def saveForLater(self, user_id: str, product_id: str):
@@ -76,7 +76,7 @@ class CartRepository:
         if existing:
             # Check if already saved
             items = existing.get("items", [])
-            already_saved = any(item.get("productId") == product_id for item in items)
+            already_saved = any(getattr(item, "productId", None) == product_id for item in items)
             if already_saved:
                 return existing
             items.append(saved_item)

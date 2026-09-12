@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,7 +14,7 @@ router = APIRouter()
 
 @router.post("", response_model=OrderFeedbackResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=OrderFeedbackResponse, status_code=status.HTTP_201_CREATED)
-async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: dict = Depends(get_current_user)):
+async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: User = Depends(get_current_user)):
     # Only validate order if it's order feedback
     if feedback_data.feedbackType == "order":
         if not feedback_data.orderId:
@@ -50,8 +51,8 @@ async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: dict
     return feedback
 
 
-@router.get("/eligible", response_model=dict)
-async def get_eligible_feedback_order(current_user: dict = Depends(get_current_user)):
+@router.get("/eligible", response_model=Dict[str, Any])
+async def get_eligible_feedback_order(current_user: User = Depends(get_current_user)):
     user_id = current_user.id
 
     # get all 'delivered' orders for the user
@@ -80,7 +81,7 @@ async def get_eligible_feedback_order(current_user: dict = Depends(get_current_u
 
     # User HAS given feedback
     # Get the latest feedback
-    feedbacks.sort(key=lambda x: (x.created_at or ""), reverse=True)
+    feedbacks.sort(key=lambda x: (x.createdAt or ""), reverse=True)
     latest_feedback = feedbacks[0]
     from datetime import datetime, timezone
 
@@ -106,7 +107,7 @@ async def get_eligible_feedback_order(current_user: dict = Depends(get_current_u
 
 
 @router.get("/order/{order_id}", response_model=OrderFeedbackResponse)
-async def get_feedback_by_order(order_id: str, current_user: dict = Depends(get_current_user)):
+async def get_feedback_by_order(order_id: str, current_user: User = Depends(get_current_user)):
     feedback = await order_feedback_repository.findByOrder(order_id)
     if not feedback:
         raise HTTPException(status_code=404, detail="Feedback not found")
@@ -122,19 +123,19 @@ async def get_feedback_by_order(order_id: str, current_user: dict = Depends(get_
     return feedback
 
 
-@router.get("", response_model=Dict[str, Any])
-@router.get("/", response_model=Dict[str, Any])
-async def get_all_feedback(current_user: dict = Depends(require_super_admin)):
+@router.get("", response_model=List[OrderFeedbackResponse])
+@router.get("/", response_model=List[OrderFeedbackResponse])
+async def get_all_feedback(current_user: User = Depends(require_super_admin)):
     feedbacks = await order_feedback_repository.findAll()
 
     # populate user and order info
     for f in feedbacks:
-        if "userId" in f:
-            user = await user_repository.findById(f["userId"])
+        if getattr(f, "userId", None):
+            user = await user_repository.findById(f.userId)
             if user:
-                f["user"] = {"name": (user.name if user.name is not None else "Unknown"), "email": (user.email or "")}
+                f.user = {"name": (user.name if user.name is not None else "Unknown"), "email": (user.email or "")}
 
     # sort by createdAt descending
-    feedbacks.sort(key=lambda x: (x.created_at or ""), reverse=True)
+    feedbacks.sort(key=lambda x: (x.createdAt or ""), reverse=True)
 
     return feedbacks

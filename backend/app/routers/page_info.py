@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 import json
@@ -8,11 +9,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.utils.auth import require_super_admin
 from app.utils.logger import logger
 
+
+from pydantic import BaseModel
+class PageInfoResponse(BaseModel):
+    id: str
+    title: str
+    content: str
+
 router = APIRouter()
 
 
-@router.get("/{page_id}", response_model=Dict[str, Any])
-async def get_page_info(page_id: str, current_user: dict = Depends(require_super_admin)):
+@router.get("/{page_id}", response_model=PageInfoResponse)
+async def get_page_info(page_id: str, current_user: User = Depends(require_super_admin)):
     """Get page information for super admin"""
     try:
         page_info_path = Path(__file__).parent.parent.parent / "data" / "page-info.json"
@@ -37,9 +45,9 @@ async def get_page_info(page_id: str, current_user: dict = Depends(require_super
         raise HTTPException(status_code=500, detail="Server error")
 
 
-@router.get("", response_model=Dict[str, Any])
-@router.get("/", response_model=Dict[str, Any])
-async def get_all_page_info(current_user: dict = Depends(require_super_admin)):
+@router.get("", response_model=List[PageInfoResponse])
+@router.get("/", response_model=List[PageInfoResponse])
+async def get_all_page_info(current_user: User = Depends(require_super_admin)):
     """Get all page information for super admin"""
     try:
         page_info_path = Path(__file__).parent.parent.parent / "data" / "page-info.json"

@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 import csv
 import io
@@ -21,13 +22,13 @@ router = APIRouter()
 
 @router.get("", response_model=List[DeliveryChargeResponse])
 @router.get("/", response_model=List[DeliveryChargeResponse])
-async def get_delivery_charges(current_user: dict = Depends(require_super_admin)):
+async def get_delivery_charges(current_user: User = Depends(require_super_admin)):
     charges = await delivery_charge_repository.findAll()
     return charges
 
 
 @router.get("/default", response_model=DefaultDeliveryChargeResponse)
-async def get_default_delivery_charge(current_user: dict = Depends(require_super_admin)):
+async def get_default_delivery_charge(current_user: User = Depends(require_super_admin)):
     default_charge = await delivery_charge_repository.getDefaultCharge()
     if not default_charge:
         raise HTTPException(status_code=404, detail="Default delivery charge not found")
@@ -69,7 +70,7 @@ async def get_delivery_charge_by_location(
 
 
 @router.get("/serviceable-pincodes", response_model=List[str])
-async def get_serviceable_pincodes(current_user: dict = Depends(require_super_admin)):
+async def get_serviceable_pincodes(current_user: User = Depends(require_super_admin)):
     """Return all pincodes where serviceableForCustomer OR serviceableForWholesaler is True.
     Used by the Delivery Slots admin page to populate the pincode picker."""
     charges = await delivery_charge_repository.findAll()
@@ -218,7 +219,7 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
 
 
 @router.get("/{charge_id}", response_model=DeliveryChargeResponse)
-async def get_delivery_charge(charge_id: str, current_user: dict = Depends(require_super_admin)):
+async def get_delivery_charge(charge_id: str, current_user: User = Depends(require_super_admin)):
     charge = await delivery_charge_repository.findById(charge_id)
     if not charge:
         raise HTTPException(status_code=404, detail="Delivery charge not found")
@@ -227,7 +228,7 @@ async def get_delivery_charge(charge_id: str, current_user: dict = Depends(requi
 
 @router.post("", response_model=DeliveryChargeResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=DeliveryChargeResponse, status_code=status.HTTP_201_CREATED)
-async def create_delivery_charge(charge_data: DeliveryChargeCreate, current_user: dict = Depends(require_super_admin)):
+async def create_delivery_charge(charge_data: DeliveryChargeCreate, current_user: User = Depends(require_super_admin)):
     if not charge_data.pincode or not charge_data.state or not charge_data.district:
         raise HTTPException(status_code=400, detail="Pincode, state, and district are required")
 
@@ -244,20 +245,20 @@ async def create_delivery_charge(charge_data: DeliveryChargeCreate, current_user
             status_code=409, detail=f"Pincode {charge_data.pincode} already has a delivery charge configured"
         )
 
-    charge = await delivery_charge_repository.create(charge_data.dict())
+    charge = await delivery_charge_repository.create(charge_data)
     return charge
 
 
 @router.post("/default", response_model=DefaultDeliveryChargeResponse, status_code=status.HTTP_201_CREATED)
 async def set_default_delivery_charge(
-    default_data: DefaultDeliveryChargeCreate, current_user: dict = Depends(require_super_admin)
+    default_data: DefaultDeliveryChargeCreate, current_user: User = Depends(require_super_admin)
 ):
-    default_charge = await delivery_charge_repository.setDefaultCharge(default_data.dict())
+    default_charge = await delivery_charge_repository.setDefaultCharge(default_data)
     return default_charge
 
 
 @router.post("/upload-csv", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
-async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
+async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user: User = Depends(require_super_admin)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV file")
 
@@ -313,9 +314,9 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
 
 @router.put("/{charge_id}", response_model=DeliveryChargeResponse)
 async def update_delivery_charge(
-    charge_id: str, charge_data: DeliveryChargeUpdate, current_user: dict = Depends(require_super_admin)
+    charge_id: str, charge_data: DeliveryChargeUpdate, current_user: User = Depends(require_super_admin)
 ):
-    update_dict = charge_data.dict(exclude_unset=True)
+    update_dict = charge_data
     if update_dict.get("serviceableForCustomer") is False:
         update_dict["urgentDeliveryAvailable"] = False
         
@@ -326,7 +327,7 @@ async def update_delivery_charge(
 
 
 @router.delete("/default", response_model=MessageResponse)
-async def delete_default_charge(current_user: dict = Depends(require_super_admin)):
+async def delete_default_charge(current_user: User = Depends(require_super_admin)):
     """Delete default delivery charge"""
     result = await delivery_charge_repository.deleteDefaultCharge()
     if not result:
@@ -335,8 +336,9 @@ async def delete_default_charge(current_user: dict = Depends(require_super_admin
 
 
 @router.delete("/{charge_id}", response_model=MessageResponse)
-async def delete_delivery_charge(charge_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_delivery_charge(charge_id: str, current_user: User = Depends(require_super_admin)):
     result = await delivery_charge_repository.delete(charge_id)
     if not result:
         raise HTTPException(status_code=404, detail="Delivery charge not found")
     return {"message": "Delivery charge deleted successfully"}
+

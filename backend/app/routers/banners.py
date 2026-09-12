@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 from typing import Dict, Any, List, List, Optional
 
@@ -51,7 +52,7 @@ async def get_public_banners(
     if targetAudience:
         banners = [b for b in banners if b.target_audience == targetAudience or b.target_audience == "all"]
 
-    return [BannerResponse(**banner) for banner in banners]
+    return banners
 
 
 @router.get("", response_model=List[BannerResponse])
@@ -59,7 +60,7 @@ async def get_public_banners(
 async def get_banners(
     isActive: Optional[bool] = None,
     isPublished: Optional[bool] = None,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     query = {}
     if isActive is not None:
@@ -68,11 +69,11 @@ async def get_banners(
         query["isPublished"] = isPublished
 
     banners = await banner_repository.findAll(query)
-    return [BannerResponse(**banner) for banner in banners]
+    return banners
 
 
-@router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
-async def upload_banner_image(image: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
+@router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=Dict[str, str])
+async def upload_banner_image(image: UploadFile = File(...), current_user: User = Depends(require_super_admin)):
     """Upload banner image (Super Admin only). Uses OCI Object Storage when configured."""
     try:
         from app.services.oci_storage import upload_image_and_return_path
@@ -108,34 +109,35 @@ async def upload_banner_image(image: UploadFile = File(...), current_user: dict 
 
 
 @router.get("/{banner_id}", response_model=BannerResponse)
-async def get_banner(banner_id: str, current_user: dict = Depends(require_super_admin)):
+async def get_banner(banner_id: str, current_user: User = Depends(require_super_admin)):
     banner = await banner_repository.findById(banner_id)
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
-    return BannerResponse(**banner)
+    return banner
 
 
 @router.post("", response_model=BannerResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=BannerResponse, status_code=status.HTTP_201_CREATED)
-async def create_banner(banner_data: BannerCreate, current_user: dict = Depends(require_super_admin)):
-    banner = await banner_repository.create(banner_data.dict())
+async def create_banner(banner_data: BannerCreate, current_user: User = Depends(require_super_admin)):
+    banner = await banner_repository.create(banner_data)
     cache.invalidate(get_public_banners)
-    return BannerResponse(**banner)
+    return banner
 
 
 @router.put("/{banner_id}", response_model=BannerResponse)
-async def update_banner(banner_id: str, banner_data: BannerUpdate, current_user: dict = Depends(require_super_admin)):
-    banner = await banner_repository.update(banner_id, banner_data.dict(exclude_unset=True))
+async def update_banner(banner_id: str, banner_data: BannerUpdate, current_user: User = Depends(require_super_admin)):
+    banner = await banner_repository.update(banner_id, banner_data)
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
     cache.invalidate(get_public_banners)
-    return BannerResponse(**banner)
+    return banner
 
 
 @router.delete("/{banner_id}", response_model=MessageResponse)
-async def delete_banner(banner_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_banner(banner_id: str, current_user: User = Depends(require_super_admin)):
     result = await banner_repository.delete(banner_id)
     if not result:
         raise HTTPException(status_code=404, detail="Banner not found")
     cache.invalidate(get_public_banners)
     return {"message": "Banner deleted successfully"}
+

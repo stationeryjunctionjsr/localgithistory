@@ -69,7 +69,7 @@ class MySQLSellerPayoutDAO:
         
         docs = [self._row_to_dict(r) for r in rows]
         for d in docs:
-            d["subOrderIds"] = await self._fetch_sub_orders(d["id"])
+            d.subOrderIds = await self._fetch_sub_orders(d.id)
         return docs
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
@@ -116,7 +116,7 @@ class MySQLSellerPayoutDAO:
                 vals.append(f":{api_k}")
                 params[api_k] = data[api_k]
 
-        sub_orders = data.get("subOrderIds", [])
+        sub_orders = (data.subOrderIds if getattr(data, 'subOrderIds', None) is not None else [])
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -152,7 +152,7 @@ class MySQLSellerPayoutDAO:
                 updates.append(f"{db_k} = :{api_k}")
                 params[api_k] = merged[api_k]
 
-        sub_orders = data.get("subOrderIds")
+        sub_orders = data.subOrderIds
 
         set_sql = ", ".join(updates)
         factory = self._factory()

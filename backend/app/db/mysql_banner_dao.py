@@ -23,8 +23,8 @@ class MySQLBannerDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, children: Dict) -> Dict:
-        return {
+    def _row_to_dict(self, r, children: Dict) -> BannerResponse:
+        return BannerResponse(**{
             "_id": str(r.id),
             "title": r.title,
             "description": r.description,
@@ -41,7 +41,7 @@ class MySQLBannerDAO:
             "visibilityRules": children.get("visibilityRules", []),
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
+        })
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {"userSegments": [], "visibilityRules": []} for rid in ids}
@@ -71,19 +71,19 @@ class MySQLBannerDAO:
         await session.execute(text("DELETE FROM sj_banner_user_segments WHERE banner_id = :bid"), {"bid": bid})
         await session.execute(text("DELETE FROM sj_banner_visibility_rules WHERE banner_id = :bid"), {"bid": bid})
 
-        for seg in data.get("userSegments", []):
+        for seg in (data.userSegments if getattr(data, 'userSegments', None) is not None else []):
             await session.execute(
                 text("INSERT INTO sj_banner_user_segments (banner_id, segment) VALUES (:bid, :seg)"),
                 {"bid": bid, "seg": str(seg)},
             )
 
-        for rule in data.get("visibilityRules", []):
+        for rule in (data.visibilityRules if getattr(data, 'visibilityRules', None) is not None else []):
             await session.execute(
                 text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
                 {"bid": bid, "rule": str(rule)},
             )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[BannerResponse]:
         factory = self._factory()
         if not factory:
             return []
@@ -114,14 +114,14 @@ class MySQLBannerDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [Banner.model_validate(self._row_to_dict(r, c_map[r.id]) ) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[BannerResponse]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[BannerResponse]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> BannerResponse:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -144,17 +144,17 @@ class MySQLBannerDAO:
                 ),
                 {
                     "external_id": external_id,
-                    "title": data.get("title"),
-                    "description": data.get("description"),
-                    "image_url": data.get("imageUrl"),
-                    "link_url": data.get("linkUrl"),
-                    "display_order": data.get("displayOrder", 0),
-                    "start_date": data.get("startDate"),
-                    "end_date": data.get("endDate"),
-                    "is_active": int(bool(data.get("isActive", True))),
-                    "is_published": int(bool(data.get("isPublished", False))),
-                    "target_audience": data.get("targetAudience"),
-                    "position": data.get("position"),
+                    "title": data.title,
+                    "description": data.description,
+                    "image_url": data.imageUrl,
+                    "link_url": data.linkUrl,
+                    "display_order": (data.displayOrder if getattr(data, 'displayOrder', None) is not None else 0),
+                    "start_date": data.startDate,
+                    "end_date": data.endDate,
+                    "is_active": int(bool((data.isActive if getattr(data, 'isActive', None) is not None else True))),
+                    "is_published": int(bool((data.isPublished if getattr(data, 'isPublished', None) is not None else False))),
+                    "target_audience": data.targetAudience,
+                    "position": data.position,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -168,7 +168,7 @@ class MySQLBannerDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: Dict) -> Optional[BannerResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -199,17 +199,17 @@ class MySQLBannerDAO:
                 ),
                 {
                     "id": bid,
-                    "title": merged.get("title"),
-                    "description": merged.get("description"),
-                    "image_url": merged.get("imageUrl"),
-                    "link_url": merged.get("linkUrl"),
-                    "display_order": merged.get("displayOrder", 0),
-                    "start_date": merged.get("startDate"),
-                    "end_date": merged.get("endDate"),
-                    "is_active": int(bool(merged.get("isActive", True))),
-                    "is_published": int(bool(merged.get("isPublished", False))),
-                    "target_audience": merged.get("targetAudience"),
-                    "position": merged.get("position"),
+                    "title": merged.title,
+                    "description": merged.description,
+                    "image_url": merged.imageUrl,
+                    "link_url": merged.linkUrl,
+                    "display_order": (merged.displayOrder if getattr(merged, 'displayOrder', None) is not None else 0),
+                    "start_date": merged.startDate,
+                    "end_date": merged.endDate,
+                    "is_active": int(bool((merged.isActive if getattr(merged, 'isActive', None) is not None else True))),
+                    "is_published": int(bool((merged.isPublished if getattr(merged, 'isPublished', None) is not None else False))),
+                    "target_audience": merged.targetAudience,
+                    "position": merged.position,
                     "updated_at": now,
                 },
             )
@@ -225,3 +225,4 @@ class MySQLBannerDAO:
             )
             await session.commit()
             return result.rowcount > 0
+

@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 """
 Valet Availability Router
@@ -21,6 +22,17 @@ from pydantic import BaseModel, ValidationInfo, field_validator
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_current_user, require_super_admin_or_seller
+
+
+from pydantic import BaseModel, Field
+class ValetAvailabilityResponse(BaseModel):
+    id: str = Field(alias="_id")
+    userId: str
+    status: str
+    currentLocation: Optional[Dict[str, float]] = None
+    lastActiveAt: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
 
 router = APIRouter()
 storage = get_storage("valetAvailability")
@@ -64,11 +76,11 @@ def _require_valet(current_user: dict):
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 
-@router.post("", response_model=Dict[str, Any], status_code=201)
-@router.post("/", response_model=Dict[str, Any], status_code=201)
+@router.post("", response_model=ValetAvailabilityResponse, status_code=201)
+@router.post("/", response_model=ValetAvailabilityResponse, status_code=201)
 async def mark_availability(
     data: ValetAvailabilityCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Mark (or update) availability for a date.
@@ -106,7 +118,7 @@ async def mark_availability(
                 f"Available slots: {list(all_valid_slot_ids) or 'none configured'}",
             )
 
-    valet_id = str(current_user["_id"])
+    valet_id = str(current_user.id)
 
     # Validate zones are within valet's permitted zones
     permitted_zones = set(current_user.service_area_zones or [])
@@ -137,12 +149,12 @@ async def mark_availability(
         return updated
     else:
         created = await storage.create(payload)
-        return created
+        return created if hasattr(created, "model_dump") else created
 
 
-@router.get("/my", response_model=List[Dict[str, Any]])
+@router.get("/my", response_model=ValetAvailabilityResponse)
 async def get_my_availability(
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Return own upcoming availability (today + next 7 days)."""
     _require_valet(current_user)
@@ -150,18 +162,18 @@ async def get_my_availability(
     today = dt_date.today()
     upcoming_dates = [(today + timedelta(days=i)).isoformat() for i in range(8)]
 
-    valet_id = str(current_user["_id"])
+    valet_id = str(current_user.id)
     all_docs = await storage.findAll({"valetId": valet_id})
 
-    return [doc for doc in all_docs if doc.date in upcoming_dates]
+    return [(doc if hasattr(doc, "model_dump") else doc) for doc in all_docs if (doc.date.strftime("%Y-%m-%d") if hasattr(doc.date, "strftime") else str(doc.date)[:10]) in upcoming_dates]
 
 
-@router.get("", response_model=List[Dict[str, Any]])
-@router.get("/", response_model=List[Dict[str, Any]])
+@router.get("", response_model=ValetAvailabilityResponse)
+@router.get("/", response_model=ValetAvailabilityResponse)
 async def get_all_availability(
     date: Optional[str] = Query(None, description="Filter by date (YYYY-MM-DD)"),
     valetId: Optional[str] = Query(None, description="Filter by valet ID"),
-    current_user: dict = Depends(require_super_admin_or_seller),
+    current_user: User = Depends(require_super_admin_or_seller),
 ):
     """Return valets' availability. Super Admin sees all. Sellers see valets in their service area."""
     query: Dict[str, Any] = {}
@@ -213,13 +225,13 @@ async def get_all_availability(
 
     # Sort by date ascending
     enriched.sort(key=lambda d: d.get("date", ""))
-    return enriched
+    return [(e if hasattr(e, "model_dump") else e) for e in enriched] if enriched and hasattr(enriched[0], "model_dump") else enriched
 
 
 @router.delete("/{doc_id}", response_model=MessageResponse)
 async def delete_availability(
     doc_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Remove an availability entry. Valets can only delete their own entries."""
     _require_valet(current_user)
@@ -228,7 +240,7 @@ async def delete_availability(
     if not doc:
         raise HTTPException(status_code=404, detail="Availability entry not found")
 
-    if str(doc.valet_id) != str(current_user["_id"]):
+    if str(doc.valet_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="You can only delete your own availability entries")
 
     # Prevent deleting past entries

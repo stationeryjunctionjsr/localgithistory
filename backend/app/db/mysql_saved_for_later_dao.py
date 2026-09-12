@@ -90,17 +90,17 @@ class MySQLSavedForLaterDAO:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
-        user_id = str(data.get("user", ""))
-        items = data.get("items") or []
+        user_id = str((data.user if getattr(data, 'user', None) is not None else ""))
+        items = data.items or []
         if not user_id:
             raise ValueError("user is required")
         now = now_utc()
         async with factory() as session:
             for item in items:
-                product_id = item.get("productId") or item.get("product_id")
+                product_id = item.productId or item.product_id
                 if not product_id:
                     continue
-                saved_at = _to_ts(item.get("savedAt") or item.get("saved_at")) or now
+                saved_at = _to_ts(item.savedAt or item.saved_at) or now
                 await session.execute(
                     text(
                         f"""
@@ -124,7 +124,7 @@ class MySQLSavedForLaterDAO:
         if not factory:
             return None
         user_id = str(id)
-        items = update_data.get("items")
+        items = update_data.items
         if items is None:
             return await self.findOne({"user": user_id})
         now = now_utc()
@@ -135,10 +135,10 @@ class MySQLSavedForLaterDAO:
             )
             await session.commit()
             for item in items:
-                product_id = item.get("productId") or item.get("product_id")
+                product_id = item.productId or item.product_id
                 if not product_id:
                     continue
-                saved_at = _to_ts(item.get("savedAt") or item.get("saved_at")) or now
+                saved_at = _to_ts(item.savedAt or item.saved_at) or now
                 await session.execute(
                     text(
                         f"""
@@ -174,7 +174,7 @@ class MySQLSavedForLaterDAO:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d.get("_id")):
+            if await self.delete(d._id):
                 deleted += 1
         return {"deletedCount": deleted}
 

@@ -282,7 +282,7 @@ class PushNotificationService:
         # Segment check
         role_map = {"customers": "customer", "wholesalers": "wholesaler"}
         if target_segment != "all":
-            if user.get("role") != role_map.get(target_segment):
+            if getattr(user, "role", None) != role_map.get(target_segment):
                 return False
 
         # Behavior check

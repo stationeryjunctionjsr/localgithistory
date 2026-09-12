@@ -1,3 +1,4 @@
+from app.models.schemas import Address, CartItem, OrderItem, VisibilityRule, SellerPermissions
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
@@ -13,8 +14,8 @@ class User(DictCompatibleModel):
     role: Optional[str] = None
     phone: str = ""
     company_name: Optional[str] = Field(default=None, alias="companyName")
-    address: Dict[str, Any] = {}
-    saved_addresses: List[Dict[str, Any]] = Field(default=[], alias="savedAddresses")
+    address: Optional['Address'] = None
+    saved_addresses: List['Address'] = Field(default=[], alias="savedAddresses")
     is_active: bool = Field(default=True, alias="isActive")
     approval_status: Optional[str] = Field(default=None, alias="approvalStatus")
     is_deactivated: bool = Field(default=False, alias="isDeactivated")
@@ -25,9 +26,11 @@ class User(DictCompatibleModel):
     is_email_verified: bool = Field(default=False, alias="isEmailVerified")
     referral_code: Optional[str] = Field(default=None, alias="referralCode")
     is_seller_admin: bool = Field(default=False, alias="isSellerAdmin")
-    seller_permissions: Dict[str, Any] = Field(default={}, alias="sellerPermissions")
+    seller_permissions: Optional['SellerPermissions'] = Field(default=None, alias='sellerPermissions')
     service_area_zones: List[str] = Field(default=[], alias="serviceAreaZones")
     is_on_duty: bool = Field(default=False, alias="isOnDuty")
     commission_override_pct: Optional[float] = Field(default=None, alias="commissionOverridePct")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
+    session_id: Optional[str] = Field(default=None, alias="sessionId")
+    effective_role: Optional[str] = Field(default=None, alias="effectiveRole")

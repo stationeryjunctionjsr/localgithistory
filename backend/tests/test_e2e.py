@@ -1,3 +1,4 @@
+from datetime import datetime, timezone, timedelta
 import asyncio
 import uuid
 import pytest
@@ -11,12 +12,13 @@ from app.db.storage_factory import get_storage
 @pytest.mark.asyncio
 async def test_full_e2e_flow():
     # Setup test users
-    admin_email = f"admin_{uuid.uuid4().hex[:6]}@test.com"
-    seller_email = f"seller_{uuid.uuid4().hex[:6]}@test.com"
-    valet_email = f"valet_{uuid.uuid4().hex[:6]}@test.com"
-    valet2_email = f"valet2_{uuid.uuid4().hex[:6]}@test.com"
-    customer_email = f"cust_{uuid.uuid4().hex[:6]}@test.com"
-    test_pincode = f"11{uuid.uuid4().hex[:4]}"
+    admin_email = f"admin_{uuid.uuid4().hex[:8]}@test.com"
+    seller_email = f"seller_{uuid.uuid4().hex[:8]}@test.com"
+    valet_email = f"valet_{uuid.uuid4().hex[:8]}@test.com"
+    valet2_email = f"valet2_{uuid.uuid4().hex[:8]}@test.com"
+    customer_email = f"cust_{uuid.uuid4().hex[:8]}@test.com"
+    import random
+    test_pincode = f"{random.randint(100000, 999999)}"
 
     await user_repository.create({"name": "Admin", "email": admin_email, "password": "pass", "role": "super_admin"})
     await user_repository.create({"name": "Seller", "email": seller_email, "password": "pass", "role": "seller"})
@@ -38,7 +40,7 @@ async def test_full_e2e_flow():
 
         # 1. Pincode, delivery zone
         zone_payload = {
-            "name": f"Test Zone {uuid.uuid4().hex[:4]}",
+            "name": f"Test Zone {uuid.uuid4().hex[:8]}",
             "pincodes": [test_pincode],
             "defaultCapacity": 50,
             "urgentDeliveryAvailable": True,
@@ -50,29 +52,22 @@ async def test_full_e2e_flow():
         zone_id = res.json()["_id"]
 
         # Slots setup
+        today_str = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")
         slot_payload = {
-            "zoneId": zone_id,
+            "zoneIds": [str(zone_id)], "segment": "retail", "date": today_str,
             "isActive": True,
             "slots": [
-                {
-                    "startTime": "00:00",
-                    "endTime": "23:59",
-                    "isActive": True,
-                    "isUrgent": False,
+                {"id": "slot1", "startTime": "00:00", "endTime": "23:59", "isActive": True, "isUrgent": False,
                     "capacity": 100,
                     "cutoffHours": 0
                 },
-                {
-                    "startTime": "00:00",
-                    "endTime": "23:59",
-                    "isActive": True,
-                    "isUrgent": True,
+                {"id": "slot2", "startTime": "00:00", "endTime": "23:59", "isActive": True, "isUrgent": True,
                     "capacity": 50,
                     "cutoffHours": 0
                 }
             ]
         }
-        res = await client.post(f"/api/delivery-slots/{zone_id}", json=slot_payload, headers=admin_auth)
+        res = await client.post("/api/delivery-slots", json=slot_payload, headers=admin_auth)
         assert res.status_code in (200, 201), f"Slot creation failed: {res.text}"
 
         print("1. Delivery Zone & Slots created successfully.")
@@ -94,29 +89,27 @@ async def test_full_e2e_flow():
         assert res.status_code == 200
 
         # 3. Valet assigning themselves to the zones for the day
-        from datetime import datetime, timezone
-        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         valet_avail = {
             "date": today_str,
             "availabilityType": "full_day",
             "zones": [zone_id]
         }
-        res = await client.put("/api/valet-availability/my-availability", json=valet_avail, headers=valet_auth)
-        assert res.status_code == 200, f"Valet availability failed: {res.text}"
-        res = await client.put("/api/valet-availability/my-availability", json=valet_avail, headers=valet2_auth)
-        assert res.status_code == 200
+        res = await client.post("/api/valet-availability", json=valet_avail, headers=valet_auth)
+        assert res.status_code in [200, 201], f"Valet availability failed: {res.text}"
+        res = await client.post("/api/valet-availability", json=valet_avail, headers=valet2_auth)
+        assert res.status_code in [200, 201]
 
         print("3. Valets assigned themselves to the zones successfully.")
 
         # 4. Seller adding products
         # Create Category
-        cat_res = await client.post("/api/categories", json={"name": f"Cat {uuid.uuid4().hex[:4]}", "isActive": True}, headers=admin_auth)
+        cat_res = await client.post("/api/categories", json={"name": f"Cat {uuid.uuid4().hex[:8]}", "isActive": True}, headers=admin_auth)
         assert cat_res.status_code in (200, 201), f"Category creation failed: {cat_res.text}"
         cat_id = cat_res.json()["_id"]
 
         # Create Product as Admin
         prod_payload = {
-            "name": f"Prod {uuid.uuid4().hex[:4]}",
+            "name": f"Prod {uuid.uuid4().hex[:8]}",
             "category": cat_id,
             "mrp": 100.0,
             "price": 90.0,
@@ -130,11 +123,29 @@ async def test_full_e2e_flow():
         seller_user_res = await client.get("/api/auth/me", headers=seller_auth)
         seller_id = seller_user_res.json()["_id"]
         
+        
         await product_repository.storage.update(prod_id, {"catalogSellerIds": [seller_id]})
         print("4. Product created and seller added to product.")
 
+        # Create delivery charge for pincode
+        dc_payload = {
+            "pincode": test_pincode,
+            "state": "Delhi",
+            "district": "Delhi",
+            "city": "Delhi",
+            "charge": 50,
+            "urgentCharge": 100,
+            "serviceableForCustomer": True,
+            "serviceableForWholesaler": True,
+            "urgentDeliveryAvailable": True,
+            "isActive": True
+        }
+        dc_res = await client.post("/api/delivery-charges", json=dc_payload, headers=admin_auth)
+        assert dc_res.status_code in (200, 201), f"Delivery charge creation failed: {dc_res.text}"
+
+
         # 5. Customer adds to cart and checkout
-        res = await client.post("/api/cart/add", json={"productId": prod_id, "quantity": 1}, headers=cust_auth)
+        res = await client.post("/api/cart", json={"productId": prod_id, "quantity": 1}, headers=cust_auth)
         assert res.status_code == 200, f"Cart add failed: {res.text}"
 
         res = await client.get("/api/delivery-slots/available", params={"pincode": test_pincode, "segment": "retail", "date": today_str})
@@ -144,13 +155,16 @@ async def test_full_e2e_flow():
         selected_slot = slots_data[0]
 
         checkout_payload = {
-            "address": {"pincode": test_pincode, "city": "Delhi", "state": "Delhi", "addressLine1": "Test Addr", "name": "Cust", "phone": "9999999999"},
-            "deliverySlotId": selected_slot["configId"],
+            "shippingAddress": {"zipCode": test_pincode, "city": "Delhi", "state": "Delhi", "addressLine1": "Test Addr", "name": "Cust", "phone": "9999999999"},
+            "billingAddress": {"zipCode": test_pincode, "city": "Delhi", "state": "Delhi", "addressLine1": "Test Addr", "name": "Cust", "phone": "9999999999"},
+            "shippingAddress": {"zipCode": test_pincode, "city": "Delhi", "state": "Delhi", "addressLine1": "Test Addr", "name": "Cust", "phone": "9999999999"},
+            "deliverySlotId": selected_slot["slotId"],
+            "deliverySlotConfigId": selected_slot["configId"],
             "deliverySlotDate": today_str,
             "isUrgent": False,
             "paymentMethod": "cod"
         }
-        res = await client.post("/api/orders/checkout", json=checkout_payload, headers=cust_auth)
+        res = await client.post("/api/orders", json=checkout_payload, headers=cust_auth)
         assert res.status_code in (200, 201), f"Checkout failed: {res.text}"
         order_data = res.json()
         order_id = order_data["_id"]

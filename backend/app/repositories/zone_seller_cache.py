@@ -24,7 +24,7 @@ Cache behaviour
 """
 
 import time
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, Any, Optional, Set, Tuple
 
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger

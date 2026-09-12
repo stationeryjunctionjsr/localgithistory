@@ -9,10 +9,22 @@ from app.config.maintenance import MAINTENANCE_MESSAGE_PARAGRAPHS
 from app.config.settings import settings
 from app.utils.cache import cache
 
+
+from pydantic import BaseModel
+class VersionResponse(BaseModel):
+    current: str
+    currentVersion: str
+    min: Dict[str, str]
+    minVersion: str
+
+class MaintenanceResponse(BaseModel):
+    active: bool
+    message: List[str]
+
 router = APIRouter()
 
 
-@router.get("/version", response_model=Dict[str, Any])
+@router.get("/version", response_model=VersionResponse)
 @cache.ttl_cache(ttl=3600.0)
 async def get_version(platform: Optional[str] = Query(None)):
     """App version info for force-update checks (web / mobile)."""
@@ -31,7 +43,7 @@ async def get_version(platform: Optional[str] = Query(None)):
     }
 
 
-@router.get("/maintenance", response_model=Dict[str, Any])
+@router.get("/maintenance", response_model=MaintenanceResponse)
 async def get_maintenance_status():
     """Public status for scheduled upgrade / maintenance screens."""
     return {

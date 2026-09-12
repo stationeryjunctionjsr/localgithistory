@@ -67,39 +67,39 @@ class BundleRepository:
             except Exception as e:
                 logger.error("Error ensuring %s exists: %s", table_name_upper, str(e))
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
         await self.ensure_table_exists()
         return await self.storage.findAll(query)
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Any]:
         await self.ensure_table_exists()
         return await self.storage.findById(id)
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Any) -> Optional[Any]:
         await self.ensure_table_exists()
         return await self.storage.findOne(query)
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Any) -> Any:
         await self.ensure_table_exists()
-        data["createdAt"] = datetime.now(timezone.utc).isoformat()
-        data["updatedAt"] = datetime.now(timezone.utc).isoformat()
+        data.createdAt = datetime.now(timezone.utc).isoformat()
+        data.updatedAt = datetime.now(timezone.utc).isoformat()
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: Any) -> Optional[Any]:
         await self.ensure_table_exists()
-        update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
+        update_data.updatedAt = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str) -> bool:
         await self.ensure_table_exists()
         return await self.storage.delete(id)
 
-    async def get_active_bundles(self) -> List[Dict]:
+    async def get_active_bundles(self) -> List[Any]:
         """Return only active (published) bundles."""
         all_bundles = await self.findAll()
         return [b for b in all_bundles if b.get("isActive", True)]
 
-    async def get_bundles_containing_product(self, product_id: str) -> List[Dict]:
+    async def get_bundles_containing_product(self, product_id: str) -> List[Any]:
         """Return all active bundles that include a given product_id."""
         all_bundles = await self.get_active_bundles()
         result = []

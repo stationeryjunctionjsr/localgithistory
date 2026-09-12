@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
+from app.models.schemas import ProductReviewResponse
 from sqlalchemy import text
 
 from app.db.storage_factory import get_storage
@@ -61,19 +62,19 @@ class ProductReviewRepository:
             except Exception as e:
                 logger.error("Error ensuring %s exists: %s", table_name_upper, str(e))
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[ProductReviewResponse]:
         await self.ensure_table_exists()
         return await self.storage.findAll(query)
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[ProductReviewResponse]:
         await self.ensure_table_exists()
         return await self.storage.findById(id)
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Any) -> ProductReviewResponse:
         await self.ensure_table_exists()
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: Any) -> Optional[ProductReviewResponse]:
         await self.ensure_table_exists()
         return await self.storage.update(id, update_data)
 

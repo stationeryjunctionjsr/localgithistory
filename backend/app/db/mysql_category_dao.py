@@ -22,7 +22,7 @@ class MySQLCategoryDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, children: Dict) -> Dict:
+    def _row_to_dict(self, r, children: Dict) -> Category:
         return {
             "_id": str(r.id),
             "name": r.name,
@@ -77,25 +77,25 @@ class MySQLCategoryDAO:
         await session.execute(text("DELETE FROM sj_category_sub_categories WHERE category_id = :cid"), {"cid": cid})
         await session.execute(text("DELETE FROM sj_category_category_tags WHERE category_id = :cid"), {"cid": cid})
 
-        for img in data.get("images", []):
+        for img in (data.images if getattr(data, 'images', None) is not None else []):
             await session.execute(
                 text("INSERT INTO sj_category_images (category_id, image_url) VALUES (:cid, :img)"),
                 {"cid": cid, "img": str(img)},
             )
 
-        for sub in data.get("subCategories", []):
+        for sub in (data.subCategories if getattr(data, 'subCategories', None) is not None else []):
             await session.execute(
                 text("INSERT INTO sj_category_sub_categories (category_id, sub_category) VALUES (:cid, :sub)"),
                 {"cid": cid, "sub": str(sub)},
             )
 
-        for tag in data.get("categoryTags", []):
+        for tag in (data.categoryTags if getattr(data, 'categoryTags', None) is not None else []):
             await session.execute(
                 text("INSERT INTO sj_category_category_tags (category_id, tag) VALUES (:cid, :tag)"),
                 {"cid": cid, "tag": str(tag)},
             )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Category]:
         factory = self._factory()
         if not factory:
             return []
@@ -126,14 +126,14 @@ class MySQLCategoryDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [Category.model_validate(self._row_to_dict(r, c_map[r.id])) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Category]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Category]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> Category:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -154,13 +154,13 @@ class MySQLCategoryDAO:
                 ),
                 {
                     "external_id": external_id,
-                    "name": data.get("name"),
-                    "description": data.get("description"),
-                    "is_active": int(bool(data.get("isActive", True))),
-                    "category_tag": data.get("categoryTag"),
-                    "minimum_quantity": data.get("minimumQuantity"),
-                    "gst": data.get("gst"),
-                    "is_returnable": int(bool(data.get("isReturnable", True))),
+                    "name": data.name,
+                    "description": data.description,
+                    "is_active": int(bool((data.isActive if getattr(data, 'isActive', None) is not None else True))),
+                    "category_tag": data.categoryTag,
+                    "minimum_quantity": data.minimumQuantity,
+                    "gst": data.gst,
+                    "is_returnable": int(bool((data.isReturnable if getattr(data, 'isReturnable', None) is not None else True))),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -174,7 +174,7 @@ class MySQLCategoryDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: Dict) -> Optional[Category]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -201,13 +201,13 @@ class MySQLCategoryDAO:
                 ),
                 {
                     "id": cid,
-                    "name": merged.get("name"),
-                    "description": merged.get("description"),
-                    "is_active": int(bool(merged.get("isActive", True))),
-                    "category_tag": merged.get("categoryTag"),
-                    "minimum_quantity": merged.get("minimumQuantity"),
-                    "gst": merged.get("gst"),
-                    "is_returnable": int(bool(merged.get("isReturnable", True))),
+                    "name": merged.name,
+                    "description": merged.description,
+                    "is_active": int(bool((merged.isActive if getattr(merged, 'isActive', None) is not None else True))),
+                    "category_tag": merged.categoryTag,
+                    "minimum_quantity": merged.minimumQuantity,
+                    "gst": merged.gst,
+                    "is_returnable": int(bool((merged.isReturnable if getattr(merged, 'isReturnable', None) is not None else True))),
                     "updated_at": now,
                 },
             )

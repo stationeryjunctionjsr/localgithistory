@@ -70,7 +70,7 @@ class CollectionRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def create(self, collection_data: Dict):
+    async def create(self, collection_data: Any):
         collection = {
             "name": collection_data["name"],
             "description": collection_data.get("description", ""),
@@ -85,7 +85,7 @@ class CollectionRepository:
 
         return await self.storage.create(collection)
 
-    async def update(self, id: str, update_data: Dict):
+    async def update(self, id: str, update_data: Any):
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str):

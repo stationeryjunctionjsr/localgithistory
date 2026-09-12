@@ -48,7 +48,7 @@ class ProductRepository:
         "description": 1,
     }
 
-    def _get_variant_search_text(self, product: Dict) -> str:
+    def _get_variant_search_text(self, product: Any) -> str:
         """Flatten variant attributes and combination values into searchable text."""
         parts = []
         for attr in product.get("variantAttributes", []) or []:
@@ -64,7 +64,7 @@ class ProductRepository:
                 parts.append(str(int(p_val)))
         return " ".join(parts)
 
-    def _extract_price_text(self, product: Dict) -> str:
+    def _extract_price_text(self, product: Any) -> str:
         """Collect text representations of all prices for a product (MRP, case MRP, variant prices)."""
         parts = []
         mrp = product.get("mrp")
@@ -77,7 +77,7 @@ class ProductRepository:
             parts.extend([str(fmrp_case), str(int(fmrp_case))])
         return " ".join(parts).lower()
 
-    def _score_product(self, product: Dict, tokens: List[str]) -> float:
+    def _score_product(self, product: Any, tokens: List[str]) -> float:
         """Score a product against search tokens using weighted field matching.
         Supports text matching, price matching, and price range expression matching."""
         score = 0.0
@@ -265,7 +265,7 @@ class ProductRepository:
         suggested_query = " ".join(suggested_words) if has_fuzzy else None
         return fuzzy_results, suggested_query
 
-    async def _get_lightweight_search_catalog(self, role: str, user_id: Optional[str]) -> List[Dict]:
+    async def _get_lightweight_search_catalog(self, role: str, user_id: Optional[str]) -> List[Product]:
         _TTL = 300.0
         now_m = time_module.monotonic()
         effective_role = "wholesaler" if role == "wholesaler" else "customer"
@@ -331,7 +331,7 @@ class ProductRepository:
             }
             return light_products
 
-    async def _attach_category_gst(self, products: List[Dict]) -> List[Dict]:
+    async def _attach_category_gst(self, products: List[Dict]) -> List[Product]:
         if not products:
             return products
         from app.repositories.category_repository import category_repository
@@ -341,7 +341,7 @@ class ProductRepository:
             cat_gst_map = self._cat_gst_map
         else:
             categories = await category_repository.findAll()
-            cat_gst_map = {cat.get("name"): cat.get("gst", 0) for cat in categories}
+            cat_gst_map = {(cat.name if hasattr(cat, "name") else cat.get("name")): (cat.gst if hasattr(cat, "gst") else cat.get("gst", 0)) for cat in categories}
             self._cat_gst_map = cat_gst_map
             self._cat_gst_map_exp = now_m + 60.0
         for p in products:
@@ -467,7 +467,7 @@ class ProductRepository:
                 products = []
 
         # Apply availability filter: when set, only show available or only stock out
-        def _is_in_stock(p: Dict) -> bool:
+        def _is_in_stock(p: Any) -> bool:
             stock = p.get("stock")
             if stock is None:
                 return False
@@ -524,7 +524,7 @@ class ProductRepository:
         return products
 
     async def get_catalog(
-        self, query: Dict, skip: int = 0, limit: int = 50, sort: str = "newest", include_facets: bool = True
+        self, query: Any, skip: int = 0, limit: int = 50, sort: str = "newest", include_facets: bool = True
     ):
         """Orchestrates server-side pagination by calling the DAO."""
         dao_query = query.copy()
@@ -710,7 +710,7 @@ class ProductRepository:
 
     async def add_dynamic_tags(
         self, products: List[Dict], role: str = "customer", user_id: Optional[str] = None
-    ) -> List[Dict]:
+    ) -> List[Product]:
         """Add refined dynamic tags: segmented best sellers and user-specific new arrivals"""
         import time as _t
 
@@ -722,8 +722,8 @@ class ProductRepository:
             user_orders = await order_repository.findAll({"user": user_id})
             for o in user_orders:
                 for item in o.get("items", []):
-                    if item.get("product"):
-                        user_ordered_pids.add(str(item.get("product")))
+                    if getattr(item, "product", None):
+                        user_ordered_pids.add(str(getattr(item, "product", None)))
 
         # Calculate thresholds (Aware)
         from datetime import datetime, timezone
@@ -783,7 +783,7 @@ class ProductRepository:
 
         return products
 
-    async def _get_active_search_tags(self) -> List[Dict]:
+    async def _get_active_search_tags(self) -> List[Product]:
         """Get all active search tags with short caching"""
         now = datetime.now(timezone.utc)
         if (
@@ -799,7 +799,7 @@ class ProductRepository:
         self._search_tags_cache_time = now
         return tags
 
-    async def _get_collections(self) -> List[Dict]:
+    async def _get_collections(self) -> List[Product]:
         """Get all collections with short caching"""
         now = datetime.now(timezone.utc)
         if (
@@ -815,7 +815,7 @@ class ProductRepository:
         self._collections_cache_time = now
         return collections
 
-    async def resolve_search_tags(self, products: List[Dict]) -> List[Dict]:
+    async def resolve_search_tags(self, products: List[Dict]) -> List[Product]:
         """Resolve which search tags apply to each product based on association rules"""
         search_tags = await self._get_active_search_tags()
 
@@ -908,7 +908,7 @@ class ProductRepository:
             p = (await self._attach_category_gst([p]))[0]
         return p
 
-    async def findByCollection(self, collection_id: str) -> List[Dict]:
+    async def findByCollection(self, collection_id: str) -> List[Product]:
         from app.repositories.collection_repository import collection_repository
 
         collection = await collection_repository.findById(collection_id)
@@ -921,7 +921,7 @@ class ProductRepository:
         products = await self.storage.findAll({"allowed_ids": str_ids, "isActive": True})
         return await self._attach_category_gst(products)
 
-    async def create(self, product_data: Dict):
+    async def create(self, product_data: Any) -> Product:
         # Use DB-native MAX(id) instead of loading all products into memory
         factory_fn = self.storage._factory() if hasattr(self.storage, "_factory") else None
         if factory_fn:
@@ -981,9 +981,9 @@ class ProductRepository:
         created = await self.storage.create(product)
         return (await self._attach_category_gst([created]))[0]
 
-    async def update(self, id: str, update_data: Dict):
+    async def update(self, id: str, update_data: Any) -> Optional[Product]:
         if "sku" in update_data:
-            existing = await self.findBySku(update_data["sku"])
+            existing = await self.findBySku(update_data.sku)
             if existing and existing.get("_id") != id:
                 raise ValueError("SKU already in use")
 
@@ -991,15 +991,15 @@ class ProductRepository:
         for field in numeric_fields:
             if field in update_data and update_data[field] is not None:
                 update_data[field] = float(update_data[field])
-        if "quantityPerCase" in update_data and update_data["quantityPerCase"] is not None:
-            update_data["quantityPerCase"] = int(update_data["quantityPerCase"])
+        if "quantityPerCase" in update_data and update_data.quantityPerCase is not None:
+            update_data.quantityPerCase = int(update_data.quantityPerCase)
         if "stock" in update_data:
-            update_data["stock"] = int(update_data["stock"])
+            update_data.stock = int(update_data.stock)
 
         if "variantCombinations" in update_data:
             existing_product = await self.storage.findById(id)
-            sku_val = update_data.get("sku") or existing_product.get("sku", "")
-            for combo in update_data.get("variantCombinations", []):
+            sku_val = getattr(update_data, "sku", None) or existing_product.get("sku", "")
+            for combo in getattr(update_data, 'variantCombinations', []):
                 combo_sku = combo.get("sku", "")
                 if not combo_sku or combo_sku.startswith("NEW-"):
                     combo["sku"] = (
@@ -1016,12 +1016,12 @@ class ProductRepository:
                     old_product_name = old_product.get("name", "")
                     if "stock" in update_data:
                         old_stock = int(old_product.get("stock", 0))
-                        new_stock = int(update_data["stock"])
+                        new_stock = int(update_data.stock)
                         if old_stock <= 0 and new_stock > 0:
                             has_stock_transition = True
                     if not has_stock_transition and "variantCombinations" in update_data:
                         old_combos = old_product.get("variantCombinations") or []
-                        for new_combo in update_data.get("variantCombinations", []):
+                        for new_combo in getattr(update_data, 'variantCombinations', []):
                             new_stock = int(new_combo.get("stock", 0))
                             new_attrs = new_combo.get("attributes", {})
                             old_combo = next((oc for oc in old_combos if oc.get("attributes") == new_attrs), None)
@@ -1050,7 +1050,7 @@ class ProductRepository:
 
     def getPriceForRole(
         self,
-        product: Dict,
+        product: Any,
         role: str,
         quantity: int = 1,
         selected_attributes: Optional[Dict] = None,
@@ -1150,7 +1150,7 @@ class ProductRepository:
 
     def calculateTotalPrice(
         self,
-        product: Dict,
+        product: Any,
         role: str,
         quantity: int,
         selected_attributes: Optional[Dict] = None,

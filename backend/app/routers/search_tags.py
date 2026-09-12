@@ -1,8 +1,9 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.models.schemas import SearchTagCreate, SearchTagUpdate
+from app.models.schemas import SearchTagCreate, SearchTagUpdate, SearchTagResponse
 from app.repositories.search_tag_repository import search_tag_repository
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache
@@ -11,21 +12,21 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("", response_model=Dict[str, Any])
-@router.get("/", response_model=Dict[str, Any])
+@router.get("", response_model=List[SearchTagResponse])
+@router.get("/", response_model=List[SearchTagResponse])
 @cache.ttl_cache(ttl=300.0)
 async def get_all_tags():
     return await search_tag_repository.findAll()
 
 
-@router.post("", response_model=Dict[str, Any])
-@router.post("/", response_model=Dict[str, Any])
-async def create_tag(tag: SearchTagCreate, admin: dict = Depends(require_super_admin)):
-    return await search_tag_repository.create(tag.model_dump())
+@router.post("", response_model=SearchTagResponse)
+@router.post("/", response_model=SearchTagResponse)
+async def create_tag(tag: SearchTagCreate, admin: User = Depends(require_super_admin)):
+    return await search_tag_repository.create(tag)
 
 
-@router.put("/{id}", response_model=Dict[str, Any])
-async def update_tag(id: str, tag_update: SearchTagUpdate, admin: dict = Depends(require_super_admin)):
+@router.put("/{id}", response_model=SearchTagResponse)
+async def update_tag(id: str, tag_update: SearchTagUpdate, admin: User = Depends(require_super_admin)):
     logger.info("Updating search tag id=%s", id)
     tag = await search_tag_repository.findById(id)
     if not tag:
@@ -39,10 +40,12 @@ async def update_tag(id: str, tag_update: SearchTagUpdate, admin: dict = Depends
         logger.info("Search tag resolved by tagId fallback, internal id=%s", id)
 
     logger.info("Search tag found for update id=%s", id)
-    return await search_tag_repository.update(id, tag_update.model_dump(exclude_unset=True))
+    return await search_tag_repository.update(id, tag_update)
 
 
 @router.delete("/{id}", response_model=MessageResponse)
-async def delete_tag(id: str, admin: dict = Depends(require_super_admin)):
+async def delete_tag(id: str, admin: User = Depends(require_super_admin)):
     await search_tag_repository.delete(id)
     return {"message": "Tag deleted"}
+
+

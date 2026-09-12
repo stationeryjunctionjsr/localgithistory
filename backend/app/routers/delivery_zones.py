@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 """
@@ -81,7 +82,7 @@ async def _check_pincode_conflicts(
 from app.config.database import get_async_session_factory
 from sqlalchemy import text
 
-@router.get("/for-pincode", response_model=Dict[str, Any])
+@router.get("/for-pincode", response_model=DeliveryZoneResponse)
 async def get_zone_for_pincode(pincode: str = Query(..., description="6-digit pincode")):
     """
     Public endpoint - resolve which zone a pincode belongs to.
@@ -121,19 +122,19 @@ async def get_zone_for_pincode(pincode: str = Query(..., description="6-digit pi
     }
 
 
-@router.get("", response_model=List[Dict[str, Any]])
-@router.get("/", response_model=List[Dict[str, Any]])
-async def get_zones(current_user: dict = Depends(require_super_admin)):
+@router.get("", response_model=List[DeliveryZoneResponse])
+@router.get("/", response_model=List[DeliveryZoneResponse])
+async def get_zones(current_user: User = Depends(require_super_admin)):
     """List all delivery zones."""
     storage = get_storage("deliveryZones")
     return await storage.findAll({})
 
 
-@router.post("", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=DeliveryZoneResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=DeliveryZoneResponse, status_code=status.HTTP_201_CREATED)
 async def create_zone(
     zone: ZoneCreate,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Create a new delivery zone. Rejects pincodes already assigned to another zone."""
     if zone.pincodes:
@@ -144,15 +145,15 @@ async def create_zone(
                 detail=f"These pincodes are already assigned to another zone: {', '.join(conflicts)}",
             )
     storage = get_storage("deliveryZones")
-    result = await storage.create(zone.dict())
+    result = await storage.create(zone)
     # New zone means a new zone_id — full cache clear is cheapest
     from app.repositories.zone_seller_cache import invalidate_zone_cache
     invalidate_zone_cache()
     return result
 
 
-@router.get("/{zone_id}", response_model=Dict[str, Any])
-async def get_zone(zone_id: str, current_user: dict = Depends(require_super_admin)):
+@router.get("/{zone_id}", response_model=DeliveryZoneResponse)
+async def get_zone(zone_id: str, current_user: User = Depends(require_super_admin)):
     """Get a single delivery zone by ID."""
     storage = get_storage("deliveryZones")
     zone = await storage.findById(zone_id)
@@ -161,11 +162,11 @@ async def get_zone(zone_id: str, current_user: dict = Depends(require_super_admi
     return zone
 
 
-@router.put("/{zone_id}", response_model=Dict[str, Any])
+@router.put("/{zone_id}", response_model=DeliveryZoneResponse)
 async def update_zone(
     zone_id: str,
     zone: ZoneUpdate,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Update a delivery zone."""
     storage = get_storage("deliveryZones")
@@ -182,7 +183,7 @@ async def update_zone(
                 detail=f"These pincodes are already assigned to another zone: {', '.join(conflicts)}",
             )
 
-    update_data = {k: v for k, v in zone.dict().items() if v is not None}
+    update_data = {k: v for k, v in zone.items() if v is not None}
     updated = await storage.update(zone_id, update_data)
     if not updated:
         raise HTTPException(status_code=404, detail="Zone not found")
@@ -195,7 +196,7 @@ async def update_zone(
 @router.delete("/{zone_id}", response_model=MessageResponse)
 async def delete_zone(
     zone_id: str,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Delete a delivery zone."""
     storage = get_storage("deliveryZones")

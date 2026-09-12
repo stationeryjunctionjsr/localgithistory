@@ -59,7 +59,7 @@ class SearchTagRepository:
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.storage.findById(id)
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Any) -> Dict:
         # Get all tags to find the next tagId
         all_tags = await self.storage.findAll()
         max_num = 0
@@ -80,21 +80,21 @@ class SearchTagRepository:
 
         tag = {
             "tagId": new_tag_id,
-            "name": data["name"],
-            "type": data["type"],
-            "isActive": data.get("isActive", True),
-            "categories": data.get("categories", []),
-            "subCategories": data.get("subCategories", []),
-            "brands": data.get("brands", []),
-            "collections": data.get("collections", []),
-            "productIds": data.get("productIds", []),
-            "excludedProductIds": data.get("excludedProductIds", []),
+            "name": data.name,
+            "type": data.type,
+            "isActive": getattr(data, 'isActive', True),
+            "categories": getattr(data, 'categories', []),
+            "subCategories": getattr(data, 'subCategories', []),
+            "brands": getattr(data, 'brands', []),
+            "collections": getattr(data, 'collections', []),
+            "productIds": getattr(data, 'productIds', []),
+            "excludedProductIds": getattr(data, 'excludedProductIds', []),
             "createdAt": self._get_timestamp(),
             "updatedAt": self._get_timestamp(),
         }
         return await self.storage.create(tag)
 
-    async def update(self, id: str, update_data: Dict) -> Dict:
+    async def update(self, id: str, update_data: Any) -> Dict:
         updates = {**update_data, "updatedAt": self._get_timestamp()}
         return await self.storage.update(id, updates)
 

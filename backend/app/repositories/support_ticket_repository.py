@@ -34,7 +34,7 @@ class SupportTicketRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def create(self, ticket_data: Dict):
+    async def create(self, ticket_data: Any):
         ticket = {
             "ticketNumber": self.generateTicketNumber(),
             "user": ticket_data.get("user"),
@@ -57,15 +57,15 @@ class SupportTicketRepository:
 
         return await self.storage.create(ticket)
 
-    async def update(self, id: str, update_data: Dict):
-        if update_data.get("status") == "resolved" and "resolvedAt" not in update_data:
-            update_data["resolvedAt"] = datetime.now(timezone.utc).isoformat()
-        elif update_data.get("status") == "closed" and "closedAt" not in update_data:
-            update_data["closedAt"] = datetime.now(timezone.utc).isoformat()
+    async def update(self, id: str, update_data: Any):
+        if getattr(update_data, "status", None) == "resolved" and "resolvedAt" not in update_data:
+            update_data.resolvedAt = datetime.now(timezone.utc).isoformat()
+        elif getattr(update_data, "status", None) == "closed" and "closedAt" not in update_data:
+            update_data.closedAt = datetime.now(timezone.utc).isoformat()
 
         return await self.storage.update(id, update_data)
 
-    async def addResponse(self, ticket_id: str, response_data: Dict):
+    async def addResponse(self, ticket_id: str, response_data: Any):
         ticket = await self.findById(ticket_id)
         if not ticket:
             raise ValueError("Ticket not found")

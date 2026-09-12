@@ -73,7 +73,7 @@ class MySQLFlatBaseDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r) -> Dict:
+    def _row_to_dict(self, r) -> Any:
         out = {"_id": str(r.id)}
         rev = {v: k for k, v in self.scalar_map.items()}
         for col, api_key in rev.items():
@@ -95,9 +95,9 @@ class MySQLFlatBaseDAO:
             out["createdAt"] = r.created_at.isoformat()
         if hasattr(r, "updated_at") and r.updated_at:
             out["updatedAt"] = r.updated_at.isoformat()
-        return out
+        return self.schema_cls(**out) if self.schema_cls else out
 
-    def _doc_to_params(self, data: Dict, now: datetime) -> Dict:
+    def _doc_to_params(self, data: Dict, now: datetime) -> Any:
         params = {"created_at": now, "updated_at": now}
         if self.has_external_id:
             params["external_id"] = secrets.token_hex(16)
@@ -130,7 +130,7 @@ class MySQLFlatBaseDAO:
         # Use dict.fromkeys for uniqueness, then quote
         return [_q(c) for c in dict.fromkeys(cols)]
 
-    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[Any]:
         factory = self._factory()
         if not factory:
             return []
@@ -162,11 +162,11 @@ class MySQLFlatBaseDAO:
             rows = result.fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Any]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Any]:
         factory = self._factory()
         if not factory:
             return None
@@ -180,7 +180,7 @@ class MySQLFlatBaseDAO:
             row = result.fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> Any:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -215,7 +215,7 @@ class MySQLFlatBaseDAO:
             raise RuntimeError("Could not obtain new row id after insert")
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: Dict) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -257,11 +257,11 @@ class MySQLFlatBaseDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Dict:
+    async def deleteMany(self, query: Dict) -> Any:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d.get("_id")):
+            if await self.delete(d._id):
                 deleted += 1
         return {"deletedCount": deleted}
 
@@ -348,4 +348,5 @@ class MySQLFlatBaseDAO:
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+
 

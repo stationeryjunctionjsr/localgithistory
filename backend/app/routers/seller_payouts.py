@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 """
 Seller Payout Ledger Router
@@ -22,6 +23,24 @@ from pydantic import BaseModel, Field
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_current_user, is_seller_admin, require_super_admin, require_super_admin_or_seller
 from app.utils.logger import logger
+
+
+from pydantic import BaseModel, Field
+class SellerPayoutResponse(BaseModel):
+    id: str = Field(alias="_id")
+    sellerId: str
+    amount: float
+    referenceId: Optional[str] = None
+    status: str
+    settledSubOrderIds: List[str]
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class SellerPayoutSummaryResponse(BaseModel):
+    sellerId: str
+    totalSettled: float
+    pendingSettlement: float
+    lastPayoutDate: Optional[str] = None
 
 router = APIRouter()
 
@@ -57,11 +76,11 @@ class SellerPayoutResponse(BaseModel):
     createdAt: str
 
 
-@router.get("", response_model=List[Dict[str, Any]])
-@router.get("/", response_model=List[Dict[str, Any]])
+@router.get("", response_model=List[SellerPayoutResponse])
+@router.get("/", response_model=List[SellerPayoutResponse])
 async def list_seller_payouts(
     seller_id: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin_or_seller),
+    current_user: User = Depends(require_super_admin_or_seller),
 ):
     """List payout records. Sellers see only their own records. Admins can filter by seller_id."""
     storage = _payout_storage()
@@ -69,7 +88,7 @@ async def list_seller_payouts(
 
     if is_seller_admin(current_user):
         # Sellers only see their own payouts
-        query["sellerId"] = str(current_user["_id"])
+        query["sellerId"] = str(current_user.id)
     elif seller_id:
         query["sellerId"] = seller_id
 
@@ -77,11 +96,11 @@ async def list_seller_payouts(
     return records
 
 
-@router.post("", response_model=Dict[str, Any], status_code=201)
-@router.post("/", response_model=Dict[str, Any], status_code=201)
+@router.post("", response_model=SellerPayoutResponse, status_code=201)
+@router.post("/", response_model=SellerPayoutResponse, status_code=201)
 async def create_seller_payout(
     data: SellerPayoutCreate,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Record a payout to a seller (Super Admin only). Marks the included sub-orders as commission paid."""
     from app.repositories.sub_order_repository import sub_order_repository
@@ -101,7 +120,7 @@ async def create_seller_payout(
         "status": "paid",
         "notes": data.notes,
         "subOrderIds": data.subOrderIds or [],
-        "createdBy": str(current_user["_id"]),
+        "createdBy": str(current_user.id),
         "paidAt": now,
         "createdAt": now,
     }
@@ -119,10 +138,10 @@ async def create_seller_payout(
     return created
 
 
-@router.post("/settle-all/{seller_id}", response_model=Dict[str, Any], status_code=201)
+@router.post("/settle-all/{seller_id}", response_model=SellerPayoutResponse, status_code=201)
 async def settle_all_seller_payouts(
     seller_id: str,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Settle all realized sub-orders for a seller."""
     from app.repositories.sub_order_repository import sub_order_repository
@@ -151,7 +170,7 @@ async def settle_all_seller_payouts(
         "status": "paid",
         "notes": "Bulk settlement of all realized sub-orders",
         "subOrderIds": sub_order_ids,
-        "createdBy": str(current_user["_id"]),
+        "createdBy": str(current_user.id),
         "paidAt": now,
         "createdAt": now,
     }
@@ -169,28 +188,28 @@ async def settle_all_seller_payouts(
     return created
 
 
-@router.get("/my-summary", response_model=Dict[str, Any])
+@router.get("/my-summary", response_model=SellerPayoutSummaryResponse)
 async def get_my_seller_payout_summary(
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Get payout summary for the authenticated seller."""
     if not is_seller_admin(current_user):
         raise HTTPException(status_code=403, detail="Only sellers can access this endpoint")
-    return await _get_seller_summary(str(current_user["_id"]))
+    return await _get_seller_summary(str(current_user.id))
 
 
-@router.get("/summary/{seller_id}", response_model=Dict[str, Any])
+@router.get("/summary/{seller_id}", response_model=SellerPayoutSummaryResponse)
 async def get_seller_payout_summary(
     seller_id: str,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Get payout summary for a specific seller (Super Admin only)."""
     return await _get_seller_summary(seller_id)
 
 
-@router.get("/summaries", response_model=Dict[str, Any])
+@router.get("/summaries", response_model=List[SellerPayoutSummaryResponse])
 async def get_all_seller_payout_summaries(
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Get payout summaries for all sellers (Super Admin only)."""
     import asyncio

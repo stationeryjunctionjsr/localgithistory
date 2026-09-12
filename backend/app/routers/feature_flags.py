@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 from typing import Dict, List, Optional
 
@@ -30,7 +31,7 @@ class FeatureFlagUpdate(BaseModel):
 
 @router.get("", response_model=List[Dict])
 @router.get("/", response_model=List[Dict])
-async def get_all_feature_flags(current_user: dict = Depends(require_super_admin)):
+async def get_all_feature_flags(current_user: User = Depends(require_super_admin)):
     """Get all feature flags (Super Admin only)"""
     try:
         flags = await feature_flag_repository.find_all()
@@ -53,7 +54,7 @@ async def get_enabled_feature_flags():
 
 
 @router.get("/{flag_id}", response_model=Dict)
-async def get_feature_flag(flag_id: str, current_user: dict = Depends(require_super_admin)):
+async def get_feature_flag(flag_id: str, current_user: User = Depends(require_super_admin)):
     """Get feature flag by ID (Super Admin only)"""
     try:
         flag = await feature_flag_repository.find_by_flag_id(flag_id)
@@ -81,7 +82,7 @@ async def check_feature_flag(flag_id: str):
 
 @router.post("", response_model=Dict, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=Dict, status_code=status.HTTP_201_CREATED)
-async def create_feature_flag(flag_data: FeatureFlagCreate, current_user: dict = Depends(require_super_admin)):
+async def create_feature_flag(flag_data: FeatureFlagCreate, current_user: User = Depends(require_super_admin)):
     """Create new feature flag (Super Admin only)"""
     try:
         # Check if flag with same ID already exists
@@ -111,7 +112,7 @@ async def create_feature_flag(flag_data: FeatureFlagCreate, current_user: dict =
 
 @router.put("/{flag_id}", response_model=Dict)
 async def update_feature_flag(
-    flag_id: str, update_data: FeatureFlagUpdate, current_user: dict = Depends(require_super_admin)
+    flag_id: str, update_data: FeatureFlagUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Update feature flag (Super Admin only)"""
     try:
@@ -119,7 +120,7 @@ async def update_feature_flag(
         if not flag:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
-        update_dict = update_data.model_dump(exclude_unset=True)
+        update_dict = update_data
         updated = await feature_flag_repository.update(flag["_id"], update_dict)
         return updated
     except HTTPException:
@@ -130,7 +131,7 @@ async def update_feature_flag(
 
 
 @router.patch("/{flag_id}/toggle", response_model=Dict)
-async def toggle_feature_flag(flag_id: str, current_user: dict = Depends(require_super_admin)):
+async def toggle_feature_flag(flag_id: str, current_user: User = Depends(require_super_admin)):
     """Toggle feature flag (Super Admin only)"""
     try:
         flag = await feature_flag_repository.find_by_flag_id(flag_id)
@@ -147,7 +148,7 @@ async def toggle_feature_flag(flag_id: str, current_user: dict = Depends(require
 
 
 @router.delete("/{flag_id}", status_code=status.HTTP_200_OK, response_model=MessageResponse)
-async def delete_feature_flag(flag_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_feature_flag(flag_id: str, current_user: User = Depends(require_super_admin)):
     """Delete feature flag (Super Admin only)"""
     try:
         flag = await feature_flag_repository.find_by_flag_id(flag_id)

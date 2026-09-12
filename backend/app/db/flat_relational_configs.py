@@ -1,12 +1,13 @@
+from app.models.schemas import SearchTagResponse, CollectionResponse, SchemeResponse, DeliveryChargeResponse, DefaultDeliveryChargeResponse
 """
-Configs for TypedDocDAO: parent-only tables with fixed columns + JSON columns.
+Configs for FlatRelationalDAO: parent-only tables with fixed columns + JSON columns.
 No child tables. Keys are API (camelCase); values are DB column names (snake_case).
 """
 
 from app.config.settings import settings
 from typing import Dict, Optional, Set
 
-from app.db.typed_doc_dao import TypedDocDAO
+from app.db.flat_relational_dao import FlatRelationalDAO
 
 
 def _dao(
@@ -14,8 +15,8 @@ def _dao(
     scalar: Dict[str, str],
     clob: Optional[Dict[str, str]] = None,
     bool_keys: Optional[Set[str]] = None,
-) -> TypedDocDAO:
-    return TypedDocDAO(
+) -> FlatRelationalDAO:
+    return FlatRelationalDAO(
         table_name=table,
         scalar_map=scalar,
         clob_map=clob or {},
@@ -23,8 +24,8 @@ def _dao(
     )
 
 
-# Collection name -> TypedDocDAO instance (parent-only; no child tables)
-TYPED_DOC_DAOS = {
+# Collection name -> FlatRelationalDAO instance (parent-only; no child tables)
+FLAT_RELATIONAL_DAOS = {
     "coupons": _dao(
         "sj_coupons",
         {
@@ -320,3 +321,7 @@ TYPED_DOC_DAOS = {
         {"rating": "rating", "reviewCount": "review_count", "lastUpdated": "last_updated", "method": "method"},
     ),
 }
+
+
+
+

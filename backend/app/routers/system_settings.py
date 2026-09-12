@@ -1,7 +1,5 @@
-from typing import Any, Dict
-
+from app.models.user import User
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import require_super_admin
@@ -10,29 +8,49 @@ router = APIRouter()
 storage = get_storage("systemSettings")
 
 
+from typing import Any, Dict, Optional
+from pydantic import BaseModel, Field
+
 class SystemSettingsUpdate(BaseModel):
-    maxConcurrentOrders: int
+    maintenanceMode: Optional[bool] = None
+    allowSignups: Optional[bool] = None
+    maxUploadSizeMb: Optional[int] = None
+    defaultCurrency: Optional[str] = None
+    timezone: Optional[str] = None
+
+class SystemSettingsResponse(BaseModel):
+    id: str = Field(alias="_id")
+    maintenanceMode: bool
+    allowSignups: bool
+    maxUploadSizeMb: Optional[int] = None
+    defaultCurrency: Optional[str] = None
+    timezone: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
 
 
-@router.get("", response_model=Dict[str, Any])
-@router.get("/", response_model=Dict[str, Any])
-async def get_settings(current_user: dict = Depends(require_super_admin)):
+
+@router.get("", response_model=SystemSettingsResponse)
+@router.get("/", response_model=SystemSettingsResponse)
+async def get_settings(current_user: User = Depends(require_super_admin)):
     """Get global system settings"""
-    doc = await storage.findById("global_settings")
+    doc = await storage.findById("1")
     if not doc:
-        return {"maxConcurrentOrders": 1}
+        return await storage.create(SystemSettingsUpdate().model_dump(exclude_unset=True))
     return doc
 
 
-@router.put("", response_model=Dict[str, Any])
-@router.put("/", response_model=Dict[str, Any])
-async def update_settings(data: SystemSettingsUpdate, current_user: dict = Depends(require_super_admin)):
+@router.put("", response_model=SystemSettingsResponse)
+@router.put("/", response_model=SystemSettingsResponse)
+async def update_settings(data: SystemSettingsUpdate, current_user: User = Depends(require_super_admin)):
     """Update global system settings"""
-    doc = await storage.findById("global_settings")
+    doc = await storage.findById("1")
     if not doc:
-        new_doc = {"_id": "global_settings", "maxConcurrentOrders": data.maxConcurrentOrders}
+        new_doc = data.model_dump(exclude_unset=True)
         await storage.create(new_doc)
         return new_doc
 
-    updated = await storage.update("global_settings", {"maxConcurrentOrders": data.maxConcurrentOrders})
+    updated = await storage.update("1", data.model_dump(exclude_unset=True))
     return updated
+
+

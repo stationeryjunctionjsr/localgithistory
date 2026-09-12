@@ -16,46 +16,46 @@ class SubOrderRepository:
         suffix = chr(ord("A") + index)
         return f"{parent_order_number}-{suffix}"
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Any) -> Dict:
         sub_order = {
-            "subOrderNumber": data["subOrderNumber"],
-            "parentOrderId": data["parentOrderId"],
-            "parentOrderNumber": data["parentOrderNumber"],
-            "sellerId": data.get("sellerId"),  # None = platform / super_admin
-            "sellerName": data.get("sellerName", ""),
-            "user": data["user"],
-            "items": data.get("items", []),
-            "subtotal": float(data.get("subtotal", 0)),
-            "tax": float(data.get("tax", 0)),
-            "shipping": float(data.get("shipping", 0)),
-            "deliveryGst": float(data.get("deliveryGst", 0)),
-            "discount": float(data.get("discount", 0)),
-            "total": float(data.get("total", 0)),
-            "orderType": data.get("orderType", "b2c"),
-            "status": data.get("status", "pending"),
-            "paymentMethod": data.get("paymentMethod", "cod"),
-            "paymentStatus": data.get("paymentStatus", "pending"),
-            "isUrgentDelivery": data.get("isUrgentDelivery", False),
-            "deliverySlot": data.get("deliverySlot"),
-            "shippingAddress": data.get("shippingAddress", {}),
-            "billingAddress": data.get("billingAddress", {}),
-            "notes": data.get("notes", ""),
-            "couponCode": data.get("couponCode"),
-            "couponInfo": data.get("couponInfo"),
-            "assignedValet": data.get("assignedValet"),
+            "subOrderNumber": data.subOrderNumber,
+            "parentOrderId": data.parentOrderId,
+            "parentOrderNumber": data.parentOrderNumber,
+            "sellerId": getattr(data, "sellerId", None),  # None = platform / super_admin
+            "sellerName": getattr(data, 'sellerName', ""),
+            "user": data.user,
+            "items": getattr(data, 'items', []),
+            "subtotal": float(getattr(data, 'subtotal', 0)),
+            "tax": float(getattr(data, 'tax', 0)),
+            "shipping": float(getattr(data, 'shipping', 0)),
+            "deliveryGst": float(getattr(data, 'deliveryGst', 0)),
+            "discount": float(getattr(data, 'discount', 0)),
+            "total": float(getattr(data, 'total', 0)),
+            "orderType": getattr(data, 'orderType', "b2c"),
+            "status": getattr(data, 'status', "pending"),
+            "paymentMethod": getattr(data, 'paymentMethod', "cod"),
+            "paymentStatus": getattr(data, 'paymentStatus', "pending"),
+            "isUrgentDelivery": getattr(data, 'isUrgentDelivery', False),
+            "deliverySlot": getattr(data, "deliverySlot", None),
+            "shippingAddress": getattr(data, 'shippingAddress', {}),
+            "billingAddress": getattr(data, 'billingAddress', {}),
+            "notes": getattr(data, 'notes', ""),
+            "couponCode": getattr(data, "couponCode", None),
+            "couponInfo": getattr(data, "couponInfo", None),
+            "assignedValet": getattr(data, "assignedValet", None),
             # Pickup tracking — valet confirms collection from each seller individually
-            "pickupStatus": data.get("pickupStatus", "pending_pickup"),  # 'pending_pickup' | 'picked_up'
-            "pickedUpAt": data.get("pickedUpAt"),
-            "shippedAt": data.get("shippedAt"),
-            "deliveredAt": data.get("deliveredAt"),
-            "cancelledAt": data.get("cancelledAt"),
-            "cancelledBy": data.get("cancelledBy"),
-            "declineReason": data.get("declineReason"),
+            "pickupStatus": getattr(data, 'pickupStatus', "pending_pickup"),  # 'pending_pickup' | 'picked_up'
+            "pickedUpAt": getattr(data, "pickedUpAt", None),
+            "shippedAt": getattr(data, "shippedAt", None),
+            "deliveredAt": getattr(data, "deliveredAt", None),
+            "cancelledAt": getattr(data, "cancelledAt", None),
+            "cancelledBy": getattr(data, "cancelledBy", None),
+            "declineReason": getattr(data, "declineReason", None),
             # Commission fields — populated when delivered
             "commissionPct": None,
             "commissionAmount": None,
             "commissionStatus": None,  # None | 'unrealized' | 'realized'
-            "createdAt": data.get("createdAt") or datetime.now(timezone.utc).isoformat(),
+            "createdAt": getattr(data, "createdAt", None) or datetime.now(timezone.utc).isoformat(),
         }
         return await self.storage.create(sub_order)
 
@@ -91,22 +91,22 @@ class SubOrderRepository:
         docs = await self.storage.findAll(query or {})
         return len(docs)
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: Any) -> Optional[Dict]:
         # Mirror status-specific timestamps from order_repository
-        if update_data.get("status") == "out_for_delivery" and "shippedAt" not in update_data:
-            update_data["shippedAt"] = datetime.now(timezone.utc).isoformat()
-        if update_data.get("status") == "delivered" and "deliveredAt" not in update_data:
-            update_data["deliveredAt"] = datetime.now(timezone.utc).isoformat()
-        if update_data.get("status") == "shipped" and "shippedAt" not in update_data:
-            update_data["shippedAt"] = datetime.now(timezone.utc).isoformat()
-        if update_data.get("status") == "cancelled" and "cancelledAt" not in update_data:
-            update_data["cancelledAt"] = datetime.now(timezone.utc).isoformat()
+        if getattr(update_data, "status", None) == "out_for_delivery" and "shippedAt" not in update_data:
+            update_data.shippedAt = datetime.now(timezone.utc).isoformat()
+        if getattr(update_data, "status", None) == "delivered" and "deliveredAt" not in update_data:
+            update_data.deliveredAt = datetime.now(timezone.utc).isoformat()
+        if getattr(update_data, "status", None) == "shipped" and "shippedAt" not in update_data:
+            update_data.shippedAt = datetime.now(timezone.utc).isoformat()
+        if getattr(update_data, "status", None) == "cancelled" and "cancelledAt" not in update_data:
+            update_data.cancelledAt = datetime.now(timezone.utc).isoformat()
         # Auto-stamp pickedUpAt when valet confirms collection from this seller
-        if update_data.get("pickupStatus") == "picked_up" and "pickedUpAt" not in update_data:
-            update_data["pickedUpAt"] = datetime.now(timezone.utc).isoformat() + "Z"
+        if getattr(update_data, "pickupStatus", None) == "picked_up" and "pickedUpAt" not in update_data:
+            update_data.pickedUpAt = datetime.now(timezone.utc).isoformat() + "Z"
 
         # Stamp commission when transitioning to 'delivered' (only if not already set)
-        if update_data.get("status") == "delivered" and "commissionPct" not in update_data:
+        if getattr(update_data, "status", None) == "delivered" and "commissionPct" not in update_data:
             existing = await self.storage.findById(id)
             if existing and existing.get("commissionStatus") is None:
                 try:

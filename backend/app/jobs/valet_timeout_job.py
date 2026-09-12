@@ -277,8 +277,8 @@ async def _find_next_available_valet_for_return(return_req: dict, skip_valet_ids
     customer_pincode = str(shipping_address.get("zipCode") or shipping_address.get("pincode") or "")
     if not customer_pincode:
         user = await user_repository.findById(return_req.get("userId")) if return_req.get("userId") else None
-        if user and user.get("address"):
-            customer_pincode = str(user["address"].get("pincode") or user["address"].get("zipCode") or "")
+        if user and getattr(user, "address", {}):
+            customer_pincode = str(getattr(user, "address", {}).get("pincode") or getattr(user, "address", {}).get("zipCode") or "")
 
     if not customer_pincode:
         return None

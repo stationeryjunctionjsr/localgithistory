@@ -265,53 +265,53 @@ class MySQLSubOrderDAO:
             raise RuntimeError("MySQL not configured")
         now = datetime.now(timezone.utc)
 
-        slot = data.get("deliverySlot") or {}
-        c_info = data.get("couponInfo") or {}
-        s_addr = data.get("shippingAddress") or {}
-        b_addr = data.get("billingAddress") or {}
+        slot = data.deliverySlot or {}
+        c_info = data.couponInfo or {}
+        s_addr = data.shippingAddress or {}
+        b_addr = data.billingAddress or {}
 
         params = {
             "external_id": secrets.token_hex(16),
-            "sub_order_number": data.get("subOrderNumber", ""),
-            "parent_order_id": str(data.get("parentOrderId") or ""),
-            "parent_order_number": data.get("parentOrderNumber", ""),
-            "seller_id": str(data.get("sellerId") or "") or None,
-            "seller_name": data.get("sellerName"),
-            "user_id": str(data.get("user") or ""),
-            "subtotal": _safe_float(data.get("subtotal")),
-            "tax": _safe_float(data.get("tax")),
-            "shipping": _safe_float(data.get("shipping")),
-            "delivery_gst": _safe_float(data.get("deliveryGst")),
-            "discount": _safe_float(data.get("discount")),
-            "total": _safe_float(data.get("total")),
-            "order_type": data.get("orderType"),
-            "status": data.get("status", "pending"),
-            "payment_method": data.get("paymentMethod"),
-            "payment_status": data.get("paymentStatus", "pending"),
-            "is_urgent_delivery": 1 if data.get("isUrgentDelivery") else 0,
+            "sub_order_number": (data.subOrderNumber if getattr(data, 'subOrderNumber', None) is not None else ""),
+            "parent_order_id": str(data.parentOrderId or ""),
+            "parent_order_number": (data.parentOrderNumber if getattr(data, 'parentOrderNumber', None) is not None else ""),
+            "seller_id": str(data.sellerId or "") or None,
+            "seller_name": data.sellerName,
+            "user_id": str(data.user or ""),
+            "subtotal": _safe_float(data.subtotal),
+            "tax": _safe_float(data.tax),
+            "shipping": _safe_float(data.shipping),
+            "delivery_gst": _safe_float(data.deliveryGst),
+            "discount": _safe_float(data.discount),
+            "total": _safe_float(data.total),
+            "order_type": data.orderType,
+            "status": (data.status if getattr(data, 'status', None) is not None else "pending"),
+            "payment_method": data.paymentMethod,
+            "payment_status": (data.paymentStatus if getattr(data, 'paymentStatus', None) is not None else "pending"),
+            "is_urgent_delivery": 1 if data.isUrgentDelivery else 0,
             "delivery_slot_config_id": slot.get("configId"),
             "delivery_slot_id": slot.get("slotId"),
             "delivery_slot_date": slot.get("date"),
-            "notes": data.get("notes"),
-            "coupon_code": data.get("couponCode"),
-            "coupon_info_type": c_info.get("discountType"),
-            "coupon_info_value": _safe_float(c_info.get("discountValue")),
-            "commission_status": data.get("commissionStatus", "unrealized"),
-            "shipping_name": s_addr.get("name"),
-            "shipping_phone": s_addr.get("phone"),
-            "shipping_line1": s_addr.get("line1"),
-            "shipping_city": s_addr.get("city"),
-            "shipping_state": s_addr.get("state"),
-            "shipping_pincode": s_addr.get("pincode"),
-            "billing_name": b_addr.get("name"),
-            "billing_phone": b_addr.get("phone"),
-            "billing_line1": b_addr.get("line1"),
-            "billing_city": b_addr.get("city"),
-            "billing_state": b_addr.get("state"),
-            "billing_pincode": b_addr.get("pincode"),
+            "notes": data.notes,
+            "coupon_code": data.couponCode,
+            "coupon_info_type": c_info.discountType,
+            "coupon_info_value": _safe_float(c_info.discountValue),
+            "commission_status": (data.commissionStatus if getattr(data, 'commissionStatus', None) is not None else "unrealized"),
+            "shipping_name": s_addr.name,
+            "shipping_phone": s_addr.phone,
+            "shipping_line1": s_addr.line1,
+            "shipping_city": s_addr.city,
+            "shipping_state": s_addr.state,
+            "shipping_pincode": s_addr.pincode,
+            "billing_name": b_addr.name,
+            "billing_phone": b_addr.phone,
+            "billing_line1": b_addr.line1,
+            "billing_city": b_addr.city,
+            "billing_state": b_addr.state,
+            "billing_pincode": b_addr.pincode,
             # Valet pickup tracking
-            "pickup_status": data.get("pickupStatus", "pending_pickup"),
-            "assigned_valet": data.get("assignedValet"),
+            "pickup_status": (data.pickupStatus if getattr(data, 'pickupStatus', None) is not None else "pending_pickup"),
+            "assigned_valet": data.assignedValet,
             "created_at": now,
             "updated_at": now,
         }
@@ -350,16 +350,16 @@ class MySQLSubOrderDAO:
             result = await session.execute(sql, params)
             new_id = result.lastrowid
 
-            items = data.get("items", [])
+            items = (data.items if getattr(data, 'items', None) is not None else [])
             for item in items:
                 await session.execute(
                     item_sql,
                     {
                         "sub_order_id": new_id,
-                        "product_id": item.get("productId", ""),
-                        "name": item.get("name", ""),
-                        "qty": int(item.get("qty") or 0),
-                        "price": _safe_float(item.get("price")),
+                        "product_id": (item.productId if getattr(item, 'productId', None) is not None else ""),
+                        "name": (item.name if getattr(item, 'name', None) is not None else ""),
+                        "qty": int(item.qty or 0),
+                        "price": _safe_float(item.price),
                     },
                 )
 
@@ -387,16 +387,16 @@ class MySQLSubOrderDAO:
         # Handle special dates
         if "deliveredAt" in data:
             set_clauses.append("delivered_at = :delivered_at")
-            params["delivered_at"] = data["deliveredAt"]
+            params["delivered_at"] = data.deliveredAt
         if "dispatchedAt" in data:
             set_clauses.append("dispatched_at = :dispatched_at")
-            params["dispatched_at"] = data["dispatchedAt"]
+            params["dispatched_at"] = data.dispatchedAt
         if "cancelledAt" in data:
             set_clauses.append("cancelled_at = :cancelled_at")
-            params["cancelled_at"] = data["cancelledAt"]
+            params["cancelled_at"] = data.cancelledAt
         if "pickedUpAt" in data:
             set_clauses.append("picked_up_at = :picked_up_at")
-            params["picked_up_at"] = data["pickedUpAt"]
+            params["picked_up_at"] = data.pickedUpAt
 
         if len(set_clauses) > 1:
             sql = text(f"UPDATE {self.table_name} SET {', '.join(set_clauses)} WHERE id = :row_id")

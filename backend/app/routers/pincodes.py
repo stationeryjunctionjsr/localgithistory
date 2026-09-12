@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 import json
@@ -23,7 +24,7 @@ def _load_pincode_data():
     return _pincode_data
 
 
-@router.get("/states", response_model=Dict[str, Any])
+@router.get("/states", response_model=List[str])
 @cache.ttl_cache(ttl=3600.0)
 async def get_states():
     """Get all available states (public - used in checkout)"""
@@ -31,7 +32,7 @@ async def get_states():
     return sorted(data.keys())
 
 
-@router.get("/districts", response_model=Dict[str, Any])
+@router.get("/districts", response_model=List[str])
 @cache.ttl_cache(ttl=3600.0)
 async def get_districts(state: str = Query(...)):
     """Get all districts for a given state (public - used in checkout)"""
@@ -41,9 +42,9 @@ async def get_districts(state: str = Query(...)):
     return sorted(data[state].keys())
 
 
-@router.get("/pincodes", response_model=Dict[str, Any])
+@router.get("/pincodes", response_model=List[str])
 async def get_pincodes(
-    state: str = Query(...), district: str = Query(...), current_user: dict = Depends(require_super_admin)
+    state: str = Query(...), district: str = Query(...), current_user: User = Depends(require_super_admin)
 ):
     """Get all pincodes for a given state and district (admin only)"""
     data = _load_pincode_data()
@@ -54,7 +55,7 @@ async def get_pincodes(
     return sorted(data[state][district])
 
 
-@router.get("/{pincode}", response_model=Dict[str, Any])
+@router.get("/{pincode}", response_model=Dict[str, str])
 async def get_pincode_details(pincode: str):
     """Reverse-lookup state and district for a given 6-digit pincode (public — used in checkout auto-fill)"""
     data = _load_pincode_data()

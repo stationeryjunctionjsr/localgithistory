@@ -407,14 +407,14 @@ class MySQLProductDAO:
 
         # Insert variants
         await session.execute(text("DELETE FROM sj_product_variant_attributes WHERE product_id = :pid"), {"pid": pid})
-        for attr in data.get("variantAttributes") or []:
+        for attr in getattr(data, 'variantAttributes', []) or []:
             await session.execute(
                 text("INSERT INTO sj_product_variant_attributes (product_id, attribute_name) VALUES (:pid, :attr)"),
                 {"pid": pid, "attr": str(attr)}
             )
             
         await session.execute(text("DELETE FROM sj_product_variants WHERE product_id = :pid"), {"pid": pid})
-        for variant in data.get("variants") or []:
+        for variant in getattr(data, 'variants', []) or []:
             await session.execute(
                 text("INSERT INTO sj_product_variants (product_id, sku, price, price_per_case, stock) VALUES (:pid, :sku, :price, :price_per_case, :stock)"),
                 {"pid": pid, "sku": variant.get("sku"), "price": variant.get("price"), "price_per_case": variant.get("pricePerCase"), "stock": variant.get("stock", 0)}
@@ -429,7 +429,7 @@ class MySQLProductDAO:
 
 
         # Insert images
-        images = data.get("images") or []
+        images = getattr(data, 'images', []) or []
         for i, img in enumerate(images):
             await session.execute(
                 text("INSERT INTO sj_product_images (product_id, image_url, order_index) VALUES (:pid, :img, :idx)"),
@@ -437,7 +437,7 @@ class MySQLProductDAO:
             )
 
         # Insert videos
-        videos = data.get("videos") or []
+        videos = getattr(data, 'videos', []) or []
         for i, vid in enumerate(videos):
             await session.execute(
                 text("INSERT INTO sj_product_videos (product_id, video_url, order_index) VALUES (:pid, :vid, :idx)"),
@@ -445,26 +445,26 @@ class MySQLProductDAO:
             )
 
         # Insert tags
-        for tag in data.get("tags") or []:
+        for tag in getattr(data, 'tags', []) or []:
             await session.execute(
                 text("INSERT INTO sj_product_tags (product_id, tag) VALUES (:pid, :tag)"), {"pid": pid, "tag": tag}
             )
 
         # Insert attributes
-        # for attr in data.get("variantAttributes") or []:
+        # for attr in getattr(data, 'variantAttributes', []) or []:
         # await session.execute(
         # text("INSERT INTO sj_product_attributes (product_id, attr_name) VALUES (:pid, :attr)"),
         # {"pid": pid, "attr": attr},
         # )
         #         # Insert details
-        for k, v in (data.get("details") or {}).items():
+        for k, v in (data.details or {}).items():
             await session.execute(
                 text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"),
                 {"pid": pid, "k": k, "v": str(v)},
             )
 
         # Insert combinations
-        # for combo in data.get("variantCombinations") or []:
+        # for combo in data.variantCombinations or []:
         # res = await session.execute(
         # text(
         # "INSERT INTO sj_product_variant_combinations (product_id, sku, price, stock) VALUES (:pid, :sku, :price, :stock)"
@@ -499,19 +499,17 @@ class MySQLProductDAO:
                 """),
                 {
                     "external_id": external_id,
-                    "name": data.get("name"),
-                    "description": data.get("description"),
-                    "sku": data.get("sku"),
-                    "category": data.get("category"),
-                    "sub_category": data.get("subCategory"),
-                    "brand": data.get("brand"),
-                    "mrp": data.get("mrp"),
-                    "mrp_per_case": data.get("mrpPerCase"),
-                    "quantity_per_case": data.get("quantityPerCase"),
-                    "stock": data.get("stock", 0),
-                    "is_active": 1 if data.get("isActive", True) else 0,
-                    
-                    
+                    "name": getattr(data, "name", None),
+                    "description": getattr(data, "description", None),
+                    "sku": getattr(data, "sku", None),
+                    "category": getattr(data, "category", None),
+                    "sub_category": getattr(data, "subCategory", None),
+                    "brand": getattr(data, "brand", None),
+                    "mrp": getattr(data, "mrp", None),
+                    "mrp_per_case": getattr(data, "mrpPerCase", None),
+                    "quantity_per_case": getattr(data, "quantityPerCase", None),
+                    "stock": getattr(data, "stock", 0),
+                    "is_active": 1 if getattr(data, "isActive", True) else 0,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -544,19 +542,19 @@ class MySQLProductDAO:
             """),
                 {
                     "id": pid,
-                    "name": merged.get("name"),
-                    "description": merged.get("description"),
-                    "sku": merged.get("sku"),
-                    "category": merged.get("category"),
-                    "sub_category": merged.get("subCategory"),
-                    "brand": merged.get("brand"),
-                    "mrp": merged.get("mrp"),
-                    "mrp_per_case": merged.get("mrpPerCase"),
-                    "quantity_per_case": merged.get("quantityPerCase"),
-                    "stock": merged.get("stock"),
-                    "is_active": 1 if merged.get("isActive", True) else None,
-                    "rating": merged.get("rating", 0.0),
-                    "reviews": merged.get("reviews", 0),
+                    "name": merged.name,
+                    "description": merged.description,
+                    "sku": merged.sku,
+                    "category": merged.category,
+                    "sub_category": merged.subCategory,
+                    "brand": merged.brand,
+                    "mrp": merged.mrp,
+                    "mrp_per_case": merged.mrpPerCase,
+                    "quantity_per_case": merged.quantityPerCase,
+                    "stock": merged.stock,
+                    "is_active": 1 if (merged.isActive if getattr(merged, 'isActive', None) is not None else True) else None,
+                    "rating": (merged.rating if getattr(merged, 'rating', None) is not None else 0.0),
+                    "reviews": (merged.reviews if getattr(merged, 'reviews', None) is not None else 0),
                     "updated_at": now,
                 },
             )
@@ -576,7 +574,7 @@ class MySQLProductDAO:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d.get("_id")):
+            if await self.delete(d._id):
                 deleted += 1
         return {"deletedCount": deleted}
 

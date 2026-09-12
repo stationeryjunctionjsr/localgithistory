@@ -1,5 +1,7 @@
+from app.models.user import User
 from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
+from app.models.schemas import MessageResponse, AdCreate, AdUpdate, AdStatusUpdate, AdSummaryResponse
+from app.models.ad import Ad
 import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -15,8 +17,8 @@ storage = get_storage("ads")
 events_storage = get_storage("tracking")
 
 
-@router.get("/summary", response_model=Dict[str, Any])
-async def get_ads_summary(_: dict = Depends(require_super_admin)):
+@router.get("/summary", response_model=AdSummaryResponse)
+async def get_ads_summary(_: User = Depends(require_super_admin)):
     ads = await storage.findAll({})
     total_views = sum([(ad.stats or {}).get("impressions", 0) for ad in ads])
     total_clicks = sum([(ad.stats or {}).get("clicks", 0) for ad in ads])
@@ -35,7 +37,7 @@ async def get_ads_summary(_: dict = Depends(require_super_admin)):
     }
 
 
-@router.get("/", response_model=Dict[str, Any])
+@router.get("/", response_model=List[Ad])
 async def get_all_ads(placement: Optional[str] = None, active_only: bool = Query(False)):
     query = {}
     if active_only:
@@ -44,14 +46,14 @@ async def get_all_ads(placement: Optional[str] = None, active_only: bool = Query
     return {"ads": ads}
 
 
-@router.post("/", response_model=Dict[str, Any])
-async def create_ad(ad_data: dict, _: dict = Depends(require_super_admin)):
+@router.post("/", response_model=Ad)
+async def create_ad(ad_data: AdCreate, _: User = Depends(require_super_admin)):
     new_ad = await storage.create(ad_data)
     return new_ad
 
 
-@router.put("/{ad_id}", response_model=Dict[str, Any])
-async def update_ad(ad_id: str, ad_data: dict, _: dict = Depends(require_super_admin)):
+@router.put("/{ad_id}", response_model=Ad)
+async def update_ad(ad_id: str, ad_data: AdUpdate, _: User = Depends(require_super_admin)):
     updated = await storage.update(ad_id, ad_data)
     if not updated:
         raise HTTPException(status_code=404, detail="Ad not found")
@@ -60,18 +62,18 @@ async def update_ad(ad_id: str, ad_data: dict, _: dict = Depends(require_super_a
 
 
 @router.patch("/{ad_id}/status", response_model=Dict[str, Any])
-async def update_ad_status(ad_id: str, payload: dict, _: dict = Depends(require_super_admin)):
-    status = payload.get("status")
+async def update_ad_status(ad_id: str, payload: AdStatusUpdate, _: User = Depends(require_super_admin)):
+    status = payload.status
     if not status:
         raise HTTPException(status_code=400, detail="Status is required")
         
-    updated = await storage.update(ad_id, {"status": status})
+    updated = await storage.update(ad_id, payload)
     if not updated:
         raise HTTPException(status_code=404, detail="Ad not found")
     return {"message": f"Ad status updated to {status}"}
 
 @router.delete("/{ad_id}", response_model=MessageResponse)
-async def delete_ad(ad_id: str, _: dict = Depends(require_super_admin)):
+async def delete_ad(ad_id: str, _: User = Depends(require_super_admin)):
     success = await storage.delete(ad_id)
     if not success:
         raise HTTPException(status_code=404, detail="Ad not found")
@@ -103,7 +105,7 @@ async def track_ad_event(ad_id: str, event: dict, current_user: Optional[dict] =
         "source": "ad",
         "campaign": ad_id,
         "type": event_type,
-        "userId": current_user["_id"] if current_user else None,
+        "userId": current_user.id if current_user else None,
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
     await events_storage.create(event_data)

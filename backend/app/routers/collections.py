@@ -1,10 +1,11 @@
+from app.models.user import User
 from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
+from app.models.schemas import ProductResponse, MessageResponse, CollectionResponse
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from app.models.schemas import CollectionCreate, CollectionResponse, CollectionUpdate
+from app.models.schemas import ProductResponse, MessageResponse, CollectionResponse, CollectionResponse, CollectionUpdate
 from app.repositories.collection_repository import collection_repository
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache
@@ -13,7 +14,7 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("/public", response_model=Dict[str, Any])
+@router.get("/public", response_model=List[CollectionResponse])
 @cache.ttl_cache(ttl=300.0)
 async def get_public_collections(
     visiblePage: Optional[str] = None,
@@ -28,12 +29,12 @@ async def get_public_collections(
 
 @router.get("", response_model=List[CollectionResponse])
 @router.get("/", response_model=List[CollectionResponse])
-async def get_collections(current_user: dict = Depends(require_super_admin)):
+async def get_collections(current_user: User = Depends(require_super_admin)):
     """All collections (super_admin only)."""
     return await collection_repository.findAll()
 
 
-@router.get("/{collection_id}/products", response_model=Dict[str, Any])
+@router.get("/{collection_id}/products", response_model=List[ProductResponse])
 @cache.ttl_cache(ttl=600.0)
 async def get_collection_products(collection_id: str):
     """Get products belonging to a collection (public endpoint)."""
@@ -47,7 +48,7 @@ async def get_collection_products(collection_id: str):
 
 
 @router.get("/{collection_id}", response_model=CollectionResponse)
-async def get_collection(collection_id: str, current_user: dict = Depends(require_super_admin)):
+async def get_collection(collection_id: str, current_user: User = Depends(require_super_admin)):
     """Get single collection by ID."""
     collection = await collection_repository.findById(collection_id)
     if not collection:
@@ -55,8 +56,8 @@ async def get_collection(collection_id: str, current_user: dict = Depends(requir
     return collection
 
 
-@router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
-async def upload_collection_image(image: UploadFile = File(...), current_user: dict = Depends(require_super_admin)):
+@router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=Dict[str, str])
+async def upload_collection_image(image: UploadFile = File(...), current_user: User = Depends(require_super_admin)):
     """Upload collection cover image (super_admin only). Uses OCI Object Storage when configured."""
     try:
         from app.services.oci_storage import upload_image_and_return_path
@@ -85,17 +86,17 @@ def _invalidate_collection_caches():
 
 @router.post("", response_model=CollectionResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=CollectionResponse, status_code=status.HTTP_201_CREATED)
-async def create_collection(data: CollectionCreate, current_user: dict = Depends(require_super_admin)):
-    collection = await collection_repository.create(data.model_dump())
+async def create_collection(data: CollectionCreate, current_user: User = Depends(require_super_admin)):
+    collection = await collection_repository.create(data)
     _invalidate_collection_caches()
     return collection
 
 
 @router.put("/{collection_id}", response_model=CollectionResponse)
 async def update_collection(
-    collection_id: str, data: CollectionUpdate, current_user: dict = Depends(require_super_admin)
+    collection_id: str, data: CollectionUpdate, current_user: User = Depends(require_super_admin)
 ):
-    collection = await collection_repository.update(collection_id, data.model_dump(exclude_unset=True))
+    collection = await collection_repository.update(collection_id, data)
     if not collection:
         raise HTTPException(status_code=404, detail="Collection not found")
     _invalidate_collection_caches()
@@ -103,9 +104,11 @@ async def update_collection(
 
 
 @router.delete("/{collection_id}", response_model=MessageResponse)
-async def delete_collection(collection_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_collection(collection_id: str, current_user: User = Depends(require_super_admin)):
     ok = await collection_repository.delete(collection_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Collection not found")
     _invalidate_collection_caches()
     return {"message": "Collection deleted successfully"}
+
+

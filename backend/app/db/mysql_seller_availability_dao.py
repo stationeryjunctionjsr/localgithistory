@@ -123,13 +123,13 @@ class MySQLSellerAvailabilityDAO:
         now = datetime.now(timezone.utc)
         params = {
             "external_id": secrets.token_hex(16),
-            "seller_id": str(data.get("sellerId") or ""),
-            "status": data.get("status", "scheduled"),
-            "start_at": _to_dt(data.get("startAt")),
-            "end_at": _to_dt(data.get("endAt")),
-            "reason": data.get("reason"),
-            "created_by": data.get("createdBy"),
-            "cancelled_at": _to_dt(data.get("cancelledAt")),
+            "seller_id": str(data.sellerId or ""),
+            "status": (data.status if getattr(data, 'status', None) is not None else "scheduled"),
+            "start_at": _to_dt(data.startAt),
+            "end_at": _to_dt(data.endAt),
+            "reason": data.reason,
+            "created_by": data.createdBy,
+            "cancelled_at": _to_dt(data.cancelledAt),
             "created_at": now,
             "updated_at": now,
         }

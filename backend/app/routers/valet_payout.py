@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 """
@@ -44,8 +45,8 @@ class ValetPayoutSettingsPayload(BaseModel):
     returnPickupChargePerOrder: float = Field(..., ge=0, description="Fixed amount paid to valet per return pickup")
 
 
-@router.get("/settings", response_model=Dict[str, Any])
-async def get_valet_payout_settings(current_user: dict = Depends(require_super_admin)):
+@router.get("/settings", response_model=ValetPayoutSettingsResponse)
+async def get_valet_payout_settings(current_user: User = Depends(require_super_admin)):
     """Fetch global valet payout charge settings."""
     settings = await _get_settings()
     return {
@@ -55,10 +56,10 @@ async def get_valet_payout_settings(current_user: dict = Depends(require_super_a
     }
 
 
-@router.put("/settings", response_model=Dict[str, Any])
+@router.put("/settings", response_model=ValetPayoutSettingsResponse)
 async def update_valet_payout_settings(
     payload: ValetPayoutSettingsPayload,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Update global valet payout charge settings."""
     storage = _storage()
@@ -129,9 +130,9 @@ async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, r
     }
 
 
-@router.get("/earnings/me", response_model=Dict[str, Any])
+@router.get("/earnings/me", response_model=ValetEarningsResponse)
 async def get_my_valet_earnings(
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Get earnings summary for the currently authenticated valet."""
     if current_user.role != "valet":
@@ -142,7 +143,7 @@ async def get_my_valet_earnings(
     from app.repositories.order_repository import order_repository
     from app.repositories.return_request_repository import return_request_repository
 
-    valet_id = str(current_user["_id"])
+    valet_id = str(current_user.id)
     settings = await _get_settings()
     orders = await order_repository.findAll({"assignedValet": valet_id})
     returns = await return_request_repository.findAll({"valetId": valet_id})
@@ -150,10 +151,10 @@ async def get_my_valet_earnings(
     return await _compute_valet_earnings(valet_id, settings, orders, returns)
 
 
-@router.get("/earnings/{valet_id}", response_model=Dict[str, Any])
+@router.get("/earnings/{valet_id}", response_model=ValetEarningsResponse)
 async def get_valet_earnings_by_id(
     valet_id: str,
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     """Get earnings summary for a specific valet (super admin only)."""
     from fastapi import HTTPException

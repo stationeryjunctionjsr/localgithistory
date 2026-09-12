@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from datetime import datetime
@@ -272,7 +273,7 @@ async def track_filter_click(
     return {"message": "Filter click tracked"}
 
 
-@router.get("/recent", response_model=Any)
+@router.get("/recent", response_model=List[Dict[str, Any]])
 async def get_recent_searches(
     sessionId: Optional[str] = None,
     limit: int = Query(5, ge=1, le=20),
@@ -294,7 +295,7 @@ async def clear_recent_searches(
     return {"ok": True}
 
 
-@router.get("/suggestions", response_model=Any)
+@router.get("/suggestions", response_model=List[Dict[str, Any]])
 async def get_search_suggestions(
     limit: int = Query(5, ge=1, le=20), current_user: Optional[dict] = Depends(get_optional_user),
     req: Request = None,
@@ -305,18 +306,18 @@ async def get_search_suggestions(
     # We can also return popular categories/brands if needed
     # For now, let's just return the terms
     return {
-        "popularTerms": [item["term"] for item in most_searched],
+        "popularTerms": [item.term for item in most_searched],
         "popularCategories": ["Office Supplies", "Notebooks", "Luxury Pens", "Art Materials"],
         "popularBrands": ["Parker", "Moleskine", "Faber-Castell", "Camel"],
     }
 
 
-@router.get("/most-searched", response_model=Any)
+@router.get("/most-searched", response_model=List[Dict[str, Any]])
 async def get_most_searched(
     limit: int = Query(5, ge=1, le=100),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
@@ -324,12 +325,12 @@ async def get_most_searched(
     return most_searched
 
 
-@router.get("/zero-result-searches", response_model=Any)
+@router.get("/zero-result-searches", response_model=List[Dict[str, Any]])
 async def get_zero_result_searches(
     limit: int = Query(50, ge=1, le=1000),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
@@ -337,12 +338,12 @@ async def get_zero_result_searches(
     return zero_results
 
 
-@router.get("/most-viewed", response_model=Any)
+@router.get("/most-viewed", response_model=List[Dict[str, Any]])
 async def get_most_viewed(
     limit: int = Query(5, ge=1, le=100),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
@@ -350,11 +351,11 @@ async def get_most_viewed(
     return most_viewed
 
 
-@router.get("/returning-users", response_model=Any)
+@router.get("/returning-users", response_model=List[Dict[str, Any]])
 async def get_returning_users(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
@@ -362,12 +363,12 @@ async def get_returning_users(
     return users
 
 
-@router.get("/drop-off-points", response_model=Any)
+@router.get("/drop-off-points", response_model=List[Dict[str, Any]])
 async def get_drop_off_points(
     limit: int = Query(10, ge=1, le=100),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
@@ -375,12 +376,12 @@ async def get_drop_off_points(
     return drop_off_points
 
 
-@router.get("/cart-abandonments", response_model=Any)
+@router.get("/cart-abandonments", response_model=List[Dict[str, Any]])
 async def get_cart_abandonments(
     limit: int = Query(100, ge=1, le=1000),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
@@ -388,12 +389,12 @@ async def get_cart_abandonments(
     return abandonments
 
 
-@router.get("/most-abandoned-products", response_model=Any)
+@router.get("/most-abandoned-products", response_model=List[Dict[str, Any]])
 async def get_most_abandoned_products(
     limit: int = Query(50, ge=1, le=1000),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)

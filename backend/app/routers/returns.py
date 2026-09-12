@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
@@ -48,7 +49,7 @@ async def populate_return_request(request: Dict) -> Dict:
 
 
 @router.get("/my-returns", response_model=List[ReturnRequestResponse])
-async def get_my_returns(current_user: dict = Depends(get_current_user)):
+async def get_my_returns(current_user: User = Depends(get_current_user)):
     """Customer gets their return requests"""
     if current_user.role not in ["customer", "wholesaler"]:
         raise HTTPException(status_code=403, detail="Only customers can view their returns")
@@ -58,7 +59,7 @@ async def get_my_returns(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/admin/all", response_model=List[ReturnRequestResponse])
-async def get_all_returns(status: Optional[str] = None, current_user: dict = Depends(require_super_admin)):
+async def get_all_returns(status: Optional[str] = None, current_user: User = Depends(require_super_admin)):
     """Super admin gets all return requests"""
     query = {}
     if status:
@@ -68,7 +69,7 @@ async def get_all_returns(status: Optional[str] = None, current_user: dict = Dep
 
 
 @router.get("/valet/assigned", response_model=List[ReturnRequestResponse])
-async def get_valet_returns(current_user: dict = Depends(require_super_admin_or_valet)):
+async def get_valet_returns(current_user: User = Depends(require_super_admin_or_valet)):
     """Valet gets returns assigned to them"""
     if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can view assigned returns")
@@ -79,8 +80,8 @@ async def get_valet_returns(current_user: dict = Depends(require_super_admin_or_
     return [await populate_return_request(req) for req in requests]
 
 
-@router.get("/order/{order_id}/eligibility", response_model=Dict[str, Any])
-async def check_return_eligibility(order_id: str, current_user: dict = Depends(get_current_user)):
+@router.get("/order/{order_id}/eligibility", response_model=ReturnEligibilityResponse)
+async def check_return_eligibility(order_id: str, current_user: User = Depends(get_current_user)):
     """Check which items in an order are eligible for return"""
     order = await order_repository.findById(order_id)
     if not order:
@@ -182,7 +183,7 @@ async def check_return_eligibility(order_id: str, current_user: dict = Depends(g
 
 
 @router.post("/request", response_model=ReturnRequestResponse)
-async def create_return_request(request_data: ReturnRequestCreate, current_user: dict = Depends(get_current_user)):
+async def create_return_request(request_data: ReturnRequestCreate, current_user: User = Depends(get_current_user)):
     """Customer submits a return request"""
     if current_user.role != "customer":
         raise HTTPException(status_code=403, detail="Only retail customers can create return requests")
@@ -192,7 +193,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
     if eligibility.get("reason"):
         raise HTTPException(status_code=400, detail=eligibility["reason"])
 
-    eligible_items_map = {item["productId"]: item["maxQuantity"] for item in eligibility["eligibleItems"]}
+    eligible_items_map = {item.productId: item.maxQuantity for item in eligibility["eligibleItems"]}
 
     if not request_data.items:
         raise HTTPException(status_code=400, detail="No items specified for return")
@@ -218,7 +219,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
         {
             "orderId": request_data.orderId,
             "userId": current_user.id,
-            "items": [i.dict() for i in request_data.items],
+            "items": [i for i in request_data.items],
             "paymentMethod": request_data.paymentMethod,
             "upiPaymentScreenshot": screenshot_path,
             "notes": request_data.notes,
@@ -252,7 +253,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
 
 
 @router.post("/admin/{request_id}/auto-assign", response_model=ReturnRequestResponse)
-async def auto_assign_return(request_id: str, current_user: dict = Depends(require_super_admin)):
+async def auto_assign_return(request_id: str, current_user: User = Depends(require_super_admin)):
     """Super Admin triggers auto-assigning the return pickup to the best available valet."""
     req = await return_request_repository.findById(request_id)
     if not req:
@@ -287,7 +288,7 @@ async def auto_assign_return(request_id: str, current_user: dict = Depends(requi
 
 @router.put("/admin/{request_id}/assign", response_model=ReturnRequestResponse)
 async def assign_valet(
-    request_id: str, valet_data: ReturnRequestUpdate, current_user: dict = Depends(require_super_admin)
+    request_id: str, valet_data: ReturnRequestUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Super Admin assigns valet to return request"""
     if not valet_data.valetId:
@@ -298,7 +299,7 @@ async def assign_valet(
         raise HTTPException(status_code=404, detail="Return request not found")
 
     v_user = await user_repository.findById(valet_data.valetId)
-    if not v_user or v_user.get("role") != "valet":
+    if not v_user or v_getattr(user, "role", None) != "valet":
         raise HTTPException(status_code=400, detail="Valid Valet ID is required")
 
     updated = await return_request_repository.update(
@@ -309,7 +310,7 @@ async def assign_valet(
 
 
 @router.put("/valet/{request_id}/collect", response_model=ReturnRequestResponse)
-async def valet_collect(request_id: str, current_user: dict = Depends(require_super_admin_or_valet)):
+async def valet_collect(request_id: str, current_user: User = Depends(require_super_admin_or_valet)):
     """Valet marks return as collected"""
     req = await return_request_repository.findById(request_id)
     if not req:
@@ -328,7 +329,7 @@ async def valet_collect(request_id: str, current_user: dict = Depends(require_su
 
 @router.put("/admin/{request_id}/complete", response_model=ReturnRequestResponse)
 async def complete_return(
-    request_id: str, background_tasks: BackgroundTasks, current_user: dict = Depends(require_super_admin)
+    request_id: str, background_tasks: BackgroundTasks, current_user: User = Depends(require_super_admin)
 ):
     """Super Admin completes returns (marks as RETURNED) and handles stock update"""
     req = await return_request_repository.findById(request_id)
@@ -371,7 +372,7 @@ async def complete_return(
 
 @router.put("/admin/{request_id}/reject", response_model=ReturnRequestResponse)
 async def reject_return(
-    request_id: str, update_data: ReturnRequestUpdate, current_user: dict = Depends(require_super_admin)
+    request_id: str, update_data: ReturnRequestUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Super Admin rejects the return request"""
     req = await return_request_repository.findById(request_id)
@@ -387,25 +388,34 @@ async def reject_return(
 
 from pydantic import BaseModel
 
-@router.get("/valet/pending", response_model=List[Dict[str, Any]])
-async def get_valet_pending_returns(current_user: dict = Depends(get_current_user)):
+@router.get("/valet/pending", response_model=List[ReturnRequestResponse])
+async def get_valet_pending_returns(current_user: User = Depends(get_current_user)):
     if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can view pending assignments")
     returns = await return_request_repository.findAll({
         "status": "pending_valet",
-        "pendingValetId": str(current_user["_id"])
+        "pendingValetId": str(current_user.id)
     })
     return [await populate_return_request(r) for r in returns]
+
+class ReturnEligibilityItem(BaseModel):
+    productId: str
+    maxQuantity: int
+    reason: Optional[str] = None
+
+class ReturnEligibilityResponse(BaseModel):
+    eligibleItems: List[ReturnEligibilityItem]
+    reason: Optional[str] = None
 
 class ValetReturnResponseRequest(BaseModel):
     accept: bool
     declineReason: Optional[str] = None
 
-@router.put("/valet/{return_id}/response", response_model=dict)
+@router.put("/valet/{return_id}/response", response_model=ReturnRequestResponse)
 async def valet_return_response(
     return_id: str,
     response_data: ValetReturnResponseRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     ret = await return_request_repository.findById(return_id)
     if not ret:
@@ -414,7 +424,7 @@ async def valet_return_response(
     if current_user.role != "super_admin":
         if current_user.role != "valet":
             raise HTTPException(status_code=403, detail="Access denied")
-        if str(ret.get("pendingValetId", "")) != str(current_user["_id"]):
+        if str(ret.get("pendingValetId", "")) != str(current_user.id):
             raise HTTPException(status_code=403, detail="Return is not assigned to you")
             
     if ret.get("status") != "pending_valet":
@@ -426,7 +436,7 @@ async def valet_return_response(
     if response_data.accept:
         updated_ret = await return_request_repository.update(return_id, {
             "status": "assigned",
-            "valetId": str(current_user["_id"]),
+            "valetId": str(current_user.id),
             "pendingValetId": None,
             "valetAssignedAt": now_iso
         })
@@ -448,4 +458,5 @@ async def valet_return_response(
         from app.jobs.valet_timeout_job import _cascade_or_revert_return
         await _cascade_or_revert_return(ret)
         return await populate_return_request(await return_request_repository.findById(return_id))
+
 

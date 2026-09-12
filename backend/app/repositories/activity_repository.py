@@ -13,7 +13,7 @@ class ActivityRepository:
         session_id: str,
         action: str,
         meta: Dict,
-        device: Dict,
+        device: Any,
         comment: Optional[str] = None,
         is_guest: bool = False,
     ) -> Dict:

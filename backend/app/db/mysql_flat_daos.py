@@ -4,6 +4,9 @@ Strict SQLAlchemy DAOs replacing MySQLTypedDocDAO and DocStore patterns.
 
 import secrets
 from typing import Dict, List, Optional
+from app.models.schemas import PromoStripResponse, OrderFeedbackResponse, ProductReviewResponse, ClassificationTagResponse, AvailabilityRequestResponse
+from app.routers.category_tags import CategoryTagResponse
+from app.routers.system_settings import SystemSettingsResponse
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -76,7 +79,7 @@ class MySQLReturnSettingsDAO:
         if "returnDays" in data:
             cols.append("return_days")
             vals.append(":returnDays")
-            params["returnDays"] = data["returnDays"]
+            params["returnDays"] = data.returnDays
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -101,7 +104,7 @@ class MySQLReturnSettingsDAO:
         params = {"id": pid, "u": now}
         if "returnDays" in merged:
             updates.append("return_days = :returnDays")
-            params["returnDays"] = merged["returnDays"]
+            params["returnDays"] = merged.returnDays
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -130,8 +133,8 @@ class MySQLOrderFeedbackDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
-        return {
+    def _row_to_dict(self, row) -> OrderFeedbackResponse:
+        return OrderFeedbackResponse(**{
             "_id": str(row.id),
             "id": row.id,
             "external_id": row.external_id,
@@ -145,9 +148,9 @@ class MySQLOrderFeedbackDAO:
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+        })
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[OrderFeedbackResponse]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -184,7 +187,7 @@ class MySQLOrderFeedbackDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[OrderFeedbackResponse]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -192,7 +195,7 @@ class MySQLOrderFeedbackDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[OrderFeedbackResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -204,7 +207,7 @@ class MySQLOrderFeedbackDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> OrderFeedbackResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -215,31 +218,31 @@ class MySQLOrderFeedbackDAO:
         if "orderId" in data:
             cols.append("order_id")
             vals.append(":orderId")
-            params["orderId"] = data["orderId"]
+            params["orderId"] = data.orderId
         if "userId" in data:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data["userId"]
+            params["userId"] = data.userId
         if "rating" in data:
             cols.append("rating")
             vals.append(":rating")
-            params["rating"] = data["rating"]
+            params["rating"] = data.rating
         if "comment" in data:
             cols.append("comments")
             vals.append(":comment")
-            params["comment"] = data["comment"]
+            params["comment"] = data.comment
         if "deliveryRating" in data:
             cols.append("delivery_rating")
             vals.append(":deliveryRating")
-            params["deliveryRating"] = data["deliveryRating"]
+            params["deliveryRating"] = data.deliveryRating
         if "deliveryComment" in data:
             cols.append("delivery_comment")
             vals.append(":deliveryComment")
-            params["deliveryComment"] = data["deliveryComment"]
+            params["deliveryComment"] = data.deliveryComment
         if "feedbackType" in data:
             cols.append("feedback_type")
             vals.append(":feedbackType")
-            params["feedbackType"] = data["feedbackType"]
+            params["feedbackType"] = data.feedbackType
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -252,7 +255,7 @@ class MySQLOrderFeedbackDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[OrderFeedbackResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -264,25 +267,25 @@ class MySQLOrderFeedbackDAO:
         params = {"id": pid, "u": now}
         if "orderId" in merged:
             updates.append("order_id = :orderId")
-            params["orderId"] = merged["orderId"]
+            params["orderId"] = merged.orderId
         if "userId" in merged:
             updates.append("user_id = :userId")
-            params["userId"] = merged["userId"]
+            params["userId"] = merged.userId
         if "rating" in merged:
             updates.append("rating = :rating")
-            params["rating"] = merged["rating"]
+            params["rating"] = merged.rating
         if "comment" in merged:
             updates.append("comments = :comment")
-            params["comment"] = merged["comment"]
+            params["comment"] = merged.comment
         if "deliveryRating" in merged:
             updates.append("delivery_rating = :deliveryRating")
-            params["deliveryRating"] = merged["deliveryRating"]
+            params["deliveryRating"] = merged.deliveryRating
         if "deliveryComment" in merged:
             updates.append("delivery_comment = :deliveryComment")
-            params["deliveryComment"] = merged["deliveryComment"]
+            params["deliveryComment"] = merged.deliveryComment
         if "feedbackType" in merged:
             updates.append("feedback_type = :feedbackType")
-            params["feedbackType"] = merged["feedbackType"]
+            params["feedbackType"] = merged.feedbackType
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -311,19 +314,16 @@ class MySQLPromoStripsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
-        return {
+    def _row_to_dict(self, row) -> PromoStripResponse:
+        return PromoStripResponse(**{
             "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
             "text": row.text,
             "isActive": bool(row.is_active) if getattr(row, "is_active", None) is not None else False,
-
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+        })
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[PromoStripResponse]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -345,7 +345,7 @@ class MySQLPromoStripsDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[PromoStripResponse]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -353,7 +353,7 @@ class MySQLPromoStripsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[PromoStripResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -365,7 +365,7 @@ class MySQLPromoStripsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> PromoStripResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -376,11 +376,11 @@ class MySQLPromoStripsDAO:
         if "text" in data:
             cols.append("text")
             vals.append(":text")
-            params["text"] = data["text"]
+            params["text"] = data.text
         if "isActive" in data:
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data["isActive"] else 0
+            params["isActive"] = 1 if data.isActive else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -393,7 +393,7 @@ class MySQLPromoStripsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[PromoStripResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -405,10 +405,10 @@ class MySQLPromoStripsDAO:
         params = {"id": pid, "u": now}
         if "text" in merged:
             updates.append("text = :text")
-            params["text"] = merged["text"]
+            params["text"] = merged.text
         if "isActive" in merged:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged["isActive"] else None
+            params["isActive"] = 1 if merged.isActive else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -538,47 +538,47 @@ class MySQLPushNotificationsDAO:
         if "title" in data:
             cols.append("title")
             vals.append(":title")
-            params["title"] = data["title"]
+            params["title"] = data.title
         if "message" in data:
             cols.append("message")
             vals.append(":message")
-            params["message"] = data["message"]
+            params["message"] = data.message
         if "link" in data:
             cols.append("link")
             vals.append(":link")
-            params["link"] = data["link"]
+            params["link"] = data.link
         if "image" in data:
             cols.append("image")
             vals.append(":image")
-            params["image"] = data["image"]
+            params["image"] = data.image
         if "status" in data:
             cols.append("status")
             vals.append(":status")
-            params["status"] = data["status"]
+            params["status"] = data.status
         if "scheduledFor" in data:
             cols.append("scheduled_for")
             vals.append(":scheduledFor")
-            params["scheduledFor"] = data["scheduledFor"]
+            params["scheduledFor"] = data.scheduledFor
         if "deliveredCount" in data:
             cols.append("delivered_count")
             vals.append(":deliveredCount")
-            params["deliveredCount"] = data["deliveredCount"]
+            params["deliveredCount"] = data.deliveredCount
         if "readCount" in data:
             cols.append("read_count")
             vals.append(":readCount")
-            params["readCount"] = data["readCount"]
+            params["readCount"] = data.readCount
         if "userSegment" in data:
             cols.append("user_segment")
             vals.append(":userSegment")
-            params["userSegment"] = data["userSegment"]
+            params["userSegment"] = data.userSegment
         if "userBehavior" in data:
             cols.append("user_behavior")
             vals.append(":userBehavior")
-            params["userBehavior"] = data["userBehavior"]
+            params["userBehavior"] = data.userBehavior
         if "createdBy" in data:
             cols.append("created_by")
             vals.append(":createdBy")
-            params["createdBy"] = data["createdBy"]
+            params["createdBy"] = data.createdBy
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -603,37 +603,37 @@ class MySQLPushNotificationsDAO:
         params = {"id": pid, "u": now}
         if "title" in merged:
             updates.append("title = :title")
-            params["title"] = merged["title"]
+            params["title"] = merged.title
         if "message" in merged:
             updates.append("message = :message")
-            params["message"] = merged["message"]
+            params["message"] = merged.message
         if "link" in merged:
             updates.append("link = :link")
-            params["link"] = merged["link"]
+            params["link"] = merged.link
         if "image" in merged:
             updates.append("image = :image")
-            params["image"] = merged["image"]
+            params["image"] = merged.image
         if "status" in merged:
             updates.append("status = :status")
-            params["status"] = merged["status"]
+            params["status"] = merged.status
         if "scheduledFor" in merged:
             updates.append("scheduled_for = :scheduledFor")
-            params["scheduledFor"] = merged["scheduledFor"]
+            params["scheduledFor"] = merged.scheduledFor
         if "deliveredCount" in merged:
             updates.append("delivered_count = :deliveredCount")
-            params["deliveredCount"] = merged["deliveredCount"]
+            params["deliveredCount"] = merged.deliveredCount
         if "readCount" in merged:
             updates.append("read_count = :readCount")
-            params["readCount"] = merged["readCount"]
+            params["readCount"] = merged.readCount
         if "userSegment" in merged:
             updates.append("user_segment = :userSegment")
-            params["userSegment"] = merged["userSegment"]
+            params["userSegment"] = merged.userSegment
         if "userBehavior" in merged:
             updates.append("user_behavior = :userBehavior")
-            params["userBehavior"] = merged["userBehavior"]
+            params["userBehavior"] = merged.userBehavior
         if "createdBy" in merged:
             updates.append("created_by = :createdBy")
-            params["createdBy"] = merged["createdBy"]
+            params["createdBy"] = merged.createdBy
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -743,27 +743,27 @@ class MySQLCoachMarksDAO:
         if "anchorId" in data:
             cols.append("anchor_id")
             vals.append(":anchorId")
-            params["anchorId"] = data["anchorId"]
+            params["anchorId"] = data.anchorId
         if "title" in data:
             cols.append("title")
             vals.append(":title")
-            params["title"] = data["title"]
+            params["title"] = data.title
         if "description" in data:
             cols.append("description")
             vals.append(":description")
-            params["description"] = data["description"]
+            params["description"] = data.description
         if "screenName" in data:
             cols.append("screen_name")
             vals.append(":screenName")
-            params["screenName"] = data["screenName"]
+            params["screenName"] = data.screenName
         if "sequenceOrder" in data:
             cols.append("sequence_order")
             vals.append(":sequenceOrder")
-            params["sequenceOrder"] = data["sequenceOrder"]
+            params["sequenceOrder"] = data.sequenceOrder
         if "isActive" in data:
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data["isActive"] else 0
+            params["isActive"] = 1 if data.isActive else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -788,22 +788,22 @@ class MySQLCoachMarksDAO:
         params = {"id": pid, "u": now}
         if "anchorId" in merged:
             updates.append("anchor_id = :anchorId")
-            params["anchorId"] = merged["anchorId"]
+            params["anchorId"] = merged.anchorId
         if "title" in merged:
             updates.append("title = :title")
-            params["title"] = merged["title"]
+            params["title"] = merged.title
         if "description" in merged:
             updates.append("description = :description")
-            params["description"] = merged["description"]
+            params["description"] = merged.description
         if "screenName" in merged:
             updates.append("screen_name = :screenName")
-            params["screenName"] = merged["screenName"]
+            params["screenName"] = merged.screenName
         if "sequenceOrder" in merged:
             updates.append("sequence_order = :sequenceOrder")
-            params["sequenceOrder"] = merged["sequenceOrder"]
+            params["sequenceOrder"] = merged.sequenceOrder
         if "isActive" in merged:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged["isActive"] else None
+            params["isActive"] = 1 if merged.isActive else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -832,8 +832,8 @@ class MySQLCategoryTagsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
-        return {
+    def _row_to_dict(self, row) -> CategoryTagResponse:
+        return CategoryTagResponse(**{
             "_id": str(row.id),
             "id": row.id,
             "external_id": row.external_id,
@@ -843,9 +843,9 @@ class MySQLCategoryTagsDAO:
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+        })
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[CategoryTagResponse]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -870,7 +870,7 @@ class MySQLCategoryTagsDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[CategoryTagResponse]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -878,7 +878,7 @@ class MySQLCategoryTagsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[CategoryTagResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -890,7 +890,7 @@ class MySQLCategoryTagsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> CategoryTagResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -901,15 +901,15 @@ class MySQLCategoryTagsDAO:
         if "name" in data:
             cols.append("name")
             vals.append(":name")
-            params["name"] = data["name"]
+            params["name"] = data.name
         if "description" in data:
             cols.append("description")
             vals.append(":description")
-            params["description"] = data["description"]
+            params["description"] = data.description
         if "isActive" in data:
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data["isActive"] else 0
+            params["isActive"] = 1 if data.isActive else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -922,7 +922,7 @@ class MySQLCategoryTagsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[CategoryTagResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -934,13 +934,13 @@ class MySQLCategoryTagsDAO:
         params = {"id": pid, "u": now}
         if "name" in merged:
             updates.append("name = :name")
-            params["name"] = merged["name"]
+            params["name"] = merged.name
         if "description" in merged:
             updates.append("description = :description")
-            params["description"] = merged["description"]
+            params["description"] = merged.description
         if "isActive" in merged:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged["isActive"] else None
+            params["isActive"] = 1 if merged.isActive else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1042,19 +1042,19 @@ class MySQLGoogle_reviewsDAO:
         if "rating" in data:
             cols.append("rating")
             vals.append(":rating")
-            params["rating"] = data["rating"]
+            params["rating"] = data.rating
         if "reviewCount" in data:
             cols.append("review_count")
             vals.append(":reviewCount")
-            params["reviewCount"] = data["reviewCount"]
+            params["reviewCount"] = data.reviewCount
         if "lastUpdated" in data:
             cols.append("last_updated")
             vals.append(":lastUpdated")
-            params["lastUpdated"] = data["lastUpdated"]
+            params["lastUpdated"] = data.lastUpdated
         if "method" in data:
             cols.append("method")
             vals.append(":method")
-            params["method"] = data["method"]
+            params["method"] = data.method
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1079,16 +1079,16 @@ class MySQLGoogle_reviewsDAO:
         params = {"id": pid, "u": now}
         if "rating" in merged:
             updates.append("rating = :rating")
-            params["rating"] = merged["rating"]
+            params["rating"] = merged.rating
         if "reviewCount" in merged:
             updates.append("review_count = :reviewCount")
-            params["reviewCount"] = merged["reviewCount"]
+            params["reviewCount"] = merged.reviewCount
         if "lastUpdated" in merged:
             updates.append("last_updated = :lastUpdated")
-            params["lastUpdated"] = merged["lastUpdated"]
+            params["lastUpdated"] = merged.lastUpdated
         if "method" in merged:
             updates.append("method = :method")
-            params["method"] = merged["method"]
+            params["method"] = merged.method
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1181,24 +1181,24 @@ class MySQLStockReservationsDAO:
         if "productId" in data:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data["productId"]
+            params["productId"] = data.productId
         if "userId" in data:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data["userId"]
+            params["userId"] = data.userId
         if "quantity" in data:
             cols.append("quantity")
             vals.append(":quantity")
-            params["quantity"] = data["quantity"]
+            params["quantity"] = data.quantity
         if "status" in data:
             cols.append("status")
             vals.append(":status")
-            params["status"] = data["status"]
+            params["status"] = data.status
         if "expiresAt" in data:
             cols.append("expires_at")
             vals.append(":expiresAt")
             # Convert 'Z' format to datetime object
-            exp = str(data["expiresAt"])
+            exp = str(data.expiresAt)
             if exp.endswith("Z"):
                 exp = exp[:-1]
                 if not exp.endswith("+00:00") and "+" not in exp[-6:] and "-" not in exp[-6:]:
@@ -1229,19 +1229,19 @@ class MySQLStockReservationsDAO:
         params = {"id": pid, "u": now}
         if "productId" in merged:
             updates.append("product_id = :productId")
-            params["productId"] = merged["productId"]
+            params["productId"] = merged.productId
         if "userId" in merged:
             updates.append("user_id = :userId")
-            params["userId"] = merged["userId"]
+            params["userId"] = merged.userId
         if "quantity" in merged:
             updates.append("quantity = :quantity")
-            params["quantity"] = merged["quantity"]
+            params["quantity"] = merged.quantity
         if "status" in merged:
             updates.append("status = :status")
-            params["status"] = merged["status"]
+            params["status"] = merged.status
         if "expiresAt" in merged:
             updates.append("expires_at = :expiresAt")
-            exp = str(merged["expiresAt"])
+            exp = str(merged.expiresAt)
             if exp.endswith("Z"):
                 exp = exp[:-1]
                 if not exp.endswith("+00:00") and "+" not in exp[-6:] and "-" not in exp[-6:]:
@@ -1353,23 +1353,23 @@ class MySQLProductNotificationsDAO:
         if "productId" in data:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data["productId"]
+            params["productId"] = data.productId
         if "userId" in data:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data["userId"]
+            params["userId"] = data.userId
         if "email" in data:
             cols.append("email")
             vals.append(":email")
-            params["email"] = data["email"]
+            params["email"] = data.email
         if "phone" in data:
             cols.append("phone")
             vals.append(":phone")
-            params["phone"] = data["phone"]
+            params["phone"] = data.phone
         if "status" in data:
             cols.append("status")
             vals.append(":status")
-            params["status"] = data["status"]
+            params["status"] = data.status
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1394,19 +1394,19 @@ class MySQLProductNotificationsDAO:
         params = {"id": pid, "u": now}
         if "productId" in merged:
             updates.append("product_id = :productId")
-            params["productId"] = merged["productId"]
+            params["productId"] = merged.productId
         if "userId" in merged:
             updates.append("user_id = :userId")
-            params["userId"] = merged["userId"]
+            params["userId"] = merged.userId
         if "email" in merged:
             updates.append("email = :email")
-            params["email"] = merged["email"]
+            params["email"] = merged.email
         if "phone" in merged:
             updates.append("phone = :phone")
-            params["phone"] = merged["phone"]
+            params["phone"] = merged.phone
         if "status" in merged:
             updates.append("status = :status")
-            params["status"] = merged["status"]
+            params["status"] = merged.status
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1435,8 +1435,8 @@ class MySQLProductReviewsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
-        return {
+    def _row_to_dict(self, row) -> ProductReviewResponse:
+        return ProductReviewResponse(**{
             "_id": str(row.id),
             "id": row.id,
             "external_id": row.external_id,
@@ -1448,9 +1448,9 @@ class MySQLProductReviewsDAO:
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+        })
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[ProductReviewResponse]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -1481,7 +1481,7 @@ class MySQLProductReviewsDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[ProductReviewResponse]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1489,7 +1489,7 @@ class MySQLProductReviewsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[ProductReviewResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1501,7 +1501,7 @@ class MySQLProductReviewsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> ProductReviewResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1512,23 +1512,23 @@ class MySQLProductReviewsDAO:
         if "productId" in data:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data["productId"]
+            params["productId"] = data.productId
         if "userId" in data:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data["userId"]
+            params["userId"] = data.userId
         if "rating" in data:
             cols.append("rating")
             vals.append(":rating")
-            params["rating"] = data["rating"]
+            params["rating"] = data.rating
         if "reviewText" in data:
             cols.append("review_text")
             vals.append(":reviewText")
-            params["reviewText"] = data["reviewText"]
+            params["reviewText"] = data.reviewText
         if "status" in data:
             cols.append("status")
             vals.append(":status")
-            params["status"] = data["status"]
+            params["status"] = data.status
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1541,7 +1541,7 @@ class MySQLProductReviewsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[ProductReviewResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -1553,19 +1553,19 @@ class MySQLProductReviewsDAO:
         params = {"id": pid, "u": now}
         if "productId" in merged:
             updates.append("product_id = :productId")
-            params["productId"] = merged["productId"]
+            params["productId"] = merged.productId
         if "userId" in merged:
             updates.append("user_id = :userId")
-            params["userId"] = merged["userId"]
+            params["userId"] = merged.userId
         if "rating" in merged:
             updates.append("rating = :rating")
-            params["rating"] = merged["rating"]
+            params["rating"] = merged.rating
         if "reviewText" in merged:
             updates.append("review_text = :reviewText")
-            params["reviewText"] = merged["reviewText"]
+            params["reviewText"] = merged.reviewText
         if "status" in merged:
             updates.append("status = :status")
-            params["status"] = merged["status"]
+            params["status"] = merged.status
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1594,8 +1594,8 @@ class MySQLClassificationTagsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
-        return {
+    def _row_to_dict(self, row) -> ProductReviewResponse:
+        return ProductReviewResponse(**{
             "_id": str(row.id),
             "id": row.id,
             "external_id": row.external_id,
@@ -1603,9 +1603,9 @@ class MySQLClassificationTagsDAO:
             "isActive": bool(row.is_active),
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+        })
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[ProductReviewResponse]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -1627,7 +1627,7 @@ class MySQLClassificationTagsDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[ProductReviewResponse]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1635,7 +1635,7 @@ class MySQLClassificationTagsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[ProductReviewResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1647,7 +1647,7 @@ class MySQLClassificationTagsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> ProductReviewResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1658,11 +1658,11 @@ class MySQLClassificationTagsDAO:
         if "name" in data:
             cols.append("name")
             vals.append(":name")
-            params["name"] = data["name"]
+            params["name"] = data.name
         if "isActive" in data:
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data["isActive"] else 0
+            params["isActive"] = 1 if data.isActive else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1675,7 +1675,7 @@ class MySQLClassificationTagsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[ProductReviewResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -1687,10 +1687,10 @@ class MySQLClassificationTagsDAO:
         params = {"id": pid, "u": now}
         if "name" in merged:
             updates.append("name = :name")
-            params["name"] = merged["name"]
+            params["name"] = merged.name
         if "isActive" in merged:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged["isActive"] else None
+            params["isActive"] = 1 if merged.isActive else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1719,8 +1719,8 @@ class MySQLReviewClassificationsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
-        return {
+    def _row_to_dict(self, row) -> ClassificationTagResponse:
+        return ClassificationTagResponse(**{
             "_id": str(row.id),
             "id": row.id,
             "external_id": row.external_id,
@@ -1731,9 +1731,9 @@ class MySQLReviewClassificationsDAO:
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+        })
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[ClassificationTagResponse]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -1761,7 +1761,7 @@ class MySQLReviewClassificationsDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[ClassificationTagResponse]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1769,7 +1769,7 @@ class MySQLReviewClassificationsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[ClassificationTagResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1781,7 +1781,7 @@ class MySQLReviewClassificationsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> ClassificationTagResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1792,19 +1792,19 @@ class MySQLReviewClassificationsDAO:
         if "reviewId" in data:
             cols.append("review_id")
             vals.append(":reviewId")
-            params["reviewId"] = data["reviewId"]
+            params["reviewId"] = data.reviewId
         if "category" in data:
             cols.append("category")
             vals.append(":category")
-            params["category"] = data["category"]
+            params["category"] = data.category
         if "confidenceScore" in data:
             cols.append("confidence_score")
             vals.append(":confidenceScore")
-            params["confidenceScore"] = data["confidenceScore"]
+            params["confidenceScore"] = data.confidenceScore
         if "sentiment" in data:
             cols.append("sentiment")
             vals.append(":sentiment")
-            params["sentiment"] = data["sentiment"]
+            params["sentiment"] = data.sentiment
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1817,7 +1817,7 @@ class MySQLReviewClassificationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[ClassificationTagResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -1829,16 +1829,16 @@ class MySQLReviewClassificationsDAO:
         params = {"id": pid, "u": now}
         if "reviewId" in merged:
             updates.append("review_id = :reviewId")
-            params["reviewId"] = merged["reviewId"]
+            params["reviewId"] = merged.reviewId
         if "category" in merged:
             updates.append("category = :category")
-            params["category"] = merged["category"]
+            params["category"] = merged.category
         if "confidenceScore" in merged:
             updates.append("confidence_score = :confidenceScore")
-            params["confidenceScore"] = merged["confidenceScore"]
+            params["confidenceScore"] = merged.confidenceScore
         if "sentiment" in merged:
             updates.append("sentiment = :sentiment")
-            params["sentiment"] = merged["sentiment"]
+            params["sentiment"] = merged.sentiment
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1867,7 +1867,7 @@ class MySQLAboutUsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Any:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -1881,7 +1881,7 @@ class MySQLAboutUsDAO:
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
         }
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -1909,7 +1909,7 @@ class MySQLAboutUsDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Any]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1917,7 +1917,7 @@ class MySQLAboutUsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Any]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1929,7 +1929,7 @@ class MySQLAboutUsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> Any:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1940,19 +1940,19 @@ class MySQLAboutUsDAO:
         if "title" in data:
             cols.append("title")
             vals.append(":title")
-            params["title"] = data["title"]
+            params["title"] = data.title
         if "content" in data:
             cols.append("content")
             vals.append(":content")
-            params["content"] = data["content"]
+            params["content"] = data.content
         if "version" in data:
             cols.append("version")
             vals.append(":version")
-            params["version"] = data["version"]
+            params["version"] = data.version
         if "isPublished" in data:
             cols.append("is_published")
             vals.append(":isPublished")
-            params["isPublished"] = 1 if data["isPublished"] else 0
+            params["isPublished"] = 1 if data.isPublished else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1965,7 +1965,7 @@ class MySQLAboutUsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -1977,16 +1977,16 @@ class MySQLAboutUsDAO:
         params = {"id": pid, "u": now}
         if "title" in merged:
             updates.append("title = :title")
-            params["title"] = merged["title"]
+            params["title"] = merged.title
         if "content" in merged:
             updates.append("content = :content")
-            params["content"] = merged["content"]
+            params["content"] = merged.content
         if "version" in merged:
             updates.append("version = :version")
-            params["version"] = merged["version"]
+            params["version"] = merged.version
         if "isPublished" in merged:
             updates.append("is_published = :isPublished")
-            params["isPublished"] = 1 if merged["isPublished"] else None
+            params["isPublished"] = 1 if merged.isPublished else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2015,7 +2015,7 @@ class MySQLPrivacyPolicyDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Any:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -2029,7 +2029,7 @@ class MySQLPrivacyPolicyDAO:
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
         }
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -2057,7 +2057,7 @@ class MySQLPrivacyPolicyDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Any]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2065,7 +2065,7 @@ class MySQLPrivacyPolicyDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Any]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -2077,7 +2077,7 @@ class MySQLPrivacyPolicyDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> Any:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2088,19 +2088,19 @@ class MySQLPrivacyPolicyDAO:
         if "version" in data:
             cols.append("version")
             vals.append(":version")
-            params["version"] = data["version"]
+            params["version"] = data.version
         if "content" in data:
             cols.append("content")
             vals.append(":content")
-            params["content"] = data["content"]
+            params["content"] = data.content
         if "effectiveDate" in data:
             cols.append("effective_date")
             vals.append(":effectiveDate")
-            params["effectiveDate"] = data["effectiveDate"]
+            params["effectiveDate"] = data.effectiveDate
         if "isActive" in data:
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data["isActive"] else 0
+            params["isActive"] = 1 if data.isActive else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2113,7 +2113,7 @@ class MySQLPrivacyPolicyDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -2125,16 +2125,16 @@ class MySQLPrivacyPolicyDAO:
         params = {"id": pid, "u": now}
         if "version" in merged:
             updates.append("version = :version")
-            params["version"] = merged["version"]
+            params["version"] = merged.version
         if "content" in merged:
             updates.append("content = :content")
-            params["content"] = merged["content"]
+            params["content"] = merged.content
         if "effectiveDate" in merged:
             updates.append("effective_date = :effectiveDate")
-            params["effectiveDate"] = merged["effectiveDate"]
+            params["effectiveDate"] = merged.effectiveDate
         if "isActive" in merged:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged["isActive"] else None
+            params["isActive"] = 1 if merged.isActive else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2163,8 +2163,8 @@ class MySQLAvailabilityRequestsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
-        return {
+    def _row_to_dict(self, row) -> AvailabilityRequestResponse:
+        return AvailabilityRequestResponse(**{
             "_id": str(row.id),
             "id": row.id,
             "external_id": row.external_id,
@@ -2176,9 +2176,9 @@ class MySQLAvailabilityRequestsDAO:
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+        })
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[AvailabilityRequestResponse]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -2209,7 +2209,7 @@ class MySQLAvailabilityRequestsDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[AvailabilityRequestResponse]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2217,7 +2217,7 @@ class MySQLAvailabilityRequestsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[AvailabilityRequestResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -2229,7 +2229,7 @@ class MySQLAvailabilityRequestsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> AvailabilityRequestResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2240,23 +2240,23 @@ class MySQLAvailabilityRequestsDAO:
         if "productId" in data:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data["productId"]
+            params["productId"] = data.productId
         if "productName" in data:
             cols.append("product_name")
             vals.append(":productName")
-            params["productName"] = data["productName"]
+            params["productName"] = data.productName
         if "pincode" in data:
             cols.append("pincode")
             vals.append(":pincode")
-            params["pincode"] = data["pincode"]
+            params["pincode"] = data.pincode
         if "userName" in data:
             cols.append("user_name")
             vals.append(":userName")
-            params["userName"] = data["userName"]
+            params["userName"] = data.userName
         if "userEmail" in data:
             cols.append("user_email")
             vals.append(":userEmail")
-            params["userEmail"] = data["userEmail"]
+            params["userEmail"] = data.userEmail
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2269,7 +2269,7 @@ class MySQLAvailabilityRequestsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[AvailabilityRequestResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -2281,19 +2281,19 @@ class MySQLAvailabilityRequestsDAO:
         params = {"id": pid, "u": now}
         if "productId" in merged:
             updates.append("product_id = :productId")
-            params["productId"] = merged["productId"]
+            params["productId"] = merged.productId
         if "productName" in merged:
             updates.append("product_name = :productName")
-            params["productName"] = merged["productName"]
+            params["productName"] = merged.productName
         if "pincode" in merged:
             updates.append("pincode = :pincode")
-            params["pincode"] = merged["pincode"]
+            params["pincode"] = merged.pincode
         if "userName" in merged:
             updates.append("user_name = :userName")
-            params["userName"] = merged["userName"]
+            params["userName"] = merged.userName
         if "userEmail" in merged:
             updates.append("user_email = :userEmail")
-            params["userEmail"] = merged["userEmail"]
+            params["userEmail"] = merged.userEmail
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2322,7 +2322,7 @@ class MySQLPincodeSearchesDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def _row_to_dict(self, row) -> Any:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -2336,7 +2336,7 @@ class MySQLPincodeSearchesDAO:
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
         }
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -2364,7 +2364,7 @@ class MySQLPincodeSearchesDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Any]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2372,7 +2372,7 @@ class MySQLPincodeSearchesDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Any]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -2384,7 +2384,7 @@ class MySQLPincodeSearchesDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> Any:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2395,19 +2395,19 @@ class MySQLPincodeSearchesDAO:
         if "pincode" in data:
             cols.append("pincode")
             vals.append(":pincode")
-            params["pincode"] = data["pincode"]
+            params["pincode"] = data.pincode
         if "query" in data:
             cols.append("query")
             vals.append(":query")
-            params["query"] = data["query"]
+            params["query"] = data.query
         if "isServiceable" in data:
             cols.append("is_serviceable")
             vals.append(":isServiceable")
-            params["isServiceable"] = 1 if data["isServiceable"] else 0
+            params["isServiceable"] = 1 if data.isServiceable else 0
         if "timestamp" in data:
             cols.append("timestamp")
             vals.append(":timestamp")
-            params["timestamp"] = data["timestamp"]
+            params["timestamp"] = data.timestamp
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2420,7 +2420,7 @@ class MySQLPincodeSearchesDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -2432,16 +2432,16 @@ class MySQLPincodeSearchesDAO:
         params = {"id": pid, "u": now}
         if "pincode" in merged:
             updates.append("pincode = :pincode")
-            params["pincode"] = merged["pincode"]
+            params["pincode"] = merged.pincode
         if "query" in merged:
             updates.append("query = :query")
-            params["query"] = merged["query"]
+            params["query"] = merged.query
         if "isServiceable" in merged:
             updates.append("is_serviceable = :isServiceable")
-            params["isServiceable"] = 1 if merged["isServiceable"] else None
+            params["isServiceable"] = 1 if merged.isServiceable else None
         if "timestamp" in merged:
             updates.append("timestamp = :timestamp")
-            params["timestamp"] = merged["timestamp"]
+            params["timestamp"] = merged.timestamp
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2470,8 +2470,8 @@ class MySQLSystemSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
-        return {
+    def _row_to_dict(self, row) -> SystemSettingsResponse:
+        return SystemSettingsResponse(**{
             "_id": str(row.id),
             "id": row.id,
             "external_id": row.external_id,
@@ -2483,9 +2483,9 @@ class MySQLSystemSettingsDAO:
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+        })
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[SystemSettingsResponse]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -2516,7 +2516,7 @@ class MySQLSystemSettingsDAO:
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[SystemSettingsResponse]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2524,7 +2524,7 @@ class MySQLSystemSettingsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[SystemSettingsResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -2536,7 +2536,7 @@ class MySQLSystemSettingsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Dict) -> SystemSettingsResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2547,23 +2547,23 @@ class MySQLSystemSettingsDAO:
         if "maintenanceMode" in data:
             cols.append("maintenance_mode")
             vals.append(":maintenanceMode")
-            params["maintenanceMode"] = 1 if data["maintenanceMode"] else 0
+            params["maintenanceMode"] = 1 if data.maintenanceMode else 0
         if "allowSignups" in data:
             cols.append("allow_signups")
             vals.append(":allowSignups")
-            params["allowSignups"] = 1 if data["allowSignups"] else 0
+            params["allowSignups"] = 1 if data.allowSignups else 0
         if "maxUploadSizeMb" in data:
             cols.append("max_upload_size_mb")
             vals.append(":maxUploadSizeMb")
-            params["maxUploadSizeMb"] = data["maxUploadSizeMb"]
+            params["maxUploadSizeMb"] = data.maxUploadSizeMb
         if "defaultCurrency" in data:
             cols.append("default_currency")
             vals.append(":defaultCurrency")
-            params["defaultCurrency"] = data["defaultCurrency"]
+            params["defaultCurrency"] = data.defaultCurrency
         if "timezone" in data:
             cols.append("timezone")
             vals.append(":timezone")
-            params["timezone"] = data["timezone"]
+            params["timezone"] = data.timezone
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2576,7 +2576,7 @@ class MySQLSystemSettingsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[SystemSettingsResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -2588,19 +2588,19 @@ class MySQLSystemSettingsDAO:
         params = {"id": pid, "u": now}
         if "maintenanceMode" in merged:
             updates.append("maintenance_mode = :maintenanceMode")
-            params["maintenanceMode"] = 1 if merged["maintenanceMode"] else None
+            params["maintenanceMode"] = 1 if merged.maintenanceMode else None
         if "allowSignups" in merged:
             updates.append("allow_signups = :allowSignups")
-            params["allowSignups"] = 1 if merged["allowSignups"] else None
+            params["allowSignups"] = 1 if merged.allowSignups else None
         if "maxUploadSizeMb" in merged:
             updates.append("max_upload_size_mb = :maxUploadSizeMb")
-            params["maxUploadSizeMb"] = merged["maxUploadSizeMb"]
+            params["maxUploadSizeMb"] = merged.maxUploadSizeMb
         if "defaultCurrency" in merged:
             updates.append("default_currency = :defaultCurrency")
-            params["defaultCurrency"] = merged["defaultCurrency"]
+            params["defaultCurrency"] = merged.defaultCurrency
         if "timezone" in merged:
             updates.append("timezone = :timezone")
-            params["timezone"] = merged["timezone"]
+            params["timezone"] = merged.timezone
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2694,11 +2694,11 @@ class MySQLValetPayoutSettingsDAO:
         if "deliveryChargePerOrder" in data:
             cols.append("delivery_charge_per_order")
             vals.append(":deliveryChargePerOrder")
-            params["deliveryChargePerOrder"] = data["deliveryChargePerOrder"]
+            params["deliveryChargePerOrder"] = data.deliveryChargePerOrder
         if "returnPickupChargePerOrder" in data:
             cols.append("return_pickup_charge_per_order")
             vals.append(":returnPickupChargePerOrder")
-            params["returnPickupChargePerOrder"] = data["returnPickupChargePerOrder"]
+            params["returnPickupChargePerOrder"] = data.returnPickupChargePerOrder
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2723,10 +2723,10 @@ class MySQLValetPayoutSettingsDAO:
         params = {"id": pid, "u": now}
         if "deliveryChargePerOrder" in merged:
             updates.append("delivery_charge_per_order = :deliveryChargePerOrder")
-            params["deliveryChargePerOrder"] = merged["deliveryChargePerOrder"]
+            params["deliveryChargePerOrder"] = merged.deliveryChargePerOrder
         if "returnPickupChargePerOrder" in merged:
             updates.append("return_pickup_charge_per_order = :returnPickupChargePerOrder")
-            params["returnPickupChargePerOrder"] = merged["returnPickupChargePerOrder"]
+            params["returnPickupChargePerOrder"] = merged.returnPickupChargePerOrder
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2770,3 +2770,4 @@ FLAT_DAOS = {
     "systemSettings": MySQLSystemSettingsDAO(),
     "valetPayoutSettings": MySQLValetPayoutSettingsDAO(),
 }
+

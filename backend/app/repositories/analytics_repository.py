@@ -131,8 +131,8 @@ class AnalyticsRepository:
         # Convert to list and sort
         result = []
         for period, data in sorted(sales_by_period.items()):
-            sales = round(data["sales"], 2)
-            orders_count = data["orderCount"]
+            sales = round(data.sales, 2)
+            orders_count = data.orderCount
             aov = round(sales / orders_count, 2) if orders_count > 0 else 0
             result.append({"period": period, "sales": sales, "orderCount": orders_count, "aov": aov})
 
@@ -202,7 +202,7 @@ class AnalyticsRepository:
             orders_by_period[period_key]["count"] += 1
 
         result = [
-            {"period": period, "average_order_value": data["total"] / data["count"] if data["count"] > 0 else 0}
+            {"period": period, "average_order_value": data.total / data.count if data.count > 0 else 0}
             for period, data in sorted(orders_by_period.items())
         ]
 
@@ -244,13 +244,13 @@ class AnalyticsRepository:
 
         for order in orders:
             for item in order.get("items", []):
-                product_id = item.get("product") or item.get("productId")
+                product_id = getattr(item, "product", None) or getattr(item, "productId", None)
                 if not product_id:
                     continue
 
                 product = product_map.get(product_id, {})
-                quantity = item.get("quantity", 0)
-                subtotal = item.get("subtotal", 0)
+                quantity = getattr(item, 'quantity', 0)
+                subtotal = getattr(item, 'subtotal', 0)
 
                 product_sales[product_id]["quantity"] += quantity
                 product_sales[product_id]["revenue"] += subtotal
@@ -260,10 +260,10 @@ class AnalyticsRepository:
             {
                 "product_id": product_id,
                 "productId": product_id,
-                "name": data["name"],
-                "productName": data["name"],
-                "quantity": data["quantity"],
-                "revenue": data["revenue"],
+                "name": data.name,
+                "productName": data.name,
+                "quantity": data.quantity,
+                "revenue": data.revenue,
             }
             for product_id, data in sorted(
                 product_sales.items(),
@@ -462,9 +462,9 @@ class AnalyticsRepository:
 
         for order in orders:
             for item in order.get("items", []):
-                product_id = item.get("product") or item.get("productId")
+                product_id = getattr(item, "product", None) or getattr(item, "productId", None)
                 if product_id:
-                    product_stats[product_id]["sold"] += item.get("quantity", 0)
+                    product_stats[product_id]["sold"] += getattr(item, 'quantity', 0)
 
         result = []
         for product_id, stats in product_stats.items():
@@ -649,7 +649,7 @@ class AnalyticsRepository:
                 "registrationDate": None,
             }
 
-        registration_dt = self._parse_date(user.get("createdAt"))
+        registration_dt = self._parse_date(getattr(user, "created_at", None))
         reg_naive = self._to_naive_utc(registration_dt) if registration_dt else None
         all_sessions = await self.session_storage.findAll()
         # Non-guest sessions for this user; optionally since registration
@@ -663,7 +663,7 @@ class AnalyticsRepository:
             ]
 
         total_sessions = len(sessions)
-        registration_date_str = user.get("createdAt")
+        registration_date_str = getattr(user, "created_at", None)
 
         # 1) Average session time (all devices): end = revokedAt or lastActiveAt, start = createdAt
         session_durations_sec = []
@@ -733,7 +733,7 @@ class AnalyticsRepository:
             "sessionOrderRate": session_order_rate,
         }
 
-    async def record_event(self, event: Dict) -> Dict:
+    async def record_event(self, event: Any) -> Dict:
         """Record an analytics event"""
         return await self.event_storage.create(event)
 
@@ -764,7 +764,7 @@ class AnalyticsRepository:
             user = user_map.get(uid)
             if not user:
                 continue
-            if role and user.get("role") != role:
+            if role and getattr(user, "role", None) != role:
                 continue
 
             result.append(
@@ -804,7 +804,7 @@ class AnalyticsRepository:
             user = user_map.get(uid)
             if not user:
                 continue
-            if role and user.get("role") != role:
+            if role and getattr(user, "role", None) != role:
                 continue
 
             # 1. Orders in the filtered range
@@ -1034,14 +1034,14 @@ class AnalyticsRepository:
         category_stats: dict = {}
         for order in orders:
             for item in order.get("items", []):
-                product_id = item.get("product") or item.get("productId")
+                product_id = getattr(item, "product", None) or getattr(item, "productId", None)
                 product = product_map.get(product_id, {})
                 category = product.get("category", "Uncategorized") or "Uncategorized"
 
                 if category not in category_stats:
                     category_stats[category] = {"revenue": 0.0, "quantity": 0, "orders": set()}
-                category_stats[category]["revenue"] += item.get("subtotal", 0)
-                category_stats[category]["quantity"] += item.get("quantity", 0)
+                category_stats[category]["revenue"] += getattr(item, 'subtotal', 0)
+                category_stats[category]["quantity"] += getattr(item, 'quantity', 0)
                 category_stats[category]["orders"].add(order.get("_id"))
 
         result = [
@@ -1152,8 +1152,8 @@ class AnalyticsRepository:
 
         result = list(coupon_stats.values())
         for item in result:
-            item["totalDiscountGiven"] = round(item["totalDiscountGiven"], 2)
-            item["totalRevenue"] = round(item["totalRevenue"], 2)
+            item.totalDiscountGiven = round(item.totalDiscountGiven, 2)
+            item.totalRevenue = round(item.totalRevenue, 2)
 
         return sorted(result, key=lambda x: x["usageCount"], reverse=True)
 
@@ -1188,11 +1188,11 @@ class AnalyticsRepository:
             location_stats[location]["revenue"] += order.get("total", 0)
             location_stats[location]["orderCount"] += 1
             for item in order.get("items", []):
-                location_stats[location]["quantity"] += item.get("quantity", 0)
+                location_stats[location]["quantity"] += getattr(item, 'quantity', 0)
 
         result = list(location_stats.values())
         for item in result:
-            item["revenue"] = round(item["revenue"], 2)
+            item.revenue = round(item.revenue, 2)
 
         return sorted(result, key=lambda x: x["revenue"], reverse=True)[:limit]
 
@@ -1232,7 +1232,7 @@ class AnalyticsRepository:
 
         result = [stats["New Customers"], stats["Returning Customers"]]
         for item in result:
-            item["revenue"] = round(item["revenue"], 2)
+            item.revenue = round(item.revenue, 2)
 
         return result
 
@@ -1258,9 +1258,9 @@ class AnalyticsRepository:
             # Extract unique product IDs in this order
             product_ids = list(
                 set(
-                    item.get("product") or item.get("productId")
+                    getattr(item, "product", None) or getattr(item, "productId", None)
                     for item in items
-                    if (item.get("product") or item.get("productId"))
+                    if (getattr(item, "product", None) or getattr(item, "productId", None))
                 )
             )
 
@@ -1332,7 +1332,7 @@ class AnalyticsRepository:
         # Filter out zeroes
         result = [r for r in result if r["orderCount"] > 0]
         for item in result:
-            item["revenue"] = round(item["revenue"], 2)
+            item.revenue = round(item.revenue, 2)
 
         return sorted(result, key=lambda x: x["revenue"], reverse=True)
 
@@ -1357,7 +1357,7 @@ class AnalyticsRepository:
                 continue
 
             for item in req.get("items", []):
-                pid = item.get("product") or item.get("productId")
+                pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if not pid:
                     continue
 
@@ -1370,9 +1370,9 @@ class AnalyticsRepository:
                     }
 
                 product_returns[pid]["returnCount"] += 1
-                q = item.get("quantity", 1)
+                q = getattr(item, 'quantity', 1)
                 product_returns[pid]["quantityReturned"] += q
-                product_returns[pid]["revenueLost"] += q * item.get("price", 0)
+                product_returns[pid]["revenueLost"] += q * getattr(item, 'price', 0)
 
         result = []
         for pid, stats in product_returns.items():
@@ -1411,7 +1411,7 @@ class AnalyticsRepository:
 
         result = list(category_stats.values())
         for item in result:
-            item["inventoryValue"] = round(item["inventoryValue"], 2)
+            item.inventoryValue = round(item.inventoryValue, 2)
 
         return sorted(result, key=lambda x: x["inventoryValue"], reverse=True)
 
@@ -1507,7 +1507,7 @@ class AnalyticsRepository:
             # Group items by bundleId in this order
             order_bundles = defaultdict(list)
             for item in items:
-                b_id = item.get("bundleId")
+                b_id = getattr(item, "bundleId", None)
                 if b_id:
                     order_bundles[b_id].append(item)
                     
@@ -1542,16 +1542,16 @@ class AnalyticsRepository:
         # Format the result
         result = []
         for b_id, data in stats.items():
-            b = data["bundle"]
+            b = data.bundle
             result.append({
                 "bundleId": b_id,
                 "name": b.get("name", "Unknown"),
                 "price": b.get("price", 0.0),
                 "isActive": b.get("isActive", False),
-                "orderCount": data["order_count"],
-                "copiesSold": data["copies_sold"],
-                "totalRevenue": round(data["revenue"], 2),
-                "monthlyRevenue": {k: round(v, 2) for k, v in data["monthly"].items()}
+                "orderCount": data.order_count,
+                "copiesSold": data.copies_sold,
+                "totalRevenue": round(data.revenue, 2),
+                "monthlyRevenue": {k: round(v, 2) for k, v in data.monthly.items()}
             })
             
         # Sort by revenue descending
@@ -1587,7 +1587,7 @@ class AnalyticsRepository:
                 by_day[day]["visitors"].add(uid)
 
         return [
-            {"period": day, "sessions": data["sessions"], "uniqueVisitors": len(data["visitors"])}
+            {"period": day, "sessions": data.sessions, "uniqueVisitors": len(data.visitors)}
             for day, data in sorted(by_day.items())
         ]
 
@@ -1652,8 +1652,8 @@ class AnalyticsRepository:
         result = [
             {
                 "term": term,
-                "searchCount": data["searchCount"],
-                "avgResults": round(data["totalResults"] / data["searchCount"], 1) if data["searchCount"] else 0,
+                "searchCount": data.searchCount,
+                "avgResults": round(data.totalResults / data.searchCount, 1) if data.searchCount else 0,
             }
             for term, data in term_stats.items()
         ]
@@ -1723,9 +1723,9 @@ class AnalyticsRepository:
         return [
             {
                 "period": day,
-                "totalSessions": data["total"],
-                "bouncedSessions": data["bounced"],
-                "bounceRate": round(data["bounced"] / data["total"] * 100, 1) if data["total"] else 0.0,
+                "totalSessions": data.total,
+                "bouncedSessions": data.bounced,
+                "bounceRate": round(data.bounced / data.total * 100, 1) if data.total else 0.0,
             }
             for day, data in sorted(by_day.items())
         ]
@@ -1765,9 +1765,9 @@ class AnalyticsRepository:
 
         result = []
         for uid, data in stats.items():
-            recency_days = (now - data["lastOrder"]).days
-            freq = data["count"]
-            spend = round(data["spend"], 2)
+            recency_days = (now - data.lastOrder).days
+            freq = data.count
+            spend = round(data.spend, 2)
 
             # Simple rule-based RFM segment
             if recency_days <= 30 and freq >= 5:
@@ -1919,8 +1919,8 @@ class AnalyticsRepository:
             {
                 "dayOfWeek": DAY_NAMES[dow],
                 "hour": hour,
-                "orderCount": data["orderCount"],
-                "revenue": round(data["revenue"], 2),
+                "orderCount": data.orderCount,
+                "revenue": round(data.revenue, 2),
             }
             for (dow, hour), data in sorted(heat.items())
         ]
@@ -1954,9 +1954,9 @@ class AnalyticsRepository:
             if not dt or dt < window_start:
                 continue
             for item in order.get("items", []):
-                pid = item.get("product") or item.get("productId")
+                pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if pid and str(pid) in {str(k) for k in product_map}:
-                    units_sold[str(pid)] += item.get("quantity", 0)
+                    units_sold[str(pid)] += getattr(item, 'quantity', 0)
 
         result = []
         for product in products:
@@ -2011,8 +2011,8 @@ class AnalyticsRepository:
 
         result = []
         for channel, data in stats.items():
-            count = data["orderCount"]
-            rev = round(data["revenue"], 2)
+            count = data.orderCount
+            rev = round(data.revenue, 2)
             result.append(
                 {
                     "channel": channel,
@@ -2096,9 +2096,9 @@ class AnalyticsRepository:
         units_sold: dict = defaultdict(int)
         for order in orders:
             for item in order.get("items", []):
-                pid = str(item.get("product") or item.get("productId") or "")
+                pid = str(getattr(item, "product", None) or getattr(item, "productId", None) or "")
                 if pid and pid in product_map:
-                    units_sold[pid] += item.get("quantity", 0)
+                    units_sold[pid] += getattr(item, 'quantity', 0)
 
         result = []
         for pid, product in product_map.items():

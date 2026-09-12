@@ -1,3 +1,4 @@
+from app.models.user import User
 import logging
 import os
 from datetime import datetime, timedelta, timezone
@@ -72,7 +73,7 @@ def create_refresh_token(user_id: str, session_id: str, refresh_id: str) -> str:
     return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_refresh_token(token: str) -> dict:
+def verify_refresh_token(token: str) -> 'User':
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate refresh token",
@@ -90,7 +91,7 @@ def verify_refresh_token(token: str) -> dict:
         raise credentials_exception
 
 
-async def verify_token(token: str) -> dict:
+async def verify_token(token: str) -> 'User':
     """Verify JWT access token, ensure session is active, enforce inactivity window"""
     from app.repositories.session_repository import session_repository
     from app.repositories.user_repository import user_repository
@@ -119,38 +120,38 @@ async def verify_token(token: str) -> dict:
     # Inactivity check
     session = await session_repository.check_inactivity_and_revoke(session, INACTIVITY_DAYS)
 
-    if session.get("status") != "active":
+    if getattr(session, "status", None) != "active":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
                 "code": ERR_SESSION_REVOKED,
-                "revokedAt": session.get("revokedAt"),
-                "reason": session.get("revokedReason"),
+                "revokedAt": getattr(session, "revoked_at", None),
+                "reason": getattr(session, "revoked_reason", None),
             },
         )
 
     await session_repository.touch_last_active(session_id)
 
     user = await user_repository.findById(user_id)
-    if user is None or not user.get("isActive", True):
+    if user is None or not getattr(user, "is_active", True):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
-    user_copy = dict(user)
-    user_copy.pop("password", None)
-    if user_copy.get("isDeactivated") and user_copy.get("role") == "wholesaler":
-        user_copy["effectiveRole"] = "customer"
+    if getattr(user, "is_deactivated", False) and getattr(user, "role", None) == "wholesaler":
+        user.effective_role = "customer"
     else:
-        user_copy["effectiveRole"] = user_copy.get("role", "customer")
+        user.effective_role = getattr(user, "role", "customer")
 
-    user_copy["sessionId"] = session_id
-    return user_copy
+    user.session_id = session_id
+    user.password = None
+    return user
 
 
-def check_roles(user: dict, *allowed_roles: str):
+def check_roles(user: 'User', *allowed_roles: str):
     """Check if user has required role. Uses effectiveRole when present
     (e.g. deactivated wholesalers get effectiveRole='customer'), falling
     back to role for backwards compatibility."""
-    effective = user.get("effectiveRole") or user.get("role")
+    effective = getattr(user, "effective_role", None) or getattr(user, "role", None)
+    print(f"USER ROLE: {effective}, Allowed: {allowed_roles}")
     if effective not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Insufficient permissions.")
     return user
@@ -159,7 +160,7 @@ def check_roles(user: dict, *allowed_roles: str):
 def require_roles(*allowed_roles: str):
     """
     Dependency factory for role-based access control.
-    Usage: current_user: dict = Depends(require_roles('super_admin', 'admin'))
+    Usage: current_user: 'User' = Depends(require_roles('super_admin', 'admin'))
     """
     _role_security = HTTPBearer(auto_error=False)
 
@@ -199,11 +200,11 @@ def _extract_token(
 async def get_current_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_security),
-) -> dict:
+) -> 'User':
     """
     Get current authenticated user from JWT token.
     Reads from Authorization header first, then HttpOnly cookie.
-    Usage: current_user: dict = Depends(get_current_user)
+    Usage: current_user: 'User' = Depends(get_current_user)
     """
     token = _extract_token(request, credentials)
     if not token:
@@ -232,10 +233,10 @@ async def get_optional_user(
         return None
 
 
-async def require_super_admin(current_user: dict = Depends(get_current_user)) -> dict:
+async def require_super_admin(current_user: 'User' = Depends(get_current_user)) -> 'User':
     """
     Require super_admin role.
-    Usage: current_user: dict = Depends(require_super_admin)
+    Usage: current_user: 'User' = Depends(require_super_admin)
     """
     try:
         return check_roles(current_user, "super_admin")
@@ -245,10 +246,10 @@ async def require_super_admin(current_user: dict = Depends(get_current_user)) ->
         raise HTTPException(status_code=403, detail="Access denied. Super admin only.")
 
 
-async def require_super_admin_or_valet(current_user: dict = Depends(get_current_user)) -> dict:
+async def require_super_admin_or_valet(current_user: 'User' = Depends(get_current_user)) -> 'User':
     """
     Require super_admin or valet role.
-    Usage: current_user: dict = Depends(require_super_admin_or_valet)
+    Usage: current_user: 'User' = Depends(require_super_admin_or_valet)
     """
     try:
         return check_roles(current_user, "super_admin", "valet")
@@ -258,18 +259,18 @@ async def require_super_admin_or_valet(current_user: dict = Depends(get_current_
         raise HTTPException(status_code=403, detail="Access denied. Super admin or valet only.")
 
 
-def is_seller_admin(user: dict) -> bool:
-    return user.get("role") == "seller_admin"
+def is_seller_admin(user: 'User') -> bool:
+    return getattr(user, "role", None) == "seller_admin"
 
 
-def require_seller_admin(user: dict = Depends(get_current_user)) -> dict:
+def require_seller_admin(user: 'User' = Depends(get_current_user)) -> 'User':
     if not is_seller_admin(user):
         raise HTTPException(status_code=403, detail="Seller Admin required")
     return user
 
 
-def require_super_admin_or_seller(user: dict = Depends(get_current_user)) -> dict:
-    role = user.get("role")
-    if role not in ("super_admin", "seller_admin"):
+def require_super_admin_or_seller(user: 'User' = Depends(get_current_user)) -> 'User':
+    role = getattr(user, "role", None)
+    if role not in ("super_admin", "seller_admin", "seller"):
         raise HTTPException(status_code=403, detail="Admin or Seller required")
     return user

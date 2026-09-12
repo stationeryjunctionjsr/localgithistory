@@ -240,19 +240,19 @@ class MySQLPaymentDAO:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
         external_id = secrets.token_hex(16)
-        payment_entries = data.get("paymentEntries") or []
+        payment_entries = data.paymentEntries or []
         params = {
             "external_id": external_id,
-            "order_id": data.get("orderId"),
-            "user_id": data.get("userId"),
-            "user_id_formatted": data.get("userIdFormatted"),
-            "customer_name": data.get("customerName"),
-            "order_date": _to_ts(data.get("orderDate")) or now,
-            "payment_method": data.get("paymentMethod"),
-            "amount_paid": data.get("amountPaid"),
-            "amount_remaining": data.get("amountRemaining"),
-            "total_amount": data.get("totalAmount"),
-            "payment_id": data.get("paymentId"),
+            "order_id": data.orderId,
+            "user_id": data.userId,
+            "user_id_formatted": data.userIdFormatted,
+            "customer_name": data.customerName,
+            "order_date": _to_ts(data.orderDate) or now,
+            "payment_method": data.paymentMethod,
+            "amount_paid": data.amountPaid,
+            "amount_remaining": data.amountRemaining,
+            "total_amount": data.totalAmount,
+            "payment_id": data.paymentId,
             "created_at": now,
             "updated_at": now,
         }
@@ -278,7 +278,7 @@ class MySQLPaymentDAO:
                 for idx, entry in enumerate(payment_entries):
                     entry_id = entry.get("entryId", idx + 1)
                     amount = entry.get("amount", 0)
-                    method = entry.get("paymentMethod") or data.get("paymentMethod")
+                    method = entry.get("paymentMethod") or data.paymentMethod
                     paid_at = _to_ts(entry.get("paidAt")) or now
                     await session.execute(
                         text(
@@ -319,16 +319,16 @@ class MySQLPaymentDAO:
                     f"payment_id=:payment_id, updated_at=:updated_at WHERE id=:id"
                 ),
                 {
-                    "order_id": merged.get("orderId"),
-                    "user_id": merged.get("userId"),
-                    "user_id_formatted": merged.get("userIdFormatted"),
-                    "customer_name": merged.get("customerName"),
-                    "order_date": _to_ts(merged.get("orderDate")),
-                    "payment_method": merged.get("paymentMethod"),
-                    "amount_paid": merged.get("amountPaid"),
-                    "amount_remaining": merged.get("amountRemaining"),
-                    "total_amount": merged.get("totalAmount"),
-                    "payment_id": merged.get("paymentId"),
+                    "order_id": merged.orderId,
+                    "user_id": merged.userId,
+                    "user_id_formatted": merged.userIdFormatted,
+                    "customer_name": merged.customerName,
+                    "order_date": _to_ts(merged.orderDate),
+                    "payment_method": merged.paymentMethod,
+                    "amount_paid": merged.amountPaid,
+                    "amount_remaining": merged.amountRemaining,
+                    "total_amount": merged.totalAmount,
+                    "payment_id": merged.paymentId,
                     "updated_at": now,
                     "id": pid,
                 },
@@ -337,7 +337,7 @@ class MySQLPaymentDAO:
             if "paymentEntries" in merged:
                 await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": pid})
                 await session.commit()
-                for idx, entry in enumerate(merged.get("paymentEntries") or []):
+                for idx, entry in enumerate(merged.paymentEntries or []):
                     entry_id = entry.get("entryId", idx + 1)
                     paid_at = _to_ts(entry.get("paidAt")) or now
                     await session.execute(
@@ -349,7 +349,7 @@ class MySQLPaymentDAO:
                             "payment_id": pid,
                             "entry_id": entry_id,
                             "amount": entry.get("amount", 0),
-                            "payment_method": entry.get("paymentMethod") or merged.get("paymentMethod"),
+                            "payment_method": entry.get("paymentMethod") or merged.paymentMethod,
                             "paid_at": paid_at,
                             "image": entry.get("image"),
                             "notes": entry.get("notes", ""),
@@ -375,7 +375,7 @@ class MySQLPaymentDAO:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d.get("_id")):
+            if await self.delete(d._id):
                 deleted += 1
         return {"deletedCount": deleted}
 

@@ -22,8 +22,11 @@ class Product(DictCompatibleModel):
     images: List[str] = []
     videos: List[str] = []
     is_active: bool = Field(default=True, alias="isActive")
+    is_exclusive: bool = Field(default=False, alias="isExclusive")
+    collection: Optional[str] = None
     tags: List[str] = []
     variant_attributes: List[Any] = Field(default=[], alias="variantAttributes")
+    sellers: List[dict] = []
     variants: List[Any] = []
     details: Dict[str, Any] = {}
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")

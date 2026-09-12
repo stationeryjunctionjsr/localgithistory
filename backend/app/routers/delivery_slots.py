@@ -1,3 +1,4 @@
+from app.models.user import User
 from app.models.schemas import MessageResponse
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
@@ -12,6 +13,28 @@ storage = get_storage("deliverySlots")
 # Sentinel zone ID for the "Default" fallback config
 DEFAULT_ZONE_ID = "default"
 
+
+
+class DeliverySlotConfigResponse(BaseModel):
+    id: str = Field(alias="_id")
+    segment: str
+    date: str
+    zoneId: str
+    slots: List[SlotBase]
+    isActive: bool
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class AvailableSlotsResponse(BaseModel):
+    date: str
+    slots: List[SlotBase]
+
+class DatesWithSlotsResponse(BaseModel):
+    dates: List[str]
+
+class BookSlotResponse(BaseModel):
+    success: bool
+    slot: SlotBase
 
 class SlotBase(BaseModel):
     id: str
@@ -51,37 +74,35 @@ class DeliverySlotConfigCreate(BaseModel):
 
 
 async def _resolve_zone_config(pincode: str, date: str, segment: str) -> Optional[Dict]:
-    """
-    Given a customer pincode, return the best matching SlotConfig for that date/segment.
-    1. Resolve pincode → zoneId via /delivery-zones/for-pincode helper.
-    2. Try to find a SlotConfig with that specific zoneId.
-    3. If none, fall back to the "default" zone config for that date/segment.
-    """
     from app.repositories.zone_seller_cache import get_zone_for_pincode
+    import logging
+    logger = logging.getLogger(__name__)
+    
     zone_data = await get_zone_for_pincode(pincode)
-    zone_id = zone_data.get("zoneId") if zone_data else None
+    zone_id = zone_data.get("_id") or zone_data.get("id") if zone_data else None
+    logger.error(f"_resolve_zone_config: pincode={pincode} date={date} segment={segment} zone_data={zone_data} zone_id={zone_id}")
 
-    # Try zone-specific config first
     if zone_id:
-        configs = await storage.findAll({"date": date, "segment": segment, "zoneId": zone_id, "isActive": True})
+        configs = await storage.findAll({"date": date, "segment": segment, "zoneId": str(zone_id), "isActive": True})
+        logger.error(f"_resolve_zone_config: found configs for zone_id: {configs}")
         if configs:
             return configs[0]
 
-    # Fall back to "default" config
     default_configs = await storage.findAll({"date": date, "segment": segment, "zoneId": DEFAULT_ZONE_ID, "isActive": True})
+    logger.error(f"_resolve_zone_config: found default configs: {default_configs}")
     if default_configs:
         return default_configs[0]
 
     return None
 
 
-@router.get("", response_model=List[Dict[str, Any]])
-@router.get("/", response_model=List[Dict[str, Any]])
+@router.get("", response_model=List[DeliverySlotConfigResponse])
+@router.get("/", response_model=List[DeliverySlotConfigResponse])
 async def get_delivery_slots(
     segment: Optional[str] = Query(None),
     date: Optional[str] = Query(None),
     zoneId: Optional[str] = Query(None),
-    current_user: dict = Depends(require_super_admin),
+    current_user: User = Depends(require_super_admin),
 ):
     query: Dict[str, Any] = {}
     if segment:
@@ -95,16 +116,15 @@ async def get_delivery_slots(
     return slots
 
 
-@router.get("/available", response_model=List[Dict[str, Any]])
+@router.get("/available", response_model=AvailableSlotsResponse)
 async def get_available_slots(
     date: str = Query(...),
     pincode: str = Query(...),
     segment: str = Query("retail"),
 ):
-    """
-    Public endpoint. Returns available time slots for a pincode on a given date.
-    Resolves pincode → zone, then tries zone-specific config, then falls back to default.
-    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     import datetime as _dt
     from datetime import timezone
 
@@ -113,70 +133,74 @@ async def get_available_slots(
     now_ist = (utc_now + ist_offset).replace(tzinfo=None)  # naive IST for comparison with strptime results
 
     config = await _resolve_zone_config(pincode, date, segment)
+    logger.error(f"get_available_slots: config={config}")
     if not config:
         return []
 
     matched_slots = []
     for slot in config.get("slots", []):
-        if not (slot.is_active if slot.is_active is not None else True):
+        logger.error(f"get_available_slots: slot={slot}")
+        if not (slot.get("isActive") if slot.get("isActive") is not None else True):
             continue
 
-        is_full_day = (slot.is_full_day if slot.is_full_day is not None else False)
-        is_urgent = (slot.is_urgent if slot.is_urgent is not None else False)
+        is_full_day = (slot.get("isFullDay") if slot.get("isFullDay") is not None else False)
+        is_urgent = (slot.get("isUrgent") if slot.get("isUrgent") is not None else False)
 
-        # Cutoff hours check
         if not is_full_day:
             if is_urgent:
                 cutoff_hours = (
-                    slot.urgent_cutoff_hours
-                    if slot.urgent_cutoff_hours is not None
-                    else slot.cutoff_hours
+                    slot.get("urgentCutoffHours")
+                    if slot.get("urgentCutoffHours") is not None
+                    else slot.get("cutoffHours")
                 )
             else:
-                cutoff_hours = slot.cutoff_hours
+                cutoff_hours = slot.get("cutoffHours")
 
             if cutoff_hours is not None:
-                anchor_time_str = (slot.end_time or "") if is_urgent else (slot.start_time or "")
+                anchor_time_str = (slot.get("endTime") or "") if is_urgent else (slot.get("startTime") or "")
                 try:
                     anchor_ist = _dt.datetime.strptime(f"{date} {anchor_time_str}", "%Y-%m-%d %H:%M")
                     cutoff_ist = anchor_ist - _dt.timedelta(hours=cutoff_hours)
                     if now_ist >= cutoff_ist:
+                        logger.error(f"get_available_slots: cutoff failed")
                         continue
                 except ValueError:
                     pass
 
-        # Capacity check — slot capacity takes priority; zone defaultCapacity as fallback
         if not is_full_day:
-            cap = slot.capacity
+            cap = int(slot.get("capacity")) if slot.get("capacity") not in (None, "") else None
             if cap is None:
-                # Fallback: use zone's defaultCapacity
                 cap = config.get("zoneDefaultCapacity")
-            booked = (slot.booked_count if slot.booked_count is not None else 0)
-            if cap is not None and (cap - booked) <= 0:
+            booked = int(slot.get("bookedCount") or 0)
+            if cap is not None and booked >= cap:
+                logger.error(f"get_available_slots: capacity failed")
                 continue
 
-        # 24-hour rule
-        end_time_str = (slot.end_time or "")
-        try:
-            slot_end_ist = _dt.datetime.strptime(f"{date} {end_time_str}", "%Y-%m-%d %H:%M")
-            if slot_end_ist > (now_ist + _dt.timedelta(hours=24)):
-                continue
-        except ValueError:
-            pass
+        end_time_str = slot.get("endTime", "")
+        if end_time_str:
+            try:
+                end_ist = _dt.datetime.strptime(f"{date} {end_time_str}", "%Y-%m-%d %H:%M")
+                if now_ist >= end_ist:
+                    logger.error(f"get_available_slots: 24h failed")
+                    continue
+            except ValueError:
+                pass
 
+        logger.error(f"get_available_slots: matched slot={slot}")
         matched_slots.append({
             "configId": str(config["_id"]),
-            "slotId": slot["id"],
-            "startTime": slot["startTime"],
-            "endTime": slot["endTime"],
+            "slotId": slot.get("id", f"{slot.get('startTime')}-{slot.get('endTime')}"),
+            "startTime": slot.get("startTime", ""),
+            "endTime": slot.get("endTime", ""),
             "isUrgent": is_urgent,
             "isFullDay": is_full_day,
         })
 
+    logger.error(f"get_available_slots: returning {matched_slots}")
     return matched_slots
 
 
-@router.get("/dates-with-slots", response_model=Dict[str, Any])
+@router.get("/dates-with-slots", response_model=DatesWithSlotsResponse)
 async def get_dates_with_slots(
     pincode: str = Query(...),
     segment: str = Query("retail"),
@@ -204,17 +228,17 @@ async def get_dates_with_slots(
 
         has_valid_slot = False
         for slot in config.get("slots", []):
-            if not (slot.is_active if slot.is_active is not None else True):
+            if not (slot.get("isActive") if slot.get("isActive") is not None else True):
                 continue
 
-            is_full_day = (slot.is_full_day if slot.is_full_day is not None else False)
-            is_urgent = (slot.is_urgent if slot.is_urgent is not None else False)
+            is_full_day = (slot.get("isFullDay") if slot.get("isFullDay") is not None else False)
+            is_urgent = (slot.get("isUrgent") if slot.get("isUrgent") is not None else False)
 
             # Cutoff check
             if not is_full_day:
-                cutoff_hours = slot.urgent_cutoff_hours if is_urgent and slot.urgent_cutoff_hours is not None else slot.cutoff_hours
+                cutoff_hours = slot.get("urgentCutoffHours") if is_urgent and slot.get("urgentCutoffHours") is not None else slot.get("cutoffHours")
                 if cutoff_hours is not None:
-                    anchor_time_str = (slot.end_time or "") if is_urgent else (slot.start_time or "")
+                    anchor_time_str = (slot.get("endTime") or "") if is_urgent else (slot.get("startTime") or "")
                     try:
                         anchor_ist = _dt.datetime.strptime(f"{check_date} {anchor_time_str}", "%Y-%m-%d %H:%M")
                         if now_ist >= (anchor_ist - _dt.timedelta(hours=cutoff_hours)):
@@ -223,7 +247,7 @@ async def get_dates_with_slots(
                         pass
 
             # 24-hour rule
-            end_time_str = (slot.end_time or "")
+            end_time_str = (slot.get("endTime") or "")
             try:
                 slot_end_ist = _dt.datetime.strptime(f"{check_date} {end_time_str}", "%Y-%m-%d %H:%M")
                 if slot_end_ist > (now_ist + _dt.timedelta(hours=24)):
@@ -233,10 +257,10 @@ async def get_dates_with_slots(
 
             # Capacity check with zone fallback
             if not is_full_day:
-                cap = slot.capacity
+                cap = int(slot.get("capacity")) if slot.get("capacity") not in (None, "") else None
                 if cap is None:
                     cap = config.get("zoneDefaultCapacity")
-                booked = (slot.booked_count if slot.booked_count is not None else 0)
+                booked = (int(slot.get("bookedCount")) if slot.get("bookedCount") not in (None, "") else 0)
                 if cap is not None and (cap - booked) <= 0:
                     continue
 
@@ -253,7 +277,7 @@ async def get_dates_with_slots(
     }
 
 
-@router.post("/{config_id}/book-slot", response_model=Dict[str, Any])
+@router.post("/{config_id}/book-slot", response_model=BookSlotResponse)
 async def book_slot(config_id: str, slot_id: str = Query(...)):
     """
     Internal endpoint — atomically increments bookedCount for a specific slot.
@@ -267,11 +291,11 @@ async def book_slot(config_id: str, slot_id: str = Query(...)):
     slots = config.get("slots", [])
     updated = False
     for slot in slots:
-        if slot.id == slot_id:
-            cap = slot.capacity
+        if slot.get("id") == slot_id or f"{slot.get('startTime')}-{slot.get('endTime')}" == slot_id:
+            cap = int(slot.get("capacity")) if slot.get("capacity") not in (None, "") else None
             if cap is None:
                 cap = config.get("zoneDefaultCapacity")
-            booked = (slot.booked_count if slot.booked_count is not None else 0)
+            booked = (int(slot.get("bookedCount")) if slot.get("bookedCount") not in (None, "") else 0)
             if cap is not None and booked >= cap:
                 raise HTTPException(status_code=409, detail="Slot is fully booked")
             slot["bookedCount"] = booked + 1
@@ -285,10 +309,10 @@ async def book_slot(config_id: str, slot_id: str = Query(...)):
     return {"success": True}
 
 
-@router.post("", response_model=List[Dict[str, Any]], status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=List[Dict[str, Any]], status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=List[DeliverySlotConfigResponse], status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=List[DeliverySlotConfigResponse], status_code=status.HTTP_201_CREATED)
 async def create_delivery_slot_config(
-    config: DeliverySlotConfigCreate, current_user: dict = Depends(require_super_admin)
+    config: DeliverySlotConfigCreate, current_user: User = Depends(require_super_admin)
 ):
     """
     Create slot configs for one or more zones.
@@ -310,7 +334,7 @@ async def create_delivery_slot_config(
         # Auto-fill slot capacities from zone default if not set
         slots_with_capacity = []
         for slot in config.slots:
-            slot_dict = slot.dict()
+            slot_dict = slot if hasattr(slot, "model_dump") else slot if hasattr(slot, "dict") else slot
             if slot_dict.get("capacity") is None or slot_dict.get("capacity") == 0:
                 slot_dict["capacity"] = zone_default_capacity
             slots_with_capacity.append(slot_dict)
@@ -336,18 +360,18 @@ async def create_delivery_slot_config(
     return created
 
 
-@router.put("/{config_id}", response_model=Dict[str, Any])
+@router.put("/{config_id}", response_model=DeliverySlotConfigResponse)
 async def update_delivery_slot_config(
-    config_id: str, config: DeliverySlotConfigBase, current_user: dict = Depends(require_super_admin)
+    config_id: str, config: DeliverySlotConfigBase, current_user: User = Depends(require_super_admin)
 ):
-    updated = await storage.update(config_id, config.dict())
+    updated = await storage.update(config_id, config)
     if not updated:
         raise HTTPException(status_code=404, detail="Configuration not found")
     return updated
 
 
 @router.delete("/{config_id}", response_model=MessageResponse)
-async def delete_delivery_slot_config(config_id: str, current_user: dict = Depends(require_super_admin)):
+async def delete_delivery_slot_config(config_id: str, current_user: User = Depends(require_super_admin)):
     result = await storage.delete(config_id)
     if not result:
         raise HTTPException(status_code=404, detail="Configuration not found")

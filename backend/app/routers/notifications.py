@@ -1,5 +1,23 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
+
+from pydantic import BaseModel, Field
+
+class NotificationResponse(BaseModel):
+    id: str = Field(alias="_id")
+    userId: str
+    type: str
+    title: str
+    message: str
+    isRead: bool
+    isAcknowledged: bool
+    metadata: Optional[Dict[str, Any]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class UnreadCountResponse(BaseModel):
+    unreadCount: int
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,14 +29,14 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("", response_model=Dict[str, Any])
+@router.get("", response_model=List[NotificationResponse])
 @router.get("/")
 async def get_notifications(
     isRead: Optional[bool] = Query(None),
     type: Optional[str] = Query(None),
     startDate: Optional[str] = Query(None),
     endDate: Optional[str] = Query(None),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Get all notifications for user"""
     try:
@@ -42,8 +60,8 @@ async def get_notifications(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/unread-count", response_model=Dict[str, Any])
-async def get_unread_count(current_user: dict = Depends(get_current_user)):
+@router.get("/unread-count", response_model=UnreadCountResponse)
+async def get_unread_count(current_user: User = Depends(get_current_user)):
     """Get count of unread notifications for user"""
     try:
         filters = {"isRead": False}
@@ -57,8 +75,8 @@ async def get_unread_count(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/read-all", response_model=Dict[str, Any])
-async def mark_all_read(current_user: dict = Depends(get_current_user)):
+@router.put("/read-all", response_model=Dict[str, int])
+async def mark_all_read(current_user: User = Depends(get_current_user)):
     """Mark all notifications as read and acknowledged"""
     try:
         user_id = current_user.id or current_user.id
@@ -93,8 +111,8 @@ async def _get_and_verify_notification(notification_id: str, current_user: dict)
     return notification
 
 
-@router.put("/{notification_id}/acknowledge", response_model=Dict[str, Any])
-async def acknowledge_notification(notification_id: str, current_user: dict = Depends(get_current_user)):
+@router.put("/{notification_id}/acknowledge", response_model=NotificationResponse)
+async def acknowledge_notification(notification_id: str, current_user: User = Depends(get_current_user)):
     """Acknowledge a notification"""
     try:
         await _get_and_verify_notification(notification_id, current_user)
@@ -107,8 +125,8 @@ async def acknowledge_notification(notification_id: str, current_user: dict = De
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/{notification_id}/read", response_model=Dict[str, Any])
-async def mark_notification_read(notification_id: str, current_user: dict = Depends(get_current_user)):
+@router.put("/{notification_id}/read", response_model=NotificationResponse)
+async def mark_notification_read(notification_id: str, current_user: User = Depends(get_current_user)):
     """Mark notification as read"""
     try:
         await _get_and_verify_notification(notification_id, current_user)
@@ -122,7 +140,7 @@ async def mark_notification_read(notification_id: str, current_user: dict = Depe
 
 
 @router.delete("/{notification_id}", response_model=MessageResponse)
-async def delete_notification(notification_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_notification(notification_id: str, current_user: User = Depends(get_current_user)):
     """Delete a notification"""
     try:
         await _get_and_verify_notification(notification_id, current_user)

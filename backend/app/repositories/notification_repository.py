@@ -47,7 +47,7 @@ class NotificationRepository:
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.storage.findById(id)
 
-    async def create(self, notification_data: Dict) -> Dict:
+    async def create(self, notification_data: Any) -> Dict:
         notification = {
             "_id": self._generate_id(),
             **notification_data,
@@ -58,7 +58,7 @@ class NotificationRepository:
         }
         return await self.storage.create(notification)
 
-    async def update(self, id: str, update_data: Dict) -> Dict:
+    async def update(self, id: str, update_data: Any) -> Dict:
         updates = {**update_data, "updatedAt": self._get_timestamp()}
         return await self.storage.update(id, updates)
 

@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from typing import Any, Optional
@@ -39,11 +40,11 @@ class PromoteGuestBody(BaseModel):
     userId: Optional[str] = None
 
 
-@router.post("", response_model=Dict[str, Any])
+@router.post("", response_model=ActivityLogResponse)
 async def log_activity(
     body: LogActivityBody,
     request: Request = None,
-    current_user: dict = Depends(optional_user),
+    current_user: User = Depends(optional_user),
 ):
     action = body.action or body.type
     meta = body.meta or body.detail or {}
@@ -58,6 +59,6 @@ async def log_activity(
     return await activity_repository.log_activity(user_id, sid, action, meta, device, is_guest=is_guest)
 
 
-@router.post("/promote", response_model=Dict[str, Any])
-async def promote_guest(body: PromoteGuestBody, request: Request, current_user: dict = Depends(get_current_user)):
+@router.post("/promote", response_model=PromoteGuestResponse)
+async def promote_guest(body: PromoteGuestBody, request: Request, current_user: User = Depends(get_current_user)):
     return await activity_repository.promote_guest_activities(body.sessionId, current_user.id)

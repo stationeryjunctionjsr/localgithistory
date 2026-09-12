@@ -19,6 +19,10 @@ class CategoryTagBase(BaseModel):
     isActive: bool = True
 
 
+class CategoryTagResponse(CategoryTagBase):
+    id: str = Field(alias="_id")
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
 class CategoryTagUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1)
     description: Optional[str] = None
@@ -96,13 +100,13 @@ async def update_category_tag(
             existing_tag = await category_tag_repository.findByName(tag_update.name)
             if existing_tag and existing_tag.get("_id") != tag_id:
                 raise HTTPException(status_code=400, detail="Category tag with this name already exists")
-            update_data["name"] = tag_update.name.strip()
+            update_data.name = tag_update.name.strip()
 
         if tag_update.description is not None:
-            update_data["description"] = tag_update.description
+            update_data.description = tag_update.description
 
         if tag_update.isActive is not None:
-            update_data["isActive"] = tag_update.isActive
+            update_data.isActive = tag_update.isActive
 
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
@@ -149,3 +153,4 @@ async def hide_category_tag(tag_id: str, current_user: dict = Depends(require_su
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
+

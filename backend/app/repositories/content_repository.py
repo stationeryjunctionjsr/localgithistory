@@ -17,12 +17,12 @@ class ContentRepository:
         docs = await self.storage.findAll()
         return docs[0] if docs else None
 
-    async def upsert(self, data: Dict) -> Dict:
+    async def upsert(self, data: Any) -> Dict:
         existing = await self.get()
         payload = {**data, "updatedAt": self._ts()}
         if existing:
             return await self.storage.update(existing["_id"], payload)
-        payload["createdAt"] = self._ts()
+        payload.createdAt = self._ts()
         return await self.storage.create(payload)
 
 
@@ -55,14 +55,14 @@ class VersionedContentRepository(ContentRepository):
     - On first creation with no version supplied, defaults to '1.0'.
     """
 
-    async def upsert(self, data: Dict) -> Dict:
+    async def upsert(self, data: Any) -> Dict:
         existing = await self.get()
         now = self._ts()
 
         # Determine which version string to store
-        if "version" in data and data["version"]:
+        if "version" in data and data.version:
             # Admin explicitly supplied a version — use it as-is
-            next_version: str = str(data["version"]).strip()
+            next_version: str = str(data.version).strip()
         elif existing and existing.get("version"):
             # No version supplied — auto-increment the last segment
             next_version = _increment_version(str(existing["version"]))
@@ -74,7 +74,7 @@ class VersionedContentRepository(ContentRepository):
         history_entry = {
             "version": next_version,
             "savedAt": now,
-            "lastUpdated": data.get("lastUpdated", ""),
+            "lastUpdated": getattr(data, 'lastUpdated', ""),
         }
 
         # Append to existing history (or start fresh)
@@ -91,7 +91,7 @@ class VersionedContentRepository(ContentRepository):
         if existing:
             return await self.storage.update(existing["_id"], payload)
 
-        payload["createdAt"] = now
+        payload.createdAt = now
         return await self.storage.create(payload)
 
 
@@ -109,18 +109,18 @@ class FAQRepository:
     async def find_by_id(self, section_id: str) -> Optional[Dict]:
         return await self.storage.findById(section_id)
 
-    async def create_section(self, data: Dict) -> Dict:
+    async def create_section(self, data: Any) -> Dict:
         section = {
-            "title": data["title"],
-            "icon": data.get("icon", "help-circle-outline"),
-            "displayOrder": data.get("displayOrder", 0),
-            "items": data.get("items", []),
+            "title": data.title,
+            "icon": getattr(data, 'icon', "help-circle-outline"),
+            "displayOrder": getattr(data, 'displayOrder', 0),
+            "items": getattr(data, 'items', []),
             "createdAt": self._ts(),
             "updatedAt": self._ts(),
         }
         return await self.storage.create(section)
 
-    async def update_section(self, section_id: str, data: Dict) -> Dict:
+    async def update_section(self, section_id: str, data: Any) -> Dict:
         updates = {k: v for k, v in data.items() if v is not None}
         updates["updatedAt"] = self._ts()
         return await self.storage.update(section_id, updates)
