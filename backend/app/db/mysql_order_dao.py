@@ -64,8 +64,8 @@ class MySQLOrderDAO:
 
         return items, declines
 
-    def _row_to_dict(self, r, items: List[Dict], declines: List[Dict]) -> Dict:
-        return {
+    def _row_to_dict(self, r, items: List[Dict], declines: List[Dict]) -> Order:
+        return Order(**{
             "_id": str(r.id),
             "orderNumber": r.order_number,
             "user": str(r.user_id),
@@ -114,7 +114,7 @@ class MySQLOrderDAO:
             "turnaroundHours": float(r.turnaround_hours) if r.turnaround_hours is not None else None,
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
+        })
 
     def _build_query_conditions(self, query: Optional[Dict]) -> tuple[str, Dict]:
         where_clauses = []
@@ -157,7 +157,7 @@ class MySQLOrderDAO:
 
     async def findAll(
         self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None
-    ) -> List[Dict]:
+    ) -> List[Order]:
         factory = self._factory()
         if not factory:
             return []
@@ -233,11 +233,11 @@ class MySQLOrderDAO:
 
             return [self._row_to_dict(r, items_map[int(r.id)], declines_map[int(r.id)]) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Order]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Order]:
         factory = self._factory()
         if not factory:
             return None
@@ -296,7 +296,7 @@ class MySQLOrderDAO:
                 {"order_id": order_id, "vid": str(getattr(d, "valetId", "")), "r": getattr(d, "reason", None)}
             )
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Any) -> Order:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -382,7 +382,7 @@ class MySQLOrderDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: Any) -> Optional[Order]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -541,3 +541,10 @@ class MySQLOrderDAO:
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+
+
+
+
+
+
+

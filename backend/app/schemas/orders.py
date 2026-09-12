@@ -5,7 +5,7 @@ from app.models.sub_order import SubOrder
 
 class PaginatedOrdersResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
-    orders: List[Dict[str, Any]]
+    orders: List[Order]
     totalCount: int = Field(alias="totalCount")
     page: int
     limit: int
