@@ -25,12 +25,12 @@ class SubOrderRepository:
             "sellerName": getattr(data, 'sellerName', ""),
             "user": data.user,
             "items": getattr(data, 'items', []),
-            "subtotal": float(getattr(data, 'subtotal', 0)),
-            "tax": float(getattr(data, 'tax', 0)),
-            "shipping": float(getattr(data, 'shipping', 0)),
-            "deliveryGst": float(getattr(data, 'deliveryGst', 0)),
-            "discount": float(getattr(data, 'discount', 0)),
-            "total": float(getattr(data, 'total', 0)),
+            "subtotal": float(getattr(data, 'subtotal') or 0),
+            "tax": float(getattr(data, 'tax') or 0),
+            "shipping": float(getattr(data, 'shipping') or 0),
+            "deliveryGst": float(getattr(data, 'deliveryGst') or 0),
+            "discount": float(getattr(data, 'discount') or 0),
+            "total": float(getattr(data, 'total') or 0),
             "orderType": getattr(data, 'orderType', "b2c"),
             "status": getattr(data, 'status', "pending"),
             "paymentMethod": getattr(data, 'paymentMethod', "cod"),
@@ -127,3 +127,4 @@ class SubOrderRepository:
 
 
 sub_order_repository = SubOrderRepository()
+

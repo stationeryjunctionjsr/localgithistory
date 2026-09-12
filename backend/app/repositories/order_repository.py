@@ -71,9 +71,9 @@ class OrderRepository:
             "sessionId": getattr(order_data, "sessionId", None),  # session in which order was placed (for user engagement metrics)
             "items": getattr(order_data, 'items', []),
             "subtotal": float(order_data.subtotal),
-            "tax": float(getattr(order_data, 'tax', 0)),
-            "shipping": float(getattr(order_data, 'shipping', 0)),
-            "discount": float(getattr(order_data, 'discount', 0)),
+            "tax": float(getattr(order_data, 'tax') or 0),
+            "shipping": float(getattr(order_data, 'shipping') or 0),
+            "discount": float(getattr(order_data, 'discount') or 0),
             "total": float(order_data.total),
             "orderType": order_data.orderType,
             "status": getattr(order_data, 'status', "pending"),
@@ -140,3 +140,4 @@ class OrderRepository:
 
 
 order_repository = OrderRepository()
+
