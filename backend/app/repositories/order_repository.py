@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 from typing import Dict, Optional, Any
-from app.models.order import Order, Any
-from app.models.order import Order, Any
-from app.models.order import Order
+from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate, Any
+from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate, Any
+from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
 
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
@@ -62,78 +62,46 @@ class OrderRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def create(self, order_data: Any):
-        order = {
-            "orderNumber": await self.generateOrderNumber(
-                getattr(order_data, "userRole", None) or "" if isinstance(order_data, dict) else ""
-            ),
-            "user": order_data.user,
-            "sessionId": getattr(order_data, "sessionId", None),  # session in which order was placed (for user engagement metrics)
-            "items": getattr(order_data, 'items', []),
-            "subtotal": float(order_data.subtotal),
-            "tax": float(getattr(order_data, 'tax') or 0),
-            "shipping": float(getattr(order_data, 'shipping') or 0),
-            "discount": float(getattr(order_data, 'discount') or 0),
-            "total": float(order_data.total),
-            "orderType": order_data.orderType,
-            "status": getattr(order_data, 'status', "pending"),
-            "paymentStatus": getattr(order_data, 'paymentStatus', "pending"),
-            "paymentMethod": getattr(order_data, 'paymentMethod', "cod"),
-            "upiPaymentScreenshot": getattr(order_data, "upiPaymentScreenshot", None),
-            "shippingAddress": getattr(order_data, 'shippingAddress', {}),
-            "billingAddress": getattr(order_data, 'billingAddress', {}),
-            "notes": getattr(order_data, 'notes', ""),
-            "printedBill": getattr(order_data, 'printedBill', False),
-            "assignedValet": getattr(order_data, "assignedValet", None),
-            "shippedAt": getattr(order_data, "shippedAt", None),
-            "deliveredAt": getattr(order_data, "deliveredAt", None),
-            "codPaymentReceived": getattr(order_data, 'codPaymentReceived', False),
-            "codPaymentReceivedAt": getattr(order_data, "codPaymentReceivedAt", None),
-            "declineReason": getattr(order_data, "declineReason", None),
-            "cancelledAt": getattr(order_data, "cancelledAt", None),
-            "cancelledBy": getattr(order_data, "cancelledBy", None),
-            "createdAt": getattr(order_data, "createdAt", None) or datetime.now(timezone.utc).isoformat(),
-        }
+    async def create(self, order_data: OrderInternalCreate):
+        order_dict = order_data.model_dump(exclude_unset=True)
+        if not order_data.createdAt:
+            order_dict["createdAt"] = datetime.now(timezone.utc).isoformat()
+            
+        order_dict["orderNumber"] = await self.generateOrderNumber(order_data.userRole or "")
+        return await self.storage.create(order_dict)
 
-        return await self.storage.create(order)
+    async def update(self, id: str, update_data: OrderInternalUpdate):
+        if update_data.status == "out_for_delivery" and update_data.shippedAt is None:
+            update_data.shippedAt = datetime.now(timezone.utc).isoformat()
 
-    async def update(self, id: str, update_data: Any):
-        # Handle status-specific updates (only if not already set)
-        if getattr(update_data, "status", None) == "out_for_delivery":
-            if "shippedAt" not in update_data:
-                update_data.shippedAt = datetime.now(timezone.utc).isoformat()
-
-        if getattr(update_data, "status", None) == "delivered":
-            if "deliveredAt" not in update_data:
+        if update_data.status == "delivered":
+            if update_data.deliveredAt is None:
                 update_data.deliveredAt = datetime.now(timezone.utc).isoformat()
-            # Get order to check payment method
             order = await self.findById(id)
             if order and order.get("paymentMethod") == "cod":
-                if "paymentStatus" not in update_data:
+                if update_data.paymentStatus is None:
                     update_data.paymentStatus = "paid"
-                if "codPaymentReceived" not in update_data:
+                if update_data.codPaymentReceived is None:
                     update_data.codPaymentReceived = True
-                if "codPaymentReceivedAt" not in update_data:
+                if update_data.codPaymentReceivedAt is None:
                     update_data.codPaymentReceivedAt = datetime.now(timezone.utc).isoformat()
-            # Turnaround time (hours) between createdAt and deliveredAt
             try:
                 created_at_str = order.get("createdAt") if order else None
-                delivered_at_str = getattr(update_data, "deliveredAt", None)
-                if created_at_str and delivered_at_str:
+                if created_at_str and update_data.deliveredAt:
                     created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
-                    delivered_at = datetime.fromisoformat(delivered_at_str.replace("Z", "+00:00"))
+                    delivered_at = datetime.fromisoformat(update_data.deliveredAt.replace("Z", "+00:00"))
                     hours = (delivered_at - created_at).total_seconds() / 3600.0
                     update_data.turnaroundHours = round(hours, 2)
             except Exception:
-                logger.exception("Error calculating turnaround time for order")
+                pass
 
-        if getattr(update_data, "status", None) == "shipped" and "shippedAt" not in update_data:
+        if update_data.status == "shipped" and update_data.shippedAt is None:
             update_data.shippedAt = datetime.now(timezone.utc).isoformat()
 
-        if getattr(update_data, "status", None) == "cancelled" and "cancelledAt" not in update_data:
+        if update_data.status == "cancelled" and update_data.cancelledAt is None:
             update_data.cancelledAt = datetime.now(timezone.utc).isoformat()
 
-        return await self.storage.update(id, update_data)
+        return await self.storage.update(id, update_data.model_dump(exclude_unset=True))
 
     async def delete(self, id: str):
         return await self.storage.delete(id)

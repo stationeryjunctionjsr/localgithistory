@@ -47,3 +47,53 @@ class Order(DictCompatibleModel):
     valet_decline_history: List[Any] = Field(default=[], alias="valetDeclineHistory")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
+
+from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
+
+class OrderInternalCreate(BaseModel):
+    userRole: Optional[str] = None
+    user: str
+    sessionId: Optional[str] = None
+    items: List[Any] = Field(default_factory=list)
+    subtotal: float
+    tax: Optional[float] = 0.0
+    shipping: Optional[float] = 0.0
+    discount: Optional[float] = 0.0
+    total: float
+    orderType: str
+    status: str = "pending"
+    paymentStatus: str = "pending"
+    paymentMethod: str = "cod"
+    upiPaymentScreenshot: Optional[str] = None
+    shippingAddress: Dict[str, Any] = Field(default_factory=dict)
+    billingAddress: Dict[str, Any] = Field(default_factory=dict)
+    notes: str = ""
+    printedBill: bool = False
+    assignedValet: Optional[str] = None
+    shippedAt: Optional[str] = None
+    deliveredAt: Optional[str] = None
+    codPaymentReceived: bool = False
+    codPaymentReceivedAt: Optional[str] = None
+    declineReason: Optional[str] = None
+    cancelledAt: Optional[str] = None
+    cancelledBy: Optional[str] = None
+    createdAt: Optional[str] = None
+
+class OrderInternalUpdate(BaseModel, extra='allow'):
+    status: Optional[str] = None
+    shippedAt: Optional[str] = None
+    deliveredAt: Optional[str] = None
+    paymentStatus: Optional[str] = None
+    codPaymentReceived: Optional[bool] = None
+    codPaymentReceivedAt: Optional[str] = None
+    turnaroundHours: Optional[float] = None
+    cancelledAt: Optional[str] = None
+    fulfillmentStatus: Optional[str] = None
+    shipping: Optional[float] = None
+    total: Optional[float] = None
+    assignedValet: Optional[str] = None
+    declineReason: Optional[str] = None
+    pendingValetId: Optional[str] = None
+    valetAssignedAt: Optional[str] = None
+    cancelledBy: Optional[str] = None

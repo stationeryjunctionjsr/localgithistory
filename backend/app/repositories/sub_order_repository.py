@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from app.models.sub_order import SubOrderInternalCreate, SubOrderInternalUpdate
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
 
@@ -16,48 +17,11 @@ class SubOrderRepository:
         suffix = chr(ord("A") + index)
         return f"{parent_order_number}-{suffix}"
 
-    async def create(self, data: Any) -> Dict:
-        sub_order = {
-            "subOrderNumber": data.subOrderNumber,
-            "parentOrderId": data.parentOrderId,
-            "parentOrderNumber": data.parentOrderNumber,
-            "sellerId": getattr(data, "sellerId", None),  # None = platform / super_admin
-            "sellerName": getattr(data, 'sellerName', ""),
-            "user": data.user,
-            "items": getattr(data, 'items', []),
-            "subtotal": float(getattr(data, 'subtotal') or 0),
-            "tax": float(getattr(data, 'tax') or 0),
-            "shipping": float(getattr(data, 'shipping') or 0),
-            "deliveryGst": float(getattr(data, 'deliveryGst') or 0),
-            "discount": float(getattr(data, 'discount') or 0),
-            "total": float(getattr(data, 'total') or 0),
-            "orderType": getattr(data, 'orderType', "b2c"),
-            "status": getattr(data, 'status', "pending"),
-            "paymentMethod": getattr(data, 'paymentMethod', "cod"),
-            "paymentStatus": getattr(data, 'paymentStatus', "pending"),
-            "isUrgentDelivery": getattr(data, 'isUrgentDelivery', False),
-            "deliverySlot": getattr(data, "deliverySlot", None),
-            "shippingAddress": getattr(data, 'shippingAddress', {}),
-            "billingAddress": getattr(data, 'billingAddress', {}),
-            "notes": getattr(data, 'notes', ""),
-            "couponCode": getattr(data, "couponCode", None),
-            "couponInfo": getattr(data, "couponInfo", None),
-            "assignedValet": getattr(data, "assignedValet", None),
-            # Pickup tracking — valet confirms collection from each seller individually
-            "pickupStatus": getattr(data, 'pickupStatus', "pending_pickup"),  # 'pending_pickup' | 'picked_up'
-            "pickedUpAt": getattr(data, "pickedUpAt", None),
-            "shippedAt": getattr(data, "shippedAt", None),
-            "deliveredAt": getattr(data, "deliveredAt", None),
-            "cancelledAt": getattr(data, "cancelledAt", None),
-            "cancelledBy": getattr(data, "cancelledBy", None),
-            "declineReason": getattr(data, "declineReason", None),
-            # Commission fields — populated when delivered
-            "commissionPct": None,
-            "commissionAmount": None,
-            "commissionStatus": None,  # None | 'unrealized' | 'realized'
-            "createdAt": getattr(data, "createdAt", None) or datetime.now(timezone.utc).isoformat(),
-        }
-        return await self.storage.create(sub_order)
+    async def create(self, data: SubOrderInternalCreate) -> Dict:
+        sub_order_dict = data.model_dump(exclude_unset=True)
+        if not data.createdAt:
+            sub_order_dict["createdAt"] = datetime.now(timezone.utc).isoformat()
+        return await self.storage.create(sub_order_dict)
 
     async def findAll(
         self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None
@@ -91,36 +55,33 @@ class SubOrderRepository:
         docs = await self.storage.findAll(query or {})
         return len(docs)
 
-    async def update(self, id: str, update_data: Any) -> Optional[Dict]:
-        # Mirror status-specific timestamps from order_repository
-        if getattr(update_data, "status", None) == "out_for_delivery" and "shippedAt" not in update_data:
+    async def update(self, id: str, update_data: SubOrderInternalUpdate) -> Optional[Dict]:
+        if update_data.status == "out_for_delivery" and update_data.shippedAt is None:
             update_data.shippedAt = datetime.now(timezone.utc).isoformat()
-        if getattr(update_data, "status", None) == "delivered" and "deliveredAt" not in update_data:
+        if update_data.status == "delivered" and update_data.deliveredAt is None:
             update_data.deliveredAt = datetime.now(timezone.utc).isoformat()
-        if getattr(update_data, "status", None) == "shipped" and "shippedAt" not in update_data:
+        if update_data.status == "shipped" and update_data.shippedAt is None:
             update_data.shippedAt = datetime.now(timezone.utc).isoformat()
-        if getattr(update_data, "status", None) == "cancelled" and "cancelledAt" not in update_data:
+        if update_data.status == "cancelled" and update_data.cancelledAt is None:
             update_data.cancelledAt = datetime.now(timezone.utc).isoformat()
-        # Auto-stamp pickedUpAt when valet confirms collection from this seller
-        if getattr(update_data, "pickupStatus", None) == "picked_up" and "pickedUpAt" not in update_data:
+        if update_data.pickupStatus == "picked_up" and update_data.pickedUpAt is None:
             update_data.pickedUpAt = datetime.now(timezone.utc).isoformat() + "Z"
 
-        # Stamp commission when transitioning to 'delivered' (only if not already set)
-        if getattr(update_data, "status", None) == "delivered" and "commissionPct" not in update_data:
+        update_dict = update_data.model_dump(exclude_unset=True)
+
+        if update_data.status == "delivered" and update_data.commissionPct is None:
             existing = await self.storage.findById(id)
             if existing and existing.get("commissionStatus") is None:
                 try:
                     from app.routers.commission import stamp_commission_on_delivery
-
                     commission_fields = await stamp_commission_on_delivery(existing)
-                    update_data.update(commission_fields)
-                    # Ensure deliveredAt is in the existing snapshot for realize-check
+                    update_dict.update(commission_fields)
                     if "deliveredAt" not in commission_fields:
-                        update_data.setdefault("deliveredAt", datetime.now(timezone.utc).isoformat())
+                        update_dict.setdefault("deliveredAt", datetime.now(timezone.utc).isoformat())
                 except Exception as e:
-                    logger.warning("Could not stamp commission on delivery for sub-order %s: %s", id, e)
+                    pass
 
-        return await self.storage.update(id, update_data)
+        return await self.storage.update(id, update_dict)
 
     async def delete(self, id: str):
         return await self.storage.delete(id)

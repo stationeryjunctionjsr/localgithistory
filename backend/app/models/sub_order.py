@@ -48,3 +48,55 @@ class SubOrder(DictCompatibleModel):
     picked_up_at: Optional[datetime] = Field(default=None, alias='pickedUpAt')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')
     updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
+
+from pydantic import BaseModel, Field
+
+class SubOrderInternalCreate(BaseModel):
+    subOrderNumber: str
+    parentOrderId: str
+    parentOrderNumber: str
+    sellerId: Optional[str] = None
+    sellerName: str = ""
+    user: str
+    items: List[Any] = Field(default_factory=list)
+    subtotal: float = 0.0
+    tax: float = 0.0
+    shipping: float = 0.0
+    deliveryGst: float = 0.0
+    discount: float = 0.0
+    total: float = 0.0
+    orderType: str = "b2c"
+    status: str = "pending"
+    paymentMethod: str = "cod"
+    paymentStatus: str = "pending"
+    isUrgentDelivery: bool = False
+    deliverySlot: Optional[Dict[str, Any]] = None
+    shippingAddress: Dict[str, Any] = Field(default_factory=dict)
+    billingAddress: Dict[str, Any] = Field(default_factory=dict)
+    notes: str = ""
+    couponCode: Optional[str] = None
+    couponInfo: Optional[Dict[str, Any]] = None
+    assignedValet: Optional[str] = None
+    pickupStatus: str = "pending_pickup"
+    pickedUpAt: Optional[str] = None
+    shippedAt: Optional[str] = None
+    deliveredAt: Optional[str] = None
+    cancelledAt: Optional[str] = None
+    cancelledBy: Optional[str] = None
+    declineReason: Optional[str] = None
+    commissionPct: Optional[float] = None
+    commissionAmount: Optional[float] = None
+    commissionStatus: Optional[str] = None
+    createdAt: Optional[str] = None
+
+class SubOrderInternalUpdate(BaseModel, extra='allow'):
+    status: Optional[str] = None
+    shippedAt: Optional[str] = None
+    deliveredAt: Optional[str] = None
+    cancelledAt: Optional[str] = None
+    pickupStatus: Optional[str] = None
+    pickedUpAt: Optional[str] = None
+    commissionPct: Optional[float] = None
+    commissionAmount: Optional[float] = None
+    commissionStatus: Optional[str] = None
+    assignedValet: Optional[str] = None
