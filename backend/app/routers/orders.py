@@ -1954,8 +1954,7 @@ async def update_order_status(
                 continue
             if status_data.status == "cancelled":
                 await sub_order_repository.update(
-                    _so_id,
-                    OrderInternalUpdate(**{
+                    _so_id, SubOrderInternalUpdate(**{
                         "status": "cancelled",
                         "cancelledAt": _dt.utcnow().isoformat() + "Z",
                     }),
@@ -1973,7 +1972,7 @@ async def update_order_status(
                     _cascade.update(_comm)
                 except Exception as _ce:
                     logger.warning("Commission stamp failed for sub-order %s: %s", _so_id, _ce)
-                await sub_order_repository.update(_so_id, OrderInternalUpdate(**_cascade))
+                await sub_order_repository.update(_so_id, SubOrderInternalUpdate(**_cascade))
 
     # Recompute parent fulfillmentStatus from all sub-orders
     _f_status = await _compute_fulfillment_status(updated_order.get("subOrderIds") or [])
@@ -2414,8 +2413,7 @@ async def valet_response(
                 _so_id = str(_so.id)
                 # Set assignedValet on each sub-order so sellers can see who's picking up
                 await sub_order_repository.update(
-                    _so_id,
-                    OrderInternalUpdate(**{
+                    _so_id, SubOrderInternalUpdate(**{
                         "assignedValet": valet_id,
                         "pickupStatus": "pending_pickup",
                     }),
@@ -2618,7 +2616,7 @@ async def confirm_sub_order_pickup(
         raise HTTPException(status_code=400, detail="Pickup already confirmed for this seller")
 
     # Mark this sub-order as picked up (pickedUpAt is auto-stamped by the repository)
-    await sub_order_repository.update(sub_order_id, OrderInternalUpdate(**{"pickupStatus": "picked_up"}))
+    await sub_order_repository.update(sub_order_id, SubOrderInternalUpdate(**{"pickupStatus": "picked_up"}))
 
     # Re-fetch all sibling sub-orders to check if ALL pickups are done
     all_sub_orders = await sub_order_repository.findByParentOrder(order_id)
@@ -2892,7 +2890,7 @@ async def update_seller_order_status(
     elif status_data.status == "shipped":
         update_fields["shippedAt"] = _dt.utcnow().isoformat() + "Z"
 
-    updated = await sub_order_repository.update(sub_order_id, OrderInternalUpdate(**update_fields))
+    updated = await sub_order_repository.update(sub_order_id, SubOrderInternalUpdate(**update_fields))
 
     # Bubble up: recalculate parent fulfillmentStatus
     parent_id = sub_order.parent_order_id
@@ -2951,6 +2949,7 @@ async def get_all_sub_orders(
         "page": page,
         "limit": limit,
     }
+
 
 
 

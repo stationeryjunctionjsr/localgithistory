@@ -58,13 +58,13 @@ class SubOrderInternalCreate(BaseModel):
     sellerId: Optional[str] = None
     sellerName: str = ""
     user: str
-    items: List[Any] = Field(default_factory=list)
-    subtotal: float = 0.0
-    tax: float = 0.0
-    shipping: float = 0.0
-    deliveryGst: float = 0.0
-    discount: float = 0.0
-    total: float = 0.0
+    items: List[SubOrderItem] = Field(default_factory=list)
+    subtotal: float
+    tax: float
+    shipping: float
+    deliveryGst: float
+    discount: float
+    total: float
     orderType: str = "b2c"
     status: str = "pending"
     paymentMethod: str = "cod"
@@ -89,7 +89,7 @@ class SubOrderInternalCreate(BaseModel):
     commissionStatus: Optional[str] = None
     createdAt: Optional[str] = None
 
-class SubOrderInternalUpdate(BaseModel, extra='allow'):
+class SubOrderInternalUpdate(BaseModel, extra='forbid'):
     status: Optional[str] = None
     shippedAt: Optional[str] = None
     deliveredAt: Optional[str] = None
@@ -100,3 +100,5 @@ class SubOrderInternalUpdate(BaseModel, extra='allow'):
     commissionAmount: Optional[float] = None
     commissionStatus: Optional[str] = None
     assignedValet: Optional[str] = None
+
+

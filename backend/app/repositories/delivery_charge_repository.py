@@ -66,8 +66,8 @@ class DeliveryChargeRepository:
             # Only use tiers (no single charge fallback)
             "tiers": [
                 {
-                    "maxAmount": "Infinity" if tier.get("maxAmount") == "Infinity" else float(tier.get("maxAmount") or 0),
-                    "charge": float(tier.get("charge") or 0),
+                    "maxAmount": "Infinity" if tier.get("maxAmount") == "Infinity" else float(tier.get("maxAmount")),
+                    "charge": float(tier.get("charge")),
                 }
                 for tier in default_data.get("tiers", [])
             ],
@@ -289,7 +289,7 @@ class DeliveryChargeRepository:
 
             if order_amount < max_amount:
                 return {
-                    "charge": float(tier.get("charge") or 0),
+                    "charge": float(tier.get("charge")),
                     "minCartValue": max_amount if max_amount != float("inf") else 0,
                     "tier": tier,
                 }
@@ -297,7 +297,7 @@ class DeliveryChargeRepository:
         # If no tier found, return the last tier (highest tier)
         last_tier = sorted_tiers[-1]
         return {
-            "charge": float(last_tier.get("charge") or 0),
+            "charge": float(last_tier.get("charge")),
             "minCartValue": get_max_amount(last_tier) if get_max_amount(last_tier) != float("inf") else 0,
             "tier": last_tier,
         }
@@ -375,4 +375,5 @@ class DeliveryChargeRepository:
 
 
 delivery_charge_repository = DeliveryChargeRepository()
+
 

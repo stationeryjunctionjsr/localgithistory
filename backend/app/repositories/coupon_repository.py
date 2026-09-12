@@ -443,7 +443,7 @@ class CouponRepository:
             "method": method,
             "discountType": getattr(coupon_data, 'discountType', "percentage"),
             "discountValue": float(coupon_data.discountValue),
-            "minPurchaseAmount": float(getattr(coupon_data, 'minPurchaseAmount') or 0),
+            "minPurchaseAmount": float(getattr(coupon_data, 'minPurchaseAmount')),
             "minRequirementType": getattr(coupon_data, 'minRequirementType', "none"),
             "minQuantityOfEligibleItems": int(coupon_data.minQuantityOfEligibleItems)
             if getattr(coupon_data, "minQuantityOfEligibleItems", None) is not None
@@ -1322,5 +1322,6 @@ def get_coupon_description(c: Any) -> str:
 
 
 coupon_repository = CouponRepository()
+
 
 

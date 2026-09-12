@@ -1,3 +1,4 @@
+from app.models.schemas import OrderItem
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
@@ -43,7 +44,7 @@ class Order(DictCompatibleModel):
     cancelled_at: Optional[datetime] = Field(default=None, alias="cancelledAt")
     cancelled_by: Optional[str] = Field(default=None, alias="cancelledBy")
     turnaround_hours: Optional[float] = Field(default=None, alias="turnaroundHours")
-    items: List[Any] = []
+    items: List['OrderItem'] = []
     valet_decline_history: List[Any] = Field(default=[], alias="valetDeclineHistory")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
@@ -55,11 +56,11 @@ class OrderInternalCreate(BaseModel):
     userRole: Optional[str] = None
     user: str
     sessionId: Optional[str] = None
-    items: List[Any] = Field(default_factory=list)
+    items: List['OrderItem'] = Field(default_factory=list)
     subtotal: float
-    tax: Optional[float] = 0.0
-    shipping: Optional[float] = 0.0
-    discount: Optional[float] = 0.0
+    tax: float
+    shipping: float
+    discount: float
     total: float
     orderType: str
     status: str = "pending"
@@ -80,7 +81,7 @@ class OrderInternalCreate(BaseModel):
     cancelledBy: Optional[str] = None
     createdAt: Optional[str] = None
 
-class OrderInternalUpdate(BaseModel, extra='allow'):
+class OrderInternalUpdate(BaseModel, extra='forbid'):
     status: Optional[str] = None
     shippedAt: Optional[str] = None
     deliveredAt: Optional[str] = None
@@ -97,3 +98,6 @@ class OrderInternalUpdate(BaseModel, extra='allow'):
     pendingValetId: Optional[str] = None
     valetAssignedAt: Optional[str] = None
     cancelledBy: Optional[str] = None
+
+
+
