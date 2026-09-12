@@ -182,7 +182,7 @@ class MySQLPaymentDAO:
         factory = self._factory()
         if not factory:
             return None
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
                 text(

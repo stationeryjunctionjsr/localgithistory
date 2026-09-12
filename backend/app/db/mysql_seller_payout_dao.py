@@ -29,7 +29,7 @@ class MySQLSellerPayoutDAO:
 
     async def _fetch_sub_orders(self, payout_id: str) -> List[str]:
         factory = self._factory()
-        pid = int(payout_id) if str(payout_id).isdigit() else 0
+        pid = int(payout_id) if str(payout_id).isdigit() else None
         async with factory() as session:
             rows = (await session.execute(
                 text("SELECT sub_order_id FROM sj_seller_payout_sub_orders WHERE payout_id = :id"),
@@ -82,7 +82,7 @@ class MySQLSellerPayoutDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(

@@ -75,7 +75,7 @@ class MySQLBrandDAO:
         factory = self._factory()
         if not factory:
             return None
-        bid = int(id) if str(id).isdigit() else 0
+        bid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
                 text(

@@ -124,10 +124,10 @@ class MySQLOrderDAO:
             for k, v in query.items():
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else 0
+                    params["id"] = int(v) if str(v).isdigit() else None
                 elif k == "user":
                     where_clauses.append("user_id = :user_id")
-                    params["user_id"] = int(v) if str(v).isdigit() else 0
+                    params["user_id"] = int(v) if str(v).isdigit() else None
                 elif k == "status":
                     where_clauses.append("status = :status")
                     params["status"] = v
@@ -241,7 +241,7 @@ class MySQLOrderDAO:
         factory = self._factory()
         if not factory:
             return None
-        oid = int(id) if str(id).isdigit() else 0
+        oid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
                 text(

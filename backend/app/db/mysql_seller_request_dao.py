@@ -120,7 +120,7 @@ class MySQLSellerRequestDAO:
             for k, v in query.items():
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else 0
+                    params["id"] = int(v) if str(v).isdigit() else None
                 elif k == "user":
                     where_clauses.append("user_id = :user_id")
                     params["user_id"] = str(v)

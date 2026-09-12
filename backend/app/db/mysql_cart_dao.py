@@ -47,10 +47,10 @@ class MySQLCartDAO:
             for k, v in query.items():
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else 0
+                    params["id"] = int(v) if str(v).isdigit() else None
                 elif k in ("user", "user_id"):
                     where_clauses.append("user_id = :user_id")
-                    params["user_id"] = int(v) if str(v).isdigit() else 0
+                    params["user_id"] = int(v) if str(v).isdigit() else None
                 elif k == "external_id":
                     where_clauses.append("external_id = :external_id")
                     params["external_id"] = str(v)

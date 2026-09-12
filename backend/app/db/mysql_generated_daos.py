@@ -130,7 +130,7 @@ class DynamicRelationalDAO:
             for k, v in query.items():
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else 0
+                    params["id"] = int(v) if str(v).isdigit() else None
                 elif k in self.scalar_map:
                     where_clauses.append(f"{self.scalar_map[k]} = :{k}")
                     params[k] = v

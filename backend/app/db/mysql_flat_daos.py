@@ -58,7 +58,7 @@ class MySQLReturnSettingsDAO:
 
     async def findById(self, id: str) -> Optional[Dict]:
         factory = self._factory()
-        pid = int(id) if str(id).isdigit() else 0
+        pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             row = (
                 await session.execute(

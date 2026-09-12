@@ -106,7 +106,7 @@ class MySQLCategoryDAO:
             for k, v in query.items():
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else 0
+                    params["id"] = int(v) if str(v).isdigit() else None
                 elif k == "isActive":
                     where_clauses.append("is_active = :is_active")
                     params["is_active"] = int(bool(v))

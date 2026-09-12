@@ -43,7 +43,7 @@ class MySQLCommissionSettingsDAO:
             for k, v in query.items():
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else 0
+                    params["id"] = int(v) if str(v).isdigit() else None
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:

@@ -1234,7 +1234,7 @@ async def create_order(
                     async with factory() as session:
                         result = await session.execute(
                             text(f"SELECT doc FROM {slot_storage.table_name} WHERE id = :id FOR UPDATE"),
-                            {"id": int(db_id) if str(db_id).isdigit() else 0},
+                            {"id": int(db_id) if str(db_id).isdigit() else None},
                         )
                         row = result.fetchone()
                         if row and row.doc:
@@ -1252,7 +1252,7 @@ async def create_order(
                                 text(
                                     f"UPDATE {slot_storage.table_name} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :id"
                                 ),
-                                {"doc": json.dumps(doc, default=str), "id": int(db_id) if str(db_id).isdigit() else 0},
+                                {"doc": json.dumps(doc, default=str), "id": int(db_id) if str(db_id).isdigit() else None},
                             )
                             await session.commit()
         except Exception as e:

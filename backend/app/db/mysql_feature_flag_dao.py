@@ -76,7 +76,7 @@ class MySQLFeatureFlagDAO:
         factory = self._factory()
         if not factory:
             return None
-        fid = int(id) if str(id).isdigit() else 0
+        fid = int(id) if str(id).isdigit() else None
         async with factory() as session:
             result = await session.execute(
                 text(

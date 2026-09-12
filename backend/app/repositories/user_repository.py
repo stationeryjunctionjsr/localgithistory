@@ -215,7 +215,7 @@ class UserRepository:
             if not row:
                 return None
 
-            new_credit_used = max(0, float(row.credit_used or 0) + amount)
+            new_credit_used = max(0, float(row.credit_used) + amount)
             now = datetime.now(timezone.utc).isoformat()
             
             await session.execute(
@@ -228,4 +228,5 @@ class UserRepository:
 
 
 user_repository = UserRepository()
+
 

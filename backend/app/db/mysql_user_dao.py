@@ -320,7 +320,7 @@ class MySQLUserDAO:
                        created_at, updated_at
                 FROM {self.TABLE} WHERE id = :id
             """),
-                    {"id": int(id) if str(id).isdigit() else 0},
+                    {"id": int(id) if str(id).isdigit() else None},
                 )
             ).fetchone()
             if not row:

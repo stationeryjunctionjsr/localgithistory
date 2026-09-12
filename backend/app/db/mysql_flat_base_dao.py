@@ -141,7 +141,7 @@ class MySQLFlatBaseDAO:
             for k, v in query.items():
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else 0
+                    params["id"] = int(v) if str(v).isdigit() else None
                 elif k in self.scalar_map:
                     col = self.scalar_map[k]
                     p = _param(col)
@@ -170,7 +170,7 @@ class MySQLFlatBaseDAO:
         factory = self._factory()
         if not factory:
             return None
-        pk = int(id) if str(id).isdigit() else 0
+        pk = int(id) if str(id).isdigit() else None
         cols = ", ".join(self._all_columns())
         async with factory() as session:
             result = await session.execute(

@@ -66,7 +66,7 @@ class MySQLValetAvailabilityDAO:
             for k, v in query.items():
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else 0
+                    params["id"] = int(v) if str(v).isdigit() else None
                 elif k == "valetId":
                     where_clauses.append("valet_id = :valet_id")
                     params["valet_id"] = str(v)
