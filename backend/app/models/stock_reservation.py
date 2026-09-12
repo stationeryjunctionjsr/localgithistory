@@ -4,7 +4,7 @@ from pydantic import Field, ConfigDict
 from app.models.core import DictCompatibleModel
 
 class StockReservation(DictCompatibleModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
     id: int
     external_id: str

@@ -26,8 +26,9 @@ class Product(DictCompatibleModel):
     collection: Optional[str] = None
     tags: List[str] = []
     variant_attributes: List[Any] = Field(default=[], alias="variantAttributes")
-    sellers: List[dict] = []
+    sellers: List[Any] = []
     variants: List[Any] = []
     details: Dict[str, Any] = {}
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
+

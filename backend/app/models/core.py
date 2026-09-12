@@ -3,7 +3,7 @@ from typing import ClassVar, Dict, Optional
 
 class DictCompatibleModel(BaseModel):
     """A bridge model that previously supported fast dictionary-like access. Now strictly Pydantic."""
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='allow')
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     
     _alias_map: ClassVar[Optional[Dict[str, str]]] = None
 

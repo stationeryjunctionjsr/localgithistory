@@ -73,15 +73,15 @@ class BannerPosition(str, Enum):
 
 # User Schemas
 class UserBase(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: UserRole
     phone: Optional[str] = None
     alternatePhone: Optional[str] = None
     companyName: Optional[str] = None
     gstin: Optional[str] = None
-    address: Optional[Dict[str, Any]] = None
-    savedAddresses: List[Dict[str, Any]] = Field(default=[], description="List of saved addresses for the user")
+    address: Optional[AddressSnippet] = None
+    savedAddresses: List[AddressSnippet] = Field(default=[], description="List of saved addresses for the user")
     referralCode: Optional[str] = Field(default=None, description="Referral code used to sign up")
     isEmailVerified: Optional[bool] = False
     preferredLanguage: Optional[str] = Field(default="en", description="User's preferred UI language (BCP-47 code, e.g. 'hi', 'ta')")
@@ -157,14 +157,14 @@ SUPPORTED_LANGUAGES = {"en", "hi", "bn", "te", "mr", "ta", "gu", "kn", "ml", "pa
 
 
 class UserUpdate(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     alternatePhone: Optional[str] = None
     companyName: Optional[str] = None
     gstin: Optional[str] = None
-    address: Optional[Dict[str, Any]] = None
-    savedAddresses: Optional[List[Dict[str, Any]]] = None
+    address: Optional[AddressSnippet] = None
+    savedAddresses: Optional[List[AddressSnippet]] = None
     locationLink: Optional[str] = None
     approvalStatus: Optional[ApprovalStatus] = None
     isActive: Optional[bool] = None
@@ -215,7 +215,7 @@ class UserUpdate(BaseModel):
     assignedSalesperson: Optional[str] = None
     referralCode: Optional[str] = None
     isSellerAdmin: Optional[bool] = None
-    sellerPermissions: Optional[Dict[str, Any]] = None
+    sellerPermissions: Optional[SellerPermissionSnippet] = None
     commissionOverridePct: Optional[float] = None
     preferredLanguage: Optional[str] = None
 
@@ -235,19 +235,19 @@ class UserResponse(UserBase):
     assignedSalesperson: Optional[str] = None
     referralCode: Optional[str] = None
     isSellerAdmin: Optional[bool] = False
-    sellerPermissions: Optional[Dict[str, Any]] = None
+    sellerPermissions: Optional[SellerPermissionSnippet] = None
     commissionOverridePct: Optional[float] = None
     createdAt: str
     updatedAt: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Product Variation Schema
 class ProductVariation(BaseModel):
-        name: str  # Variation name (e.g., "Color", "Size", "Pages")
+    name: str  # Variation name (e.g., "Color", "Size", "Pages")
     type: str  # Variation type (e.g., "color", "size", "pages", "quantity")
-    options: List[Dict[str, Any]]  # List of options with value, price, stock, etc.
+    options: List[VariantOption]  # List of options with value, price, stock, etc.
     # Example: [{"value": "Red", "priceModifier": 0, "stock": 10}, {"value": "Blue", "priceModifier": 5, "stock": 15}]
 
 
@@ -304,7 +304,7 @@ class BundlesListResponse(BaseModel):
     total: int
 
 class ProductBase(BaseModel):
-        name: str
+    name: str
     sku: Optional[str] = None
     category: str
     subCategory: Optional[str] = None
@@ -324,10 +324,10 @@ class ProductBase(BaseModel):
     variantAttributes: Optional[List[str]] = Field(
         default=None, description="List of variant attribute names like Color, Size"
     )
-    variants: Optional[List[Dict[str, Any]]] = Field(
+    variants: Optional[List[VariantOption]] = Field(
         default=None, description="Actual combinations of attributes with stock and price"
     )
-    sellers: Optional[List[Dict[str, Any]]] = None
+    sellers: Optional[List[UserSnippet]] = None
     catalogSellerIds: Optional[List[str]] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
@@ -353,7 +353,7 @@ class ProductCreate(ProductBase):
 
 
 class ProductUpdate(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     sku: Optional[str] = None
     category: Optional[str] = None
     subCategory: Optional[str] = None
@@ -411,9 +411,9 @@ class ProductUpdate(BaseModel):
     referralCode: Optional[str] = None
     isExclusive: Optional[bool] = None
     tags: Optional[List[str]] = None
-    variations: Optional[List[Dict[str, Any]]] = None
+    variations: Optional[List[VariantOption]] = None
     variantAttributes: Optional[List[str]] = None
-    variants: Optional[List[Dict[str, Any]]] = None
+    variants: Optional[List[VariantOption]] = None
 
 
 
@@ -428,16 +428,16 @@ class CouponValidationResponse(BaseModel):
     discount: float
 
 class CouponValidateCart(BaseModel):
-        """Validate discount against cart: backend computes eligible subtotal from items."""
+    """Validate discount against cart: backend computes eligible subtotal from items."""
 
     code: str
-    items: List[Dict[str, Any]]  # [{ productId, quantity, sellAsCase? }]
-    shippingAddress: Optional[Dict[str, Any]] = None
+    items: List[ItemSnippet]  # [{ productId, quantity, sellAsCase? }]
+    shippingAddress: Optional[AddressSnippet] = None
 
 
 # Discount Scheme Schemas (Business Segment / wholesaler)
 class SchemeResponse(BaseModel):
-        id: str = Field(alias="_id")
+    id: str = Field(alias="_id")
     name: str
     description: Optional[str] = None
     discountType: str  # percentage | fixed
@@ -449,12 +449,12 @@ class SchemeResponse(BaseModel):
     applicableRoles: List[str] = ["wholesaler"]
     code: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Banner Schemas
 class BannerBase(BaseModel):
-        title: Optional[str] = None
+    title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: str
     displayOrder: Optional[int] = None
@@ -462,7 +462,7 @@ class BannerBase(BaseModel):
     endDate: Optional[str] = None
     isActive: bool = True
     isPublished: bool = False
-    visibilityRules: List[Dict[str, Any]] = []
+    visibilityRules: List[VisibilityRuleSnippet] = []
     userSegments: List[str] = ["all"]
     linkUrl: Optional[str] = None
     position: Optional[str] = None
@@ -474,7 +474,7 @@ class BannerCreate(BannerBase):
 
 
 class BannerUpdate(BaseModel):
-        title: Optional[str] = None
+    title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     displayOrder: Optional[int] = None
@@ -524,7 +524,7 @@ class BannerUpdate(BaseModel):
     serviceAreaZones: Optional[List[str]] = None
     referralCode: Optional[str] = None
     isPublished: Optional[bool] = None
-    visibilityRules: Optional[List[Dict[str, Any]]] = None
+    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
     userSegments: Optional[List[str]] = None
     linkUrl: Optional[str] = None
 
@@ -533,9 +533,9 @@ class BannerResponse(BannerBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Brand Schemas
@@ -551,7 +551,7 @@ class BrandResponse(BaseModel):
     updatedAt: Optional[str] = None
 
 class BrandCreate(BaseModel):
-        name: str
+    name: str
     logoUrl: Optional[str] = ""
     showInMobileHomepage: bool = False
     isActive: Optional[bool] = True
@@ -559,7 +559,7 @@ class BrandCreate(BaseModel):
 
 
 class BrandUpdate(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     logoUrl: Optional[str] = None
     showInMobileHomepage: Optional[bool] = None
     isActive: Optional[bool] = None
@@ -624,7 +624,7 @@ class BrandUpdate(BaseModel):
 
 # Auth Schemas
 class LoginRequest(BaseModel):
-        email: Optional[EmailStr] = None
+    email: Optional[EmailStr] = None
     phone: Optional[str] = None
     password: str
 
@@ -637,7 +637,7 @@ class LoginRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-        # name and email are Optional at the API level to support the checkout
+    # name and email are Optional at the API level to support the checkout
     # registration flow (which only requires phone + password).
     # The regular Create Account pages enforce name & email via frontend validation.
     name: Optional[str] = None
@@ -646,14 +646,14 @@ class RegisterRequest(BaseModel):
     phone: str  # Always mandatory
     role: UserRole = UserRole.CUSTOMER  # Default to customer
     companyName: Optional[str] = None
-    address: Optional[Dict[str, Any]] = None
+    address: Optional[AddressSnippet] = None
     msg91Token: Optional[str] = None  # Token from MSG91 Widget/SDK
     otp: Optional[str] = None
     deviceId: Optional[str] = None
 
 
 class AuthResponse(BaseModel):
-        token: str
+    token: str
     refreshToken: Optional[str] = None
     sessionId: Optional[str] = None
     user: UserResponse
@@ -662,7 +662,7 @@ class AuthResponse(BaseModel):
 
 # Contact Schemas
 class Address(BaseModel):
-        address: Optional[str] = None
+    address: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
     district: Optional[str] = None
@@ -674,7 +674,7 @@ class Address(BaseModel):
 
 
 class SocialMedia(BaseModel):
-        instagram: Optional[str] = None
+    instagram: Optional[str] = None
     facebook: Optional[str] = None
     twitter: Optional[str] = None
     whatsapp: Optional[str] = None
@@ -683,7 +683,7 @@ class SocialMedia(BaseModel):
 
 
 class ContactBase(BaseModel):
-        addresses: Optional[List[Address]] = None  # Up to 2 addresses
+    addresses: Optional[List[Address]] = None  # Up to 2 addresses
     phoneNumbers: Optional[List[str]] = None  # Up to 3 phone numbers
     email: Optional[str] = None
     description: Optional[str] = None
@@ -724,7 +724,7 @@ class ContactCreate(ContactBase):
 
 
 class ContactUpdate(BaseModel):
-        addresses: Optional[List[Address]] = None
+    addresses: Optional[List[Address]] = None
     phoneNumbers: Optional[List[str]] = None
     email: Optional[str] = None
     description: Optional[str] = None
@@ -779,14 +779,14 @@ class ContactResponse(ContactBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Support Ticket Schemas
 class SupportTicketBase(BaseModel):
-        name: str
+    name: str
     email: str
     phone: str
     company: Optional[str] = None
@@ -802,13 +802,13 @@ class SupportTicketCreate(SupportTicketBase):
 
 
 class SupportTicketUpdate(BaseModel):
-        status: Optional[str] = None  # open, in_progress, resolved, closed
+    status: Optional[str] = None  # open, in_progress, resolved, closed
     priority: Optional[str] = None
     assignedTo: Optional[str] = None
 
 
 class TicketResponseCreate(BaseModel):
-        message: str
+    message: str
     attachments: Optional[List[str]] = None
 
 
@@ -823,14 +823,14 @@ class SupportTicketResponse(SupportTicketBase):
     closedAt: Optional[str] = None
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Delivery Charge Schemas
 class DeliveryChargeBase(BaseModel):
-        pincode: str
+    pincode: str
     state: str
     city: Optional[str] = ""
     district: str
@@ -853,7 +853,7 @@ class DeliveryChargeCreate(DeliveryChargeBase):
 
 
 class DeliveryChargeUpdate(BaseModel):
-        pincode: Optional[str] = None
+    pincode: Optional[str] = None
     state: Optional[str] = None
     city: Optional[str] = None
     district: Optional[str] = None
@@ -916,17 +916,17 @@ class DeliveryChargeResponse(DeliveryChargeBase):
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Default Delivery Charge Schema
 class DeliveryTier(BaseModel):
-        maxAmount: Union[float, str]  # Can be a number or "Infinity"
+    maxAmount: Union[float, str]  # Can be a number or "Infinity"
     charge: float
 
 
 class DefaultDeliveryChargeBase(BaseModel):
-        tiers: List[DeliveryTier]
+    tiers: List[DeliveryTier]
     applicableToWholesaler: bool = True
     deliveryChargeGst: bool = False
     deliveryChargeGstPercentage: float = 18.0
@@ -944,12 +944,12 @@ class DefaultDeliveryChargeResponse(DefaultDeliveryChargeBase):
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Order Feedback Schemas
 class OrderFeedbackBase(BaseModel):
-        orderId: Optional[str] = None
+    orderId: Optional[str] = None
     rating: int  # 1-5
     comment: Optional[str] = None
     deliveryRating: Optional[int] = None  # 1-5
@@ -966,14 +966,14 @@ class OrderFeedbackResponse(OrderFeedbackBase):
     userId: str
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Coach Mark Schemas
 class CoachMarkBase(BaseModel):
-        anchorId: str
+    anchorId: str
     title: str
     description: str
     screenName: Optional[str] = None
@@ -986,7 +986,7 @@ class CoachMarkCreate(CoachMarkBase):
 
 
 class CoachMarkUpdate(BaseModel):
-        title: Optional[str] = None
+    title: Optional[str] = None
     description: Optional[str] = None
     sequenceOrder: Optional[int] = None
     isActive: Optional[bool] = None
@@ -1038,14 +1038,14 @@ class CoachMarkResponse(CoachMarkBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Search Tag Schemas
 class SearchTagBase(BaseModel):
-        tagId: Optional[str] = None
+    tagId: Optional[str] = None
     name: str
     type: Literal["Occasion", "Intent", "Recipient"]
     isActive: bool = True
@@ -1062,7 +1062,7 @@ class SearchTagCreate(SearchTagBase):
 
 
 class SearchTagUpdate(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     type: Optional[Literal["Occasion", "Intent", "Recipient"]] = None
     isActive: Optional[bool] = None
     password: Optional[str] = None
@@ -1119,14 +1119,14 @@ class SearchTagResponse(SearchTagBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Collection Schemas
 class CollectionBase(BaseModel):
-        name: str
+    name: str
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     isActive: bool = True
@@ -1134,7 +1134,7 @@ class CollectionBase(BaseModel):
     productIds: List[str] = []
     visiblePages: List[str] = ["Home"]
     userSegments: List[str] = ["all"]
-    visibilityRules: List[Dict[str, Any]] = []
+    visibilityRules: List[VisibilityRuleSnippet] = []
 
 
 class CollectionCreate(CollectionBase):
@@ -1142,7 +1142,7 @@ class CollectionCreate(CollectionBase):
 
 
 class CollectionUpdate(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     isActive: Optional[bool] = None
@@ -1192,58 +1192,58 @@ class CollectionUpdate(BaseModel):
     productIds: Optional[List[str]] = None
     visiblePages: Optional[List[str]] = None
     userSegments: Optional[List[str]] = None
-    visibilityRules: Optional[List[Dict[str, Any]]] = None
+    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
 
 
 class CollectionResponse(CollectionBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Referral Schemas
 class ReferralSegmentSetting(BaseModel):
-        segment: str  # "retail" or "business"
+    segment: str  # "retail" or "business"
     discountType: DiscountType = DiscountType.PERCENTAGE
     discountValue: float = 0
     isActive: bool = False
 
 
 class ReferralSettingsResponse(BaseModel):
-        retail: ReferralSegmentSetting
+    retail: ReferralSegmentSetting
     business: ReferralSegmentSetting
 
 
 class ReferralVerifyRequest(BaseModel):
-        code: str
+    code: str
 
 
 class ReferralVerifyResponse(BaseModel):
-        valid: bool
+    valid: bool
     discountType: DiscountType
     discountValue: float
     referrerName: str
 
 
 class ReferralEligibilityResponse(BaseModel):
-        eligible: bool
+    eligible: bool
     discountType: Optional[DiscountType] = None
     discountValue: Optional[float] = None
     message: Optional[str] = None
 
 
 class ReferralPublicSchemeResponse(BaseModel):
-        isActive: bool
+    isActive: bool
     discountType: DiscountType
     discountValue: float
 
 
 # Return Feature Schemas
 class ReturnSettingsBase(BaseModel):
-        returnDays: int = 7
+    returnDays: int = 7
 
 
 class ReturnSettingsResponse(ReturnSettingsBase):
@@ -1251,17 +1251,17 @@ class ReturnSettingsResponse(ReturnSettingsBase):
 
 
 class ReturnSettingsUpdate(BaseModel):
-        returnDays: Optional[int] = None
+    returnDays: Optional[int] = None
 
 
 class ReturnItemSchema(BaseModel):
-        productId: str
+    productId: str
     quantity: int
     reason: str
 
 
 class ReturnRequestBase(BaseModel):
-        orderId: str
+    orderId: str
     items: List[ReturnItemSchema]
     sellerId: Optional[str] = None
     deliverySlotId: Optional[str] = None
@@ -1276,17 +1276,17 @@ class ReturnRequestCreate(ReturnRequestBase):
 
 
 class ReturnRequestUpdate(BaseModel):
-        status: Optional[ReturnRequestStatus] = None
+    status: Optional[ReturnRequestStatus] = None
     valetId: Optional[str] = None
     deliveryCharge: Optional[float] = None
     notes: Optional[str] = None
 
 
 class ReturnRequestResponse(BaseModel):
-        id: str = Field(alias="_id")
+    id: str = Field(alias="_id")
     orderId: str
     userId: str
-    items: List[Dict[str, Any]]  # populated items
+    items: List[ItemSnippet]  # populated items
     sellerId: Optional[str] = None
     deliverySlotId: Optional[str] = None
     deliverySlotDate: Optional[str] = None
@@ -1295,18 +1295,18 @@ class ReturnRequestResponse(BaseModel):
     notes: Optional[str] = None
     status: ReturnRequestStatus
     valetId: Optional[str] = None
-    valet: Optional[Dict[str, Any]] = None  # populated valet
+    valet: Optional[ValetSnippet] = None  # populated valet
     pendingValetId: Optional[str] = None
-    valetDeclineHistory: Optional[List[Dict[str, Any]]] = None
+    valetDeclineHistory: Optional[List[ValetDeclineSnippet]] = None
     valetCascadeCount: Optional[int] = None
     valetAssignedAt: Optional[str] = None
-    user: Optional[Dict[str, Any]] = None  # populated user
+    user: Optional[UserSnippet] = None  # populated user
     deliveryCharge: float
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 class ProductResponse(ProductBase):
@@ -1317,19 +1317,19 @@ class ProductResponse(ProductBase):
     originalPrice: Optional[float] = None
     discountPercentage: Optional[float] = None
     defaultDiscountPercentage: Optional[float] = None
-    applicableDiscounts: Optional[List[Dict[str, Any]]] = None
-    variations: Optional[List[Dict[str, Any]]] = None
+    applicableDiscounts: Optional[List[DiscountSnippet]] = None
+    variations: Optional[List[VariantOption]] = None
     searchTags: Optional[List[str]] = None
     gst: Optional[float] = 0  # Evaluated from category level
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 class SkinnyProductResponse(BaseModel):
-        id: str = Field(alias="_id")
+    id: str = Field(alias="_id")
     productId: Optional[int] = None
     productIdFormatted: Optional[str] = None
     name: str
@@ -1352,13 +1352,13 @@ class SkinnyProductResponse(BaseModel):
     displayImage: Optional[str] = None
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 class PaginatedProductResponse(BaseModel):
-        products: List[Union[ProductResponse, SkinnyProductResponse]]
+    products: List[Union[ProductResponse, SkinnyProductResponse]]
     totalCount: int
     brands: Optional[List[str]] = None
     categories: Optional[List[str]] = None
@@ -1370,7 +1370,7 @@ class PaginatedProductResponse(BaseModel):
 
 # Discount (Coupon) Schemas
 class QuantityTier(BaseModel):
-        quantity: int
+    quantity: int
     discount: float
 
 
@@ -1378,7 +1378,7 @@ class QuantityTier(BaseModel):
 # method: discount_code | automatic
 # applicableUserIds: when set, only these user ids can use (Selective Retail/Business)
 class CouponBase(BaseModel):
-        typeOfDiscount: str = (
+    typeOfDiscount: str = (
         "product_discount"  # product_discount | buy_x_get_y | total_order_discount | shipping_discount
     )
     code: Optional[str] = None  # required when method=discount_code; null for automatic
@@ -1435,7 +1435,7 @@ class CouponCreate(CouponBase):
 
 
 class CouponUpdate(BaseModel):
-        resolution: Optional[str] = None
+    resolution: Optional[str] = None
     force: bool = False
     typeOfDiscount: Optional[str] = None
     code: Optional[str] = None
@@ -1519,13 +1519,13 @@ class CouponResponse(CouponBase):
     usedCount: Optional[int] = None
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 class CouponValidate(BaseModel):
-        code: str
+    code: str
     amount: float
     category: Optional[str] = None
 
@@ -1542,16 +1542,16 @@ class CouponValidationResponse(BaseModel):
     discount: float
 
 class CouponValidateCart(BaseModel):
-        """Validate discount against cart: backend computes eligible subtotal from items."""
+    """Validate discount against cart: backend computes eligible subtotal from items."""
 
     code: str
-    items: List[Dict[str, Any]]  # [{ productId, quantity, sellAsCase? }]
-    shippingAddress: Optional[Dict[str, Any]] = None
+    items: List[ItemSnippet]  # [{ productId, quantity, sellAsCase? }]
+    shippingAddress: Optional[AddressSnippet] = None
 
 
 # Discount Scheme Schemas (Business Segment / wholesaler)
 class SchemeResponse(BaseModel):
-        id: str = Field(alias="_id")
+    id: str = Field(alias="_id")
     name: str
     description: Optional[str] = None
     discountType: str  # percentage | fixed
@@ -1563,12 +1563,12 @@ class SchemeResponse(BaseModel):
     applicableRoles: List[str] = ["wholesaler"]
     code: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Banner Schemas
 class BannerBase(BaseModel):
-        title: Optional[str] = None
+    title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: str
     displayOrder: Optional[int] = None
@@ -1576,7 +1576,7 @@ class BannerBase(BaseModel):
     endDate: Optional[str] = None
     isActive: bool = True
     isPublished: bool = False
-    visibilityRules: List[Dict[str, Any]] = []
+    visibilityRules: List[VisibilityRuleSnippet] = []
     userSegments: List[str] = ["all"]
     linkUrl: Optional[str] = None
     position: Optional[str] = None
@@ -1588,7 +1588,7 @@ class BannerCreate(BannerBase):
 
 
 class BannerUpdate(BaseModel):
-        title: Optional[str] = None
+    title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     displayOrder: Optional[int] = None
@@ -1638,7 +1638,7 @@ class BannerUpdate(BaseModel):
     serviceAreaZones: Optional[List[str]] = None
     referralCode: Optional[str] = None
     isPublished: Optional[bool] = None
-    visibilityRules: Optional[List[Dict[str, Any]]] = None
+    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
     userSegments: Optional[List[str]] = None
     linkUrl: Optional[str] = None
 
@@ -1647,9 +1647,9 @@ class BannerResponse(BannerBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Brand Schemas
@@ -1665,7 +1665,7 @@ class BrandResponse(BaseModel):
     updatedAt: Optional[str] = None
 
 class BrandCreate(BaseModel):
-        name: str
+    name: str
     logoUrl: Optional[str] = ""
     showInMobileHomepage: bool = False
     isActive: Optional[bool] = True
@@ -1673,7 +1673,7 @@ class BrandCreate(BaseModel):
 
 
 class BrandUpdate(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     logoUrl: Optional[str] = None
     showInMobileHomepage: Optional[bool] = None
     isActive: Optional[bool] = None
@@ -1738,7 +1738,7 @@ class BrandUpdate(BaseModel):
 
 # Auth Schemas
 class LoginRequest(BaseModel):
-        email: Optional[EmailStr] = None
+    email: Optional[EmailStr] = None
     phone: Optional[str] = None
     password: str
 
@@ -1751,7 +1751,7 @@ class LoginRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-        # name and email are Optional at the API level to support the checkout
+    # name and email are Optional at the API level to support the checkout
     # registration flow (which only requires phone + password).
     # The regular Create Account pages enforce name & email via frontend validation.
     name: Optional[str] = None
@@ -1760,14 +1760,14 @@ class RegisterRequest(BaseModel):
     phone: str  # Always mandatory
     role: UserRole = UserRole.CUSTOMER  # Default to customer
     companyName: Optional[str] = None
-    address: Optional[Dict[str, Any]] = None
+    address: Optional[AddressSnippet] = None
     msg91Token: Optional[str] = None  # Token from MSG91 Widget/SDK
     otp: Optional[str] = None
     deviceId: Optional[str] = None
 
 
 class AuthResponse(BaseModel):
-        token: str
+    token: str
     refreshToken: Optional[str] = None
     sessionId: Optional[str] = None
     user: UserResponse
@@ -1776,7 +1776,7 @@ class AuthResponse(BaseModel):
 
 # Contact Schemas
 class Address(BaseModel):
-        address: Optional[str] = None
+    address: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
     district: Optional[str] = None
@@ -1788,7 +1788,7 @@ class Address(BaseModel):
 
 
 class SocialMedia(BaseModel):
-        instagram: Optional[str] = None
+    instagram: Optional[str] = None
     facebook: Optional[str] = None
     twitter: Optional[str] = None
     whatsapp: Optional[str] = None
@@ -1797,7 +1797,7 @@ class SocialMedia(BaseModel):
 
 
 class ContactBase(BaseModel):
-        addresses: Optional[List[Address]] = None  # Up to 2 addresses
+    addresses: Optional[List[Address]] = None  # Up to 2 addresses
     phoneNumbers: Optional[List[str]] = None  # Up to 3 phone numbers
     email: Optional[str] = None
     description: Optional[str] = None
@@ -1838,7 +1838,7 @@ class ContactCreate(ContactBase):
 
 
 class ContactUpdate(BaseModel):
-        addresses: Optional[List[Address]] = None
+    addresses: Optional[List[Address]] = None
     phoneNumbers: Optional[List[str]] = None
     email: Optional[str] = None
     description: Optional[str] = None
@@ -1893,14 +1893,14 @@ class ContactResponse(ContactBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Support Ticket Schemas
 class SupportTicketBase(BaseModel):
-        name: str
+    name: str
     email: str
     phone: str
     company: Optional[str] = None
@@ -1916,13 +1916,13 @@ class SupportTicketCreate(SupportTicketBase):
 
 
 class SupportTicketUpdate(BaseModel):
-        status: Optional[str] = None  # open, in_progress, resolved, closed
+    status: Optional[str] = None  # open, in_progress, resolved, closed
     priority: Optional[str] = None
     assignedTo: Optional[str] = None
 
 
 class TicketResponseCreate(BaseModel):
-        message: str
+    message: str
     attachments: Optional[List[str]] = None
 
 
@@ -1937,14 +1937,14 @@ class SupportTicketResponse(SupportTicketBase):
     closedAt: Optional[str] = None
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Delivery Charge Schemas
 class DeliveryChargeBase(BaseModel):
-        pincode: str
+    pincode: str
     state: str
     city: Optional[str] = ""
     district: str
@@ -1967,7 +1967,7 @@ class DeliveryChargeCreate(DeliveryChargeBase):
 
 
 class DeliveryChargeUpdate(BaseModel):
-        pincode: Optional[str] = None
+    pincode: Optional[str] = None
     state: Optional[str] = None
     city: Optional[str] = None
     district: Optional[str] = None
@@ -2030,17 +2030,17 @@ class DeliveryChargeResponse(DeliveryChargeBase):
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Default Delivery Charge Schema
 class DeliveryTier(BaseModel):
-        maxAmount: Union[float, str]  # Can be a number or "Infinity"
+    maxAmount: Union[float, str]  # Can be a number or "Infinity"
     charge: float
 
 
 class DefaultDeliveryChargeBase(BaseModel):
-        tiers: List[DeliveryTier]
+    tiers: List[DeliveryTier]
     applicableToWholesaler: bool = True
     deliveryChargeGst: bool = False
     deliveryChargeGstPercentage: float = 18.0
@@ -2058,12 +2058,12 @@ class DefaultDeliveryChargeResponse(DefaultDeliveryChargeBase):
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Order Feedback Schemas
 class OrderFeedbackBase(BaseModel):
-        orderId: Optional[str] = None
+    orderId: Optional[str] = None
     rating: int  # 1-5
     comment: Optional[str] = None
     deliveryRating: Optional[int] = None  # 1-5
@@ -2080,14 +2080,14 @@ class OrderFeedbackResponse(OrderFeedbackBase):
     userId: str
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Coach Mark Schemas
 class CoachMarkBase(BaseModel):
-        anchorId: str
+    anchorId: str
     title: str
     description: str
     screenName: Optional[str] = None
@@ -2100,7 +2100,7 @@ class CoachMarkCreate(CoachMarkBase):
 
 
 class CoachMarkUpdate(BaseModel):
-        title: Optional[str] = None
+    title: Optional[str] = None
     description: Optional[str] = None
     sequenceOrder: Optional[int] = None
     isActive: Optional[bool] = None
@@ -2152,14 +2152,14 @@ class CoachMarkResponse(CoachMarkBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Search Tag Schemas
 class SearchTagBase(BaseModel):
-        tagId: Optional[str] = None
+    tagId: Optional[str] = None
     name: str
     type: Literal["Occasion", "Intent", "Recipient"]
     isActive: bool = True
@@ -2176,7 +2176,7 @@ class SearchTagCreate(SearchTagBase):
 
 
 class SearchTagUpdate(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     type: Optional[Literal["Occasion", "Intent", "Recipient"]] = None
     isActive: Optional[bool] = None
     password: Optional[str] = None
@@ -2233,14 +2233,14 @@ class SearchTagResponse(SearchTagBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Collection Schemas
 class CollectionBase(BaseModel):
-        name: str
+    name: str
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     isActive: bool = True
@@ -2248,7 +2248,7 @@ class CollectionBase(BaseModel):
     productIds: List[str] = []
     visiblePages: List[str] = ["Home"]
     userSegments: List[str] = ["all"]
-    visibilityRules: List[Dict[str, Any]] = []
+    visibilityRules: List[VisibilityRuleSnippet] = []
 
 
 class CollectionCreate(CollectionBase):
@@ -2256,7 +2256,7 @@ class CollectionCreate(CollectionBase):
 
 
 class CollectionUpdate(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     isActive: Optional[bool] = None
@@ -2306,76 +2306,76 @@ class CollectionUpdate(BaseModel):
     productIds: Optional[List[str]] = None
     visiblePages: Optional[List[str]] = None
     userSegments: Optional[List[str]] = None
-    visibilityRules: Optional[List[Dict[str, Any]]] = None
+    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
 
 
 class CollectionResponse(CollectionBase):
     id: str = Field(alias="_id")
     createdAt: str
     updatedAt: str
-    user: Optional[Dict[str, Any]] = None
+    user: Optional[UserSnippet] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Referral Schemas
 class ReferralSegmentSetting(BaseModel):
-        segment: str  # "retail" or "business"
+    segment: str  # "retail" or "business"
     discountType: DiscountType = DiscountType.PERCENTAGE
     discountValue: float = 0
     isActive: bool = False
 
 
 class ReferralSettingsResponse(BaseModel):
-        retail: ReferralSegmentSetting
+    retail: ReferralSegmentSetting
     business: ReferralSegmentSetting
 
 class PaginatedUsersResponse(BaseModel):
-        model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
     users: List[UserResponse]
     totalCount: int = Field(alias="totalCount")
     page: int
     limit: int
 
 class PreferencesResponse(BaseModel):
-        preferredLanguage: str
+    preferredLanguage: str
 
 class DutyStatusResponse(BaseModel):
-        isOnDuty: bool
+    isOnDuty: bool
     message: str
 
 class MessageResponse(BaseModel):
-        message: str
+    message: str
 
 class CartResponse(BaseModel):
-        model_config = ConfigDict(populate_by_name=True)
-    items: List[Dict[str, Any]]
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    items: List[ItemSnippet]
     subtotal: float
     itemCount: int = Field(alias="itemCount")
     expiresAt: Optional[str] = Field(alias="expiresAt")
 
 class SavedForLaterResponse(BaseModel):
-        items: List[Dict[str, Any]]
+    items: List[ItemSnippet]
 
 class CheckPhoneResponse(BaseModel):
-        status: str
+    status: str
     message: str
 
 class VerifyOtpResponse(BaseModel):
-        valid: bool
+    valid: bool
     message: str
 
 class Msg91WebhookResponse(BaseModel):
-        status: str
+    status: str
 
 class VerifyMsg91TokenResponse(BaseModel):
-        valid: bool
+    valid: bool
     phone: Optional[str] = None
     token: Optional[str] = None
 
 
 class AdStats(BaseModel):
-        impressions: Optional[int] = 0
+    impressions: Optional[int] = 0
     clicks: Optional[int] = 0
     leads: Optional[int] = 0
     purchases: Optional[int] = 0
@@ -2386,7 +2386,7 @@ class AdStats(BaseModel):
     cvr: Optional[float] = 0.0
 
 class AdBase(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     platform: Optional[str] = None
     objective: Optional[str] = None
     status: Optional[str] = None
@@ -2421,11 +2421,11 @@ class AdUpdate(AdBase):
     pass
 
 class AdStatusUpdate(BaseModel):
-        status: str
+    status: str
 
 
 class OrderAddress(BaseModel):
-        name: Optional[str] = None
+    name: Optional[str] = None
     street: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
@@ -2433,7 +2433,7 @@ class OrderAddress(BaseModel):
     phone: Optional[str] = None
 
 class OrderCreateInternal(BaseModel):
-        user: str
+    user: str
     userRole: Optional[str] = None
     sessionId: Optional[str] = None
     items: List[Any] = Field(default_factory=list)
@@ -2479,4 +2479,19 @@ class PromoStripResponse(PromoStripBase):
     id: str = Field(alias='_id')
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

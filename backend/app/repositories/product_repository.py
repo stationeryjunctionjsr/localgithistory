@@ -100,7 +100,7 @@ class ProductRepository:
         import re
 
         full_query = " ".join(tokens).lower()
-        prod_mrp = float(product.get("mrp") or 0.0)
+        prod_mrp = (float(product.get("mrp")) if product.get("mrp") is not None else 0.0)
 
         price_expr_matched = False
         # Pattern 1: under/below/less than X or <=X
@@ -430,7 +430,7 @@ class ProductRepository:
             products_filtered = []
             for p in products:
                 price = self.getPriceForRole(p, role)
-                mrp = float(p.get("mrp", 0))
+                mrp = (float(p.get("mrp")) if p.get("mrp") is not None else 0.0)
                 if mrp > 0 and price < mrp:
                     disc = ((mrp - price) / mrp) * 100
                     if disc >= min_disc:
@@ -955,7 +955,7 @@ class ProductRepository:
             "category": product_data["category"],
             "subCategory": product_data.get("subCategory"),
             "brand": product_data.get("brand", ""),
-            "mrp": float(product_data["mrp"]),
+            "mrp": (float(product_data.get("mrp")) if product_data.get("mrp") is not None else 0.0),
             "mrpPerCase": float(product_data["mrpPerCase"]) if product_data.get("mrpPerCase") is not None else None,
             "quantityPerCase": int(product_data["quantityPerCase"])
             if product_data.get("quantityPerCase") is not None
@@ -1070,7 +1070,7 @@ class ProductRepository:
                 return round(float(mrp_case), 2)
 
         # Base MRP (per unit)
-        mrp = float(product.get("mrp", 0))
+        mrp = (float(product.get("mrp")) if product.get("mrp") is not None else 0.0)
 
         # Check for variant-specific pricing if attributes are selected
         if selected_attributes and product.get("variantCombinations"):
@@ -1235,3 +1235,4 @@ class ProductRepository:
 
 
 product_repository = ProductRepository()
+
