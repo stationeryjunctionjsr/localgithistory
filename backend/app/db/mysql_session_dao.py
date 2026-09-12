@@ -105,15 +105,15 @@ class MySQLSessionDAO:
             row = result.fetchone()
         return Session.model_validate(self._row_to_dict(row)) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: 'SessionInternalCreate') -> Dict:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
         external_id = secrets.token_hex(16)
-        user_id_raw = data.userId or data.user
+        user_id_raw = data.userId
         user_id = int(user_id_raw) if str(user_id_raw or "").isdigit() else None
-        if user_id is None:
+        if user_id is None and data.userId is not None:
             raise ValueError("Session user must be numeric id when using MySQL")
 
         async with factory() as session:
@@ -151,19 +151,23 @@ class MySQLSessionDAO:
             new_id = r.scalar()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: 'SessionInternalUpdate') -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+        existing_dict = existing.model_dump(exclude_unset=True) if hasattr(existing, 'model_dump') else dict(existing)
+        update_dict = update_data.model_dump(exclude_unset=True)
+        merged_dict = {**existing_dict, **update_dict}
+        from app.models.daos import SessionInternalUpdate
+        merged = SessionInternalUpdate(**merged_dict)
         factory = self._factory()
         if not factory:
             return None
         now = now_utc()
         sid = int(id) if str(id).isdigit() else None
-        user_id_raw = merged.userId or merged.user
+        user_id_raw = merged.userId
         user_id = int(user_id_raw) if str(user_id_raw or "").isdigit() else None
-        if user_id is None:
+        if user_id is None and merged.userId is not None:
             return None
 
         async with factory() as session:

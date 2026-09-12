@@ -1,3 +1,4 @@
+from app.models.schemas import UserInternalCreate, UserInternalUpdate
 """
 MySQL DAO for sj_users (Fully Relational).
 """
@@ -403,7 +404,7 @@ class MySQLUserDAO:
             children_map = await self._fetch_children(session, [int(row.id)])
         return User.model_validate(_row_to_dict(row, children_map[int(row.id)]))
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: UserInternalCreate) -> Dict:
         external_id = secrets.token_hex(16)
         now = datetime.now(timezone.utc)
         factory = self._factory()
@@ -552,3 +553,5 @@ class MySQLUserDAO:
     find_by_email = findByEmail
     find_by_phone = findByPhone
     find_by_referral_code = findByReferralCode
+
+

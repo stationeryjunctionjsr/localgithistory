@@ -936,7 +936,13 @@ class ProductRepository:
         product_id = max_id + 1
         product_id_formatted = f"PDT-{product_id}"
 
-        sku_val = product_data.get("sku")
+        from app.models.daos import ProductInternalCreate
+        if hasattr(product_data, "model_dump"):
+            data_dict = product_data.model_dump(exclude_unset=True)
+        else:
+            data_dict = product_data
+
+        sku_val = data_dict.get("sku")
         if not sku_val or str(sku_val).strip() == "":
             sku_val = f"SKU-{product_id_formatted}"
 
@@ -945,81 +951,86 @@ class ProductRepository:
             raise ValueError("Product with this SKU already exists")
 
         product = {
-            "productId": product_id,
-            "productIdFormatted": product_id_formatted,
-            "name": product_data["name"],
-            "description": product_data.get("description", ""),
+            "name": data_dict["name"],
+            "description": data_dict.get("description", ""),
             "sku": sku_val,
-            "category": product_data["category"],
-            "subCategory": product_data.get("subCategory"),
-            "brand": product_data.get("brand", ""),
-            "mrp": float(product_data["mrp"]),
-            "mrpPerCase": float(product_data["mrpPerCase"]) if product_data.get("mrpPerCase") is not None else None,
-            "quantityPerCase": int(product_data["quantityPerCase"])
-            if product_data.get("quantityPerCase") is not None
+            "category": data_dict["category"],
+            "subCategory": data_dict.get("subCategory"),
+            "brand": data_dict.get("brand", ""),
+            "mrp": float(data_dict["mrp"]),
+            "mrpPerCase": float(data_dict["mrpPerCase"]) if data_dict.get("mrpPerCase") is not None else None,
+            "quantityPerCase": int(data_dict["quantityPerCase"])
+            if data_dict.get("quantityPerCase") is not None
             else None,
-            "stock": int(product_data.get("stock", 0)),
-            "images": product_data.get("images", []),
-            "videos": product_data.get("videos", []),
-            "isActive": product_data.get("isActive", True),
-            "tags": product_data.get("tags", []),
-            "variantAttributes": product_data.get("variantAttributes", []),
-            "variantCombinations": product_data.get("variantCombinations", []),
-            "details": product_data.get("details", {}),
+            "stock": int(data_dict.get("stock", 0)),
+            "images": data_dict.get("images", []),
+            "videos": data_dict.get("videos", []),
+            "isActive": data_dict.get("isActive", True),
+            "tags": data_dict.get("tags", []),
+            "variantAttributes": data_dict.get("variantAttributes", []),
+            "variants": data_dict.get("variantCombinations", []),
+            "details": data_dict.get("details", {}),
         }
 
         # Auto-generate SKUs for variantCombinations if missing or starts with NEW-
-        for combo in product.get("variantCombinations", []):
+        for combo in product.get("variants", []):
             combo_sku = combo.get("sku", "")
             if not combo_sku or combo_sku.startswith("NEW-"):
                 combo["sku"] = (
                     f"{sku_val}-{'-'.join(str(v).replace(' ', '') for v in combo.get('attributes', {}).values())}"
                 )
 
-        created = await self.storage.create(product)
+        internal_create = ProductInternalCreate(**product)
+        created = await self.storage.create(internal_create)
         return (await self._attach_category_gst([created]))[0]
 
     async def update(self, id: str, update_data: Any) -> Optional[Product]:
-        if "sku" in update_data:
-            existing = await self.findBySku(update_data.sku)
-            if existing and existing.get("_id") != id:
+        if hasattr(update_data, "model_dump"):
+            data_dict = update_data.model_dump(exclude_unset=True)
+        else:
+            data_dict = dict(update_data)
+
+        if "sku" in data_dict:
+            existing = await self.findBySku(data_dict["sku"])
+            if existing and str(existing.get("_id")) != str(id):
                 raise ValueError("SKU already in use")
 
         numeric_fields = ["mrp", "mrpPerCase"]
         for field in numeric_fields:
-            if field in update_data and update_data[field] is not None:
-                update_data[field] = float(update_data[field])
-        if "quantityPerCase" in update_data and update_data.quantityPerCase is not None:
-            update_data.quantityPerCase = int(update_data.quantityPerCase)
-        if "stock" in update_data:
-            update_data.stock = int(update_data.stock)
+            if field in data_dict and data_dict[field] is not None:
+                data_dict[field] = float(data_dict[field])
+        if "quantityPerCase" in data_dict and data_dict["quantityPerCase"] is not None:
+            data_dict["quantityPerCase"] = int(data_dict["quantityPerCase"])
+        if "stock" in data_dict:
+            data_dict["stock"] = int(data_dict["stock"])
 
-        if "variantCombinations" in update_data:
+        if "variantCombinations" in data_dict:
             existing_product = await self.storage.findById(id)
-            sku_val = getattr(update_data, "sku", None) or existing_product.get("sku", "")
-            for combo in getattr(update_data, 'variantCombinations', []):
+            sku_val = data_dict.get("sku") or existing_product.get("sku", "")
+            for combo in data_dict['variantCombinations']:
                 combo_sku = combo.get("sku", "")
                 if not combo_sku or combo_sku.startswith("NEW-"):
                     combo["sku"] = (
                         f"{sku_val}-{'-'.join(str(v).replace(' ', '') for v in combo.get('attributes', {}).values())}"
                     )
+            data_dict["variants"] = data_dict.pop("variantCombinations")
 
         # Check stock transition before updating
         has_stock_transition = False
         old_product_name = ""
         try:
-            if "stock" in update_data or "variantCombinations" in update_data:
+            if "stock" in data_dict or "variants" in data_dict:
                 old_product = await self.storage.findById(id)
                 if old_product:
                     old_product_name = old_product.get("name", "")
-                    if "stock" in update_data:
+                    if "stock" in data_dict:
                         old_stock = int(old_product.get("stock", 0))
-                        new_stock = int(update_data.stock)
+                        new_stock = int(data_dict["stock"])
                         if old_stock <= 0 and new_stock > 0:
                             has_stock_transition = True
-                    if not has_stock_transition and "variantCombinations" in update_data:
-                        old_combos = old_product.get("variantCombinations") or []
-                        for new_combo in getattr(update_data, 'variantCombinations', []):
+                    if not has_stock_transition and "variants" in data_dict:
+                        old_combos = old_product.get("variants") or old_product.get("variantCombinations") or []
+                        for new_combo in data_dict.get('variants', []):
                             new_stock = int(new_combo.get("stock", 0))
                             new_attrs = new_combo.get("attributes", {})
                             old_combo = next((oc for oc in old_combos if oc.get("attributes") == new_attrs), None)
@@ -1029,7 +1040,9 @@ class ProductRepository:
         except Exception as e:
             logger.error("Error checking stock transition in product repository update: %s", str(e))
 
-        updated = await self.storage.update(id, update_data)
+        from app.models.daos import ProductInternalUpdate
+        internal_update = ProductInternalUpdate(**data_dict)
+        updated = await self.storage.update(id, internal_update)
         if updated:
             updated = (await self._attach_category_gst([updated]))[0]
             if has_stock_transition:

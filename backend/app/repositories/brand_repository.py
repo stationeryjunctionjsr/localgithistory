@@ -28,11 +28,25 @@ class BrandRepository:
             [b for b in items if b.is_active is True], key=lambda x: (x.name or '').lower()
         )
 
-    async def create(self, data: BrandCreate) -> Brand:
-        return await self.storage.create(data)
+    async def create(self, data: Any) -> Brand:
+        from app.models.daos import BrandInternalCreate
+        if isinstance(data, dict):
+            internal_data = BrandInternalCreate(**data)
+        elif not isinstance(data, BrandInternalCreate):
+            internal_data = BrandInternalCreate(**data.model_dump(exclude_unset=True))
+        else:
+            internal_data = data
+        return await self.storage.create(internal_data)
 
-    async def update(self, id: str, data: BrandUpdate) -> Optional[Brand]:
-        return await self.storage.update(id, data)
+    async def update(self, id: str, data: Any) -> Optional[Brand]:
+        from app.models.daos import BrandInternalUpdate
+        if isinstance(data, dict):
+            internal_data = BrandInternalUpdate(**data)
+        elif not isinstance(data, BrandInternalUpdate):
+            internal_data = BrandInternalUpdate(**data.model_dump(exclude_unset=True))
+        else:
+            internal_data = data
+        return await self.storage.update(id, internal_data)
 
     async def delete(self, id: str) -> bool:
         return await self.storage.delete(id)

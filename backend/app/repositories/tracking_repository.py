@@ -12,8 +12,11 @@ class TrackingRepository:
         return await self.storage.findAll(query or {}, skip=skip, limit=limit)
 
     async def create(self, tracking_data: Any):
-        tracking = {**tracking_data, "timestamp": tracking_data.get("timestamp") or self._get_current_timestamp()}
-        return await self.storage.create(tracking)
+        from app.models.daos import TrackingInternalCreate
+        tracking_data_dict = tracking_data if isinstance(tracking_data, dict) else dict(tracking_data)
+        tracking_data_dict["timestamp"] = tracking_data_dict.get("timestamp") or self._get_current_timestamp()
+        
+        return await self.storage.create(TrackingInternalCreate(**tracking_data_dict))
 
     def _get_current_timestamp(self):
         from datetime import datetime

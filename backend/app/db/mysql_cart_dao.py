@@ -3,8 +3,9 @@ MySQL DAO for sj_carts (+ sj_cart_items).
 """
 
 import secrets
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from app.models.cart import Cart
+from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
 
 from sqlalchemy import text
 
@@ -107,7 +108,7 @@ class MySQLCartDAO:
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.findOne({"_id": id})
 
-    async def _replace_items(self, session, cart_external_id: str, items: List[Dict]) -> None:
+    async def _replace_items(self, session, cart_external_id: str, items: List[CartItemInternal]) -> None:
         await session.execute(
             text(f"DELETE FROM {self.ITEMS_TABLE} WHERE cart_id = :cart_id"),
             {"cart_id": cart_external_id},
@@ -138,7 +139,7 @@ class MySQLCartDAO:
                 },
             )
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: CartInternalCreate) -> Dict:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -178,7 +179,7 @@ class MySQLCartDAO:
 
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: CartInternalUpdate) -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -200,8 +201,8 @@ class MySQLCartDAO:
             r = await session.execute(text(f"SELECT external_id FROM {self.TABLE} WHERE id = :id"), {"id": pid})
             eid = r.scalar()
 
-            if "items" in update_data:
-                await self._replace_items(session, eid, update_data.items or [])
+            if update_data.items is not None:
+                await self._replace_items(session, eid, update_data.items)
 
             await session.commit()
 

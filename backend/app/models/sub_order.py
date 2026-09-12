@@ -1,4 +1,4 @@
-from app.models.schemas import Address, CartItem, OrderItem, VisibilityRule, SellerPermissions
+from app.models.schemas import AddressSnippet as Address, ItemSnippet as CartItem, ItemSnippet as OrderItem, SellerPermissionSnippet as SellerPermissions
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
@@ -100,5 +100,6 @@ class SubOrderInternalUpdate(BaseModel, extra='forbid'):
     commissionAmount: Optional[float] = None
     commissionStatus: Optional[str] = None
     assignedValet: Optional[str] = None
+
 
 

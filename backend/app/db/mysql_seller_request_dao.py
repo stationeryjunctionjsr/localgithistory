@@ -152,7 +152,7 @@ class MySQLSellerRequestDAO:
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: 'SellerRequestInternalCreate') -> Dict:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -203,11 +203,16 @@ class MySQLSellerRequestDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: 'SellerRequestInternalUpdate') -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+            
+        existing_dict = existing.model_dump(exclude_unset=True) if hasattr(existing, 'model_dump') else dict(existing)
+        update_dict = update_data.model_dump(exclude_unset=True)
+        merged_dict = {**existing_dict, **update_dict}
+        from app.models.daos import SellerRequestInternalUpdate
+        merged = SellerRequestInternalUpdate(**merged_dict)
         now = now_utc()
         factory = self._factory()
 

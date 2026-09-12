@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
+from app.models.daos import SessionInternalCreate, SessionInternalUpdate
 
 
 class SessionRepository:
@@ -10,22 +11,21 @@ class SessionRepository:
         self.storage = get_storage("sessions")
 
     async def create_session(self, user_id: Optional[str], device: Any, refresh_token_id: str) -> Dict:
-        return await self.storage.create(
-            {
-                "userId": user_id,
-                "refreshTokenId": refresh_token_id,
-                "status": "active",
-                "lastActiveAt": datetime.now(timezone.utc).isoformat(),
-                "revokedAt": None,
-                "revokedReason": None,
-                "device": device,
-                "isGuest": user_id is None,
-                "comment": None,
-            }
+        data = SessionInternalCreate(
+            userId=user_id,
+            refreshTokenId=refresh_token_id,
+            status="active",
+            lastActiveAt=datetime.now(timezone.utc).isoformat(),
+            revokedAt=None,
+            revokedReason=None,
+            device=device,
+            isGuest=user_id is None,
+            comment=None,
         )
+        return await self.storage.create(data)
 
-    async def find_by_refresh_id(self, refresh_id: str) -> Optional[Dict]:
-        return await self.storage.findOne({"refreshTokenId": refresh_id})
+    async def find_by_refresh_id(self, refresh_token_id: str) -> Optional[Dict]:
+        return await self.storage.findOne({"refreshTokenId": refresh_token_id})
 
     async def find_by_id(self, session_id: str) -> Optional[Dict]:
         return await self.storage.findById(session_id)
@@ -35,8 +35,9 @@ class SessionRepository:
         if not existing:
             return None
         existing_dict = existing.model_dump(by_alias=True) if hasattr(existing, 'model_dump') else dict(existing)
-        existing_dict.update(updates)
-        return await self.storage.update(session_id, existing_dict)
+        updates_dict = updates if isinstance(updates, dict) else dict(updates)
+        existing_dict.update(updates_dict)
+        return await self.storage.update(session_id, SessionInternalUpdate(**existing_dict))
 
     async def revoke_session(self, session_id: str, reason: str) -> Optional[Dict]:
         return await self.update_session(

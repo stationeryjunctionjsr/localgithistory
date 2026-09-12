@@ -479,7 +479,7 @@ class MySQLProductDAO:
         # ),
         # {"cid": combo_id, "k": attr_name, "v": attr_value},
         # )
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: 'ProductInternalCreate') -> Dict:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -499,17 +499,17 @@ class MySQLProductDAO:
                 """),
                 {
                     "external_id": external_id,
-                    "name": getattr(data, "name", None),
-                    "description": getattr(data, "description", None),
-                    "sku": getattr(data, "sku", None),
-                    "category": getattr(data, "category", None),
-                    "sub_category": getattr(data, "subCategory", None),
-                    "brand": getattr(data, "brand", None),
-                    "mrp": getattr(data, "mrp", None),
-                    "mrp_per_case": getattr(data, "mrpPerCase", None),
-                    "quantity_per_case": getattr(data, "quantityPerCase", None),
-                    "stock": getattr(data, "stock", 0),
-                    "is_active": 1 if getattr(data, "isActive", True) else 0,
+                    "name": data.name,
+                    "description": data.description,
+                    "sku": data.sku,
+                    "category": data.category,
+                    "sub_category": data.subCategory,
+                    "brand": data.brand,
+                    "mrp": data.mrp,
+                    "mrp_per_case": data.mrpPerCase,
+                    "quantity_per_case": data.quantityPerCase,
+                    "stock": data.stock if data.stock is not None else 0,
+                    "is_active": 1 if data.isActive else 0,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -523,11 +523,14 @@ class MySQLProductDAO:
             await session.commit()
         return await self.findById(str(pid))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: 'ProductInternalUpdate') -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+        from app.models.daos import ProductInternalUpdate
+        update_dict = update_data.model_dump(exclude_unset=True)
+        merged_dict = {**existing, **update_dict}
+        merged = ProductInternalUpdate(**merged_dict)
         factory = self._factory()
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None

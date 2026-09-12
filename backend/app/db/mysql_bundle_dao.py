@@ -70,24 +70,26 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
             doc["items"] = await self._fetch_products(getattr(doc, "external_id", getattr(doc, "id", None)))
         return docs
 
-    async def create(self, data: Dict) -> Dict:
-        items = data.pop("items", [])
+    async def create(self, data: 'BundleInternalCreate') -> Dict:
+        data_dict = data.model_dump(exclude_unset=True)
+        items = data_dict.pop("items", [])
         # Fallback to products if passed
-        if not items and "products" in data:
-            items = data.pop("products")
-        doc = await super().create(data)
+        if not items and "products" in data_dict:
+            items = data_dict.pop("products")
+        doc = await super().create(data_dict)
         await self._save_products(getattr(doc, "external_id", getattr(doc, "id", None)), items)
         doc["items"] = await self._fetch_products(getattr(doc, "external_id", getattr(doc, "id", None)))
         return doc
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: 'BundleInternalUpdate') -> Optional[Dict]:
+        update_dict = update_data.model_dump(exclude_unset=True)
         items = None
-        if "items" in update_data:
-            items = update_data.pop("items")
-        elif "products" in update_data:
-            items = update_data.pop("products")
+        if "items" in update_dict:
+            items = update_dict.pop("items")
+        elif "products" in update_dict:
+            items = update_dict.pop("products")
 
-        doc = await super().update(id, update_data)
+        doc = await super().update(id, update_dict)
         if doc:
             if items is not None:
                 await self._save_products(getattr(doc, "external_id", getattr(doc, "id", None)), items)

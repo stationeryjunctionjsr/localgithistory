@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
@@ -2561,3 +2562,50 @@ class PromoStripResponse(PromoStripBase):
 
 
 
+
+# --- DAO Internal Models ---
+class UserInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    userId: int
+    userIdFormatted: str
+    name: str
+    email: Optional[str] = None
+    password: str
+    role: str
+    phone: str = ""
+    companyName: str = ""
+    address: Dict[str, Any] = Field(default_factory=dict)
+    savedAddresses: List[Dict[str, Any]] = Field(default_factory=list)
+    isActive: bool = True
+    approvalStatus: str
+    isDeactivated: bool = False
+    creditLimit: float = 0.0
+    creditUsed: float = 0.0
+    paymentTerms: str = "30"
+    assignedSalesperson: Optional[str] = None
+    referralCode: Optional[str] = None
+    isEmailVerified: bool = False
+
+class UserInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    userId: Optional[int] = None
+    userIdFormatted: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    phone: Optional[str] = None
+    companyName: Optional[str] = None
+    address: Optional[Dict[str, Any]] = None
+    savedAddresses: Optional[List[Dict[str, Any]]] = None
+    isActive: Optional[bool] = None
+    approvalStatus: Optional[str] = None
+    isDeactivated: Optional[bool] = None
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
+    paymentTerms: Optional[str] = None
+    assignedSalesperson: Optional[str] = None
+    referralCode: Optional[str] = None
+    isEmailVerified: Optional[bool] = None
+    sellerPermissions: Optional[Any] = None
+    serviceAreaZones: Optional[List[str]] = None

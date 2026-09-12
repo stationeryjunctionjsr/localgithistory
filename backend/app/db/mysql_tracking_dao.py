@@ -157,7 +157,7 @@ class MySQLTrackingDAO:
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: 'TrackingInternalCreate') -> Dict:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -172,10 +172,11 @@ class MySQLTrackingDAO:
         payload = dict(payload)
 
         extracted_keys = []
+        data_dict = data.model_dump(exclude_unset=True)
         for api_k, db_col in _TRACKING_SCALAR.items():
             val = None
-            if api_k in data:
-                val = data[api_k]
+            if api_k in data_dict:
+                val = data_dict[api_k]
             elif api_k in payload:
                 val = payload.pop(api_k)
                 
@@ -194,7 +195,14 @@ class MySQLTrackingDAO:
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in extracted_keys])
 
         # Prepare new data dict with the popped payload for child inserts
-        new_data = {**data, "payload": payload}
+        new_data = data_dict.copy()
+        new_data["payload"] = payload
+
+        # Create a dummy object to mimic attribute access in _replace_children
+        class Dummy:
+            def __init__(self, d):
+                self.__dict__.update(d)
+        dummy_data = Dummy(new_data)
 
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -203,18 +211,20 @@ class MySQLTrackingDAO:
                     text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
                 )
             ).scalar()
-            await self._replace_children(session, new_id, new_data)
+            await self._replace_children(session, new_id, dummy_data)
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: 'TrackingInternalUpdate') -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
             
-        merged = {**existing, **data}
+        data_dict = data.model_dump(exclude_unset=True)
+        existing_dict = existing.model_dump(exclude_unset=True) if hasattr(existing, 'model_dump') else dict(existing)
+        merged = {**existing_dict, **data_dict}
         
-        payload = (merged.payload if getattr(merged, 'payload', None) is not None else {})
+        payload = (merged.get('payload', {}))
         if not isinstance(payload, dict):
             payload = {}
         payload = dict(payload)
@@ -226,7 +236,7 @@ class MySQLTrackingDAO:
         
         for api_k, db_col in _TRACKING_SCALAR.items():
             val = None
-            if api_k in merged and api_k in data: # Only update if explicitly sent, or just use merged
+            if api_k in merged and api_k in data_dict: # Only update if explicitly sent, or just use merged
                 val = merged[api_k]
             elif api_k in payload:
                 val = payload.pop(api_k)

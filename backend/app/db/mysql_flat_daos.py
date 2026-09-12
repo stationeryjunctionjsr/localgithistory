@@ -1,12 +1,14 @@
+from typing import Any
 """
 Strict SQLAlchemy DAOs replacing MySQLTypedDocDAO and DocStore patterns.
 """
 
 import secrets
 from typing import Dict, List, Optional
-from app.models.schemas import PromoStripResponse, OrderFeedbackResponse, ProductReviewResponse, ClassificationTagResponse, AvailabilityRequestResponse
-from app.routers.category_tags import CategoryTagResponse
-from app.routers.system_settings import SystemSettingsResponse
+from app.models.schemas import PromoStripResponse, OrderFeedbackResponse, ProductReviewResponse, ClassificationTagResponse
+from app.models.availability_requests import AvailabilityRequestResponse
+
+
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
@@ -832,7 +834,7 @@ class MySQLCategoryTagsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> CategoryTagResponse:
+    def _row_to_dict(self, row) -> Any:
         return CategoryTagResponse(**{
             "_id": str(row.id),
             "id": row.id,
@@ -890,7 +892,7 @@ class MySQLCategoryTagsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> CategoryTagResponse:
+    async def create(self, data: Dict) -> Any:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2470,7 +2472,7 @@ class MySQLSystemSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> SystemSettingsResponse:
+    def _row_to_dict(self, row) -> Any:
         return SystemSettingsResponse(**{
             "_id": str(row.id),
             "id": row.id,
@@ -2536,7 +2538,7 @@ class MySQLSystemSettingsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> SystemSettingsResponse:
+    async def create(self, data: Dict) -> Any:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2770,4 +2772,6 @@ FLAT_DAOS = {
     "systemSettings": MySQLSystemSettingsDAO(),
     "valetPayoutSettings": MySQLValetPayoutSettingsDAO(),
 }
+
+
 

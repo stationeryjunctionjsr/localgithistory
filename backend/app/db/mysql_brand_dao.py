@@ -89,7 +89,7 @@ class MySQLBrandDAO:
             row = result.fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> BrandResponse:
+    async def create(self, data: 'BrandInternalCreate') -> BrandResponse:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -98,8 +98,8 @@ class MySQLBrandDAO:
         async with factory() as session:
             await session.execute(
                 text(
-                    f"""
-                    INSERT INTO {self.TABLE} (external_id, name, slug, image_url, is_active, created_at, updated_at)
+                    """
+                    INSERT INTO sj_brands (external_id, name, slug, image_url, is_active, created_at, updated_at)
                     VALUES (:external_id, :name, :slug, :image_url, :is_active, :created_at, :updated_at)
                     """
                 ),
@@ -107,7 +107,7 @@ class MySQLBrandDAO:
                     "external_id": external_id,
                     "name": data.name,
                     "slug": data.name.lower().replace(" ", "-") if data.name else "",
-                    "image_url": data.logoUrl,
+                    "image_url": data.logoUrl or data.imageUrl,
                     "is_active": 1 if getattr(data, 'isActive', True) else 0,
                     "created_at": now,
                     "updated_at": now,
@@ -121,11 +121,15 @@ class MySQLBrandDAO:
             new_id = r.scalar()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[BrandResponse]:
+    async def update(self, id: str, update_data: 'BrandInternalUpdate') -> Optional[BrandResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+        from app.models.daos import BrandInternalUpdate
+        existing_dict = existing.model_dump(exclude_unset=True)
+        update_dict = update_data.model_dump(exclude_unset=True)
+        merged_dict = {**existing_dict, **update_dict}
+        merged = BrandInternalUpdate(**merged_dict)
         factory = self._factory()
         if not factory:
             return None
@@ -134,8 +138,8 @@ class MySQLBrandDAO:
         async with factory() as session:
             await session.execute(
                 text(
-                    f"""
-                    UPDATE {self.TABLE} SET
+                    """
+                    UPDATE sj_brands SET
                         name = :name,
                         slug = :slug,
                         image_url = :image_url,
@@ -148,8 +152,8 @@ class MySQLBrandDAO:
                     "id": bid,
                     "name": merged.name,
                     "slug": merged.slug,
-                    "image_url": merged.imageUrl,
-                    "is_active": 1 if (merged.isActive if getattr(merged, 'isActive', None) is not None else True) else None,
+                    "image_url": merged.logoUrl or merged.imageUrl,
+                    "is_active": 1 if (merged.isActive if getattr(merged, 'isActive', None) is not None else True) else 0,
                     "updated_at": now,
                 },
             )

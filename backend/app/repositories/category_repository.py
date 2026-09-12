@@ -29,20 +29,27 @@ class CategoryRepository:
         return categories[0] if categories else None
 
     async def create(self, category_data: Any) -> Category:
-        # Migrate categoryTags list to singular categoryTag if necessary
+        from app.models.daos import CategoryInternalCreate
+        if isinstance(category_data, dict):
+            category_data = CategoryInternalCreate(**category_data)
+        elif not isinstance(category_data, CategoryInternalCreate):
+            category_data = CategoryInternalCreate(**category_data.model_dump(exclude_unset=True))
         return await self.storage.create(category_data)
 
     async def update(self, id: str, update_data: Any) -> Category:
+        from app.models.daos import CategoryInternalUpdate
         # Synchronize categoryTag and categoryTags for backward compatibility
-        if "categoryTag" in update_data:
-            tag = update_data.categoryTag
-            update_data.categoryTags = [tag] if tag else []
-        elif "categoryTags" in update_data:
-            tags = update_data.categoryTags
-            update_data.categoryTag = tags[0] if isinstance(tags, list) and tags else ""
+        update_dict = update_data if isinstance(update_data, dict) else update_data.model_dump(exclude_unset=True)
+        if "categoryTag" in update_dict:
+            tag = update_dict["categoryTag"]
+            update_dict["categoryTags"] = [tag] if tag else []
+        elif "categoryTags" in update_dict:
+            tags = update_dict["categoryTags"]
+            update_dict["categoryTag"] = tags[0] if isinstance(tags, list) and tags else ""
 
-        updates = {**update_data, "updatedAt": self._get_timestamp()}
-        return await self.storage.update(id, updates)
+        updates = {**update_dict, "updatedAt": self._get_timestamp()}
+        internal_update = CategoryInternalUpdate(**updates)
+        return await self.storage.update(id, internal_update)
 
     async def delete(self, id: str) -> Category:
         # Soft delete - set isActive to false

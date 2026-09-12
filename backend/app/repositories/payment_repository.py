@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
+from app.models.daos import PaymentInternalCreate, PaymentInternalUpdate, PaymentEntryInternal
 
 from app.db.storage_factory import get_storage
 
@@ -88,10 +89,25 @@ class PaymentRepository:
                     max_id = max(max_id, int(match.group(1)))
         payment["paymentId"] = f"PYMT-{max_id + 1}"
 
-        return await self.storage.create(payment)
+        payment_model = PaymentInternalCreate(**payment)
+        return await self.storage.create(payment_model)
 
     async def update(self, id: str, update_data: Any):
-        update_data.updatedAt = datetime.now(timezone.utc).isoformat()
+        if not isinstance(update_data, PaymentInternalUpdate):
+            if isinstance(update_data, dict):
+                update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
+                update_data = PaymentInternalUpdate(**update_data)
+            else:
+                update_dict = {}
+                for k in ["orderId", "userId", "userIdFormatted", "customerName", "orderDate", "paymentMethod", "amountPaid", "amountRemaining", "totalAmount", "paymentId", "paymentEntries"]:
+                    val = getattr(update_data, k, None)
+                    if val is not None:
+                        update_dict[k] = val
+                update_dict["updatedAt"] = datetime.now(timezone.utc).isoformat()
+                update_data = PaymentInternalUpdate(**update_dict)
+        else:
+            update_data.updatedAt = datetime.now(timezone.utc).isoformat()
+
         return await self.storage.update(id, update_data)
 
     async def addPaymentEntry(self, payment_id: str, entry_data: Any):

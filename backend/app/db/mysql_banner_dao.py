@@ -121,7 +121,7 @@ class MySQLBannerDAO:
     async def findById(self, id: str) -> Optional[BannerResponse]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> BannerResponse:
+    async def create(self, data: BannerInternalCreate) -> BannerResponse:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -168,11 +168,17 @@ class MySQLBannerDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[BannerResponse]:
+    async def update(self, id: str, update_data: BannerInternalUpdate) -> Optional[BannerResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+            
+        merged = {}
+        for k in ["title", "description", "imageUrl", "linkUrl", "displayOrder", "startDate", "endDate", "isActive", "isPublished", "targetAudience", "position"]:
+            val = getattr(update_data, k, None)
+            if val is None:
+                val = getattr(existing, k, None)
+            merged[k] = val
 
         factory = self._factory()
         now = now_utc()
@@ -199,21 +205,26 @@ class MySQLBannerDAO:
                 ),
                 {
                     "id": bid,
-                    "title": merged.title,
-                    "description": merged.description,
-                    "image_url": merged.imageUrl,
-                    "link_url": merged.linkUrl,
-                    "display_order": (merged.displayOrder if getattr(merged, 'displayOrder', None) is not None else 0),
-                    "start_date": merged.startDate,
-                    "end_date": merged.endDate,
-                    "is_active": int(bool((merged.isActive if getattr(merged, 'isActive', None) is not None else True))),
-                    "is_published": int(bool((merged.isPublished if getattr(merged, 'isPublished', None) is not None else False))),
-                    "target_audience": merged.targetAudience,
-                    "position": merged.position,
+                    "title": merged["title"],
+                    "description": merged["description"],
+                    "image_url": merged["imageUrl"],
+                    "link_url": merged["linkUrl"],
+                    "display_order": (merged["displayOrder"] if merged.get("displayOrder") is not None else 0),
+                    "start_date": merged["startDate"],
+                    "end_date": merged["endDate"],
+                    "is_active": int(bool(merged.get("isActive", True))),
+                    "is_published": int(bool(merged.get("isPublished", False))),
+                    "target_audience": merged["targetAudience"],
+                    "position": merged["position"],
                     "updated_at": now,
                 },
             )
-            await self._replace_children(session, bid, merged)
+            # Need to create a mock object with userSegments and visibilityRules for _replace_children
+            class _UpdateDataWrapper:
+                def __init__(self, obj, existing_obj):
+                    self.userSegments = obj.userSegments if obj.userSegments is not None else getattr(existing_obj, "userSegments", [])
+                    self.visibilityRules = obj.visibilityRules if obj.visibilityRules is not None else getattr(existing_obj, "visibilityRules", [])
+            await self._replace_children(session, bid, _UpdateDataWrapper(update_data, existing))
             await session.commit()
         return await self.findById(id)
 

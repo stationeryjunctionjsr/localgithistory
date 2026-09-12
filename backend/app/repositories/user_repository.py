@@ -1,3 +1,4 @@
+from app.models.schemas import UserInternalCreate, UserInternalUpdate
 from typing import Dict, Optional
 
 from app.db.storage_factory import get_storage
@@ -115,7 +116,7 @@ class UserRepository:
         if user["address"] and user["address"] not in user["savedAddresses"]:
             user["savedAddresses"].append(user["address"])
 
-        return await self.storage.create(user)
+        return await self.storage.create(UserInternalCreate(**user))
 
     async def update(self, id: str, update_data: Any):
         # Don't allow updating email to an existing one
@@ -135,7 +136,7 @@ class UserRepository:
         if "password" in update_data:
             update_data.password = get_password_hash(update_data.password)
 
-        return await self.storage.update(id, update_data)
+        return await self.storage.update(id, UserInternalUpdate(**update_data) if isinstance(update_data, dict) else update_data)
 
     async def delete(self, id: str):
         return await self.storage.delete(id)
@@ -228,5 +229,7 @@ class UserRepository:
 
 
 user_repository = UserRepository()
+
+
 
 

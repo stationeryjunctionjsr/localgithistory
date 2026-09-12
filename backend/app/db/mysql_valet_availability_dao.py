@@ -3,8 +3,9 @@ MySQL DAO for sj_valet_availability (Relational).
 """
 
 import secrets
-from typing import Dict
+from typing import Dict, Any
 from app.models.valet_availability import ValetAvailability, List, Optional
+from app.models.daos import ValetAvailabilityInternalCreate, ValetAvailabilityInternalUpdate
 
 from sqlalchemy import text
 
@@ -122,7 +123,7 @@ class MySQLValetAvailabilityDAO:
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: ValetAvailabilityInternalCreate) -> Dict:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -153,12 +154,18 @@ class MySQLValetAvailabilityDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: ValetAvailabilityInternalUpdate) -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
 
-        merged = {**existing, **update_data}
+        merged = {}
+        for k in ["valetId", "date", "availabilityType", "slots", "zones"]:
+            val = getattr(update_data, k, None)
+            if val is None:
+                val = existing.get(k)
+            merged[k] = val
+
         factory = self._factory()
         if not factory:
             return None
@@ -174,13 +181,20 @@ class MySQLValetAvailabilityDAO:
                 """),
                 {
                     "id": pk,
-                    "valet_id": str((merged.valetId if getattr(merged, 'valetId', None) is not None else "")),
-                    "date": merged.date,
-                    "atype": (merged.availabilityType if getattr(merged, 'availabilityType', None) is not None else ""),
+                    "valet_id": str(merged["valetId"]) if merged.get("valetId") is not None else "",
+                    "date": merged.get("date"),
+                    "atype": merged.get("availabilityType") if merged.get("availabilityType") is not None else "",
                     "up": now,
                 },
             )
-            await self._replace_children(session, pk, merged)
+            
+            # Create wrapper for _replace_children
+            class _UpdateDataWrapper:
+                def __init__(self, d):
+                    self.slots = d.get("slots", [])
+                    self.zones = d.get("zones", [])
+            
+            await self._replace_children(session, pk, _UpdateDataWrapper(merged))
             await session.commit()
 
         return await self.findById(id)

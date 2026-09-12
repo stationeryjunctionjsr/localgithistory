@@ -1,6 +1,7 @@
 import secrets
-from typing import Dict
+from typing import Dict, Any
 from app.models.seller_payout import SellerPayout, List, Optional
+from app.models.daos import SellerPayoutInternalCreate, SellerPayoutInternalUpdate
 
 from sqlalchemy import text
 
@@ -97,7 +98,7 @@ class MySQLSellerPayoutDAO:
         doc["subOrderIds"] = await self._fetch_sub_orders(doc["id"])
         return doc
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: SellerPayoutInternalCreate) -> Dict:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -111,10 +112,11 @@ class MySQLSellerPayoutDAO:
             "periodEnd": "period_end", "notes": "notes"
         }
         for api_k, db_k in scalar_map.items():
-            if api_k in data:
+            val = getattr(data, api_k, None)
+            if val is not None:
                 cols.append(db_k)
                 vals.append(f":{api_k}")
-                params[api_k] = data[api_k]
+                params[api_k] = val
 
         sub_orders = (data.subOrderIds if getattr(data, 'subOrderIds', None) is not None else [])
 
@@ -131,12 +133,11 @@ class MySQLSellerPayoutDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: SellerPayoutInternalUpdate) -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
         
-        merged = {**existing, **data}
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -148,11 +149,18 @@ class MySQLSellerPayoutDAO:
             "periodEnd": "period_end", "notes": "notes"
         }
         for api_k, db_k in scalar_map.items():
-            if api_k in merged:
+            val = getattr(data, api_k, None)
+            if val is not None:
                 updates.append(f"{db_k} = :{api_k}")
-                params[api_k] = merged[api_k]
+                params[api_k] = val
+            else:
+                # Fallback to existing
+                fallback_val = existing.get(api_k)
+                if fallback_val is not None:
+                    updates.append(f"{db_k} = :{api_k}")
+                    params[api_k] = fallback_val
 
-        sub_orders = data.subOrderIds
+        sub_orders = data.subOrderIds if data.subOrderIds is not None else existing.get("subOrderIds")
 
         set_sql = ", ".join(updates)
         factory = self._factory()

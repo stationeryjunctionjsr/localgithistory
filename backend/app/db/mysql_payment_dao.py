@@ -9,6 +9,7 @@ from typing import Dict
 from app.models.payment import Payment, List, Optional
 
 from sqlalchemy import bindparam, text
+from app.models.daos import PaymentInternalCreate, PaymentInternalUpdate, PaymentEntryInternal
 
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
@@ -234,7 +235,7 @@ class MySQLPaymentDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: PaymentInternalCreate) -> Dict:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -276,10 +277,10 @@ class MySQLPaymentDAO:
         if new_id and payment_entries:
             async with factory() as session:
                 for idx, entry in enumerate(payment_entries):
-                    entry_id = entry.get("entryId", idx + 1)
-                    amount = entry.get("amount", 0)
-                    method = entry.get("paymentMethod") or data.paymentMethod
-                    paid_at = _to_ts(entry.get("paidAt")) or now
+                    entry_id = getattr(entry, "entryId", idx + 1)
+                    amount = getattr(entry, "amount", 0)
+                    method = getattr(entry, "paymentMethod", None) or data.paymentMethod
+                    paid_at = _to_ts(getattr(entry, "paidAt", None)) or now
                     await session.execute(
                         text(
                             f"INSERT INTO {self.ENTRIES_TABLE} (payment_id, entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) "
@@ -291,20 +292,28 @@ class MySQLPaymentDAO:
                             "amount": amount,
                             "payment_method": method,
                             "paid_at": paid_at,
-                            "image": entry.get("image"),
-                            "notes": entry.get("notes", ""),
-                            "verified": 1 if entry.get("verified") else 0,
+                            "image": getattr(entry, "image", None),
+                            "notes": getattr(entry, "notes", ""),
+                            "verified": 1 if getattr(entry, "verified", False) else 0,
                             "created_at": now,
                         },
                     )
                 await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: PaymentInternalUpdate) -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+        # Since existing is a Dict and update_data is a PaymentInternalUpdate, we merge by accessing update_data fields
+        # falling back to existing.
+        merged = {}
+        for k in ["orderId", "userId", "userIdFormatted", "customerName", "orderDate", "paymentMethod", "amountPaid", "amountRemaining", "totalAmount", "paymentId"]:
+            val = getattr(update_data, k, None)
+            if val is None:
+                val = existing.get(k)
+            merged[k] = val
+
         factory = self._factory()
         if not factory:
             return None
@@ -319,27 +328,27 @@ class MySQLPaymentDAO:
                     f"payment_id=:payment_id, updated_at=:updated_at WHERE id=:id"
                 ),
                 {
-                    "order_id": merged.orderId,
-                    "user_id": merged.userId,
-                    "user_id_formatted": merged.userIdFormatted,
-                    "customer_name": merged.customerName,
-                    "order_date": _to_ts(merged.orderDate),
-                    "payment_method": merged.paymentMethod,
-                    "amount_paid": merged.amountPaid,
-                    "amount_remaining": merged.amountRemaining,
-                    "total_amount": merged.totalAmount,
-                    "payment_id": merged.paymentId,
+                    "order_id": merged["orderId"],
+                    "user_id": merged["userId"],
+                    "user_id_formatted": merged["userIdFormatted"],
+                    "customer_name": merged["customerName"],
+                    "order_date": _to_ts(merged["orderDate"]),
+                    "payment_method": merged["paymentMethod"],
+                    "amount_paid": merged["amountPaid"],
+                    "amount_remaining": merged["amountRemaining"],
+                    "total_amount": merged["totalAmount"],
+                    "payment_id": merged["paymentId"],
                     "updated_at": now,
                     "id": pid,
                 },
             )
             await session.commit()
-            if "paymentEntries" in merged:
+            if update_data.paymentEntries is not None:
                 await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": pid})
                 await session.commit()
-                for idx, entry in enumerate(merged.paymentEntries or []):
-                    entry_id = entry.get("entryId", idx + 1)
-                    paid_at = _to_ts(entry.get("paidAt")) or now
+                for idx, entry in enumerate(update_data.paymentEntries):
+                    entry_id = getattr(entry, "entryId", idx + 1)
+                    paid_at = _to_ts(getattr(entry, "paidAt", None)) or now
                     await session.execute(
                         text(
                             f"INSERT INTO {self.ENTRIES_TABLE} (payment_id, entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) "
@@ -348,12 +357,12 @@ class MySQLPaymentDAO:
                         {
                             "payment_id": pid,
                             "entry_id": entry_id,
-                            "amount": entry.get("amount", 0),
-                            "payment_method": entry.get("paymentMethod") or merged.paymentMethod,
+                            "amount": getattr(entry, "amount", 0),
+                            "payment_method": getattr(entry, "paymentMethod", None) or merged["paymentMethod"],
                             "paid_at": paid_at,
-                            "image": entry.get("image"),
-                            "notes": entry.get("notes", ""),
-                            "verified": 1 if entry.get("verified") else None,
+                            "image": getattr(entry, "image", None),
+                            "notes": getattr(entry, "notes", ""),
+                            "verified": 1 if getattr(entry, "verified", False) else None,
                             "created_at": now,
                         },
                     )

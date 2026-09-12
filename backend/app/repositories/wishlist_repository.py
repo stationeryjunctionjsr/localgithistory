@@ -12,11 +12,13 @@ class WishlistRepository:
         return await self.storage.findOne({"user": user_id})
 
     async def createOrUpdate(self, user_id: str, items: list):
+        from app.models.daos import WishlistInternalCreate, WishlistInternalUpdate
         existing = await self.findByUser(user_id)
-        wishlist_data = {"user": user_id, "items": items or [], "updatedAt": datetime.now(timezone.utc).isoformat()}
         if existing:
+            wishlist_data = WishlistInternalUpdate(user=user_id, items=items or [], updatedAt=datetime.now(timezone.utc).isoformat())
             return await self.storage.update(existing.get("_id"), wishlist_data)
         else:
+            wishlist_data = WishlistInternalCreate(user=user_id, items=items or [], updatedAt=datetime.now(timezone.utc).isoformat())
             return await self.storage.create(wishlist_data)
 
     async def addItem(self, user_id: str, item: dict):

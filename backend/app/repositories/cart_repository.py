@@ -1,4 +1,5 @@
-from typing import Dict
+from typing import Dict, Any
+from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
 
 from app.db.storage_factory import get_storage
 
@@ -11,10 +12,13 @@ class CartRepository:
         return await self.storage.findOne({"user": user_id})
 
     async def create(self, cart_data: Any):
-        cart = {"user": cart_data["user"], "items": cart_data.get("items", [])}
+        cart_dict = {"user": cart_data["user"], "items": cart_data.get("items", [])}
+        cart = CartInternalCreate(**cart_dict)
         return await self.storage.create(cart)
 
     async def update(self, id: str, update_data: Any):
+        if not isinstance(update_data, CartInternalUpdate):
+            update_data = CartInternalUpdate(**update_data)
         return await self.storage.update(id, update_data)
 
     async def clearCart(self, user_id: str):

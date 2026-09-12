@@ -32,30 +32,34 @@ class SellerRequestRepository:
         return await self.storage.findById(id)
 
     async def create(self, request_data: Any):
+        from app.models.daos import SellerRequestInternalCreate
+        req_data = request_data if isinstance(request_data, dict) else dict(request_data)
         request = {
             "requestNumber": self.generateRequestNumber(),
-            "user": request_data.get("user"),
-            "subject": request_data["subject"],
-            "description": request_data["description"],
-            "category": request_data.get("category", "general"),
-            "priority": request_data.get("priority", "medium"),
-            "status": request_data.get("status", "open"),
-            "attachments": request_data.get("attachments", []),
+            "user": req_data.get("user"),
+            "subject": req_data["subject"],
+            "description": req_data["description"],
+            "category": req_data.get("category", "general"),
+            "priority": req_data.get("priority", "medium"),
+            "status": req_data.get("status", "open"),
+            "attachments": req_data.get("attachments", []),
             "responses": [],
             "resolvedAt": None,
             "closedAt": None,
             "createdAt": datetime.now(timezone.utc).isoformat(),
         }
 
-        return await self.storage.create(request)
+        return await self.storage.create(SellerRequestInternalCreate(**request))
 
     async def update(self, id: str, update_data: Any):
-        if getattr(update_data, "status", None) == "resolved" and "resolvedAt" not in update_data:
-            update_data.resolvedAt = datetime.now(timezone.utc).isoformat()
-        elif getattr(update_data, "status", None) == "closed" and "closedAt" not in update_data:
-            update_data.closedAt = datetime.now(timezone.utc).isoformat()
+        from app.models.daos import SellerRequestInternalUpdate
+        update_data_dict = update_data if isinstance(update_data, dict) else dict(update_data)
+        if update_data_dict.get("status") == "resolved" and "resolvedAt" not in update_data_dict:
+            update_data_dict["resolvedAt"] = datetime.now(timezone.utc).isoformat()
+        elif update_data_dict.get("status") == "closed" and "closedAt" not in update_data_dict:
+            update_data_dict["closedAt"] = datetime.now(timezone.utc).isoformat()
 
-        return await self.storage.update(id, update_data)
+        return await self.storage.update(id, SellerRequestInternalUpdate(**update_data_dict))
 
     async def addResponse(self, request_id: str, response_data: Any):
         request = await self.findById(request_id)

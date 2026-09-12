@@ -16,3 +16,7 @@ class AvailabilityRequests(DictCompatibleModel):
     eid: Optional[str] = Field(default=None, alias='eid')
     c: Optional[str] = Field(default=None, alias='c')
     u: Optional[str] = Field(default=None, alias='u')
+
+class AvailabilityRequestResponse(AvailabilityRequests):
+    pass
+

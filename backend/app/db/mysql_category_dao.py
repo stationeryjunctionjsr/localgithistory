@@ -133,7 +133,7 @@ class MySQLCategoryDAO:
     async def findById(self, id: str) -> Optional[Category]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> Category:
+    async def create(self, data: 'CategoryInternalCreate') -> Category:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -156,11 +156,11 @@ class MySQLCategoryDAO:
                     "external_id": external_id,
                     "name": data.name,
                     "description": data.description,
-                    "is_active": int(bool((data.isActive if getattr(data, 'isActive', None) is not None else True))),
+                    "is_active": int(bool(data.isActive)),
                     "category_tag": data.categoryTag,
                     "minimum_quantity": data.minimumQuantity,
                     "gst": data.gst,
-                    "is_returnable": int(bool((data.isReturnable if getattr(data, 'isReturnable', None) is not None else True))),
+                    "is_returnable": int(bool(data.isReturnable)),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -174,11 +174,16 @@ class MySQLCategoryDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Category]:
+    async def update(self, id: str, update_data: 'CategoryInternalUpdate') -> Optional[Category]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+        # Convert existing Category to dict for merging, then instantiate the Update model
+        from app.models.daos import CategoryInternalUpdate
+        existing_dict = existing.model_dump(exclude_unset=True)
+        update_dict = update_data.model_dump(exclude_unset=True)
+        merged_dict = {**existing_dict, **update_dict}
+        merged = CategoryInternalUpdate(**merged_dict)
 
         factory = self._factory()
         now = now_utc()
@@ -203,11 +208,11 @@ class MySQLCategoryDAO:
                     "id": cid,
                     "name": merged.name,
                     "description": merged.description,
-                    "is_active": int(bool((merged.isActive if getattr(merged, 'isActive', None) is not None else True))),
+                    "is_active": int(bool(merged.isActive if merged.isActive is not None else True)),
                     "category_tag": merged.categoryTag,
                     "minimum_quantity": merged.minimumQuantity,
                     "gst": merged.gst,
-                    "is_returnable": int(bool((merged.isReturnable if getattr(merged, 'isReturnable', None) is not None else True))),
+                    "is_returnable": int(bool(merged.isReturnable if merged.isReturnable is not None else True)),
                     "updated_at": now,
                 },
             )

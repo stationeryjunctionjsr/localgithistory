@@ -92,7 +92,7 @@ class MySQLWishlistDAO:
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: 'WishlistInternalCreate') -> Dict:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -125,7 +125,7 @@ class MySQLWishlistDAO:
 
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: 'WishlistInternalUpdate') -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -138,7 +138,7 @@ class MySQLWishlistDAO:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET updated_at = :u WHERE id = :id"), {"id": wid, "u": now}
             )
-            if "items" in update_data:
+            if getattr(update_data, "items", None) is not None:
                 await self._replace_items(session, wid, update_data.items)
             await session.commit()
 

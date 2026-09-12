@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
+from app.models.daos import BannerInternalCreate, BannerInternalUpdate
 
 from app.db.storage_factory import get_storage
 
@@ -146,45 +147,54 @@ class BannerRepository:
 
     async def create(self, banner_data: Any):
         # Derive legacy fields for backward compatibility and admin table visibility
-        user_segments = banner_data.get("userSegments", ["all"])
-        visibility_rules = banner_data.get("visibilityRules", [])
+        if isinstance(banner_data, dict):
+            user_segments = banner_data.get("userSegments", ["all"])
+            visibility_rules = banner_data.get("visibilityRules", [])
+            start_date = banner_data.get("startDate")
+        else:
+            user_segments = getattr(banner_data, "userSegments", ["all"])
+            visibility_rules = getattr(banner_data, "visibilityRules", [])
+            start_date = getattr(banner_data, "startDate", None)
 
         target_audience = user_segments[0] if user_segments else "all"
         position = visibility_rules[0].get("pageType", "homepage") if visibility_rules else "homepage"
 
-        start_date = banner_data.get("startDate")
         if not start_date or not str(start_date).strip():
             start_date = datetime.now(timezone.utc).isoformat()
 
-        banner = {
-            "title": banner_data.get("title", ""),
-            "description": banner_data.get("description", ""),
-            "imageUrl": banner_data["imageUrl"],
-            "linkUrl": banner_data.get("linkUrl", ""),
-            "displayOrder": banner_data.get("displayOrder", 0),
+        banner_dict = {
+            "title": banner_data.get("title", "") if isinstance(banner_data, dict) else getattr(banner_data, "title", ""),
+            "description": banner_data.get("description", "") if isinstance(banner_data, dict) else getattr(banner_data, "description", ""),
+            "imageUrl": banner_data["imageUrl"] if isinstance(banner_data, dict) else getattr(banner_data, "imageUrl", ""),
+            "linkUrl": banner_data.get("linkUrl", "") if isinstance(banner_data, dict) else getattr(banner_data, "linkUrl", ""),
+            "displayOrder": banner_data.get("displayOrder", 0) if isinstance(banner_data, dict) else getattr(banner_data, "displayOrder", 0),
             "startDate": start_date,
-            "endDate": banner_data.get("endDate"),
-            "isActive": banner_data.get("isActive", True),
-            "isPublished": banner_data.get("isPublished", False),
+            "endDate": banner_data.get("endDate") if isinstance(banner_data, dict) else getattr(banner_data, "endDate", None),
+            "isActive": banner_data.get("isActive", True) if isinstance(banner_data, dict) else getattr(banner_data, "isActive", True),
+            "isPublished": banner_data.get("isPublished", False) if isinstance(banner_data, dict) else getattr(banner_data, "isPublished", False),
             "targetAudience": target_audience,
             "userSegments": user_segments,
             "visibilityRules": visibility_rules,
             "position": position,
         }
 
-        return await self.storage.create(banner)
+        banner_model = BannerInternalCreate(**banner_dict)
+        return await self.storage.create(banner_model)
 
     async def update(self, id: str, update_data: Any):
         # Sync legacy fields if new ones are provided
-        if "userSegments" in update_data:
-            segments = update_data.userSegments
-            update_data.targetAudience = segments[0] if segments else "all"
+        update_dict = update_data if isinstance(update_data, dict) else update_data.model_dump(exclude_unset=True) if hasattr(update_data, "model_dump") else update_data.dict(exclude_unset=True) if hasattr(update_data, "dict") else vars(update_data)
+        
+        if "userSegments" in update_dict:
+            segments = update_dict["userSegments"]
+            update_dict["targetAudience"] = segments[0] if segments else "all"
 
-        if "visibilityRules" in update_data:
-            rules = update_data.visibilityRules
-            update_data.position = rules[0].get("pageType", "homepage") if rules else "homepage"
+        if "visibilityRules" in update_dict:
+            rules = update_dict["visibilityRules"]
+            update_dict["position"] = rules[0].get("pageType", "homepage") if rules else "homepage"
 
-        return await self.storage.update(id, update_data)
+        update_model = BannerInternalUpdate(**update_dict)
+        return await self.storage.update(id, update_model)
 
     async def delete(self, id: str):
         return await self.storage.delete(id)
