@@ -950,37 +950,38 @@ class ProductRepository:
         if existing:
             raise ValueError("Product with this SKU already exists")
 
-        product = {
-            "name": data_dict["name"],
-            "description": data_dict.get("description", ""),
-            "sku": sku_val,
-            "category": data_dict["category"],
-            "subCategory": data_dict.get("subCategory"),
-            "brand": data_dict.get("brand", ""),
-            "mrp": float(data_dict["mrp"]),
-            "mrpPerCase": float(data_dict["mrpPerCase"]) if data_dict.get("mrpPerCase") is not None else None,
-            "quantityPerCase": int(data_dict["quantityPerCase"])
-            if data_dict.get("quantityPerCase") is not None
-            else None,
-            "stock": int(data_dict.get("stock", 0)),
-            "images": data_dict.get("images", []),
-            "videos": data_dict.get("videos", []),
-            "isActive": data_dict.get("isActive", True),
-            "tags": data_dict.get("tags", []),
-            "variantAttributes": data_dict.get("variantAttributes", []),
-            "variants": data_dict.get("variantCombinations", []),
-            "details": data_dict.get("details", {}),
-        }
+        internal_create = ProductInternalCreate(
+            productId=product_id,
+            productIdFormatted=product_id_formatted,
+            name=data_dict["name"],
+            description=data_dict.get("description", ""),
+            sku=sku_val,
+            categoryId=data_dict["categoryId"],
+            subCategoryId=data_dict.get("subCategoryId"),
+            brandId=data_dict.get("brandId"),
+            price=float(data_dict.get("price") if data_dict.get("price") is not None else 0),
+            mrp=float(data_dict.get("mrp") if data_dict.get("mrp") is not None else 0),
+            stock=int(data_dict.get("stock") if data_dict.get("stock") is not None else 0),
+            unit=data_dict.get("unit", "pc"),
+            isActive=data_dict.get("isActive", True),
+            tags=data_dict.get("tags", []),
+            images=data_dict.get("images", []),
+            thumbnail=data_dict.get("thumbnail"),
+            variants=data_dict.get("variantCombinations", []),
+            details=data_dict.get("details", {}),
+        )
 
-        # Auto-generate SKUs for variantCombinations if missing or starts with NEW-
-        for combo in product.get("variants", []):
-            combo_sku = combo.get("sku", "")
-            if not combo_sku or combo_sku.startswith("NEW-"):
-                combo["sku"] = (
-                    f"{sku_val}-{'-'.join(str(v).replace(' ', '') for v in combo.get('attributes', {}).values())}"
-                )
+        if internal_create.variants:
+            existing_skus = set()
+            for combo in internal_create.variants:
+                if "sku" not in combo or not combo["sku"]:
+                    combo["sku"] = (
+                        f"{sku_val}-{'-'.join(str(v).replace(' ', '') for v in combo.get('attributes', {}).values())}"
+                    )
+                if combo["sku"] in existing_skus:
+                    raise ValueError(f"Duplicate variant SKU generated or provided: {combo['sku']}")
+                existing_skus.add(combo["sku"])
 
-        internal_create = ProductInternalCreate(**product)
         created = await self.storage.create(internal_create)
         return (await self._attach_category_gst([created]))[0]
 
@@ -1041,7 +1042,7 @@ class ProductRepository:
             logger.error("Error checking stock transition in product repository update: %s", str(e))
 
         from app.models.daos import ProductInternalUpdate
-        internal_update = ProductInternalUpdate(**data_dict)
+        internal_update = ProductInternalUpdate.model_validate(data_dict)
         updated = await self.storage.update(id, internal_update)
         if updated:
             updated = (await self._attach_category_gst([updated]))[0]

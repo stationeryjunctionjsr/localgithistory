@@ -12,8 +12,7 @@ class CartRepository:
         return await self.storage.findOne({"user": user_id})
 
     async def create(self, cart_data: Any):
-        cart_dict = {"user": cart_data["user"], "items": cart_data.get("items", [])}
-        cart = CartInternalCreate(**cart_dict)
+        cart = CartInternalCreate(user=cart_data["user"], items=cart_data.get("items", []))
         return await self.storage.create(cart)
 
     async def update(self, id: str, update_data: Any):

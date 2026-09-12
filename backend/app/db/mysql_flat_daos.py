@@ -1,3 +1,4 @@
+from app.models.daos_flat import *
 from typing import Any
 """
 Strict SQLAlchemy DAOs replacing MySQLTypedDocDAO and DocStore patterns.
@@ -70,7 +71,7 @@ class MySQLReturnSettingsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: ReturnSettingsInternalCreate) -> Dict:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -94,11 +95,11 @@ class MySQLReturnSettingsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: ReturnSettingsInternalUpdate) -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = ReturnSettingsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -209,7 +210,7 @@ class MySQLOrderFeedbackDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> OrderFeedbackResponse:
+    async def create(self, data: OrderFeedbackInternalCreate) -> OrderFeedbackResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -257,11 +258,11 @@ class MySQLOrderFeedbackDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[OrderFeedbackResponse]:
+    async def update(self, id: str, data: OrderFeedbackInternalUpdate) -> Optional[OrderFeedbackResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = OrderFeedbackInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -367,7 +368,7 @@ class MySQLPromoStripsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> PromoStripResponse:
+    async def create(self, data: PromoStripsInternalCreate) -> PromoStripResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -395,11 +396,11 @@ class MySQLPromoStripsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[PromoStripResponse]:
+    async def update(self, id: str, data: PromoStripsInternalUpdate) -> Optional[PromoStripResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = PromoStripsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -529,7 +530,7 @@ class MySQLPushNotificationsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: PushNotificationsInternalCreate) -> Dict:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -593,11 +594,11 @@ class MySQLPushNotificationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: PushNotificationsInternalUpdate) -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = PushNotificationsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -734,7 +735,7 @@ class MySQLCoachMarksDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: CoachMarksInternalCreate) -> Dict:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -778,11 +779,11 @@ class MySQLCoachMarksDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: CoachMarksInternalUpdate) -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = CoachMarksInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -892,7 +893,7 @@ class MySQLCategoryTagsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Any:
+    async def create(self, data: CategoryTagsInternalCreate) -> Any:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -924,11 +925,11 @@ class MySQLCategoryTagsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[CategoryTagResponse]:
+    async def update(self, id: str, data: CategoryTagsInternalUpdate) -> Optional[CategoryTagResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = CategoryTagsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1033,7 +1034,7 @@ class MySQLGoogle_reviewsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Google_reviewsInternalCreate) -> Dict:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1069,11 +1070,11 @@ class MySQLGoogle_reviewsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Google_reviewsInternalUpdate) -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = Google_reviewsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1172,7 +1173,7 @@ class MySQLStockReservationsDAO:
             ).fetchone()
         return StockReservation.model_validate(row) if row else None
 
-    async def create(self, data: Dict) -> StockReservation:
+    async def create(self, data: StockReservationsInternalCreate) -> StockReservation:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1219,11 +1220,11 @@ class MySQLStockReservationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[StockReservation]:
+    async def update(self, id: str, data: StockReservationsInternalUpdate) -> Optional[StockReservation]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing.model_dump(by_alias=True), **data}
+        merged = {**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)}
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1344,7 +1345,7 @@ class MySQLProductNotificationsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: ProductNotificationsInternalCreate) -> Dict:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1384,11 +1385,11 @@ class MySQLProductNotificationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: ProductNotificationsInternalUpdate) -> Optional[Dict]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = StockReservationsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1503,7 +1504,7 @@ class MySQLProductReviewsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> ProductReviewResponse:
+    async def create(self, data: ProductReviewsInternalCreate) -> ProductReviewResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1543,11 +1544,11 @@ class MySQLProductReviewsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[ProductReviewResponse]:
+    async def update(self, id: str, data: ProductReviewsInternalUpdate) -> Optional[ProductReviewResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = ProductNotificationsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1649,7 +1650,7 @@ class MySQLClassificationTagsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> ProductReviewResponse:
+    async def create(self, data: ClassificationTagsInternalCreate) -> ProductReviewResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1677,11 +1678,11 @@ class MySQLClassificationTagsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[ProductReviewResponse]:
+    async def update(self, id: str, data: ClassificationTagsInternalUpdate) -> Optional[ProductReviewResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = ProductReviewsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1783,7 +1784,7 @@ class MySQLReviewClassificationsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> ClassificationTagResponse:
+    async def create(self, data: ReviewClassificationsInternalCreate) -> ClassificationTagResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1819,11 +1820,11 @@ class MySQLReviewClassificationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[ClassificationTagResponse]:
+    async def update(self, id: str, data: ReviewClassificationsInternalUpdate) -> Optional[ClassificationTagResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = ClassificationTagsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1931,7 +1932,7 @@ class MySQLAboutUsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Any:
+    async def create(self, data: AboutUsInternalCreate) -> Any:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1967,11 +1968,11 @@ class MySQLAboutUsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Any]:
+    async def update(self, id: str, data: AboutUsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = ReviewClassificationsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2079,7 +2080,7 @@ class MySQLPrivacyPolicyDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Any:
+    async def create(self, data: PrivacyPolicyInternalCreate) -> Any:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2115,11 +2116,11 @@ class MySQLPrivacyPolicyDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Any]:
+    async def update(self, id: str, data: PrivacyPolicyInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = AboutUsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2231,7 +2232,7 @@ class MySQLAvailabilityRequestsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> AvailabilityRequestResponse:
+    async def create(self, data: AvailabilityRequestsInternalCreate) -> AvailabilityRequestResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2271,11 +2272,11 @@ class MySQLAvailabilityRequestsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[AvailabilityRequestResponse]:
+    async def update(self, id: str, data: AvailabilityRequestsInternalUpdate) -> Optional[AvailabilityRequestResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = PrivacyPolicyInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2386,7 +2387,7 @@ class MySQLPincodeSearchesDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Any:
+    async def create(self, data: PincodeSearchesInternalCreate) -> Any:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2422,11 +2423,11 @@ class MySQLPincodeSearchesDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Any]:
+    async def update(self, id: str, data: PincodeSearchesInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = AvailabilityRequestsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2538,7 +2539,7 @@ class MySQLSystemSettingsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Any:
+    async def create(self, data: SystemSettingsInternalCreate) -> Any:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2578,11 +2579,11 @@ class MySQLSystemSettingsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[SystemSettingsResponse]:
+    async def update(self, id: str, data: SystemSettingsInternalUpdate) -> Optional[SystemSettingsResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = PincodeSearchesInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2685,7 +2686,7 @@ class MySQLValetPayoutSettingsDAO:
             ).fetchone()
         return self._row_to_dict(row) if row else None
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: ValetPayoutSettingsInternalCreate) -> Dict:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2717,7 +2718,7 @@ class MySQLValetPayoutSettingsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        merged = SystemSettingsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         

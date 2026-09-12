@@ -90,33 +90,32 @@ class UserRepository:
         name = user_data.get("name") or "Customer"
         email_val = email.lower() if email else None
 
-        user = {
-            "userId": user_id,  # Keep numeric ID for internal use
-            "userIdFormatted": user_id_formatted,  # Display format: USER-1, USER-2, etc.
-            "name": name,
-            "email": email_val,
-            "password": hashed_password,
-            "role": role,
-            "phone": user_data.get("phone", ""),
-            "companyName": user_data.get("companyName", ""),
-            "address": user_data.get("address", {}),
-            "savedAddresses": user_data.get("savedAddresses", []),
-            "isActive": user_data.get("isActive", True),
-            "approvalStatus": user_data.get("approvalStatus", approval_status),
-            "isDeactivated": user_data.get("isDeactivated", False),
-            "creditLimit": user_data.get("creditLimit", 0),
-            "creditUsed": user_data.get("creditUsed", 0),
-            "paymentTerms": user_data.get("paymentTerms", "30"),
-            "assignedSalesperson": user_data.get("assignedSalesperson"),
-            "referralCode": referral_code,
-            "isEmailVerified": user_data.get("isEmailVerified", False),
-        }
+        user_model = UserInternalCreate(
+            userId=user_id,
+            userIdFormatted=user_id_formatted,
+            name=name,
+            email=email_val,
+            password=hashed_password,
+            role=role,
+            phone=user_data.get("phone", ""),
+            companyName=user_data.get("companyName", ""),
+            address=user_data.get("address", {}),
+            savedAddresses=user_data.get("savedAddresses", []),
+            isActive=user_data.get("isActive", True),
+            approvalStatus=user_data.get("approvalStatus", approval_status),
+            isDeactivated=user_data.get("isDeactivated", False),
+            creditLimit=user_data.get("creditLimit", 0),
+            creditUsed=user_data.get("creditUsed", 0),
+            paymentTerms=user_data.get("paymentTerms", "30"),
+            assignedSalesperson=user_data.get("assignedSalesperson"),
+            referralCode=referral_code,
+            isEmailVerified=user_data.get("isEmailVerified", False),
+        )
 
-        # If an address is provided, add it to savedAddresses if not already there
-        if user["address"] and user["address"] not in user["savedAddresses"]:
-            user["savedAddresses"].append(user["address"])
+        if user_model.address and user_model.address not in user_model.savedAddresses:
+            user_model.savedAddresses.append(user_model.address)
 
-        return await self.storage.create(UserInternalCreate(**user))
+        return await self.storage.create(user_model)
 
     async def update(self, id: str, update_data: Any):
         # Don't allow updating email to an existing one
