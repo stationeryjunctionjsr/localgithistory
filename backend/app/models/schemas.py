@@ -72,6 +72,72 @@ class BannerPosition(str, Enum):
 
 
 # User Schemas
+
+class AddressSnippet(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    street: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    locationLink: Optional[str] = None
+
+class UserSnippet(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[str] = None
+
+class ItemSnippet(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    productId: Optional[str] = None
+    product: Optional[Any] = None
+    quantity: Optional[int] = None
+    sellAsCase: Optional[bool] = None
+    price: Optional[float] = None
+    mrp: Optional[float] = None
+    name: Optional[str] = None
+    image: Optional[str] = None
+    status: Optional[str] = None
+
+class VariantOption(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    value: Optional[str] = None
+    priceModifier: Optional[float] = None
+    stock: Optional[int] = None
+    sku: Optional[str] = None
+    attributes: Optional[Dict[str, str]] = None
+    price: Optional[float] = None
+
+class VisibilityRuleSnippet(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    type: Optional[str] = None
+    value: Optional[str] = None
+
+class SellerPermissionSnippet(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    canManageProducts: Optional[bool] = None
+    canManageOrders: Optional[bool] = None
+
+class ValetSnippet(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    phone: Optional[str] = None
+
+class ValetDeclineSnippet(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    valetId: Optional[str] = None
+    reason: Optional[str] = None
+
+class DiscountSnippet(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    name: Optional[str] = None
+    value: Optional[float] = None
+
 class UserBase(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None

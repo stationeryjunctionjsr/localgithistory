@@ -67,10 +67,8 @@ class ProductRepository:
     def _extract_price_text(self, product: Any) -> str:
         """Collect text representations of all prices for a product (MRP, case MRP, variant prices)."""
         parts = []
-        mrp = product.get("mrp")
-        if mrp is not None:
-            fmrp = float(mrp)
-            parts.extend([str(fmrp), str(int(fmrp)), f"rs {int(fmrp)}", f"₹{int(fmrp)}", f"rs.{int(fmrp)}"])
+        fmrp = float(product["mrp"])
+        parts.extend([str(fmrp), str(int(fmrp)), f"rs {int(fmrp)}", f"₹{int(fmrp)}", f"rs.{int(fmrp)}"])
         mrp_case = product.get("mrpPerCase")
         if mrp_case is not None:
             fmrp_case = float(mrp_case)
@@ -100,7 +98,7 @@ class ProductRepository:
         import re
 
         full_query = " ".join(tokens).lower()
-        prod_mrp = (float(product.get("mrp")) if product.get("mrp") is not None else 0.0)
+        prod_mrp = float(product["mrp"])
 
         price_expr_matched = False
         # Pattern 1: under/below/less than X or <=X
@@ -430,7 +428,7 @@ class ProductRepository:
             products_filtered = []
             for p in products:
                 price = self.getPriceForRole(p, role)
-                mrp = (float(p.get("mrp")) if p.get("mrp") is not None else 0.0)
+                mrp = float(p["mrp"])
                 if mrp > 0 and price < mrp:
                     disc = ((mrp - price) / mrp) * 100
                     if disc >= min_disc:
@@ -955,7 +953,7 @@ class ProductRepository:
             "category": product_data["category"],
             "subCategory": product_data.get("subCategory"),
             "brand": product_data.get("brand", ""),
-            "mrp": (float(product_data.get("mrp")) if product_data.get("mrp") is not None else 0.0),
+            "mrp": float(product_data["mrp"]),
             "mrpPerCase": float(product_data["mrpPerCase"]) if product_data.get("mrpPerCase") is not None else None,
             "quantityPerCase": int(product_data["quantityPerCase"])
             if product_data.get("quantityPerCase") is not None
@@ -1070,7 +1068,7 @@ class ProductRepository:
                 return round(float(mrp_case), 2)
 
         # Base MRP (per unit)
-        mrp = (float(product.get("mrp")) if product.get("mrp") is not None else 0.0)
+        mrp = float(product["mrp"])
 
         # Check for variant-specific pricing if attributes are selected
         if selected_attributes and product.get("variantCombinations"):
@@ -1235,4 +1233,7 @@ class ProductRepository:
 
 
 product_repository = ProductRepository()
+
+
+
 
