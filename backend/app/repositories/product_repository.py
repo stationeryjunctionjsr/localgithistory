@@ -430,7 +430,9 @@ class ProductRepository:
                 price = self.getPriceForRole(p, role)
                 mrp = float(p.mrp)
                 if mrp > 0 and price < mrp:
-                    disc = ((mrp - price) / mrp) * 100 if mrp else 0
+                    if not mrp:
+                        raise ValueError("Cannot calculate discount: MRP is zero or None")
+                    disc = ((mrp - price) / mrp) * 100
                     if disc >= min_disc:
                         products_filtered.append(p)
             products = products_filtered
@@ -1146,7 +1148,9 @@ class ProductRepository:
                             pct = val
                         elif c_discount_type == "fixed":
                             if mrp > 0:
-                                pct = (val / mrp) * 100 if mrp else 0.0
+                                if not mrp:
+                                    raise ValueError("Cannot calculate discount: MRP is zero or None")
+                                pct = (val / mrp) * 100
 
                     if pct > auto_discount_pct:
                         auto_discount_pct = pct

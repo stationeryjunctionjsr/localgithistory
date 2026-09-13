@@ -514,7 +514,9 @@ async def populate_product_discounts(
                     pct = val
                 elif c.discount_type == "fixed":
                     if mrp > 0:
-                        pct = (val / mrp) * 100 if mrp else 0.0
+                        if not mrp:
+                            raise ValueError("Cannot calculate discount: MRP is zero or None")
+                        pct = (val / mrp) * 100
                 if pct > auto_discount_pct:
                     auto_discount_pct = pct
                     auto_discount_value = val
@@ -529,7 +531,9 @@ async def populate_product_discounts(
             p.defaultDiscountPercentage = round(auto_discount_pct, 2)
 
         if mrp > 0 and final_price < mrp:
-            p.discountPercentage = round(((mrp - final_price) / mrp) * 100) if mrp else 0
+            if not mrp:
+                raise ValueError("Cannot calculate discount percentage: MRP is zero or None")
+            p.discountPercentage = round(((mrp - final_price) / mrp) * 100)
 
         # Fast path for list endpoints
         if skinny:

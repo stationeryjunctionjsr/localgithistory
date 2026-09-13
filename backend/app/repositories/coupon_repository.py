@@ -1234,7 +1234,9 @@ class CouponRepository:
                         elif c.discountType == "fixed":
                             mrp = float(product.mrp) if product.mrp is not None else 0.0
                             if mrp > 0:
-                                pct = (float(c.discountValue) if c.discountValue is not None else 0.0) / mrp * 100 if mrp else 0.0
+                                if not mrp:
+                                    raise ValueError("Cannot calculate coupon discount: MRP is zero or None")
+                                pct = (float(c.discountValue) if c.discountValue is not None else 0.0) / mrp * 100
                         if pct > highest_pct:
                             highest_pct = pct
                             default_auto_discount = c
