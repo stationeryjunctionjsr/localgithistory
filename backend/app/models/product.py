@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
 from pydantic import BaseModel
+from app.models.schemas import VariantOption, UserSnippet
 
 class Product(BaseModel):
     id: str = Field(alias="_id")
@@ -25,9 +26,9 @@ class Product(BaseModel):
     is_exclusive: bool = Field(default=False, alias="isExclusive")
     collection: Optional[str] = None
     tags: List[str] = []
-    variant_attributes: List[Any] = Field(default=[], alias="variantAttributes")
-    sellers: List[Any] = []
-    variants: List[Any] = []
+    variant_attributes: List[str] = Field(default=[], alias="variantAttributes")
+    sellers: List[UserSnippet] = []
+    variants: List[VariantOption] = []
     details: Dict[str, Any] = {}
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")

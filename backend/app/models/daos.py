@@ -152,15 +152,19 @@ class SessionInternalUpdate(BaseModel):
     ipAddress: Optional[str] = None
     isActive: Optional[bool] = None
 
+
+class WishlistItemInternal(BaseModel):
+    product: str
+
 class WishlistInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     user: str
-    items: List[Any] = []
+    items: Optional[List[WishlistItemInternal]] = []
 
 class WishlistInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     user: Optional[str] = None
-    items: Optional[List[Any]] = None
+    items: Optional[List[WishlistItemInternal]] = None
 
 class TrackingInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -237,17 +241,25 @@ class BrandInternalUpdate(BaseModel):
     description: Optional[str] = None
     isActive: Optional[bool] = None
 
+
+class BundleItemInternal(BaseModel):
+    productId: str
+    productName: Optional[str] = None
+    quantity: int
+    price: Optional[float] = None
+    discountPrice: Optional[float] = None
+
 class BundleInternalCreate(BaseModel):
     model_config = ConfigDict(extra='ignore')
     name: str
-    items: List[Any] = []
+    items: Optional[List[BundleItemInternal]] = []
     price: float
     isActive: bool = True
 
 class BundleInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='ignore')
     name: Optional[str] = None
-    items: Optional[List[Any]] = None
+    items: Optional[List[BundleItemInternal]] = None
     price: Optional[float] = None
     isActive: Optional[bool] = None
 

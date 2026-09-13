@@ -8,7 +8,7 @@ class Tracking(BaseModel):
     external_id: Optional[str] = Field(default=None, alias='externalId')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')
     updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    product_ids: List[Any] = Field(default=[], alias='product_ids')
+    product_ids: List[str] = Field(default=[], alias='product_ids')
     payload: Optional[Dict] = Field(default=None, alias='payload')
     product_id: Optional[str] = Field(default=None, alias='productId')
     quantity: int = Field(default=0, alias='quantity')

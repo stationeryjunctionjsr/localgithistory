@@ -2499,28 +2499,6 @@ class OrderAddress(BaseModel):
     pincode: Optional[str] = None
     phone: Optional[str] = None
 
-class OrderCreateInternal(BaseModel):
-    user: str
-    userRole: Optional[str] = None
-    sessionId: Optional[str] = None
-    items: List[Any] = Field(default_factory=list)
-    subtotal: float
-    tax: float = 0.0
-    shipping: float = 0.0
-    discount: float = 0.0
-    total: float
-    orderType: str
-    status: str = "pending"
-    paymentStatus: str = "pending"
-    paymentMethod: str = "cod"
-    upiPaymentScreenshot: Optional[str] = None
-    shippingAddress: Optional[OrderAddress] = None
-    billingAddress: Optional[OrderAddress] = None
-    notes: Optional[str] = ""
-    printedBill: bool = False
-    isUrgentDelivery: bool = False
-    orderNumber: Optional[str] = None
-
 
 
 class CouponCreateInternal(CouponBase):
