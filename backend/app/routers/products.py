@@ -933,7 +933,7 @@ class ProductTagAction(BaseModel):
     searchTagId: str
 
 
-@router.post("/{product_id}/search-tags", response_model=Dict[str, Any])
+@router.post("/{product_id}/search-tags", response_model=MessageResponse)
 async def add_search_tag_to_product(
     product_id: str, action: ProductTagAction, current_user: User = Depends(require_super_admin)
 ):
@@ -969,7 +969,7 @@ async def remove_search_tag_from_product(
     return {"message": "Search tag removed from product"}
 
 
-@router.get("/{product_id}/search-tags", response_model=List[Dict[str, Any]])
+@router.get("/{product_id}/search-tags", response_model=List[str])
 async def get_product_search_tags(product_id: str, current_user: User = Depends(require_super_admin)):
     """Get all resolved search tags for a specific product"""
     product = await product_repository.findById(product_id)

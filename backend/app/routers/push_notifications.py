@@ -293,7 +293,7 @@ async def get_push_notification(notification_id: str, current_user: User = Depen
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("/register-device", response_model=Dict[str, Any])
+@router.post("/register-device", response_model=MessageResponse)
 async def register_device(
     request: DeviceRegistrationRequest, credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security)
 ):
@@ -329,7 +329,7 @@ async def register_device(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("/{notification_id}/mark-read", response_model=Dict[str, Any])
+@router.post("/{notification_id}/mark-read", response_model=MessageResponse)
 async def mark_notification_read(
     notification_id: str,
     current_user: User = Depends(get_current_user),

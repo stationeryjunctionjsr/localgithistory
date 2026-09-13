@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Body, Depends, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.repositories.tracking_repository import tracking_repository
 from app.utils.auth import get_optional_user, require_super_admin
@@ -74,6 +74,56 @@ class TrackErrorRequest(BaseModel):
     col: Optional[int] = None
     sessionId: Optional[str] = None
 
+
+
+class SearchSuggestionsResponse(BaseModel):
+    popularTerms: List[str]
+    popularCategories: List[str]
+    popularBrands: List[str]
+
+class MostSearchedResponse(BaseModel):
+    term: str
+    count: int
+    avgProductsFound: float
+
+class ZeroResultSearchResponse(BaseModel):
+    term: str
+    count: int
+
+class MostViewedResponse(BaseModel):
+    productId: str
+    productName: str
+    count: int
+
+class ReturningUserResponse(BaseModel):
+    userId: str
+    name: str
+    email: str
+    lastSeen: Optional[str] = None
+
+class DropOffPointResponse(BaseModel):
+    page: str
+    count: int
+    reasons: Dict[str, int]
+
+class CartAbandonmentResponse(BaseModel):
+    id: Optional[str] = Field(None, alias="_id")
+    type: Optional[str] = None
+    userId: Optional[str] = None
+    sessionId: Optional[str] = None
+    timestamp: Optional[str] = None
+    cartItems: List[Any] = []
+    cartValue: Optional[float] = 0.0
+    
+    model_config = ConfigDict(extra='allow', populate_by_name=True)
+
+class MostAbandonedProductResponse(BaseModel):
+    productId: str
+    productName: str
+    category: str
+    abandonCount: int
+    quantityAbandoned: int
+    valueLost: float
 
 @router.post("/beacon", response_model=MessageResponse)
 @limiter.limit("60/minute")
@@ -273,7 +323,7 @@ async def track_filter_click(
     return {"message": "Filter click tracked"}
 
 
-@router.get("/recent", response_model=List[Dict[str, Any]])
+@router.get("/recent", response_model=List[str])
 async def get_recent_searches(
     sessionId: Optional[str] = None,
     limit: int = Query(5, ge=1, le=20),
@@ -295,7 +345,7 @@ async def clear_recent_searches(
     return {"ok": True}
 
 
-@router.get("/suggestions", response_model=List[Dict[str, Any]])
+@router.get("/suggestions", response_model=SearchSuggestionsResponse)
 async def get_search_suggestions(
     limit: int = Query(5, ge=1, le=20), current_user: Optional[dict] = Depends(get_optional_user),
     req: Request = None,
@@ -312,7 +362,7 @@ async def get_search_suggestions(
     }
 
 
-@router.get("/most-searched", response_model=List[Dict[str, Any]])
+@router.get("/most-searched", response_model=List[MostSearchedResponse])
 async def get_most_searched(
     limit: int = Query(5, ge=1, le=100),
     start_date: Optional[str] = Query(None),
@@ -325,7 +375,7 @@ async def get_most_searched(
     return most_searched
 
 
-@router.get("/zero-result-searches", response_model=List[Dict[str, Any]])
+@router.get("/zero-result-searches", response_model=List[ZeroResultSearchResponse])
 async def get_zero_result_searches(
     limit: int = Query(50, ge=1, le=1000),
     start_date: Optional[str] = Query(None),
@@ -338,7 +388,7 @@ async def get_zero_result_searches(
     return zero_results
 
 
-@router.get("/most-viewed", response_model=List[Dict[str, Any]])
+@router.get("/most-viewed", response_model=List[MostViewedResponse])
 async def get_most_viewed(
     limit: int = Query(5, ge=1, le=100),
     start_date: Optional[str] = Query(None),
@@ -351,7 +401,7 @@ async def get_most_viewed(
     return most_viewed
 
 
-@router.get("/returning-users", response_model=List[Dict[str, Any]])
+@router.get("/returning-users", response_model=List[ReturningUserResponse])
 async def get_returning_users(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -363,7 +413,7 @@ async def get_returning_users(
     return users
 
 
-@router.get("/drop-off-points", response_model=List[Dict[str, Any]])
+@router.get("/drop-off-points", response_model=List[DropOffPointResponse])
 async def get_drop_off_points(
     limit: int = Query(10, ge=1, le=100),
     start_date: Optional[str] = Query(None),
@@ -376,7 +426,7 @@ async def get_drop_off_points(
     return drop_off_points
 
 
-@router.get("/cart-abandonments", response_model=List[Dict[str, Any]])
+@router.get("/cart-abandonments", response_model=List[CartAbandonmentResponse])
 async def get_cart_abandonments(
     limit: int = Query(100, ge=1, le=1000),
     start_date: Optional[str] = Query(None),
@@ -389,7 +439,7 @@ async def get_cart_abandonments(
     return abandonments
 
 
-@router.get("/most-abandoned-products", response_model=List[Dict[str, Any]])
+@router.get("/most-abandoned-products", response_model=List[MostAbandonedProductResponse])
 async def get_most_abandoned_products(
     limit: int = Query(50, ge=1, le=1000),
     start_date: Optional[str] = Query(None),

@@ -9,6 +9,22 @@ from fastapi import APIRouter, Depends
 from app.models.product import Product, HTTPException, Request, Query
 from pydantic import BaseModel
 
+class SlotMetrics(BaseModel):
+    section_view: int = 0
+    product_view: int = 0
+    add_to_cart: int = 0
+
+class RecommendationMetricsResponse(BaseModel):
+    days: int
+    section_views: int
+    product_views: int
+    add_to_carts: int
+    by_slot: Dict[str, SlotMetrics] = {}
+
+class EventTrackResponse(BaseModel):
+    ok: bool = True
+
+
 from app.repositories.activity_repository import activity_repository
 from app.repositories.recommendation_repository import recommendation_repository
 from app.repositories.user_repository import user_repository
@@ -252,7 +268,7 @@ async def get_favourites_page(
     }
 
 
-@router.get("/metrics", response_model=Dict[str, Any])
+@router.get("/metrics", response_model=RecommendationMetricsResponse)
 async def get_recommendation_metrics(days: int = 30, current_user: User = Depends(require_super_admin)):
     """
     Return recommendation engagement metrics for the last N days.
@@ -302,7 +318,7 @@ async def get_recommendation_metrics(days: int = 30, current_user: User = Depend
     }
 
 
-@router.post("/events", response_model=Dict[str, Any])
+@router.post("/events", response_model=EventTrackResponse)
 async def track_recommendation_event(
     body: RecommendationEventBody,
     request: Request,

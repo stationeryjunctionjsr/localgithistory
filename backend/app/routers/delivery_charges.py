@@ -16,6 +16,43 @@ from app.models.schemas import (
 from app.repositories.delivery_charge_repository import delivery_charge_repository
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache
+from pydantic import BaseModel
+
+class LocationChargeResponse(BaseModel):
+    charge: float = 0.0
+    minCartValue: float = 0.0
+    source: str = ""
+    deliveryCharge: Optional[Any] = None
+    isApplicableToRole: bool = True
+    appliedTier: Optional[Any] = None
+    urgentDeliveryAvailable: bool = False
+    urgentDeliveryCharge: Optional[float] = None
+    gstPercentage: float = 0.0
+    gstAmount: float = 0.0
+    totalCharge: float = 0.0
+
+class ServiceableSeller(BaseModel):
+    id: str
+    name: str
+    companyName: str
+    city: Optional[str] = None
+    allowUrgentDelivery: bool = False
+    allowDeliverySlots: bool = False
+
+class ServiceabilityResponse(BaseModel):
+    isServiceable: bool
+    pincode: str
+    userRole: Optional[str] = None
+    sellerCount: int = 0
+    serviceableSellers: List[ServiceableSeller] = []
+    slotBookingAvailable: bool = False
+    availableDates: List[Any] = []
+    urgentDeliveryAvailable: bool = False
+
+class UploadCsvResponse(BaseModel):
+    message: str
+    errors: List[str] = []
+
 
 router = APIRouter()
 
@@ -35,7 +72,7 @@ async def get_default_delivery_charge(current_user: User = Depends(require_super
     return default_charge
 
 
-@router.get("/location", response_model=Dict[str, Any])
+@router.get("/location", response_model=LocationChargeResponse)
 @cache.ttl_cache(ttl=3600.0)
 async def get_delivery_charge_by_location(
     state: str = Query(...),
@@ -82,7 +119,7 @@ async def get_serviceable_pincodes(current_user: User = Depends(require_super_ad
     return sorted(set(pincodes))
 
 
-@router.get("/check-serviceability", response_model=Dict[str, Any])
+@router.get("/check-serviceability", response_model=ServiceabilityResponse)
 @cache.ttl_cache(ttl=3600.0)
 async def check_serviceability(pincode: str = Query(...), userRole: Optional[str] = Query("customer")):
     """Check if a pincode is serviceable for a user role. Also returns slot booking availability
@@ -257,7 +294,7 @@ async def set_default_delivery_charge(
     return default_charge
 
 
-@router.post("/upload-csv", status_code=status.HTTP_200_OK, response_model=Dict[str, Any])
+@router.post("/upload-csv", status_code=status.HTTP_200_OK, response_model=UploadCsvResponse)
 async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user: User = Depends(require_super_admin)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV file")

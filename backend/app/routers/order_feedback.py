@@ -51,7 +51,7 @@ async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: User
     return feedback
 
 
-@router.get("/eligible", response_model=Dict[str, Any])
+@router.get("/eligible", response_model=EligibleFeedbackResponse)
 async def get_eligible_feedback_order(current_user: User = Depends(get_current_user)):
     user_id = current_user.id
 

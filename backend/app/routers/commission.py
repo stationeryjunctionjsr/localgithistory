@@ -87,6 +87,12 @@ class SellerCommissionInfo(BaseModel):
     effectiveCommissionPct: float
     currentTier: Optional[str] = None
 
+
+class SellerOverrideResponse(BaseModel):
+    id: str
+    commissionOverridePct: Optional[float] = None
+    message: str
+
 class CommissionPreviewResponse(BaseModel):
     orderValue: float
     commissionPct: float
@@ -316,7 +322,7 @@ async def list_sellers_commission(current_user: User = Depends(require_super_adm
 # ---------------------------------------------------------------------------
 
 
-@router.put("/sellers/{seller_id}/override", response_model=Dict[str, Any])
+@router.put("/sellers/{seller_id}/override", response_model=SellerOverrideResponse)
 async def set_seller_commission_override(
     seller_id: str,
     payload: SellerOverridePayload,

@@ -90,8 +90,8 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("", response_model=Dict[str, Any])
-@router.post("/", response_model=Dict[str, Any])
+@router.post("", response_model=MessageResponse)
+@router.post("/", response_model=MessageResponse)
 async def add_to_wishlist(item: WishlistItemRequest, current_user: User = Depends(get_current_user)):
     """Add item to wishlist"""
     try:

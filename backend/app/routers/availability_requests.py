@@ -84,7 +84,7 @@ async def list_availability_requests(
     return {"requests": paginated, "total": total, "page": page, "limit": limit}
 
 
-@router.post("/{request_id}/fulfill", response_model=Dict[str, Any])
+@router.post("/{request_id}/fulfill", response_model=MessageResponse)
 async def fulfill_availability_request(
     request_id: str,
     current_user: User = Depends(require_super_admin),

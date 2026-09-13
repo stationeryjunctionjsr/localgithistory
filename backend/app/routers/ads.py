@@ -61,7 +61,7 @@ async def update_ad(ad_id: str, ad_data: AdUpdate, _: User = Depends(require_sup
 
 
 
-@router.patch("/{ad_id}/status", response_model=Dict[str, Any])
+@router.patch("/{ad_id}/status", response_model=MessageResponse)
 async def update_ad_status(ad_id: str, payload: AdStatusUpdate, _: User = Depends(require_super_admin)):
     status = payload.status
     if not status:
@@ -80,7 +80,7 @@ async def delete_ad(ad_id: str, _: User = Depends(require_super_admin)):
     return {"message": "Ad deleted"}
 
 
-@router.post("/{ad_id}/track", response_model=Dict[str, Any])
+@router.post("/{ad_id}/track", response_model=MessageResponse)
 async def track_ad_event(ad_id: str, event: dict, current_user: Optional[dict] = Depends(get_optional_user)):
     event_type = event.get("type")
     if event_type not in ["view", "click"]:

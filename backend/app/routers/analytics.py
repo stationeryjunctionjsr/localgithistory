@@ -37,7 +37,147 @@ def _resolve_seller_id(current_user: dict, requested_seller_id: Optional[str] = 
     return requested_seller_id
 
 
-@router.post("/events", response_model=Dict[str, Any])
+
+from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Dict, Any, Optional
+
+class RecordEventResponse(BaseModel):
+    status: str
+    eventId: Optional[str] = None
+
+class KPIMetricsResponse(BaseModel):
+    gross_sales: float
+    returning_customer_rate: float
+    orders_fulfilled: int
+    orders: int
+
+class DashboardDataResponse(BaseModel):
+    model_config = ConfigDict(extra='allow')
+
+class BundlePerformanceResponse(BaseModel):
+    model_config = ConfigDict(extra='allow')
+
+class SalesOverTimeResponse(BaseModel):
+    period: str
+    sales: float
+    orderCount: int
+    aov: float
+
+class SalesBreakdownResponse(BaseModel):
+    gross_sales: float
+    discounts: float
+    returns: float
+    net_sales: float
+    shipping_charges: float
+    return_fees: float
+    taxes: float
+    total_sales: float
+
+class AverageOrderValueResponse(BaseModel):
+    period: str
+    average_order_value: float
+
+class SalesByChannelResponse(BaseModel):
+    channel: str
+    sales: float
+
+class SalesByProductResponse(BaseModel):
+    product_id: str
+    productId: str
+    name: str
+    productName: str
+    quantity: int
+    revenue: float
+
+class FunnelStage(BaseModel):
+    count: int
+    percentage: float
+    drop_percentage: float
+
+class FunnelStageNoDrop(BaseModel):
+    count: int
+    percentage: float
+
+class ConversionRateResponse(BaseModel):
+    sessions: FunnelStageNoDrop
+    added_to_cart: FunnelStage
+    reached_checkout: FunnelStage
+    completed: FunnelStage
+    overall_conversion_rate: float
+
+class CheckoutFunnelResponse(BaseModel):
+    cart: FunnelStageNoDrop
+    shipping: FunnelStage
+    review: FunnelStage
+    payment: FunnelStage
+    completed: FunnelStage
+    overall_checkout_conversion: float
+
+class SessionsByDeviceResponse(BaseModel):
+    device: str
+    sessions: int
+
+class SessionsByLocationResponse(BaseModel):
+    location: str
+    sessions: int
+
+class DurationBucket(BaseModel):
+    range: str
+    count: int
+
+class UserMetric(BaseModel):
+    userId: str
+    name: str
+    email: str
+    averageSessionTimeSeconds: float
+    totalSessions: int
+
+class AllUserEngagementResponse(BaseModel):
+    duration_buckets: List[DurationBucket]
+    user_metrics: List[UserMetric]
+
+class ProductsSellThroughResponse(BaseModel):
+    product_id: str
+    name: str
+    sold: int
+    stock: int
+    sell_through_rate: float
+
+class CustomerCohortResponse(BaseModel):
+    cohort: str
+    months: List[int]
+
+class SessionsByLandingPageResponse(BaseModel):
+    landing_page: str
+    sessions: int
+
+class UserEngagementResponse(BaseModel):
+    userId: Optional[str] = None
+    registrationDate: Optional[str] = None
+    totalSessions: Optional[int] = None
+    averageSessionTimeSeconds: Optional[float] = None
+    averageDaysBetweenSessions: Optional[float] = None
+    averagePagesPerSession: Optional[float] = None
+    sessionsWithOrder: Optional[int] = None
+    sessionOrderRate: Optional[float] = None
+    error: Optional[str] = None
+
+class TopUsersReportResponse(BaseModel):
+    userId: str
+    name: str
+    userName: str
+    email: str
+    userEmail: str
+    role: str
+    revenue: float
+
+class GenericListResponse(BaseModel):
+    model_config = ConfigDict(extra='allow')
+    
+class GenericDictResponse(BaseModel):
+    model_config = ConfigDict(extra='allow')
+
+@router.post("/events", response_model=RecordEventResponse)
 async def record_event(
     event: Dict[str, Any] = Body(..., description="Analytics event payload"),
     user_info: Optional[dict] = Depends(get_optional_user),
@@ -119,7 +259,7 @@ async def record_event(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/kpi", response_model=Dict[str, Any])
+@router.get("/kpi", response_model=KPIMetricsResponse)
 async def get_kpi_metrics(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -135,7 +275,7 @@ async def get_kpi_metrics(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/dashboard-data", response_model=Dict[str, Any])
+@router.get("/dashboard-data", response_model=DashboardDataResponse)
 async def get_dashboard_data(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -150,7 +290,7 @@ async def get_dashboard_data(
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
-@router.get("/reports/bundle-performance", response_model=List[Dict[str, Any]])
+@router.get("/reports/bundle-performance", response_model=List[BundlePerformanceResponse])
 async def get_bundle_performance(current_user: User = Depends(require_roles("super_admin"))):
     """
     Get detailed bundle performance reports.
@@ -162,7 +302,7 @@ async def get_bundle_performance(current_user: User = Depends(require_roles("sup
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/sales-over-time", response_model=List[Dict[str, Any]])
+@router.get("/sales-over-time", response_model=List[SalesOverTimeResponse])
 async def get_sales_over_time(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -180,7 +320,7 @@ async def get_sales_over_time(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/sales-breakdown", response_model=Dict[str, Any])
+@router.get("/sales-breakdown", response_model=SalesBreakdownResponse)
 async def get_sales_breakdown(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -196,7 +336,7 @@ async def get_sales_breakdown(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/average-order-value", response_model=List[Dict[str, Any]])
+@router.get("/average-order-value", response_model=List[AverageOrderValueResponse])
 async def get_average_order_value(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -213,7 +353,7 @@ async def get_average_order_value(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/sales-by-channel", response_model=List[Dict[str, Any]])
+@router.get("/sales-by-channel", response_model=List[SalesByChannelResponse])
 async def get_sales_by_channel(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -229,7 +369,7 @@ async def get_sales_by_channel(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/sales-by-product", response_model=List[Dict[str, Any]])
+@router.get("/sales-by-product", response_model=List[SalesByProductResponse])
 async def get_sales_by_product(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -247,7 +387,7 @@ async def get_sales_by_product(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/conversion-rate", response_model=Dict[str, Any])
+@router.get("/conversion-rate", response_model=ConversionRateResponse)
 async def get_conversion_rate(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -264,7 +404,7 @@ async def get_conversion_rate(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/conversion-breakdown", response_model=Dict[str, Any])
+@router.get("/conversion-breakdown", response_model=ConversionRateResponse)
 async def get_conversion_breakdown(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -280,7 +420,7 @@ async def get_conversion_breakdown(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/checkout-funnel", response_model=Dict[str, Any])
+@router.get("/checkout-funnel", response_model=CheckoutFunnelResponse)
 async def get_checkout_funnel(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -296,7 +436,7 @@ async def get_checkout_funnel(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/sessions-by-device", response_model=List[Dict[str, Any]])
+@router.get("/sessions-by-device", response_model=List[SessionsByDeviceResponse])
 async def get_sessions_by_device(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -312,7 +452,7 @@ async def get_sessions_by_device(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/sessions-by-location", response_model=List[Dict[str, Any]])
+@router.get("/sessions-by-location", response_model=List[SessionsByLocationResponse])
 async def get_sessions_by_location(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -328,7 +468,7 @@ async def get_sessions_by_location(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/all-user-engagement", response_model=Dict[str, Any])
+@router.get("/all-user-engagement", response_model=AllUserEngagementResponse)
 async def get_all_user_engagement(
     current_user: User = Depends(require_roles("super_admin")),
 ):
@@ -342,7 +482,7 @@ async def get_all_user_engagement(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/products-sell-through", response_model=List[Dict[str, Any]])
+@router.get("/products-sell-through", response_model=List[ProductsSellThroughResponse])
 async def get_products_sell_through(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -360,7 +500,7 @@ async def get_products_sell_through(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/customer-cohort", response_model=List[Dict[str, Any]])
+@router.get("/customer-cohort", response_model=List[CustomerCohortResponse])
 async def get_customer_cohort(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -376,7 +516,7 @@ async def get_customer_cohort(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/sessions-by-landing-page", response_model=List[Dict[str, Any]])
+@router.get("/sessions-by-landing-page", response_model=List[SessionsByLandingPageResponse])
 async def get_sessions_by_landing_page(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -392,7 +532,7 @@ async def get_sessions_by_landing_page(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/user-engagement", response_model=Dict[str, Any])
+@router.get("/user-engagement", response_model=UserEngagementResponse)
 async def get_my_user_engagement(current_user: User = Depends(get_current_user)):
     """
     Get engagement metrics for the current user, calculated since registration:
@@ -408,7 +548,7 @@ async def get_my_user_engagement(current_user: User = Depends(get_current_user))
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/user-engagement/{user_id}", response_model=Dict[str, Any])
+@router.get("/user-engagement/{user_id}", response_model=UserEngagementResponse)
 async def get_user_engagement_by_id(
     user_id: str,
     current_user: User = Depends(require_roles("super_admin")),
@@ -428,7 +568,7 @@ async def get_user_engagement_by_id(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/top-users", response_model=List[Dict[str, Any]])
+@router.get("/reports/top-users", response_model=List[TopUsersReportResponse])
 async def get_top_users_report(
     role: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
@@ -441,7 +581,7 @@ async def get_top_users_report(
     return await analytics_repository.get_top_users_by_revenue(role, start, end, limit)
 
 
-@router.get("/reports/user-order-stats", response_model=List[Dict[str, Any]])
+@router.get("/reports/user-order-stats", response_model=List[GenericListResponse])
 async def get_user_order_stats_report(
     role: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
@@ -453,7 +593,7 @@ async def get_user_order_stats_report(
     return await analytics_repository.get_user_order_stats(role, start, end)
 
 
-@router.get("/reports/items-by-user-type", response_model=List[Dict[str, Any]])
+@router.get("/reports/items-by-user-type", response_model=List[GenericListResponse])
 async def get_items_by_user_type_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -464,7 +604,7 @@ async def get_items_by_user_type_report(
     return await analytics_repository.get_items_by_user_type(start, end)
 
 
-@router.get("/reports/summary", response_model=Dict[str, Any])
+@router.get("/reports/summary", response_model=GenericDictResponse)
 async def get_reports_summary(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -475,7 +615,7 @@ async def get_reports_summary(
     return await analytics_repository.get_all_reports_summary(start, end)
 
 
-@router.get("/reports/returns", response_model=List[Dict[str, Any]])
+@router.get("/reports/returns", response_model=List[GenericListResponse])
 async def get_returns_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -492,7 +632,7 @@ async def get_returns_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/payment-methods", response_model=List[Dict[str, Any]])
+@router.get("/reports/payment-methods", response_model=List[GenericListResponse])
 async def get_payment_methods_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -509,7 +649,7 @@ async def get_payment_methods_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/revenue-by-category", response_model=List[Dict[str, Any]])
+@router.get("/reports/revenue-by-category", response_model=List[GenericListResponse])
 async def get_revenue_by_category(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -527,7 +667,7 @@ async def get_revenue_by_category(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/inventory-alerts", response_model=List[Dict[str, Any]])
+@router.get("/reports/inventory-alerts", response_model=List[GenericListResponse])
 async def get_inventory_alerts(
     threshold: int = Query(10, ge=0, le=1000),
     seller_id: Optional[str] = Query(None),
@@ -541,7 +681,7 @@ async def get_inventory_alerts(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/fulfillment-time", response_model=List[Dict[str, Any]])
+@router.get("/reports/fulfillment-time", response_model=List[GenericListResponse])
 async def get_fulfillment_time_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -558,7 +698,7 @@ async def get_fulfillment_time_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/coupon-usage", response_model=List[Dict[str, Any]])
+@router.get("/reports/coupon-usage", response_model=List[GenericListResponse])
 async def get_coupon_usage_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -575,7 +715,7 @@ async def get_coupon_usage_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/sales-by-location", response_model=List[Dict[str, Any]])
+@router.get("/reports/sales-by-location", response_model=List[GenericListResponse])
 async def get_sales_by_location_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -593,7 +733,7 @@ async def get_sales_by_location_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/new-vs-returning", response_model=List[Dict[str, Any]])
+@router.get("/reports/new-vs-returning", response_model=List[GenericListResponse])
 async def get_new_vs_returning_customer_sales_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -609,7 +749,7 @@ async def get_new_vs_returning_customer_sales_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/items-bought-together", response_model=List[Dict[str, Any]])
+@router.get("/reports/items-bought-together", response_model=List[GenericListResponse])
 async def get_items_bought_together_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -626,7 +766,7 @@ async def get_items_bought_together_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/sales-by-device", response_model=List[Dict[str, Any]])
+@router.get("/reports/sales-by-device", response_model=List[GenericListResponse])
 async def get_sales_by_device_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -642,7 +782,7 @@ async def get_sales_by_device_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/top-returned-products", response_model=List[Dict[str, Any]])
+@router.get("/reports/top-returned-products", response_model=List[GenericListResponse])
 async def get_top_returned_products_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -660,7 +800,7 @@ async def get_top_returned_products_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/inventory-value-by-category", response_model=List[Dict[str, Any]])
+@router.get("/reports/inventory-value-by-category", response_model=List[GenericListResponse])
 async def get_inventory_value_by_category_report(
     seller_id: Optional[str] = Query(None),
     current_user: User = Depends(require_roles("super_admin", "wholesaler")),
@@ -675,7 +815,7 @@ async def get_inventory_value_by_category_report(
 
 # ── New platform-analytics endpoints (super_admin only) ──────────────────────
 
-@router.get("/reports/sessions-over-time", response_model=List[Dict[str, Any]])
+@router.get("/reports/sessions-over-time", response_model=List[GenericListResponse])
 async def get_sessions_over_time_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -691,7 +831,7 @@ async def get_sessions_over_time_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/visitors-now", response_model=List[Dict[str, Any]])
+@router.get("/reports/visitors-now", response_model=List[GenericListResponse])
 async def get_visitors_now_report(
     current_user: User = Depends(require_roles("super_admin")),
 ):
@@ -703,7 +843,7 @@ async def get_visitors_now_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/searches-no-clicks", response_model=List[Dict[str, Any]])
+@router.get("/reports/searches-no-clicks", response_model=List[GenericListResponse])
 async def get_searches_no_clicks_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -719,7 +859,7 @@ async def get_searches_no_clicks_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/search-conversion", response_model=List[Dict[str, Any]])
+@router.get("/reports/search-conversion", response_model=List[GenericListResponse])
 async def get_search_conversion_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -735,7 +875,7 @@ async def get_search_conversion_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/bounce-rate", response_model=List[Dict[str, Any]])
+@router.get("/reports/bounce-rate", response_model=List[GenericListResponse])
 async def get_bounce_rate_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -751,7 +891,7 @@ async def get_bounce_rate_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/rfm-segments", response_model=List[Dict[str, Any]])
+@router.get("/reports/rfm-segments", response_model=List[GenericListResponse])
 async def get_rfm_segments_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -767,7 +907,7 @@ async def get_rfm_segments_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/customer-frequency", response_model=List[Dict[str, Any]])
+@router.get("/reports/customer-frequency", response_model=List[GenericListResponse])
 async def get_customer_frequency_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -785,7 +925,7 @@ async def get_customer_frequency_report(
 
 # ── New seller-accessible endpoints (wholesaler + super_admin, seller-scoped) ─
 
-@router.get("/reports/net-sales", response_model=List[Dict[str, Any]])
+@router.get("/reports/net-sales", response_model=List[GenericListResponse])
 async def get_net_sales_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -803,7 +943,7 @@ async def get_net_sales_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/sales-heatmap", response_model=List[Dict[str, Any]])
+@router.get("/reports/sales-heatmap", response_model=List[GenericListResponse])
 async def get_sales_heatmap_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -821,7 +961,7 @@ async def get_sales_heatmap_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/inventory-runway", response_model=List[Dict[str, Any]])
+@router.get("/reports/inventory-runway", response_model=List[GenericListResponse])
 async def get_inventory_runway_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -841,7 +981,7 @@ async def get_inventory_runway_report(
 
 # ── Batch 2 new endpoints ────────────────────────────────────────────────────
 
-@router.get("/reports/sales-by-channel-detailed", response_model=List[Dict[str, Any]])
+@router.get("/reports/sales-by-channel-detailed", response_model=List[SalesByChannelResponse])
 async def get_sales_by_channel_detailed_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -857,7 +997,7 @@ async def get_sales_by_channel_detailed_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/discounts-audit", response_model=List[Dict[str, Any]])
+@router.get("/reports/discounts-audit", response_model=List[GenericListResponse])
 async def get_discounts_audit_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -875,7 +1015,7 @@ async def get_discounts_audit_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/products-pct-sold", response_model=List[Dict[str, Any]])
+@router.get("/reports/products-pct-sold", response_model=List[GenericListResponse])
 async def get_products_pct_sold_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
