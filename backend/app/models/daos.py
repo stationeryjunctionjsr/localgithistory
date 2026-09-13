@@ -141,14 +141,14 @@ class SessionInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     user: str
     userId: Optional[str] = None
-    deviceInfo: Optional[Any] = None
+    deviceInfo: Optional[dict] = None
     ipAddress: Optional[str] = None
 
 class SessionInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     user: Optional[str] = None
     userId: Optional[str] = None
-    deviceInfo: Optional[Any] = None
+    deviceInfo: Optional[dict] = None
     ipAddress: Optional[str] = None
     isActive: Optional[bool] = None
 
@@ -196,7 +196,7 @@ class ProductInternalCreate(BaseModel):
     name: str
     description: Optional[str] = None
     price: float
-    mrp: float = 0.0
+    mrp: Optional[float] = None
     categoryId: str
     brandId: Optional[str] = None
     images: List[str] = []

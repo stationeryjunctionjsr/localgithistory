@@ -1,4 +1,4 @@
-from app.models.schemas import ItemSnippet as OrderItem, Address
+from app.models.schemas import ItemSnippet as OrderItem, Address, ValetDeclineHistoryEntry
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
@@ -98,7 +98,4 @@ class OrderInternalUpdate(BaseModel, extra='forbid'):
     pendingValetId: Optional[str] = None
     valetAssignedAt: Optional[str] = None
     cancelledBy: Optional[str] = None
-
-
-
-
+Order.model_rebuild()

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
 from pydantic import BaseModel
+from app.models.schemas import AdStats
 
 class Ad(BaseModel):
     id: str = Field(default=None, alias='_id')
@@ -30,7 +31,7 @@ class Ad(BaseModel):
     google_conversion_label: Optional[str] = Field(default=None, alias='google_conversion_label')
     meta_pixel_id: Optional[str] = Field(default=None, alias='meta_pixel_id')
     notes: Optional[str] = Field(default=None, alias='notes')
-    stats: Optional[Dict] = Field(default=None, alias='stats')
+    stats: Optional[AdStats] = Field(default=None, alias='stats')
     impressions: int = Field(default=None, alias='impressions')
     clicks: int = Field(default=None, alias='clicks')
     leads: int = Field(default=None, alias='leads')

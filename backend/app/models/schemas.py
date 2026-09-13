@@ -95,7 +95,7 @@ class UserSnippet(BaseModel):
 class ItemSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     productId: Optional[str] = None
-    product: Optional[Any] = None
+    product: Optional[dict] = None
     quantity: Optional[int] = None
     sellAsCase: Optional[bool] = None
     price: Optional[float] = None
@@ -123,6 +123,12 @@ class SellerPermissionSnippet(BaseModel):
     canManageProducts: Optional[bool] = None
     canManageOrders: Optional[bool] = None
 
+# Aliases for models and snippets
+CartItem = ItemSnippet
+OrderItem = ItemSnippet
+VisibilityRule = VisibilityRuleSnippet
+SellerPermissions = SellerPermissionSnippet
+
 class ValetSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     id: Optional[str] = Field(None, alias="_id")
@@ -134,10 +140,13 @@ class ValetDeclineSnippet(BaseModel):
     valetId: Optional[str] = None
     reason: Optional[str] = None
 
+ValetDeclineHistoryEntry = ValetDeclineSnippet
+
 class DiscountSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     name: Optional[str] = None
     value: Optional[float] = None
+
 
 class UserBase(BaseModel):
     name: Optional[str] = None
@@ -896,6 +905,15 @@ class SupportTicketResponse(SupportTicketBase):
 
 
 # Delivery Charge Schemas
+class DeliveryChargeTier(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    minOrderValue: Optional[float] = None
+    maxOrderValue: Optional[float] = None
+    charge: Optional[float] = None
+    minAmount: Optional[float] = None
+    maxAmount: Optional[Union[float, str]] = None
+
+
 class DeliveryChargeBase(BaseModel):
     pincode: str
     state: str
@@ -904,7 +922,7 @@ class DeliveryChargeBase(BaseModel):
     charge: Optional[float] = None
     minCartValue: Optional[float] = None
     applyDefaultCharge: Optional[bool] = False
-    tiers: Optional[List[Dict]] = None
+    tiers: Optional[List[Union[DeliveryChargeTier, Dict[str, Any]]]] = None
     serviceableForCustomer: Optional[bool] = False
 
     serviceableForWholesaler: Optional[bool] = False
@@ -927,7 +945,7 @@ class DeliveryChargeUpdate(BaseModel):
     charge: Optional[float] = None
     minCartValue: Optional[float] = None
     applyDefaultCharge: Optional[bool] = None
-    tiers: Optional[List[Dict]] = None
+    tiers: Optional[List[Union[DeliveryChargeTier, Dict[str, Any]]]] = None
     serviceableForCustomer: Optional[bool] = None
 
     serviceableForWholesaler: Optional[bool] = None
@@ -1843,15 +1861,24 @@ class AuthResponse(BaseModel):
 
 # Contact Schemas
 class Address(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
     address: Optional[str] = None
+    street: Optional[str] = None
+    name: Optional[str] = None
+    phone: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
     district: Optional[str] = None
     zipCode: Optional[str] = None
+    pincode: Optional[str] = None
     country: Optional[str] = "India"
     googleLocation: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+
+    @property
+    def effective_pincode(self) -> Optional[str]:
+        return self.pincode or self.zipCode
 
 
 class SocialMedia(BaseModel):
@@ -2491,6 +2518,22 @@ class AdStatusUpdate(BaseModel):
     status: str
 
 
+class AdSummaryResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    total_views: int = 0
+    total_clicks: int = 0
+    active_campaigns: int = 0
+    total_spend_estimate: Optional[float] = None
+    ctr: Optional[float] = None
+    total_ads: Optional[int] = 0
+    active: Optional[int] = 0
+    paused: Optional[int] = 0
+    draft: Optional[int] = 0
+    total_impressions: Optional[int] = 0
+    total_conversions: Optional[int] = 0
+    overall_ctr: Optional[float] = 0.0
+
+
 class OrderAddress(BaseModel):
     name: Optional[str] = None
     street: Optional[str] = None
@@ -2557,8 +2600,8 @@ class UserInternalCreate(BaseModel):
     isActive: bool = True
     approvalStatus: str
     isDeactivated: bool = False
-    creditLimit: float = 0.0
-    creditUsed: float = 0.0
+    creditLimit: Optional[float] = None
+    creditUsed: Optional[float] = None
     paymentTerms: str = "30"
     assignedSalesperson: Optional[str] = None
     referralCode: Optional[str] = None
@@ -2585,5 +2628,287 @@ class UserInternalUpdate(BaseModel):
     assignedSalesperson: Optional[str] = None
     referralCode: Optional[str] = None
     isEmailVerified: Optional[bool] = None
-    sellerPermissions: Optional[Any] = None
+    sellerPermissions: Optional[list] = None
     serviceAreaZones: Optional[List[str]] = None
+
+
+# --- Shared Payload DTOs ---
+
+class AnalyticsEventPayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    returning: Optional[bool] = False
+    productId: Optional[str] = None
+    productName: Optional[str] = "Unknown"
+    source: Optional[str] = "mobile_app"
+    quantity: Optional[int] = 1
+    query: Optional[str] = ""
+    resultsCount: Optional[int] = 0
+    reason: Optional[str] = "unknown"
+
+
+class AnalyticsEventCreate(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    type: str
+    timestamp: Optional[str] = None
+    sessionId: Optional[str] = None
+    userId: Optional[str] = None
+    page: Optional[str] = "/"
+    payload: Optional[Union[AnalyticsEventPayload, Dict[str, Any]]] = None
+
+
+class Msg91WebhookPayload(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    status: Optional[str] = None
+    Status: Optional[str] = None
+    type: Optional[str] = None
+
+    @property
+    def effective_status(self) -> Optional[str]:
+        return self.Status or self.status or self.type
+
+
+class TrackBeaconRequest(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    event: Optional[str] = None
+    page: Optional[str] = None
+    sessionId: Optional[str] = None
+    timestamp: Optional[str] = None
+    userId: Optional[str] = None
+
+
+class TrackNotifyPincodeRequest(BaseModel):
+    productId: str
+    pincode: str
+    productName: Optional[str] = "Unknown"
+    email: Optional[str] = None
+
+
+class OrderItemCreate(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    productId: Optional[str] = Field(None, alias="product_id")
+    product: Optional[str] = None
+    quantity: int = 1
+    sellAsCase: Optional[bool] = Field(False, alias="sell_as_case")
+    price: Optional[float] = None
+    selectedVariation: Optional[dict] = None
+
+    @property
+    def product_id(self) -> Optional[str]:
+        return self.productId or self.product
+
+    @property
+    def sell_as_case(self) -> bool:
+        return bool(self.sellAsCase)
+
+
+class SellerDeliveryOption(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    sellerId: str
+    deliverySlotId: Optional[str] = None
+    deliverySlotDate: Optional[str] = None
+    deliverySlotConfigId: Optional[str] = None
+    isUrgentDelivery: Optional[bool] = False
+
+
+class PushSubscriptionKeys(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    p256dh: str
+    auth: str
+
+
+class PushSubscription(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    endpoint: str
+    expirationTime: Optional[float] = None
+    keys: PushSubscriptionKeys
+
+
+# --- Router Response and Request DTOs ---
+
+class ActivityLogResponse(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    id: Optional[str] = Field(None, alias="_id")
+    userId: Optional[str] = None
+    sessionId: Optional[str] = None
+    action: Optional[str] = None
+    meta: Optional[Dict[str, Any]] = None
+    isGuest: Optional[bool] = None
+
+
+class PromoteGuestResponse(BaseModel):
+    updated: int
+
+
+class AvailabilityRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    id: Optional[str] = Field(None, alias="_id")
+    external_id: Optional[str] = Field(None, alias="externalId")
+    productId: Optional[str] = None
+    productName: Optional[str] = None
+    pincode: Optional[str] = None
+    userName: Optional[str] = None
+    userEmail: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+
+class AvailabilityRequestListResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    requests: List[AvailabilityRequestResponse] = []
+    total: int = 0
+    page: int = 1
+    limit: int = 50
+
+
+class DeliveryZoneResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    zoneId: Optional[str] = None
+    zoneName: Optional[str] = None
+    description: Optional[str] = None
+    pincodes: Optional[List[str]] = None
+    defaultCapacity: Optional[int] = None
+    urgentDeliveryAvailable: Optional[bool] = False
+    isActive: Optional[bool] = True
+    customerType: Optional[str] = "retail"
+
+
+class EligibleFeedbackResponse(BaseModel):
+    eligibleOrderId: Optional[str] = None
+
+
+class ReturnEligibilityItem(BaseModel):
+    productId: str
+    maxQuantity: int
+    reason: Optional[str] = None
+
+
+class ReturnEligibilityResponse(BaseModel):
+    eligibleItems: List[ReturnEligibilityItem] = []
+    reason: Optional[str] = None
+
+
+class UPIDetailsResponse(BaseModel):
+    upiId: Optional[str] = None
+    qrCodeUrl: Optional[str] = None
+    instructions: Optional[str] = None
+    message: Optional[str] = None
+
+
+class ValetPayoutSettingsResponse(BaseModel):
+    deliveryChargePerOrder: Optional[float] = None
+    returnPickupChargePerOrder: Optional[float] = None
+    updatedAt: Optional[str] = None
+
+
+class PincodeSearchResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    id: Optional[str] = Field(None, alias="_id")
+    pincode: Optional[str] = None
+    isServiceable: Optional[bool] = None
+    status: Optional[str] = None
+    sellerCount: Optional[int] = 0
+    serviceableSellerIds: Optional[List[str]] = []
+    userRole: Optional[str] = "customer"
+    userId: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
+    searchedAt: Optional[str] = None
+    date: Optional[str] = None
+
+
+class PincodeSearchStatsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    totalSearches: int = 0
+    uniquePincodes: int = 0
+    uniquePincodesCount: int = 0
+    serviceableSearches: int = 0
+    unserviceableSearches: int = 0
+    topUnserviceablePincodes: List[Dict[str, Any]] = []
+    topSearchedPincodes: List[Dict[str, Any]] = []
+    topPincodes: List[Dict[str, Any]] = []
+
+
+class UploadImagesResponse(BaseModel):
+    urls: List[str]
+
+
+class UploadCSVResponse(BaseModel):
+    success: bool
+    imported: int
+    failed: int
+
+
+class SearchSuggestResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    products: List[Dict[str, Any]] = []
+    brands: List[Dict[str, Any]] = []
+    categories: List[Dict[str, Any]] = []
+
+
+class PushNotificationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    id: Optional[str] = Field(None, alias="_id")
+    title: Optional[str] = None
+    message: Optional[str] = None
+    link: Optional[str] = None
+    targetSegmentId: Optional[str] = None
+    status: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+
+class PushAnalyticsResponse(BaseModel):
+    delivered: int = 0
+    clicked: int = 0
+
+
+class VapidKeyResponse(BaseModel):
+    publicKey: str
+
+
+class SellerRequestCreate(BaseModel):
+    subject: str
+    description: str
+    category: Optional[str] = "general"
+    priority: Optional[str] = "medium"
+    attachments: Optional[List[str]] = None
+
+
+class SellerRequestResponseCreate(BaseModel):
+    message: str
+    attachments: Optional[List[str]] = None
+
+
+class SellerRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    id: Optional[str] = Field(None, alias="_id")
+    subject: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    user: Optional[dict] = None
+    attachments: Optional[List[Any]] = None
+    responses: Optional[List[Any]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+
+class UploadQRResponse(BaseModel):
+    qrCodeUrl: str
+
+
+class ValetEarningsResponse(BaseModel):
+    valetId: str
+    totalDeliveries: int = 0
+    totalReturnPickups: int = 0
+    deliveryRatePerOrder: Optional[float] = None
+    returnRatePerOrder: Optional[float] = None
+    totalEarned: Optional[float] = None
+    records: List[Dict[str, Any]] = []
+
+
+

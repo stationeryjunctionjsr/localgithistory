@@ -51,9 +51,9 @@ class ProductRepository:
     def _get_variant_search_text(self, product: Any) -> str:
         """Flatten variant attributes and combination values into searchable text."""
         parts = []
-        for attr in getattr(product, "variantAttributes", []) or []:
+        for attr in (product.variantAttributes if product.variantAttributes is not None else []) or []:
             parts.append(str(attr).lower())
-        for combo in getattr(product, "variantCombinations", []) or []:
+        for combo in (product.variantCombinations if product.variantCombinations is not None else []) or []:
             attrs = combo.get("attributes", {}) or combo
             for k, v in attrs.items() if isinstance(attrs, dict) else []:
                 parts.append(str(k).lower())
@@ -69,7 +69,7 @@ class ProductRepository:
         parts = []
         fmrp = float(product.mrp)
         parts.extend([str(fmrp), str(int(fmrp)), f"rs {int(fmrp)}", f"₹{int(fmrp)}", f"rs.{int(fmrp)}"])
-        mrp_case = getattr(product, "mrpPerCase", None)
+        mrp_case = product.mrpPerCase
         if mrp_case is not None:
             fmrp_case = float(mrp_case)
             parts.extend([str(fmrp_case), str(int(fmrp_case))])
@@ -81,17 +81,17 @@ class ProductRepository:
         score = 0.0
         price_text = self._extract_price_text(product)
         fields = {
-            "name": (getattr(product, "name", None) or "").lower(),
-            "sku": (getattr(product, "sku", None) or "").lower(),
-            "searchTags": " ".join(getattr(product, "searchTags", None) or []).lower(),
-            "category": (getattr(product, "category", None) or "").lower(),
-            "categoryTag": (getattr(product, "categoryTag", None) or "").lower(),
-            "subCategory": (getattr(product, "subCategory", None) or "").lower(),
-            "collections": " ".join(getattr(product, "resolvedCollectionNames", None) or []).lower(),
-            "brand": (getattr(product, "brand", None) or "").lower(),
+            "name": (product.name or "").lower(),
+            "sku": (product.sku or "").lower(),
+            "searchTags": " ".join(product.searchTags or []).lower(),
+            "category": (product.category or "").lower(),
+            "categoryTag": (product.categoryTag or "").lower(),
+            "subCategory": (product.subCategory or "").lower(),
+            "collections": " ".join(product.resolvedCollectionNames or []).lower(),
+            "brand": (product.brand or "").lower(),
             "variantAttributes": self._get_variant_search_text(product),
             "price": price_text,
-            "description": (getattr(product, "description", None) or "").lower(),
+            "description": (product.description or "").lower(),
         }
 
         # Check price range expression patterns across raw query tokens (e.g. 'under 500', 'below 300', '100-500')
@@ -178,7 +178,7 @@ class ProductRepository:
                 used_fuzzy = True
 
         # Sort by score descending (higher score = more relevant)
-        scored.sort(key=lambda p: getattr(p, "_searchScore", 0), reverse=True)
+        scored.sort(key=lambda p: (p._searchScore if p._searchScore is not None else 0), reverse=True)
 
         # Clean up internal score field
         for p in scored:
@@ -201,11 +201,11 @@ class ProductRepository:
                 continue
 
             fields_text = {
-                "name": (getattr(p, "name", None) or "").lower(),
-                "searchTags": " ".join(getattr(p, "searchTags", None) or []).lower(),
-                "category": (getattr(p, "category", None) or "").lower(),
-                "collections": " ".join(getattr(p, "resolvedCollectionNames", None) or []).lower(),
-                "brand": (getattr(p, "brand", None) or "").lower(),
+                "name": (p.name or "").lower(),
+                "searchTags": " ".join(p.searchTags or []).lower(),
+                "category": (p.category or "").lower(),
+                "collections": " ".join(p.resolvedCollectionNames or []).lower(),
+                "brand": (p.brand or "").lower(),
                 "variantAttributes": self._get_variant_search_text(p),
             }
 
@@ -292,32 +292,32 @@ class ProductRepository:
             light_products = [
                 {
                     "_id": p.id,
-                    "name": getattr(p, "name", None),
-                    "sku": getattr(p, "sku", None),
-                    "searchTags": getattr(p, "searchTags", None),
-                    "category": getattr(p, "category", None),
-                    "categoryTag": getattr(p, "categoryTag", None),
-                    "subCategory": getattr(p, "subCategory", None),
-                    "resolvedCollectionNames": getattr(p, "resolvedCollectionNames", None),
-                    "brand": getattr(p, "brand", None),
-                    "variantAttributes": getattr(p, "variantAttributes", None),
-                    "variantCombinations": getattr(p, "variantCombinations", None),
-                    "description": getattr(p, "description", None),
+                    "name": p.name,
+                    "sku": p.sku,
+                    "searchTags": p.searchTags,
+                    "category": p.category,
+                    "categoryTag": p.categoryTag,
+                    "subCategory": p.subCategory,
+                    "resolvedCollectionNames": p.resolvedCollectionNames,
+                    "brand": p.brand,
+                    "variantAttributes": p.variantAttributes,
+                    "variantCombinations": p.variantCombinations,
+                    "description": p.description,
                     # Seller IDs for pincode-based availability filtering in autocomplete
                     "sellerIds": [
-                        str(getattr(s, "sellerId", None))
-                        for s in (getattr(p, "sellers", None) or [])
-                        if getattr(s, "isActive", None)
-                        and (getattr(s, "stock", None) or 0) > 0
-                        and getattr(s, "requestStatus", "approved") == "approved"
+                        str(s.sellerId)
+                        for s in (p.sellers or [])
+                        if s.isActive
+                        and (s.stock or 0) > 0
+                        and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"
                     ],
                     # Seller IDs for catalogue filtering (mega menu, brands, collections).
                     # Includes out-of-stock items so they still appear in navigation.
                     "catalogSellerIds": [
-                        str(getattr(s, "sellerId", None))
-                        for s in (getattr(p, "sellers", None) or [])
-                        if getattr(s, "isActive", None)
-                        and getattr(s, "requestStatus", "approved") == "approved"
+                        str(s.sellerId)
+                        for s in (p.sellers or [])
+                        if s.isActive
+                        and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"
                     ],
                 }
                 for p in products
@@ -343,7 +343,7 @@ class ProductRepository:
             self._cat_gst_map = cat_gst_map
             self._cat_gst_map_exp = now_m + 60.0
         for p in products:
-            p.gst = float(cat_gst_map.get(getattr(p, "category", None), 0))
+            p.gst = float(cat_gst_map.get(p.category, 0))
         return products
 
     async def findAll(self, query: Optional[Dict] = None):
@@ -354,20 +354,20 @@ class ProductRepository:
 
         # Apply filters
         if query.get("category"):
-            products = [p for p in products if getattr(p, "category", None) == query["category"]]
+            products = [p for p in products if p.category == query["category"]]
 
         # Filter by multiple categories (comma-separated)
         if query.get("categories"):
             category_list = [c.strip() for c in query["categories"].split(",")]
-            products = [p for p in products if getattr(p, "category", None) in category_list]
+            products = [p for p in products if p.category in category_list]
 
         if query.get("subCategory"):
-            products = [p for p in products if getattr(p, "subCategory", None) == query["subCategory"]]
+            products = [p for p in products if p.subCategory == query["subCategory"]]
 
         if query.get("brand"):
             # Support multiple brands (comma-separated)
             brand_list = [b.strip().lower() for b in query["brand"].split(",")]
-            products = [p for p in products if getattr(p, "brand", "").lower() in brand_list]
+            products = [p for p in products if (p.brand if p.brand is not None else "").lower() in brand_list]
 
         if query.get("minPrice"):
             min_price = float(query["minPrice"])
@@ -388,11 +388,11 @@ class ProductRepository:
         is_active = query.get("isActive")
         include_inactive = query.get("includeInactive", False)
         if is_active is True:
-            products = [p for p in products if getattr(p, "isActive", True)]
+            products = [p for p in products if (p.isActive if p.isActive is not None else True)]
         elif is_active is False:
-            products = [p for p in products if not getattr(p, "isActive", True)]
+            products = [p for p in products if not (p.isActive if p.isActive is not None else True)]
         elif not include_inactive:
-            products = [p for p in products if getattr(p, "isActive", True)]
+            products = [p for p in products if (p.isActive if p.isActive is not None else True)]
 
         # Add dynamic tags (best selling, new)
         role = query.get("role", "customer")
@@ -411,16 +411,16 @@ class ProductRepository:
         if query.get("popularity"):
             pop = query["popularity"].lower()
             if pop == "new":
-                products = [p for p in products if "new" in [t.lower() for t in getattr(p, "tags", [])]]
+                products = [p for p in products if "new" in [t.lower() for t in (p.tags if p.tags is not None else [])]]
             elif pop == "best_selling":
                 products = [
                     p
                     for p in products
-                    if "best_selling" in [t.lower() for t in getattr(p, "tags", [])]
-                    or any("best_selling_" in t.lower() for t in getattr(p, "tags", []))
+                    if "best_selling" in [t.lower() for t in (p.tags if p.tags is not None else [])]
+                    or any("best_selling_" in t.lower() for t in (p.tags if p.tags is not None else []))
                 ]
             elif pop == "trending":
-                products = [p for p in products if "trending" in [t.lower() for t in getattr(p, "tags", [])]]
+                products = [p for p in products if "trending" in [t.lower() for t in (p.tags if p.tags is not None else [])]]
 
         # Apply minDiscount filter
         if query.get("minDiscount"):
@@ -430,7 +430,7 @@ class ProductRepository:
                 price = self.getPriceForRole(p, role)
                 mrp = float(p.mrp)
                 if mrp > 0 and price < mrp:
-                    disc = ((mrp - price) / mrp) * 100
+                    disc = ((mrp - price) / mrp) * 100 if mrp else 0
                     if disc >= min_disc:
                         products_filtered.append(p)
             products = products_filtered
@@ -442,13 +442,13 @@ class ProductRepository:
             from app.repositories.category_repository import category_repository
 
             categories = await category_repository.findAll()
-            matching_cats = [c.name for c in categories if (getattr(c, "categoryTag", None) or "").lower() == target_tag]
+            matching_cats = [c.name for c in categories if (c.categoryTag or "").lower() == target_tag]
 
             # Filter products that either have a matching category OR have the tag in their dynamic tags
             products = [
                 p
                 for p in products
-                if getattr(p, "category", None) in matching_cats or any(t.lower() == target_tag for t in getattr(p, "tags", []))
+                if p.category in matching_cats or any(t.lower() == target_tag for t in (p.tags if p.tags is not None else []))
             ]
 
         # Filter by collection if present
@@ -466,7 +466,7 @@ class ProductRepository:
 
         # Apply availability filter: when set, only show available or only stock out
         def _is_in_stock(p: Any) -> bool:
-            stock = getattr(p, "stock", None)
+            stock = p.stock
             if stock is None:
                 return False
             try:
@@ -490,15 +490,15 @@ class ProductRepository:
         elif sort_by == "price_desc":
             products.sort(key=lambda p: self.getPriceForRole(p, role), reverse=True)
         elif sort_by == "name_asc":
-            products.sort(key=lambda p: getattr(p, "name", "").lower())
+            products.sort(key=lambda p: (p.name if p.name is not None else "").lower())
         elif sort_by == "name_desc":
-            products.sort(key=lambda p: getattr(p, "name", "").lower(), reverse=True)
+            products.sort(key=lambda p: (p.name if p.name is not None else "").lower(), reverse=True)
         elif sort_by == "popular":
             products.sort(
                 key=lambda p: (
-                    -1 if any("best_selling" in t for t in getattr(p, "tags", [])) else 0,
-                    self._parse_date(getattr(p, "createdAt", "2000-01-01")).timestamp()
-                    if self._parse_date(getattr(p, "createdAt", None))
+                    -1 if any("best_selling" in t for t in (p.tags if p.tags is not None else [])) else 0,
+                    self._parse_date((p.createdAt if p.createdAt is not None else "2000-01-01")).timestamp()
+                    if self._parse_date(p.createdAt)
                     else 0,
                 ),
                 reverse=True,
@@ -506,8 +506,8 @@ class ProductRepository:
         else:  # newest
             products.sort(
                 key=lambda p: (
-                    self._parse_date(getattr(p, "createdAt", "2000-01-01")).timestamp()
-                    if self._parse_date(getattr(p, "createdAt", None))
+                    self._parse_date((p.createdAt if p.createdAt is not None else "2000-01-01")).timestamp()
+                    if self._parse_date(p.createdAt)
                     else 0
                 ),
                 reverse=True,
@@ -565,7 +565,7 @@ class ProductRepository:
             from app.repositories.category_repository import category_repository
 
             categories = await category_repository.findAll()
-            matching_cats = [c.name for c in categories if (getattr(c, "categoryTag", None) or "").lower() == target_tag]
+            matching_cats = [c.name for c in categories if (c.categoryTag or "").lower() == target_tag]
 
             if matching_cats:
                 # Merge into existing categories filter if any
@@ -638,9 +638,9 @@ class ProductRepository:
                         elif sort_by == "price_desc":
                             full_products.sort(key=lambda p: self.getPriceForRole(p, role), reverse=True)
                         elif sort_by == "name_asc":
-                            full_products.sort(key=lambda p: getattr(p, "name", "").lower())
+                            full_products.sort(key=lambda p: (p.name if p.name is not None else "").lower())
                         elif sort_by == "name_desc":
-                            full_products.sort(key=lambda p: getattr(p, "name", "").lower(), reverse=True)
+                            full_products.sort(key=lambda p: (p.name if p.name is not None else "").lower(), reverse=True)
 
                         total_count = len(full_products)
                         paginated_products = full_products[skip : skip + limit]
@@ -690,9 +690,9 @@ class ProductRepository:
         #     paginated_products = all_products[skip:skip+limit]
         #
         #     facets = {
-        #         "brands": sorted(list(set(getattr(p, "brand", None) for p in all_products if getattr(p, "brand", None)))),
-        #         "categories": sorted(list(set(getattr(p, "category", None) for p in all_products if getattr(p, "category", None)))),
-        #         "subCategories": sorted(list(set(getattr(p, "subCategory", None) for p in all_products if getattr(p, "subCategory", None))))
+        #         "brands": sorted(list(set(p.brand for p in all_products if p.brand))),
+        #         "categories": sorted(list(set(p.category for p in all_products if p.category))),
+        #         "subCategories": sorted(list(set(p.subCategory for p in all_products if p.subCategory)))
         #     }
         #     from app.repositories.collection_repository import collection_repository
         #     all_collections = await collection_repository.findAll()
@@ -720,8 +720,8 @@ class ProductRepository:
             user_orders = await order_repository.findAll({"user": user_id})
             for o in user_orders:
                 for item in o.get("items", []):
-                    if getattr(item, "product", None):
-                        user_ordered_pids.add(str(getattr(item, "product", None)))
+                    if item.product:
+                        user_ordered_pids.add(str(item.product))
 
         # Calculate thresholds (Aware)
         from datetime import datetime, timezone
@@ -762,7 +762,7 @@ class ProductRepository:
 
         for p in products:
             pid = p.id
-            created_date = self._parse_date(getattr(p, "createdAt", None))
+            created_date = self._parse_date(p.createdAt)
             is_new = created_date and created_date >= thirty_days_ago and str(pid) not in user_ordered_pids
             final_tags = []
             if is_new:
@@ -835,47 +835,47 @@ class ProductRepository:
                     product_collection_names[pid_str].append(col_name)
 
         for p in products:
-            pid = str(getattr(p, "id", ""))
-            p_category = getattr(p, "category", "")
-            p_sub_category = getattr(p, "subCategory", "")
-            p_brand = getattr(p, "brand", "")
-            p_collection = getattr(p, "collection", "")
+            pid = str((p.id if p.id is not None else ""))
+            p_category = (p.category if p.category is not None else "")
+            p_sub_category = (p.subCategory if p.subCategory is not None else "")
+            p_brand = (p.brand if p.brand is not None else "")
+            p_collection = (p.collection if p.collection is not None else "")
 
             matched_tags = []
             for tag in search_tags:
                 # Check exclusion first
-                excluded_ids = getattr(tag, "excludedProductIds", [])
+                excluded_ids = (tag.excludedProductIds if tag.excludedProductIds is not None else [])
                 if pid in excluded_ids:
                     continue
 
                 matched = False
 
                 # Check direct product assignment
-                tag_product_ids = getattr(tag, "productIds", [])
+                tag_product_ids = (tag.productIds if tag.productIds is not None else [])
                 if pid in tag_product_ids:
                     matched = True
 
                 # Check category match
                 if not matched and p_category:
-                    tag_categories = getattr(tag, "categories", [])
+                    tag_categories = (tag.categories if tag.categories is not None else [])
                     if tag_categories and p_category in tag_categories:
                         matched = True
 
                 # Check subcategory match
                 if not matched and p_sub_category:
-                    tag_sub_categories = getattr(tag, "subCategories", [])
+                    tag_sub_categories = (tag.subCategories if tag.subCategories is not None else [])
                     if tag_sub_categories and p_sub_category in tag_sub_categories:
                         matched = True
 
                 # Check brand match
                 if not matched and p_brand:
-                    tag_brands = getattr(tag, "brands", [])
+                    tag_brands = (tag.brands if tag.brands is not None else [])
                     if tag_brands and p_brand in tag_brands:
                         matched = True
 
                 # Check collection match
                 if not matched:
-                    tag_collections = getattr(tag, "collections", [])
+                    tag_collections = (tag.collections if tag.collections is not None else [])
                     if tag_collections:
                         for col_id in tag_collections:
                             col_pids = collection_product_map.get(col_id, [])
@@ -887,7 +887,7 @@ class ProductRepository:
                             matched = True
 
                 if matched:
-                    matched_tags.append(getattr(tag, "name", ""))
+                    matched_tags.append((tag.name if tag.name is not None else ""))
 
             p.searchTags = matched_tags
             p.resolvedCollectionNames = product_collection_names.get(pid, [])
@@ -931,7 +931,7 @@ class ProductRepository:
         else:
             all_products = await self.storage.findAll()
             max_id = max(
-                (getattr(p, "productId", 0) for p in all_products if isinstance(getattr(p, "productId", None), int)), default=0
+                ((p.productId if p.productId is not None else 0) for p in all_products if isinstance(p.productId, int)), default=0
             )
         product_id = max_id + 1
         product_id_formatted = f"PDT-{product_id}"
@@ -1076,8 +1076,8 @@ class ProductRepository:
 
         # Business (wholesaler) buying by case: calculate total using case MRP
         if sell_as_case and role == "wholesaler":
-            qty_per_case = getattr(product, "quantityPerCase", None) or 0
-            mrp_case = getattr(product, "mrpPerCase", None)
+            qty_per_case = product.quantityPerCase or 0
+            mrp_case = product.mrpPerCase
             if qty_per_case and mrp_case is not None:
                 return round(float(mrp_case), 2)
 
@@ -1085,7 +1085,7 @@ class ProductRepository:
         mrp = float(product.mrp)
 
         # Check for variant-specific pricing if attributes are selected
-        if selected_attributes and getattr(product, "variantCombinations", None):
+        if selected_attributes and product.variantCombinations:
             for combo in product.variantCombinations:
                 match = True
                 combo_attrs = combo.get("attributes", {})
@@ -1104,29 +1104,29 @@ class ProductRepository:
         # Apply automatic product discount if cached and not ignored
         from app.repositories.coupon_repository import coupon_repository
 
-        active_discounts = getattr(coupon_repository, "_active_automatic_discounts_cache", None)
+        active_discounts = coupon_repository._active_automatic_discounts_cache
         if active_discounts and not ignore_auto_discount:
             auto_discount_pct = 0.0
             auto_discount_value = 0.0
             auto_discount_type = "percentage"
-            pid = str(getattr(product, "id", ""))
+            pid = str((product.id if product.id is not None else ""))
             for c in active_discounts:
                 # Match role
-                if role not in getattr(c, "applicableRoles", []):
+                if role not in (c.applicableRoles if c.applicableRoles is not None else []):
                     continue
                 # Match user_id
-                applicable_user_ids = getattr(c, "applicableUserIds", None) or []
+                applicable_user_ids = c.applicableUserIds or []
                 if applicable_user_ids:
                     if not user_id or str(user_id) not in [str(x) for x in applicable_user_ids]:
                         continue
                 # Match product eligibility using pre-calculated set
-                affected = getattr(c, "_affected_product_ids", None) or set()
+                affected = c._affected_product_ids or set()
                 if pid in affected:
-                    if getattr(c, "minRequirementType", None) == "quantity_based" and getattr(c, "quantityTiers", None):
+                    if c.minRequirementType == "quantity_based" and c.quantityTiers:
                         # Evaluate quantity tiers
                         qty_to_use = quantity
                         if role == "wholesaler" and sell_as_case:
-                            if getattr(c, "applicableItemType", None) == "cases" and getattr(product, "quantityPerCase", None):
+                            if c.applicableItemType == "cases" and product.quantityPerCase:
                                 qty_to_use = quantity // product.quantityPerCase
 
                         sorted_tiers = sorted(c.quantityTiers, key=lambda x: x.get("quantity", 0), reverse=True)
@@ -1140,13 +1140,13 @@ class ProductRepository:
                         c_discount_type = "percentage"
                     else:
                         pct = 0.0
-                        val = float(getattr(c, "discountValue", None) or 0)
-                        c_discount_type = getattr(c, "discountType", None)
+                        val = float(c.discountValue or 0)
+                        c_discount_type = c.discountType
                         if c_discount_type == "percentage":
                             pct = val
                         elif c_discount_type == "fixed":
                             if mrp > 0:
-                                pct = (val / mrp) * 100
+                                pct = (val / mrp) * 100 if mrp else 0.0
 
                     if pct > auto_discount_pct:
                         auto_discount_pct = pct
@@ -1172,8 +1172,8 @@ class ProductRepository:
     ) -> float:
         """Total price for quantity (units). If sell_as_case, quantity is in units and price = cases * mrpPerCase."""
         if sell_as_case and role == "wholesaler":
-            qty_per_case = int(getattr(product, "quantityPerCase", None) or 0)
-            mrp_case = getattr(product, "mrpPerCase", None)
+            qty_per_case = int(product.quantityPerCase or 0)
+            mrp_case = product.mrpPerCase
             if qty_per_case and mrp_case is not None and quantity >= qty_per_case:
                 cases = quantity // qty_per_case
                 return round(float(mrp_case) * cases, 2)
@@ -1193,7 +1193,7 @@ class ProductRepository:
         product = await self.findById(product_id)
         if not product:
             return 0
-        actual_stock = int(getattr(product, "stock", 0))
+        actual_stock = int((product.stock if product.stock is not None else 0))
         from app.repositories.stock_reservation_repository import stock_reservation_repository
 
         reserved = await stock_reservation_repository.get_reserved_quantity(product_id, exclude_user_id=exclude_user_id)

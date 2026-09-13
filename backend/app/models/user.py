@@ -1,4 +1,4 @@
-from app.models.schemas import Address, CartItem, OrderItem, VisibilityRule, SellerPermissions
+from app.models.schemas import AddressSnippet as Address, SellerPermissionSnippet as SellerPermissions, CartItem, OrderItem, VisibilityRule
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
@@ -34,3 +34,6 @@ class User(BaseModel):
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
     session_id: Optional[str] = Field(default=None, alias="sessionId")
     effective_role: Optional[str] = Field(default=None, alias="effectiveRole")
+
+User.model_rebuild()
+
