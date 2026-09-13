@@ -178,7 +178,7 @@ class BannerRepository:
             "position": position,
         }
 
-        banner_model = BannerInternalCreate(**banner_dict)
+        banner_model = BannerInternalCreate.model_validate(banner_dict)
         return await self.storage.create(banner_model)
 
     async def update(self, id: str, update_data: Any):
@@ -193,7 +193,7 @@ class BannerRepository:
             rules = update_dict["visibilityRules"]
             update_dict["position"] = rules[0].get("pageType", "homepage") if rules else "homepage"
 
-        update_model = BannerInternalUpdate(**update_dict)
+        update_model = BannerInternalUpdate.model_validate(update_dict)
         return await self.storage.update(id, update_model)
 
     async def delete(self, id: str):

@@ -16,7 +16,7 @@ class TrackingRepository:
         tracking_data_dict = tracking_data if isinstance(tracking_data, dict) else dict(tracking_data)
         tracking_data_dict["timestamp"] = tracking_data_dict.get("timestamp") or self._get_current_timestamp()
         
-        return await self.storage.create(TrackingInternalCreate(**tracking_data_dict))
+        return await self.storage.create(TrackingInternalCreate.model_validate(tracking_data_dict))
 
     def _get_current_timestamp(self):
         from datetime import datetime

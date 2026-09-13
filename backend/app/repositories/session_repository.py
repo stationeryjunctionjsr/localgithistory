@@ -37,7 +37,7 @@ class SessionRepository:
         existing_dict = existing.model_dump(by_alias=True) if hasattr(existing, 'model_dump') else dict(existing)
         updates_dict = updates if isinstance(updates, dict) else dict(updates)
         existing_dict.update(updates_dict)
-        return await self.storage.update(session_id, SessionInternalUpdate(**existing_dict))
+        return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing_dict))
 
     async def revoke_session(self, session_id: str, reason: str) -> Optional[Dict]:
         return await self.update_session(

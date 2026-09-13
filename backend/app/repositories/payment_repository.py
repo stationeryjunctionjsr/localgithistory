@@ -89,14 +89,14 @@ class PaymentRepository:
                     max_id = max(max_id, int(match.group(1)))
         payment["paymentId"] = f"PYMT-{max_id + 1}"
 
-        payment_model = PaymentInternalCreate(**payment)
+        payment_model = PaymentInternalCreate.model_validate(payment)
         return await self.storage.create(payment_model)
 
     async def update(self, id: str, update_data: Any):
         if not isinstance(update_data, PaymentInternalUpdate):
             if isinstance(update_data, dict):
                 update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
-                update_data = PaymentInternalUpdate(**update_data)
+                update_data = PaymentInternalUpdate.model_validate(update_data)
             else:
                 update_dict = {}
                 for k in ["orderId", "userId", "userIdFormatted", "customerName", "orderDate", "paymentMethod", "amountPaid", "amountRemaining", "totalAmount", "paymentId", "paymentEntries"]:
@@ -104,7 +104,7 @@ class PaymentRepository:
                     if val is not None:
                         update_dict[k] = val
                 update_dict["updatedAt"] = datetime.now(timezone.utc).isoformat()
-                update_data = PaymentInternalUpdate(**update_dict)
+                update_data = PaymentInternalUpdate.model_validate(update_dict)
         else:
             update_data.updatedAt = datetime.now(timezone.utc).isoformat()
 

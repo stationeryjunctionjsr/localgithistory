@@ -135,7 +135,7 @@ class UserRepository:
         if "password" in update_data:
             update_data.password = get_password_hash(update_data.password)
 
-        return await self.storage.update(id, UserInternalUpdate(**update_data) if isinstance(update_data, dict) else update_data)
+        return await self.storage.update(id, UserInternalUpdate.model_validate(update_data) if isinstance(update_data, dict) else update_data)
 
     async def delete(self, id: str):
         return await self.storage.delete(id)

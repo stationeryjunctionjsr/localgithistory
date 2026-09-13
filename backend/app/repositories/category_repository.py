@@ -31,9 +31,9 @@ class CategoryRepository:
     async def create(self, category_data: Any) -> Category:
         from app.models.daos import CategoryInternalCreate
         if isinstance(category_data, dict):
-            category_data = CategoryInternalCreate(**category_data)
+            category_data = CategoryInternalCreate.model_validate(category_data)
         elif not isinstance(category_data, CategoryInternalCreate):
-            category_data = CategoryInternalCreate(**category_data.model_dump(exclude_unset=True))
+            category_data = CategoryInternalCreate.model_validate(category_data.model_dump(exclude_unset=True))
         return await self.storage.create(category_data)
 
     async def update(self, id: str, update_data: Any) -> Category:
@@ -48,7 +48,7 @@ class CategoryRepository:
             update_dict["categoryTag"] = tags[0] if isinstance(tags, list) and tags else ""
 
         updates = {**update_dict, "updatedAt": self._get_timestamp()}
-        internal_update = CategoryInternalUpdate(**updates)
+        internal_update = CategoryInternalUpdate.model_validate(updates)
         return await self.storage.update(id, internal_update)
 
     async def delete(self, id: str) -> Category:

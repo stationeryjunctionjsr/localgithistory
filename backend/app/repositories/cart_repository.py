@@ -17,7 +17,7 @@ class CartRepository:
 
     async def update(self, id: str, update_data: Any):
         if not isinstance(update_data, CartInternalUpdate):
-            update_data = CartInternalUpdate(**update_data)
+            update_data = CartInternalUpdate.model_validate(update_data)
         return await self.storage.update(id, update_data)
 
     async def clearCart(self, user_id: str):

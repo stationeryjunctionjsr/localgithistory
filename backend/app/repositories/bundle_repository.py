@@ -83,9 +83,9 @@ class BundleRepository:
         await self.ensure_table_exists()
         from app.models.daos import BundleInternalCreate
         if isinstance(data, dict):
-            internal_data = BundleInternalCreate(**data)
+            internal_data = BundleInternalCreate.model_validate(data)
         elif not isinstance(data, BundleInternalCreate):
-            internal_data = BundleInternalCreate(**data.model_dump(exclude_unset=True))
+            internal_data = BundleInternalCreate.model_validate(data.model_dump(exclude_unset=True))
         else:
             internal_data = data
         return await self.storage.create(internal_data)
@@ -94,9 +94,9 @@ class BundleRepository:
         await self.ensure_table_exists()
         from app.models.daos import BundleInternalUpdate
         if isinstance(update_data, dict):
-            internal_data = BundleInternalUpdate(**update_data)
+            internal_data = BundleInternalUpdate.model_validate(update_data)
         elif not isinstance(update_data, BundleInternalUpdate):
-            internal_data = BundleInternalUpdate(**update_data.model_dump(exclude_unset=True))
+            internal_data = BundleInternalUpdate.model_validate(update_data.model_dump(exclude_unset=True))
         else:
             internal_data = update_data
         internal_data.updatedAt = datetime.now(timezone.utc).isoformat()

@@ -49,7 +49,7 @@ class SellerRequestRepository:
             "createdAt": datetime.now(timezone.utc).isoformat(),
         }
 
-        return await self.storage.create(SellerRequestInternalCreate(**request))
+        return await self.storage.create(SellerRequestInternalCreate.model_validate(request))
 
     async def update(self, id: str, update_data: Any):
         from app.models.daos import SellerRequestInternalUpdate
@@ -59,7 +59,7 @@ class SellerRequestRepository:
         elif update_data_dict.get("status") == "closed" and "closedAt" not in update_data_dict:
             update_data_dict["closedAt"] = datetime.now(timezone.utc).isoformat()
 
-        return await self.storage.update(id, SellerRequestInternalUpdate(**update_data_dict))
+        return await self.storage.update(id, SellerRequestInternalUpdate.model_validate(update_data_dict))
 
     async def addResponse(self, request_id: str, response_data: Any):
         request = await self.findById(request_id)

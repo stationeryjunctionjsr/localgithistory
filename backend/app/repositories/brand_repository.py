@@ -31,9 +31,9 @@ class BrandRepository:
     async def create(self, data: Any) -> Brand:
         from app.models.daos import BrandInternalCreate
         if isinstance(data, dict):
-            internal_data = BrandInternalCreate(**data)
+            internal_data = BrandInternalCreate.model_validate(data)
         elif not isinstance(data, BrandInternalCreate):
-            internal_data = BrandInternalCreate(**data.model_dump(exclude_unset=True))
+            internal_data = BrandInternalCreate.model_validate(data.model_dump(exclude_unset=True))
         else:
             internal_data = data
         return await self.storage.create(internal_data)
@@ -41,9 +41,9 @@ class BrandRepository:
     async def update(self, id: str, data: Any) -> Optional[Brand]:
         from app.models.daos import BrandInternalUpdate
         if isinstance(data, dict):
-            internal_data = BrandInternalUpdate(**data)
+            internal_data = BrandInternalUpdate.model_validate(data)
         elif not isinstance(data, BrandInternalUpdate):
-            internal_data = BrandInternalUpdate(**data.model_dump(exclude_unset=True))
+            internal_data = BrandInternalUpdate.model_validate(data.model_dump(exclude_unset=True))
         else:
             internal_data = data
         return await self.storage.update(id, internal_data)
