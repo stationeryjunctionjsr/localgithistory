@@ -130,7 +130,7 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
         bundle.display_image
         or bundle.image_url
         or next(
-            (item.product["images"][0] for item in enriched_items if item.product and item.product.get("images")),
+            (item.product.images[0] for item in enriched_items if item.product and item.getattr(product, "images", None)),
             None,
         )
     )
@@ -175,7 +175,7 @@ async def search_bundles(
         from app.db.storage_factory import get_storage as _get_storage
         product_storage = _get_storage("products")
         all_products_list = await product_storage.find({"isActive": True})
-        product_map = {str(p["_id"]): p for p in all_products_list if "_id" in p}
+        product_map = {str(p.id): p for p in all_products_list if "_id" in p}
 
         enriched_bundles = []
         for b in bundles:
@@ -352,13 +352,13 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
         for item in (bundle.items or []):
             product = await product_repository.findById(item.productId)
             if not product or not product.is_active:
-                raise HTTPException(status_code=400, detail=f"Product {item['productId']} is no longer available")
+                raise HTTPException(status_code=400, detail=f"Product {item.productId} is no longer available")
             available = await product_repository.get_available_stock(item.productId, exclude_user_id=user_id)
             if available < item.quantity:
                 pname = (product.name if product.name is not None else item.productId)
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Insufficient stock for '{pname}'. Available: {available}, required: {item['quantity']}",
+                    detail=f"Insufficient stock for '{pname}'. Available: {available}, required: {item.quantity}",
                 )
 
         cart = await cart_repository.findByUser(user_id)
@@ -385,10 +385,10 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
                 if existing:
                     items = (cart.items or [])
                     for i, it in enumerate(items):
-                        if it.id == existing["_id"]:
+                        if it.id == existing.id:
                             if qty is None:
                                 raise ValueError("Data Integrity Error: Bundle item missing quantity")
-                            items[i]["quantity"] = existing["quantity"] + qty
+                            items[i]["quantity"] = existing.quantity + qty
                             break
                     await cart_repository.createOrUpdate(user_id, items)
                 else:

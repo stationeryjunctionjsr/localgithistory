@@ -18,13 +18,13 @@ class SupportTicketRepository:
         query = query or {}
 
         if query.get("user"):
-            tickets = [t for t in tickets if t.get("user") == query["user"]]
+            tickets = [t for t in tickets if getattr(t, "user", None) == query["user"]]
 
         if query.get("status"):
-            tickets = [t for t in tickets if t.get("status") == query["status"]]
+            tickets = [t for t in tickets if getattr(t, "status", None) == query["status"]]
 
         if query.get("priority"):
-            tickets = [t for t in tickets if t.get("priority") == query["priority"]]
+            tickets = [t for t in tickets if getattr(t, "priority", None) == query["priority"]]
 
         # Sort by creation date (newest first)
         tickets.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
@@ -37,18 +37,18 @@ class SupportTicketRepository:
     async def create(self, ticket_data: Any):
         ticket = {
             "ticketNumber": self.generateTicketNumber(),
-            "user": ticket_data.get("user"),
-            "name": ticket_data.get("name"),
-            "email": ticket_data.get("email"),
-            "phone": ticket_data.get("phone"),
-            "company": ticket_data.get("company"),
-            "subject": ticket_data["subject"],
-            "description": ticket_data["description"],
-            "category": ticket_data.get("category", "general"),
-            "priority": ticket_data.get("priority", "medium"),
-            "status": ticket_data.get("status", "open"),
-            "attachments": ticket_data.get("attachments", []),
-            "assignedTo": ticket_data.get("assignedTo"),
+            "user": getattr(ticket_data, "user", None),
+            "name": getattr(ticket_data, "name", None),
+            "email": getattr(ticket_data, "email", None),
+            "phone": getattr(ticket_data, "phone", None),
+            "company": getattr(ticket_data, "company", None),
+            "subject": ticket_data.subject,
+            "description": ticket_data.description,
+            "category": getattr(ticket_data, "category", "general"),
+            "priority": getattr(ticket_data, "priority", "medium"),
+            "status": getattr(ticket_data, "status", "open"),
+            "attachments": getattr(ticket_data, "attachments", []),
+            "assignedTo": getattr(ticket_data, "assignedTo", None),
             "responses": [],
             "resolvedAt": None,
             "closedAt": None,
@@ -71,21 +71,21 @@ class SupportTicketRepository:
             raise ValueError("Ticket not found")
 
         response = {
-            "user": response_data["user"],
-            "message": response_data["message"],
-            "attachments": response_data.get("attachments", []),
-            "isAdminResponse": response_data.get("isAdminResponse", False),
+            "user": response_data.user,
+            "message": response_data.message,
+            "attachments": getattr(response_data, "attachments", []),
+            "isAdminResponse": getattr(response_data, "isAdminResponse", False),
             "createdAt": datetime.now(timezone.utc).isoformat(),
         }
 
-        ticket["responses"] = ticket.get("responses", [])
-        ticket["responses"].append(response)
+        ticket.responses = getattr(ticket, "responses", [])
+        ticket.responses.append(response)
 
         # Update ticket status if admin responds
-        if response_data.get("isAdminResponse") and ticket.get("status") == "open":
-            ticket["status"] = "in_progress"
+        if getattr(response_data, "isAdminResponse", None) and getattr(ticket, "status", None) == "open":
+            ticket.status = "in_progress"
 
-        return await self.update(ticket_id, {"responses": ticket["responses"], "status": ticket["status"]})
+        return await self.update(ticket_id, {"responses": ticket.responses, "status": ticket.status})
 
     async def delete(self, id: str):
         return await self.storage.delete(id)

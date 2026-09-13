@@ -254,7 +254,7 @@ async def get_category(category_id: str, current_user: User = Depends(require_su
         category = await category_repository.findById(category_id)
         if not category:
             raise HTTPException(status_code=404, detail="Category not found")
-        category["gst"] = (category.gst if category.gst is not None else 0)
+        category.gst = (category.gst if category.gst is not None else 0)
         return category if hasattr(category, "model_dump") else category
     except HTTPException:
         raise

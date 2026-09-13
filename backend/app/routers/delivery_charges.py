@@ -75,7 +75,7 @@ async def get_serviceable_pincodes(current_user: User = Depends(require_super_ad
     Used by the Delivery Slots admin page to populate the pincode picker."""
     charges = await delivery_charge_repository.findAll()
     pincodes = [
-        c["pincode"]
+        c.pincode
         for c in charges
         if c.pincode and (c.serviceable_for_customer or c.serviceable_for_wholesaler)
     ]

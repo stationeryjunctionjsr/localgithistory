@@ -220,7 +220,7 @@ async def get_all_seller_payout_summaries(
 
     tasks = []
     for seller in sellers:
-        seller_id = str(seller["_id"])
+        seller_id = str(seller.id)
         tasks.append(_get_seller_summary(seller_id))
 
     results = await asyncio.gather(*tasks)

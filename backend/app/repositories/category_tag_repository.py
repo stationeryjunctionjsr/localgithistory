@@ -21,7 +21,7 @@ class CategoryTagRepository:
     async def findByName(self, name: str) -> Optional[Dict]:
         tags = await self.storage.findAll()
         for tag in tags:
-            if tag.get("name", "").lower() == name.lower():
+            if getattr(tag, "name", "").lower() == name.lower():
                 return tag
         return None
 

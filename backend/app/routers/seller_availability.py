@@ -87,8 +87,8 @@ async def is_seller_currently_unavailable(seller_id: str) -> bool:
     )
     for doc in docs:
         try:
-            start = datetime.fromisoformat(doc["startAt"].replace("Z", ""))
-            end = datetime.fromisoformat(doc["endAt"].replace("Z", ""))
+            start = datetime.fromisoformat(doc.startAt.replace("Z", ""))
+            end = datetime.fromisoformat(doc.endAt.replace("Z", ""))
             if start <= now <= end:
                 return True
         except Exception:
@@ -111,8 +111,8 @@ async def get_all_unavailable_seller_ids() -> Set[str]:
 
     for doc in all_docs:
         try:
-            start = datetime.fromisoformat(doc["startAt"].replace("Z", ""))
-            end = datetime.fromisoformat(doc["endAt"].replace("Z", ""))
+            start = datetime.fromisoformat(doc.startAt.replace("Z", ""))
+            end = datetime.fromisoformat(doc.endAt.replace("Z", ""))
             if start <= current_utc <= end:
                 seller_id = doc.seller_id
                 if seller_id:
@@ -287,13 +287,13 @@ async def tick_availability_statuses(
     updated = 0
     for doc in docs:
         try:
-            start_dt = datetime.fromisoformat(doc["startAt"].replace("Z", ""))
-            end_dt = datetime.fromisoformat(doc["endAt"].replace("Z", ""))
-            doc_id = str(doc["_id"])
-            if doc["status"] == "scheduled" and now >= start_dt:
+            start_dt = datetime.fromisoformat(doc.startAt.replace("Z", ""))
+            end_dt = datetime.fromisoformat(doc.endAt.replace("Z", ""))
+            doc_id = str(doc.id)
+            if doc.status == "scheduled" and now >= start_dt:
                 await storage.update(doc_id, {"status": "active"})
                 updated += 1
-            elif doc["status"] == "active" and now >= end_dt:
+            elif doc.status == "active" and now >= end_dt:
                 await storage.update(doc_id, {"status": "ended"})
                 updated += 1
         except Exception:

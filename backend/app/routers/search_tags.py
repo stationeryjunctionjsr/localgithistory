@@ -33,10 +33,10 @@ async def update_tag(id: str, tag_update: SearchTagUpdate, admin: User = Depends
         logger.warning("Search tag not found by _id=%s; trying tagId fallback", id)
         # Try finding by tagId as fallback
         all_tags = await search_tag_repository.findAll()
-        tag = next((t for t in all_tags if t.get("tagId") == id), None)
+        tag = next((t for t in all_tags if getattr(t, "tagId", None) == id), None)
         if not tag:
             raise HTTPException(status_code=404, detail="Search tag not found")
-        id = str(tag.get("_id"))
+        id = str(tag.id)
         logger.info("Search tag resolved by tagId fallback, internal id=%s", id)
 
     logger.info("Search tag found for update id=%s", id)

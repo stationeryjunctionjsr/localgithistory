@@ -50,7 +50,7 @@ class CouponRepository:
             or (now - self._categories_map_time).total_seconds() > 60
         ):
             cats = await self._category_storage.findAll()
-            self._categories_map = {str(c["_id"]): c.get("name", "") for c in cats if "_id" in c}
+            self._categories_map = {str(c.id): getattr(c, "name", "") for c in cats if "_id" in c}
             self._categories_map_time = now
         return self._categories_map.get(str(cid))
 
@@ -58,7 +58,7 @@ class CouponRepository:
         now = datetime.now(timezone.utc)
         if self._brands_map is None or not self._brands_map_time or (now - self._brands_map_time).total_seconds() > 60:
             brands = await self._brand_storage.findAll()
-            self._brands_map = {str(b["_id"]): b.get("name", "") for b in brands if "_id" in b}
+            self._brands_map = {str(b.id): getattr(b, "name", "") for b in brands if "_id" in b}
             self._brands_map_time = now
         return self._brands_map.get(str(bid))
 
@@ -71,7 +71,7 @@ class CouponRepository:
         ):
             cols = await self._collection_storage.findAll()
             self._collections_map = {
-                str(c["_id"]): [str(pid) for pid in c.get("productIds", [])] for c in cols if "_id" in c
+                str(c.id): [str(pid) for pid in getattr(c, "productIds", [])] for c in cols if "_id" in c
             }
             self._collections_map_time = now
         return self._collections_map.get(str(cid))
@@ -80,14 +80,14 @@ class CouponRepository:
         self, coupon: Any, cart_items: List[Dict], product_repository, user_role: str, user_id: str
     ) -> Any:
         applicable_item_type = getattr(coupon, "applicableItemType", "units")
-        x_required = int(getattr(coupon, "minQuantityOfEligibleItems", ) or 0)
-        y_required = int(getattr(coupon, "buyXGetYCustomerGetsQuantity", ) or 0)
+        x_required = int(getattr(coupon, "minQuantityOfEligibleItems")) if getattr(coupon, "minQuantityOfEligibleItems", None) is not None else None
+        y_required = int(getattr(coupon, "buyXGetYCustomerGetsQuantity")) if getattr(coupon, "buyXGetYCustomerGetsQuantity", None) is not None else None
 
         # Batch-load all cart products upfront to avoid N+1 (one DB hit per item)
         cart_pids = [str(getattr(item, "product", None) or getattr(item, "productId", None)) for item in cart_items if getattr(item, "product", None) or getattr(item, "productId", None)]
         if cart_pids:
             products_list = await product_repository.findAll({"allowed_ids": cart_pids})
-            product_map = {str(p["_id"]): p for p in products_list if p.get("_id")}
+            product_map = {str(p.id): p for p in products_list if p.id}
         else:
             product_map = {}
 
@@ -97,11 +97,11 @@ class CouponRepository:
             product = product_map.get(pid)
             if not product:
                 continue
-            qty = int(getattr(item, "quantity", None) or 0)
+            qty = int(getattr(item, "quantity")) if getattr(item, "quantity", None) is not None else 0
             if qty <= 0:
                 continue
             sell_as_case = getattr(item, 'sellAsCase', False)
-            qty_per_case = int(product.get("quantityPerCase") or 1)
+            qty_per_case = int(getattr(product, "quantityPerCase")) if getattr(product, "quantityPerCase", None) is not None else 1
 
             item_total_price = product_repository.calculateTotalPrice(
                 product, user_role, qty, sell_as_case=sell_as_case, user_id=user_id, ignore_auto_discount=True
@@ -165,21 +165,21 @@ class CouponRepository:
                 for c in applicable_auto:
                     if await self._product_eligible_async(
                         e["product"],
-                        c.get("appliesToType", "all"),
-                        c.get("appliesToValueIds"),
-                        c.get("excludedProductIds"),
+                        getattr(c, "appliesToType", "all"),
+                        getattr(c, "appliesToValueIds", None),
+                        getattr(c, "excludedProductIds", None),
                     ):
                         d = (
-                            (e["price"] * c["discountValue"]) / 100
-                            if c["discountType"] == "percentage"
-                            else c["discountValue"]
+                            (e["price"] * c.discountValue) / 100
+                            if c.discountType == "percentage"
+                            else c.discountValue
                         )
                         if d > max_d:
                             max_d = min(d, e["price"])
                 best_auto_per_product[pid] = max_d
 
         gy_discount_type = getattr(coupon, "buyXGetYCustomerGetsDiscountType", "percentage")
-        gy_discount_value = float(getattr(coupon, "buyXGetYCustomerGetsDiscountValue", ) or 0)
+        gy_discount_value = float(getattr(coupon, "buyXGetYCustomerGetsDiscountValue")) if getattr(coupon, "buyXGetYCustomerGetsDiscountValue", None) is not None else 0.0
 
         gy_discount_amount = 0.0
         gy_element_discounts = []
@@ -244,7 +244,7 @@ class CouponRepository:
         applies_to_value_ids: Optional[List[str]],
         excluded_product_ids: Optional[List[str]] = None,
     ) -> bool:
-        pid = str(product.get("_id", ""))
+        pid = str(getattr(product, "id", ""))
         if excluded_product_ids and pid in [str(x) for x in excluded_product_ids]:
             return False
         if not applies_to_value_ids:
@@ -252,7 +252,7 @@ class CouponRepository:
         if applies_to_type == "all":
             return True
         if applies_to_type == "categories":
-            cat_name = (product.get("category") or "").strip()
+            cat_name = (getattr(product, "category", None) or "").strip()
             if not cat_name:
                 return False
             for cid in applies_to_value_ids:
@@ -261,10 +261,10 @@ class CouponRepository:
                     return True
             return False
         if applies_to_type == "subCategories":
-            sub = (product.get("subCategory") or "").strip()
+            sub = (getattr(product, "subCategory", None) or "").strip()
             return sub in applies_to_value_ids if sub else False
         if applies_to_type == "brands":
-            brand_name = (product.get("brand") or "").strip()
+            brand_name = (getattr(product, "brand", None) or "").strip()
             if not brand_name:
                 return False
             for bid in applies_to_value_ids:
@@ -273,7 +273,7 @@ class CouponRepository:
                     return True
             return False
         if applies_to_type == "collections":
-            pid = str(product.get("_id", ""))
+            pid = str(getattr(product, "id", ""))
             if not pid:
                 return False
             for cid in applies_to_value_ids:
@@ -282,7 +282,7 @@ class CouponRepository:
                     return True
             return False
         if applies_to_type == "products":
-            pid = str(product.get("_id", ""))
+            pid = str(getattr(product, "id", ""))
             return pid in [str(x) for x in applies_to_value_ids]
         return False
 
@@ -294,7 +294,7 @@ class CouponRepository:
         excluded_product_ids: Optional[List[str]] = None,
     ) -> bool:
         """Determines if a bundle is eligible for a discount scheme."""
-        bid = str(bundle.get("_id", ""))
+        bid = str(getattr(bundle, "id", ""))
         if excluded_product_ids and bid in [str(x) for x in excluded_product_ids]:
             return False
             
@@ -427,7 +427,7 @@ class CouponRepository:
         all_coupons = await self.storage.findAll({})
         max_num = 0
         for doc in all_coupons:
-            did = doc.get("displayId", "")
+            did = getattr(doc, "displayId", "")
             if did.startswith(prefix):
                 try:
                     num = int(did[len(prefix) :])
@@ -479,7 +479,7 @@ class CouponRepository:
             "applicableItemType": getattr(coupon_data, "applicableItemType", None) or "units",
             "couponMode": getattr(coupon_data, 'couponMode', "override"),
             "quantityTiers": [
-                {"quantity": int(t["quantity"]), "discount": float(t["discount"])} for t in coupon_data.quantityTiers
+                {"quantity": int(t.quantity), "discount": float(t.discount)} for t in coupon_data.quantityTiers
             ]
             if getattr(coupon_data, "quantityTiers", None) is not None
             else None,
@@ -524,7 +524,7 @@ class CouponRepository:
     async def update(self, id: str, update_data: Any):
         if "code" in update_data and getattr(update_data, "code", None):
             existing = await self.findByCode(update_data.code)
-            if existing and existing.get("_id") != id:
+            if existing and existing.id != id:
                 raise ValueError("Discount code already in use")
             update_data.code = update_data.code.upper()
         if getattr(update_data, "method", None) == "automatic":
@@ -559,7 +559,7 @@ class CouponRepository:
             update_data.buyXGetYCustomerGetsAppliesToValueIds = []
         if "quantityTiers" in update_data and update_data.quantityTiers is not None:
             update_data.quantityTiers = [
-                {"quantity": int(t.get("quantity")), "discount": float(t.get("discount"))}
+                {"quantity": int(getattr(t, "quantity", None)), "discount": float(getattr(t, "discount", None))}
                 for t in update_data.quantityTiers
             ]
 
@@ -583,7 +583,7 @@ class CouponRepository:
                             excl.update(detail["overlappingProductIds"])
                             await self.storage.update(detail["couponId"], {"excludedProductIds": list(excl)})
                 elif resolution == "retain":
-                    excl = set(getattr(update_data, "excludedProductIds", None) or existing.get("excludedProductIds") or [])
+                    excl = set(getattr(update_data, "excludedProductIds", None) or getattr(existing, "excludedProductIds", None) or [])
                     pids_to_exclude = set().union(*[set(d.overlappingProductIds) for d in overlap["details"]])
 
                     # Check if all targeted products are excluded/covered
@@ -615,7 +615,7 @@ class CouponRepository:
         user_usages = getattr(coupon, "userUsages", {})
         user_usages[user_id] = user_usages.get(user_id, 0) + 1
 
-        return await self.update(id, {"usedCount": (getattr(coupon, "usedCount", 0) or 0) + 1, "userUsages": user_usages})
+        return await self.update(id, {"usedCount": (getattr(coupon, "usedCount") if getattr(coupon, "usedCount", None) is not None else 0) + 1, "userUsages": user_usages})
 
     async def validateCoupon(
         self,
@@ -829,7 +829,7 @@ class CouponRepository:
                 valid_until = datetime.fromisoformat(getattr(coupon, "validUntil").replace("Z", "+00:00"))
                 if now < valid_from or now > valid_until:
                     continue
-                if getattr(coupon, "usageLimit", ) and (getattr(coupon, "usedCount", ) or 0) >= getattr(coupon, "usageLimit"):
+                if getattr(coupon, "usageLimit") and (getattr(coupon, "usedCount") if getattr(coupon, "usedCount", None) is not None else 0) >= getattr(coupon, "usageLimit"):
                     continue
                 if user_role not in getattr(coupon, "applicableRoles", []):
                     continue
@@ -859,8 +859,8 @@ class CouponRepository:
                         from app.repositories.user_repository import user_repository
 
                         u = await user_repository.findById(user_id)
-                        if u and u.get("address"):
-                            addr = u.get("address")
+                        if u and getattr(u, "address", None):
+                            addr = getattr(u, "address", None)
 
                     if addr:
                         pincode = addr.get("zipCode") or addr.get("pincode")
@@ -899,7 +899,7 @@ class CouponRepository:
                 if min_req == "min_amount" and eligible_subtotal < getattr(coupon, "minPurchaseAmount", 0):
                     continue
                 if min_req == "min_quantity":
-                    min_qty = getattr(coupon, "minQuantityOfEligibleItems", ) or 0
+                    min_qty = int(getattr(coupon, "minQuantityOfEligibleItems")) if getattr(coupon, "minQuantityOfEligibleItems", None) is not None else 0
                     if eligible_quantity < min_qty:
                         continue
                 if getattr(coupon, "maxUsagePerUser", ):
@@ -990,8 +990,8 @@ class CouponRepository:
         elif applies_to_type == "brands" and applies_to_value_ids:
             for bid in applies_to_value_ids:
                 brand = await self._brand_storage.findById(bid)
-                if brand and brand.get("name"):
-                    eligible_brand_names.add(brand.get("name").strip())
+                if brand and getattr(brand, "name", None):
+                    eligible_brand_names.add(getattr(brand, "name", None).strip())
             if eligible_brand_names:
                 query["brand"] = ",".join(eligible_brand_names)
             else:
@@ -1005,22 +1005,22 @@ class CouponRepository:
 
         affected = set()
         for p in products:
-            pid = str(p.get("_id", ""))
+            pid = str(getattr(p, "id", ""))
             if pid in excluded_product_ids:
                 continue
 
             if applies_to_type == "all":
                 affected.add(pid)
             elif applies_to_type == "categories":
-                p_cat = (p.get("category") or "").strip().lower()
+                p_cat = (getattr(p, "category", None) or "").strip().lower()
                 if p_cat and p_cat in {c.lower() for c in eligible_category_names}:
                     affected.add(pid)
             elif applies_to_type == "subCategories":
-                p_sub = (p.get("subCategory") or "").strip()
+                p_sub = (getattr(p, "subCategory", None) or "").strip()
                 if p_sub and p_sub in applies_to_value_ids:
                     affected.add(pid)
             elif applies_to_type == "brands":
-                p_brand = (p.get("brand") or "").strip().lower()
+                p_brand = (getattr(p, "brand", None) or "").strip().lower()
                 if p_brand and p_brand in {b.lower() for b in eligible_brand_names}:
                     affected.add(pid)
 
@@ -1038,7 +1038,7 @@ class CouponRepository:
         conflicting_candidates = [
             c
             for c in all_coupons
-            if any(r in (c.get("applicableRoles") or []) for r in roles) and str(c.get("_id")) != str(exclude_coupon_id)
+            if any(r in (getattr(c, "applicableRoles", None) or []) for r in roles) and str(c.id) != str(exclude_coupon_id)
         ]
 
         new_affected_ids = await self._get_affected_product_ids(coupon_data)
@@ -1062,19 +1062,19 @@ class CouponRepository:
 
         overlaps = []
         for c in conflicting_candidates:
-            c_type = c.get("typeOfDiscount") or "product_discount"
+            c_type = getattr(c, "typeOfDiscount", None) or "product_discount"
             if c_type != type_of_discount:
                 continue
 
             is_bxgy = type_of_discount == "buy_x_get_y"
             c_affected_ids = await self._get_affected_product_ids(c)
             if is_bxgy:
-                c_gy_applies_to_type = c.get("buyXGetYCustomerGetsAppliesToType", "all")
-                c_gy_applies_to_ids = c.get("buyXGetYCustomerGetsAppliesToValueIds") or []
+                c_gy_applies_to_type = getattr(c, "buyXGetYCustomerGetsAppliesToType", "all")
+                c_gy_applies_to_ids = getattr(c, "buyXGetYCustomerGetsAppliesToValueIds", None) or []
                 c_dummy_gy = {
                     "appliesToType": c_gy_applies_to_type,
                     "appliesToValueIds": c_gy_applies_to_ids,
-                    "excludedProductIds": c.get("excludedProductIds"),
+                    "excludedProductIds": getattr(c, "excludedProductIds", None),
                 }
                 c_gy_affected_ids = await self._get_affected_product_ids(c_dummy_gy)
                 c_affected_ids = c_affected_ids.union(c_gy_affected_ids)
@@ -1082,7 +1082,7 @@ class CouponRepository:
                 # Amount off/Shipping/Total discount logic
                 # For Business segment, check if applicableItemType (units/cases) matches
                 if "wholesaler" in roles:
-                    if (c.get("applicableItemType") or "units") != applicable_item_type:
+                    if (getattr(c, "applicableItemType", None) or "units") != applicable_item_type:
                         continue
 
             intersection = new_affected_ids.intersection(c_affected_ids)
@@ -1090,8 +1090,8 @@ class CouponRepository:
             if intersection:
                 overlaps.append(
                     {
-                        "couponId": str(c["_id"]),
-                        "displayId": c.get("displayId"),
+                        "couponId": str(c.id),
+                        "displayId": getattr(c, "displayId", None),
                         "overlappingProductIds": list(intersection),
                     }
                 )
@@ -1137,8 +1137,8 @@ class CouponRepository:
         valid_discounts = []
         for c in discounts:
             try:
-                valid_from_str = c.get("validFrom") or c.get("startDate")
-                valid_until_str = c.get("validUntil") or c.get("endDate")
+                valid_from_str = getattr(c, "validFrom", None) or getattr(c, "startDate", None)
+                valid_until_str = getattr(c, "validUntil", None) or getattr(c, "endDate", None)
                 if not valid_from_str or not valid_until_str:
                     continue
                 valid_from = datetime.fromisoformat(valid_from_str.replace("Z", "+00:00"))
@@ -1151,7 +1151,7 @@ class CouponRepository:
                     valid_until = valid_until.replace(tzinfo=timezone.utc)
                     
                 if valid_from <= now <= valid_until:
-                    c["_affected_product_ids"] = await self._get_affected_product_ids(c)
+                    c._affected_product_ids = await self._get_affected_product_ids(c)
                     valid_discounts.append(c)
             except Exception as e:
                 print("Exception in coupon check:", e)
@@ -1165,13 +1165,13 @@ class CouponRepository:
         discounts = await self.get_active_automatic_product_discounts()
         applicable = []
         for c in discounts:
-            if role not in c.get("applicableRoles", []):
+            if role not in getattr(c, "applicableRoles", []):
                 continue
-            applicable_user_ids = c.get("applicableUserIds") or []
+            applicable_user_ids = getattr(c, "applicableUserIds", None) or []
             if applicable_user_ids:
                 if not user_id or str(user_id) not in [str(x) for x in applicable_user_ids]:
                     continue
-            behavior = c.get("userBehavior")
+            behavior = getattr(c, "userBehavior", None)
             if behavior and behavior != "none":
                 if not user_id or not await self._user_matches_behavior(user_id, behavior):
                     continue
@@ -1197,25 +1197,25 @@ class CouponRepository:
         # Step 1: Find the default highest automatic product discount
         for c in all_coupons:
             try:
-                valid_from = datetime.fromisoformat(c["validFrom"].replace("Z", "+00:00")).replace(tzinfo=None)
-                valid_until = datetime.fromisoformat(c["validUntil"].replace("Z", "+00:00")).replace(tzinfo=None)
+                valid_from = datetime.fromisoformat(c.validFrom.replace("Z", "+00:00")).replace(tzinfo=None)
+                valid_until = datetime.fromisoformat(c.validUntil.replace("Z", "+00:00")).replace(tzinfo=None)
                 if not (valid_from <= now <= valid_until):
                     continue
             except Exception:
                 continue
 
-            if c.get("method") == "automatic" and c.get("typeOfDiscount") == "product_discount":
-                if role in c.get("applicableRoles", []):
+            if getattr(c, "method", None) == "automatic" and getattr(c, "typeOfDiscount", None) == "product_discount":
+                if role in getattr(c, "applicableRoles", []):
                     is_eligible = await self._product_eligible_async(
-                        product, c.get("appliesToType", "all"), c.get("appliesToValueIds"), c.get("excludedProductIds")
+                        product, getattr(c, "appliesToType", "all"), getattr(c, "appliesToValueIds", None), getattr(c, "excludedProductIds", None)
                     )
                     if is_eligible:
-                        applicable_user_ids = c.get("applicableUserIds") or []
+                        applicable_user_ids = getattr(c, "applicableUserIds", None) or []
                         if applicable_user_ids and (
                             not user_id or str(user_id) not in [str(x) for x in applicable_user_ids]
                         ):
                             continue
-                        behavior = c.get("userBehavior")
+                        behavior = getattr(c, "userBehavior", None)
                         if (
                             behavior
                             and behavior != "none"
@@ -1229,12 +1229,12 @@ class CouponRepository:
                             continue
 
                         pct = 0.0
-                        if c.get("discountType") == "percentage":
-                            pct = float(c.get("discountValue") or 0)
-                        elif c.get("discountType") == "fixed":
-                            mrp = float(product.get("mrp") or 0)
+                        if getattr(c, "discountType", None) == "percentage":
+                            pct = float(getattr(c, "discountValue")) if getattr(c, "discountValue", None) is not None else 0.0
+                        elif getattr(c, "discountType", None) == "fixed":
+                            mrp = float(getattr(product, "mrp")) if getattr(product, "mrp", None) is not None else 0.0
                             if mrp > 0:
-                                pct = (float(c.get("discountValue") or 0) / mrp) * 100
+                                pct = (float(getattr(c, "discountValue")) if getattr(c, "discountValue", None) is not None else 0.0) / mrp * 100
                         if pct > highest_pct:
                             highest_pct = pct
                             default_auto_discount = c
@@ -1242,24 +1242,24 @@ class CouponRepository:
         # Step 2: Gather all other applicable coupons
         applicable = []
         for c in all_coupons:
-            if default_auto_discount and str(c.get("_id")) == str(default_auto_discount.get("_id")):
+            if default_auto_discount and str(c.id) == str(default_auto_discount.get("_id")):
                 continue
 
             try:
-                valid_from = datetime.fromisoformat(c["validFrom"].replace("Z", "+00:00")).replace(tzinfo=None)
-                valid_until = datetime.fromisoformat(c["validUntil"].replace("Z", "+00:00")).replace(tzinfo=None)
+                valid_from = datetime.fromisoformat(c.validFrom.replace("Z", "+00:00")).replace(tzinfo=None)
+                valid_until = datetime.fromisoformat(c.validUntil.replace("Z", "+00:00")).replace(tzinfo=None)
                 if not (valid_from <= now <= valid_until):
                     continue
             except Exception:
                 continue
 
-            if role not in c.get("applicableRoles", []):
+            if role not in getattr(c, "applicableRoles", []):
                 continue
 
-            applicable_user_ids = c.get("applicableUserIds") or []
+            applicable_user_ids = getattr(c, "applicableUserIds", None) or []
             if applicable_user_ids and (not user_id or str(user_id) not in [str(x) for x in applicable_user_ids]):
                 continue
-            behavior = c.get("userBehavior")
+            behavior = getattr(c, "userBehavior", None)
             if (
                 behavior
                 and behavior != "none"
@@ -1271,9 +1271,9 @@ class CouponRepository:
                 continue
 
             applies = True
-            if c.get("typeOfDiscount") in ["product_discount", "buy_x_get_y"]:
+            if getattr(c, "typeOfDiscount", None) in ["product_discount", "buy_x_get_y"]:
                 applies = await self._product_eligible_async(
-                    product, c.get("appliesToType", "all"), c.get("appliesToValueIds"), c.get("excludedProductIds")
+                    product, getattr(c, "appliesToType", "all"), getattr(c, "appliesToValueIds", None), getattr(c, "excludedProductIds", None)
                 )
 
             if applies:
@@ -1283,24 +1283,24 @@ class CouponRepository:
 
 
 def get_coupon_description(c: Any) -> str:
-    method_lbl = "Use code " + c["code"] if c.get("method") == "discount_code" and c.get("code") else "Automatic offer"
-    type_of_disc = c.get("typeOfDiscount")
-    disc_type = c.get("discountType")
-    disc_val = c.get("discountValue")
+    method_lbl = "Use code " + c.code if getattr(c, "method", None) == "discount_code" and getattr(c, "code", None) else "Automatic offer"
+    type_of_disc = getattr(c, "typeOfDiscount", None)
+    disc_type = getattr(c, "discountType", None)
+    disc_val = getattr(c, "discountValue", None)
 
     if type_of_disc == "product_discount":
-        if c.get("minRequirementType") == "quantity_based" and c.get("quantityTiers"):
-            tiers = sorted(c["quantityTiers"], key=lambda x: x["quantity"])
-            item_lbl = c.get("applicableItemType", "units")
-            tier_strs = [f"Buy {t['quantity']}+ {item_lbl} get {t['discount']}% off" for t in tiers]
+        if getattr(c, "minRequirementType", None) == "quantity_based" and getattr(c, "quantityTiers", None):
+            tiers = sorted(c.quantityTiers, key=lambda x: x["quantity"])
+            item_lbl = getattr(c, "applicableItemType", "units")
+            tier_strs = [f"Buy {t.quantity}+ {item_lbl} get {t.discount}% off" for t in tiers]
             return f"{method_lbl}: " + ", ".join(tier_strs) + " per unit."
         val_str = f"{disc_val}%" if disc_type == "percentage" else f"₹{disc_val}"
         return f"{method_lbl}: Get {val_str} off on eligible items."
     elif type_of_disc == "buy_x_get_y":
-        min_qty = c.get("minQuantityOfEligibleItems") or 1
-        gets_qty = c.get("buyXGetYCustomerGetsQuantity") or 1
-        gets_type = c.get("buyXGetYCustomerGetsDiscountType")
-        gets_val = c.get("buyXGetYCustomerGetsDiscountValue")
+        min_qty = getattr(c, "minQuantityOfEligibleItems", None) or 1
+        gets_qty = getattr(c, "buyXGetYCustomerGetsQuantity", None) or 1
+        gets_type = getattr(c, "buyXGetYCustomerGetsDiscountType", None)
+        gets_val = getattr(c, "buyXGetYCustomerGetsDiscountValue", None)
 
         gets_desc = "Free"
         if gets_type == "percentage":
@@ -1311,7 +1311,7 @@ def get_coupon_description(c: Any) -> str:
         return f"{method_lbl}: Buy {min_qty} unit(s) and get {gets_qty} unit(s) at {gets_desc}."
     elif type_of_disc == "total_order_discount":
         val_str = f"{disc_val}%" if disc_type == "percentage" else f"₹{disc_val}"
-        min_amt = c.get("minPurchaseAmount") or 0
+        min_amt = getattr(c, "minPurchaseAmount", None) or 0
         min_str = f" on orders above ₹{min_amt}" if min_amt > 0 else ""
         return f"{method_lbl}: Get {val_str} off total order{min_str}."
     elif type_of_disc == "shipping_discount":

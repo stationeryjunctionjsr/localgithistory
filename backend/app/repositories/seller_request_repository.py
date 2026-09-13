@@ -36,13 +36,13 @@ class SellerRequestRepository:
         req_data = request_data if isinstance(request_data, dict) else dict(request_data)
         request = {
             "requestNumber": self.generateRequestNumber(),
-            "user": req_data.get("user"),
-            "subject": req_data["subject"],
-            "description": req_data["description"],
-            "category": req_data.get("category", "general"),
-            "priority": req_data.get("priority", "medium"),
-            "status": req_data.get("status", "open"),
-            "attachments": req_data.get("attachments", []),
+            "user": getattr(req_data, "user", None),
+            "subject": req_data.subject,
+            "description": req_data.description,
+            "category": getattr(req_data, "category", "general"),
+            "priority": getattr(req_data, "priority", "medium"),
+            "status": getattr(req_data, "status", "open"),
+            "attachments": getattr(req_data, "attachments", []),
             "responses": [],
             "resolvedAt": None,
             "closedAt": None,
@@ -54,10 +54,10 @@ class SellerRequestRepository:
     async def update(self, id: str, update_data: Any):
         from app.models.daos import SellerRequestInternalUpdate
         update_data_dict = update_data if isinstance(update_data, dict) else dict(update_data)
-        if update_data_dict.get("status") == "resolved" and "resolvedAt" not in update_data_dict:
-            update_data_dict["resolvedAt"] = datetime.now(timezone.utc).isoformat()
-        elif update_data_dict.get("status") == "closed" and "closedAt" not in update_data_dict:
-            update_data_dict["closedAt"] = datetime.now(timezone.utc).isoformat()
+        if getattr(update_data_dict, "status", None) == "resolved" and "resolvedAt" not in update_data_dict:
+            update_data_dict.resolvedAt = datetime.now(timezone.utc).isoformat()
+        elif getattr(update_data_dict, "status", None) == "closed" and "closedAt" not in update_data_dict:
+            update_data_dict.closedAt = datetime.now(timezone.utc).isoformat()
 
         return await self.storage.update(id, SellerRequestInternalUpdate.model_validate(update_data_dict))
 
@@ -67,21 +67,21 @@ class SellerRequestRepository:
             raise ValueError("Request not found")
 
         response = {
-            "user": response_data["user"],
-            "message": response_data["message"],
-            "attachments": response_data.get("attachments", []),
-            "isAdminResponse": response_data.get("isAdminResponse", False),
+            "user": response_data.user,
+            "message": response_data.message,
+            "attachments": getattr(response_data, "attachments", []),
+            "isAdminResponse": getattr(response_data, "isAdminResponse", False),
             "createdAt": datetime.now(timezone.utc).isoformat(),
         }
 
-        request["responses"] = request.get("responses", [])
-        request["responses"].append(response)
+        request.responses = getattr(request, "responses", [])
+        request.responses.append(response)
 
         # Update request status if admin responds
-        if response_data.get("isAdminResponse") and request.get("status") == "open":
-            request["status"] = "in_progress"
+        if getattr(response_data, "isAdminResponse", None) and getattr(request, "status", None) == "open":
+            request.status = "in_progress"
 
-        return await self.update(request_id, {"responses": request["responses"], "status": request["status"]})
+        return await self.update(request_id, {"responses": request.responses, "status": request.status})
 
     async def delete(self, id: str):
         return await self.storage.delete(id)

@@ -128,7 +128,7 @@ def get_recommendation_config() -> Dict:
 
 
 def _parse_order_date(order: Any) -> Optional[datetime]:
-    raw = order.get("createdAt")
+    raw = getattr(order, "createdAt", None)
     if not raw:
         return None
     try:
@@ -229,7 +229,7 @@ class RecommendationRepository:
     async def _get_retail_customer_ids(self) -> set:
         """User IDs with role customer (retail)."""
         users = await self.user_storage.findAll({"role": "customer"})
-        return {u.get("_id") for u in users if u.get("_id")}
+        return {u.id for u in users if u.id}
 
     async def _get_user_purchased_product_ids(self, user_id: str, days: int) -> set:
         """Products the user purchased in the last `days` days."""
@@ -237,7 +237,7 @@ class RecommendationRepository:
         orders = await self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()})
         out = set()
         for order in orders:
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if pid:
                     out.add(pid)
@@ -249,7 +249,7 @@ class RecommendationRepository:
         if not cart:
             return set()
         out = set()
-        for item in cart.get("items", []):
+        for item in getattr(cart, "items", []):
             pid = getattr(item, "product", None) or getattr(item, "productId", None)
             if pid:
                 out.add(pid)
@@ -270,9 +270,9 @@ class RecommendationRepository:
         })
         product_counts: Dict[str, int] = {}
         for order in orders:
-            if order.get("user") not in retail_ids:
+            if getattr(order, "user", None) not in retail_ids:
                 continue
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if pid and pid not in exclude:
                     product_counts[pid] = product_counts.get(pid, 0) + getattr(item, 'quantity', 1)
@@ -344,13 +344,13 @@ class RecommendationRepository:
             order_dt = _parse_order_date(order)
             if not order_dt:
                 continue
-            if order.get("status") == "cancelled":
+            if getattr(order, "status", None) == "cancelled":
                 continue
-            order_user = order.get("user")
-            order_session = order.get("sessionId")
+            order_user = getattr(order, "user", None)
+            order_session = getattr(order, "sessionId", None)
             order_start = order_dt - timedelta(days=days)
             pids_in_order = set()
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if pid:
                     pids_in_order.add(pid)
@@ -358,17 +358,17 @@ class RecommendationRepository:
                 # Count only if this order is linked to a search for P within 7 days before order
                 linked = False
                 for s in searches:
-                    if pid not in (s.get("productIds") or []):
+                    if pid not in (getattr(s, "productIds", None) or []):
                         continue
-                    st = s.get("timestamp")
+                    st = getattr(s, "timestamp", None)
                     if not st:
                         continue
                     if st > order_dt or st < order_start:
                         continue
-                    if order_user and s.get("userId") == order_user:
+                    if order_user and getattr(s, "userId", None) == order_user:
                         linked = True
                         break
-                    if order_session and s.get("sessionId") == order_session:
+                    if order_session and getattr(s, "sessionId", None) == order_session:
                         linked = True
                         break
                 if linked:
@@ -444,22 +444,22 @@ class RecommendationRepository:
             self.product_storage.findAll({"isActive": True}),
         )
         pid_to_subcat: Dict[str, str] = {
-            p.get("_id"): (p.get("subCategory") or "None") for p in all_products if p.get("_id")
+            p.id: (getattr(p, "subCategory", None) or "None") for p in all_products if p.id
         }
         segment_order_count: Dict[str, Dict[str, int]] = {}
         segment_quantity: Dict[str, Dict[str, int]] = {}
         for order in orders:
-            if order.get("user") not in retail_ids:
+            if getattr(order, "user", None) not in retail_ids:
                 continue
-            if order.get("status") == "cancelled":
+            if getattr(order, "status", None) == "cancelled":
                 continue
             # City filter: match against the order's delivery city (shippingAddress.city)
             if city_filter:
-                order_city = (order.get("shippingAddress") or {}).get("city", "")
+                order_city = (getattr(order, "shippingAddress", None) or {}).get("city", "")
                 if not order_city or order_city.strip().lower() != city_filter:
                     continue
             pids_in_order = set()
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if not pid:
                     continue
@@ -527,20 +527,20 @@ class RecommendationRepository:
             self.product_storage.findAll({"isActive": True}),
         )
         pid_to_subcat: Dict[str, str] = {
-            p.get("_id"): (p.get("subCategory") or "None") for p in all_products if p.get("_id")
+            p.id: (getattr(p, "subCategory", None) or "None") for p in all_products if p.id
         }
         segment_order_count: Dict[str, Dict[str, int]] = {}
         segment_quantity: Dict[str, Dict[str, int]] = {}
         for order in orders:
-            if order.get("status") == "cancelled":
+            if getattr(order, "status", None) == "cancelled":
                 continue
             # City filter: match against the order's delivery city (shippingAddress.city)
             if city_filter:
-                order_city = (order.get("shippingAddress") or {}).get("city", "")
+                order_city = (getattr(order, "shippingAddress", None) or {}).get("city", "")
                 if not order_city or order_city.strip().lower() != city_filter:
                     continue
             pids_in_order = set()
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if not pid:
                     continue
@@ -631,12 +631,12 @@ class RecommendationRepository:
             "startDate": cutoff.isoformat(),
         })
         for order in orders:
-            if kind == "customer" and retail_ids and order.get("user") not in retail_ids:
+            if kind == "customer" and retail_ids and getattr(order, "user", None) not in retail_ids:
                 continue
-            if order.get("status") == "cancelled":
+            if getattr(order, "status", None) == "cancelled":
                 continue
 
-            shipping = order.get("shippingAddress") or {}
+            shipping = getattr(order, "shippingAddress", None) or {}
             order_state = (shipping.get("state") or "").strip()
             order_city = (shipping.get("city") or "").strip()
 
@@ -653,7 +653,7 @@ class RecommendationRepository:
                 cities_seen.add(order_city)
 
             pids_in_order: set = set()
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if not pid:
                     continue
@@ -691,10 +691,10 @@ class RecommendationRepository:
                         user_ordered.add(pid)
         candidates: List[Tuple[str, Optional[datetime]]] = []
         for p in all_products:
-            pid = p.get("_id")
+            pid = p.id
             if not pid or pid in user_ordered:
                 continue
-            created = _parse_order_date({"createdAt": p.get("createdAt")}) if p.get("createdAt") else None
+            created = _parse_order_date({"createdAt": getattr(p, "createdAt", None)}) if getattr(p, "createdAt", None) else None
             if created and created >= cutoff:
                 candidates.append((pid, created))
         candidates.sort(key=lambda x: x[1] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
@@ -800,7 +800,7 @@ class RecommendationRepository:
         """Products most frequently bought by other wholesalers. Used only when caller is wholesaler."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         users = await self.user_storage.findAll({"role": "wholesaler"})
-        wholesaler_ids = {u.get("_id") for u in users if u.get("_id") and u.get("_id") != user_id}
+        wholesaler_ids = {u.id for u in users if u.id and u.id != user_id}
         if not wholesaler_ids:
             return []
         orders = await self.order_storage.findAll({
@@ -809,9 +809,9 @@ class RecommendationRepository:
         })
         product_counts: Dict[str, int] = {}
         for order in orders:
-            if order.get("user") not in wholesaler_ids:
+            if getattr(order, "user", None) not in wholesaler_ids:
                 continue
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if pid:
                     product_counts[pid] = product_counts.get(pid, 0) + getattr(item, 'quantity', 1)
@@ -824,7 +824,7 @@ class RecommendationRepository:
         orders = await self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()})
         product_counts: Dict[str, int] = {}
         for order in orders:
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if pid:
                     product_counts[pid] = product_counts.get(pid, 0) + getattr(item, 'quantity', 1)
@@ -847,7 +847,7 @@ class RecommendationRepository:
             self.product_storage.findAll({"isActive": True}),
         )
         
-        product_by_id = {p.get("_id"): p for p in products if p.get("_id")}
+        product_by_id = {p.id: p for p in products if p.id}
 
         # 2. Count units purchased per subcategory (fallback to category) for this user
         subcat_counts = {}
@@ -857,7 +857,7 @@ class RecommendationRepository:
                 if not pid: continue
                 p = product_by_id.get(pid)
                 if p:
-                    subcat = p.get("subCategory") or p.get("category")
+                    subcat = getattr(p, "subCategory", None) or getattr(p, "category", None)
                     if subcat:
                         subcat_counts[subcat] = subcat_counts.get(subcat, 0) + getattr(item, 'quantity', 1)
 
@@ -882,13 +882,13 @@ class RecommendationRepository:
         
         subcat_product_sales = {}
         for order in all_orders:
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if not pid: continue
                 p = product_by_id.get(pid)
                 if not p: continue
                 
-                subcat = p.get("subCategory") or p.get("category")
+                subcat = getattr(p, "subCategory", None) or getattr(p, "category", None)
                 if subcat in neglected_set:
                     quantity = getattr(item, 'quantity', 1)
                     if subcat not in subcat_product_sales:
@@ -946,7 +946,7 @@ class RecommendationRepository:
                 created = self._parse_created_at(doc)
                 if created and created < cutoff:
                     continue
-                meta = doc.get("meta") or {}
+                meta = getattr(doc, "meta", None) or {}
                 pid = meta.get("productId")
                 if pid and pid in pid_set:
                     scores[pid] = scores.get(pid, 0) + weight
@@ -954,7 +954,7 @@ class RecommendationRepository:
         return scores
 
     def _parse_created_at(self, doc) -> Optional[datetime]:
-        raw = doc.get("createdAt")
+        raw = getattr(doc, "createdAt", None)
         if not raw:
             return None
         try:
@@ -976,7 +976,7 @@ class RecommendationRepository:
             self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()}),
             self.product_storage.findAll({"isActive": True}),
         )
-        product_by_id = {p.get("_id"): p for p in products if p.get("_id")}
+        product_by_id = {p.id: p for p in products if p.id}
 
         subcat_counts = {}
         for o in orders:
@@ -987,7 +987,7 @@ class RecommendationRepository:
                 p = product_by_id.get(pid)
                 if not p:
                     continue
-                subcat = p.get("subCategory") or p.get("category")
+                subcat = getattr(p, "subCategory", None) or getattr(p, "category", None)
                 if subcat:
                     subcat_counts[subcat] = subcat_counts.get(subcat, 0) + getattr(item, 'quantity', 1)
 
@@ -1020,14 +1020,14 @@ class RecommendationRepository:
                         for item in eb.get("items", []):
                             pid = getattr(item, "productId", None)
                             p = product_map.get(str(pid)) if product_map else None
-                            if p and p.get("subCategory"):
-                                sc = p.get("subCategory")
+                            if p and getattr(p, "subCategory", None):
+                                sc = getattr(p, "subCategory", None)
                                 sub_cat = sc.get("name") if isinstance(sc, dict) else sc
                                 break
                     eb["subCategory"] = sub_cat
                     enriched.append(eb)
                 except Exception as e:
-                    logging.warning(f"Could not enrich bundle {b.get('_id')} for recommendations: {e}")
+                    logging.warning(f"Could not enrich bundle {b.id} for recommendations: {e}")
             return enriched
         except Exception as e:
             logging.error(f"Error fetching bundles for recommendations: {e}")
@@ -1037,12 +1037,12 @@ class RecommendationRepository:
         """True if product has at least one active, in-stock seller in the zone."""
         if seller_id_set is None:
             return True  # no zone filter
-        sellers = product.get("sellers") or []
+        sellers = getattr(product, "sellers", None) or []
         return any(
-            str(s.get("sellerId")) in seller_id_set
-            and s.get("isActive")
-            and (s.get("stock") or 0) > 0
-            and s.get("requestStatus", "approved") == "approved"
+            str(getattr(s, "sellerId", None)) in seller_id_set
+            and getattr(s, "isActive", None)
+            and (getattr(s, "stock", None) or 0) > 0
+            and getattr(s, "requestStatus", "approved") == "approved"
             for s in sellers
         )
 
@@ -1064,7 +1064,7 @@ class RecommendationRepository:
         
         # Fetch all active products once and reuse
         all_products = await self.product_storage.findAll({"isActive": True})
-        product_map = {p["_id"]: p for p in all_products if p.get("_id")}
+        product_map = {p.id: p for p in all_products if p.id}
 
         try:
             bundle_items = await getattr(self, '_get_bundles_as_items', lambda **kw: [])(product_map=product_map)

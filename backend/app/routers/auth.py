@@ -147,10 +147,10 @@ async def send_otp(data: SendOTPRequest, request: Request):
         response_data = {"message": "OTP processed"}
         if os.getenv("ENVIRONMENT") == "development" and otp:
             logger.debug(f"Dev Mode: Returning OTP {otp} in response")
-            response_data["otp"] = otp
+            response_data.otp = otp
         # Let frontend manage resend button timing without erroring early calls
-        response_data["resendAvailableInSeconds"] = int(payload.get("resend_available_in_seconds") or 0)
-        response_data["sent"] = bool(payload.get("sent", True))
+        response_data.resendAvailableInSeconds = int(payload.get("resend_available_in_seconds") or 0)
+        response_data.sent = bool(payload.get("sent", True))
 
         return response_data
     except HTTPException:

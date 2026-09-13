@@ -129,7 +129,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
         )
 
     # Sort bills by due date (earliest first)
-    bills_info.sort(key=lambda b: b["dueDate"])
+    bills_info.sort(key=lambda b: b.dueDate)
 
     nearest_due_amount = 0.0
     nearest_due_date = None

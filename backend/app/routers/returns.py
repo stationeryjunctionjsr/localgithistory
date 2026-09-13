@@ -21,13 +21,13 @@ router = APIRouter()
 
 
 async def populate_return_request(request: Dict) -> Dict:
-    user = await user_repository.findById(request.get("userId"))
+    user = await user_repository.findById(getattr(request, "userId", None))
     valet = None
-    if request.get("valetId"):
-        valet = await user_repository.findById(request.get("valetId"))
+    if getattr(request, "valetId", None):
+        valet = await user_repository.findById(getattr(request, "valetId", None))
 
     populated_items = []
-    for item in request.get("items", []):
+    for item in getattr(request, "items", []):
         product = await product_repository.findById(item.product_id)
         populated_items.append(
             {**item, "product": product if product else {"_id": item.product_id, "name": "Product not found"}}

@@ -145,7 +145,7 @@ class GoogleReviewRepository:
         existing = await self.storage.findAll()
         if existing:
             for doc in existing:
-                await self.storage.update(doc["_id"], new_data)
+                await self.storage.update(doc.id, new_data)
         else:
             await self.storage.create(new_data)
 

@@ -34,9 +34,9 @@ class ActivityRepository:
         activities = await self.storage.findAll({"sessionId": session_id})
         updated = 0
         for act in activities:
-            if act.get("userId") is None:
+            if getattr(act, "userId", None) is None:
                 await self.storage.update(
-                    act["_id"], {"userId": user_id, "isGuest": False, "comment": "login performed in the same session"}
+                    act.id, {"userId": user_id, "isGuest": False, "comment": "login performed in the same session"}
                 )
                 updated += 1
         return {"updated": updated}

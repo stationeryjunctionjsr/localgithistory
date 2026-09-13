@@ -49,20 +49,20 @@ class UserRepository:
 
     async def create(self, user_data: Any) -> User:
         # Check if user with email already exists (only if email is provided)
-        email = user_data.get("email")
+        email = getattr(user_data, "email", None)
         if email:
             existing = await self.findByEmail(email)
             if existing:
                 raise ValueError("User with this email already exists")
 
         # Check if user with phone already exists
-        if user_data.get("phone"):
-            existing_phone = await self.findByPhone(user_data["phone"])
+        if getattr(user_data, "phone", None):
+            existing_phone = await self.findByPhone(user_data.phone)
             if existing_phone:
                 raise ValueError("User with this phone number already exists")
 
         # Password is required for account creation
-        password_val = user_data.get("password")
+        password_val = getattr(user_data, "password", None)
         if not password_val:
             raise ValueError("Password is required")
         hashed_password = get_password_hash(password_val)
@@ -73,21 +73,21 @@ class UserRepository:
         # than count-based allocation which silently produces duplicates when rows
         # are deleted and re-added.
         try:
-            all_ids = [u.get("userId") for u in await self.storage.findAll() if isinstance(u.get("userId"), int)]
+            all_ids = [getattr(u, "userId", None) for u in await self.storage.findAll() if isinstance(getattr(u, "userId", None), int)]
             user_id = (max(all_ids) + 1) if all_ids else 1
         except Exception:
             user_id = 1
         user_id_formatted = f"USER-{user_id}"
 
         # Determine approval status
-        role = user_data.get("role", "customer")
+        role = getattr(user_data, "role", "customer")
         approval_status = "pending" if role == "wholesaler" else "approved"
 
         # Generate referral code
         referral_code = await get_unique_referral_code(self)
 
         # Name and email are optional; default name to "Customer" if not provided
-        name = user_data.get("name") or "Customer"
+        name = getattr(user_data, "name", None) or "Customer"
         email_val = email.lower() if email else None
 
         user_model = UserInternalCreate(
@@ -97,19 +97,19 @@ class UserRepository:
             email=email_val,
             password=hashed_password,
             role=role,
-            phone=user_data.get("phone", ""),
-            companyName=user_data.get("companyName", ""),
-            address=user_data.get("address", {}),
-            savedAddresses=user_data.get("savedAddresses", []),
-            isActive=user_data.get("isActive", True),
-            approvalStatus=user_data.get("approvalStatus", approval_status),
-            isDeactivated=user_data.get("isDeactivated", False),
-            creditLimit=user_data.get("creditLimit", 0),
-            creditUsed=user_data.get("creditUsed", 0),
-            paymentTerms=user_data.get("paymentTerms", "30"),
-            assignedSalesperson=user_data.get("assignedSalesperson"),
+            phone=getattr(user_data, "phone", ""),
+            companyName=getattr(user_data, "companyName", ""),
+            address=getattr(user_data, "address", {}),
+            savedAddresses=getattr(user_data, "savedAddresses", []),
+            isActive=getattr(user_data, "isActive", True),
+            approvalStatus=getattr(user_data, "approvalStatus", approval_status),
+            isDeactivated=getattr(user_data, "isDeactivated", False),
+            creditLimit=getattr(user_data, "creditLimit", 0),
+            creditUsed=getattr(user_data, "creditUsed", 0),
+            paymentTerms=getattr(user_data, "paymentTerms", "30"),
+            assignedSalesperson=getattr(user_data, "assignedSalesperson", None),
             referralCode=referral_code,
-            isEmailVerified=user_data.get("isEmailVerified", False),
+            isEmailVerified=getattr(user_data, "isEmailVerified", False),
         )
 
         if user_model.address and user_model.address not in user_model.savedAddresses:
@@ -121,14 +121,14 @@ class UserRepository:
         # Don't allow updating email to an existing one
         if "email" in update_data:
             existing = await self.findByEmail(update_data.email)
-            if existing and existing.get("_id") != id:
+            if existing and existing.id != id:
                 raise ValueError("Email already in use")
             update_data.email = update_data.email.lower()
 
         # Don't allow updating phone to an existing one
         if "phone" in update_data:
             existing_phone = await self.findByPhone(update_data.phone)
-            if existing_phone and existing_phone.get("_id") != id:
+            if existing_phone and existing_phone.id != id:
                 raise ValueError("Phone number already in use")
 
         # Hash password if provided
@@ -152,9 +152,9 @@ class UserRepository:
         is_duplicate = False
         for sa in saved_addresses:
             if (
-                sa.get("street") == address.get("street")
-                and sa.get("city") == address.get("city")
-                and sa.get("zipCode") == address.get("zipCode")
+                getattr(sa, "street", None) == getattr(address, "street", None)
+                and getattr(sa, "city", None) == getattr(address, "city", None)
+                and getattr(sa, "zipCode", None) == getattr(address, "zipCode", None)
             ):
                 is_duplicate = True
                 break

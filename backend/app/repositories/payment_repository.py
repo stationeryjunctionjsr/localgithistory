@@ -44,7 +44,7 @@ class PaymentRepository:
             payments = filtered_payments
 
         # Sort by order date (newest first)
-        payments.sort(key=lambda p: p.get("orderDate", p.get("createdAt", "")), reverse=True)
+        payments.sort(key=lambda p: getattr(p, "orderDate", p.get("createdAt", "")), reverse=True)
 
         return payments
 
@@ -78,13 +78,13 @@ class PaymentRepository:
         max_id = 0
         for p in all_payments:
             if (
-                p.get("paymentId")
-                and isinstance(p.get("paymentId"), str)
-                and p.get("paymentId", "").startswith("PYMT-")
+                getattr(p, "paymentId", None)
+                and isinstance(getattr(p, "paymentId", None), str)
+                and getattr(p, "paymentId", "").startswith("PYMT-")
             ):
                 import re
 
-                match = re.match(r"PYMT-(\d+)", p.get("paymentId", ""))
+                match = re.match(r"PYMT-(\d+)", getattr(p, "paymentId", ""))
                 if match:
                     max_id = max(max_id, int(match.group(1)))
         payment["paymentId"] = f"PYMT-{max_id + 1}"
@@ -95,7 +95,7 @@ class PaymentRepository:
     async def update(self, id: str, update_data: Any):
         if not isinstance(update_data, PaymentInternalUpdate):
             if isinstance(update_data, dict):
-                update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
+                update_data.updatedAt = datetime.now(timezone.utc).isoformat()
                 update_data = PaymentInternalUpdate.model_validate(update_data)
             else:
                 update_dict = {}

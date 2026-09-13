@@ -33,9 +33,9 @@ class ReferralRepository:
 
         doc = dict(settings[0])
         if "retail" not in doc:
-            doc["retail"] = {"segment": "retail", "discountType": "percentage", "discountValue": 0, "isActive": False}
+            doc.retail = {"segment": "retail", "discountType": "percentage", "discountValue": 0, "isActive": False}
         if "business" not in doc:
-            doc["business"] = {
+            doc.business = {
                 "segment": "business",
                 "discountType": "percentage",
                 "discountValue": 0,
@@ -45,7 +45,7 @@ class ReferralRepository:
 
     async def update_settings(self, update_data: Any) -> Dict:
         settings = await self.get_settings()
-        return await self.storage.update(settings["_id"], update_data)
+        return await self.storage.update(settings.id, update_data)
 
 
 referral_repository = ReferralRepository()

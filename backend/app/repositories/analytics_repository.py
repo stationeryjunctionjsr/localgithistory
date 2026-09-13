@@ -72,7 +72,7 @@ class AnalyticsRepository:
         await self.user_storage.findAll()
 
         # Gross sales (total revenue)
-        gross_sales = sum(order.get("total", 0) for order in orders)
+        gross_sales = sum(getattr(order, "total", 0) for order in orders)
 
         # Orders
         total_orders = len(orders)
@@ -83,7 +83,7 @@ class AnalyticsRepository:
         # Returning customer rate
         user_order_counts = defaultdict(int)
         for order in orders:
-            user_id = order.get("user")
+            user_id = getattr(order, "user", None)
             if user_id:
                 user_order_counts[user_id] += 1
 
@@ -109,7 +109,7 @@ class AnalyticsRepository:
         sales_by_period = {}
 
         for order in orders:
-            order_date = self._parse_date(order.get("createdAt", ""))
+            order_date = self._parse_date(getattr(order, "createdAt", ""))
             if not order_date:
                 continue
 
@@ -125,7 +125,7 @@ class AnalyticsRepository:
             if period_key not in sales_by_period:
                 sales_by_period[period_key] = {"sales": 0.0, "orderCount": 0}
 
-            sales_by_period[period_key]["sales"] += order.get("total", 0)
+            sales_by_period[period_key]["sales"] += getattr(order, "total", 0)
             sales_by_period[period_key]["orderCount"] += 1
 
         # Convert to list and sort
@@ -152,10 +152,10 @@ class AnalyticsRepository:
         total_taxes = 0
 
         for order in orders:
-            gross_sales += order.get("total", 0)
-            total_discounts += order.get("discount", 0) or 0
-            total_shipping += order.get("deliveryCharge", 0) or 0
-            total_taxes += order.get("tax", 0) or 0
+            gross_sales += getattr(order, "total", 0)
+            total_discounts += getattr(order, "discount", 0) or 0
+            total_shipping += getattr(order, "deliveryCharge", 0) or 0
+            total_taxes += getattr(order, "tax", 0) or 0
 
         # Returns (orders with status 'returned' or 'cancelled')
         returned_orders = [o for o in orders if o.get("status") in ["returned", "cancelled"]]
@@ -185,7 +185,7 @@ class AnalyticsRepository:
         orders_by_period = defaultdict(lambda: {"total": 0, "count": 0})
 
         for order in orders:
-            order_date = self._parse_date(order.get("createdAt", ""))
+            order_date = self._parse_date(getattr(order, "createdAt", ""))
             if not order_date:
                 continue
 
@@ -198,7 +198,7 @@ class AnalyticsRepository:
             else:
                 period_key = order_date.strftime("%Y-%m-%d")
 
-            orders_by_period[period_key]["total"] += order.get("total", 0)
+            orders_by_period[period_key]["total"] += getattr(order, "total", 0)
             orders_by_period[period_key]["count"] += 1
 
         result = [
@@ -220,10 +220,10 @@ class AnalyticsRepository:
 
         for order in orders:
             # Determine channel from order data
-            channel = order.get("channel", "desktop_web")
+            channel = getattr(order, "channel", "desktop_web")
             if channel not in sales_by_channel:
                 channel = "desktop_web"
-            sales_by_channel[channel] += order.get("total", 0)
+            sales_by_channel[channel] += getattr(order, "total", 0)
 
         result = [{"channel": channel, "sales": sales} for channel, sales in sales_by_channel.items()]
 
@@ -238,12 +238,12 @@ class AnalyticsRepository:
         orders = self._filter_by_date_range(orders, start_date, end_date)
 
         products = await self.product_storage.findAll()
-        product_map = {p.get("_id"): p for p in products}
+        product_map = {p.id: p for p in products}
 
         product_sales = defaultdict(lambda: {"quantity": 0, "revenue": 0, "name": "Unknown"})
 
         for order in orders:
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 product_id = getattr(item, "product", None) or getattr(item, "productId", None)
                 if not product_id:
                     continue
@@ -254,7 +254,7 @@ class AnalyticsRepository:
 
                 product_sales[product_id]["quantity"] += quantity
                 product_sales[product_id]["revenue"] += subtotal
-                product_sales[product_id]["name"] = product.get("name", "Unknown Product")
+                product_sales[product_id]["name"] = getattr(product, "name", "Unknown Product")
 
         result = [
             {
@@ -285,7 +285,7 @@ class AnalyticsRepository:
         # 1. Sessions count (unique sessions in the date range)
         sessions_tracking = await self.tracking_storage.findAll({"type": "session"})
         sessions_tracking = self._filter_by_date_range(sessions_tracking, start_date, end_date, "timestamp")
-        session_count = len(set(s.get("sessionId") for s in sessions_tracking if s.get("sessionId")))
+        session_count = len(set(getattr(s, "sessionId", None) for s in sessions_tracking if getattr(s, "sessionId", None)))
 
         # Fallback to estimated sessions if zero tracking traffic exists
         if session_count == 0:
@@ -294,7 +294,7 @@ class AnalyticsRepository:
         # 2. Cart Additions (unique sessions adding items to cart)
         cart_add_tracking = await self.tracking_storage.findAll({"type": "cart_add"})
         cart_add_tracking = self._filter_by_date_range(cart_add_tracking, start_date, end_date, "timestamp")
-        added_to_cart_count = len(set(c.get("sessionId") for c in cart_add_tracking if c.get("sessionId")))
+        added_to_cart_count = len(set(getattr(c, "sessionId", None) for c in cart_add_tracking if getattr(c, "sessionId", None)))
 
         # Fallback if no cart additions tracked
         if added_to_cart_count == 0:
@@ -308,7 +308,7 @@ class AnalyticsRepository:
         # 3. Reached Checkout (unique sessions landing on checkout page step 1)
         checkout_tracking = await self.tracking_storage.findAll({"type": "page_view", "page": "/checkout/step1"})
         checkout_tracking = self._filter_by_date_range(checkout_tracking, start_date, end_date, "timestamp")
-        reached_checkout_count = len(set(c.get("sessionId") for c in checkout_tracking if c.get("sessionId")))
+        reached_checkout_count = len(set(getattr(c, "sessionId", None) for c in checkout_tracking if getattr(c, "sessionId", None)))
 
         # Fallback if zero tracking events exist
         if reached_checkout_count == 0:
@@ -425,7 +425,7 @@ class AnalyticsRepository:
         sessions = self._filter_by_date_range(sessions, start_date, end_date)
         device_counts = defaultdict(int)
         for s in sessions:
-            device_type = s.get("device", {}).get("type", "desktop") if s.get("device") else "desktop"
+            device_type = getattr(s, "device", {}).get("type", "desktop") if getattr(s, "device", None) else "desktop"
             device_counts[device_type] += 1
         return [{"device": k, "sessions": v} for k, v in device_counts.items()]
 
@@ -438,7 +438,7 @@ class AnalyticsRepository:
         sessions = self._filter_by_date_range(sessions, start_date, end_date)
         location_counts = defaultdict(int)
         for s in sessions:
-            location = s.get("location", "Unknown")
+            location = getattr(s, "location", "Unknown")
             location_counts[location] += 1
         return [{"location": k, "sessions": v} for k, v in location_counts.items()]
 
@@ -451,17 +451,17 @@ class AnalyticsRepository:
         orders = self._filter_by_date_range(orders, start_date, end_date)
 
         products = await self.product_storage.findAll()
-        {p.get("_id"): p for p in products}
+        {p.id: p for p in products}
 
         product_stats = defaultdict(lambda: {"sold": 0, "stock": 0, "name": "Unknown"})
 
         for product in products:
-            product_id = product.get("_id")
-            product_stats[product_id]["stock"] = product.get("stock", 0)
-            product_stats[product_id]["name"] = product.get("name", "Unknown Product")
+            product_id = product.id
+            product_stats[product_id]["stock"] = getattr(product, "stock", 0)
+            product_stats[product_id]["name"] = getattr(product, "name", "Unknown Product")
 
         for order in orders:
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 product_id = getattr(item, "product", None) or getattr(item, "productId", None)
                 if product_id:
                     product_stats[product_id]["sold"] += getattr(item, 'quantity', 0)
@@ -495,11 +495,11 @@ class AnalyticsRepository:
         # Group users by acquisition month (first order month)
         user_first_order = {}
         for order in orders:
-            user_id = order.get("user")
+            user_id = getattr(order, "user", None)
             if not user_id:
                 continue
 
-            order_date = self._parse_date(order.get("createdAt", ""))
+            order_date = self._parse_date(getattr(order, "createdAt", ""))
             if not order_date:
                 continue
 
@@ -516,10 +516,10 @@ class AnalyticsRepository:
 
             # Count orders in subsequent months
             for order in orders:
-                if order.get("user") != user_id:
+                if getattr(order, "user", None) != user_id:
                     continue
 
-                order_date = self._parse_date(order.get("createdAt", ""))
+                order_date = self._parse_date(getattr(order, "createdAt", ""))
                 if not order_date:
                     continue
 
@@ -550,12 +550,12 @@ class AnalyticsRepository:
 
         session_landing = {}
         for t in tracking:
-            sid = t.get("sessionId")
+            sid = getattr(t, "sessionId", None)
             if not sid:
                 continue
-            ts = self._parse_date(t.get("timestamp"))
+            ts = self._parse_date(getattr(t, "timestamp", None))
             if sid not in session_landing or ts < session_landing[sid]["ts"]:
-                session_landing[sid] = {"ts": ts, "page": t.get("page", "/")}
+                session_landing[sid] = {"ts": ts, "page": getattr(t, "page", "/")}
 
         landing_counts = defaultdict(int)
         for val in session_landing.values():
@@ -569,18 +569,18 @@ class AnalyticsRepository:
         users = await self.user_storage.findAll()
         sessions = await self.session_storage.findAll()
 
-        user_map = {u.get("_id"): u for u in users}
-        valid_sessions = [s for s in sessions if not s.get("isGuest", False)]
+        user_map = {u.id: u for u in users}
+        valid_sessions = [s for s in sessions if not getattr(s, "isGuest", False)]
 
         user_durations = defaultdict(list)
         user_session_counts = defaultdict(int)
         for s in valid_sessions:
-            uid = s.get("userId")
+            uid = getattr(s, "userId", None)
             if not uid:
                 continue
             user_session_counts[uid] += 1
-            start_dt = self._parse_date(s.get("createdAt"))
-            end_dt = self._parse_date(s.get("revokedAt") or s.get("lastActiveAt"))
+            start_dt = self._parse_date(getattr(s, "createdAt", None))
+            end_dt = self._parse_date(getattr(s, "revokedAt", None) or getattr(s, "lastActiveAt", None))
             if not start_dt:
                 continue
             if not end_dt:
@@ -653,13 +653,13 @@ class AnalyticsRepository:
         reg_naive = self._to_naive_utc(registration_dt) if registration_dt else None
         all_sessions = await self.session_storage.findAll()
         # Non-guest sessions for this user; optionally since registration
-        sessions = [s for s in all_sessions if s.get("userId") == user_id and not s.get("isGuest", False)]
+        sessions = [s for s in all_sessions if getattr(s, "userId", None) == user_id and not getattr(s, "isGuest", False)]
         if reg_naive is not None:
             sessions = [
                 s
                 for s in sessions
-                if self._to_naive_utc(self._parse_date(s.get("createdAt"))) is not None
-                and self._to_naive_utc(self._parse_date(s.get("createdAt"))) >= reg_naive
+                if self._to_naive_utc(self._parse_date(getattr(s, "createdAt", None))) is not None
+                and self._to_naive_utc(self._parse_date(getattr(s, "createdAt", None))) >= reg_naive
             ]
 
         total_sessions = len(sessions)
@@ -668,8 +668,8 @@ class AnalyticsRepository:
         # 1) Average session time (all devices): end = revokedAt or lastActiveAt, start = createdAt
         session_durations_sec = []
         for s in sessions:
-            start_dt = self._to_naive_utc(self._parse_date(s.get("createdAt")))
-            end_dt = self._to_naive_utc(self._parse_date(s.get("revokedAt") or s.get("lastActiveAt")))
+            start_dt = self._to_naive_utc(self._parse_date(getattr(s, "createdAt", None)))
+            end_dt = self._to_naive_utc(self._parse_date(getattr(s, "revokedAt", None) or getattr(s, "lastActiveAt", None)))
             if not start_dt:
                 continue
             if not end_dt:
@@ -683,8 +683,8 @@ class AnalyticsRepository:
 
         # 2) Average days between two consecutive sessions
         sorted_sessions = sorted(
-            [s for s in sessions if s.get("createdAt")],
-            key=lambda s: s.get("createdAt"),
+            [s for s in sessions if getattr(s, "createdAt", None)],
+            key=lambda s: getattr(s, "createdAt", None),
         )
         gaps_days = []
         for i in range(len(sorted_sessions) - 1):
@@ -695,13 +695,13 @@ class AnalyticsRepository:
         average_days_between_sessions = round(sum(gaps_days) / len(gaps_days), 2) if gaps_days else None
 
         # 3) Average pages per session (page_view events from tracking, by sessionId)
-        session_ids = {s.get("_id") for s in sessions if s.get("_id")}
+        session_ids = {s.id for s in sessions if s.id}
         all_tracking = await self.tracking_storage.findAll()
         page_views_by_session = {sid: 0 for sid in session_ids}
         for t in all_tracking:
-            if t.get("type") != "page_view":
+            if getattr(t, "type", None) != "page_view":
                 continue
-            sid = t.get("sessionId")
+            sid = getattr(t, "sessionId", None)
             if sid in session_ids:
                 page_views_by_session[sid] = page_views_by_session.get(sid, 0) + 1
         page_counts = list(page_views_by_session.values())
@@ -750,14 +750,14 @@ class AnalyticsRepository:
         orders = self._filter_by_date_range(orders, start_date, end_date)
 
         users = await self.user_storage.findAll()
-        user_map = {u.get("_id"): u for u in users}
+        user_map = {u.id: u for u in users}
 
         user_revenue = defaultdict(float)
         for order in orders:
-            uid = order.get("user")
+            uid = getattr(order, "user", None)
             if not uid:
                 continue
-            user_revenue[uid] += order.get("total", 0)
+            user_revenue[uid] += getattr(order, "total", 0)
 
         result = []
         for uid, revenue in user_revenue.items():
@@ -770,11 +770,11 @@ class AnalyticsRepository:
             result.append(
                 {
                     "userId": uid,
-                    "name": user.get("name", "Unknown"),
-                    "userName": user.get("name", "Unknown"),
-                    "email": user.get("email", "Unknown"),
-                    "userEmail": user.get("email", "Unknown"),
-                    "role": user.get("role", "customer"),
+                    "name": getattr(user, "name", "Unknown"),
+                    "userName": getattr(user, "name", "Unknown"),
+                    "email": getattr(user, "email", "Unknown"),
+                    "userEmail": getattr(user, "email", "Unknown"),
+                    "role": getattr(user, "role", "customer"),
                     "revenue": revenue,
                 }
             )
@@ -788,11 +788,11 @@ class AnalyticsRepository:
         """Get order statistics for users, optionally filtered by role"""
         orders = await self.order_storage.findAll()
         users = await self.user_storage.findAll()
-        user_map = {u.get("_id"): u for u in users}
+        user_map = {u.id: u for u in users}
 
         user_orders_map = defaultdict(list)
         for order in orders:
-            uid = order.get("user")
+            uid = getattr(order, "user", None)
             if not uid:
                 continue
             user_orders_map[uid].append(order)
@@ -835,8 +835,8 @@ class AnalyticsRepository:
             result.append(
                 {
                     "userId": uid,
-                    "name": user.get("name", "Unknown"),
-                    "email": user.get("email", "Unknown"),
+                    "name": getattr(user, "name", "Unknown"),
+                    "email": getattr(user, "email", "Unknown"),
                     "totalOrders": total_orders,
                     "avgOrdersPerMonth": avg_orders_per_month,
                     "daysSinceLastOrder": days_since_last,
@@ -856,7 +856,7 @@ class AnalyticsRepository:
         # Filter by date
         filtered_tracking = []
         for t in all_tracking:
-            ts = self._parse_date(t.get("timestamp") or t.get("createdAt"))
+            ts = self._parse_date(getattr(t, "timestamp", None) or getattr(t, "createdAt", None))
             if start_date and ts and ts < start_date:
                 continue
             if end_date and ts and ts > end_date:
@@ -864,16 +864,16 @@ class AnalyticsRepository:
             filtered_tracking.append(t)
 
         users = await self.user_storage.findAll()
-        user_role_map = {u.get("_id"): u.get("role", "customer") for u in users}
+        user_role_map = {u.id: getattr(u, "role", "customer") for u in users}
 
         role_stats = defaultdict(lambda: {"searches": 0, "views": 0})
         for t in filtered_tracking:
-            uid = t.get("userId")
+            uid = getattr(t, "userId", None)
             role = user_role_map.get(uid, "guest" if not uid else "customer")
 
-            if t.get("type") == "product_search":
+            if getattr(t, "type", None) == "product_search":
                 role_stats[role]["searches"] += 1
-            elif t.get("type") == "product_view":
+            elif getattr(t, "type", None) == "product_view":
                 role_stats[role]["views"] += 1
 
         return [
@@ -958,7 +958,7 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll()
         order_map = {o.get("_id"): o for o in orders}
         users = await self.user_storage.findAll()
-        user_map = {u.get("_id"): u for u in users}
+        user_map = {u.id: u for u in users}
 
         result = []
         for ret in all_returns:
@@ -971,15 +971,15 @@ class AnalyticsRepository:
             order = order_map.get(ret.get("orderId"), {})
             user = user_map.get(ret.get("userId"), {})
             items = ret.get("items", [])
-            refund_value = sum(i.get("subtotal", i.get("price", 0)) * i.get("quantity", 1) for i in items)
+            refund_value = sum(getattr(i, "subtotal", i.get("price", 0)) * getattr(i, "quantity", 1) for i in items)
 
             result.append(
                 {
                     "returnId": ret.get("id") or ret.get("_id"),
                     "orderId": ret.get("orderId"),
-                    "orderTotal": order.get("total", 0),
-                    "userName": user.get("name", "Unknown"),
-                    "userEmail": user.get("email", ""),
+                    "orderTotal": getattr(order, "total", 0),
+                    "userName": getattr(user, "name", "Unknown"),
+                    "userEmail": getattr(user, "email", ""),
                     "status": ret.get("status", "pending"),
                     "refundValue": round(refund_value, 2),
                     "itemCount": len(items),
@@ -1001,11 +1001,11 @@ class AnalyticsRepository:
 
         method_stats: dict = {}
         for order in orders:
-            method = order.get("paymentMethod", "unknown") or "unknown"
+            method = getattr(order, "paymentMethod", "unknown") or "unknown"
             if method not in method_stats:
                 method_stats[method] = {"orderCount": 0, "revenue": 0.0, "avgOrderValue": 0.0}
             method_stats[method]["orderCount"] += 1
-            method_stats[method]["revenue"] += order.get("total", 0)
+            method_stats[method]["revenue"] += getattr(order, "total", 0)
 
         result = []
         for method, stats in method_stats.items():
@@ -1029,20 +1029,20 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
         products = await self.product_storage.findAll()
-        product_map = {p.get("_id"): p for p in products}
+        product_map = {p.id: p for p in products}
 
         category_stats: dict = {}
         for order in orders:
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 product_id = getattr(item, "product", None) or getattr(item, "productId", None)
                 product = product_map.get(product_id, {})
-                category = product.get("category", "Uncategorized") or "Uncategorized"
+                category = getattr(product, "category", "Uncategorized") or "Uncategorized"
 
                 if category not in category_stats:
                     category_stats[category] = {"revenue": 0.0, "quantity": 0, "orders": set()}
                 category_stats[category]["revenue"] += getattr(item, 'subtotal', 0)
                 category_stats[category]["quantity"] += getattr(item, 'quantity', 0)
-                category_stats[category]["orders"].add(order.get("_id"))
+                category_stats[category]["orders"].add(order.id)
 
         result = [
             {
@@ -1063,14 +1063,14 @@ class AnalyticsRepository:
 
         result = []
         for product in products:
-            stock = product.get("stock", 0) or 0
+            stock = getattr(product, "stock", 0) or 0
             if stock <= threshold:
                 result.append(
                     {
-                        "productId": product.get("_id"),
-                        "name": product.get("name", "Unknown Product"),
-                        "sku": product.get("sku", ""),
-                        "category": product.get("category", "Uncategorized"),
+                        "productId": product.id,
+                        "name": getattr(product, "name", "Unknown Product"),
+                        "sku": getattr(product, "sku", ""),
+                        "category": getattr(product, "category", "Uncategorized"),
                         "stock": stock,
                         "status": "out_of_stock" if stock == 0 else "low_stock",
                     }
@@ -1086,18 +1086,18 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
         users = await self.user_storage.findAll()
-        user_map = {u.get("_id"): u for u in users}
+        user_map = {u.id: u for u in users}
 
         TERMINAL_STATUSES = {"delivered", "completed", "cancelled", "returned"}
 
         result = []
         for order in orders:
-            status = order.get("status", "")
+            status = getattr(order, "status", "")
             if status not in TERMINAL_STATUSES:
                 continue
 
-            created_dt = self._to_naive_utc(self._parse_date(order.get("createdAt", "")))
-            updated_dt = self._to_naive_utc(self._parse_date(order.get("updatedAt", "")))
+            created_dt = self._to_naive_utc(self._parse_date(getattr(order, "createdAt", "")))
+            updated_dt = self._to_naive_utc(self._parse_date(getattr(order, "updatedAt", "")))
 
             if not created_dt or not updated_dt:
                 continue
@@ -1106,17 +1106,17 @@ class AnalyticsRepository:
             if delta_hours < 0:
                 continue
 
-            user = user_map.get(order.get("user"), {})
+            user = user_map.get(getattr(order, "user", None), {})
             result.append(
                 {
-                    "orderId": order.get("_id"),
-                    "orderNumber": order.get("orderNumber", order.get("_id")),
-                    "userName": user.get("name", "Unknown"),
+                    "orderId": order.id,
+                    "orderNumber": getattr(order, "orderNumber", order.id),
+                    "userName": getattr(user, "name", "Unknown"),
                     "status": status,
                     "fulfillmentHours": delta_hours,
                     "fulfillmentDays": round(delta_hours / 24, 1),
-                    "orderTotal": order.get("total", 0),
-                    "createdAt": order.get("createdAt"),
+                    "orderTotal": getattr(order, "total", 0),
+                    "createdAt": getattr(order, "createdAt", None),
                 }
             )
 
@@ -1133,11 +1133,11 @@ class AnalyticsRepository:
 
         coupon_stats: dict = {}
         for order in orders:
-            code = order.get("couponCode")
+            code = getattr(order, "couponCode", None)
             if not code:
                 continue
             if code not in coupon_stats:
-                coupon_info = order.get("couponInfo") or {}
+                coupon_info = getattr(order, "couponInfo", None) or {}
                 coupon_stats[code] = {
                     "couponCode": code,
                     "discountType": coupon_info.get("discountType", "unknown"),
@@ -1147,8 +1147,8 @@ class AnalyticsRepository:
                     "totalRevenue": 0.0,
                 }
             coupon_stats[code]["usageCount"] += 1
-            coupon_stats[code]["totalDiscountGiven"] += order.get("discount", 0) or 0
-            coupon_stats[code]["totalRevenue"] += order.get("total", 0)
+            coupon_stats[code]["totalDiscountGiven"] += getattr(order, "discount", 0) or 0
+            coupon_stats[code]["totalRevenue"] += getattr(order, "total", 0)
 
         result = list(coupon_stats.values())
         for item in result:
@@ -1168,10 +1168,10 @@ class AnalyticsRepository:
         location_stats: dict = {}
         for order in orders:
             # We only count completed/delivered/shipped orders
-            if order.get("status") not in ["delivered", "completed", "shipped", "dispatched"]:
+            if getattr(order, "status", None) not in ["delivered", "completed", "shipped", "dispatched"]:
                 continue
 
-            shipping = order.get("shippingAddress") or {}
+            shipping = getattr(order, "shippingAddress", None) or {}
             city = shipping.get("city")
             state = shipping.get("state")
 
@@ -1185,9 +1185,9 @@ class AnalyticsRepository:
             if location not in location_stats:
                 location_stats[location] = {"location": location, "revenue": 0.0, "orderCount": 0, "quantity": 0}
 
-            location_stats[location]["revenue"] += order.get("total", 0)
+            location_stats[location]["revenue"] += getattr(order, "total", 0)
             location_stats[location]["orderCount"] += 1
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 location_stats[location]["quantity"] += getattr(item, 'quantity', 0)
 
         result = list(location_stats.values())
@@ -1205,7 +1205,7 @@ class AnalyticsRepository:
         # Find all orders ever to determine user's global order count
         user_total_orders = defaultdict(int)
         for order in orders:
-            user_id = order.get("user")
+            user_id = getattr(order, "user", None)
             if user_id:
                 user_total_orders[user_id] += 1
 
@@ -1219,15 +1219,15 @@ class AnalyticsRepository:
 
         for order in period_orders:
             # We only count active orders
-            if order.get("status") in ["cancelled", "declined"]:
+            if getattr(order, "status", None) in ["cancelled", "declined"]:
                 continue
 
-            user_id = order.get("user")
+            user_id = getattr(order, "user", None)
             if not user_id:
                 continue
 
             ctype = "New Customers" if user_total_orders[user_id] == 1 else "Returning Customers"
-            stats[ctype]["revenue"] += order.get("total", 0)
+            stats[ctype]["revenue"] += getattr(order, "total", 0)
             stats[ctype]["orderCount"] += 1
 
         result = [stats["New Customers"], stats["Returning Customers"]]
@@ -1245,16 +1245,16 @@ class AnalyticsRepository:
         orders = self._filter_by_date_range(orders, start_date, end_date)
 
         products = await self.product_storage.findAll()
-        product_map = {p.get("_id"): p for p in products}
+        product_map = {p.id: p for p in products}
 
         pair_counts = defaultdict(int)
 
         for order in orders:
             # We only count active orders
-            if order.get("status") in ["cancelled", "declined"]:
+            if getattr(order, "status", None) in ["cancelled", "declined"]:
                 continue
 
-            items = order.get("items", [])
+            items = getattr(order, "items", [])
             # Extract unique product IDs in this order
             product_ids = list(
                 set(
@@ -1304,7 +1304,7 @@ class AnalyticsRepository:
         orders = self._filter_by_date_range(orders, start_date, end_date)
 
         sessions = await self.session_storage.findAll()
-        session_map = {s.get("sessionId"): s for s in sessions}
+        session_map = {getattr(s, "sessionId", None): s for s in sessions}
 
         stats = {
             "desktop": {"deviceType": "desktop", "revenue": 0.0, "orderCount": 0},
@@ -1314,10 +1314,10 @@ class AnalyticsRepository:
         }
 
         for order in orders:
-            if order.get("status") in ["cancelled", "declined"]:
+            if getattr(order, "status", None) in ["cancelled", "declined"]:
                 continue
 
-            session_id = order.get("sessionId")
+            session_id = getattr(order, "sessionId", None)
             device_type = "unknown"
             if session_id and session_id in session_map:
                 device_type = session_map[session_id].get("deviceType", "unknown").lower()
@@ -1325,12 +1325,12 @@ class AnalyticsRepository:
             if device_type not in stats:
                 device_type = "unknown"
 
-            stats[device_type]["revenue"] += order.get("total", 0)
+            stats[device_type]["revenue"] += getattr(order, "total", 0)
             stats[device_type]["orderCount"] += 1
 
         result = list(stats.values())
         # Filter out zeroes
-        result = [r for r in result if r["orderCount"] > 0]
+        result = [r for r in result if r.orderCount > 0]
         for item in result:
             item.revenue = round(item.revenue, 2)
 
@@ -1346,7 +1346,7 @@ class AnalyticsRepository:
         returns = await return_request_repository.findAll()
 
         products = await self.product_storage.findAll()
-        product_map = {p.get("_id"): p for p in products}
+        product_map = {p.id: p for p in products}
 
         product_returns = {}
         for req in returns:
@@ -1380,8 +1380,8 @@ class AnalyticsRepository:
             result.append(
                 {
                     "productId": pid,
-                    "productName": product.get("name", "Unknown"),
-                    "category": product.get("category", "Uncategorized"),
+                    "productName": getattr(product, "name", "Unknown"),
+                    "category": getattr(product, "category", "Uncategorized"),
                     "returnCount": stats["returnCount"],
                     "quantityReturned": stats["quantityReturned"],
                     "revenueLost": round(stats["revenueLost"], 2),
@@ -1397,13 +1397,13 @@ class AnalyticsRepository:
 
         category_stats = {}
         for p in products:
-            cat = p.get("category", "Uncategorized") or "Uncategorized"
+            cat = getattr(p, "category", "Uncategorized") or "Uncategorized"
             if cat not in category_stats:
                 category_stats[cat] = {"category": cat, "totalStock": 0, "inventoryValue": 0.0, "productCount": 0}
 
-            stock = p.get("stock", 0) or 0
+            stock = getattr(p, "stock", 0) or 0
             # Assuming price is the value or mrp. If costPrice is absent, use price
-            price = p.get("price", 0) or p.get("mrp", 0) or 0
+            price = getattr(p, "price", 0) or getattr(p, "mrp", 0) or 0
 
             category_stats[cat]["totalStock"] += stock
             category_stats[cat]["inventoryValue"] += stock * price
@@ -1431,9 +1431,9 @@ class AnalyticsRepository:
         total_orders = len(filtered_orders)
         total_revenue = sum(o.get("total", 0) for o in filtered_orders)
         total_products = len(products)
-        total_customers = sum(1 for u in users if u.get("role") == "customer")
-        total_wholesalers = sum(1 for u in users if u.get("role") == "wholesaler")
-        total_valets = sum(1 for u in users if u.get("role") == "valet")
+        total_customers = sum(1 for u in users if getattr(u, "role", None) == "customer")
+        total_wholesalers = sum(1 for u in users if getattr(u, "role", None) == "wholesaler")
+        total_valets = sum(1 for u in users if getattr(u, "role", None) == "valet")
 
         top_products = await self.get_sales_by_product(start_date, end_date, 10)
         top_wholesalers = await self.get_top_users_by_revenue("wholesaler", start_date, end_date, 10)
@@ -1472,7 +1472,7 @@ class AnalyticsRepository:
         from app.repositories.bundle_repository import bundle_repository
         
         bundles = await bundle_repository.findAll({})
-        bundle_map = {str(b["_id"]): b for b in bundles if b.get("_id")}
+        bundle_map = {str(b.id): b for b in bundles if b.id}
         
         # Initialize stats map
         # { bundle_id: { "order_count": int, "copies_sold": int, "revenue": float, "monthly": { "YYYY-MM": revenue } } }
@@ -1490,8 +1490,8 @@ class AnalyticsRepository:
         # Fetch all completed orders
         orders = await self.order_storage.find({"status": "completed"})
         for order in orders:
-            items = order.get("items", [])
-            order_date = order.get("createdAt")
+            items = getattr(order, "items", [])
+            order_date = getattr(order, "createdAt", None)
             month_key = None
             if order_date:
                 # parse date
@@ -1525,7 +1525,7 @@ class AnalyticsRepository:
                     spec_qty = max(1, spec.get("quantity", 1) or 1)
                     spec_pid = str(spec.get("productId", ""))
                     ref_item = next(
-                        (i for i in b_items if str(i.get("product", "")) == spec_pid or str(i.get("productId", "")) == spec_pid),
+                        (i for i in b_items if str(getattr(i, "product", "")) == spec_pid or str(getattr(i, "productId", "")) == spec_pid),
                         b_items[0]
                     )
                     copies = max(1, ref_item.get("quantity", spec_qty) // spec_qty)
@@ -1545,9 +1545,9 @@ class AnalyticsRepository:
             b = data.bundle
             result.append({
                 "bundleId": b_id,
-                "name": b.get("name", "Unknown"),
-                "price": b.get("price", 0.0),
-                "isActive": b.get("isActive", False),
+                "name": getattr(b, "name", "Unknown"),
+                "price": getattr(b, "price", 0.0),
+                "isActive": getattr(b, "isActive", False),
                 "orderCount": data.order_count,
                 "copiesSold": data.copies_sold,
                 "totalRevenue": round(data.revenue, 2),
@@ -1575,14 +1575,14 @@ class AnalyticsRepository:
 
         by_day: dict = {}
         for s in sessions:
-            ts = self._parse_date(s.get("timestamp", ""))
+            ts = self._parse_date(getattr(s, "timestamp", ""))
             if not ts:
                 continue
             day = ts.strftime("%Y-%m-%d")
             if day not in by_day:
                 by_day[day] = {"sessions": 0, "visitors": set()}
             by_day[day]["sessions"] += 1
-            uid = s.get("userId")
+            uid = getattr(s, "userId", None)
             if uid:
                 by_day[day]["visitors"].add(uid)
 
@@ -1601,14 +1601,14 @@ class AnalyticsRepository:
 
         active, logged_in, guest = set(), set(), set()
         for s in sessions:
-            ts = self._to_naive_utc(self._parse_date(s.get("timestamp", "")))
+            ts = self._to_naive_utc(self._parse_date(getattr(s, "timestamp", "")))
             if not ts or ts < cutoff:
                 continue
-            sid = s.get("sessionId")
+            sid = getattr(s, "sessionId", None)
             if not sid:
                 continue
             active.add(sid)
-            if s.get("userId"):
+            if getattr(s, "userId", None):
                 logged_in.add(sid)
             else:
                 guest.add(sid)
@@ -1634,20 +1634,20 @@ class AnalyticsRepository:
         searches = self._filter_by_date_range(searches, start_date, end_date, "timestamp")
 
         clicks = await self.tracking_storage.findAll({"type": "product_click"})
-        clicked_sessions = {c.get("sessionId") for c in clicks if c.get("sessionId")}
+        clicked_sessions = {getattr(c, "sessionId", None) for c in clicks if getattr(c, "sessionId", None)}
 
         term_stats: dict = {}
         for s in searches:
-            sid = s.get("sessionId")
+            sid = getattr(s, "sessionId", None)
             if sid in clicked_sessions:
                 continue  # this session had a click — skip
-            term = (s.get("searchTerm") or "").strip().lower()
+            term = (getattr(s, "searchTerm", None) or "").strip().lower()
             if not term:
                 continue
             if term not in term_stats:
                 term_stats[term] = {"searchCount": 0, "totalResults": 0}
             term_stats[term]["searchCount"] += 1
-            term_stats[term]["totalResults"] += s.get("resultsCount", 0)
+            term_stats[term]["totalResults"] += getattr(s, "resultsCount", 0)
 
         result = [
             {
@@ -1669,7 +1669,7 @@ class AnalyticsRepository:
         """Percentage of sessions that searched AND placed an order."""
         searches = await self.tracking_storage.findAll({"type": "product_search"})
         searches = self._filter_by_date_range(searches, start_date, end_date, "timestamp")
-        search_sessions = {s.get("sessionId") for s in searches if s.get("sessionId")}
+        search_sessions = {getattr(s, "sessionId", None) for s in searches if getattr(s, "sessionId", None)}
 
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
@@ -1743,17 +1743,17 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
         users = await self.user_storage.findAll()
-        user_map = {u.get("_id"): u for u in users}
+        user_map = {u.id: u for u in users}
 
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Per-customer stats
         stats: dict = {}
         for order in orders:
-            uid = order.get("user")
+            uid = getattr(order, "user", None)
             if not uid:
                 continue
-            dt = self._to_naive_utc(self._parse_date(order.get("createdAt", "")))
+            dt = self._to_naive_utc(self._parse_date(getattr(order, "createdAt", "")))
             if not dt:
                 continue
             if uid not in stats:
@@ -1761,7 +1761,7 @@ class AnalyticsRepository:
             if dt > stats[uid]["lastOrder"]:
                 stats[uid]["lastOrder"] = dt
             stats[uid]["count"] += 1
-            stats[uid]["spend"] += order.get("total", 0)
+            stats[uid]["spend"] += getattr(order, "total", 0)
 
         result = []
         for uid, data in stats.items():
@@ -1785,8 +1785,8 @@ class AnalyticsRepository:
             result.append(
                 {
                     "userId": uid,
-                    "name": user.get("name", "Unknown"),
-                    "email": user.get("email", ""),
+                    "name": getattr(user, "name", "Unknown"),
+                    "email": getattr(user, "email", ""),
                     "segment": segment,
                     "recencyDays": recency_days,
                     "orderCount": freq,
@@ -1809,13 +1809,13 @@ class AnalyticsRepository:
 
         user_stats: dict = {}
         for order in orders:
-            uid = order.get("user")
+            uid = getattr(order, "user", None)
             if not uid:
                 continue
             if uid not in user_stats:
                 user_stats[uid] = {"orders": 0, "revenue": 0.0}
             user_stats[uid]["orders"] += 1
-            user_stats[uid]["revenue"] += order.get("total", 0)
+            user_stats[uid]["revenue"] += getattr(order, "total", 0)
 
         one_time = [v for v in user_stats.values() if v["orders"] == 1]
         repeat = [v for v in user_stats.values() if v["orders"] > 1]
@@ -1860,29 +1860,29 @@ class AnalyticsRepository:
             orders = [o for o in orders if str(o.get("sellerId", "")) == str(seller_id)]
 
         users = await self.user_storage.findAll()
-        user_map = {u.get("_id"): u for u in users}
+        user_map = {u.id: u for u in users}
 
         result = []
         for order in orders:
-            subtotal = float(order.get("subtotal", 0) or 0)
-            discount = float(order.get("discount", 0) or 0)
-            tax = float(order.get("tax", 0) or 0)
-            shipping = float(order.get("shipping", order.get("deliveryCharge", 0)) or 0)
+            subtotal = float(getattr(order, "subtotal", 0) or 0)
+            discount = float(getattr(order, "discount", 0) or 0)
+            tax = float(getattr(order, "tax", 0) or 0)
+            shipping = float(getattr(order, "shipping", order.get("deliveryCharge", 0)) or 0)
             net = round(subtotal - discount + tax + shipping, 2)
 
-            user = user_map.get(order.get("user"), {})
+            user = user_map.get(getattr(order, "user", None), {})
             result.append(
                 {
-                    "orderId": order.get("_id"),
-                    "orderNumber": order.get("orderNumber", ""),
-                    "customerName": user.get("name", "Unknown"),
+                    "orderId": order.id,
+                    "orderNumber": getattr(order, "orderNumber", ""),
+                    "customerName": getattr(user, "name", "Unknown"),
                     "grossSales": round(subtotal, 2),
                     "discount": round(discount, 2),
                     "tax": round(tax, 2),
                     "shipping": round(shipping, 2),
                     "netSales": net,
-                    "status": order.get("status", ""),
-                    "createdAt": order.get("createdAt"),
+                    "status": getattr(order, "status", ""),
+                    "createdAt": getattr(order, "createdAt", None),
                 }
             )
 
@@ -1906,14 +1906,14 @@ class AnalyticsRepository:
 
         heat: dict = {}
         for order in orders:
-            dt = self._parse_date(order.get("createdAt", ""))
+            dt = self._parse_date(getattr(order, "createdAt", ""))
             if not dt:
                 continue
             key = (dt.weekday(), dt.hour)
             if key not in heat:
                 heat[key] = {"orderCount": 0, "revenue": 0.0}
             heat[key]["orderCount"] += 1
-            heat[key]["revenue"] += order.get("total", 0)
+            heat[key]["revenue"] += getattr(order, "total", 0)
 
         return [
             {
@@ -1943,25 +1943,25 @@ class AnalyticsRepository:
         products = await self.product_storage.findAll()
 
         if seller_id:
-            products = [p for p in products if str(p.get("sellerId", "")) == str(seller_id)]
+            products = [p for p in products if str(getattr(p, "sellerId", "")) == str(seller_id)]
 
-        product_map = {p.get("_id"): p for p in products}
+        product_map = {p.id: p for p in products}
 
         # Units sold per product in the last 30 days
         units_sold: dict = defaultdict(int)
         for order in orders:
-            dt = self._to_naive_utc(self._parse_date(order.get("createdAt", "")))
+            dt = self._to_naive_utc(self._parse_date(getattr(order, "createdAt", "")))
             if not dt or dt < window_start:
                 continue
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = getattr(item, "product", None) or getattr(item, "productId", None)
                 if pid and str(pid) in {str(k) for k in product_map}:
                     units_sold[str(pid)] += getattr(item, 'quantity', 0)
 
         result = []
         for product in products:
-            pid = str(product.get("_id", ""))
-            stock = int(product.get("stock", 0) or 0)
+            pid = str(getattr(product, "id", ""))
+            stock = int(getattr(product, "stock", 0) or 0)
             sold_30d = units_sold.get(pid, 0)
             avg_daily = round(sold_30d / 30, 2)
             days_remaining = round(stock / avg_daily) if avg_daily > 0 else None
@@ -1969,8 +1969,8 @@ class AnalyticsRepository:
             result.append(
                 {
                     "productId": pid,
-                    "name": product.get("name", "Unknown"),
-                    "category": product.get("category", "Uncategorized"),
+                    "name": getattr(product, "name", "Unknown"),
+                    "category": getattr(product, "category", "Uncategorized"),
                     "currentStock": stock,
                     "unitsSold30d": sold_30d,
                     "avgDailySales": avg_daily,
@@ -2003,10 +2003,10 @@ class AnalyticsRepository:
         stats: dict = {ch: {"revenue": 0.0, "orderCount": 0} for ch in CHANNELS}
 
         for order in orders:
-            channel = order.get("channel") or "desktop_web"
+            channel = getattr(order, "channel", None) or "desktop_web"
             if channel not in stats:
                 channel = "desktop_web"
-            stats[channel]["revenue"] += order.get("total", 0)
+            stats[channel]["revenue"] += getattr(order, "total", 0)
             stats[channel]["orderCount"] += 1
 
         result = []
@@ -2024,9 +2024,9 @@ class AnalyticsRepository:
                 }
             )
 
-        total_rev = sum(r["revenue"] for r in result)
+        total_rev = sum(r.revenue for r in result)
         for r in result:
-            r["revenuePct"] = round(r["revenue"] / total_rev * 100, 1) if total_rev > 0 else 0.0
+            r.revenuePct = round(r.revenue / total_rev * 100, 1) if total_rev > 0 else 0.0
 
         return sorted(result, key=lambda x: x["revenue"], reverse=True)
 
@@ -2045,32 +2045,32 @@ class AnalyticsRepository:
             orders = [o for o in orders if str(o.get("sellerId", "")) == str(seller_id)]
 
         users = await self.user_storage.findAll()
-        user_map = {u.get("_id"): u for u in users}
+        user_map = {u.id: u for u in users}
 
         result = []
         for order in orders:
-            discount = float(order.get("discount", 0) or 0)
-            if discount == 0 and not order.get("couponCode"):
+            discount = float(getattr(order, "discount", 0) or 0)
+            if discount == 0 and not getattr(order, "couponCode", None):
                 continue  # skip orders with no discount at all
 
-            coupon_info = order.get("couponInfo") or {}
-            user = user_map.get(order.get("user"), {})
-            gross = float(order.get("subtotal", order.get("total", 0)) or 0)
+            coupon_info = getattr(order, "couponInfo", None) or {}
+            user = user_map.get(getattr(order, "user", None), {})
+            gross = float(getattr(order, "subtotal", order.get("total", 0)) or 0)
             net = round(gross - discount, 2)
 
             result.append(
                 {
-                    "orderId": order.get("_id"),
-                    "orderNumber": order.get("orderNumber", ""),
-                    "customerName": user.get("name", "Unknown"),
-                    "couponCode": order.get("couponCode") or "—",
+                    "orderId": order.id,
+                    "orderNumber": getattr(order, "orderNumber", ""),
+                    "customerName": getattr(user, "name", "Unknown"),
+                    "couponCode": getattr(order, "couponCode", None) or "—",
                     "discountType": coupon_info.get("discountType", "manual"),
                     "discountValue": coupon_info.get("discountValue", 0),
                     "grossSales": round(gross, 2),
                     "discountApplied": round(discount, 2),
                     "netAfterDiscount": net,
                     "discountPct": round(discount / gross * 100, 1) if gross > 0 else 0.0,
-                    "createdAt": order.get("createdAt"),
+                    "createdAt": getattr(order, "createdAt", None),
                 }
             )
 
@@ -2089,20 +2089,20 @@ class AnalyticsRepository:
 
         products = await self.product_storage.findAll()
         if seller_id:
-            products = [p for p in products if str(p.get("sellerId", "")) == str(seller_id)]
+            products = [p for p in products if str(getattr(p, "sellerId", "")) == str(seller_id)]
 
-        product_map = {str(p.get("_id")): p for p in products}
+        product_map = {str(p.id): p for p in products}
 
         units_sold: dict = defaultdict(int)
         for order in orders:
-            for item in order.get("items", []):
+            for item in getattr(order, "items", []):
                 pid = str(getattr(item, "product", None) or getattr(item, "productId", None) or "")
                 if pid and pid in product_map:
                     units_sold[pid] += getattr(item, 'quantity', 0)
 
         result = []
         for pid, product in product_map.items():
-            stock = int(product.get("stock", 0) or 0)
+            stock = int(getattr(product, "stock", 0) or 0)
             sold = units_sold.get(pid, 0)
             total = stock + sold  # opening stock approximation
             pct = round(sold / total * 100, 1) if total > 0 else 0.0
@@ -2110,9 +2110,9 @@ class AnalyticsRepository:
             result.append(
                 {
                     "productId": pid,
-                    "name": product.get("name", "Unknown"),
-                    "category": product.get("category", "Uncategorized"),
-                    "sku": product.get("sku", ""),
+                    "name": getattr(product, "name", "Unknown"),
+                    "category": getattr(product, "category", "Uncategorized"),
+                    "sku": getattr(product, "sku", ""),
                     "unitsSold": sold,
                     "currentStock": stock,
                     "openingStock": total,

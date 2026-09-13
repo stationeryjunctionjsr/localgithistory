@@ -25,8 +25,8 @@ async def get_upi_details(current_user: User = Depends(get_current_user)):
     super_admin = await user_repository.findOne({"role": "super_admin"})
     if super_admin and super_admin.upi_id and super_admin.qr_code_url:
         return {
-            "upiId": super_admin["upiId"],
-            "qrCodeUrl": super_admin["qrCodeUrl"],
+            "upiId": super_admin.upiId,
+            "qrCodeUrl": super_admin.qrCodeUrl,
             "instructions": "Scan the QR code or use the UPI ID to make payment. Upload the payment screenshot before placing the order.",
         }
 
@@ -50,7 +50,7 @@ async def update_upi_details(upi_data: UPIUpdateRequest, current_user: User = De
         raise HTTPException(status_code=404, detail="Super admin not found")
 
     # Update UPI details
-    await user_repository.update(super_admin["_id"], {"upiId": upi_data.upiId, "qrCodeUrl": upi_data.qrCodeUrl})
+    await user_repository.update(super_admin.id, {"upiId": upi_data.upiId, "qrCodeUrl": upi_data.qrCodeUrl})
 
     return {"message": "UPI details updated successfully", "upiId": upi_data.upiId, "qrCodeUrl": upi_data.qrCodeUrl}
 

@@ -26,7 +26,7 @@ async def populate_ticket(ticket):
     user = await user_repository.findById(ticket.user)
     assigned_to = None
     if ticket.assigned_to:
-        assigned_to = await user_repository.findById(ticket["assignedTo"])
+        assigned_to = await user_repository.findById(ticket.assignedTo)
 
     # Populate response users
     populated_responses = []

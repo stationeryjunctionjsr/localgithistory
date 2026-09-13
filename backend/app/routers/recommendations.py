@@ -178,7 +178,7 @@ async def get_favourites_page(
 
     product_storage = _get_storage("products")
     all_products = await product_storage.findAll({"isActive": True})
-    product_map: dict = {p["_id"]: p for p in all_products if p.id}
+    product_map: dict = {p.id: p for p in all_products if p.id}
 
     # Collect filter option lists from the full ranked set (before product-level filters)
     categories_seen: set = set()
@@ -189,11 +189,11 @@ async def get_favourites_page(
         if not p:
             continue
         if p.category:
-            categories_seen.add(p["category"])
+            categories_seen.add(p.category)
         if p.sub_category:
-            sub_categories_seen.add(p["subCategory"])
+            sub_categories_seen.add(p.subCategory)
         if p.brand:
-            brands_seen.add(p["brand"])
+            brands_seen.add(p.brand)
 
     # Apply product-level filters and build response
     products_out = []

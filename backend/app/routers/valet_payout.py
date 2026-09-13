@@ -65,7 +65,7 @@ async def update_valet_payout_settings(
     storage = _storage()
     settings = await _get_settings()
     updated = await storage.update(
-        settings["_id"],
+        settings.id,
         {
             "deliveryChargePerOrder": payload.deliveryChargePerOrder,
             "returnPickupChargePerOrder": payload.returnPickupChargePerOrder,

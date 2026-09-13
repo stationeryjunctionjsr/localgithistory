@@ -245,7 +245,7 @@ async def delete_availability(
 
     # Prevent deleting past entries
     try:
-        entry_date = dt_date.fromisoformat(doc["date"])
+        entry_date = dt_date.fromisoformat(doc.date)
         if entry_date < dt_date.today():
             raise HTTPException(status_code=400, detail="Cannot delete past availability entries")
     except (ValueError, KeyError):

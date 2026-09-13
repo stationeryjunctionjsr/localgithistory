@@ -45,7 +45,7 @@ async def get_super_admin_seller_id() -> Optional[str]:
     from app.repositories.user_repository import user_repository
     super_admin = await user_repository.findOne({"role": "super_admin"})
     if super_admin:
-        _super_admin_id_cache = str(super_admin.get("_id"))
+        _super_admin_id_cache = str(super_admin.id)
         _super_admin_cache_expiry = time.monotonic() + 3600
         return _super_admin_id_cache
     return None
@@ -57,7 +57,7 @@ def _is_fresh(expiry: float) -> bool:
 
 def _cache_zone(zone: dict) -> frozenset:
     """Kept for backward compatibility — not used in new flow."""
-    seller_ids = frozenset(str(s) for s in (zone.get("sellerIds") or []))
+    seller_ids = frozenset(str(s) for s in (getattr(zone, "sellerIds", None) or []))
     return seller_ids
 
 
@@ -111,13 +111,13 @@ async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional
     try:
         zones = await _fetch_all_zones()
         for zone in zones:
-            pincodes = zone.get("pincodes") or []
+            pincodes = getattr(zone, "pincodes", None) or []
             if pincode not in pincodes:
                 continue
 
             # Use the MySQL _id (as string) as the zone identifier.
             # sj_delivery_zones has no external_id column, so we use _id consistently.
-            zone_str_id = str(zone.get("_id", ""))
+            zone_str_id = str(getattr(zone, "id", ""))
             if not zone_str_id:
                 logger.warning("zone_seller_cache: zone has no _id: %s", zone)
                 return None, None
@@ -156,7 +156,7 @@ async def get_zone_for_pincode(pincode: str) -> Optional[dict]:
     try:
         zones = await _fetch_all_zones()
         for zone in zones:
-            if pincode in (zone.get("pincodes") or []):
+            if pincode in (getattr(zone, "pincodes", None) or []):
                 return zone
         return None
     except Exception as exc:

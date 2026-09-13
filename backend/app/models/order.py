@@ -1,4 +1,4 @@
-from app.models.schemas import ItemSnippet as OrderItem
+from app.models.schemas import ItemSnippet as OrderItem, Address
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
@@ -67,8 +67,8 @@ class OrderInternalCreate(BaseModel):
     paymentStatus: str = "pending"
     paymentMethod: str = "cod"
     upiPaymentScreenshot: Optional[str] = None
-    shippingAddress: Dict[str, Any] = Field(default_factory=dict)
-    billingAddress: Dict[str, Any] = Field(default_factory=dict)
+    shippingAddress: Optional['Address'] = None
+    billingAddress: Optional['Address'] = None
     notes: str = ""
     printedBill: bool = False
     assignedValet: Optional[str] = None

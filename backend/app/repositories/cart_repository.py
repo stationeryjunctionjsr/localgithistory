@@ -12,7 +12,7 @@ class CartRepository:
         return await self.storage.findOne({"user": user_id})
 
     async def create(self, cart_data: Any):
-        cart = CartInternalCreate(user=cart_data["user"], items=cart_data.get("items", []))
+        cart = CartInternalCreate(user=cart_data.user, items=getattr(cart_data, "items", []))
         return await self.storage.create(cart)
 
     async def update(self, id: str, update_data: Any):
@@ -23,14 +23,14 @@ class CartRepository:
     async def clearCart(self, user_id: str):
         cart = await self.findByUser(user_id)
         if cart:
-            return await self.update(cart.get("_id"), {"items": []})
+            return await self.update(cart.id, {"items": []})
         return None
 
     async def createOrUpdate(self, user_id: str, items: list):
         existing = await self.findByUser(user_id)
         cart_data = {"user": user_id, "items": items or []}
         if existing:
-            return await self.update(existing.get("_id"), cart_data)
+            return await self.update(existing.id, cart_data)
         else:
             return await self.create(cart_data)
 
@@ -39,7 +39,7 @@ class CartRepository:
         if not cart:
             return await self.createOrUpdate(user_id, [item])
 
-        items = cart.get("items", [])
+        items = getattr(cart, "items", [])
         # Check for existing item with same product, variants, and sellAsCase
         existing_item_index = next(
             (
@@ -65,7 +65,7 @@ class CartRepository:
         if not cart:
             raise ValueError("Cart not found")
 
-        items = cart.get("items", [])
+        items = getattr(cart, "items", [])
         items = [item for item in items if getattr(item, "_id", None) != item_id]
         return await self.createOrUpdate(user_id, items)
 
@@ -78,12 +78,12 @@ class CartRepository:
 
         if existing:
             # Check if already saved
-            items = existing.get("items", [])
+            items = getattr(existing, "items", [])
             already_saved = any(getattr(item, "productId", None) == product_id for item in items)
             if already_saved:
                 return existing
             items.append(saved_item)
-            return await saved_storage.update(existing.get("_id"), {"items": items})
+            return await saved_storage.update(existing.id, {"items": items})
         else:
             return await saved_storage.create({"user": user_id, "items": [saved_item]})
 

@@ -15,27 +15,27 @@ class BannerRepository:
         # Consistent preprocessing for ALL banners
         for banner in banners:
             # 1. User Segments normalization
-            if not banner.get("userSegments"):
-                legacy_aud = banner.get("targetAudience", "all")
-                banner["userSegments"] = [legacy_aud] if legacy_aud else ["all"]
+            if not getattr(banner, "userSegments", None):
+                legacy_aud = getattr(banner, "targetAudience", "all")
+                banner.userSegments = [legacy_aud] if legacy_aud else ["all"]
 
             # 2. Rules normalization
-            if not banner.get("visibilityRules"):
-                banner["visibilityRules"] = []
+            if not getattr(banner, "visibilityRules", None):
+                banner.visibilityRules = []
 
             # 3. Always derive legacy fields for UI consistency
-            segments = banner["userSegments"]
-            rules = banner["visibilityRules"]
-            banner["targetAudience"] = segments[0] if segments else "all"
+            segments = banner.userSegments
+            rules = banner.visibilityRules
+            banner.targetAudience = segments[0] if segments else "all"
 
             if rules and len(rules) > 0:
-                banner["position"] = rules[0].get("pageType", "homepage")
+                banner.position = rules[0].get("pageType", "homepage")
             
             # 4. Ensure required date fields exist for Pydantic validation
-            if not banner.get("startDate"):
-                banner["startDate"] = banner.get("createdAt") or datetime.now(timezone.utc).isoformat()
-            elif not banner.get("position"):
-                banner["position"] = "homepage"
+            if not getattr(banner, "startDate", None):
+                banner.startDate = getattr(banner, "createdAt", None) or datetime.now(timezone.utc).isoformat()
+            elif not getattr(banner, "position", None):
+                banner.position = "homepage"
 
         query = query or {}
         user_role = str(query.get("userRole") or "guest").lower()
@@ -43,23 +43,23 @@ class BannerRepository:
         target_page_id = query.get("pageId")
 
         if query.get("isActive") is not None:
-            banners = [b for b in banners if b.get("isActive") == query["isActive"]]
+            banners = [b for b in banners if getattr(b, "isActive", None) == query["isActive"]]
 
         if query.get("isPublished") is not None:
-            banners = [b for b in banners if b.get("isPublished") == query["isPublished"]]
+            banners = [b for b in banners if getattr(b, "isPublished", None) == query["isPublished"]]
 
         if target_page_type:
             filtered = []
             for banner in banners:
-                segments = [str(s).lower() for s in banner.get("userSegments", ["all"])]
+                segments = [str(s).lower() for s in getattr(banner, "userSegments", ["all"])]
 
                 # Role Check (Super Admin bypasses, otherwise check 'all' or specific role)
                 if user_role != "super_admin" and "all" not in segments and user_role not in segments:
                     continue
 
                 # Position/Rule Check
-                legacy_pos = str(banner.get("position", "")).lower()
-                rules = banner.get("visibilityRules", [])
+                legacy_pos = str(getattr(banner, "position", "")).lower()
+                rules = getattr(banner, "visibilityRules", [])
                 match = False
 
                 # Standard homepage mapping
@@ -113,8 +113,8 @@ class BannerRepository:
         active_banners = []
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         for banner in banners:
-            start_date = banner.get("startDate")
-            end_date = banner.get("endDate")
+            start_date = getattr(banner, "startDate", None)
+            end_date = getattr(banner, "endDate", None)
 
             def parse_iso(dt_str):
                 if not dt_str or not str(dt_str).strip():

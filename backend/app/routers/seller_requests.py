@@ -18,11 +18,11 @@ class StatusUpdate(BaseModel):
 
 async def populate_request(request):
     """Populate request with user data"""
-    user = await user_repository.findById(request.get("user"))
+    user = await user_repository.findById(getattr(request, "user", None))
 
     # Populate response users
     populated_responses = []
-    for response in request.get("responses", []):
+    for response in getattr(request, "responses", []):
         response_user = await user_repository.findById(response.get("user"))
         populated_responses.append(
             {
@@ -78,7 +78,7 @@ async def get_seller_request(request_id: str, current_user: User = Depends(get_c
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if current_user.role != "super_admin" and request.get("user") != current_user.id:
+    if current_user.role != "super_admin" and getattr(request, "user", None) != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     populated_request = await populate_request(request)
@@ -127,7 +127,7 @@ async def add_request_response(
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if current_user.role != "super_admin" and request.get("user") != current_user.id:
+    if current_user.role != "super_admin" and getattr(request, "user", None) != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     is_admin_response = current_user.role == "super_admin"

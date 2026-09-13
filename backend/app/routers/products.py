@@ -178,28 +178,28 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                     elif len(rows) == 1:
                         # No attributes, just update base stock and sku if it's the only row
                         product_data.stock = row_stock
-                        if not product_data["sku"]:
-                            product_data["sku"] = row_sku
+                        if not product_data.sku:
+                            product_data.sku = row_sku
 
-                product_data["variantAttributes"] = list(variant_attributes)
-                product_data["variants"] = variants_list
+                product_data.variantAttributes = list(variant_attributes)
+                product_data.variants = variants_list
 
                 existing = None
                 from app.db.storage_factory import get_storage
 
                 products_col = get_storage("products")
 
-                if product_data.get("productIdFormatted"):
-                    existing = await products_col.findOne({"productIdFormatted": product_data["productIdFormatted"]})
-                elif product_data.get("sku"):
-                    existing = await products_col.findOne({"sku": product_data["sku"]})
+                if getattr(product_data, "productIdFormatted", None):
+                    existing = await products_col.findOne({"productIdFormatted": product_data.productIdFormatted})
+                elif getattr(product_data, "sku", None):
+                    existing = await products_col.findOne({"sku": product_data.sku})
                 else:
                     # Also try matching by exact name to avoid duplicates if SKU isn't set either
                     existing = await products_col.findOne({"name": product_data.name})
 
                 if existing:
                     await product_repository.update(existing.id, product_data)
-                    product_id_to_show = product_data.get("productIdFormatted", product_data.name)
+                    product_id_to_show = getattr(product_data, "productIdFormatted", product_data.name)
                     results.append({"product": product_id_to_show, "action": "updated"})
                 else:
                     await product_repository.create(product_data)
@@ -444,7 +444,7 @@ async def populate_product_discounts(
         if p.mrp is None:
             raise ValueError(f"Data Integrity Error: Product {p.id} is missing MRP")
         mrp = float(p.mrp)
-        p["originalPrice"] = mrp
+        p.originalPrice = mrp
 
         # Check automatic product discounts
         auto_discount_pct = 0.0
@@ -474,14 +474,14 @@ async def populate_product_discounts(
         p.price = final_price
 
         if default_coupon:
-            p["defaultDiscountPercentage"] = round(auto_discount_pct, 2)
+            p.defaultDiscountPercentage = round(auto_discount_pct, 2)
 
         if mrp > 0 and final_price < mrp:
-            p["discountPercentage"] = round(((mrp - final_price) / mrp) * 100)
+            p.discountPercentage = round(((mrp - final_price) / mrp) * 100)
 
         # Fast path for list endpoints
         if skinny:
-            p["applicableDiscounts"] = []
+            p.applicableDiscounts = []
             continue
 
         # Get all other applicable discounts
@@ -500,8 +500,8 @@ async def populate_product_discounts(
                     break
 
         if qty_coupon:
-            p["quantityTiers"] = qty_coupon.get("quantityTiers") or []
-            p["quantityItemType"] = qty_coupon.get("applicableItemType") or "units"
+            p.quantityTiers = qty_coupon.get("quantityTiers") or []
+            p.quantityItemType = qty_coupon.get("applicableItemType") or "units"
 
         app_discs = []
         if default_coupon and default_coupon.get("minRequirementType") == "quantity_based":
@@ -522,7 +522,7 @@ async def populate_product_discounts(
                 }
             )
 
-        p["applicableDiscounts"] = app_discs
+        p.applicableDiscounts = app_discs
 
 
 def _invalidate_product_caches():
@@ -626,7 +626,7 @@ async def get_public_products(
 
     if skinny:
         for p in products:
-            p["displayImage"] = p.display_image or (p.images[0] if p.images else None)
+            p.displayImage = p.display_image or (p.images[0] if p.images else None)
             p.pop("description", None)
             p.pop("variants", None)
             p.pop("videos", None)
@@ -638,10 +638,10 @@ async def get_public_products(
     products_with_pricing = []
     for product in products:
         # Ensure tags and variations arrays exist
-        if "tags" not in product or product["tags"] is None:
-            product["tags"] = []
-        if "variations" not in product or product["variations"] is None:
-            product["variations"] = []
+        if "tags" not in product or product.tags is None:
+            product.tags = []
+        if "variations" not in product or product.variations is None:
+            product.variations = []
 
         products_with_pricing.append(ProductResponse(**(product if hasattr(product, 'model_dump') else product)))
 
@@ -679,10 +679,10 @@ async def get_public_product(product_id: str, role: str = "customer", response: 
 
     await populate_product_discounts([product], role)
     # Ensure tags and variations arrays exist
-    if "tags" not in product or product["tags"] is None:
-        product["tags"] = []
-    if "variations" not in product or product["variations"] is None:
-        product["variations"] = []
+    if "tags" not in product or product.tags is None:
+        product.tags = []
+    if "variations" not in product or product.variations is None:
+        product.variations = []
 
     if response:
         # 15-minute browser/CDN cache for individual product pages
@@ -782,7 +782,7 @@ async def get_products(
 
     if skinny:
         for p in products:
-            p["displayImage"] = p.display_image or (p.images[0] if p.images else None)
+            p.displayImage = p.display_image or (p.images[0] if p.images else None)
             p.pop("description", None)
             p.pop("variants", None)
             p.pop("videos", None)
@@ -794,10 +794,10 @@ async def get_products(
     products_with_pricing = []
     for product in products:
         # Ensure tags and variations arrays exist
-        if "tags" not in product or product["tags"] is None:
-            product["tags"] = []
-        if "variations" not in product or product["variations"] is None:
-            product["variations"] = []
+        if "tags" not in product or product.tags is None:
+            product.tags = []
+        if "variations" not in product or product.variations is None:
+            product.variations = []
 
         products_with_pricing.append(ProductResponse(**(product if hasattr(product, 'model_dump') else product)))
 
@@ -834,15 +834,15 @@ async def get_product(product_id: str, current_user: User = Depends(get_current_
 
     # Legacy - min order quantity removed but kept for backward compatibility
     if effective_role == "wholesaler":
-        product["minOrderQuantity"] = (product.b2b_min_order_quantity if product.b2b_min_order_quantity is not None else 10)
+        product.minOrderQuantity = (product.b2b_min_order_quantity if product.b2b_min_order_quantity is not None else 10)
     else:
-        product["minOrderQuantity"] = (product.min_order_quantity if product.min_order_quantity is not None else 1)
+        product.minOrderQuantity = (product.min_order_quantity if product.min_order_quantity is not None else 1)
 
     # Ensure tags and variations arrays exist
-    if "tags" not in product or product["tags"] is None:
-        product["tags"] = []
-    if "variations" not in product or product["variations"] is None:
-        product["variations"] = []
+    if "tags" not in product or product.tags is None:
+        product.tags = []
+    if "variations" not in product or product.variations is None:
+        product.variations = []
 
     return ProductResponse(**(product if hasattr(product, 'model_dump') else product))
 
@@ -986,7 +986,7 @@ async def get_product_search_tags(product_id: str, current_user: User = Depends(
 
     return {
         "resolvedTags": resolved,
-        "allTags": [{"_id": t.id, "name": t.name, "type": t.get("type")} for t in all_tags],
+        "allTags": [{"_id": t.id, "name": t.name, "type": getattr(t, "type", None)} for t in all_tags],
     }
 
 

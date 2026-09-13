@@ -20,7 +20,7 @@ class SearchTagRepository:
 
         # First pass to find max_num
         for tag in all_tags:
-            tid = tag.get("tagId", "")
+            tid = getattr(tag, "tagId", "")
             if tid.startswith("ST-"):
                 try:
                     num = int(tid.split("-")[1])
@@ -31,9 +31,9 @@ class SearchTagRepository:
 
         # Second pass to assign missing tagIds
         for tag in all_tags:
-            if not tag.get("tagId"):
+            if not getattr(tag, "tagId", None):
                 max_num += 1
-                tag["tagId"] = f"ST-{max_num}"
+                tag.tagId = f"ST-{max_num}"
                 updated = True
 
         if updated:
@@ -48,10 +48,10 @@ class SearchTagRepository:
             #     self.storage._invalidate_cache()
             # else:
             for tag in all_tags:
-                if tag.get("_id") and tag.get("tagId"):
+                if tag.id and getattr(tag, "tagId", None):
                     await self.storage.update(
-                        tag["_id"],
-                        {"tagId": tag["tagId"], "updatedAt": self._get_timestamp()},
+                        tag.id,
+                        {"tagId": tag.tagId, "updatedAt": self._get_timestamp()},
                     )
 
         return all_tags
@@ -64,7 +64,7 @@ class SearchTagRepository:
         all_tags = await self.storage.findAll()
         max_num = 0
         for tag in all_tags:
-            tag_id_str = tag.get("tagId", "")
+            tag_id_str = getattr(tag, "tagId", "")
             if tag_id_str.startswith("ST-"):
                 try:
                     # Extract number from "ST-X"
@@ -101,15 +101,15 @@ class SearchTagRepository:
     async def findAllActive(self) -> List[Dict]:
         """Return only active search tags"""
         all_tags = await self.findAll()
-        return [t for t in all_tags if t.get("isActive", True)]
+        return [t for t in all_tags if getattr(t, "isActive", True)]
 
     async def addProductId(self, tag_id: str, product_id: str) -> Dict:
         """Add a product ID to the tag's productIds and remove from excludedProductIds if present"""
         tag = await self.findById(tag_id)
         if not tag:
             return None
-        product_ids = list(set(tag.get("productIds", []) + [product_id]))
-        excluded = [pid for pid in tag.get("excludedProductIds", []) if pid != product_id]
+        product_ids = list(set(getattr(tag, "productIds", []) + [product_id]))
+        excluded = [pid for pid in getattr(tag, "excludedProductIds", []) if pid != product_id]
         return await self.update(tag_id, {"productIds": product_ids, "excludedProductIds": excluded})
 
     async def excludeProductId(self, tag_id: str, product_id: str) -> Dict:
@@ -117,8 +117,8 @@ class SearchTagRepository:
         tag = await self.findById(tag_id)
         if not tag:
             return None
-        excluded = list(set(tag.get("excludedProductIds", []) + [product_id]))
-        product_ids = [pid for pid in tag.get("productIds", []) if pid != product_id]
+        excluded = list(set(getattr(tag, "excludedProductIds", []) + [product_id]))
+        product_ids = [pid for pid in getattr(tag, "productIds", []) if pid != product_id]
         return await self.update(tag_id, {"excludedProductIds": excluded, "productIds": product_ids})
 
     async def delete(self, id: str) -> Dict:

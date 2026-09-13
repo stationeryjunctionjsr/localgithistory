@@ -46,7 +46,7 @@ class SubOrderRepository:
         self, seller_id: str, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None
     ) -> List[Dict]:
         q = dict(query or {})
-        q["sellerId"] = seller_id
+        q.sellerId = seller_id
         return await self.findAll(q, skip=skip, limit=limit)
 
     async def count(self, query: Optional[Dict] = None) -> int:
@@ -71,7 +71,7 @@ class SubOrderRepository:
 
         if update_data.status == "delivered" and update_data.commissionPct is None:
             existing = await self.storage.findById(id)
-            if existing and existing.get("commissionStatus") is None:
+            if existing and getattr(existing, "commissionStatus", None) is None:
                 try:
                     from app.routers.commission import stamp_commission_on_delivery
                     commission_fields = await stamp_commission_on_delivery(existing)

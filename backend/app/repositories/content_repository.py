@@ -21,7 +21,7 @@ class ContentRepository:
         existing = await self.get()
         payload = {**data, "updatedAt": self._ts()}
         if existing:
-            return await self.storage.update(existing["_id"], payload)
+            return await self.storage.update(existing.id, payload)
         payload.createdAt = self._ts()
         return await self.storage.create(payload)
 
@@ -63,9 +63,9 @@ class VersionedContentRepository(ContentRepository):
         if "version" in data and data.version:
             # Admin explicitly supplied a version — use it as-is
             next_version: str = str(data.version).strip()
-        elif existing and existing.get("version"):
+        elif existing and getattr(existing, "version", None):
             # No version supplied — auto-increment the last segment
-            next_version = _increment_version(str(existing["version"]))
+            next_version = _increment_version(str(existing.version))
         else:
             # First-time creation with no version supplied
             next_version = "1.0"
@@ -89,7 +89,7 @@ class VersionedContentRepository(ContentRepository):
         }
 
         if existing:
-            return await self.storage.update(existing["_id"], payload)
+            return await self.storage.update(existing.id, payload)
 
         payload.createdAt = now
         return await self.storage.create(payload)
@@ -104,7 +104,7 @@ class FAQRepository:
 
     async def find_all(self) -> List[Dict]:
         sections = await self.storage.findAll()
-        return sorted(sections, key=lambda s: s.get("displayOrder", 0))
+        return sorted(sections, key=lambda s: getattr(s, "displayOrder", 0))
 
     async def find_by_id(self, section_id: str) -> Optional[Dict]:
         return await self.storage.findById(section_id)

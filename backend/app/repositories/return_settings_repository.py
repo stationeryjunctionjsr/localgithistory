@@ -24,7 +24,7 @@ class ReturnSettingsRepository:
     async def update_settings(self, update_data: Any) -> Dict:
         settings = await self.get_settings()
         update_data.updatedAt = datetime.now(timezone.utc).isoformat()
-        return await self.storage.update(settings["_id"], update_data)
+        return await self.storage.update(settings.id, update_data)
 
 
 return_settings_repository = ReturnSettingsRepository()

@@ -16,7 +16,7 @@ class WishlistRepository:
         existing = await self.findByUser(user_id)
         if existing:
             wishlist_data = WishlistInternalUpdate(user=user_id, items=items or [], updatedAt=datetime.now(timezone.utc).isoformat())
-            return await self.storage.update(existing.get("_id"), wishlist_data)
+            return await self.storage.update(existing.id, wishlist_data)
         else:
             wishlist_data = WishlistInternalCreate(user=user_id, items=items or [], updatedAt=datetime.now(timezone.utc).isoformat())
             return await self.storage.create(wishlist_data)
@@ -35,8 +35,8 @@ class WishlistRepository:
             return await self.createOrUpdate(user_id, [normalized])
 
         # No duplicates per product
-        items = wishlist.get("items", [])
-        exists = any(i.get("product") == normalized["product"] for i in items)
+        items = getattr(wishlist, "items", [])
+        exists = any(getattr(i, "product", None) == normalized["product"] for i in items)
         if exists:
             return wishlist
 
@@ -48,7 +48,7 @@ class WishlistRepository:
         if not wishlist:
             return False
 
-        items = wishlist.get("items", [])
+        items = getattr(wishlist, "items", [])
         items = [item for item in items if getattr(item, "product", None) != product_id]
         await self.createOrUpdate(user_id, items)
         return True

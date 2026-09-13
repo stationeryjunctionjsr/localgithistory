@@ -40,13 +40,13 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
     """Get user's wishlist"""
     try:
         wishlist = await wishlist_repository.findByUser(current_user.id)
-        if not wishlist or not wishlist.get("items"):
+        if not wishlist or not getattr(wishlist, "items", None):
             return {"items": [], "itemCount": 0}
 
         role_for_pricing = get_role_for_pricing(current_user)
         populated_items = []
 
-        raw_items = wishlist.get("items", [])
+        raw_items = getattr(wishlist, "items", [])
         norm_items = []
         for it in raw_items:
             if isinstance(it, dict):
@@ -58,7 +58,7 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
         products_map = {}
         if product_ids:
             products = await product_repository.findAll({"allowed_ids": product_ids})
-            products_map = {str(p["_id"]): p for p in products}
+            products_map = {str(p.id): p for p in products}
 
         for item in norm_items:
             product = products_map.get(str(item.product))

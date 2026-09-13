@@ -161,16 +161,16 @@ async def get_available_valets(
     avail_store = get_storage("valetAvailability")
     today_avails = await avail_store.findAll({"date": today})
     
-    avail_map = {str(a.get("userId", "")): a for a in today_avails}
+    avail_map = {str(getattr(a, "userId", "")): a for a in today_avails}
     available_valets = []
     for v in in_area:
         vid = str((v.id or ""))
         a = avail_map.get(vid)
         if not a:
             continue
-        if a.get("availabilityType") == "full_day":
+        if getattr(a, "availabilityType", None) == "full_day":
             available_valets.append(v)
-        elif slotId and slotId in a.get("slots", []):
+        elif slotId and slotId in getattr(a, "slots", []):
             available_valets.append(v)
             
     if not available_valets:
@@ -534,7 +534,7 @@ async def request_email_verification(request: Request, current_user: User = Depe
 
     response_data = {"message": "Verification code sent to your email."}
     if os.getenv("ENVIRONMENT") == "development" or os.getenv("TESTING") == "true":
-        response_data["code"] = payload.get("otp")
+        response_data.code = payload.get("otp")
 
     return response_data
 

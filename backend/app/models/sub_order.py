@@ -4,6 +4,16 @@ from typing import Optional, List, Any, Dict
 from pydantic import Field
 from pydantic import BaseModel
 
+class CouponInfo(BaseModel):
+    code: Optional[str] = None
+    discountType: Optional[str] = None
+    discountValue: Optional[float] = None
+
+class DeliverySlotInfo(BaseModel):
+    date: Optional[str] = None
+    time: Optional[str] = None
+    slotId: Optional[str] = None
+
 class SubOrderItem(BaseModel):
     product_id: Optional[str] = Field(default=None, alias='productId')
     name: Optional[str] = None
@@ -30,10 +40,10 @@ class SubOrder(BaseModel):
     payment_method: Optional[str] = Field(default=None, alias='paymentMethod')
     payment_status: str = Field(default="pending", alias='paymentStatus')
     is_urgent_delivery: bool = Field(default=False, alias='isUrgentDelivery')
-    delivery_slot: Optional[Dict] = Field(default=None, alias='deliverySlot')
+    delivery_slot: Optional[DeliverySlotInfo] = Field(default=None, alias='deliverySlot')
     notes: Optional[str] = None
     coupon_code: Optional[str] = Field(default=None, alias='couponCode')
-    coupon_info: Optional[Dict] = Field(default=None, alias='couponInfo')
+    coupon_info: Optional[CouponInfo] = Field(default=None, alias='couponInfo')
     commission_status: str = Field(default="unrealized", alias='commissionStatus')
     shipping_address: Optional['Address'] = Field(default=None, alias='shippingAddress')
     billing_address: Optional['Address'] = Field(default=None, alias='billingAddress')
@@ -70,12 +80,12 @@ class SubOrderInternalCreate(BaseModel):
     paymentMethod: str = "cod"
     paymentStatus: str = "pending"
     isUrgentDelivery: bool = False
-    deliverySlot: Optional[Dict[str, Any]] = None
-    shippingAddress: Dict[str, Any] = Field(default_factory=dict)
-    billingAddress: Dict[str, Any] = Field(default_factory=dict)
+    deliverySlot: Optional[DeliverySlotInfo] = None
+    shippingAddress: Optional['Address'] = None
+    billingAddress: Optional['Address'] = None
     notes: str = ""
     couponCode: Optional[str] = None
-    couponInfo: Optional[Dict[str, Any]] = None
+    couponInfo: Optional[CouponInfo] = None
     assignedValet: Optional[str] = None
     pickupStatus: str = "pending_pickup"
     pickedUpAt: Optional[str] = None

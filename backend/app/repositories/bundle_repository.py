@@ -109,15 +109,15 @@ class BundleRepository:
     async def get_active_bundles(self) -> List[Any]:
         """Return only active (published) bundles."""
         all_bundles = await self.findAll()
-        return [b for b in all_bundles if b.get("isActive", True)]
+        return [b for b in all_bundles if getattr(b, "isActive", True)]
 
     async def get_bundles_containing_product(self, product_id: str) -> List[Any]:
         """Return all active bundles that include a given product_id."""
         all_bundles = await self.get_active_bundles()
         result = []
         for bundle in all_bundles:
-            items = bundle.get("items", [])
-            if any(i.get("productId") == product_id for i in items):
+            items = getattr(bundle, "items", [])
+            if any(getattr(i, "productId", None) == product_id for i in items):
                 result.append(bundle)
         return result
 

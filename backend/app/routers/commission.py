@@ -125,7 +125,7 @@ async def resolve_commission_pct(order_total: float, seller_id: Optional[str]) -
     tiers: list = (settings.tiers or [])
     default_pct: float = (settings.default_commission_pct if settings.default_commission_pct is not None else 5.0)
 
-    for tier in sorted(tiers, key=lambda t: t.get("minOrderValue", 0)):
+    for tier in sorted(tiers, key=lambda t: getattr(t, "minOrderValue", 0)):
         min_v = tier.get("minOrderValue", 0)
         max_v = tier.get("maxOrderValue")  # None = unlimited
         if order_total >= min_v and (max_v is None or order_total <= max_v):
@@ -249,7 +249,7 @@ async def update_commission_tiers(
         tiers_data.append(d)
 
     # Validate no overlaps
-    sorted_tiers = sorted(tiers_data, key=lambda t: t["minOrderValue"])
+    sorted_tiers = sorted(tiers_data, key=lambda t: t.minOrderValue)
     for i in range(len(sorted_tiers) - 1):
         curr_max = sorted_tiers[i].get("maxOrderValue")
         next_min = sorted_tiers[i + 1]["minOrderValue"]
@@ -262,7 +262,7 @@ async def update_commission_tiers(
     storage = _get_commission_storage()
     settings = await _get_settings()
     updated = await storage.update(
-        settings["_id"],
+        settings.id,
         {
             "tiers": tiers_data,
             "defaultCommissionPct": payload.defaultCommissionPct,

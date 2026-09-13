@@ -42,10 +42,10 @@ router = APIRouter()
 def _resolve_product_seller_id(product: dict | Product, serviceable_seller_ids: list[str] = None) -> str:
     # product can be dict or Product
     if isinstance(product, dict):
-        sellers = product.get("sellers", [])
+        sellers = getattr(product, "sellers", [])
         if sellers:
             return sellers[0].get("id") or sellers[0].get("_id")
-        return product.get("sellerId") or product.get("seller_id")
+        return getattr(product, "sellerId", None) or getattr(product, "seller_id", None)
     else:
         if getattr(product, "sellers", None):
             return product.sellers[0].id if getattr(product.sellers[0], "id", None) else getattr(product.sellers[0], "seller_id", None)
@@ -157,14 +157,14 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
     # 1. Collect all unique IDs across all orders
     for order in orders:
         if isinstance(order, dict):
-            if order.get("user"):
-                user_ids.add(str(order["user"]))
-            if order.get("assignedValet"):
-                valet_ids.add(str(order["assignedValet"]))
-            if order.get("_id") or order.get("id"):
-                order_ids.add(str(order.get("_id") or order.get("id")))
-            for item in order.get("items") or []:
-                prod = item.get("product")
+            if getattr(order, "user", None):
+                user_ids.add(str(order.user))
+            if getattr(order, "assignedValet", None):
+                valet_ids.add(str(order.assignedValet))
+            if order.id or getattr(order, "id", None):
+                order_ids.add(str(order.id or getattr(order, "id", None)))
+            for item in getattr(order, "items", None) or []:
+                prod = getattr(item, "product", None)
                 if isinstance(prod, dict):
                     pid = prod.get("_id") or prod.get("id")
                     if pid: product_ids.add(str(pid))
@@ -183,7 +183,7 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
                 order_ids.add(str(order.id))
             for item in getattr(order, "items", []) or []:
                 if isinstance(item, dict):
-                    prod = item.get("product")
+                    prod = getattr(item, "product", None)
                 else:
                     prod = getattr(item, "product", None)
                 if isinstance(prod, dict):
@@ -220,16 +220,16 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
     # 3. Populate each order using the maps
     populated_orders = []
     for order in orders:
-        o_user_id = str(order.get("user") if isinstance(order, dict) else getattr(order, "user", ""))
+        o_user_id = str(getattr(order, "user", None) if isinstance(order, dict) else getattr(order, "user", ""))
         user = users_map.get(o_user_id)
         
-        o_valet_id = str(order.get("assignedValet") or order.get("assigned_valet") if isinstance(order, dict) else getattr(order, "assigned_valet", ""))
+        o_valet_id = str(getattr(order, "assignedValet", None) or getattr(order, "assigned_valet", None) if isinstance(order, dict) else getattr(order, "assigned_valet", ""))
         valet = users_map.get(o_valet_id) if o_valet_id else None
         
-        o_id = str(order.get("_id") or order.get("id") if isinstance(order, dict) else getattr(order, "id", ""))
+        o_id = str(order.id or getattr(order, "id", None) if isinstance(order, dict) else getattr(order, "id", ""))
         payment_entries = payments_map.get(o_id, [])
 
-        o_items = order.get("items") if isinstance(order, dict) else getattr(order, "items", [])
+        o_items = getattr(order, "items", None) if isinstance(order, dict) else getattr(order, "items", [])
         populated_items = []
         for item in (o_items or []):
             item_dict = item if isinstance(item, dict) else (item if hasattr(item, "model_dump") else item)
@@ -250,14 +250,14 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
         
         user_dict = None
         if user:
-            u_id = user.get("_id") or user.get("id") if isinstance(user, dict) else getattr(user, "id", "")
-            u_user_id = user.get("userId") or user.get("user_id") if isinstance(user, dict) else getattr(user, "user_id", "")
-            u_user_id_fmt = user.get("userIdFormatted") or user.get("user_id_formatted") if isinstance(user, dict) else getattr(user, "user_id_formatted", "")
-            u_name = user.get("name") if isinstance(user, dict) else getattr(user, "name", "")
-            u_email = user.get("email") if isinstance(user, dict) else getattr(user, "email", "")
-            u_company = user.get("companyName") or user.get("company_name") if isinstance(user, dict) else getattr(user, "company_name", "")
-            u_gstin = user.get("gstin") if isinstance(user, dict) else getattr(user, "gstin", "")
-            u_loc = user.get("locationLink") or user.get("location_link") if isinstance(user, dict) else getattr(user, "location_link", "")
+            u_id = user.id or getattr(user, "id", None) if isinstance(user, dict) else getattr(user, "id", "")
+            u_user_id = getattr(user, "userId", None) or getattr(user, "user_id", None) if isinstance(user, dict) else getattr(user, "user_id", "")
+            u_user_id_fmt = getattr(user, "userIdFormatted", None) or getattr(user, "user_id_formatted", None) if isinstance(user, dict) else getattr(user, "user_id_formatted", "")
+            u_name = getattr(user, "name", None) if isinstance(user, dict) else getattr(user, "name", "")
+            u_email = getattr(user, "email", None) if isinstance(user, dict) else getattr(user, "email", "")
+            u_company = getattr(user, "companyName", None) or getattr(user, "company_name", None) if isinstance(user, dict) else getattr(user, "company_name", "")
+            u_gstin = getattr(user, "gstin", None) if isinstance(user, dict) else getattr(user, "gstin", "")
+            u_loc = getattr(user, "locationLink", None) or getattr(user, "location_link", None) if isinstance(user, dict) else getattr(user, "location_link", "")
             
             user_dict = {
                 "_id": u_id,
@@ -510,7 +510,7 @@ async def create_order(
     for item in cart_items:
         p = _cart_products_map.get(str(item.product or item.product_id))
         if p:
-            qty = ((item.get("quantity") if isinstance(item, dict) else item.quantity) if (item.get("quantity") if isinstance(item, dict) else item.quantity) is not None else 0)
+            qty = ((getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity) if (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity) is not None else 0)
             sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
             temp_subtotal += product_repository.calculateTotalPrice(
                 p, effective_role, qty, sell_as_case=sell_as_case, user_id=current_user.id
@@ -633,7 +633,7 @@ async def create_order(
             raise HTTPException(
                 status_code=400, detail=f"Product not found: {item.product or item.product_id}"
             )
-        quantity = ((item.get("quantity") if isinstance(item, dict) else item.quantity) if (item.get("quantity") if isinstance(item, dict) else item.quantity) is not None else 0)
+        quantity = ((getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity) if (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity) is not None else 0)
         sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
 
         ignore_auto = False
@@ -1028,7 +1028,7 @@ async def create_order(
                 order_zone_id = str(_z2.id or "")
 
         if order_zone_id:
-            seller_ids_in_order = {item.get("sellerId", item.get("seller_id")) for item in order_items if item.get("sellerId", item.get("seller_id"))}
+            seller_ids_in_order = {getattr(item, "sellerId", getattr(item, "seller_id", None)) for item in order_items if getattr(item, "sellerId", getattr(item, "seller_id", None))}
             for sid in seller_ids_in_order:
                 sdoc = await user_repository.findById(sid)
                 if sdoc:
@@ -1166,10 +1166,10 @@ async def create_order(
         # Initialize credit if not set
         if user.credit_used is None:
             await user_repository.update(current_user.id, {"creditUsed": 0})
-            user["creditUsed"] = 0
+            user.creditUsed = 0
         if user.credit_limit is None:
             await user_repository.update(current_user.id, {"creditLimit": 0})
-            user["creditLimit"] = 0
+            user.creditLimit = 0
 
         if ((user.credit_used if user.credit_used is not None else 0) + total) > (user.credit_limit if user.credit_limit is not None else 0):
             ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()
@@ -1246,8 +1246,8 @@ async def create_order(
                                     # each have their own bookedCount directly on the slot.
                                     sl["bookedCount"] = (sl.get("bookedCount") if sl.get("bookedCount") is not None else 0) + 1
                                     break
-                            doc["slots"] = updated_slots
-                            doc["updatedAt"] = datetime.now(__import__("datetime").timezone.utc).isoformat()
+                            doc.slots = updated_slots
+                            doc.updatedAt = datetime.now(__import__("datetime").timezone.utc).isoformat()
                             await session.execute(
                                 text(
                                     f"UPDATE {slot_storage.table_name} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :id"
@@ -1304,12 +1304,12 @@ async def create_order(
 
         # Build variant_combinations arg expected by decrement_stock_atomic
         variant_combos = None
-        if getattr(item, "variant_attributes", None) or (isinstance(item, dict) and item.get("variantAttributes")):
-            variant_combos = [{"attributes": item.get("variantAttributes", item.get("variant_attributes")) if isinstance(item, dict) else item.variant_attributes, "quantity": item.get("quantity") if isinstance(item, dict) else (item.get("quantity") if isinstance(item, dict) else item.quantity)}]
+        if getattr(item, "variant_attributes", None) or (isinstance(item, dict) and getattr(item, "variantAttributes", None)):
+            variant_combos = [{"attributes": getattr(item, "variantAttributes", getattr(item, "variant_attributes", None)) if isinstance(item, dict) else item.variant_attributes, "quantity": getattr(item, "quantity", None) if isinstance(item, dict) else (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity)}]
 
         new_stock = await product_repository.decrement_stock_atomic(
             str(item.product),
-            (item.get("quantity") if isinstance(item, dict) else item.quantity),
+            (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity),
             variant_combinations=variant_combos,
             role=effective_role,
         )
@@ -1321,7 +1321,7 @@ async def create_order(
                 item.product,
                 order.id,
             )
-            new_stock = max(0, ((product.stock if product.stock is not None else 0) or 0) - (item.get("quantity") if isinstance(item, dict) else item.quantity))
+            new_stock = max(0, ((product.stock if product.stock is not None else 0) or 0) - (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity))
 
         # Fulfil the stock reservation for this user + product
         from app.repositories.stock_reservation_repository import stock_reservation_repository
@@ -1460,7 +1460,7 @@ async def create_order(
                 oi["sellerId"] = super_admin_id
 
         # Build a lookup of sellerId -> seller user doc (for name)
-        seller_ids_in_order = {item.get("sellerId", item.get("seller_id")) for item in order_items if item.get("sellerId", item.get("seller_id"))}
+        seller_ids_in_order = {getattr(item, "sellerId", getattr(item, "seller_id", None)) for item in order_items if getattr(item, "sellerId", getattr(item, "seller_id", None))}
         seller_docs = {}
         for sid in seller_ids_in_order:
             sdoc = await user_repository.findById(sid)
@@ -1920,8 +1920,8 @@ async def update_order_status(
         # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
         # cannot race against this restoration and produce a wrong stock count.
         for item in (order.items or []):
-            if item.product and (item.get("quantity") if isinstance(item, dict) else item.quantity):
-                await product_repository.increment_stock_atomic(str(item.product), int(((item.get("quantity") if isinstance(item, dict) else item.quantity) if (item.get("quantity") if isinstance(item, dict) else item.quantity) is not None else 0)))
+            if item.product and (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity):
+                await product_repository.increment_stock_atomic(str(item.product), int(((getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity) if (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity) is not None else 0)))
 
         from datetime import datetime
 
@@ -2084,8 +2084,8 @@ async def decline_order(
     # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
     # cannot race against this restoration and produce a wrong stock count.
     for item in (order.items or []):
-        if item.product and (item.get("quantity") if isinstance(item, dict) else item.quantity):
-            await product_repository.increment_stock_atomic(str(item.product), int(((item.get("quantity") if isinstance(item, dict) else item.quantity) if (item.get("quantity") if isinstance(item, dict) else item.quantity) is not None else 0)))
+        if item.product and (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity):
+            await product_repository.increment_stock_atomic(str(item.product), int(((getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity) if (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity) is not None else 0)))
 
     updated_order = await order_repository.update(
         order_id, OrderInternalUpdate(**{"status": "declined", "declineReason": decline_data.reason})
@@ -2260,8 +2260,8 @@ async def get_valet_pending_orders(current_user: User = Depends(get_current_user
 #             "valetDeclineHistory": history,
 #             "pendingValetId": None
 #         }))
-#         order["valetDeclineHistory"] = history
-#         order["pendingValetId"] = None
+#         order.valetDeclineHistory = history
+#         order.pendingValetId = None
 #
 #         from app.jobs.valet_timeout_job import _cascade_or_revert
 #         await _cascade_or_revert(order)
@@ -2298,8 +2298,8 @@ async def cancel_order(order_id: str, current_user: User = Depends(get_current_u
     # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
     # cannot race against this restoration and produce a wrong stock count.
     for item in (order.items or []):
-        if item.product and (item.get("quantity") if isinstance(item, dict) else item.quantity):
-            await product_repository.increment_stock_atomic(str(item.product), int(((item.get("quantity") if isinstance(item, dict) else item.quantity) if (item.get("quantity") if isinstance(item, dict) else item.quantity) is not None else 0)))
+        if item.product and (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity):
+            await product_repository.increment_stock_atomic(str(item.product), int(((getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity) if (getattr(item, "quantity", None) if isinstance(item, dict) else item.quantity) is not None else 0)))
 
     from datetime import datetime
 
@@ -2801,7 +2801,7 @@ async def download_invoice(order_id: str, current_user: User = Depends(get_curre
     if not order.invoice_path:
         raise HTTPException(status_code=404, detail="Invoice not generated yet")
 
-    file_path = Path(DATA_DIR).parent / order["invoicePath"].lstrip("/")
+    file_path = Path(DATA_DIR).parent / order.invoicePath.lstrip("/")
 
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Invoice file not found")

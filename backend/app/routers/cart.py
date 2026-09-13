@@ -183,10 +183,10 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
                 None,
             )
             if existing_item:
-                new_quantity = existing_item.get("quantity", 0) + item.quantity
+                new_quantity = getattr(existing_item, "quantity", 0) + item.quantity
                 items = (cart.items or [])
                 for i, it in enumerate(items):
-                    if it.id == existing_item.get("_id"):
+                    if it.id == existing_item.id:
                         items[i]["quantity"] = new_quantity
                         break
                 await cart_repository.createOrUpdate(current_user.id, items)

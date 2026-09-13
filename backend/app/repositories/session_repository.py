@@ -48,8 +48,8 @@ class SessionRepository:
         sessions = await self.storage.findAll()
         updated = []
         for s in sessions:
-            if s.get("userId") == user_id and s.get("_id") != exclude_session_id and s.get("status") == "active":
-                updated.append(await self.revoke_session(s["_id"], "single_session"))
+            if getattr(s, "userId", None) == user_id and s.id != exclude_session_id and getattr(s, "status", None) == "active":
+                updated.append(await self.revoke_session(s.id, "single_session"))
         return updated
 
     async def touch_last_active(self, session_id: str):
@@ -86,7 +86,7 @@ class SessionRepository:
             all_sessions = await self.storage.findAll({"userId": str(user_id)})
             for s in all_sessions:
                 try:
-                    await self.storage.delete(s["_id"])
+                    await self.storage.delete(s.id)
                 except Exception:
                     pass
 

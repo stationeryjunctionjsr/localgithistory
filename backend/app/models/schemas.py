@@ -2574,8 +2574,8 @@ class UserInternalCreate(BaseModel):
     role: str
     phone: str = ""
     companyName: str = ""
-    address: Dict[str, Any] = Field(default_factory=dict)
-    savedAddresses: List[Dict[str, Any]] = Field(default_factory=list)
+    address: Optional[Address] = None
+    savedAddresses: Optional[List[Address]] = None
     isActive: bool = True
     approvalStatus: str
     isDeactivated: bool = False
@@ -2596,8 +2596,8 @@ class UserInternalUpdate(BaseModel):
     role: Optional[str] = None
     phone: Optional[str] = None
     companyName: Optional[str] = None
-    address: Optional[Dict[str, Any]] = None
-    savedAddresses: Optional[List[Dict[str, Any]]] = None
+    address: Optional[Address] = None
+    savedAddresses: Optional[List[Address]] = None
     isActive: Optional[bool] = None
     approvalStatus: Optional[str] = None
     isDeactivated: Optional[bool] = None

@@ -82,7 +82,7 @@ class DeliveryChargeRepository:
         }
 
         if existing:
-            return await self.default_storage.update(existing["_id"], default_charge)
+            return await self.default_storage.update(existing.id, default_charge)
         else:
             return await self.default_storage.create(default_charge)
 
@@ -91,7 +91,7 @@ class DeliveryChargeRepository:
         existing = await self.getDefaultCharge()
         if not existing:
             return None
-        return await self.default_storage.delete(existing["_id"])
+        return await self.default_storage.delete(existing.id)
 
     async def getChargeForLocation(
         self,
@@ -327,8 +327,8 @@ class DeliveryChargeRepository:
             "district": charge_data.get("district", ""),
             # If default is applied, don't store charge/minCartValue/tiers
             "applyDefaultCharge": apply_default,
-            "charge": None if apply_default else float(charge_data.get("charge") or 0),
-            "minCartValue": None if apply_default else float(charge_data.get("minCartValue") or 0),
+            "charge": None if apply_default else (float(charge_data.get("charge")) if charge_data.get("charge") is not None else None),
+            "minCartValue": None if apply_default else (float(charge_data.get("minCartValue")) if charge_data.get("minCartValue") is not None else None),
             "tiers": None if apply_default else (charge_data.get("tiers", [])),
             # Serviceability flags
             "serviceableForCustomer": charge_data.get("serviceableForCustomer", False) is True,
