@@ -24,7 +24,7 @@ class OrderRepository:
             # Generate incremental ID for each type
             all_orders = await self.storage.findAll()
             orders_of_type = [
-                order for order in all_orders if getattr(order, "orderNumber", None) and order.orderNumber.startswith(prefix)
+                order for order in all_orders if order.orderNumber and order.orderNumber.startswith(prefix)
             ]
 
             max_id = 0
@@ -78,7 +78,7 @@ class OrderRepository:
             if update_data.deliveredAt is None:
                 update_data.deliveredAt = datetime.now(timezone.utc).isoformat()
             order = await self.findById(id)
-            if order and getattr(order, "paymentMethod", None) == "cod":
+            if order and order.paymentMethod == "cod":
                 if update_data.paymentStatus is None:
                     update_data.paymentStatus = "paid"
                 if update_data.codPaymentReceived is None:
@@ -86,7 +86,7 @@ class OrderRepository:
                 if update_data.codPaymentReceivedAt is None:
                     update_data.codPaymentReceivedAt = datetime.now(timezone.utc).isoformat()
             try:
-                created_at_str = getattr(order, "createdAt", None) if order else None
+                created_at_str = order.createdAt if order else None
                 if created_at_str and update_data.deliveredAt:
                     created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
                     delivered_at = datetime.fromisoformat(update_data.deliveredAt.replace("Z", "+00:00"))

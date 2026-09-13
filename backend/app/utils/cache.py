@@ -103,7 +103,7 @@ class InMemoryTTLCache:
     def invalidate(self, key_or_func) -> None:
         """Remove a key from the cache (accepts string key or decorated function)."""
         if callable(key_or_func):
-            base_key = getattr(key_or_func, "_cache_key", None)
+            base_key = key_or_func._cache_key
             if not base_key:
                 return
             keys_to_delete = [k for k in self._store if k == base_key or k.startswith(f"{base_key}:")]

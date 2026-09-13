@@ -28,7 +28,7 @@ class ProductReviewRepository:
             return
         from app.config.settings import settings
 
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         table_name_upper = f"SJ_PRODUCT_REVIEWS{suffix}".upper()
         table_name_lower = f"sj_product_reviews{suffix}".lower()
         constraint_name_lower = f"uq_prod_review_external{suffix}".lower()

@@ -118,7 +118,7 @@ class MySQLSellerPayoutDAO:
                 vals.append(f":{api_k}")
                 params[api_k] = val
 
-        sub_orders = (data.subOrderIds if getattr(data, 'subOrderIds', None) is not None else [])
+        sub_orders = (data.subOrderIds if data.subOrderIds is not None else [])
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)

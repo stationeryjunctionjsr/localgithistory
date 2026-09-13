@@ -16,7 +16,7 @@ from app.models.category import Category
 class MySQLCategoryDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_categories{suffix}"
 
     def _factory(self):
@@ -29,9 +29,9 @@ class MySQLCategoryDAO:
             "description": r.description,
             "isActive": bool(r.is_active) if r.is_active is not None else True,
             "categoryTag": r.category_tag,
-            "minimumQuantity": getattr(r, "minimum_quantity", None),
-            "gst": float(r.gst) if getattr(r, "gst", None) is not None else None,
-            "isReturnable": bool(r.is_returnable) if getattr(r, "is_returnable", None) is not None else True,
+            "minimumQuantity": r.minimum_quantity,
+            "gst": float(r.gst) if r.gst is not None else None,
+            "isReturnable": bool(r.is_returnable) if r.is_returnable is not None else True,
             "images": children.get("images", []),
             "subCategories": children.get("subCategories", []),
             "categoryTags": children.get("categoryTags", []),
@@ -77,19 +77,19 @@ class MySQLCategoryDAO:
         await session.execute(text("DELETE FROM sj_category_sub_categories WHERE category_id = :cid"), {"cid": cid})
         await session.execute(text("DELETE FROM sj_category_category_tags WHERE category_id = :cid"), {"cid": cid})
 
-        for img in (data.images if getattr(data, 'images', None) is not None else []):
+        for img in (data.images if data.images is not None else []):
             await session.execute(
                 text("INSERT INTO sj_category_images (category_id, image_url) VALUES (:cid, :img)"),
                 {"cid": cid, "img": str(img)},
             )
 
-        for sub in (data.subCategories if getattr(data, 'subCategories', None) is not None else []):
+        for sub in (data.subCategories if data.subCategories is not None else []):
             await session.execute(
                 text("INSERT INTO sj_category_sub_categories (category_id, sub_category) VALUES (:cid, :sub)"),
                 {"cid": cid, "sub": str(sub)},
             )
 
-        for tag in (data.categoryTags if getattr(data, 'categoryTags', None) is not None else []):
+        for tag in (data.categoryTags if data.categoryTags is not None else []):
             await session.execute(
                 text("INSERT INTO sj_category_category_tags (category_id, tag) VALUES (:cid, :tag)"),
                 {"cid": cid, "tag": str(tag)},

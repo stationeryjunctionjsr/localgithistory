@@ -36,13 +36,13 @@ class SellerRequestRepository:
         req_data = request_data if isinstance(request_data, dict) else dict(request_data)
         request = {
             "requestNumber": self.generateRequestNumber(),
-            "user": getattr(req_data, "user", None),
+            "user": req_data.user,
             "subject": req_data.subject,
             "description": req_data.description,
-            "category": getattr(req_data, "category", "general"),
-            "priority": getattr(req_data, "priority", "medium"),
-            "status": getattr(req_data, "status", "open"),
-            "attachments": getattr(req_data, "attachments", []),
+            "category": (req_data.category if req_data.category is not None else "general"),
+            "priority": (req_data.priority if req_data.priority is not None else "medium"),
+            "status": (req_data.status if req_data.status is not None else "open"),
+            "attachments": (req_data.attachments if req_data.attachments is not None else []),
             "responses": [],
             "resolvedAt": None,
             "closedAt": None,
@@ -54,9 +54,9 @@ class SellerRequestRepository:
     async def update(self, id: str, update_data: Any):
         from app.models.daos import SellerRequestInternalUpdate
         update_data_dict = update_data if isinstance(update_data, dict) else dict(update_data)
-        if getattr(update_data_dict, "status", None) == "resolved" and "resolvedAt" not in update_data_dict:
+        if update_data_dict.status == "resolved" and "resolvedAt" not in update_data_dict:
             update_data_dict.resolvedAt = datetime.now(timezone.utc).isoformat()
-        elif getattr(update_data_dict, "status", None) == "closed" and "closedAt" not in update_data_dict:
+        elif update_data_dict.status == "closed" and "closedAt" not in update_data_dict:
             update_data_dict.closedAt = datetime.now(timezone.utc).isoformat()
 
         return await self.storage.update(id, SellerRequestInternalUpdate.model_validate(update_data_dict))
@@ -69,16 +69,16 @@ class SellerRequestRepository:
         response = {
             "user": response_data.user,
             "message": response_data.message,
-            "attachments": getattr(response_data, "attachments", []),
-            "isAdminResponse": getattr(response_data, "isAdminResponse", False),
+            "attachments": (response_data.attachments if response_data.attachments is not None else []),
+            "isAdminResponse": (response_data.isAdminResponse if response_data.isAdminResponse is not None else False),
             "createdAt": datetime.now(timezone.utc).isoformat(),
         }
 
-        request.responses = getattr(request, "responses", [])
+        request.responses = (request.responses if request.responses is not None else [])
         request.responses.append(response)
 
         # Update request status if admin responds
-        if getattr(response_data, "isAdminResponse", None) and getattr(request, "status", None) == "open":
+        if response_data.isAdminResponse and request.status == "open":
             request.status = "in_progress"
 
         return await self.update(request_id, {"responses": request.responses, "status": request.status})

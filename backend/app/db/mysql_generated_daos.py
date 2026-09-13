@@ -25,14 +25,14 @@ class DynamicRelationalDAO:
 
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"{self.table_name}{suffix}"
 
     def _factory(self):
         return get_async_session_factory()
 
     def _row_to_dict(self, r, children: Dict) -> Any:
-        out = {"_id": str(r.id), "externalId": getattr(r, "external_id", None)}
+        out = {"_id": str(r.id), "externalId": r.external_id}
         if hasattr(r, "created_at") and r.created_at:
             out["createdAt"] = r.created_at.isoformat()
         if hasattr(r, "updated_at") and r.updated_at:
@@ -45,7 +45,7 @@ class DynamicRelationalDAO:
             out[api_key] = val
         for k, v in children.items():
             out[k] = v
-        schema_cls = self.flat_relational_dao.schema_cls if getattr(self, "flat_relational_dao", None) else None
+        schema_cls = self.flat_relational_dao.schema_cls if self.flat_relational_dao else None
         return schema_cls(**out) if schema_cls else out
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:

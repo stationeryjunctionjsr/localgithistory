@@ -36,7 +36,7 @@ async def get_settings(current_user: User = Depends(require_super_admin)):
     """Get global system settings"""
     doc = await storage.findById("1")
     if not doc:
-        return await storage.create(SystemSettingsUpdate().model_dump(exclude_unset=True))
+        return await storage.create(SystemSettingsUpdate())
     return doc
 
 
@@ -46,11 +46,11 @@ async def update_settings(data: SystemSettingsUpdate, current_user: User = Depen
     """Update global system settings"""
     doc = await storage.findById("1")
     if not doc:
-        new_doc = data.model_dump(exclude_unset=True)
+        new_doc = data
         await storage.create(new_doc)
         return new_doc
 
-    updated = await storage.update("1", data.model_dump(exclude_unset=True))
+    updated = await storage.update("1", data)
     return updated
 
 

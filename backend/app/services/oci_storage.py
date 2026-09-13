@@ -254,17 +254,17 @@ async def upload_image_and_return_path(
     from datetime import datetime
     from pathlib import Path
 
-    ext = Path(getattr(file, "filename", "") or "img").suffix or ".png"
+    ext = Path((file.filename if file.filename is not None else "") or "img").suffix or ".png"
     unique = datetime.now().strftime("%Y%m%d%H%M%S") + str(random.randint(100000000, 999999999))
     safe_filename = f"{filename_prefix}-{unique}{ext}"
 
     content = await file.read()
-    original_filename = getattr(file, "filename", "") or "img"
+    original_filename = (file.filename if file.filename is not None else "") or "img"
     validate_image_content(content, original_filename)
 
     if use_oci_storage():
         key = build_key(prefix, safe_filename, entity_id=entity_id)
-        content_type = getattr(file, "content_type", None) or "application/octet-stream"
+        content_type = file.content_type or "application/octet-stream"
         await asyncio.to_thread(upload_object, key, content, content_type)
         return key_to_media_path(key)
 

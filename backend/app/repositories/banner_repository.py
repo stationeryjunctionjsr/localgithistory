@@ -15,12 +15,12 @@ class BannerRepository:
         # Consistent preprocessing for ALL banners
         for banner in banners:
             # 1. User Segments normalization
-            if not getattr(banner, "userSegments", None):
-                legacy_aud = getattr(banner, "targetAudience", "all")
+            if not banner.userSegments:
+                legacy_aud = (banner.targetAudience if banner.targetAudience is not None else "all")
                 banner.userSegments = [legacy_aud] if legacy_aud else ["all"]
 
             # 2. Rules normalization
-            if not getattr(banner, "visibilityRules", None):
+            if not banner.visibilityRules:
                 banner.visibilityRules = []
 
             # 3. Always derive legacy fields for UI consistency
@@ -32,9 +32,9 @@ class BannerRepository:
                 banner.position = rules[0].get("pageType", "homepage")
             
             # 4. Ensure required date fields exist for Pydantic validation
-            if not getattr(banner, "startDate", None):
-                banner.startDate = getattr(banner, "createdAt", None) or datetime.now(timezone.utc).isoformat()
-            elif not getattr(banner, "position", None):
+            if not banner.startDate:
+                banner.startDate = banner.createdAt or datetime.now(timezone.utc).isoformat()
+            elif not banner.position:
                 banner.position = "homepage"
 
         query = query or {}
@@ -43,23 +43,23 @@ class BannerRepository:
         target_page_id = query.get("pageId")
 
         if query.get("isActive") is not None:
-            banners = [b for b in banners if getattr(b, "isActive", None) == query["isActive"]]
+            banners = [b for b in banners if b.isActive == query["isActive"]]
 
         if query.get("isPublished") is not None:
-            banners = [b for b in banners if getattr(b, "isPublished", None) == query["isPublished"]]
+            banners = [b for b in banners if b.isPublished == query["isPublished"]]
 
         if target_page_type:
             filtered = []
             for banner in banners:
-                segments = [str(s).lower() for s in getattr(banner, "userSegments", ["all"])]
+                segments = [str(s).lower() for s in (banner.userSegments if banner.userSegments is not None else ["all"])]
 
                 # Role Check (Super Admin bypasses, otherwise check 'all' or specific role)
                 if user_role != "super_admin" and "all" not in segments and user_role not in segments:
                     continue
 
                 # Position/Rule Check
-                legacy_pos = str(getattr(banner, "position", "")).lower()
-                rules = getattr(banner, "visibilityRules", [])
+                legacy_pos = str((banner.position if banner.position is not None else "")).lower()
+                rules = (banner.visibilityRules if banner.visibilityRules is not None else [])
                 match = False
 
                 # Standard homepage mapping
@@ -113,8 +113,8 @@ class BannerRepository:
         active_banners = []
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         for banner in banners:
-            start_date = getattr(banner, "startDate", None)
-            end_date = getattr(banner, "endDate", None)
+            start_date = banner.startDate
+            end_date = banner.endDate
 
             def parse_iso(dt_str):
                 if not dt_str or not str(dt_str).strip():
@@ -152,9 +152,9 @@ class BannerRepository:
             visibility_rules = banner_data.get("visibilityRules", [])
             start_date = banner_data.get("startDate")
         else:
-            user_segments = getattr(banner_data, "userSegments", ["all"])
-            visibility_rules = getattr(banner_data, "visibilityRules", [])
-            start_date = getattr(banner_data, "startDate", None)
+            user_segments = (banner_data.userSegments if banner_data.userSegments is not None else ["all"])
+            visibility_rules = (banner_data.visibilityRules if banner_data.visibilityRules is not None else [])
+            start_date = banner_data.startDate
 
         target_audience = user_segments[0] if user_segments else "all"
         position = visibility_rules[0].get("pageType", "homepage") if visibility_rules else "homepage"
@@ -163,15 +163,15 @@ class BannerRepository:
             start_date = datetime.now(timezone.utc).isoformat()
 
         banner_dict = {
-            "title": banner_data.get("title", "") if isinstance(banner_data, dict) else getattr(banner_data, "title", ""),
-            "description": banner_data.get("description", "") if isinstance(banner_data, dict) else getattr(banner_data, "description", ""),
-            "imageUrl": banner_data["imageUrl"] if isinstance(banner_data, dict) else getattr(banner_data, "imageUrl", ""),
-            "linkUrl": banner_data.get("linkUrl", "") if isinstance(banner_data, dict) else getattr(banner_data, "linkUrl", ""),
-            "displayOrder": banner_data.get("displayOrder", 0) if isinstance(banner_data, dict) else getattr(banner_data, "displayOrder", 0),
+            "title": banner_data.get("title", "") if isinstance(banner_data, dict) else (banner_data.title if banner_data.title is not None else ""),
+            "description": banner_data.get("description", "") if isinstance(banner_data, dict) else (banner_data.description if banner_data.description is not None else ""),
+            "imageUrl": banner_data["imageUrl"] if isinstance(banner_data, dict) else (banner_data.imageUrl if banner_data.imageUrl is not None else ""),
+            "linkUrl": banner_data.get("linkUrl", "") if isinstance(banner_data, dict) else (banner_data.linkUrl if banner_data.linkUrl is not None else ""),
+            "displayOrder": banner_data.get("displayOrder", 0) if isinstance(banner_data, dict) else (banner_data.displayOrder if banner_data.displayOrder is not None else 0),
             "startDate": start_date,
-            "endDate": banner_data.get("endDate") if isinstance(banner_data, dict) else getattr(banner_data, "endDate", None),
-            "isActive": banner_data.get("isActive", True) if isinstance(banner_data, dict) else getattr(banner_data, "isActive", True),
-            "isPublished": banner_data.get("isPublished", False) if isinstance(banner_data, dict) else getattr(banner_data, "isPublished", False),
+            "endDate": banner_data.get("endDate") if isinstance(banner_data, dict) else banner_data.endDate,
+            "isActive": banner_data.get("isActive", True) if isinstance(banner_data, dict) else (banner_data.isActive if banner_data.isActive is not None else True),
+            "isPublished": banner_data.get("isPublished", False) if isinstance(banner_data, dict) else (banner_data.isPublished if banner_data.isPublished is not None else False),
             "targetAudience": target_audience,
             "userSegments": user_segments,
             "visibilityRules": visibility_rules,

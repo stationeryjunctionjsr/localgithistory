@@ -29,7 +29,7 @@ def _to_ts(val):
 class MySQLSavedForLaterDAO:
     @property
     def TABLE(self) -> str:
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_saved_for_later{suffix}"
 
     def _factory(self):
@@ -90,7 +90,7 @@ class MySQLSavedForLaterDAO:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
-        user_id = str((data.user if getattr(data, 'user', None) is not None else ""))
+        user_id = str((data.user if data.user is not None else ""))
         items = data.items or []
         if not user_id:
             raise ValueError("user is required")

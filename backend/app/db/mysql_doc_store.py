@@ -51,7 +51,7 @@ class MySQLDocStore:
 
     @property
     def table_name(self) -> str:
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"{self._raw_table_name}{suffix}"
 
     def _get_session_factory(self):
@@ -307,7 +307,7 @@ class MySQLDocStore:
         existing = await self.findById(id)
         if not existing:
             return None
-        db_id = getattr(existing, "_db_id", None) or id
+        db_id = existing._db_id or id
         factory = self._get_session_factory()
         if not factory:
             return None
@@ -381,7 +381,7 @@ class MySQLDocStore:
         existing = await self.findById(id)
         if not existing:
             return False
-        db_id = getattr(existing, "_db_id", None) or id
+        db_id = existing._db_id or id
         factory = self._get_session_factory()
         if not factory:
             return False

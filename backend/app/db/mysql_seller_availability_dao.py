@@ -41,7 +41,7 @@ class MySQLSellerAvailabilityDAO:
 
     @property
     def table_name(self) -> str:
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_seller_availability{suffix}"
 
     def _get_session_factory(self):
@@ -124,7 +124,7 @@ class MySQLSellerAvailabilityDAO:
         params = {
             "external_id": secrets.token_hex(16),
             "seller_id": str(data.sellerId or ""),
-            "status": (data.status if getattr(data, 'status', None) is not None else "scheduled"),
+            "status": (data.status if data.status is not None else "scheduled"),
             "start_at": _to_dt(data.startAt),
             "end_at": _to_dt(data.endAt),
             "reason": data.reason,

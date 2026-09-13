@@ -12,7 +12,7 @@ class CartRepository:
         return await self.storage.findOne({"user": user_id})
 
     async def create(self, cart_data: Any):
-        cart = CartInternalCreate(user=cart_data.user, items=getattr(cart_data, "items", []))
+        cart = CartInternalCreate(user=cart_data.user, items=(cart_data.items if cart_data.items is not None else []))
         return await self.storage.create(cart)
 
     async def update(self, id: str, update_data: Any):
@@ -39,22 +39,22 @@ class CartRepository:
         if not cart:
             return await self.createOrUpdate(user_id, [item])
 
-        items = getattr(cart, "items", [])
+        items = (cart.items if cart.items is not None else [])
         # Check for existing item with same product, variants, and sellAsCase
         existing_item_index = next(
             (
                 i
                 for i, it in enumerate(items)
-                if getattr(it, "product", None) == getattr(item, "product", None)
-                and getattr(it, "variantAttributes", None) == getattr(item, "variantAttributes", None)
-                and getattr(it, "sellAsCase", None) == getattr(item, "sellAsCase", None)
+                if it.product == item.product
+                and it.variantAttributes == item.variantAttributes
+                and it.sellAsCase == item.sellAsCase
             ),
             None,
         )
 
         if existing_item_index is not None:
-            items[existing_item_index]["quantity"] += getattr(item, 'quantity', 0)
-            items[existing_item_index]["price"] = getattr(item, "price", None)
+            items[existing_item_index]["quantity"] += (item.quantity if item.quantity is not None else 0)
+            items[existing_item_index]["price"] = item.price
         else:
             items.append(item)
 
@@ -65,8 +65,8 @@ class CartRepository:
         if not cart:
             raise ValueError("Cart not found")
 
-        items = getattr(cart, "items", [])
-        items = [item for item in items if getattr(item, "_id", None) != item_id]
+        items = (cart.items if cart.items is not None else [])
+        items = [item for item in items if item._id != item_id]
         return await self.createOrUpdate(user_id, items)
 
     async def saveForLater(self, user_id: str, product_id: str):
@@ -78,8 +78,8 @@ class CartRepository:
 
         if existing:
             # Check if already saved
-            items = getattr(existing, "items", [])
-            already_saved = any(getattr(item, "productId", None) == product_id for item in items)
+            items = (existing.items if existing.items is not None else [])
+            already_saved = any(item.productId == product_id for item in items)
             if already_saved:
                 return existing
             items.append(saved_item)

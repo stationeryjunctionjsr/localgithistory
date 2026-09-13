@@ -142,11 +142,11 @@ class PushNotificationRepository:
         # Return subscriptions including expoToken for mobile devices
         return [
             {
-                "userId": getattr(d, "userId", None),
-                "endpoint": getattr(d, "endpoint", None),
-                "keys": getattr(d, 'keys', {}),
-                "expoToken": getattr(d, "expoToken", None),
-                "_id": getattr(d, "_id", None),
+                "userId": d.userId,
+                "endpoint": d.endpoint,
+                "keys": (d.keys if d.keys is not None else {}),
+                "expoToken": d.expoToken,
+                "_id": d._id,
             }
             for d in devices
         ]
@@ -156,10 +156,10 @@ class PushNotificationRepository:
         user_devices = await self.device_storage.findAll({"userId": userId})
         return [
             {
-                "endpoint": getattr(d, "endpoint", None),
-                "keys": getattr(d, 'keys', {}),
-                "expoToken": getattr(d, "expoToken", None),
-                "_id": getattr(d, "_id", None),
+                "endpoint": d.endpoint,
+                "keys": (d.keys if d.keys is not None else {}),
+                "expoToken": d.expoToken,
+                "_id": d._id,
             }
             for d in user_devices
         ]

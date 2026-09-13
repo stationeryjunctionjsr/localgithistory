@@ -25,18 +25,18 @@ class WishlistRepository:
         wishlist = await self.findByUser(user_id)
 
         normalized = {
-            "_id": getattr(item, "_id", None) or str(uuid.uuid4()),
-            "product": getattr(item, "product", None),
-            "quantity": getattr(item, 'quantity', 1),
-            "addedAt": getattr(item, "addedAt", None) or datetime.now(timezone.utc).isoformat(),
+            "_id": item._id or str(uuid.uuid4()),
+            "product": item.product,
+            "quantity": (item.quantity if item.quantity is not None else 1),
+            "addedAt": item.addedAt or datetime.now(timezone.utc).isoformat(),
         }
 
         if not wishlist:
             return await self.createOrUpdate(user_id, [normalized])
 
         # No duplicates per product
-        items = getattr(wishlist, "items", [])
-        exists = any(getattr(i, "product", None) == normalized["product"] for i in items)
+        items = (wishlist.items if wishlist.items is not None else [])
+        exists = any(i.product == normalized["product"] for i in items)
         if exists:
             return wishlist
 
@@ -48,8 +48,8 @@ class WishlistRepository:
         if not wishlist:
             return False
 
-        items = getattr(wishlist, "items", [])
-        items = [item for item in items if getattr(item, "product", None) != product_id]
+        items = (wishlist.items if wishlist.items is not None else [])
+        items = [item for item in items if item.product != product_id]
         await self.createOrUpdate(user_id, items)
         return True
 

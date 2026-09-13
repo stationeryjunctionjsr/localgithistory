@@ -129,7 +129,7 @@ class MySQLAdDAO:
                 vals.append(f":{api_k}")
                 params[api_k] = val
         
-        stats = getattr(data, "stats", None)
+        stats = data.stats
         stats_map = {
             "impressions": "impressions", "clicks": "clicks", "leads": "leads", "purchases": "purchases",
             "add_to_cart": "add_to_cart", "conversions": "conversions", "conversion_value": "conversion_value",

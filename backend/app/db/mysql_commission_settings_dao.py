@@ -16,7 +16,7 @@ from app.db.db_utils import now_utc
 class MySQLCommissionSettingsDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_commission_settings{suffix}"
 
     def _factory(self):
@@ -90,7 +90,7 @@ class MySQLCommissionSettingsDAO:
         await session.execute(
             text("DELETE FROM sj_commission_settings_tiers WHERE setting_id = :sid"), {"sid": setting_id}
         )
-        for t in (data.tiers if getattr(data, 'tiers', None) is not None else []):
+        for t in (data.tiers if data.tiers is not None else []):
             await session.execute(
                 text(
                     "INSERT INTO sj_commission_settings_tiers (setting_id, min_val, max_val, commission_pct) VALUES (:sid, :minv, :maxv, :pct)"
@@ -113,7 +113,7 @@ class MySQLCommissionSettingsDAO:
                 """),
                 {
                     "external_id": external_id,
-                    "default_commission_pct": (data.defaultCommissionPct if getattr(data, 'defaultCommissionPct', None) is not None else 5.0),
+                    "default_commission_pct": (data.defaultCommissionPct if data.defaultCommissionPct is not None else 5.0),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -138,7 +138,7 @@ class MySQLCommissionSettingsDAO:
         async with factory() as session:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET default_commission_pct = :pct, updated_at = :upd WHERE id = :id"),
-                {"id": int(id) if str(id).isdigit() else None, "pct": (merged.defaultCommissionPct if getattr(merged, 'defaultCommissionPct', None) is not None else 5.0), "upd": now},
+                {"id": int(id) if str(id).isdigit() else None, "pct": (merged.defaultCommissionPct if merged.defaultCommissionPct is not None else 5.0), "upd": now},
             )
             await self._replace_children(session, int(id) if str(id).isdigit() else None, merged)
             await session.commit()

@@ -17,12 +17,12 @@ from app.db.db_utils import now_utc
 class MySQLCartDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_carts{suffix}"
 
     @property
     def ITEMS_TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_cart_items{suffix}"
 
     def _factory(self):
@@ -117,7 +117,7 @@ class MySQLCartDAO:
             pid_raw = it.product
             if not pid_raw:
                 continue
-            qty = (it.quantity if getattr(it, 'quantity', None) is not None else 0) or 0
+            qty = (it.quantity if it.quantity is not None else 0) or 0
             sell_as_case = 1 if it.sellAsCase else 0
             bundle_id = it.bundleId
             bundle_name = it.bundleName

@@ -57,7 +57,7 @@ def _is_fresh(expiry: float) -> bool:
 
 def _cache_zone(zone: dict) -> frozenset:
     """Kept for backward compatibility — not used in new flow."""
-    seller_ids = frozenset(str(s) for s in (getattr(zone, "sellerIds", None) or []))
+    seller_ids = frozenset(str(s) for s in (zone.sellerIds or []))
     return seller_ids
 
 
@@ -111,13 +111,13 @@ async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional
     try:
         zones = await _fetch_all_zones()
         for zone in zones:
-            pincodes = getattr(zone, "pincodes", None) or []
+            pincodes = zone.pincodes or []
             if pincode not in pincodes:
                 continue
 
             # Use the MySQL _id (as string) as the zone identifier.
             # sj_delivery_zones has no external_id column, so we use _id consistently.
-            zone_str_id = str(getattr(zone, "id", ""))
+            zone_str_id = str((zone.id if zone.id is not None else ""))
             if not zone_str_id:
                 logger.warning("zone_seller_cache: zone has no _id: %s", zone)
                 return None, None
@@ -156,7 +156,7 @@ async def get_zone_for_pincode(pincode: str) -> Optional[dict]:
     try:
         zones = await _fetch_all_zones()
         for zone in zones:
-            if pincode in (getattr(zone, "pincodes", None) or []):
+            if pincode in (zone.pincodes or []):
                 return zone
         return None
     except Exception as exc:

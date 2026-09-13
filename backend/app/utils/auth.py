@@ -120,26 +120,26 @@ async def verify_token(token: str) -> 'User':
     # Inactivity check
     session = await session_repository.check_inactivity_and_revoke(session, INACTIVITY_DAYS)
 
-    if getattr(session, "status", None) != "active":
+    if session.status != "active":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
                 "code": ERR_SESSION_REVOKED,
-                "revokedAt": getattr(session, "revoked_at", None),
-                "reason": getattr(session, "revoked_reason", None),
+                "revokedAt": session.revoked_at,
+                "reason": session.revoked_reason,
             },
         )
 
     await session_repository.touch_last_active(session_id)
 
     user = await user_repository.findById(user_id)
-    if user is None or not getattr(user, "is_active", True):
+    if user is None or not (user.is_active if user.is_active is not None else True):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
-    if getattr(user, "is_deactivated", False) and getattr(user, "role", None) == "wholesaler":
+    if (user.is_deactivated if user.is_deactivated is not None else False) and user.role == "wholesaler":
         user.effective_role = "customer"
     else:
-        user.effective_role = getattr(user, "role", "customer")
+        user.effective_role = (user.role if user.role is not None else "customer")
 
     user.session_id = session_id
     user.password = None
@@ -150,7 +150,7 @@ def check_roles(user: 'User', *allowed_roles: str):
     """Check if user has required role. Uses effectiveRole when present
     (e.g. deactivated wholesalers get effectiveRole='customer'), falling
     back to role for backwards compatibility."""
-    effective = getattr(user, "effective_role", None) or getattr(user, "role", None)
+    effective = user.effective_role or user.role
     print(f"USER ROLE: {effective}, Allowed: {allowed_roles}")
     if effective not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Insufficient permissions.")
@@ -260,7 +260,7 @@ async def require_super_admin_or_valet(current_user: 'User' = Depends(get_curren
 
 
 def is_seller_admin(user: 'User') -> bool:
-    return getattr(user, "role", None) == "seller_admin"
+    return user.role == "seller_admin"
 
 
 def require_seller_admin(user: 'User' = Depends(get_current_user)) -> 'User':
@@ -270,7 +270,7 @@ def require_seller_admin(user: 'User' = Depends(get_current_user)) -> 'User':
 
 
 def require_super_admin_or_seller(user: 'User' = Depends(get_current_user)) -> 'User':
-    role = getattr(user, "role", None)
+    role = user.role
     if role not in ("super_admin", "seller_admin", "seller"):
         raise HTTPException(status_code=403, detail="Admin or Seller required")
     return user

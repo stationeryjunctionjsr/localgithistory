@@ -49,20 +49,20 @@ class UserRepository:
 
     async def create(self, user_data: Any) -> User:
         # Check if user with email already exists (only if email is provided)
-        email = getattr(user_data, "email", None)
+        email = user_data.email
         if email:
             existing = await self.findByEmail(email)
             if existing:
                 raise ValueError("User with this email already exists")
 
         # Check if user with phone already exists
-        if getattr(user_data, "phone", None):
+        if user_data.phone:
             existing_phone = await self.findByPhone(user_data.phone)
             if existing_phone:
                 raise ValueError("User with this phone number already exists")
 
         # Password is required for account creation
-        password_val = getattr(user_data, "password", None)
+        password_val = user_data.password
         if not password_val:
             raise ValueError("Password is required")
         hashed_password = get_password_hash(password_val)
@@ -73,21 +73,21 @@ class UserRepository:
         # than count-based allocation which silently produces duplicates when rows
         # are deleted and re-added.
         try:
-            all_ids = [getattr(u, "userId", None) for u in await self.storage.findAll() if isinstance(getattr(u, "userId", None), int)]
+            all_ids = [u.userId for u in await self.storage.findAll() if isinstance(u.userId, int)]
             user_id = (max(all_ids) + 1) if all_ids else 1
         except Exception:
             user_id = 1
         user_id_formatted = f"USER-{user_id}"
 
         # Determine approval status
-        role = getattr(user_data, "role", "customer")
+        role = (user_data.role if user_data.role is not None else "customer")
         approval_status = "pending" if role == "wholesaler" else "approved"
 
         # Generate referral code
         referral_code = await get_unique_referral_code(self)
 
         # Name and email are optional; default name to "Customer" if not provided
-        name = getattr(user_data, "name", None) or "Customer"
+        name = user_data.name or "Customer"
         email_val = email.lower() if email else None
 
         user_model = UserInternalCreate(
@@ -97,19 +97,19 @@ class UserRepository:
             email=email_val,
             password=hashed_password,
             role=role,
-            phone=getattr(user_data, "phone", ""),
-            companyName=getattr(user_data, "companyName", ""),
-            address=getattr(user_data, "address", {}),
-            savedAddresses=getattr(user_data, "savedAddresses", []),
-            isActive=getattr(user_data, "isActive", True),
-            approvalStatus=getattr(user_data, "approvalStatus", approval_status),
-            isDeactivated=getattr(user_data, "isDeactivated", False),
-            creditLimit=getattr(user_data, "creditLimit", 0),
-            creditUsed=getattr(user_data, "creditUsed", 0),
-            paymentTerms=getattr(user_data, "paymentTerms", "30"),
-            assignedSalesperson=getattr(user_data, "assignedSalesperson", None),
+            phone=(user_data.phone if user_data.phone is not None else ""),
+            companyName=(user_data.companyName if user_data.companyName is not None else ""),
+            address=(user_data.address if user_data.address is not None else {}),
+            savedAddresses=(user_data.savedAddresses if user_data.savedAddresses is not None else []),
+            isActive=(user_data.isActive if user_data.isActive is not None else True),
+            approvalStatus=(user_data.approvalStatus if user_data.approvalStatus is not None else approval_status),
+            isDeactivated=(user_data.isDeactivated if user_data.isDeactivated is not None else False),
+            creditLimit=(user_data.creditLimit if user_data.creditLimit is not None else 0),
+            creditUsed=(user_data.creditUsed if user_data.creditUsed is not None else 0),
+            paymentTerms=(user_data.paymentTerms if user_data.paymentTerms is not None else "30"),
+            assignedSalesperson=user_data.assignedSalesperson,
             referralCode=referral_code,
-            isEmailVerified=getattr(user_data, "isEmailVerified", False),
+            isEmailVerified=(user_data.isEmailVerified if user_data.isEmailVerified is not None else False),
         )
 
         if user_model.address and user_model.address not in user_model.savedAddresses:
@@ -146,15 +146,15 @@ class UserRepository:
         if not user:
             return None
 
-        saved_addresses = getattr(user, "saved_addresses", [])
+        saved_addresses = (user.saved_addresses if user.saved_addresses is not None else [])
 
         # Simple duplicate check
         is_duplicate = False
         for sa in saved_addresses:
             if (
-                getattr(sa, "street", None) == getattr(address, "street", None)
-                and getattr(sa, "city", None) == getattr(address, "city", None)
-                and getattr(sa, "zipCode", None) == getattr(address, "zipCode", None)
+                sa.street == address.street
+                and sa.city == address.city
+                and sa.zipCode == address.zipCode
             ):
                 is_duplicate = True
                 break
@@ -166,18 +166,18 @@ class UserRepository:
         return saved_addresses
 
     def compare_password(self, user: Any, candidate_password: str) -> bool:
-        if not user or not getattr(user, "password", None):
+        if not user or not user.password:
             logger.warning(
                 "compare_password: User or password missing, userId=%s, hasPassword=%s",
-                getattr(user, "id", None) if user else None,
-                bool(getattr(user, "password", None) if user else False),
+                user.id if user else None,
+                bool(user.password if user else False),
             )
             return False
         if not candidate_password:
             logger.warning("compare_password: Candidate password missing")
             return False
         try:
-            return verify_password(candidate_password, getattr(user, "password", ""))
+            return verify_password(candidate_password, (user.password if user.password is not None else ""))
         except Exception as e:
             logger.error("compare_password error: %s", str(e), exc_info=True)
             return False
@@ -187,7 +187,7 @@ class UserRepository:
         users = await self.findAll()
         updated_count = 0
         for user in users:
-            if not getattr(user, "referral_code", None):
+            if not user.referral_code:
                 code = await get_unique_referral_code(self)
                 await self.update(user.id, {"referralCode": code})
                 updated_count += 1

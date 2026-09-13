@@ -17,7 +17,7 @@ from app.db.db_utils import now_utc
 class MySQLValetAvailabilityDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_valet_availability{suffix}"
 
     def _factory(self):
@@ -27,7 +27,7 @@ class MySQLValetAvailabilityDAO:
         return {
             "_id": str(r.id),
             "externalId": r.external_id,
-            "valetId": str(r.valet_id) if getattr(r, "valet_id", None) is not None else None,
+            "valetId": str(r.valet_id) if r.valet_id is not None else None,
             "date": r.date.isoformat() if hasattr(r.date, "isoformat") else str(r.date),
             "availabilityType": r.availability_type,
             "slots": children.get("slots", []),
@@ -44,13 +44,13 @@ class MySQLValetAvailabilityDAO:
             text("DELETE FROM sj_valet_availability_zones WHERE availability_id = :vid"), {"vid": vid}
         )
 
-        for slot in (data.slots if getattr(data, 'slots', None) is not None else []):
+        for slot in (data.slots if data.slots is not None else []):
             await session.execute(
                 text("INSERT INTO sj_valet_availability_slots (availability_id, slot) VALUES (:vid, :s)"),
                 {"vid": vid, "s": str(slot)},
             )
 
-        for zone in (data.zones if getattr(data, 'zones', None) is not None else []):
+        for zone in (data.zones if data.zones is not None else []):
             await session.execute(
                 text("INSERT INTO sj_valet_availability_zones (availability_id, zone) VALUES (:vid, :z)"),
                 {"vid": vid, "z": str(zone)},
@@ -138,9 +138,9 @@ class MySQLValetAvailabilityDAO:
                 """),
                 {
                     "external_id": external_id,
-                    "valet_id": str((data.valetId if getattr(data, 'valetId', None) is not None else "")),
+                    "valet_id": str((data.valetId if data.valetId is not None else "")),
                     "date": data.date,
-                    "availability_type": (data.availabilityType if getattr(data, 'availabilityType', None) is not None else ""),
+                    "availability_type": (data.availabilityType if data.availabilityType is not None else ""),
                     "created_at": now,
                     "updated_at": now,
                 },

@@ -17,7 +17,7 @@ from app.db.db_utils import now_utc
 class MySQLBannerDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_banners{suffix}"
 
     def _factory(self):
@@ -71,13 +71,13 @@ class MySQLBannerDAO:
         await session.execute(text("DELETE FROM sj_banner_user_segments WHERE banner_id = :bid"), {"bid": bid})
         await session.execute(text("DELETE FROM sj_banner_visibility_rules WHERE banner_id = :bid"), {"bid": bid})
 
-        for seg in (data.userSegments if getattr(data, 'userSegments', None) is not None else []):
+        for seg in (data.userSegments if data.userSegments is not None else []):
             await session.execute(
                 text("INSERT INTO sj_banner_user_segments (banner_id, segment) VALUES (:bid, :seg)"),
                 {"bid": bid, "seg": str(seg)},
             )
 
-        for rule in (data.visibilityRules if getattr(data, 'visibilityRules', None) is not None else []):
+        for rule in (data.visibilityRules if data.visibilityRules is not None else []):
             await session.execute(
                 text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
                 {"bid": bid, "rule": str(rule)},
@@ -148,11 +148,11 @@ class MySQLBannerDAO:
                     "description": data.description,
                     "image_url": data.imageUrl,
                     "link_url": data.linkUrl,
-                    "display_order": (data.displayOrder if getattr(data, 'displayOrder', None) is not None else 0),
+                    "display_order": (data.displayOrder if data.displayOrder is not None else 0),
                     "start_date": data.startDate,
                     "end_date": data.endDate,
-                    "is_active": int(bool((data.isActive if getattr(data, 'isActive', None) is not None else True))),
-                    "is_published": int(bool((data.isPublished if getattr(data, 'isPublished', None) is not None else False))),
+                    "is_active": int(bool((data.isActive if data.isActive is not None else True))),
+                    "is_published": int(bool((data.isPublished if data.isPublished is not None else False))),
                     "target_audience": data.targetAudience,
                     "position": data.position,
                     "created_at": now,
@@ -222,8 +222,8 @@ class MySQLBannerDAO:
             # Need to create a mock object with userSegments and visibilityRules for _replace_children
             class _UpdateDataWrapper:
                 def __init__(self, obj, existing_obj):
-                    self.userSegments = obj.userSegments if obj.userSegments is not None else getattr(existing_obj, "userSegments", [])
-                    self.visibilityRules = obj.visibilityRules if obj.visibilityRules is not None else getattr(existing_obj, "visibilityRules", [])
+                    self.userSegments = obj.userSegments if obj.userSegments is not None else (existing_obj.userSegments if existing_obj.userSegments is not None else [])
+                    self.visibilityRules = obj.visibilityRules if obj.visibilityRules is not None else (existing_obj.visibilityRules if existing_obj.visibilityRules is not None else [])
             await self._replace_children(session, bid, _UpdateDataWrapper(update_data, existing))
             await session.commit()
         return await self.findById(id)

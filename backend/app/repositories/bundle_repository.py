@@ -33,7 +33,7 @@ class BundleRepository:
             return
         from app.config.settings import settings
 
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         table_name_upper = f"SJ_BUNDLES{suffix}".upper()
         table_name_lower = f"sj_bundles{suffix}".lower()
         constraint_name_lower = f"uq_sj_bundles_external{suffix}".lower()
@@ -109,15 +109,15 @@ class BundleRepository:
     async def get_active_bundles(self) -> List[Any]:
         """Return only active (published) bundles."""
         all_bundles = await self.findAll()
-        return [b for b in all_bundles if getattr(b, "isActive", True)]
+        return [b for b in all_bundles if (b.isActive if b.isActive is not None else True)]
 
     async def get_bundles_containing_product(self, product_id: str) -> List[Any]:
         """Return all active bundles that include a given product_id."""
         all_bundles = await self.get_active_bundles()
         result = []
         for bundle in all_bundles:
-            items = getattr(bundle, "items", [])
-            if any(getattr(i, "productId", None) == product_id for i in items):
+            items = (bundle.items if bundle.items is not None else [])
+            if any(i.productId == product_id for i in items):
                 result.append(bundle)
         return result
 

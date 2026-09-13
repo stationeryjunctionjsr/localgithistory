@@ -79,10 +79,10 @@ class MySQLReturnSettingsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "returnDays" in data:
+        if ((hasattr(data, "returnDays") and (getattr(data, "returnDays") if hasattr(data, "returnDays") else (data.get("returnDays") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("returnDays") is not None)):
             cols.append("return_days")
             vals.append(":returnDays")
-            params["returnDays"] = data.returnDays
+            params["returnDays"] = (getattr(data, "returnDays") if hasattr(data, "returnDays") else (data.get("returnDays") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -95,19 +95,19 @@ class MySQLReturnSettingsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ReturnSettingsInternalUpdate) -> Optional[Dict]:
+    async def update(self, id: str, data: ReturnSettingsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ReturnSettingsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = ReturnSettingsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "returnDays" in merged:
+        if ((hasattr(merged, "returnDays") and (getattr(merged, "returnDays") if hasattr(merged, "returnDays") else (merged.get("returnDays") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("returnDays") is not None)):
             updates.append("return_days = :returnDays")
-            params["returnDays"] = merged.returnDays
+            params["returnDays"] = (getattr(merged, "returnDays") if hasattr(merged, "returnDays") else (merged.get("returnDays") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -218,34 +218,34 @@ class MySQLOrderFeedbackDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "orderId" in data:
+        if ((hasattr(data, "orderId") and (getattr(data, "orderId") if hasattr(data, "orderId") else (data.get("orderId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("orderId") is not None)):
             cols.append("order_id")
             vals.append(":orderId")
-            params["orderId"] = data.orderId
-        if "userId" in data:
+            params["orderId"] = (getattr(data, "orderId") if hasattr(data, "orderId") else (data.get("orderId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "userId") and (getattr(data, "userId") if hasattr(data, "userId") else (data.get("userId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("userId") is not None)):
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.userId
-        if "rating" in data:
+            params["userId"] = (getattr(data, "userId") if hasattr(data, "userId") else (data.get("userId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "rating") and (getattr(data, "rating") if hasattr(data, "rating") else (data.get("rating") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("rating") is not None)):
             cols.append("rating")
             vals.append(":rating")
-            params["rating"] = data.rating
-        if "comment" in data:
+            params["rating"] = (getattr(data, "rating") if hasattr(data, "rating") else (data.get("rating") if isinstance(data, dict) else None))
+        if ((hasattr(data, "comment") and (getattr(data, "comment") if hasattr(data, "comment") else (data.get("comment") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("comment") is not None)):
             cols.append("comments")
             vals.append(":comment")
-            params["comment"] = data.comment
-        if "deliveryRating" in data:
+            params["comment"] = (getattr(data, "comment") if hasattr(data, "comment") else (data.get("comment") if isinstance(data, dict) else None))
+        if ((hasattr(data, "deliveryRating") and (getattr(data, "deliveryRating") if hasattr(data, "deliveryRating") else (data.get("deliveryRating") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("deliveryRating") is not None)):
             cols.append("delivery_rating")
             vals.append(":deliveryRating")
-            params["deliveryRating"] = data.deliveryRating
-        if "deliveryComment" in data:
+            params["deliveryRating"] = (getattr(data, "deliveryRating") if hasattr(data, "deliveryRating") else (data.get("deliveryRating") if isinstance(data, dict) else None))
+        if ((hasattr(data, "deliveryComment") and (getattr(data, "deliveryComment") if hasattr(data, "deliveryComment") else (data.get("deliveryComment") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("deliveryComment") is not None)):
             cols.append("delivery_comment")
             vals.append(":deliveryComment")
-            params["deliveryComment"] = data.deliveryComment
-        if "feedbackType" in data:
+            params["deliveryComment"] = (getattr(data, "deliveryComment") if hasattr(data, "deliveryComment") else (data.get("deliveryComment") if isinstance(data, dict) else None))
+        if ((hasattr(data, "feedbackType") and (getattr(data, "feedbackType") if hasattr(data, "feedbackType") else (data.get("feedbackType") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("feedbackType") is not None)):
             cols.append("feedback_type")
             vals.append(":feedbackType")
-            params["feedbackType"] = data.feedbackType
+            params["feedbackType"] = (getattr(data, "feedbackType") if hasattr(data, "feedbackType") else (data.get("feedbackType") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -258,37 +258,37 @@ class MySQLOrderFeedbackDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: OrderFeedbackInternalUpdate) -> Optional[OrderFeedbackResponse]:
+    async def update(self, id: str, data: OrderFeedbackInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = OrderFeedbackInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = OrderFeedbackInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "orderId" in merged:
+        if ((hasattr(merged, "orderId") and (getattr(merged, "orderId") if hasattr(merged, "orderId") else (merged.get("orderId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("orderId") is not None)):
             updates.append("order_id = :orderId")
-            params["orderId"] = merged.orderId
-        if "userId" in merged:
+            params["orderId"] = (getattr(merged, "orderId") if hasattr(merged, "orderId") else (merged.get("orderId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "userId") and (getattr(merged, "userId") if hasattr(merged, "userId") else (merged.get("userId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("userId") is not None)):
             updates.append("user_id = :userId")
-            params["userId"] = merged.userId
-        if "rating" in merged:
+            params["userId"] = (getattr(merged, "userId") if hasattr(merged, "userId") else (merged.get("userId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "rating") and (getattr(merged, "rating") if hasattr(merged, "rating") else (merged.get("rating") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("rating") is not None)):
             updates.append("rating = :rating")
-            params["rating"] = merged.rating
-        if "comment" in merged:
+            params["rating"] = (getattr(merged, "rating") if hasattr(merged, "rating") else (merged.get("rating") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "comment") and (getattr(merged, "comment") if hasattr(merged, "comment") else (merged.get("comment") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("comment") is not None)):
             updates.append("comments = :comment")
-            params["comment"] = merged.comment
-        if "deliveryRating" in merged:
+            params["comment"] = (getattr(merged, "comment") if hasattr(merged, "comment") else (merged.get("comment") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "deliveryRating") and (getattr(merged, "deliveryRating") if hasattr(merged, "deliveryRating") else (merged.get("deliveryRating") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("deliveryRating") is not None)):
             updates.append("delivery_rating = :deliveryRating")
-            params["deliveryRating"] = merged.deliveryRating
-        if "deliveryComment" in merged:
+            params["deliveryRating"] = (getattr(merged, "deliveryRating") if hasattr(merged, "deliveryRating") else (merged.get("deliveryRating") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "deliveryComment") and (getattr(merged, "deliveryComment") if hasattr(merged, "deliveryComment") else (merged.get("deliveryComment") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("deliveryComment") is not None)):
             updates.append("delivery_comment = :deliveryComment")
-            params["deliveryComment"] = merged.deliveryComment
-        if "feedbackType" in merged:
+            params["deliveryComment"] = (getattr(merged, "deliveryComment") if hasattr(merged, "deliveryComment") else (merged.get("deliveryComment") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "feedbackType") and (getattr(merged, "feedbackType") if hasattr(merged, "feedbackType") else (merged.get("feedbackType") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("feedbackType") is not None)):
             updates.append("feedback_type = :feedbackType")
-            params["feedbackType"] = merged.feedbackType
+            params["feedbackType"] = (getattr(merged, "feedbackType") if hasattr(merged, "feedbackType") else (merged.get("feedbackType") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -376,14 +376,14 @@ class MySQLPromoStripsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "text" in data:
+        if ((hasattr(data, "text") and (getattr(data, "text") if hasattr(data, "text") else (data.get("text") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("text") is not None)):
             cols.append("text")
             vals.append(":text")
-            params["text"] = data.text
-        if "isActive" in data:
+            params["text"] = (getattr(data, "text") if hasattr(data, "text") else (data.get("text") if isinstance(data, dict) else None))
+        if ((hasattr(data, "isActive") and (getattr(data, "isActive") if hasattr(data, "isActive") else (data.get("isActive") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("isActive") is not None)):
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data.isActive else 0
+            params["isActive"] = 1 if (getattr(data, "isActive") if hasattr(data, "isActive") else (data.get("isActive") if isinstance(data, dict) else None)) else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -396,22 +396,22 @@ class MySQLPromoStripsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: PromoStripsInternalUpdate) -> Optional[PromoStripResponse]:
+    async def update(self, id: str, data: PromoStripsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PromoStripsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = PromoStripsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "text" in merged:
+        if ((hasattr(merged, "text") and (getattr(merged, "text") if hasattr(merged, "text") else (merged.get("text") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("text") is not None)):
             updates.append("text = :text")
-            params["text"] = merged.text
-        if "isActive" in merged:
+            params["text"] = (getattr(merged, "text") if hasattr(merged, "text") else (merged.get("text") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "isActive") and (getattr(merged, "isActive") if hasattr(merged, "isActive") else (merged.get("isActive") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("isActive") is not None)):
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged.isActive else None
+            params["isActive"] = 1 if (getattr(merged, "isActive") if hasattr(merged, "isActive") else (merged.get("isActive") if isinstance(merged, dict) else None)) else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -538,50 +538,50 @@ class MySQLPushNotificationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "title" in data:
+        if ((hasattr(data, "title") and (getattr(data, "title") if hasattr(data, "title") else (data.get("title") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("title") is not None)):
             cols.append("title")
             vals.append(":title")
-            params["title"] = data.title
-        if "message" in data:
+            params["title"] = (getattr(data, "title") if hasattr(data, "title") else (data.get("title") if isinstance(data, dict) else None))
+        if ((hasattr(data, "message") and (getattr(data, "message") if hasattr(data, "message") else (data.get("message") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("message") is not None)):
             cols.append("message")
             vals.append(":message")
-            params["message"] = data.message
-        if "link" in data:
+            params["message"] = (getattr(data, "message") if hasattr(data, "message") else (data.get("message") if isinstance(data, dict) else None))
+        if ((hasattr(data, "link") and (getattr(data, "link") if hasattr(data, "link") else (data.get("link") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("link") is not None)):
             cols.append("link")
             vals.append(":link")
-            params["link"] = data.link
-        if "image" in data:
+            params["link"] = (getattr(data, "link") if hasattr(data, "link") else (data.get("link") if isinstance(data, dict) else None))
+        if ((hasattr(data, "image") and (getattr(data, "image") if hasattr(data, "image") else (data.get("image") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("image") is not None)):
             cols.append("image")
             vals.append(":image")
-            params["image"] = data.image
-        if "status" in data:
+            params["image"] = (getattr(data, "image") if hasattr(data, "image") else (data.get("image") if isinstance(data, dict) else None))
+        if ((hasattr(data, "status") and (getattr(data, "status") if hasattr(data, "status") else (data.get("status") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("status") is not None)):
             cols.append("status")
             vals.append(":status")
-            params["status"] = data.status
-        if "scheduledFor" in data:
+            params["status"] = (getattr(data, "status") if hasattr(data, "status") else (data.get("status") if isinstance(data, dict) else None))
+        if ((hasattr(data, "scheduledFor") and (getattr(data, "scheduledFor") if hasattr(data, "scheduledFor") else (data.get("scheduledFor") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("scheduledFor") is not None)):
             cols.append("scheduled_for")
             vals.append(":scheduledFor")
-            params["scheduledFor"] = data.scheduledFor
-        if "deliveredCount" in data:
+            params["scheduledFor"] = (getattr(data, "scheduledFor") if hasattr(data, "scheduledFor") else (data.get("scheduledFor") if isinstance(data, dict) else None))
+        if ((hasattr(data, "deliveredCount") and (getattr(data, "deliveredCount") if hasattr(data, "deliveredCount") else (data.get("deliveredCount") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("deliveredCount") is not None)):
             cols.append("delivered_count")
             vals.append(":deliveredCount")
-            params["deliveredCount"] = data.deliveredCount
-        if "readCount" in data:
+            params["deliveredCount"] = (getattr(data, "deliveredCount") if hasattr(data, "deliveredCount") else (data.get("deliveredCount") if isinstance(data, dict) else None))
+        if ((hasattr(data, "readCount") and (getattr(data, "readCount") if hasattr(data, "readCount") else (data.get("readCount") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("readCount") is not None)):
             cols.append("read_count")
             vals.append(":readCount")
-            params["readCount"] = data.readCount
-        if "userSegment" in data:
+            params["readCount"] = (getattr(data, "readCount") if hasattr(data, "readCount") else (data.get("readCount") if isinstance(data, dict) else None))
+        if ((hasattr(data, "userSegment") and (getattr(data, "userSegment") if hasattr(data, "userSegment") else (data.get("userSegment") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("userSegment") is not None)):
             cols.append("user_segment")
             vals.append(":userSegment")
-            params["userSegment"] = data.userSegment
-        if "userBehavior" in data:
+            params["userSegment"] = (getattr(data, "userSegment") if hasattr(data, "userSegment") else (data.get("userSegment") if isinstance(data, dict) else None))
+        if ((hasattr(data, "userBehavior") and (getattr(data, "userBehavior") if hasattr(data, "userBehavior") else (data.get("userBehavior") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("userBehavior") is not None)):
             cols.append("user_behavior")
             vals.append(":userBehavior")
-            params["userBehavior"] = data.userBehavior
-        if "createdBy" in data:
+            params["userBehavior"] = (getattr(data, "userBehavior") if hasattr(data, "userBehavior") else (data.get("userBehavior") if isinstance(data, dict) else None))
+        if ((hasattr(data, "createdBy") and (getattr(data, "createdBy") if hasattr(data, "createdBy") else (data.get("createdBy") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("createdBy") is not None)):
             cols.append("created_by")
             vals.append(":createdBy")
-            params["createdBy"] = data.createdBy
+            params["createdBy"] = (getattr(data, "createdBy") if hasattr(data, "createdBy") else (data.get("createdBy") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -594,49 +594,49 @@ class MySQLPushNotificationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: PushNotificationsInternalUpdate) -> Optional[Dict]:
+    async def update(self, id: str, data: PushNotificationsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PushNotificationsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = PushNotificationsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "title" in merged:
+        if ((hasattr(merged, "title") and (getattr(merged, "title") if hasattr(merged, "title") else (merged.get("title") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("title") is not None)):
             updates.append("title = :title")
-            params["title"] = merged.title
-        if "message" in merged:
+            params["title"] = (getattr(merged, "title") if hasattr(merged, "title") else (merged.get("title") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "message") and (getattr(merged, "message") if hasattr(merged, "message") else (merged.get("message") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("message") is not None)):
             updates.append("message = :message")
-            params["message"] = merged.message
-        if "link" in merged:
+            params["message"] = (getattr(merged, "message") if hasattr(merged, "message") else (merged.get("message") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "link") and (getattr(merged, "link") if hasattr(merged, "link") else (merged.get("link") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("link") is not None)):
             updates.append("link = :link")
-            params["link"] = merged.link
-        if "image" in merged:
+            params["link"] = (getattr(merged, "link") if hasattr(merged, "link") else (merged.get("link") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "image") and (getattr(merged, "image") if hasattr(merged, "image") else (merged.get("image") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("image") is not None)):
             updates.append("image = :image")
-            params["image"] = merged.image
-        if "status" in merged:
+            params["image"] = (getattr(merged, "image") if hasattr(merged, "image") else (merged.get("image") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "status") and (getattr(merged, "status") if hasattr(merged, "status") else (merged.get("status") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("status") is not None)):
             updates.append("status = :status")
-            params["status"] = merged.status
-        if "scheduledFor" in merged:
+            params["status"] = (getattr(merged, "status") if hasattr(merged, "status") else (merged.get("status") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "scheduledFor") and (getattr(merged, "scheduledFor") if hasattr(merged, "scheduledFor") else (merged.get("scheduledFor") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("scheduledFor") is not None)):
             updates.append("scheduled_for = :scheduledFor")
-            params["scheduledFor"] = merged.scheduledFor
-        if "deliveredCount" in merged:
+            params["scheduledFor"] = (getattr(merged, "scheduledFor") if hasattr(merged, "scheduledFor") else (merged.get("scheduledFor") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "deliveredCount") and (getattr(merged, "deliveredCount") if hasattr(merged, "deliveredCount") else (merged.get("deliveredCount") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("deliveredCount") is not None)):
             updates.append("delivered_count = :deliveredCount")
-            params["deliveredCount"] = merged.deliveredCount
-        if "readCount" in merged:
+            params["deliveredCount"] = (getattr(merged, "deliveredCount") if hasattr(merged, "deliveredCount") else (merged.get("deliveredCount") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "readCount") and (getattr(merged, "readCount") if hasattr(merged, "readCount") else (merged.get("readCount") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("readCount") is not None)):
             updates.append("read_count = :readCount")
-            params["readCount"] = merged.readCount
-        if "userSegment" in merged:
+            params["readCount"] = (getattr(merged, "readCount") if hasattr(merged, "readCount") else (merged.get("readCount") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "userSegment") and (getattr(merged, "userSegment") if hasattr(merged, "userSegment") else (merged.get("userSegment") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("userSegment") is not None)):
             updates.append("user_segment = :userSegment")
-            params["userSegment"] = merged.userSegment
-        if "userBehavior" in merged:
+            params["userSegment"] = (getattr(merged, "userSegment") if hasattr(merged, "userSegment") else (merged.get("userSegment") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "userBehavior") and (getattr(merged, "userBehavior") if hasattr(merged, "userBehavior") else (merged.get("userBehavior") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("userBehavior") is not None)):
             updates.append("user_behavior = :userBehavior")
-            params["userBehavior"] = merged.userBehavior
-        if "createdBy" in merged:
+            params["userBehavior"] = (getattr(merged, "userBehavior") if hasattr(merged, "userBehavior") else (merged.get("userBehavior") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "createdBy") and (getattr(merged, "createdBy") if hasattr(merged, "createdBy") else (merged.get("createdBy") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("createdBy") is not None)):
             updates.append("created_by = :createdBy")
-            params["createdBy"] = merged.createdBy
+            params["createdBy"] = (getattr(merged, "createdBy") if hasattr(merged, "createdBy") else (merged.get("createdBy") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -743,30 +743,30 @@ class MySQLCoachMarksDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "anchorId" in data:
+        if ((hasattr(data, "anchorId") and (getattr(data, "anchorId") if hasattr(data, "anchorId") else (data.get("anchorId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("anchorId") is not None)):
             cols.append("anchor_id")
             vals.append(":anchorId")
-            params["anchorId"] = data.anchorId
-        if "title" in data:
+            params["anchorId"] = (getattr(data, "anchorId") if hasattr(data, "anchorId") else (data.get("anchorId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "title") and (getattr(data, "title") if hasattr(data, "title") else (data.get("title") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("title") is not None)):
             cols.append("title")
             vals.append(":title")
-            params["title"] = data.title
-        if "description" in data:
+            params["title"] = (getattr(data, "title") if hasattr(data, "title") else (data.get("title") if isinstance(data, dict) else None))
+        if ((hasattr(data, "description") and (getattr(data, "description") if hasattr(data, "description") else (data.get("description") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("description") is not None)):
             cols.append("description")
             vals.append(":description")
-            params["description"] = data.description
-        if "screenName" in data:
+            params["description"] = (getattr(data, "description") if hasattr(data, "description") else (data.get("description") if isinstance(data, dict) else None))
+        if ((hasattr(data, "screenName") and (getattr(data, "screenName") if hasattr(data, "screenName") else (data.get("screenName") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("screenName") is not None)):
             cols.append("screen_name")
             vals.append(":screenName")
-            params["screenName"] = data.screenName
-        if "sequenceOrder" in data:
+            params["screenName"] = (getattr(data, "screenName") if hasattr(data, "screenName") else (data.get("screenName") if isinstance(data, dict) else None))
+        if ((hasattr(data, "sequenceOrder") and (getattr(data, "sequenceOrder") if hasattr(data, "sequenceOrder") else (data.get("sequenceOrder") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("sequenceOrder") is not None)):
             cols.append("sequence_order")
             vals.append(":sequenceOrder")
-            params["sequenceOrder"] = data.sequenceOrder
-        if "isActive" in data:
+            params["sequenceOrder"] = (getattr(data, "sequenceOrder") if hasattr(data, "sequenceOrder") else (data.get("sequenceOrder") if isinstance(data, dict) else None))
+        if ((hasattr(data, "isActive") and (getattr(data, "isActive") if hasattr(data, "isActive") else (data.get("isActive") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("isActive") is not None)):
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data.isActive else 0
+            params["isActive"] = 1 if (getattr(data, "isActive") if hasattr(data, "isActive") else (data.get("isActive") if isinstance(data, dict) else None)) else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -779,34 +779,34 @@ class MySQLCoachMarksDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: CoachMarksInternalUpdate) -> Optional[Dict]:
+    async def update(self, id: str, data: CoachMarksInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = CoachMarksInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = CoachMarksInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "anchorId" in merged:
+        if ((hasattr(merged, "anchorId") and (getattr(merged, "anchorId") if hasattr(merged, "anchorId") else (merged.get("anchorId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("anchorId") is not None)):
             updates.append("anchor_id = :anchorId")
-            params["anchorId"] = merged.anchorId
-        if "title" in merged:
+            params["anchorId"] = (getattr(merged, "anchorId") if hasattr(merged, "anchorId") else (merged.get("anchorId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "title") and (getattr(merged, "title") if hasattr(merged, "title") else (merged.get("title") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("title") is not None)):
             updates.append("title = :title")
-            params["title"] = merged.title
-        if "description" in merged:
+            params["title"] = (getattr(merged, "title") if hasattr(merged, "title") else (merged.get("title") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "description") and (getattr(merged, "description") if hasattr(merged, "description") else (merged.get("description") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("description") is not None)):
             updates.append("description = :description")
-            params["description"] = merged.description
-        if "screenName" in merged:
+            params["description"] = (getattr(merged, "description") if hasattr(merged, "description") else (merged.get("description") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "screenName") and (getattr(merged, "screenName") if hasattr(merged, "screenName") else (merged.get("screenName") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("screenName") is not None)):
             updates.append("screen_name = :screenName")
-            params["screenName"] = merged.screenName
-        if "sequenceOrder" in merged:
+            params["screenName"] = (getattr(merged, "screenName") if hasattr(merged, "screenName") else (merged.get("screenName") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "sequenceOrder") and (getattr(merged, "sequenceOrder") if hasattr(merged, "sequenceOrder") else (merged.get("sequenceOrder") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("sequenceOrder") is not None)):
             updates.append("sequence_order = :sequenceOrder")
-            params["sequenceOrder"] = merged.sequenceOrder
-        if "isActive" in merged:
+            params["sequenceOrder"] = (getattr(merged, "sequenceOrder") if hasattr(merged, "sequenceOrder") else (merged.get("sequenceOrder") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "isActive") and (getattr(merged, "isActive") if hasattr(merged, "isActive") else (merged.get("isActive") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("isActive") is not None)):
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged.isActive else None
+            params["isActive"] = 1 if (getattr(merged, "isActive") if hasattr(merged, "isActive") else (merged.get("isActive") if isinstance(merged, dict) else None)) else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -901,18 +901,18 @@ class MySQLCategoryTagsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "name" in data:
+        if ((hasattr(data, "name") and (getattr(data, "name") if hasattr(data, "name") else (data.get("name") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("name") is not None)):
             cols.append("name")
             vals.append(":name")
-            params["name"] = data.name
-        if "description" in data:
+            params["name"] = (getattr(data, "name") if hasattr(data, "name") else (data.get("name") if isinstance(data, dict) else None))
+        if ((hasattr(data, "description") and (getattr(data, "description") if hasattr(data, "description") else (data.get("description") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("description") is not None)):
             cols.append("description")
             vals.append(":description")
-            params["description"] = data.description
-        if "isActive" in data:
+            params["description"] = (getattr(data, "description") if hasattr(data, "description") else (data.get("description") if isinstance(data, dict) else None))
+        if ((hasattr(data, "isActive") and (getattr(data, "isActive") if hasattr(data, "isActive") else (data.get("isActive") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("isActive") is not None)):
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data.isActive else 0
+            params["isActive"] = 1 if (getattr(data, "isActive") if hasattr(data, "isActive") else (data.get("isActive") if isinstance(data, dict) else None)) else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -925,25 +925,25 @@ class MySQLCategoryTagsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: CategoryTagsInternalUpdate) -> Optional[CategoryTagResponse]:
+    async def update(self, id: str, data: CategoryTagsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = CategoryTagsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = CategoryTagsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "name" in merged:
+        if ((hasattr(merged, "name") and (getattr(merged, "name") if hasattr(merged, "name") else (merged.get("name") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("name") is not None)):
             updates.append("name = :name")
-            params["name"] = merged.name
-        if "description" in merged:
+            params["name"] = (getattr(merged, "name") if hasattr(merged, "name") else (merged.get("name") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "description") and (getattr(merged, "description") if hasattr(merged, "description") else (merged.get("description") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("description") is not None)):
             updates.append("description = :description")
-            params["description"] = merged.description
-        if "isActive" in merged:
+            params["description"] = (getattr(merged, "description") if hasattr(merged, "description") else (merged.get("description") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "isActive") and (getattr(merged, "isActive") if hasattr(merged, "isActive") else (merged.get("isActive") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("isActive") is not None)):
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged.isActive else None
+            params["isActive"] = 1 if (getattr(merged, "isActive") if hasattr(merged, "isActive") else (merged.get("isActive") if isinstance(merged, dict) else None)) else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1042,22 +1042,22 @@ class MySQLGoogle_reviewsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "rating" in data:
+        if ((hasattr(data, "rating") and (getattr(data, "rating") if hasattr(data, "rating") else (data.get("rating") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("rating") is not None)):
             cols.append("rating")
             vals.append(":rating")
-            params["rating"] = data.rating
-        if "reviewCount" in data:
+            params["rating"] = (getattr(data, "rating") if hasattr(data, "rating") else (data.get("rating") if isinstance(data, dict) else None))
+        if ((hasattr(data, "reviewCount") and (getattr(data, "reviewCount") if hasattr(data, "reviewCount") else (data.get("reviewCount") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("reviewCount") is not None)):
             cols.append("review_count")
             vals.append(":reviewCount")
-            params["reviewCount"] = data.reviewCount
-        if "lastUpdated" in data:
+            params["reviewCount"] = (getattr(data, "reviewCount") if hasattr(data, "reviewCount") else (data.get("reviewCount") if isinstance(data, dict) else None))
+        if ((hasattr(data, "lastUpdated") and (getattr(data, "lastUpdated") if hasattr(data, "lastUpdated") else (data.get("lastUpdated") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("lastUpdated") is not None)):
             cols.append("last_updated")
             vals.append(":lastUpdated")
-            params["lastUpdated"] = data.lastUpdated
-        if "method" in data:
+            params["lastUpdated"] = (getattr(data, "lastUpdated") if hasattr(data, "lastUpdated") else (data.get("lastUpdated") if isinstance(data, dict) else None))
+        if ((hasattr(data, "method") and (getattr(data, "method") if hasattr(data, "method") else (data.get("method") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("method") is not None)):
             cols.append("method")
             vals.append(":method")
-            params["method"] = data.method
+            params["method"] = (getattr(data, "method") if hasattr(data, "method") else (data.get("method") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1070,28 +1070,28 @@ class MySQLGoogle_reviewsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Google_reviewsInternalUpdate) -> Optional[Dict]:
+    async def update(self, id: str, data: Google_reviewsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = Google_reviewsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = Google_reviewsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "rating" in merged:
+        if ((hasattr(merged, "rating") and (getattr(merged, "rating") if hasattr(merged, "rating") else (merged.get("rating") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("rating") is not None)):
             updates.append("rating = :rating")
-            params["rating"] = merged.rating
-        if "reviewCount" in merged:
+            params["rating"] = (getattr(merged, "rating") if hasattr(merged, "rating") else (merged.get("rating") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "reviewCount") and (getattr(merged, "reviewCount") if hasattr(merged, "reviewCount") else (merged.get("reviewCount") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("reviewCount") is not None)):
             updates.append("review_count = :reviewCount")
-            params["reviewCount"] = merged.reviewCount
-        if "lastUpdated" in merged:
+            params["reviewCount"] = (getattr(merged, "reviewCount") if hasattr(merged, "reviewCount") else (merged.get("reviewCount") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "lastUpdated") and (getattr(merged, "lastUpdated") if hasattr(merged, "lastUpdated") else (merged.get("lastUpdated") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("lastUpdated") is not None)):
             updates.append("last_updated = :lastUpdated")
-            params["lastUpdated"] = merged.lastUpdated
-        if "method" in merged:
+            params["lastUpdated"] = (getattr(merged, "lastUpdated") if hasattr(merged, "lastUpdated") else (merged.get("lastUpdated") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "method") and (getattr(merged, "method") if hasattr(merged, "method") else (merged.get("method") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("method") is not None)):
             updates.append("method = :method")
-            params["method"] = merged.method
+            params["method"] = (getattr(merged, "method") if hasattr(merged, "method") else (merged.get("method") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1181,22 +1181,22 @@ class MySQLStockReservationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "productId" in data:
+        if ((hasattr(data, "productId") and (getattr(data, "productId") if hasattr(data, "productId") else (data.get("productId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("productId") is not None)):
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.productId
-        if "userId" in data:
+            params["productId"] = (getattr(data, "productId") if hasattr(data, "productId") else (data.get("productId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "userId") and (getattr(data, "userId") if hasattr(data, "userId") else (data.get("userId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("userId") is not None)):
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.userId
-        if "quantity" in data:
+            params["userId"] = (getattr(data, "userId") if hasattr(data, "userId") else (data.get("userId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "quantity") and (getattr(data, "quantity") if hasattr(data, "quantity") else (data.get("quantity") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("quantity") is not None)):
             cols.append("quantity")
             vals.append(":quantity")
-            params["quantity"] = data.quantity
-        if "status" in data:
+            params["quantity"] = (getattr(data, "quantity") if hasattr(data, "quantity") else (data.get("quantity") if isinstance(data, dict) else None))
+        if ((hasattr(data, "status") and (getattr(data, "status") if hasattr(data, "status") else (data.get("status") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("status") is not None)):
             cols.append("status")
             vals.append(":status")
-            params["status"] = data.status
+            params["status"] = (getattr(data, "status") if hasattr(data, "status") else (data.get("status") if isinstance(data, dict) else None))
         if "expiresAt" in data:
             cols.append("expires_at")
             vals.append(":expiresAt")
@@ -1224,24 +1224,24 @@ class MySQLStockReservationsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)}
+        merged = {**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)}
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "productId" in merged:
+        if ((hasattr(merged, "productId") and (getattr(merged, "productId") if hasattr(merged, "productId") else (merged.get("productId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("productId") is not None)):
             updates.append("product_id = :productId")
-            params["productId"] = merged.productId
-        if "userId" in merged:
+            params["productId"] = (getattr(merged, "productId") if hasattr(merged, "productId") else (merged.get("productId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "userId") and (getattr(merged, "userId") if hasattr(merged, "userId") else (merged.get("userId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("userId") is not None)):
             updates.append("user_id = :userId")
-            params["userId"] = merged.userId
-        if "quantity" in merged:
+            params["userId"] = (getattr(merged, "userId") if hasattr(merged, "userId") else (merged.get("userId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "quantity") and (getattr(merged, "quantity") if hasattr(merged, "quantity") else (merged.get("quantity") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("quantity") is not None)):
             updates.append("quantity = :quantity")
-            params["quantity"] = merged.quantity
-        if "status" in merged:
+            params["quantity"] = (getattr(merged, "quantity") if hasattr(merged, "quantity") else (merged.get("quantity") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "status") and (getattr(merged, "status") if hasattr(merged, "status") else (merged.get("status") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("status") is not None)):
             updates.append("status = :status")
-            params["status"] = merged.status
+            params["status"] = (getattr(merged, "status") if hasattr(merged, "status") else (merged.get("status") if isinstance(merged, dict) else None))
         if "expiresAt" in merged:
             updates.append("expires_at = :expiresAt")
             exp = str(merged.expiresAt)
@@ -1353,26 +1353,26 @@ class MySQLProductNotificationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "productId" in data:
+        if ((hasattr(data, "productId") and (getattr(data, "productId") if hasattr(data, "productId") else (data.get("productId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("productId") is not None)):
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.productId
-        if "userId" in data:
+            params["productId"] = (getattr(data, "productId") if hasattr(data, "productId") else (data.get("productId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "userId") and (getattr(data, "userId") if hasattr(data, "userId") else (data.get("userId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("userId") is not None)):
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.userId
-        if "email" in data:
+            params["userId"] = (getattr(data, "userId") if hasattr(data, "userId") else (data.get("userId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "email") and (getattr(data, "email") if hasattr(data, "email") else (data.get("email") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("email") is not None)):
             cols.append("email")
             vals.append(":email")
-            params["email"] = data.email
-        if "phone" in data:
+            params["email"] = (getattr(data, "email") if hasattr(data, "email") else (data.get("email") if isinstance(data, dict) else None))
+        if ((hasattr(data, "phone") and (getattr(data, "phone") if hasattr(data, "phone") else (data.get("phone") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("phone") is not None)):
             cols.append("phone")
             vals.append(":phone")
-            params["phone"] = data.phone
-        if "status" in data:
+            params["phone"] = (getattr(data, "phone") if hasattr(data, "phone") else (data.get("phone") if isinstance(data, dict) else None))
+        if ((hasattr(data, "status") and (getattr(data, "status") if hasattr(data, "status") else (data.get("status") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("status") is not None)):
             cols.append("status")
             vals.append(":status")
-            params["status"] = data.status
+            params["status"] = (getattr(data, "status") if hasattr(data, "status") else (data.get("status") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1385,31 +1385,31 @@ class MySQLProductNotificationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ProductNotificationsInternalUpdate) -> Optional[Dict]:
+    async def update(self, id: str, data: ProductNotificationsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = StockReservationsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = ProductNotificationsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "productId" in merged:
+        if ((hasattr(merged, "productId") and (getattr(merged, "productId") if hasattr(merged, "productId") else (merged.get("productId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("productId") is not None)):
             updates.append("product_id = :productId")
-            params["productId"] = merged.productId
-        if "userId" in merged:
+            params["productId"] = (getattr(merged, "productId") if hasattr(merged, "productId") else (merged.get("productId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "userId") and (getattr(merged, "userId") if hasattr(merged, "userId") else (merged.get("userId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("userId") is not None)):
             updates.append("user_id = :userId")
-            params["userId"] = merged.userId
-        if "email" in merged:
+            params["userId"] = (getattr(merged, "userId") if hasattr(merged, "userId") else (merged.get("userId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "email") and (getattr(merged, "email") if hasattr(merged, "email") else (merged.get("email") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("email") is not None)):
             updates.append("email = :email")
-            params["email"] = merged.email
-        if "phone" in merged:
+            params["email"] = (getattr(merged, "email") if hasattr(merged, "email") else (merged.get("email") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "phone") and (getattr(merged, "phone") if hasattr(merged, "phone") else (merged.get("phone") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("phone") is not None)):
             updates.append("phone = :phone")
-            params["phone"] = merged.phone
-        if "status" in merged:
+            params["phone"] = (getattr(merged, "phone") if hasattr(merged, "phone") else (merged.get("phone") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "status") and (getattr(merged, "status") if hasattr(merged, "status") else (merged.get("status") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("status") is not None)):
             updates.append("status = :status")
-            params["status"] = merged.status
+            params["status"] = (getattr(merged, "status") if hasattr(merged, "status") else (merged.get("status") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1512,26 +1512,26 @@ class MySQLProductReviewsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "productId" in data:
+        if ((hasattr(data, "productId") and (getattr(data, "productId") if hasattr(data, "productId") else (data.get("productId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("productId") is not None)):
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.productId
-        if "userId" in data:
+            params["productId"] = (getattr(data, "productId") if hasattr(data, "productId") else (data.get("productId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "userId") and (getattr(data, "userId") if hasattr(data, "userId") else (data.get("userId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("userId") is not None)):
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.userId
-        if "rating" in data:
+            params["userId"] = (getattr(data, "userId") if hasattr(data, "userId") else (data.get("userId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "rating") and (getattr(data, "rating") if hasattr(data, "rating") else (data.get("rating") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("rating") is not None)):
             cols.append("rating")
             vals.append(":rating")
-            params["rating"] = data.rating
-        if "reviewText" in data:
+            params["rating"] = (getattr(data, "rating") if hasattr(data, "rating") else (data.get("rating") if isinstance(data, dict) else None))
+        if ((hasattr(data, "reviewText") and (getattr(data, "reviewText") if hasattr(data, "reviewText") else (data.get("reviewText") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("reviewText") is not None)):
             cols.append("review_text")
             vals.append(":reviewText")
-            params["reviewText"] = data.reviewText
-        if "status" in data:
+            params["reviewText"] = (getattr(data, "reviewText") if hasattr(data, "reviewText") else (data.get("reviewText") if isinstance(data, dict) else None))
+        if ((hasattr(data, "status") and (getattr(data, "status") if hasattr(data, "status") else (data.get("status") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("status") is not None)):
             cols.append("status")
             vals.append(":status")
-            params["status"] = data.status
+            params["status"] = (getattr(data, "status") if hasattr(data, "status") else (data.get("status") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1544,31 +1544,31 @@ class MySQLProductReviewsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ProductReviewsInternalUpdate) -> Optional[ProductReviewResponse]:
+    async def update(self, id: str, data: ProductReviewsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ProductNotificationsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = ProductReviewsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "productId" in merged:
+        if ((hasattr(merged, "productId") and (getattr(merged, "productId") if hasattr(merged, "productId") else (merged.get("productId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("productId") is not None)):
             updates.append("product_id = :productId")
-            params["productId"] = merged.productId
-        if "userId" in merged:
+            params["productId"] = (getattr(merged, "productId") if hasattr(merged, "productId") else (merged.get("productId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "userId") and (getattr(merged, "userId") if hasattr(merged, "userId") else (merged.get("userId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("userId") is not None)):
             updates.append("user_id = :userId")
-            params["userId"] = merged.userId
-        if "rating" in merged:
+            params["userId"] = (getattr(merged, "userId") if hasattr(merged, "userId") else (merged.get("userId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "rating") and (getattr(merged, "rating") if hasattr(merged, "rating") else (merged.get("rating") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("rating") is not None)):
             updates.append("rating = :rating")
-            params["rating"] = merged.rating
-        if "reviewText" in merged:
+            params["rating"] = (getattr(merged, "rating") if hasattr(merged, "rating") else (merged.get("rating") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "reviewText") and (getattr(merged, "reviewText") if hasattr(merged, "reviewText") else (merged.get("reviewText") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("reviewText") is not None)):
             updates.append("review_text = :reviewText")
-            params["reviewText"] = merged.reviewText
-        if "status" in merged:
+            params["reviewText"] = (getattr(merged, "reviewText") if hasattr(merged, "reviewText") else (merged.get("reviewText") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "status") and (getattr(merged, "status") if hasattr(merged, "status") else (merged.get("status") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("status") is not None)):
             updates.append("status = :status")
-            params["status"] = merged.status
+            params["status"] = (getattr(merged, "status") if hasattr(merged, "status") else (merged.get("status") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1658,14 +1658,14 @@ class MySQLClassificationTagsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "name" in data:
+        if ((hasattr(data, "name") and (getattr(data, "name") if hasattr(data, "name") else (data.get("name") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("name") is not None)):
             cols.append("name")
             vals.append(":name")
-            params["name"] = data.name
-        if "isActive" in data:
+            params["name"] = (getattr(data, "name") if hasattr(data, "name") else (data.get("name") if isinstance(data, dict) else None))
+        if ((hasattr(data, "isActive") and (getattr(data, "isActive") if hasattr(data, "isActive") else (data.get("isActive") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("isActive") is not None)):
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data.isActive else 0
+            params["isActive"] = 1 if (getattr(data, "isActive") if hasattr(data, "isActive") else (data.get("isActive") if isinstance(data, dict) else None)) else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1678,22 +1678,22 @@ class MySQLClassificationTagsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ClassificationTagsInternalUpdate) -> Optional[ProductReviewResponse]:
+    async def update(self, id: str, data: ClassificationTagsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ProductReviewsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = ClassificationTagsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "name" in merged:
+        if ((hasattr(merged, "name") and (getattr(merged, "name") if hasattr(merged, "name") else (merged.get("name") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("name") is not None)):
             updates.append("name = :name")
-            params["name"] = merged.name
-        if "isActive" in merged:
+            params["name"] = (getattr(merged, "name") if hasattr(merged, "name") else (merged.get("name") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "isActive") and (getattr(merged, "isActive") if hasattr(merged, "isActive") else (merged.get("isActive") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("isActive") is not None)):
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged.isActive else None
+            params["isActive"] = 1 if (getattr(merged, "isActive") if hasattr(merged, "isActive") else (merged.get("isActive") if isinstance(merged, dict) else None)) else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1792,22 +1792,22 @@ class MySQLReviewClassificationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "reviewId" in data:
+        if ((hasattr(data, "reviewId") and (getattr(data, "reviewId") if hasattr(data, "reviewId") else (data.get("reviewId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("reviewId") is not None)):
             cols.append("review_id")
             vals.append(":reviewId")
-            params["reviewId"] = data.reviewId
-        if "category" in data:
+            params["reviewId"] = (getattr(data, "reviewId") if hasattr(data, "reviewId") else (data.get("reviewId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "category") and (getattr(data, "category") if hasattr(data, "category") else (data.get("category") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("category") is not None)):
             cols.append("category")
             vals.append(":category")
-            params["category"] = data.category
-        if "confidenceScore" in data:
+            params["category"] = (getattr(data, "category") if hasattr(data, "category") else (data.get("category") if isinstance(data, dict) else None))
+        if ((hasattr(data, "confidenceScore") and (getattr(data, "confidenceScore") if hasattr(data, "confidenceScore") else (data.get("confidenceScore") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("confidenceScore") is not None)):
             cols.append("confidence_score")
             vals.append(":confidenceScore")
-            params["confidenceScore"] = data.confidenceScore
-        if "sentiment" in data:
+            params["confidenceScore"] = (getattr(data, "confidenceScore") if hasattr(data, "confidenceScore") else (data.get("confidenceScore") if isinstance(data, dict) else None))
+        if ((hasattr(data, "sentiment") and (getattr(data, "sentiment") if hasattr(data, "sentiment") else (data.get("sentiment") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("sentiment") is not None)):
             cols.append("sentiment")
             vals.append(":sentiment")
-            params["sentiment"] = data.sentiment
+            params["sentiment"] = (getattr(data, "sentiment") if hasattr(data, "sentiment") else (data.get("sentiment") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1820,28 +1820,28 @@ class MySQLReviewClassificationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ReviewClassificationsInternalUpdate) -> Optional[ClassificationTagResponse]:
+    async def update(self, id: str, data: ReviewClassificationsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ClassificationTagsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = ReviewClassificationsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "reviewId" in merged:
+        if ((hasattr(merged, "reviewId") and (getattr(merged, "reviewId") if hasattr(merged, "reviewId") else (merged.get("reviewId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("reviewId") is not None)):
             updates.append("review_id = :reviewId")
-            params["reviewId"] = merged.reviewId
-        if "category" in merged:
+            params["reviewId"] = (getattr(merged, "reviewId") if hasattr(merged, "reviewId") else (merged.get("reviewId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "category") and (getattr(merged, "category") if hasattr(merged, "category") else (merged.get("category") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("category") is not None)):
             updates.append("category = :category")
-            params["category"] = merged.category
-        if "confidenceScore" in merged:
+            params["category"] = (getattr(merged, "category") if hasattr(merged, "category") else (merged.get("category") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "confidenceScore") and (getattr(merged, "confidenceScore") if hasattr(merged, "confidenceScore") else (merged.get("confidenceScore") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("confidenceScore") is not None)):
             updates.append("confidence_score = :confidenceScore")
-            params["confidenceScore"] = merged.confidenceScore
-        if "sentiment" in merged:
+            params["confidenceScore"] = (getattr(merged, "confidenceScore") if hasattr(merged, "confidenceScore") else (merged.get("confidenceScore") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "sentiment") and (getattr(merged, "sentiment") if hasattr(merged, "sentiment") else (merged.get("sentiment") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("sentiment") is not None)):
             updates.append("sentiment = :sentiment")
-            params["sentiment"] = merged.sentiment
+            params["sentiment"] = (getattr(merged, "sentiment") if hasattr(merged, "sentiment") else (merged.get("sentiment") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1940,22 +1940,22 @@ class MySQLAboutUsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "title" in data:
+        if ((hasattr(data, "title") and (getattr(data, "title") if hasattr(data, "title") else (data.get("title") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("title") is not None)):
             cols.append("title")
             vals.append(":title")
-            params["title"] = data.title
-        if "content" in data:
+            params["title"] = (getattr(data, "title") if hasattr(data, "title") else (data.get("title") if isinstance(data, dict) else None))
+        if ((hasattr(data, "content") and (getattr(data, "content") if hasattr(data, "content") else (data.get("content") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("content") is not None)):
             cols.append("content")
             vals.append(":content")
-            params["content"] = data.content
-        if "version" in data:
+            params["content"] = (getattr(data, "content") if hasattr(data, "content") else (data.get("content") if isinstance(data, dict) else None))
+        if ((hasattr(data, "version") and (getattr(data, "version") if hasattr(data, "version") else (data.get("version") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("version") is not None)):
             cols.append("version")
             vals.append(":version")
-            params["version"] = data.version
-        if "isPublished" in data:
+            params["version"] = (getattr(data, "version") if hasattr(data, "version") else (data.get("version") if isinstance(data, dict) else None))
+        if ((hasattr(data, "isPublished") and (getattr(data, "isPublished") if hasattr(data, "isPublished") else (data.get("isPublished") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("isPublished") is not None)):
             cols.append("is_published")
             vals.append(":isPublished")
-            params["isPublished"] = 1 if data.isPublished else 0
+            params["isPublished"] = 1 if (getattr(data, "isPublished") if hasattr(data, "isPublished") else (data.get("isPublished") if isinstance(data, dict) else None)) else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1972,24 +1972,24 @@ class MySQLAboutUsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ReviewClassificationsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = AboutUsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "title" in merged:
+        if ((hasattr(merged, "title") and (getattr(merged, "title") if hasattr(merged, "title") else (merged.get("title") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("title") is not None)):
             updates.append("title = :title")
-            params["title"] = merged.title
-        if "content" in merged:
+            params["title"] = (getattr(merged, "title") if hasattr(merged, "title") else (merged.get("title") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "content") and (getattr(merged, "content") if hasattr(merged, "content") else (merged.get("content") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("content") is not None)):
             updates.append("content = :content")
-            params["content"] = merged.content
-        if "version" in merged:
+            params["content"] = (getattr(merged, "content") if hasattr(merged, "content") else (merged.get("content") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "version") and (getattr(merged, "version") if hasattr(merged, "version") else (merged.get("version") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("version") is not None)):
             updates.append("version = :version")
-            params["version"] = merged.version
-        if "isPublished" in merged:
+            params["version"] = (getattr(merged, "version") if hasattr(merged, "version") else (merged.get("version") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "isPublished") and (getattr(merged, "isPublished") if hasattr(merged, "isPublished") else (merged.get("isPublished") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("isPublished") is not None)):
             updates.append("is_published = :isPublished")
-            params["isPublished"] = 1 if merged.isPublished else None
+            params["isPublished"] = 1 if (getattr(merged, "isPublished") if hasattr(merged, "isPublished") else (merged.get("isPublished") if isinstance(merged, dict) else None)) else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2088,22 +2088,22 @@ class MySQLPrivacyPolicyDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "version" in data:
+        if ((hasattr(data, "version") and (getattr(data, "version") if hasattr(data, "version") else (data.get("version") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("version") is not None)):
             cols.append("version")
             vals.append(":version")
-            params["version"] = data.version
-        if "content" in data:
+            params["version"] = (getattr(data, "version") if hasattr(data, "version") else (data.get("version") if isinstance(data, dict) else None))
+        if ((hasattr(data, "content") and (getattr(data, "content") if hasattr(data, "content") else (data.get("content") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("content") is not None)):
             cols.append("content")
             vals.append(":content")
-            params["content"] = data.content
-        if "effectiveDate" in data:
+            params["content"] = (getattr(data, "content") if hasattr(data, "content") else (data.get("content") if isinstance(data, dict) else None))
+        if ((hasattr(data, "effectiveDate") and (getattr(data, "effectiveDate") if hasattr(data, "effectiveDate") else (data.get("effectiveDate") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("effectiveDate") is not None)):
             cols.append("effective_date")
             vals.append(":effectiveDate")
-            params["effectiveDate"] = data.effectiveDate
-        if "isActive" in data:
+            params["effectiveDate"] = (getattr(data, "effectiveDate") if hasattr(data, "effectiveDate") else (data.get("effectiveDate") if isinstance(data, dict) else None))
+        if ((hasattr(data, "isActive") and (getattr(data, "isActive") if hasattr(data, "isActive") else (data.get("isActive") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("isActive") is not None)):
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data.isActive else 0
+            params["isActive"] = 1 if (getattr(data, "isActive") if hasattr(data, "isActive") else (data.get("isActive") if isinstance(data, dict) else None)) else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2120,24 +2120,24 @@ class MySQLPrivacyPolicyDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = AboutUsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = PrivacyPolicyInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "version" in merged:
+        if ((hasattr(merged, "version") and (getattr(merged, "version") if hasattr(merged, "version") else (merged.get("version") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("version") is not None)):
             updates.append("version = :version")
-            params["version"] = merged.version
-        if "content" in merged:
+            params["version"] = (getattr(merged, "version") if hasattr(merged, "version") else (merged.get("version") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "content") and (getattr(merged, "content") if hasattr(merged, "content") else (merged.get("content") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("content") is not None)):
             updates.append("content = :content")
-            params["content"] = merged.content
-        if "effectiveDate" in merged:
+            params["content"] = (getattr(merged, "content") if hasattr(merged, "content") else (merged.get("content") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "effectiveDate") and (getattr(merged, "effectiveDate") if hasattr(merged, "effectiveDate") else (merged.get("effectiveDate") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("effectiveDate") is not None)):
             updates.append("effective_date = :effectiveDate")
-            params["effectiveDate"] = merged.effectiveDate
-        if "isActive" in merged:
+            params["effectiveDate"] = (getattr(merged, "effectiveDate") if hasattr(merged, "effectiveDate") else (merged.get("effectiveDate") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "isActive") and (getattr(merged, "isActive") if hasattr(merged, "isActive") else (merged.get("isActive") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("isActive") is not None)):
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged.isActive else None
+            params["isActive"] = 1 if (getattr(merged, "isActive") if hasattr(merged, "isActive") else (merged.get("isActive") if isinstance(merged, dict) else None)) else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2240,26 +2240,26 @@ class MySQLAvailabilityRequestsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "productId" in data:
+        if ((hasattr(data, "productId") and (getattr(data, "productId") if hasattr(data, "productId") else (data.get("productId") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("productId") is not None)):
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.productId
-        if "productName" in data:
+            params["productId"] = (getattr(data, "productId") if hasattr(data, "productId") else (data.get("productId") if isinstance(data, dict) else None))
+        if ((hasattr(data, "productName") and (getattr(data, "productName") if hasattr(data, "productName") else (data.get("productName") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("productName") is not None)):
             cols.append("product_name")
             vals.append(":productName")
-            params["productName"] = data.productName
-        if "pincode" in data:
+            params["productName"] = (getattr(data, "productName") if hasattr(data, "productName") else (data.get("productName") if isinstance(data, dict) else None))
+        if ((hasattr(data, "pincode") and (getattr(data, "pincode") if hasattr(data, "pincode") else (data.get("pincode") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("pincode") is not None)):
             cols.append("pincode")
             vals.append(":pincode")
-            params["pincode"] = data.pincode
-        if "userName" in data:
+            params["pincode"] = (getattr(data, "pincode") if hasattr(data, "pincode") else (data.get("pincode") if isinstance(data, dict) else None))
+        if ((hasattr(data, "userName") and (getattr(data, "userName") if hasattr(data, "userName") else (data.get("userName") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("userName") is not None)):
             cols.append("user_name")
             vals.append(":userName")
-            params["userName"] = data.userName
-        if "userEmail" in data:
+            params["userName"] = (getattr(data, "userName") if hasattr(data, "userName") else (data.get("userName") if isinstance(data, dict) else None))
+        if ((hasattr(data, "userEmail") and (getattr(data, "userEmail") if hasattr(data, "userEmail") else (data.get("userEmail") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("userEmail") is not None)):
             cols.append("user_email")
             vals.append(":userEmail")
-            params["userEmail"] = data.userEmail
+            params["userEmail"] = (getattr(data, "userEmail") if hasattr(data, "userEmail") else (data.get("userEmail") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2272,31 +2272,31 @@ class MySQLAvailabilityRequestsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: AvailabilityRequestsInternalUpdate) -> Optional[AvailabilityRequestResponse]:
+    async def update(self, id: str, data: AvailabilityRequestsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PrivacyPolicyInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = AvailabilityRequestsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "productId" in merged:
+        if ((hasattr(merged, "productId") and (getattr(merged, "productId") if hasattr(merged, "productId") else (merged.get("productId") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("productId") is not None)):
             updates.append("product_id = :productId")
-            params["productId"] = merged.productId
-        if "productName" in merged:
+            params["productId"] = (getattr(merged, "productId") if hasattr(merged, "productId") else (merged.get("productId") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "productName") and (getattr(merged, "productName") if hasattr(merged, "productName") else (merged.get("productName") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("productName") is not None)):
             updates.append("product_name = :productName")
-            params["productName"] = merged.productName
-        if "pincode" in merged:
+            params["productName"] = (getattr(merged, "productName") if hasattr(merged, "productName") else (merged.get("productName") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "pincode") and (getattr(merged, "pincode") if hasattr(merged, "pincode") else (merged.get("pincode") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("pincode") is not None)):
             updates.append("pincode = :pincode")
-            params["pincode"] = merged.pincode
-        if "userName" in merged:
+            params["pincode"] = (getattr(merged, "pincode") if hasattr(merged, "pincode") else (merged.get("pincode") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "userName") and (getattr(merged, "userName") if hasattr(merged, "userName") else (merged.get("userName") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("userName") is not None)):
             updates.append("user_name = :userName")
-            params["userName"] = merged.userName
-        if "userEmail" in merged:
+            params["userName"] = (getattr(merged, "userName") if hasattr(merged, "userName") else (merged.get("userName") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "userEmail") and (getattr(merged, "userEmail") if hasattr(merged, "userEmail") else (merged.get("userEmail") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("userEmail") is not None)):
             updates.append("user_email = :userEmail")
-            params["userEmail"] = merged.userEmail
+            params["userEmail"] = (getattr(merged, "userEmail") if hasattr(merged, "userEmail") else (merged.get("userEmail") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2395,22 +2395,22 @@ class MySQLPincodeSearchesDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "pincode" in data:
+        if ((hasattr(data, "pincode") and (getattr(data, "pincode") if hasattr(data, "pincode") else (data.get("pincode") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("pincode") is not None)):
             cols.append("pincode")
             vals.append(":pincode")
-            params["pincode"] = data.pincode
-        if "query" in data:
+            params["pincode"] = (getattr(data, "pincode") if hasattr(data, "pincode") else (data.get("pincode") if isinstance(data, dict) else None))
+        if ((hasattr(data, "query") and (getattr(data, "query") if hasattr(data, "query") else (data.get("query") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("query") is not None)):
             cols.append("query")
             vals.append(":query")
-            params["query"] = data.query
-        if "isServiceable" in data:
+            params["query"] = (getattr(data, "query") if hasattr(data, "query") else (data.get("query") if isinstance(data, dict) else None))
+        if ((hasattr(data, "isServiceable") and (getattr(data, "isServiceable") if hasattr(data, "isServiceable") else (data.get("isServiceable") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("isServiceable") is not None)):
             cols.append("is_serviceable")
             vals.append(":isServiceable")
-            params["isServiceable"] = 1 if data.isServiceable else 0
-        if "timestamp" in data:
+            params["isServiceable"] = 1 if (getattr(data, "isServiceable") if hasattr(data, "isServiceable") else (data.get("isServiceable") if isinstance(data, dict) else None)) else 0
+        if ((hasattr(data, "timestamp") and (getattr(data, "timestamp") if hasattr(data, "timestamp") else (data.get("timestamp") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("timestamp") is not None)):
             cols.append("timestamp")
             vals.append(":timestamp")
-            params["timestamp"] = data.timestamp
+            params["timestamp"] = (getattr(data, "timestamp") if hasattr(data, "timestamp") else (data.get("timestamp") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2427,24 +2427,24 @@ class MySQLPincodeSearchesDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = AvailabilityRequestsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = PincodeSearchesInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "pincode" in merged:
+        if ((hasattr(merged, "pincode") and (getattr(merged, "pincode") if hasattr(merged, "pincode") else (merged.get("pincode") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("pincode") is not None)):
             updates.append("pincode = :pincode")
-            params["pincode"] = merged.pincode
-        if "query" in merged:
+            params["pincode"] = (getattr(merged, "pincode") if hasattr(merged, "pincode") else (merged.get("pincode") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "query") and (getattr(merged, "query") if hasattr(merged, "query") else (merged.get("query") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("query") is not None)):
             updates.append("query = :query")
-            params["query"] = merged.query
-        if "isServiceable" in merged:
+            params["query"] = (getattr(merged, "query") if hasattr(merged, "query") else (merged.get("query") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "isServiceable") and (getattr(merged, "isServiceable") if hasattr(merged, "isServiceable") else (merged.get("isServiceable") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("isServiceable") is not None)):
             updates.append("is_serviceable = :isServiceable")
-            params["isServiceable"] = 1 if merged.isServiceable else None
-        if "timestamp" in merged:
+            params["isServiceable"] = 1 if (getattr(merged, "isServiceable") if hasattr(merged, "isServiceable") else (merged.get("isServiceable") if isinstance(merged, dict) else None)) else None
+        if ((hasattr(merged, "timestamp") and (getattr(merged, "timestamp") if hasattr(merged, "timestamp") else (merged.get("timestamp") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("timestamp") is not None)):
             updates.append("timestamp = :timestamp")
-            params["timestamp"] = merged.timestamp
+            params["timestamp"] = (getattr(merged, "timestamp") if hasattr(merged, "timestamp") else (merged.get("timestamp") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2547,26 +2547,26 @@ class MySQLSystemSettingsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "maintenanceMode" in data:
+        if ((hasattr(data, "maintenanceMode") and (getattr(data, "maintenanceMode") if hasattr(data, "maintenanceMode") else (data.get("maintenanceMode") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("maintenanceMode") is not None)):
             cols.append("maintenance_mode")
             vals.append(":maintenanceMode")
-            params["maintenanceMode"] = 1 if data.maintenanceMode else 0
-        if "allowSignups" in data:
+            params["maintenanceMode"] = 1 if (getattr(data, "maintenanceMode") if hasattr(data, "maintenanceMode") else (data.get("maintenanceMode") if isinstance(data, dict) else None)) else 0
+        if ((hasattr(data, "allowSignups") and (getattr(data, "allowSignups") if hasattr(data, "allowSignups") else (data.get("allowSignups") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("allowSignups") is not None)):
             cols.append("allow_signups")
             vals.append(":allowSignups")
-            params["allowSignups"] = 1 if data.allowSignups else 0
-        if "maxUploadSizeMb" in data:
+            params["allowSignups"] = 1 if (getattr(data, "allowSignups") if hasattr(data, "allowSignups") else (data.get("allowSignups") if isinstance(data, dict) else None)) else 0
+        if ((hasattr(data, "maxUploadSizeMb") and (getattr(data, "maxUploadSizeMb") if hasattr(data, "maxUploadSizeMb") else (data.get("maxUploadSizeMb") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("maxUploadSizeMb") is not None)):
             cols.append("max_upload_size_mb")
             vals.append(":maxUploadSizeMb")
-            params["maxUploadSizeMb"] = data.maxUploadSizeMb
-        if "defaultCurrency" in data:
+            params["maxUploadSizeMb"] = (getattr(data, "maxUploadSizeMb") if hasattr(data, "maxUploadSizeMb") else (data.get("maxUploadSizeMb") if isinstance(data, dict) else None))
+        if ((hasattr(data, "defaultCurrency") and (getattr(data, "defaultCurrency") if hasattr(data, "defaultCurrency") else (data.get("defaultCurrency") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("defaultCurrency") is not None)):
             cols.append("default_currency")
             vals.append(":defaultCurrency")
-            params["defaultCurrency"] = data.defaultCurrency
-        if "timezone" in data:
+            params["defaultCurrency"] = (getattr(data, "defaultCurrency") if hasattr(data, "defaultCurrency") else (data.get("defaultCurrency") if isinstance(data, dict) else None))
+        if ((hasattr(data, "timezone") and (getattr(data, "timezone") if hasattr(data, "timezone") else (data.get("timezone") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("timezone") is not None)):
             cols.append("timezone")
             vals.append(":timezone")
-            params["timezone"] = data.timezone
+            params["timezone"] = (getattr(data, "timezone") if hasattr(data, "timezone") else (data.get("timezone") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2579,31 +2579,31 @@ class MySQLSystemSettingsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: SystemSettingsInternalUpdate) -> Optional[SystemSettingsResponse]:
+    async def update(self, id: str, data: SystemSettingsInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PincodeSearchesInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = SystemSettingsInternalUpdate(**{**(existing.model_dump(by_alias=True) if hasattr(existing, "model_dump") else existing), **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "maintenanceMode" in merged:
+        if ((hasattr(merged, "maintenanceMode") and (getattr(merged, "maintenanceMode") if hasattr(merged, "maintenanceMode") else (merged.get("maintenanceMode") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("maintenanceMode") is not None)):
             updates.append("maintenance_mode = :maintenanceMode")
-            params["maintenanceMode"] = 1 if merged.maintenanceMode else None
-        if "allowSignups" in merged:
+            params["maintenanceMode"] = 1 if (getattr(merged, "maintenanceMode") if hasattr(merged, "maintenanceMode") else (merged.get("maintenanceMode") if isinstance(merged, dict) else None)) else None
+        if ((hasattr(merged, "allowSignups") and (getattr(merged, "allowSignups") if hasattr(merged, "allowSignups") else (merged.get("allowSignups") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("allowSignups") is not None)):
             updates.append("allow_signups = :allowSignups")
-            params["allowSignups"] = 1 if merged.allowSignups else None
-        if "maxUploadSizeMb" in merged:
+            params["allowSignups"] = 1 if (getattr(merged, "allowSignups") if hasattr(merged, "allowSignups") else (merged.get("allowSignups") if isinstance(merged, dict) else None)) else None
+        if ((hasattr(merged, "maxUploadSizeMb") and (getattr(merged, "maxUploadSizeMb") if hasattr(merged, "maxUploadSizeMb") else (merged.get("maxUploadSizeMb") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("maxUploadSizeMb") is not None)):
             updates.append("max_upload_size_mb = :maxUploadSizeMb")
-            params["maxUploadSizeMb"] = merged.maxUploadSizeMb
-        if "defaultCurrency" in merged:
+            params["maxUploadSizeMb"] = (getattr(merged, "maxUploadSizeMb") if hasattr(merged, "maxUploadSizeMb") else (merged.get("maxUploadSizeMb") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "defaultCurrency") and (getattr(merged, "defaultCurrency") if hasattr(merged, "defaultCurrency") else (merged.get("defaultCurrency") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("defaultCurrency") is not None)):
             updates.append("default_currency = :defaultCurrency")
-            params["defaultCurrency"] = merged.defaultCurrency
-        if "timezone" in merged:
+            params["defaultCurrency"] = (getattr(merged, "defaultCurrency") if hasattr(merged, "defaultCurrency") else (merged.get("defaultCurrency") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "timezone") and (getattr(merged, "timezone") if hasattr(merged, "timezone") else (merged.get("timezone") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("timezone") is not None)):
             updates.append("timezone = :timezone")
-            params["timezone"] = merged.timezone
+            params["timezone"] = (getattr(merged, "timezone") if hasattr(merged, "timezone") else (merged.get("timezone") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2694,14 +2694,14 @@ class MySQLValetPayoutSettingsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if "deliveryChargePerOrder" in data:
+        if ((hasattr(data, "deliveryChargePerOrder") and (getattr(data, "deliveryChargePerOrder") if hasattr(data, "deliveryChargePerOrder") else (data.get("deliveryChargePerOrder") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("deliveryChargePerOrder") is not None)):
             cols.append("delivery_charge_per_order")
             vals.append(":deliveryChargePerOrder")
-            params["deliveryChargePerOrder"] = data.deliveryChargePerOrder
-        if "returnPickupChargePerOrder" in data:
+            params["deliveryChargePerOrder"] = (getattr(data, "deliveryChargePerOrder") if hasattr(data, "deliveryChargePerOrder") else (data.get("deliveryChargePerOrder") if isinstance(data, dict) else None))
+        if ((hasattr(data, "returnPickupChargePerOrder") and (getattr(data, "returnPickupChargePerOrder") if hasattr(data, "returnPickupChargePerOrder") else (data.get("returnPickupChargePerOrder") if isinstance(data, dict) else None)) is not None) or (isinstance(data, dict) and data.get("returnPickupChargePerOrder") is not None)):
             cols.append("return_pickup_charge_per_order")
             vals.append(":returnPickupChargePerOrder")
-            params["returnPickupChargePerOrder"] = data.returnPickupChargePerOrder
+            params["returnPickupChargePerOrder"] = (getattr(data, "returnPickupChargePerOrder") if hasattr(data, "returnPickupChargePerOrder") else (data.get("returnPickupChargePerOrder") if isinstance(data, dict) else None))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2718,18 +2718,18 @@ class MySQLValetPayoutSettingsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = SystemSettingsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = SystemSettingsInternalUpdate(**{**existing, **(data.model_dump(exclude_unset=True) if hasattr(data, "model_dump") else data)})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if "deliveryChargePerOrder" in merged:
+        if ((hasattr(merged, "deliveryChargePerOrder") and (getattr(merged, "deliveryChargePerOrder") if hasattr(merged, "deliveryChargePerOrder") else (merged.get("deliveryChargePerOrder") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("deliveryChargePerOrder") is not None)):
             updates.append("delivery_charge_per_order = :deliveryChargePerOrder")
-            params["deliveryChargePerOrder"] = merged.deliveryChargePerOrder
-        if "returnPickupChargePerOrder" in merged:
+            params["deliveryChargePerOrder"] = (getattr(merged, "deliveryChargePerOrder") if hasattr(merged, "deliveryChargePerOrder") else (merged.get("deliveryChargePerOrder") if isinstance(merged, dict) else None))
+        if ((hasattr(merged, "returnPickupChargePerOrder") and (getattr(merged, "returnPickupChargePerOrder") if hasattr(merged, "returnPickupChargePerOrder") else (merged.get("returnPickupChargePerOrder") if isinstance(merged, dict) else None)) is not None) or (isinstance(merged, dict) and merged.get("returnPickupChargePerOrder") is not None)):
             updates.append("return_pickup_charge_per_order = :returnPickupChargePerOrder")
-            params["returnPickupChargePerOrder"] = merged.returnPickupChargePerOrder
+            params["returnPickupChargePerOrder"] = (getattr(merged, "returnPickupChargePerOrder") if hasattr(merged, "returnPickupChargePerOrder") else (merged.get("returnPickupChargePerOrder") if isinstance(merged, dict) else None))
 
         set_sql = ", ".join(updates)
         factory = self._factory()

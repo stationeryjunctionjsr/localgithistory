@@ -27,7 +27,7 @@ class CoachMarkRepository:
     async def create(self, data: Any) -> Dict:
         mark = {
             **data,
-            "isActive": getattr(data, 'isActive', True),
+            "isActive": (data.isActive if data.isActive is not None else True),
             "createdAt": self._get_timestamp(),
             "updatedAt": self._get_timestamp(),
         }

@@ -29,7 +29,7 @@ class ReviewClassificationRepository:
             return
         from app.config.settings import settings
 
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         table_name_upper = f"SJ_CLASSIFICATION_TAGS{suffix}".upper()
         table_name_lower = f"sj_classification_tags{suffix}".lower()
         constraint_name_lower = f"uq_class_tags_external{suffix}".lower()

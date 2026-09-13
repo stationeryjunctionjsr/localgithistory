@@ -16,7 +16,7 @@ from app.models.brand import Brand
 class MySQLBrandDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_brands{suffix}"
 
     def _factory(self):
@@ -28,7 +28,7 @@ class MySQLBrandDAO:
             "name": r.name,
             "slug": r.slug,
             "logoUrl": r.image_url,
-            "showInMobileHomepage": bool(getattr(r, 'show_in_mobile_homepage', False)),
+            "showInMobileHomepage": bool((r.show_in_mobile_homepage if r.show_in_mobile_homepage is not None else False)),
             "isActive": bool(r.is_active) if r.is_active is not None else True,
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
@@ -108,7 +108,7 @@ class MySQLBrandDAO:
                     "name": data.name,
                     "slug": data.name.lower().replace(" ", "-") if data.name else "",
                     "image_url": data.logoUrl or data.imageUrl,
-                    "is_active": 1 if getattr(data, 'isActive', True) else 0,
+                    "is_active": 1 if (data.isActive if data.isActive is not None else True) else 0,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -153,7 +153,7 @@ class MySQLBrandDAO:
                     "name": merged.name,
                     "slug": merged.slug,
                     "image_url": merged.logoUrl or merged.imageUrl,
-                    "is_active": 1 if (merged.isActive if getattr(merged, 'isActive', None) is not None else True) else 0,
+                    "is_active": 1 if (merged.isActive if merged.isActive is not None else True) else 0,
                     "updated_at": now,
                 },
             )

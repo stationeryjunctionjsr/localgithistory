@@ -26,17 +26,17 @@ def _row_to_dict(r, children: Dict) -> Dict:
     saved_addresses = [a for a in all_addresses if not a.get("isPrimary")]
 
     seller_permissions = {
-        # "allowDeliverySlots": bool(getattr(r, "allow_delivery_slots", 0)),
-        # "allowUrgentDelivery": bool(getattr(r, "allow_urgent_delivery", 0)),
+        # "allowDeliverySlots": bool((r.allow_delivery_slots if r.allow_delivery_slots is not None else 0)),
+        # "allowUrgentDelivery": bool((r.allow_urgent_delivery if r.allow_urgent_delivery is not None else 0)),
         "serviceablePincodes": children.get("serviceablePincodes", []),
         "urgentPincodes": children.get("urgentPincodes", []),
         "slotPincodes": children.get("slotPincodes", []),
         "serviceableZoneIds": children.get("serviceableZoneIds", []),
     }
 
-    is_seller_admin_val = getattr(r, "is_seller_admin", None)
-    is_on_duty_val = getattr(r, "is_on_duty", None)
-    commission_override_val = getattr(r, "commission_override_pct", None)
+    is_seller_admin_val = r.is_seller_admin
+    is_on_duty_val = r.is_on_duty
+    commission_override_val = r.commission_override_pct
 
     return {
         "_id": str(r.id),
@@ -72,7 +72,7 @@ def _row_to_dict(r, children: Dict) -> Dict:
 class MySQLUserDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_users{suffix}"
 
     def _factory(self):
@@ -179,8 +179,8 @@ class MySQLUserDAO:
         await session.execute(text("DELETE FROM sj_seller_zones WHERE user_id = :uid"), {"uid": uid})
 
         # Insert Addresses
-        address = getattr(data, "address", None)
-        saved_addresses = getattr(data, "savedAddresses", [])
+        address = data.address
+        saved_addresses = (data.savedAddresses if data.savedAddresses is not None else [])
         if address:
             await session.execute(
                 text(
@@ -192,7 +192,7 @@ class MySQLUserDAO:
                     "c": address.city,
                     "s": address.state,
                     "p": address.pincode,
-                    "ph": getattr(address, "phone", None),
+                    "ph": address.phone,
                 },
             )
         for a in saved_addresses:
@@ -207,31 +207,31 @@ class MySQLUserDAO:
                         "c": a.city,
                         "s": a.state,
                         "p": a.pincode,
-                        "ph": getattr(a, "phone", None),
+                        "ph": a.phone,
                     },
                 )
 
         # Insert Permissions & Pincodes
-        seller_perms = getattr(data, "sellerPermissions", None)
+        seller_perms = data.sellerPermissions
         if seller_perms:
-            for p in getattr(seller_perms, "serviceablePincodes", []):
+            for p in (seller_perms.serviceablePincodes if seller_perms.serviceablePincodes is not None else []):
                 await session.execute(
                     text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'serviceable')"),
                     {"uid": uid, "p": p},
                 )
-            for p in getattr(seller_perms, "urgentPincodes", []):
+            for p in (seller_perms.urgentPincodes if seller_perms.urgentPincodes is not None else []):
                 await session.execute(
                     text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'urgent')"),
                     {"uid": uid, "p": p},
                 )
-            for p in getattr(seller_perms, "slotPincodes", []):
+            for p in (seller_perms.slotPincodes if seller_perms.slotPincodes is not None else []):
                 await session.execute(
                     text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'slot')"),
                     {"uid": uid, "p": p},
                 )
 
         # Insert Zones — serviceAreaZones now carries zone external_ids
-        for zone_ext_id in getattr(data, "serviceAreaZones", []):
+        for zone_ext_id in (data.serviceAreaZones if data.serviceAreaZones is not None else []):
             # Look up the display name from sj_delivery_zones
             name_res = await session.execute(
                 text("SELECT name FROM sj_delivery_zones WHERE external_id = :eid LIMIT 1"),
@@ -435,17 +435,17 @@ class MySQLUserDAO:
                     "name": data.name or "Customer",
                     "email": data.email,
                     "password_hash": data.password,
-                    "role": (data.role if getattr(data, 'role', None) is not None else "customer"),
+                    "role": (data.role if data.role is not None else "customer"),
                     "phone": data.phone or None,
                     "company_name": data.companyName,
-                    "is_active": 1 if (data.isActive if getattr(data, 'isActive', None) is not None else True) else None,
-                    "approval_status": (data.approvalStatus if getattr(data, 'approvalStatus', None) is not None else "approved"),
+                    "is_active": 1 if (data.isActive if data.isActive is not None else True) else None,
+                    "approval_status": (data.approvalStatus if data.approvalStatus is not None else "approved"),
                     "is_deactivated": 1 if data.isDeactivated else None,
-                    "credit_limit": (data.creditLimit if getattr(data, 'creditLimit', None) is not None else 0),
-                    "credit_used": (data.creditUsed if getattr(data, 'creditUsed', None) is not None else 0),
-                    "payment_terms": str((data.paymentTerms if getattr(data, 'paymentTerms', None) is not None else "30")),
+                    "credit_limit": (data.creditLimit if data.creditLimit is not None else 0),
+                    "credit_used": (data.creditUsed if data.creditUsed is not None else 0),
+                    "payment_terms": str((data.paymentTerms if data.paymentTerms is not None else "30")),
                     "assigned_salesperson": data.assignedSalesperson,
-                    "is_email_verified": 1 if (data.isEmailVerified if getattr(data, 'isEmailVerified', None) is not None else False) else None,
+                    "is_email_verified": 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else None,
                     "referral_code": data.referralCode,
                     "is_seller_admin": 1 if data.isSellerAdmin else None,
                     "is_on_duty": 1 if data.isOnDuty else None,
@@ -515,16 +515,16 @@ class MySQLUserDAO:
                     "role": merged.role,
                     "phone": merged.phone or None,
                     "company_name": merged.companyName,
-                    "is_active": 1 if (merged.isActive if getattr(merged, 'isActive', None) is not None else True) else None,
+                    "is_active": 1 if (merged.isActive if merged.isActive is not None else True) else None,
                     "approval_status": merged.approvalStatus,
                     "is_deactivated": 1 if merged.isDeactivated else None,
-                    "credit_limit": (merged.creditLimit if getattr(merged, 'creditLimit', None) is not None else 0),
-                    "credit_used": (merged.creditUsed if getattr(merged, 'creditUsed', None) is not None else 0),
+                    "credit_limit": (merged.creditLimit if merged.creditLimit is not None else 0),
+                    "credit_used": (merged.creditUsed if merged.creditUsed is not None else 0),
                     "payment_terms": str(merged.paymentTerms)
                     if merged.paymentTerms is not None
                     else None,
                     "assigned_salesperson": merged.assignedSalesperson,
-                    "is_email_verified": 1 if (merged.isEmailVerified if getattr(merged, 'isEmailVerified', None) is not None else False) else None,
+                    "is_email_verified": 1 if (merged.isEmailVerified if merged.isEmailVerified is not None else False) else None,
                     "referral_code": merged.referralCode,
                     "is_seller_admin": 1 if merged.isSellerAdmin else None,
                     "is_on_duty": 1 if merged.isOnDuty else None,

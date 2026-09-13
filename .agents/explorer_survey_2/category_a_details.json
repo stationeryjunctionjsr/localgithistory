@@ -1,0 +1,3924 @@
+{
+  "analytics.py": [
+    {
+      "file": "analytics.py",
+      "lineno": 187,
+      "caller": "event",
+      "args": "'type'",
+      "func": "record_event",
+      "line_str": "if not event.get(\"type\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `event.get('type')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 202,
+      "caller": "enriched_event",
+      "args": "'type'",
+      "func": "record_event",
+      "line_str": "event_type = enriched_event.get(\"type\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `enriched_event.get('type')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 203,
+      "caller": "enriched_event",
+      "args": "'sessionId'",
+      "func": "record_event",
+      "line_str": "session_id = enriched_event.get(\"sessionId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `enriched_event.get('sessionId')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 204,
+      "caller": "enriched_event",
+      "args": "'userId'",
+      "func": "record_event",
+      "line_str": "user_id = enriched_event.get(\"userId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `enriched_event.get('userId')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 561,
+      "caller": "result",
+      "args": "'error'",
+      "func": "get_user_engagement_by_id",
+      "line_str": "if result.get(\"error\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `result.get('error')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 194,
+      "caller": "user_info",
+      "args": "'_id'",
+      "func": "record_event",
+      "line_str": "\"userId\": user_info.get(\"_id\") if user_info else None,",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `user_info.get('_id')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 195,
+      "caller": "event",
+      "args": "'timestamp'",
+      "func": "record_event",
+      "line_str": "\"timestamp\": event.get(\"timestamp\") or datetime.now(timezone.utc).isoformat(),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `event.get('timestamp')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 205,
+      "caller": "enriched_event",
+      "args": "'payload'",
+      "func": "record_event",
+      "line_str": "payload = enriched_event.get(\"payload\") or {}",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `enriched_event.get('payload')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 256,
+      "caller": "stored",
+      "args": "'_id'",
+      "func": "record_event",
+      "line_str": "return {\"status\": \"ok\", \"eventId\": stored.get(\"_id\")}",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `stored.get('_id')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 209,
+      "caller": "payload",
+      "args": "'returning', False",
+      "func": "record_event",
+      "line_str": "is_returning = payload.get(\"returning\", False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('returning', False)`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 212,
+      "caller": "enriched_event",
+      "args": "'page', '/'",
+      "func": "record_event",
+      "line_str": "page = enriched_event.get(\"page\", \"/\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `enriched_event.get('page', '/')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 215,
+      "caller": "payload",
+      "args": "'productId'",
+      "func": "record_event",
+      "line_str": "product_id = payload.get(\"productId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('productId')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 216,
+      "caller": "payload",
+      "args": "'productName', 'Unknown'",
+      "func": "record_event",
+      "line_str": "product_name = payload.get(\"productName\", \"Unknown\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('productName', 'Unknown')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 220,
+      "caller": "payload",
+      "args": "'productId'",
+      "func": "record_event",
+      "line_str": "product_id = payload.get(\"productId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('productId')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 221,
+      "caller": "payload",
+      "args": "'productName', 'Unknown'",
+      "func": "record_event",
+      "line_str": "product_name = payload.get(\"productName\", \"Unknown\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('productName', 'Unknown')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 222,
+      "caller": "payload",
+      "args": "'source', 'mobile_app'",
+      "func": "record_event",
+      "line_str": "source = payload.get(\"source\", \"mobile_app\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('source', 'mobile_app')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 226,
+      "caller": "payload",
+      "args": "'productId'",
+      "func": "record_event",
+      "line_str": "product_id = payload.get(\"productId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('productId')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 227,
+      "caller": "payload",
+      "args": "'quantity', 1",
+      "func": "record_event",
+      "line_str": "quantity = payload.get(\"quantity\", 1)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('quantity', 1)`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 231,
+      "caller": "payload",
+      "args": "'productId'",
+      "func": "record_event",
+      "line_str": "product_id = payload.get(\"productId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('productId')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 232,
+      "caller": "payload",
+      "args": "'quantity', 1",
+      "func": "record_event",
+      "line_str": "quantity = payload.get(\"quantity\", 1)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('quantity', 1)`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 236,
+      "caller": "payload",
+      "args": "'query', ''",
+      "func": "record_event",
+      "line_str": "query = payload.get(\"query\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('query', '')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 237,
+      "caller": "payload",
+      "args": "'resultsCount', 0",
+      "func": "record_event",
+      "line_str": "results_count = payload.get(\"resultsCount\", 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('resultsCount', 0)`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 240,
+      "caller": "payload",
+      "args": "'productId'",
+      "func": "record_event",
+      "line_str": "product_id = payload.get(\"productId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('productId')`"
+    },
+    {
+      "file": "analytics.py",
+      "lineno": 244,
+      "caller": "payload",
+      "args": "'reason', 'unknown'",
+      "func": "record_event",
+      "line_str": "reason = payload.get(\"reason\", \"unknown\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('reason', 'unknown')`"
+    }
+  ],
+  "auth.py": [
+    {
+      "file": "auth.py",
+      "lineno": 404,
+      "caller": "data",
+      "args": "'userId'",
+      "func": "refresh_tokens",
+      "line_str": "user_id = data.get(\"userId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `data.get('userId')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 405,
+      "caller": "data",
+      "args": "'sessionId'",
+      "func": "refresh_tokens",
+      "line_str": "session_id = data.get(\"sessionId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `data.get('sessionId')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 406,
+      "caller": "data",
+      "args": "'refreshId'",
+      "func": "refresh_tokens",
+      "line_str": "refresh_id = data.get(\"refreshId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `data.get('refreshId')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 137,
+      "caller": "payload",
+      "args": "'otp'",
+      "func": "send_otp",
+      "line_str": "otp = payload.get(\"otp\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('otp')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 153,
+      "caller": "payload",
+      "args": "'sent', True",
+      "func": "send_otp",
+      "line_str": "response_data.sent = bool(payload.get(\"sent\", True))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('sent', True)`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 152,
+      "caller": "payload",
+      "args": "'resend_available_in_seconds'",
+      "func": "send_otp",
+      "line_str": "response_data.resendAvailableInSeconds = int(payload.get(\"resend_available_in_seconds\") or 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('resend_available_in_seconds')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 200,
+      "caller": "payload",
+      "args": "'Status'",
+      "func": "msg91_webhook",
+      "line_str": "status_val = payload.get(\"Status\") or payload.get(\"status\") or payload.get(\"type\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('Status')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 200,
+      "caller": "payload",
+      "args": "'status'",
+      "func": "msg91_webhook",
+      "line_str": "status_val = payload.get(\"Status\") or payload.get(\"status\") or payload.get(\"type\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('status')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 200,
+      "caller": "payload",
+      "args": "'type'",
+      "func": "msg91_webhook",
+      "line_str": "status_val = payload.get(\"Status\") or payload.get(\"status\") or payload.get(\"type\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('type')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 290,
+      "caller": "otp_result",
+      "args": "'valid'",
+      "func": "register",
+      "line_str": "if not otp_result.get(\"valid\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `otp_result.get('valid')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 505,
+      "caller": "otp_result",
+      "args": "'valid'",
+      "func": "forgot_password",
+      "line_str": "if not otp_result.get(\"valid\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `otp_result.get('valid')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 134,
+      "caller": "payload",
+      "args": "'message', 'Too many requests'",
+      "func": "send_otp",
+      "line_str": "detail=payload.get(\"message\", \"Too many requests\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('message', 'Too many requests')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 218,
+      "caller": "res_data",
+      "args": "'message', 'Token verification failed'",
+      "func": "verify_msg91_token_endpoint",
+      "line_str": "status_code=status.HTTP_400_BAD_REQUEST, detail=res_data.get(\"message\", \"Token verification failed\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `res_data.get('message', 'Token verification failed')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 289,
+      "caller": "otp_result",
+      "args": "'valid'",
+      "func": "register",
+      "line_str": "logger.info(f\"[REGISTER] OTP verify result: valid={otp_result.get('valid')}\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `otp_result.get('valid')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 293,
+      "caller": "otp_result",
+      "args": "'message', 'Invalid or expired OTP'",
+      "func": "register",
+      "line_str": "detail=otp_result.get(\"message\", \"Invalid or expired OTP\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `otp_result.get('message', 'Invalid or expired OTP')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 507,
+      "caller": "otp_result",
+      "args": "'message', 'Invalid or expired OTP'",
+      "func": "forgot_password",
+      "line_str": "status_code=status.HTTP_400_BAD_REQUEST, detail=otp_result.get(\"message\", \"Invalid or expired OTP\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `otp_result.get('message', 'Invalid or expired OTP')`"
+    },
+    {
+      "file": "auth.py",
+      "lineno": 135,
+      "caller": "payload",
+      "args": "'retry_after_seconds'",
+      "func": "send_otp",
+      "line_str": "headers={\"Retry-After\": str(int(payload.get(\"retry_after_seconds\") or 0))},",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('retry_after_seconds')`"
+    }
+  ],
+  "availability_requests.py": [
+    {
+      "file": "availability_requests.py",
+      "lineno": 129,
+      "caller": "result",
+      "args": "'deliveredCount', 0",
+      "func": "fulfill_availability_request",
+      "line_str": "push_delivered = result.get(\"deliveredCount\", 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `result.get('deliveredCount', 0)`"
+    },
+    {
+      "file": "availability_requests.py",
+      "lineno": 151,
+      "caller": "event",
+      "args": "'userId'",
+      "func": "fulfill_availability_request",
+      "line_str": "ev_user_id = event.get(\"userId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `event.get('userId')`"
+    },
+    {
+      "file": "availability_requests.py",
+      "lineno": 152,
+      "caller": "event",
+      "args": "'email'",
+      "func": "fulfill_availability_request",
+      "line_str": "ev_email = event.get(\"email\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `event.get('email')`"
+    },
+    {
+      "file": "availability_requests.py",
+      "lineno": 145,
+      "caller": "e",
+      "args": "'type'",
+      "func": "fulfill_availability_request",
+      "line_str": "if e.get(\"type\") == \"notify_pincode\"",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `e.get('type')`"
+    },
+    {
+      "file": "availability_requests.py",
+      "lineno": 148,
+      "caller": "e",
+      "args": "'notified'",
+      "func": "fulfill_availability_request",
+      "line_str": "and not e.get(\"notified\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `e.get('notified')`"
+    },
+    {
+      "file": "availability_requests.py",
+      "lineno": 146,
+      "caller": "e",
+      "args": "'productId'",
+      "func": "fulfill_availability_request",
+      "line_str": "and str(e.get(\"productId\")) == str(product_id)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `e.get('productId')`"
+    },
+    {
+      "file": "availability_requests.py",
+      "lineno": 147,
+      "caller": "e",
+      "args": "'pincode'",
+      "func": "fulfill_availability_request",
+      "line_str": "and str(e.get(\"pincode\")) == str(pincode)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `e.get('pincode')`"
+    }
+  ],
+  "category_tags.py": [
+    {
+      "file": "category_tags.py",
+      "lineno": 101,
+      "caller": "existing_tag",
+      "args": "'_id'",
+      "func": "update_category_tag",
+      "line_str": "if existing_tag and existing_tag.get(\"_id\") != tag_id:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `existing_tag.get('_id')`"
+    }
+  ],
+  "commission.py": [
+    {
+      "file": "commission.py",
+      "lineno": 135,
+      "caller": "tier",
+      "args": "'minOrderValue', 0",
+      "func": "resolve_commission_pct",
+      "line_str": "min_v = tier.get(\"minOrderValue\", 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `tier.get('minOrderValue', 0)`"
+    },
+    {
+      "file": "commission.py",
+      "lineno": 136,
+      "caller": "tier",
+      "args": "'maxOrderValue'",
+      "func": "resolve_commission_pct",
+      "line_str": "max_v = tier.get(\"maxOrderValue\")  # None = unlimited",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `tier.get('maxOrderValue')`"
+    },
+    {
+      "file": "commission.py",
+      "lineno": 260,
+      "caller": "sorted_tiers[i]",
+      "args": "'maxOrderValue'",
+      "func": "update_commission_tiers",
+      "line_str": "curr_max = sorted_tiers[i].get(\"maxOrderValue\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sorted_tiers[i].get('maxOrderValue')`"
+    },
+    {
+      "file": "commission.py",
+      "lineno": 279,
+      "caller": "updated",
+      "args": "'tiers', []",
+      "func": "update_commission_tiers",
+      "line_str": "\"tiers\": updated.get(\"tiers\", []),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated.get('tiers', [])`"
+    },
+    {
+      "file": "commission.py",
+      "lineno": 280,
+      "caller": "updated",
+      "args": "'defaultCommissionPct', 5.0",
+      "func": "update_commission_tiers",
+      "line_str": "\"defaultCommissionPct\": updated.get(\"defaultCommissionPct\", 5.0),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated.get('defaultCommissionPct', 5.0)`"
+    },
+    {
+      "file": "commission.py",
+      "lineno": 340,
+      "caller": "updated",
+      "args": "'commissionOverridePct'",
+      "func": "set_seller_commission_override",
+      "line_str": "\"commissionOverridePct\": updated.get(\"commissionOverridePct\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated.get('commissionOverridePct')`"
+    },
+    {
+      "file": "commission.py",
+      "lineno": 253,
+      "caller": "d",
+      "args": "'id'",
+      "func": "update_commission_tiers",
+      "line_str": "if not d.get(\"id\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `d.get('id')`"
+    },
+    {
+      "file": "commission.py",
+      "lineno": 138,
+      "caller": "tier",
+      "args": "'commissionPct', default_pct",
+      "func": "resolve_commission_pct",
+      "line_str": "return float(tier.get(\"commissionPct\", default_pct))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `tier.get('commissionPct', default_pct)`"
+    },
+    {
+      "file": "commission.py",
+      "lineno": 403,
+      "caller": "updated",
+      "args": "'commissionStatus'",
+      "func": "realize_pending_commissions",
+      "line_str": "if updated.get(\"commissionStatus\") == \"realized\":",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated.get('commissionStatus')`"
+    }
+  ],
+  "content_pages.py": [
+    {
+      "file": "content_pages.py",
+      "lineno": 178,
+      "caller": "result",
+      "args": "'version', 1",
+      "func": "update_privacy",
+      "line_str": "version = result.get(\"version\", 1)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `result.get('version', 1)`"
+    },
+    {
+      "file": "content_pages.py",
+      "lineno": 177,
+      "caller": "result",
+      "args": "'lastUpdated', ''",
+      "func": "update_privacy",
+      "line_str": "last_updated = data.lastUpdated or result.get(\"lastUpdated\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `result.get('lastUpdated', '')`"
+    }
+  ],
+  "delivery_charges.py": [
+    {
+      "file": "delivery_charges.py",
+      "lineno": 90,
+      "caller": "result",
+      "args": "'charge', 0.0",
+      "func": "get_delivery_charge_by_location",
+      "line_str": "charge = result.get(\"charge\", 0.0) or 0.0",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `result.get('charge', 0.0)`"
+    },
+    {
+      "file": "delivery_charges.py",
+      "lineno": 357,
+      "caller": "update_dict",
+      "args": "'serviceableForCustomer'",
+      "func": "update_delivery_charge",
+      "line_str": "if update_dict.get(\"serviceableForCustomer\") is False:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `update_dict.get('serviceableForCustomer')`"
+    },
+    {
+      "file": "delivery_charges.py",
+      "lineno": 234,
+      "caller": "slot_config",
+      "args": "'slots', []",
+      "func": "check_serviceability",
+      "line_str": "for slot in slot_config.get(\"slots\", []):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot_config.get('slots', [])`"
+    },
+    {
+      "file": "delivery_charges.py",
+      "lineno": 168,
+      "caller": "seller_doc",
+      "args": "'name', ''",
+      "func": "check_serviceability",
+      "line_str": "\"companyName\": (seller_doc.company_name if seller_doc.company_name is not None else seller_doc.get(\"name\", \"\")),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `seller_doc.get('name', '')`"
+    },
+    {
+      "file": "delivery_charges.py",
+      "lineno": 169,
+      "caller": "seller_doc.address or {}",
+      "args": "'city'",
+      "func": "check_serviceability",
+      "line_str": "\"city\": seller_doc.city or (seller_doc.address or {}).get(\"city\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `seller_doc.address or {}.get('city')`"
+    },
+    {
+      "file": "delivery_charges.py",
+      "lineno": 188,
+      "caller": "seller_doc",
+      "args": "'name', ''",
+      "func": "check_serviceability",
+      "line_str": "\"companyName\": (seller_doc.company_name if seller_doc.company_name is not None else seller_doc.get(\"name\", \"\")),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `seller_doc.get('name', '')`"
+    },
+    {
+      "file": "delivery_charges.py",
+      "lineno": 189,
+      "caller": "seller_doc.address or {}",
+      "args": "'city'",
+      "func": "check_serviceability",
+      "line_str": "\"city\": seller_doc.city or (seller_doc.address or {}).get(\"city\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `seller_doc.address or {}.get('city')`"
+    }
+  ],
+  "delivery_slots.py": [
+    {
+      "file": "delivery_slots.py",
+      "lineno": 141,
+      "caller": "config",
+      "args": "'slots', []",
+      "func": "get_available_slots",
+      "line_str": "for slot in config.get(\"slots\", []):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `config.get('slots', [])`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 291,
+      "caller": "config",
+      "args": "'slots', []",
+      "func": "book_slot",
+      "line_str": "slots = config.get(\"slots\", [])",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `config.get('slots', [])`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 179,
+      "caller": "slot",
+      "args": "'endTime', ''",
+      "func": "get_available_slots",
+      "line_str": "end_time_str = slot.get(\"endTime\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('endTime', '')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 230,
+      "caller": "config",
+      "args": "'slots', []",
+      "func": "get_dates_with_slots",
+      "line_str": "for slot in config.get(\"slots\", []):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `config.get('slots', [])`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 82,
+      "caller": "zone_data",
+      "args": "'_id'",
+      "func": "_resolve_zone_config",
+      "line_str": "zone_id = zone_data.get(\"_id\") or zone_data.get(\"id\") if zone_data else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `zone_data.get('_id')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 82,
+      "caller": "zone_data",
+      "args": "'id'",
+      "func": "_resolve_zone_config",
+      "line_str": "zone_id = zone_data.get(\"_id\") or zone_data.get(\"id\") if zone_data else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `zone_data.get('id')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 146,
+      "caller": "slot",
+      "args": "'isFullDay'",
+      "func": "get_available_slots",
+      "line_str": "is_full_day = (slot.get(\"isFullDay\") if slot.get(\"isFullDay\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isFullDay')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 147,
+      "caller": "slot",
+      "args": "'isUrgent'",
+      "func": "get_available_slots",
+      "line_str": "is_urgent = (slot.get(\"isUrgent\") if slot.get(\"isUrgent\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isUrgent')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 143,
+      "caller": "slot",
+      "args": "'isActive'",
+      "func": "get_available_slots",
+      "line_str": "if not (slot.get(\"isActive\") if slot.get(\"isActive\") is not None else True):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isActive')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 146,
+      "caller": "slot",
+      "args": "'isFullDay'",
+      "func": "get_available_slots",
+      "line_str": "is_full_day = (slot.get(\"isFullDay\") if slot.get(\"isFullDay\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isFullDay')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 147,
+      "caller": "slot",
+      "args": "'isUrgent'",
+      "func": "get_available_slots",
+      "line_str": "is_urgent = (slot.get(\"isUrgent\") if slot.get(\"isUrgent\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isUrgent')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 157,
+      "caller": "slot",
+      "args": "'cutoffHours'",
+      "func": "get_available_slots",
+      "line_str": "cutoff_hours = slot.get(\"cutoffHours\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('cutoffHours')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 173,
+      "caller": "config",
+      "args": "'zoneDefaultCapacity'",
+      "func": "get_available_slots",
+      "line_str": "cap = config.get(\"zoneDefaultCapacity\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `config.get('zoneDefaultCapacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 192,
+      "caller": "slot",
+      "args": "'id', f\"{slot.get('startTime')}-{slot.get('endTime')}\"",
+      "func": "get_available_slots",
+      "line_str": "\"slotId\": slot.get(\"id\", f\"{slot.get('startTime')}-{slot.get('endTime')}\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('id', f\"{slot.get('startTime')}-{slot.get('endTime')}\")`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 193,
+      "caller": "slot",
+      "args": "'startTime', ''",
+      "func": "get_available_slots",
+      "line_str": "\"startTime\": slot.get(\"startTime\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('startTime', '')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 194,
+      "caller": "slot",
+      "args": "'endTime', ''",
+      "func": "get_available_slots",
+      "line_str": "\"endTime\": slot.get(\"endTime\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('endTime', '')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 234,
+      "caller": "slot",
+      "args": "'isFullDay'",
+      "func": "get_dates_with_slots",
+      "line_str": "is_full_day = (slot.get(\"isFullDay\") if slot.get(\"isFullDay\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isFullDay')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 235,
+      "caller": "slot",
+      "args": "'isUrgent'",
+      "func": "get_dates_with_slots",
+      "line_str": "is_urgent = (slot.get(\"isUrgent\") if slot.get(\"isUrgent\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isUrgent')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 250,
+      "caller": "slot",
+      "args": "'endTime'",
+      "func": "get_dates_with_slots",
+      "line_str": "end_time_str = (slot.get(\"endTime\") or \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('endTime')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 294,
+      "caller": "slot",
+      "args": "'id'",
+      "func": "book_slot",
+      "line_str": "if slot.get(\"id\") == slot_id or f\"{slot.get('startTime')}-{slot.get('endTime')}\" == slot_id:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('id')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 297,
+      "caller": "config",
+      "args": "'zoneDefaultCapacity'",
+      "func": "book_slot",
+      "line_str": "cap = config.get(\"zoneDefaultCapacity\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `config.get('zoneDefaultCapacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 332,
+      "caller": "zone_doc",
+      "args": "'defaultCapacity', 10",
+      "func": "create_delivery_slot_config",
+      "line_str": "zone_default_capacity = zone_doc.get(\"defaultCapacity\", 10)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `zone_doc.get('defaultCapacity', 10)`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 143,
+      "caller": "slot",
+      "args": "'isActive'",
+      "func": "get_available_slots",
+      "line_str": "if not (slot.get(\"isActive\") if slot.get(\"isActive\") is not None else True):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isActive')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 152,
+      "caller": "slot",
+      "args": "'urgentCutoffHours'",
+      "func": "get_available_slots",
+      "line_str": "slot.get(\"urgentCutoffHours\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('urgentCutoffHours')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 154,
+      "caller": "slot",
+      "args": "'cutoffHours'",
+      "func": "get_available_slots",
+      "line_str": "else slot.get(\"cutoffHours\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('cutoffHours')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 171,
+      "caller": "slot",
+      "args": "'capacity'",
+      "func": "get_available_slots",
+      "line_str": "cap = int(slot.get(\"capacity\")) if slot.get(\"capacity\") not in (None, \"\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('capacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 171,
+      "caller": "slot",
+      "args": "'capacity'",
+      "func": "get_available_slots",
+      "line_str": "cap = int(slot.get(\"capacity\")) if slot.get(\"capacity\") not in (None, \"\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('capacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 174,
+      "caller": "slot",
+      "args": "'bookedCount'",
+      "func": "get_available_slots",
+      "line_str": "booked = int(slot.get(\"bookedCount\") or 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('bookedCount')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 231,
+      "caller": "slot",
+      "args": "'isActive'",
+      "func": "get_dates_with_slots",
+      "line_str": "if not (slot.get(\"isActive\") if slot.get(\"isActive\") is not None else True):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isActive')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 234,
+      "caller": "slot",
+      "args": "'isFullDay'",
+      "func": "get_dates_with_slots",
+      "line_str": "is_full_day = (slot.get(\"isFullDay\") if slot.get(\"isFullDay\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isFullDay')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 235,
+      "caller": "slot",
+      "args": "'isUrgent'",
+      "func": "get_dates_with_slots",
+      "line_str": "is_urgent = (slot.get(\"isUrgent\") if slot.get(\"isUrgent\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isUrgent')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 239,
+      "caller": "slot",
+      "args": "'urgentCutoffHours'",
+      "func": "get_dates_with_slots",
+      "line_str": "cutoff_hours = slot.get(\"urgentCutoffHours\") if is_urgent and slot.get(\"urgentCutoffHours\") is not None else slot.get(\"cutoffHours\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('urgentCutoffHours')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 239,
+      "caller": "slot",
+      "args": "'cutoffHours'",
+      "func": "get_dates_with_slots",
+      "line_str": "cutoff_hours = slot.get(\"urgentCutoffHours\") if is_urgent and slot.get(\"urgentCutoffHours\") is not None else slot.get(\"cutoffHours\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('cutoffHours')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 262,
+      "caller": "config",
+      "args": "'zoneDefaultCapacity'",
+      "func": "get_dates_with_slots",
+      "line_str": "cap = config.get(\"zoneDefaultCapacity\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `config.get('zoneDefaultCapacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 295,
+      "caller": "slot",
+      "args": "'capacity'",
+      "func": "book_slot",
+      "line_str": "cap = int(slot.get(\"capacity\")) if slot.get(\"capacity\") not in (None, \"\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('capacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 295,
+      "caller": "slot",
+      "args": "'capacity'",
+      "func": "book_slot",
+      "line_str": "cap = int(slot.get(\"capacity\")) if slot.get(\"capacity\") not in (None, \"\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('capacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 298,
+      "caller": "slot",
+      "args": "'bookedCount'",
+      "func": "book_slot",
+      "line_str": "booked = (int(slot.get(\"bookedCount\")) if slot.get(\"bookedCount\") not in (None, \"\") else 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('bookedCount')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 298,
+      "caller": "slot",
+      "args": "'bookedCount'",
+      "func": "book_slot",
+      "line_str": "booked = (int(slot.get(\"bookedCount\")) if slot.get(\"bookedCount\") not in (None, \"\") else 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('bookedCount')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 338,
+      "caller": "slot_dict",
+      "args": "'capacity'",
+      "func": "create_delivery_slot_config",
+      "line_str": "if slot_dict.get(\"capacity\") is None or slot_dict.get(\"capacity\") == 0:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot_dict.get('capacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 338,
+      "caller": "slot_dict",
+      "args": "'capacity'",
+      "func": "create_delivery_slot_config",
+      "line_str": "if slot_dict.get(\"capacity\") is None or slot_dict.get(\"capacity\") == 0:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot_dict.get('capacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 153,
+      "caller": "slot",
+      "args": "'urgentCutoffHours'",
+      "func": "get_available_slots",
+      "line_str": "if slot.get(\"urgentCutoffHours\") is not None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('urgentCutoffHours')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 160,
+      "caller": "slot",
+      "args": "'endTime'",
+      "func": "get_available_slots",
+      "line_str": "anchor_time_str = (slot.get(\"endTime\") or \"\") if is_urgent else (slot.get(\"startTime\") or \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('endTime')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 160,
+      "caller": "slot",
+      "args": "'startTime'",
+      "func": "get_available_slots",
+      "line_str": "anchor_time_str = (slot.get(\"endTime\") or \"\") if is_urgent else (slot.get(\"startTime\") or \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('startTime')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 231,
+      "caller": "slot",
+      "args": "'isActive'",
+      "func": "get_dates_with_slots",
+      "line_str": "if not (slot.get(\"isActive\") if slot.get(\"isActive\") is not None else True):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('isActive')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 260,
+      "caller": "slot",
+      "args": "'capacity'",
+      "func": "get_dates_with_slots",
+      "line_str": "cap = int(slot.get(\"capacity\")) if slot.get(\"capacity\") not in (None, \"\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('capacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 260,
+      "caller": "slot",
+      "args": "'capacity'",
+      "func": "get_dates_with_slots",
+      "line_str": "cap = int(slot.get(\"capacity\")) if slot.get(\"capacity\") not in (None, \"\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('capacity')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 263,
+      "caller": "slot",
+      "args": "'bookedCount'",
+      "func": "get_dates_with_slots",
+      "line_str": "booked = (int(slot.get(\"bookedCount\")) if slot.get(\"bookedCount\") not in (None, \"\") else 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('bookedCount')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 263,
+      "caller": "slot",
+      "args": "'bookedCount'",
+      "func": "get_dates_with_slots",
+      "line_str": "booked = (int(slot.get(\"bookedCount\")) if slot.get(\"bookedCount\") not in (None, \"\") else 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('bookedCount')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 294,
+      "caller": "slot",
+      "args": "'startTime'",
+      "func": "book_slot",
+      "line_str": "if slot.get(\"id\") == slot_id or f\"{slot.get('startTime')}-{slot.get('endTime')}\" == slot_id:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('startTime')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 294,
+      "caller": "slot",
+      "args": "'endTime'",
+      "func": "book_slot",
+      "line_str": "if slot.get(\"id\") == slot_id or f\"{slot.get('startTime')}-{slot.get('endTime')}\" == slot_id:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('endTime')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 192,
+      "caller": "slot",
+      "args": "'startTime'",
+      "func": "get_available_slots",
+      "line_str": "\"slotId\": slot.get(\"id\", f\"{slot.get('startTime')}-{slot.get('endTime')}\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('startTime')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 192,
+      "caller": "slot",
+      "args": "'endTime'",
+      "func": "get_available_slots",
+      "line_str": "\"slotId\": slot.get(\"id\", f\"{slot.get('startTime')}-{slot.get('endTime')}\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('endTime')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 239,
+      "caller": "slot",
+      "args": "'urgentCutoffHours'",
+      "func": "get_dates_with_slots",
+      "line_str": "cutoff_hours = slot.get(\"urgentCutoffHours\") if is_urgent and slot.get(\"urgentCutoffHours\") is not None else slot.get(\"cutoffHours\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('urgentCutoffHours')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 241,
+      "caller": "slot",
+      "args": "'endTime'",
+      "func": "get_dates_with_slots",
+      "line_str": "anchor_time_str = (slot.get(\"endTime\") or \"\") if is_urgent else (slot.get(\"startTime\") or \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('endTime')`"
+    },
+    {
+      "file": "delivery_slots.py",
+      "lineno": 241,
+      "caller": "slot",
+      "args": "'startTime'",
+      "func": "get_dates_with_slots",
+      "line_str": "anchor_time_str = (slot.get(\"endTime\") or \"\") if is_urgent else (slot.get(\"startTime\") or \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot.get('startTime')`"
+    }
+  ],
+  "delivery_zones.py": [
+    {
+      "file": "delivery_zones.py",
+      "lineno": 74,
+      "caller": "z",
+      "args": "'pincodes'",
+      "func": "_check_pincode_conflicts",
+      "line_str": "for pc in z.get(\"pincodes\") or []:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `z.get('pincodes')`"
+    },
+    {
+      "file": "delivery_zones.py",
+      "lineno": 75,
+      "caller": "z",
+      "args": "'name', str(z['_id'])",
+      "func": "_check_pincode_conflicts",
+      "line_str": "taken[pc] = z.get(\"name\", str(z[\"_id\"]))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `z.get('name', str(z['_id']))`"
+    }
+  ],
+  "feature_flags.py": [
+    {
+      "file": "feature_flags.py",
+      "lineno": 141,
+      "caller": "flag",
+      "args": "'enabled', False",
+      "func": "toggle_feature_flag",
+      "line_str": "updated = await feature_flag_repository.update(flag[\"_id\"], {\"enabled\": not flag.get(\"enabled\", False)})",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `flag.get('enabled', False)`"
+    }
+  ],
+  "order_feedback.py": [
+    {
+      "file": "order_feedback.py",
+      "lineno": 106,
+      "caller": "latest_eligible_order",
+      "args": "'_id'",
+      "func": "get_eligible_feedback_order",
+      "line_str": "return {\"eligibleOrderId\": latest_eligible_order.get(\"_id\")}",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `latest_eligible_order.get('_id')`"
+    },
+    {
+      "file": "order_feedback.py",
+      "lineno": 70,
+      "caller": "f",
+      "args": "'orderId'",
+      "func": "get_eligible_feedback_order",
+      "line_str": "feedback_order_ids = set(f.get(\"orderId\") for f in feedbacks)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `f.get('orderId')`"
+    },
+    {
+      "file": "order_feedback.py",
+      "lineno": 80,
+      "caller": "latest_eligible_order",
+      "args": "'_id'",
+      "func": "get_eligible_feedback_order",
+      "line_str": "return {\"eligibleOrderId\": latest_eligible_order.get(\"_id\")}",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `latest_eligible_order.get('_id')`"
+    },
+    {
+      "file": "order_feedback.py",
+      "lineno": 92,
+      "caller": "latest_feedback",
+      "args": "'createdAt'",
+      "func": "get_eligible_feedback_order",
+      "line_str": "latest_feedback_date = parser.parse(latest_feedback.get(\"createdAt\"))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `latest_feedback.get('createdAt')`"
+    }
+  ],
+  "orders.py": [
+    {
+      "file": "orders.py",
+      "lineno": 574,
+      "caller": "validation",
+      "args": "'eligibleItemIndices'",
+      "func": "create_order",
+      "line_str": "eligible_item_indices = validation.get(\"eligibleItemIndices\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `validation.get('eligibleItemIndices')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 575,
+      "caller": "validation",
+      "args": "'itemDiscounts'",
+      "func": "create_order",
+      "line_str": "item_discounts = validation.get(\"itemDiscounts\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `validation.get('itemDiscounts')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 576,
+      "caller": "validation",
+      "args": "'bxgyItemIndices'",
+      "func": "create_order",
+      "line_str": "validation.get(\"bxgyItemIndices\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `validation.get('bxgyItemIndices')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 717,
+      "caller": "ref_settings",
+      "args": "'retail', {}",
+      "func": "create_order",
+      "line_str": "retail_settings = ref_settings.get(\"retail\", {})",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `ref_settings.get('retail', {})`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1012,
+      "caller": "order_data.shippingAddress",
+      "args": "'zipCode'",
+      "func": "create_order",
+      "line_str": "if order_data.shippingAddress and order_data.shippingAddress.get(\"zipCode\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('zipCode')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 2728,
+      "caller": "updated_payment",
+      "args": "'amountRemaining', 0",
+      "func": "settle_credit",
+      "line_str": "if updated_payment.get(\"amountRemaining\", 0) <= 0:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated_payment.get('amountRemaining', 0)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 236,
+      "caller": "item_dict",
+      "args": "'product'",
+      "func": "populate_orders",
+      "line_str": "prod = item_dict.get(\"product\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `item_dict.get('product')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 522,
+      "caller": "order_data.shippingAddress",
+      "args": "'state', ''",
+      "func": "create_order",
+      "line_str": "state = order_data.shippingAddress.get(\"state\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('state', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 523,
+      "caller": "order_data.shippingAddress",
+      "args": "'city', ''",
+      "func": "create_order",
+      "line_str": "city = order_data.shippingAddress.get(\"city\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('city', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 524,
+      "caller": "order_data.shippingAddress",
+      "args": "'district', ''",
+      "func": "create_order",
+      "line_str": "district = order_data.shippingAddress.get(\"district\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('district', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 525,
+      "caller": "order_data.shippingAddress",
+      "args": "'zipCode', ''",
+      "func": "create_order",
+      "line_str": "zip_code = order_data.shippingAddress.get(\"zipCode\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('zipCode', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 569,
+      "caller": "validation",
+      "args": "'valid'",
+      "func": "create_order",
+      "line_str": "if not validation.get(\"valid\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `validation.get('valid')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 572,
+      "caller": "validation['coupon']",
+      "args": "'code'",
+      "func": "create_order",
+      "line_str": "coupon_code = validation[\"coupon\"].get(\"code\") or (\"AUTO-\" + (applied_coupon_id or \"\")[:8])",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `validation['coupon'].get('code')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 578,
+      "caller": "validation",
+      "args": "'coupon'",
+      "func": "create_order",
+      "line_str": "c_obj = validation.get(\"coupon\") or {}",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `validation.get('coupon')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 587,
+      "caller": "validation['coupon']",
+      "args": "'typeOfDiscount'",
+      "func": "create_order",
+      "line_str": "\"typeOfDiscount\": validation[\"coupon\"].get(\"typeOfDiscount\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `validation['coupon'].get('typeOfDiscount')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 605,
+      "caller": "best",
+      "args": "'eligibleItemIndices'",
+      "func": "create_order",
+      "line_str": "eligible_item_indices = best.get(\"eligibleItemIndices\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `best.get('eligibleItemIndices')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 606,
+      "caller": "best",
+      "args": "'itemDiscounts'",
+      "func": "create_order",
+      "line_str": "item_discounts = best.get(\"itemDiscounts\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `best.get('itemDiscounts')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 607,
+      "caller": "best",
+      "args": "'bxgyItemIndices'",
+      "func": "create_order",
+      "line_str": "best.get(\"bxgyItemIndices\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `best.get('bxgyItemIndices')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 657,
+      "caller": "coupon_info",
+      "args": "'typeOfDiscount'",
+      "func": "create_order",
+      "line_str": "is_shipping_discount = coupon_info is not None and coupon_info.get(\"typeOfDiscount\") == \"shipping_discount\"",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `coupon_info.get('typeOfDiscount')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 752,
+      "caller": "order_data.shippingAddress",
+      "args": "'zipCode'",
+      "func": "create_order",
+      "line_str": "(order_data.shippingAddress.get(\"zipCode\") or order_data.shippingAddress.get(\"pincode\") or \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('zipCode')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 752,
+      "caller": "order_data.shippingAddress",
+      "args": "'pincode'",
+      "func": "create_order",
+      "line_str": "(order_data.shippingAddress.get(\"zipCode\") or order_data.shippingAddress.get(\"pincode\") or \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('pincode')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 869,
+      "caller": "order_data.shippingAddress",
+      "args": "'zipCode', ''",
+      "func": "create_order",
+      "line_str": "zip_code = order_data.shippingAddress.get(\"zipCode\", \"\") if order_data.shippingAddress else \"\"",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('zipCode', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 910,
+      "caller": "sc",
+      "args": "'slots', []",
+      "func": "create_order",
+      "line_str": "for sl in sc.get(\"slots\", []):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sc.get('slots', [])`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1000,
+      "caller": "matched_slot",
+      "args": "'_id', matched_slot.get('id')",
+      "func": "create_order",
+      "line_str": "\"slotId\": matched_slot.get(\"_id\", matched_slot.get(\"id\")),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('_id', matched_slot.get('id'))`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1063,
+      "caller": "order_data.shippingAddress",
+      "args": "'state', ''",
+      "func": "create_order",
+      "line_str": "state = order_data.shippingAddress.get(\"state\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('state', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1064,
+      "caller": "order_data.shippingAddress",
+      "args": "'city', ''",
+      "func": "create_order",
+      "line_str": "city = order_data.shippingAddress.get(\"city\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('city', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1065,
+      "caller": "order_data.shippingAddress",
+      "args": "'district', ''",
+      "func": "create_order",
+      "line_str": "district = order_data.shippingAddress.get(\"district\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('district', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1066,
+      "caller": "order_data.shippingAddress",
+      "args": "'zipCode', ''",
+      "func": "create_order",
+      "line_str": "zip_code = order_data.shippingAddress.get(\"zipCode\", \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('zipCode', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1118,
+      "caller": "coupon_info",
+      "args": "'typeOfDiscount'",
+      "func": "create_order",
+      "line_str": "is_shipping_discount = coupon_info is not None and coupon_info.get(\"typeOfDiscount\") == \"shipping_discount\"",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `coupon_info.get('typeOfDiscount')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1443,
+      "caller": "populated_order",
+      "args": "'user', {}",
+      "func": "create_order",
+      "line_str": "email = populated_order.get(\"user\", {}).email if populated_order.user else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `populated_order.get('user', {})`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1475,
+      "caller": "oi",
+      "args": "'sellerId'",
+      "func": "create_order",
+      "line_str": "sid = oi.get(\"sellerId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `oi.get('sellerId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1947,
+      "caller": "updated_order",
+      "args": "'subOrderIds'",
+      "func": "update_order_status",
+      "line_str": "sub_ids = updated_order.get(\"subOrderIds\") or []",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated_order.get('subOrderIds')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 2708,
+      "caller": "payment",
+      "args": "'totalAmount', 0",
+      "func": "settle_credit",
+      "line_str": "remaining_amount = (payment.amount_remaining if payment.amount_remaining is not None else payment.get(\"totalAmount\", 0) - ((payment.amount_paid if payment.amount_paid is not None else 0) or 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payment.get('totalAmount', 0)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 2899,
+      "caller": "parent",
+      "args": "'subOrderIds'",
+      "func": "update_seller_order_status",
+      "line_str": "if parent and parent.get(\"subOrderIds\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `parent.get('subOrderIds')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 47,
+      "caller": "sellers[0]",
+      "args": "'id'",
+      "func": "_resolve_product_seller_id",
+      "line_str": "return sellers[0].get(\"id\") or sellers[0].get(\"_id\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sellers[0].get('id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 47,
+      "caller": "sellers[0]",
+      "args": "'_id'",
+      "func": "_resolve_product_seller_id",
+      "line_str": "return sellers[0].get(\"id\") or sellers[0].get(\"_id\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sellers[0].get('_id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 276,
+      "caller": "valet",
+      "args": "'name'",
+      "func": "populate_orders",
+      "line_str": "v_name = valet.get(\"name\") if isinstance(valet, dict) else (valet.name if valet.name is not None else \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `valet.get('name')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 277,
+      "caller": "valet",
+      "args": "'phone'",
+      "func": "populate_orders",
+      "line_str": "v_phone = valet.get(\"phone\") if isinstance(valet, dict) else (valet.phone if valet.phone is not None else \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `valet.get('phone')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 533,
+      "caller": "delivery_charge_data",
+      "args": "'charge', 0",
+      "func": "create_order",
+      "line_str": "charge_amount = delivery_charge_data.get(\"charge\", 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `delivery_charge_data.get('charge', 0)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 534,
+      "caller": "delivery_charge_data",
+      "args": "'minCartValue', 0",
+      "func": "create_order",
+      "line_str": "min_cart_value_for_free = delivery_charge_data.get(\"minCartValue\", 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `delivery_charge_data.get('minCartValue', 0)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 535,
+      "caller": "delivery_charge_data",
+      "args": "'isApplicableToRole', True",
+      "func": "create_order",
+      "line_str": "if delivery_charge_data.get(\"isApplicableToRole\", True):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `delivery_charge_data.get('isApplicableToRole', True)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 579,
+      "caller": "c_obj",
+      "args": "'method'",
+      "func": "create_order",
+      "line_str": "if c_obj.get(\"method\") == \"discount_code\" and c_obj.get(\"couponMode\") == \"override\":",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `c_obj.get('method')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 579,
+      "caller": "c_obj",
+      "args": "'couponMode'",
+      "func": "create_order",
+      "line_str": "if c_obj.get(\"method\") == \"discount_code\" and c_obj.get(\"couponMode\") == \"override\":",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `c_obj.get('couponMode')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 917,
+      "caller": "sl",
+      "args": "'capacity'",
+      "func": "create_order",
+      "line_str": "_cap = sl.get(\"capacity\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('capacity')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 967,
+      "caller": "matched_slot",
+      "args": "'isFullDay'",
+      "func": "create_order",
+      "line_str": "is_full_day = (matched_slot.get(\"isFullDay\") if matched_slot.get(\"isFullDay\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('isFullDay')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 970,
+      "caller": "matched_slot",
+      "args": "'capacity'",
+      "func": "create_order",
+      "line_str": "_cap = matched_slot.get(\"capacity\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('capacity')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 999,
+      "caller": "matched_config",
+      "args": "'_id', matched_config.get('id')",
+      "func": "create_order",
+      "line_str": "\"configId\": str(matched_config.get(\"_id\", matched_config.get(\"id\"))),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_config.get('_id', matched_config.get('id'))`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1000,
+      "caller": "matched_slot",
+      "args": "'id'",
+      "func": "create_order",
+      "line_str": "\"slotId\": matched_slot.get(\"_id\", matched_slot.get(\"id\")),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1005,
+      "caller": "matched_slot",
+      "args": "'isUrgent'",
+      "func": "create_order",
+      "line_str": "\"isUrgent\": (matched_slot.get(\"isUrgent\") if matched_slot.get(\"isUrgent\") is not None else False),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('isUrgent')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1077,
+      "caller": "delivery_charge_data",
+      "args": "'charge', 0",
+      "func": "create_order",
+      "line_str": "charge_amount = delivery_charge_data.get(\"charge\", 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `delivery_charge_data.get('charge', 0)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1078,
+      "caller": "delivery_charge_data",
+      "args": "'minCartValue', 0",
+      "func": "create_order",
+      "line_str": "min_cart_value_for_free = delivery_charge_data.get(\"minCartValue\", 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `delivery_charge_data.get('minCartValue', 0)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1083,
+      "caller": "delivery_charge_data",
+      "args": "'isApplicableToRole', True",
+      "func": "create_order",
+      "line_str": "if delivery_charge_data.get(\"isApplicableToRole\", True):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `delivery_charge_data.get('isApplicableToRole', True)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1978,
+      "caller": "updated_order",
+      "args": "'subOrderIds'",
+      "func": "update_order_status",
+      "line_str": "_f_status = await _compute_fulfillment_status(updated_order.get(\"subOrderIds\") or [])",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated_order.get('subOrderIds')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1984,
+      "caller": "populated_order",
+      "args": "'user', {}",
+      "func": "update_order_status",
+      "line_str": "email = populated_order.get(\"user\", {}).email if populated_order.user else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `populated_order.get('user', {})`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1990,
+      "caller": "updated_order",
+      "args": "'invoicePath'",
+      "func": "update_order_status",
+      "line_str": "if order_user and order_user.role == \"customer\" and not updated_order.get(\"invoicePath\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated_order.get('invoicePath')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 2045,
+      "caller": "entry",
+      "args": "'verified'",
+      "func": "accept_order",
+      "line_str": "any_verified = any(entry.get(\"verified\") for entry in entries)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `entry.get('verified')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 2421,
+      "caller": "_so",
+      "args": "'sellerId'",
+      "func": "valet_response",
+      "line_str": "_seller_id = _so.get(\"sellerId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `_so.get('sellerId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 275,
+      "caller": "valet",
+      "args": "'_id'",
+      "func": "populate_orders",
+      "line_str": "v_id = valet.get(\"_id\") or valet.get(\"id\") if isinstance(valet, dict) else (valet.id if valet.id is not None else \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `valet.get('_id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 275,
+      "caller": "valet",
+      "args": "'id'",
+      "func": "populate_orders",
+      "line_str": "v_id = valet.get(\"_id\") or valet.get(\"id\") if isinstance(valet, dict) else (valet.id if valet.id is not None else \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `valet.get('id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 570,
+      "caller": "validation",
+      "args": "'message'",
+      "func": "create_order",
+      "line_str": "raise HTTPException(status_code=400, detail=validation.get(\"message\"))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `validation.get('message')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 884,
+      "caller": "_zone_doc",
+      "args": "'_id', _zone_doc.get('id')",
+      "func": "create_order",
+      "line_str": "order_zone_id = str(_zone_doc.get(\"_id\", _zone_doc.get(\"id\")))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `_zone_doc.get('_id', _zone_doc.get('id'))`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 885,
+      "caller": "_zone_doc",
+      "args": "'urgentDeliveryAvailable', False",
+      "func": "create_order",
+      "line_str": "zone_urgent_available = bool(_zone_doc.get(\"urgentDeliveryAvailable\", False))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `_zone_doc.get('urgentDeliveryAvailable', False)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 919,
+      "caller": "sc",
+      "args": "'zoneDefaultCapacity'",
+      "func": "create_order",
+      "line_str": "_cap = sc.get(\"zoneDefaultCapacity\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sc.get('zoneDefaultCapacity')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 920,
+      "caller": "sl",
+      "args": "'bookedCount'",
+      "func": "create_order",
+      "line_str": "_booked = (sl.get(\"bookedCount\") if sl.get(\"bookedCount\") is not None else 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('bookedCount')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 967,
+      "caller": "matched_slot",
+      "args": "'isFullDay'",
+      "func": "create_order",
+      "line_str": "is_full_day = (matched_slot.get(\"isFullDay\") if matched_slot.get(\"isFullDay\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('isFullDay')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 972,
+      "caller": "matched_config",
+      "args": "'zoneDefaultCapacity'",
+      "func": "create_order",
+      "line_str": "_cap = matched_config.get(\"zoneDefaultCapacity\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_config.get('zoneDefaultCapacity')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 973,
+      "caller": "matched_slot",
+      "args": "'bookedCount'",
+      "func": "create_order",
+      "line_str": "_booked = (matched_slot.get(\"bookedCount\") if matched_slot.get(\"bookedCount\") is not None else 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('bookedCount')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 978,
+      "caller": "matched_slot",
+      "args": "'urgentCutoffHours'",
+      "func": "create_order",
+      "line_str": "matched_slot.get(\"urgentCutoffHours\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('urgentCutoffHours')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 980,
+      "caller": "matched_slot",
+      "args": "'cutoffHours'",
+      "func": "create_order",
+      "line_str": "else matched_slot.get(\"cutoffHours\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('cutoffHours')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 999,
+      "caller": "matched_config",
+      "args": "'id'",
+      "func": "create_order",
+      "line_str": "\"configId\": str(matched_config.get(\"_id\", matched_config.get(\"id\"))),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_config.get('id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1005,
+      "caller": "matched_slot",
+      "args": "'isUrgent'",
+      "func": "create_order",
+      "line_str": "\"isUrgent\": (matched_slot.get(\"isUrgent\") if matched_slot.get(\"isUrgent\") is not None else False),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('isUrgent')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1013,
+      "caller": "order_data.shippingAddress",
+      "args": "'zipCode'",
+      "func": "create_order",
+      "line_str": "shipping_zip = str(order_data.shippingAddress.get(\"zipCode\")).strip()",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('zipCode')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1035,
+      "caller": "sdoc.get('sellerPermissions') or {}",
+      "args": "'serviceableZoneIds', []",
+      "func": "create_order",
+      "line_str": "seller_zone_ids = (sdoc.get(\"sellerPermissions\") or {}).get(\"serviceableZoneIds\", [])",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdoc.get('sellerPermissions') or {}.get('serviceableZoneIds', [])`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1261,
+      "caller": "selected_slot_info",
+      "args": "'configId'",
+      "func": "create_order",
+      "line_str": "selected_slot_info.get(\"configId\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `selected_slot_info.get('configId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1262,
+      "caller": "selected_slot_info",
+      "args": "'slotId'",
+      "func": "create_order",
+      "line_str": "selected_slot_info.get(\"slotId\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `selected_slot_info.get('slotId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1459,
+      "caller": "oi",
+      "args": "'sellerId'",
+      "func": "create_order",
+      "line_str": "if not oi.get(\"sellerId\") and super_admin_id:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `oi.get('sellerId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1522,
+      "caller": "sdo",
+      "args": "'deliverySlotId'",
+      "func": "create_order",
+      "line_str": "if sdo and sdo.get(\"deliverySlotId\") and sdo.get(\"deliverySlotDate\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdo.get('deliverySlotId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1522,
+      "caller": "sdo",
+      "args": "'deliverySlotDate'",
+      "func": "create_order",
+      "line_str": "if sdo and sdo.get(\"deliverySlotId\") and sdo.get(\"deliverySlotDate\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdo.get('deliverySlotDate')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 169,
+      "caller": "prod",
+      "args": "'_id'",
+      "func": "populate_orders",
+      "line_str": "pid = prod.get(\"_id\") or prod.get(\"id\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `prod.get('_id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 169,
+      "caller": "prod",
+      "args": "'id'",
+      "func": "populate_orders",
+      "line_str": "pid = prod.get(\"_id\") or prod.get(\"id\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `prod.get('id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 190,
+      "caller": "prod",
+      "args": "'_id'",
+      "func": "populate_orders",
+      "line_str": "pid = prod.get(\"_id\") or prod.get(\"id\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `prod.get('_id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 190,
+      "caller": "prod",
+      "args": "'id'",
+      "func": "populate_orders",
+      "line_str": "pid = prod.get(\"_id\") or prod.get(\"id\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `prod.get('id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 238,
+      "caller": "prod",
+      "args": "'_id'",
+      "func": "populate_orders",
+      "line_str": "prod_id = str(prod.get(\"_id\") or prod.get(\"id\"))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `prod.get('_id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 238,
+      "caller": "prod",
+      "args": "'id'",
+      "func": "populate_orders",
+      "line_str": "prod_id = str(prod.get(\"_id\") or prod.get(\"id\"))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `prod.get('id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 432,
+      "caller": "entry",
+      "args": "'amount', 0.0",
+      "func": "create_order",
+      "line_str": "entry.get(\"amount\", 0.0) for entry in (p.payment_entries or []) if entry.get(\"verified\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `entry.get('amount', 0.0)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 884,
+      "caller": "_zone_doc",
+      "args": "'id'",
+      "func": "create_order",
+      "line_str": "order_zone_id = str(_zone_doc.get(\"_id\", _zone_doc.get(\"id\")))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `_zone_doc.get('id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 911,
+      "caller": "sl",
+      "args": "'isActive'",
+      "func": "create_order",
+      "line_str": "if not (sl.get(\"isActive\") if sl.get(\"isActive\") is not None else True):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('isActive')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 920,
+      "caller": "sl",
+      "args": "'bookedCount'",
+      "func": "create_order",
+      "line_str": "_booked = (sl.get(\"bookedCount\") if sl.get(\"bookedCount\") is not None else 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('bookedCount')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 926,
+      "caller": "sl",
+      "args": "'isUrgent'",
+      "func": "create_order",
+      "line_str": "if (sl.get(\"isUrgent\") if sl.get(\"isUrgent\") is not None else False):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('isUrgent')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 973,
+      "caller": "matched_slot",
+      "args": "'bookedCount'",
+      "func": "create_order",
+      "line_str": "_booked = (matched_slot.get(\"bookedCount\") if matched_slot.get(\"bookedCount\") is not None else 0)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('bookedCount')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 979,
+      "caller": "matched_slot",
+      "args": "'isUrgent'",
+      "func": "create_order",
+      "line_str": "if matched_slot.get(\"isUrgent\") and matched_slot.get(\"urgentCutoffHours\") is not None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('isUrgent')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 985,
+      "caller": "matched_slot",
+      "args": "'isUrgent'",
+      "func": "create_order",
+      "line_str": "is_urgent = (matched_slot.get(\"isUrgent\") if matched_slot.get(\"isUrgent\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('isUrgent')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1233,
+      "caller": "slot_config",
+      "args": "'_db_id'",
+      "func": "create_order",
+      "line_str": "db_id = slot_config.get(\"_db_id\") or config_id",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot_config.get('_db_id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1284,
+      "caller": "spec",
+      "args": "'productId', ''",
+      "func": "create_order",
+      "line_str": "spec_pid = str(spec.get(\"productId\", \"\"))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `spec.get('productId', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1487,
+      "caller": "sdo",
+      "args": "'sellerId'",
+      "func": "create_order",
+      "line_str": "seller_delivery_map[sdo.get(\"sellerId\")] = sdo",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdo.get('sellerId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1492,
+      "caller": "order_data.shippingAddress",
+      "args": "'state', ''",
+      "func": "create_order",
+      "line_str": "order_data.shippingAddress.get(\"state\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('state', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1493,
+      "caller": "order_data.shippingAddress",
+      "args": "'city', ''",
+      "func": "create_order",
+      "line_str": "order_data.shippingAddress.get(\"city\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('city', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1494,
+      "caller": "order_data.shippingAddress",
+      "args": "'district', ''",
+      "func": "create_order",
+      "line_str": "order_data.shippingAddress.get(\"district\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('district', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1495,
+      "caller": "order_data.shippingAddress",
+      "args": "'zipCode', ''",
+      "func": "create_order",
+      "line_str": "order_data.shippingAddress.get(\"zipCode\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `order_data.shippingAddress.get('zipCode', '')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1524,
+      "caller": "sdo",
+      "args": "'deliverySlotConfigId'",
+      "func": "create_order",
+      "line_str": "\"configId\": sdo.get(\"deliverySlotConfigId\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdo.get('deliverySlotConfigId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1525,
+      "caller": "sdo",
+      "args": "'deliverySlotId'",
+      "func": "create_order",
+      "line_str": "\"slotId\": sdo.get(\"deliverySlotId\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdo.get('deliverySlotId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1526,
+      "caller": "sdo",
+      "args": "'deliverySlotDate'",
+      "func": "create_order",
+      "line_str": "\"date\": sdo.get(\"deliverySlotDate\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdo.get('deliverySlotDate')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1827,
+      "caller": "slot_config",
+      "args": "'slots', []",
+      "func": "update_order_status",
+      "line_str": "slots_list = slot_config.get(\"slots\", [])",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `slot_config.get('slots', [])`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 432,
+      "caller": "entry",
+      "args": "'verified'",
+      "func": "create_order",
+      "line_str": "entry.get(\"amount\", 0.0) for entry in (p.payment_entries or []) if entry.get(\"verified\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `entry.get('verified')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 911,
+      "caller": "sl",
+      "args": "'isActive'",
+      "func": "create_order",
+      "line_str": "if not (sl.get(\"isActive\") if sl.get(\"isActive\") is not None else True):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('isActive')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 926,
+      "caller": "sl",
+      "args": "'isUrgent'",
+      "func": "create_order",
+      "line_str": "if (sl.get(\"isUrgent\") if sl.get(\"isUrgent\") is not None else False):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('isUrgent')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 929,
+      "caller": "sl",
+      "args": "'urgentCutoffHours'",
+      "func": "create_order",
+      "line_str": "sl.get(\"urgentCutoffHours\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('urgentCutoffHours')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 931,
+      "caller": "sl",
+      "args": "'cutoffHours'",
+      "func": "create_order",
+      "line_str": "else sl.get(\"cutoffHours\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('cutoffHours')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 950,
+      "caller": "sl",
+      "args": "'id'",
+      "func": "create_order",
+      "line_str": "if (sl.get(\"id\") or f\"{sl.get('startTime')}-{sl.get('endTime')}\") == order_data.deliverySlotId:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('id')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 979,
+      "caller": "matched_slot",
+      "args": "'urgentCutoffHours'",
+      "func": "create_order",
+      "line_str": "if matched_slot.get(\"isUrgent\") and matched_slot.get(\"urgentCutoffHours\") is not None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('urgentCutoffHours')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 985,
+      "caller": "matched_slot",
+      "args": "'isUrgent'",
+      "func": "create_order",
+      "line_str": "is_urgent = (matched_slot.get(\"isUrgent\") if matched_slot.get(\"isUrgent\") is not None else False)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('isUrgent')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 987,
+      "caller": "matched_slot",
+      "args": "'endTime'",
+      "func": "create_order",
+      "line_str": "(matched_slot.get(\"endTime\") or \"\") if is_urgent else (matched_slot.get(\"startTime\") or \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('endTime')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 987,
+      "caller": "matched_slot",
+      "args": "'startTime'",
+      "func": "create_order",
+      "line_str": "(matched_slot.get(\"endTime\") or \"\") if is_urgent else (matched_slot.get(\"startTime\") or \"\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `matched_slot.get('startTime')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1038,
+      "caller": "sdoc",
+      "args": "'companyName'",
+      "func": "create_order",
+      "line_str": "s_name = sdoc.get(\"companyName\") or sdoc.get(\"name\") or \"Seller\"",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdoc.get('companyName')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1038,
+      "caller": "sdoc",
+      "args": "'name'",
+      "func": "create_order",
+      "line_str": "s_name = sdoc.get(\"companyName\") or sdoc.get(\"name\") or \"Seller\"",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdoc.get('name')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1089,
+      "caller": "delivery_charge_data",
+      "args": "'urgentDeliveryCharge'",
+      "func": "create_order",
+      "line_str": "urgent_charge = delivery_charge_data.get(\"urgentDeliveryCharge\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `delivery_charge_data.get('urgentDeliveryCharge')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1283,
+      "caller": "spec",
+      "args": "'quantity', 1",
+      "func": "create_order",
+      "line_str": "spec_qty = max(1, spec.get(\"quantity\", 1) or 1)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `spec.get('quantity', 1)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1293,
+      "caller": "ref_item",
+      "args": "'quantity', spec_qty",
+      "func": "create_order",
+      "line_str": "copies = max(1, ref_item.get(\"quantity\", spec_qty) // spec_qty)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `ref_item.get('quantity', spec_qty)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1542,
+      "caller": "sdoc",
+      "args": "'companyName'",
+      "func": "create_order",
+      "line_str": "seller_name = sdoc.get(\"companyName\") or sdoc.get(\"name\") or \"\"",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdoc.get('companyName')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1542,
+      "caller": "sdoc",
+      "args": "'name'",
+      "func": "create_order",
+      "line_str": "seller_name = sdoc.get(\"companyName\") or sdoc.get(\"name\") or \"\"",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdoc.get('name')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 2497,
+      "caller": "d",
+      "args": "'valetId'",
+      "func": "valet_response",
+      "line_str": "if valet_id and not any(isinstance(d, dict) and d.get(\"valetId\") == valet_id for d in decline_history) and valet_id not in decline_history:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `d.get('valetId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 930,
+      "caller": "sl",
+      "args": "'urgentCutoffHours'",
+      "func": "create_order",
+      "line_str": "if sl.get(\"urgentCutoffHours\") is not None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('urgentCutoffHours')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1035,
+      "caller": "sdoc",
+      "args": "'sellerPermissions'",
+      "func": "create_order",
+      "line_str": "seller_zone_ids = (sdoc.get(\"sellerPermissions\") or {}).get(\"serviceableZoneIds\", [])",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sdoc.get('sellerPermissions')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1850,
+      "caller": "payment['paymentEntries'][0]",
+      "args": "'entryId'",
+      "func": "update_order_status",
+      "line_str": "payment[\"paymentEntries\"][0].get(\"entryId\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payment['paymentEntries'][0].get('entryId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1906,
+      "caller": "new_payment",
+      "args": "'orderId'",
+      "func": "update_order_status",
+      "line_str": "\"orderId\": new_payment.get(\"orderId\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `new_payment.get('orderId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1907,
+      "caller": "new_payment",
+      "args": "'totalAmount', 0",
+      "func": "update_order_status",
+      "line_str": "\"totalAmount\": new_payment.get(\"totalAmount\", 0),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `new_payment.get('totalAmount', 0)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 950,
+      "caller": "sl",
+      "args": "'startTime'",
+      "func": "create_order",
+      "line_str": "if (sl.get(\"id\") or f\"{sl.get('startTime')}-{sl.get('endTime')}\") == order_data.deliverySlotId:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('startTime')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 950,
+      "caller": "sl",
+      "args": "'endTime'",
+      "func": "create_order",
+      "line_str": "if (sl.get(\"id\") or f\"{sl.get('startTime')}-{sl.get('endTime')}\") == order_data.deliverySlotId:",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('endTime')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1871,
+      "caller": "updated_payment_with_entry",
+      "args": "'orderId'",
+      "func": "update_order_status",
+      "line_str": "\"orderId\": updated_payment_with_entry.get(\"orderId\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated_payment_with_entry.get('orderId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1905,
+      "caller": "new_payment",
+      "args": "'paymentId'",
+      "func": "update_order_status",
+      "line_str": "\"paymentId\": new_payment.get(\"paymentId\") or new_payment.id,",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `new_payment.get('paymentId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1869,
+      "caller": "updated_payment_with_entry",
+      "args": "'paymentId'",
+      "func": "update_order_status",
+      "line_str": "\"paymentId\": updated_payment_with_entry.get(\"paymentId\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated_payment_with_entry.get('paymentId')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1872,
+      "caller": "payment",
+      "args": "'totalAmount', 0",
+      "func": "update_order_status",
+      "line_str": "\"totalAmount\": (order.total if order.total is not None else payment.get(\"totalAmount\", 0)),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payment.get('totalAmount', 0)`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1247,
+      "caller": "sl",
+      "args": "'bookedCount'",
+      "func": "create_order",
+      "line_str": "sl[\"bookedCount\"] = (sl.get(\"bookedCount\") if sl.get(\"bookedCount\") is not None else 0) + 1",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('bookedCount')`"
+    },
+    {
+      "file": "orders.py",
+      "lineno": 1247,
+      "caller": "sl",
+      "args": "'bookedCount'",
+      "func": "create_order",
+      "line_str": "sl[\"bookedCount\"] = (sl.get(\"bookedCount\") if sl.get(\"bookedCount\") is not None else 0) + 1",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `sl.get('bookedCount')`"
+    }
+  ],
+  "page_info.py": [
+    {
+      "file": "page_info.py",
+      "lineno": 34,
+      "caller": "page_info.get('pages', {})",
+      "args": "page_id",
+      "func": "get_page_info",
+      "line_str": "page_data = page_info.get(\"pages\", {}).get(page_id)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `page_info.get('pages', {}).get(page_id)`"
+    },
+    {
+      "file": "page_info.py",
+      "lineno": 41,
+      "caller": "page_data",
+      "args": "'columns', {}",
+      "func": "get_page_info",
+      "line_str": "\"columns\": page_data.get(\"columns\", {}),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `page_data.get('columns', {})`"
+    },
+    {
+      "file": "page_info.py",
+      "lineno": 34,
+      "caller": "page_info",
+      "args": "'pages', {}",
+      "func": "get_page_info",
+      "line_str": "page_data = page_info.get(\"pages\", {}).get(page_id)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `page_info.get('pages', {})`"
+    },
+    {
+      "file": "page_info.py",
+      "lineno": 40,
+      "caller": "page_data",
+      "args": "'title'",
+      "func": "get_page_info",
+      "line_str": "\"page\": {\"title\": page_data.get(\"title\"), \"description\": page_data.get(\"description\")},",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `page_data.get('title')`"
+    },
+    {
+      "file": "page_info.py",
+      "lineno": 40,
+      "caller": "page_data",
+      "args": "'description'",
+      "func": "get_page_info",
+      "line_str": "\"page\": {\"title\": page_data.get(\"title\"), \"description\": page_data.get(\"description\")},",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `page_data.get('description')`"
+    }
+  ],
+  "payments.py": [
+    {
+      "file": "payments.py",
+      "lineno": 57,
+      "caller": "entry",
+      "args": "'amount', 0.0",
+      "func": "get_wholesaler_dues",
+      "line_str": "entry.get(\"amount\", 0.0) for entry in (p.payment_entries or []) if entry.get(\"verified\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `entry.get('amount', 0.0)`"
+    },
+    {
+      "file": "payments.py",
+      "lineno": 321,
+      "caller": "updated_payment",
+      "args": "'paymentId'",
+      "func": "submit_credit_settlement",
+      "line_str": "payment_id = updated_payment.get(\"paymentId\") or updated_payment.get(\"_id\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated_payment.get('paymentId')`"
+    },
+    {
+      "file": "payments.py",
+      "lineno": 321,
+      "caller": "updated_payment",
+      "args": "'_id'",
+      "func": "submit_credit_settlement",
+      "line_str": "payment_id = updated_payment.get(\"paymentId\") or updated_payment.get(\"_id\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated_payment.get('_id')`"
+    },
+    {
+      "file": "payments.py",
+      "lineno": 57,
+      "caller": "entry",
+      "args": "'verified'",
+      "func": "get_wholesaler_dues",
+      "line_str": "entry.get(\"amount\", 0.0) for entry in (p.payment_entries or []) if entry.get(\"verified\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `entry.get('verified')`"
+    },
+    {
+      "file": "payments.py",
+      "lineno": 329,
+      "caller": "updated_payment",
+      "args": "'_id'",
+      "func": "submit_credit_settlement",
+      "line_str": "\"paymentId\": updated_payment.get(\"_id\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated_payment.get('_id')`"
+    },
+    {
+      "file": "payments.py",
+      "lineno": 331,
+      "caller": "updated_payment",
+      "args": "'orderId'",
+      "func": "submit_credit_settlement",
+      "line_str": "\"orderId\": updated_payment.get(\"orderId\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated_payment.get('orderId')`"
+    }
+  ],
+  "products.py": [
+    {
+      "file": "products.py",
+      "lineno": 980,
+      "caller": "products_with_tags[0]",
+      "args": "'searchTags', []",
+      "func": "get_product_search_tags",
+      "line_str": "resolved = products_with_tags[0].get(\"searchTags\", [])",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `products_with_tags[0].get('searchTags', [])`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 656,
+      "caller": "facets",
+      "args": "'brands', []",
+      "func": "get_public_products",
+      "line_str": "\"brands\": facets.get(\"brands\", []),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `facets.get('brands', [])`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 657,
+      "caller": "facets",
+      "args": "'categories', []",
+      "func": "get_public_products",
+      "line_str": "\"categories\": facets.get(\"categories\", []),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `facets.get('categories', [])`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 658,
+      "caller": "facets",
+      "args": "'subCategories', []",
+      "func": "get_public_products",
+      "line_str": "\"subCategories\": facets.get(\"subCategories\", []),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `facets.get('subCategories', [])`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 659,
+      "caller": "facets",
+      "args": "'collections', []",
+      "func": "get_public_products",
+      "line_str": "\"collections\": facets.get(\"collections\", []),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `facets.get('collections', [])`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 807,
+      "caller": "facets",
+      "args": "'brands', []",
+      "func": "get_products",
+      "line_str": "\"brands\": facets.get(\"brands\", []),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `facets.get('brands', [])`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 808,
+      "caller": "facets",
+      "args": "'categories', []",
+      "func": "get_products",
+      "line_str": "\"categories\": facets.get(\"categories\", []),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `facets.get('categories', [])`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 809,
+      "caller": "facets",
+      "args": "'subCategories', []",
+      "func": "get_products",
+      "line_str": "\"subCategories\": facets.get(\"subCategories\", []),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `facets.get('subCategories', [])`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 810,
+      "caller": "facets",
+      "args": "'collections', []",
+      "func": "get_products",
+      "line_str": "\"collections\": facets.get(\"collections\", []),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `facets.get('collections', [])`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 494,
+      "caller": "default_coupon",
+      "args": "'minRequirementType'",
+      "func": "populate_product_discounts",
+      "line_str": "if default_coupon and default_coupon.get(\"minRequirementType\") == \"quantity_based\":",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `default_coupon.get('minRequirementType')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 503,
+      "caller": "qty_coupon",
+      "args": "'quantityTiers'",
+      "func": "populate_product_discounts",
+      "line_str": "p.quantityTiers = qty_coupon.get(\"quantityTiers\") or []",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `qty_coupon.get('quantityTiers')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 504,
+      "caller": "qty_coupon",
+      "args": "'applicableItemType'",
+      "func": "populate_product_discounts",
+      "line_str": "p.quantityItemType = qty_coupon.get(\"applicableItemType\") or \"units\"",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `qty_coupon.get('applicableItemType')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 507,
+      "caller": "default_coupon",
+      "args": "'minRequirementType'",
+      "func": "populate_product_discounts",
+      "line_str": "if default_coupon and default_coupon.get(\"minRequirementType\") == \"quantity_based\":",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `default_coupon.get('minRequirementType')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 118,
+      "caller": "main_row",
+      "args": "'quantityPerCase'",
+      "func": "upload_csv",
+      "line_str": "if main_row.get(\"quantityPerCase\") and str(main_row.get(\"quantityPerCase\", \"\")).strip():",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('quantityPerCase')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 297,
+      "caller": "combo",
+      "args": "'attributes', {}",
+      "func": "export_csv",
+      "line_str": "combo_attrs = combo.get(\"attributes\", {}) or {}",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `combo.get('attributes', {})`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 498,
+      "caller": "oc",
+      "args": "'minRequirementType'",
+      "func": "populate_product_discounts",
+      "line_str": "if oc.get(\"minRequirementType\") == \"quantity_based\":",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `oc.get('minRequirementType')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 510,
+      "caller": "default_coupon",
+      "args": "'typeOfDiscount'",
+      "func": "populate_product_discounts",
+      "line_str": "\"type\": default_coupon.get(\"typeOfDiscount\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `default_coupon.get('typeOfDiscount')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 511,
+      "caller": "default_coupon",
+      "args": "'code'",
+      "func": "populate_product_discounts",
+      "line_str": "\"code\": default_coupon.get(\"code\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `default_coupon.get('code')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 519,
+      "caller": "oc",
+      "args": "'typeOfDiscount'",
+      "func": "populate_product_discounts",
+      "line_str": "\"type\": oc.get(\"typeOfDiscount\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `oc.get('typeOfDiscount')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 520,
+      "caller": "oc",
+      "args": "'code'",
+      "func": "populate_product_discounts",
+      "line_str": "\"code\": oc.get(\"code\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `oc.get('code')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 138,
+      "caller": "main_row",
+      "args": "'images'",
+      "func": "upload_csv",
+      "line_str": "\"images\": [img.strip() for img in main_row.get(\"images\", \"\").split(\",\") if img.strip()] if main_row.get(\"images\") else [],",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('images')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 139,
+      "caller": "main_row",
+      "args": "'videos'",
+      "func": "upload_csv",
+      "line_str": "\"videos\": [vid.strip() for vid in main_row.get(\"videos\", \"\").split(\",\") if vid.strip()] if main_row.get(\"videos\") else [],",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('videos')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 126,
+      "caller": "main_row",
+      "args": "'productId', ''",
+      "func": "upload_csv",
+      "line_str": "\"productIdFormatted\": main_row.get(\"productId\", \"\").strip(),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('productId', '')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 127,
+      "caller": "main_row",
+      "args": "'sku', ''",
+      "func": "upload_csv",
+      "line_str": "\"sku\": main_row.get(\"sku\", \"\").strip(),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('sku', '')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 129,
+      "caller": "main_row",
+      "args": "'subCategory', ''",
+      "func": "upload_csv",
+      "line_str": "\"subCategory\": main_row.get(\"subCategory\", \"\").strip(),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('subCategory', '')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 130,
+      "caller": "main_row",
+      "args": "'description', ''",
+      "func": "upload_csv",
+      "line_str": "\"description\": main_row.get(\"description\", \"\").strip(),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('description', '')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 131,
+      "caller": "main_row",
+      "args": "'brand', ''",
+      "func": "upload_csv",
+      "line_str": "\"brand\": main_row.get(\"brand\", \"\").strip(),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('brand', '')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 209,
+      "caller": "main_row",
+      "args": "'_row_number', 'N/A'",
+      "func": "upload_csv",
+      "line_str": "{\"row\": main_row.get(\"_row_number\", \"N/A\"), \"product\": name, \"error\": f\"Data error: {str(e)}\"}",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('_row_number', 'N/A')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 214,
+      "caller": "main_row",
+      "args": "'_row_number', 'N/A'",
+      "func": "upload_csv",
+      "line_str": "{\"row\": main_row.get(\"_row_number\", \"N/A\"), \"product\": name, \"error\": f\"Internal error: {str(e)}\"}",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('_row_number', 'N/A')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 112,
+      "caller": "main_row",
+      "args": "'mrpPerCase', ''",
+      "func": "upload_csv",
+      "line_str": "if main_row.mrp_per_case and str(main_row.get(\"mrpPerCase\", \"\")).strip():",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('mrpPerCase', '')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 118,
+      "caller": "main_row",
+      "args": "'quantityPerCase', ''",
+      "func": "upload_csv",
+      "line_str": "if main_row.get(\"quantityPerCase\") and str(main_row.get(\"quantityPerCase\", \"\")).strip():",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('quantityPerCase', '')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 132,
+      "caller": "main_row",
+      "args": "'collection', ''",
+      "func": "upload_csv",
+      "line_str": "\"collection\": main_row.get(\"collection\", \"\").strip() or None,",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('collection', '')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 137,
+      "caller": "main_row",
+      "args": "'isActive', 'true'",
+      "func": "upload_csv",
+      "line_str": "\"isActive\": main_row.get(\"isActive\", \"true\").lower() in [\"true\", \"1\", \"yes\"],",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('isActive', 'true')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 168,
+      "caller": "row",
+      "args": "val_key, ''",
+      "func": "upload_csv",
+      "line_str": "variant_val = row.get(val_key, \"\").strip()",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `row.get(val_key, '')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 138,
+      "caller": "main_row",
+      "args": "'images', ''",
+      "func": "upload_csv",
+      "line_str": "\"images\": [img.strip() for img in main_row.get(\"images\", \"\").split(\",\") if img.strip()] if main_row.get(\"images\") else [],",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('images', '')`"
+    },
+    {
+      "file": "products.py",
+      "lineno": 139,
+      "caller": "main_row",
+      "args": "'videos', ''",
+      "func": "upload_csv",
+      "line_str": "\"videos\": [vid.strip() for vid in main_row.get(\"videos\", \"\").split(\",\") if vid.strip()] if main_row.get(\"videos\") else [],",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `main_row.get('videos', '')`"
+    }
+  ],
+  "push_notifications.py": [
+    {
+      "file": "push_notifications.py",
+      "lineno": 303,
+      "caller": "request.subscription",
+      "args": "'endpoint'",
+      "func": "register_device",
+      "line_str": "has_web_subscription = request.subscription and request.subscription.get(\"endpoint\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `request.subscription.get('endpoint')`"
+    },
+    {
+      "file": "push_notifications.py",
+      "lineno": 219,
+      "caller": "n",
+      "args": "'_id'",
+      "func": "get_notification_inbox",
+      "line_str": "\"_id\": n.get(\"_id\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `n.get('_id')`"
+    },
+    {
+      "file": "push_notifications.py",
+      "lineno": 220,
+      "caller": "n",
+      "args": "'title', ''",
+      "func": "get_notification_inbox",
+      "line_str": "\"title\": n.get(\"title\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `n.get('title', '')`"
+    },
+    {
+      "file": "push_notifications.py",
+      "lineno": 221,
+      "caller": "n",
+      "args": "'message', ''",
+      "func": "get_notification_inbox",
+      "line_str": "\"message\": n.get(\"message\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `n.get('message', '')`"
+    },
+    {
+      "file": "push_notifications.py",
+      "lineno": 222,
+      "caller": "n",
+      "args": "'image'",
+      "func": "get_notification_inbox",
+      "line_str": "\"image\": n.get(\"image\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `n.get('image')`"
+    },
+    {
+      "file": "push_notifications.py",
+      "lineno": 223,
+      "caller": "n",
+      "args": "'link'",
+      "func": "get_notification_inbox",
+      "line_str": "\"link\": n.get(\"link\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `n.get('link')`"
+    },
+    {
+      "file": "push_notifications.py",
+      "lineno": 224,
+      "caller": "n",
+      "args": "'createdAt'",
+      "func": "get_notification_inbox",
+      "line_str": "\"createdAt\": n.get(\"createdAt\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `n.get('createdAt')`"
+    },
+    {
+      "file": "push_notifications.py",
+      "lineno": 229,
+      "caller": "n",
+      "args": "'createdAt'",
+      "func": "get_notification_inbox",
+      "line_str": "inbox.sort(key=lambda n: n.get(\"createdAt\") or \"\", reverse=True)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `n.get('createdAt')`"
+    }
+  ],
+  "recommendations.py": [
+    {
+      "file": "recommendations.py",
+      "lineno": 246,
+      "caller": "p_copy",
+      "args": "'displayImage'",
+      "func": "get_favourites_page",
+      "line_str": "p_copy[\"displayImage\"] = p_copy.get(\"displayImage\") or (",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `p_copy.get('displayImage')`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 247,
+      "caller": "p_copy",
+      "args": "'images'",
+      "func": "get_favourites_page",
+      "line_str": "p_copy.get(\"images\")[0] if p_copy.get(\"images\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `p_copy.get('images')`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 296,
+      "caller": "doc.meta or {}",
+      "args": "'slot', 'unknown'",
+      "func": "get_recommendation_metrics",
+      "line_str": "slot = (doc.meta or {}).get(\"slot\", \"unknown\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `doc.meta or {}.get('slot', 'unknown')`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 363,
+      "caller": "config.get('section_wise_weights') or {}",
+      "args": "body.slot",
+      "func": "track_recommendation_event",
+      "line_str": "section_weights = (config.get(\"section_wise_weights\") or {}).get(body.slot) or config.get(",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `config.get('section_wise_weights') or {}.get(body.slot)`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 363,
+      "caller": "config",
+      "args": "'engagement_weights', {}",
+      "func": "track_recommendation_event",
+      "line_str": "section_weights = (config.get(\"section_wise_weights\") or {}).get(body.slot) or config.get(",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `config.get('engagement_weights', {})`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 367,
+      "caller": "section_weights",
+      "args": "'add_to_cart', 3",
+      "func": "track_recommendation_event",
+      "line_str": "section_weights.get(\"add_to_cart\", 3)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `section_weights.get('add_to_cart', 3)`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 369,
+      "caller": "section_weights",
+      "args": "'product_view', 1",
+      "func": "track_recommendation_event",
+      "line_str": "else section_weights.get(\"product_view\", 1)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `section_weights.get('product_view', 1)`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 172,
+      "caller": "user_doc",
+      "args": "'address'",
+      "func": "get_favourites_page",
+      "line_str": "addr = user_doc.get(\"address\") or {}",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `user_doc.get('address')`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 247,
+      "caller": "p_copy",
+      "args": "'images'",
+      "func": "get_favourites_page",
+      "line_str": "p_copy.get(\"images\")[0] if p_copy.get(\"images\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `p_copy.get('images')`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 114,
+      "caller": "user_doc",
+      "args": "'address'",
+      "func": "get_recommendations",
+      "line_str": "addr = user_doc.get(\"address\") or {}",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `user_doc.get('address')`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 363,
+      "caller": "config",
+      "args": "'section_wise_weights'",
+      "func": "track_recommendation_event",
+      "line_str": "section_weights = (config.get(\"section_wise_weights\") or {}).get(body.slot) or config.get(",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `config.get('section_wise_weights')`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 173,
+      "caller": "addr",
+      "args": "'city'",
+      "func": "get_favourites_page",
+      "line_str": "resolved_city = (addr.get(\"city\") or \"\").strip() or None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `addr.get('city')`"
+    },
+    {
+      "file": "recommendations.py",
+      "lineno": 115,
+      "caller": "addr",
+      "args": "'city'",
+      "func": "get_recommendations",
+      "line_str": "city = (addr.get(\"city\") or \"\").strip() or None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `addr.get('city')`"
+    }
+  ],
+  "referrals.py": [
+    {
+      "file": "referrals.py",
+      "lineno": 97,
+      "caller": "referrer",
+      "args": "'name', 'Another user'",
+      "func": "verify_referral_code",
+      "line_str": "\"referrerName\": referrer.get(\"name\", \"Another user\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `referrer.get('name', 'Another user')`"
+    },
+    {
+      "file": "referrals.py",
+      "lineno": 86,
+      "caller": "referrer",
+      "args": "'_id'",
+      "func": "verify_referral_code",
+      "line_str": "if str(referrer.get(\"_id\")) == str(current_user.id):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `referrer.get('_id')`"
+    }
+  ],
+  "returns.py": [
+    {
+      "file": "returns.py",
+      "lineno": 193,
+      "caller": "eligibility",
+      "args": "'reason'",
+      "func": "create_return_request",
+      "line_str": "if eligibility.get(\"reason\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `eligibility.get('reason')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 366,
+      "caller": "populated_req",
+      "args": "'user'",
+      "func": "complete_return",
+      "line_str": "email = populated_req.get(\"user\", {}).get(\"email\") if populated_req.get(\"user\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `populated_req.get('user')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 366,
+      "caller": "populated_req.get('user', {})",
+      "args": "'email'",
+      "func": "complete_return",
+      "line_str": "email = populated_req.get(\"user\", {}).get(\"email\") if populated_req.get(\"user\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `populated_req.get('user', {}).get('email')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 430,
+      "caller": "ret",
+      "args": "'status'",
+      "func": "valet_return_response",
+      "line_str": "if ret.get(\"status\") != \"pending_valet\":",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `ret.get('status')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 168,
+      "caller": "shipping_address",
+      "args": "'state', ''",
+      "func": "check_return_eligibility",
+      "line_str": "shipping_address.get(\"state\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `shipping_address.get('state', '')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 169,
+      "caller": "shipping_address",
+      "args": "'city', ''",
+      "func": "check_return_eligibility",
+      "line_str": "shipping_address.get(\"city\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `shipping_address.get('city', '')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 170,
+      "caller": "shipping_address",
+      "args": "'district', ''",
+      "func": "check_return_eligibility",
+      "line_str": "shipping_address.get(\"district\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `shipping_address.get('district', '')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 171,
+      "caller": "shipping_address",
+      "args": "'zipCode', ''",
+      "func": "check_return_eligibility",
+      "line_str": "shipping_address.get(\"zipCode\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `shipping_address.get('zipCode', '')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 176,
+      "caller": "charge_data",
+      "args": "'charge', 0",
+      "func": "check_return_eligibility",
+      "line_str": "delivery_charge = float(charge_data.get(\"charge\", 0))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `charge_data.get('charge', 0)`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 227,
+      "caller": "eligibility",
+      "args": "'returnDeliveryCharge', 0",
+      "func": "create_return_request",
+      "line_str": "\"deliveryCharge\": eligibility.get(\"returnDeliveryCharge\", 0),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `eligibility.get('returnDeliveryCharge', 0)`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 366,
+      "caller": "populated_req",
+      "args": "'user', {}",
+      "func": "complete_return",
+      "line_str": "email = populated_req.get(\"user\", {}).get(\"email\") if populated_req.get(\"user\") else None",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `populated_req.get('user', {})`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 427,
+      "caller": "ret",
+      "args": "'pendingValetId', ''",
+      "func": "valet_return_response",
+      "line_str": "if str(ret.get(\"pendingValetId\", \"\")) != str(current_user.id):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `ret.get('pendingValetId', '')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 446,
+      "caller": "ret",
+      "args": "'valetDeclineHistory'",
+      "func": "valet_return_response",
+      "line_str": "history = list(ret.get(\"valetDeclineHistory\") or [])",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `ret.get('valetDeclineHistory')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 244,
+      "caller": "created",
+      "args": "'_id'",
+      "func": "create_return_request",
+      "line_str": "\"returnId\": created.get(\"_id\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `created.get('_id')`"
+    },
+    {
+      "file": "returns.py",
+      "lineno": 448,
+      "caller": "d",
+      "args": "'valetId'",
+      "func": "valet_return_response",
+      "line_str": "if not any(isinstance(d, dict) and d.get(\"valetId\") == valet_id_str for d in history):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `d.get('valetId')`"
+    }
+  ],
+  "seller_availability.py": [
+    {
+      "file": "seller_availability.py",
+      "lineno": 218,
+      "caller": "d",
+      "args": "'startAt', ''",
+      "func": "get_my_availability_windows",
+      "line_str": "docs.sort(key=lambda d: d.get(\"startAt\", \"\"), reverse=True)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `d.get('startAt', '')`"
+    },
+    {
+      "file": "seller_availability.py",
+      "lineno": 237,
+      "caller": "d",
+      "args": "'startAt', ''",
+      "func": "get_all_seller_availability",
+      "line_str": "enriched.sort(key=lambda d: d.get(\"startAt\", \"\"), reverse=True)",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `d.get('startAt', '')`"
+    }
+  ],
+  "seller_requests.py": [
+    {
+      "file": "seller_requests.py",
+      "lineno": 26,
+      "caller": "response",
+      "args": "'user'",
+      "func": "populate_request",
+      "line_str": "response_user = await user_repository.findById(response.get(\"user\"))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `response.get('user')`"
+    }
+  ],
+  "support_tickets.py": [
+    {
+      "file": "support_tickets.py",
+      "lineno": 34,
+      "caller": "response",
+      "args": "'user'",
+      "func": "populate_ticket",
+      "line_str": "response_user = await user_repository.findById(response.get(\"user\"))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `response.get('user')`"
+    },
+    {
+      "file": "support_tickets.py",
+      "lineno": 58,
+      "caller": "assigned_to",
+      "args": "'_id'",
+      "func": "populate_ticket",
+      "line_str": "\"_id\": assigned_to.get(\"_id\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `assigned_to.get('_id')`"
+    },
+    {
+      "file": "support_tickets.py",
+      "lineno": 59,
+      "caller": "assigned_to",
+      "args": "'name'",
+      "func": "populate_ticket",
+      "line_str": "\"name\": assigned_to.get(\"name\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `assigned_to.get('name')`"
+    },
+    {
+      "file": "support_tickets.py",
+      "lineno": 60,
+      "caller": "assigned_to",
+      "args": "'email'",
+      "func": "populate_ticket",
+      "line_str": "\"email\": assigned_to.get(\"email\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `assigned_to.get('email')`"
+    }
+  ],
+  "tracking.py": [
+    {
+      "file": "tracking.py",
+      "lineno": 460,
+      "caller": "data",
+      "args": "'email'",
+      "func": "track_notify_pincode",
+      "line_str": "user_email = current_user.email if current_user else data.get(\"email\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `data.get('email')`"
+    },
+    {
+      "file": "tracking.py",
+      "lineno": 465,
+      "caller": "data",
+      "args": "'productId'",
+      "func": "track_notify_pincode",
+      "line_str": "\"productId\": data.get(\"productId\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `data.get('productId')`"
+    },
+    {
+      "file": "tracking.py",
+      "lineno": 466,
+      "caller": "data",
+      "args": "'productName'",
+      "func": "track_notify_pincode",
+      "line_str": "\"productName\": data.get(\"productName\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `data.get('productName')`"
+    },
+    {
+      "file": "tracking.py",
+      "lineno": 467,
+      "caller": "data",
+      "args": "'pincode'",
+      "func": "track_notify_pincode",
+      "line_str": "\"pincode\": data.get(\"pincode\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `data.get('pincode')`"
+    }
+  ],
+  "users.py": [
+    {
+      "file": "users.py",
+      "lineno": 299,
+      "caller": "current_user.seller_permissions or {}",
+      "args": "'serviceableZoneIds', []",
+      "func": "get_seller_delivery_settings",
+      "line_str": "current_zone_ids = (current_user.seller_permissions or {}).get(\"serviceableZoneIds\", [])",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `current_user.seller_permissions or {}.get('serviceableZoneIds', [])`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 537,
+      "caller": "payload",
+      "args": "'otp'",
+      "func": "request_email_verification",
+      "line_str": "response_data.code = payload.get(\"otp\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('otp')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 557,
+      "caller": "result",
+      "args": "'valid'",
+      "func": "verify_email",
+      "line_str": "if not result.get(\"valid\"):",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `result.get('valid')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 189,
+      "caller": "av_id",
+      "args": "'_id'",
+      "func": "get_available_valets",
+      "line_str": "av_id = av_id.get(\"_id\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `av_id.get('_id')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 304,
+      "caller": "z",
+      "args": "'name', ''",
+      "func": "get_seller_delivery_settings",
+      "line_str": "\"name\": z.get(\"name\", \"\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `z.get('name', '')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 305,
+      "caller": "z",
+      "args": "'pincodes', []",
+      "func": "get_seller_delivery_settings",
+      "line_str": "\"pincodes\": z.get(\"pincodes\", []),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `z.get('pincodes', [])`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 306,
+      "caller": "z",
+      "args": "'defaultCapacity', 10",
+      "func": "get_seller_delivery_settings",
+      "line_str": "\"defaultCapacity\": z.get(\"defaultCapacity\", 10),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `z.get('defaultCapacity', 10)`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 308,
+      "caller": "z",
+      "args": "'customerType', 'retail'",
+      "func": "get_seller_delivery_settings",
+      "line_str": "\"customerType\": z.get(\"customerType\", \"retail\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `z.get('customerType', 'retail')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 383,
+      "caller": "update_dict",
+      "args": "'companyName'",
+      "func": "update_user",
+      "line_str": "update_dict.get(\"companyName\") if \"companyName\" in update_dict else existing_user.company_name",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `update_dict.get('companyName')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 385,
+      "caller": "update_dict",
+      "args": "'address'",
+      "func": "update_user",
+      "line_str": "final_address = update_dict.get(\"address\") if \"address\" in update_dict else (existing_user.address if existing_user.address is not None else {})",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `update_dict.get('address')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 401,
+      "caller": "update_dict",
+      "args": "'companyName'",
+      "func": "update_user",
+      "line_str": "update_dict.get(\"companyName\") if \"companyName\" in update_dict else existing_user.company_name",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `update_dict.get('companyName')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 403,
+      "caller": "update_dict",
+      "args": "'address'",
+      "func": "update_user",
+      "line_str": "final_address = update_dict.get(\"address\") if \"address\" in update_dict else (existing_user.address if existing_user.address is not None else {})",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `update_dict.get('address')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 303,
+      "caller": "z",
+      "args": "'_id', ''",
+      "func": "get_seller_delivery_settings",
+      "line_str": "\"id\": str(z.get(\"_id\", \"\")),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `z.get('_id', '')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 307,
+      "caller": "z",
+      "args": "'urgentDeliveryAvailable', False",
+      "func": "get_seller_delivery_settings",
+      "line_str": "\"urgentDeliveryAvailable\": bool(z.get(\"urgentDeliveryAvailable\", False)),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `z.get('urgentDeliveryAvailable', False)`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 393,
+      "caller": "final_address",
+      "args": "'street'",
+      "func": "update_user",
+      "line_str": "if not final_address.get(\"street\") or not str(final_address.get(\"street\")).strip():",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `final_address.get('street')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 408,
+      "caller": "final_address",
+      "args": "'street'",
+      "func": "update_user",
+      "line_str": "if not final_address.get(\"street\") or not str(final_address.get(\"street\")).strip():",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `final_address.get('street')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 531,
+      "caller": "payload",
+      "args": "'message', 'Too many verification requests. Please try again later.'",
+      "func": "request_email_verification",
+      "line_str": "detail=payload.get(\"message\", \"Too many verification requests. Please try again later.\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('message', 'Too many verification requests. Please try again later.')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 558,
+      "caller": "result",
+      "args": "'message', 'Invalid or expired verification code.'",
+      "func": "verify_email",
+      "line_str": "raise HTTPException(status_code=400, detail=result.get(\"message\", \"Invalid or expired verification code.\"))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `result.get('message', 'Invalid or expired verification code.')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 393,
+      "caller": "final_address",
+      "args": "'street'",
+      "func": "update_user",
+      "line_str": "if not final_address.get(\"street\") or not str(final_address.get(\"street\")).strip():",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `final_address.get('street')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 408,
+      "caller": "final_address",
+      "args": "'street'",
+      "func": "update_user",
+      "line_str": "if not final_address.get(\"street\") or not str(final_address.get(\"street\")).strip():",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `final_address.get('street')`"
+    },
+    {
+      "file": "users.py",
+      "lineno": 532,
+      "caller": "payload",
+      "args": "'retry_after_seconds'",
+      "func": "request_email_verification",
+      "line_str": "headers={\"Retry-After\": str(int(payload.get(\"retry_after_seconds\") or 0))},",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `payload.get('retry_after_seconds')`"
+    }
+  ],
+  "valet_availability.py": [
+    {
+      "file": "valet_availability.py",
+      "lineno": 60,
+      "caller": "info.data",
+      "args": "'availabilityType'",
+      "func": "validate_slots",
+      "line_str": "availability_type = info.data.get(\"availabilityType\")",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `info.data.get('availabilityType')`"
+    },
+    {
+      "file": "valet_availability.py",
+      "lineno": 202,
+      "caller": "current_user.seller_permissions or {}",
+      "args": "'serviceableZoneIds'",
+      "func": "get_all_availability",
+      "line_str": "zone_ids = (current_user.seller_permissions or {}).get(\"serviceableZoneIds\") or []",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `current_user.seller_permissions or {}.get('serviceableZoneIds')`"
+    },
+    {
+      "file": "valet_availability.py",
+      "lineno": 110,
+      "caller": "config",
+      "args": "'slots', []",
+      "func": "mark_availability",
+      "line_str": "for slot in config.get(\"slots\", [])",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `config.get('slots', [])`"
+    },
+    {
+      "file": "valet_availability.py",
+      "lineno": 227,
+      "caller": "d",
+      "args": "'date', ''",
+      "func": "get_all_availability",
+      "line_str": "enriched.sort(key=lambda d: d.get(\"date\", \"\"))",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `d.get('date', '')`"
+    }
+  ],
+  "valet_payout.py": [
+    {
+      "file": "valet_payout.py",
+      "lineno": 76,
+      "caller": "updated",
+      "args": "'deliveryChargePerOrder', 0.0",
+      "func": "update_valet_payout_settings",
+      "line_str": "\"deliveryChargePerOrder\": updated.get(\"deliveryChargePerOrder\", 0.0),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated.get('deliveryChargePerOrder', 0.0)`"
+    },
+    {
+      "file": "valet_payout.py",
+      "lineno": 77,
+      "caller": "updated",
+      "args": "'returnPickupChargePerOrder', 0.0",
+      "func": "update_valet_payout_settings",
+      "line_str": "\"returnPickupChargePerOrder\": updated.get(\"returnPickupChargePerOrder\", 0.0),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated.get('returnPickupChargePerOrder', 0.0)`"
+    },
+    {
+      "file": "valet_payout.py",
+      "lineno": 78,
+      "caller": "updated",
+      "args": "'updatedAt'",
+      "func": "update_valet_payout_settings",
+      "line_str": "\"updatedAt\": updated.get(\"updatedAt\"),",
+      "category": "Category A",
+      "reason": "Dictionary workaround on payload/model/entity: `updated.get('updatedAt')`"
+    }
+  ]
+}

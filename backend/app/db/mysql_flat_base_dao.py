@@ -67,7 +67,7 @@ class MySQLFlatBaseDAO:
 
     @property
     def table_name(self) -> str:
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"{self._raw_table_name}{suffix}"
 
     def _factory(self):

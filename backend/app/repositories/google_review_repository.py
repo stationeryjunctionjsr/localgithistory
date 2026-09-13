@@ -40,8 +40,8 @@ class GoogleReviewRepository:
                 response = await client.get(url, headers=headers)
                 if response.status_code == 200:
                     data = response.json()
-                    rating = getattr(data, "rating", None)
-                    count = getattr(data, "userRatingCount", None)
+                    rating = data.rating
+                    count = data.userRatingCount
 
                     if rating is not None and count is not None:
                         return {"rating": float(rating), "reviewCount": str(count)}

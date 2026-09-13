@@ -71,7 +71,7 @@ class SubOrderRepository:
 
         if update_data.status == "delivered" and update_data.commissionPct is None:
             existing = await self.storage.findById(id)
-            if existing and getattr(existing, "commissionStatus", None) is None:
+            if existing and existing.commissionStatus is None:
                 try:
                     from app.routers.commission import stamp_commission_on_delivery
                     commission_fields = await stamp_commission_on_delivery(existing)

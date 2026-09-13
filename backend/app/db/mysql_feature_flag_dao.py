@@ -18,7 +18,7 @@ from app.db.db_utils import now_utc
 class MySQLFeatureFlagDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_feature_flags{suffix}"
 
     def _factory(self):
@@ -110,7 +110,7 @@ class MySQLFeatureFlagDAO:
                     "flag_id": flag_id,
                     "name": data.name,
                     "description": data.description,
-                    "enabled": 1 if (data.enabled if getattr(data, 'enabled', None) is not None else True) else 0,
+                    "enabled": 1 if (data.enabled if data.enabled is not None else True) else 0,
                     "category": data.category,
                     "created_at": now,
                     "updated_at": now,
@@ -153,7 +153,7 @@ class MySQLFeatureFlagDAO:
                     "flag_id": merged.id,
                     "name": merged.name,
                     "description": merged.description,
-                    "enabled": 1 if (merged.enabled if getattr(merged, 'enabled', None) is not None else True) else None,
+                    "enabled": 1 if (merged.enabled if merged.enabled is not None else True) else None,
                     "category": merged.category,
                     "updated_at": now,
                 },

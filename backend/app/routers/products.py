@@ -250,11 +250,11 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                     existing = await products_col.findOne({"name": product_data.name})
 
                 if existing:
-                    await product_repository.update(existing.id, product_data.model_dump())
+                    await product_repository.update(existing.id, product_data)
                     product_id_to_show = (product_data.productIdFormatted if product_data.productIdFormatted is not None else product_data.name)
                     results.append({"product": product_id_to_show, "action": "updated"})
                 else:
-                    await product_repository.create(product_data.model_dump())
+                    await product_repository.create(product_data)
                     results.append({"product": product_data.name, "action": "created"})
             except (ValueError, TypeError, KeyError) as e:
                 errors.append(

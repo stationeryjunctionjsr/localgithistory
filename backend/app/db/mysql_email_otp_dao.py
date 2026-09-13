@@ -17,12 +17,12 @@ from app.db.db_utils import now_utc
 class MySQLEmailOtpDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_email_otps{suffix}"
 
     @property
     def SEND_LOG_TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_email_otp_send_log{suffix}"
 
     def _factory(self):

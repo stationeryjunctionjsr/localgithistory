@@ -153,9 +153,15 @@ class AnalyticsRepository:
 
         for order in orders:
             gross_sales += (order.total if order.total is not None else 0)
-            if order.discount is None:\n                raise ValueError('Order discount is None')\n            total_discounts += order.discount
-            if order.deliveryCharge is None:\n                raise ValueError('Order deliveryCharge is None')\n            total_shipping += order.deliveryCharge
-            if order.tax is None:\n                raise ValueError('Order tax is None')\n            total_taxes += order.tax
+            if order.discount is None:
+                raise ValueError('Order discount is None')
+            total_discounts += order.discount
+            if order.deliveryCharge is None:
+                raise ValueError('Order deliveryCharge is None')
+            total_shipping += order.deliveryCharge
+            if order.tax is None:
+                raise ValueError('Order tax is None')
+            total_taxes += order.tax
 
         # Returns (orders with status 'returned' or 'cancelled')
         returned_orders = [o for o in orders if o.get("status") in ["returned", "cancelled"]]
@@ -1864,9 +1870,15 @@ class AnalyticsRepository:
 
         result = []
         for order in orders:
-            if order.subtotal is None:\n            raise ValueError('Order subtotal is None')\n        subtotal = float(order.subtotal)
-            if order.discount is None:\n            raise ValueError('Order discount is None')\n        discount = float(order.discount)
-            if order.tax is None:\n            raise ValueError('Order tax is None')\n        tax = float(order.tax)
+            if order.subtotal is None:
+                raise ValueError('Order subtotal is None')
+            subtotal = float(order.subtotal)
+            if order.discount is None:
+                raise ValueError('Order discount is None')
+            discount = float(order.discount)
+            if order.tax is None:
+                raise ValueError('Order tax is None')
+            tax = float(order.tax)
             shipping = float((order.shipping if order.shipping is not None else order.get("deliveryCharge", 0)) or 0)
             net = round(subtotal - discount + tax + shipping, 2)
 
@@ -2049,7 +2061,9 @@ class AnalyticsRepository:
 
         result = []
         for order in orders:
-            if order.discount is None:\n            raise ValueError('Order discount is None')\n        discount = float(order.discount)
+            if order.discount is None:
+                raise ValueError('Order discount is None')
+            discount = float(order.discount)
             if discount == 0 and not order.couponCode:
                 continue  # skip orders with no discount at all
 

@@ -60,12 +60,12 @@ class MySQLSubOrderDAO:
 
     @property
     def table_name(self) -> str:
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_sub_orders{suffix}"
 
     @property
     def items_table_name(self) -> str:
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_sub_order_items{suffix}"
 
     def _get_session_factory(self):
@@ -272,9 +272,9 @@ class MySQLSubOrderDAO:
 
         params = {
             "external_id": secrets.token_hex(16),
-            "sub_order_number": (data.subOrderNumber if getattr(data, 'subOrderNumber', None) is not None else ""),
+            "sub_order_number": (data.subOrderNumber if data.subOrderNumber is not None else ""),
             "parent_order_id": str(data.parentOrderId or ""),
-            "parent_order_number": (data.parentOrderNumber if getattr(data, 'parentOrderNumber', None) is not None else ""),
+            "parent_order_number": (data.parentOrderNumber if data.parentOrderNumber is not None else ""),
             "seller_id": str(data.sellerId or "") or None,
             "seller_name": data.sellerName,
             "user_id": str(data.user or ""),
@@ -285,9 +285,9 @@ class MySQLSubOrderDAO:
             "discount": _safe_float(data.discount),
             "total": _safe_float(data.total),
             "order_type": data.orderType,
-            "status": (data.status if getattr(data, 'status', None) is not None else "pending"),
+            "status": (data.status if data.status is not None else "pending"),
             "payment_method": data.paymentMethod,
-            "payment_status": (data.paymentStatus if getattr(data, 'paymentStatus', None) is not None else "pending"),
+            "payment_status": (data.paymentStatus if data.paymentStatus is not None else "pending"),
             "is_urgent_delivery": 1 if data.isUrgentDelivery else 0,
             "delivery_slot_config_id": slot.get("configId"),
             "delivery_slot_id": slot.get("slotId"),
@@ -296,7 +296,7 @@ class MySQLSubOrderDAO:
             "coupon_code": data.couponCode,
             "coupon_info_type": c_info.discountType,
             "coupon_info_value": _safe_float(c_info.discountValue),
-            "commission_status": (data.commissionStatus if getattr(data, 'commissionStatus', None) is not None else "unrealized"),
+            "commission_status": (data.commissionStatus if data.commissionStatus is not None else "unrealized"),
             "shipping_name": s_addr.name,
             "shipping_phone": s_addr.phone,
             "shipping_line1": s_addr.line1,
@@ -310,7 +310,7 @@ class MySQLSubOrderDAO:
             "billing_state": b_addr.state,
             "billing_pincode": b_addr.pincode,
             # Valet pickup tracking
-            "pickup_status": (data.pickupStatus if getattr(data, 'pickupStatus', None) is not None else "pending_pickup"),
+            "pickup_status": (data.pickupStatus if data.pickupStatus is not None else "pending_pickup"),
             "assigned_valet": data.assignedValet,
             "created_at": now,
             "updated_at": now,
@@ -350,14 +350,14 @@ class MySQLSubOrderDAO:
             result = await session.execute(sql, params)
             new_id = result.lastrowid
 
-            items = (data.items if getattr(data, 'items', None) is not None else [])
+            items = (data.items if data.items is not None else [])
             for item in items:
                 await session.execute(
                     item_sql,
                     {
                         "sub_order_id": new_id,
-                        "product_id": (item.productId if getattr(item, 'productId', None) is not None else ""),
-                        "name": (item.name if getattr(item, 'name', None) is not None else ""),
+                        "product_id": (item.productId if item.productId is not None else ""),
+                        "name": (item.name if item.name is not None else ""),
                         "qty": int(item.qty or 0),
                         "price": _safe_float(item.price),
                     },

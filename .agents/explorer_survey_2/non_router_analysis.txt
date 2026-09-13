@@ -1,0 +1,898 @@
+=== activity.py (2 calls) ===
+  L  17 | [request.headers] args: ('authorization') | in optional_user
+     Code: auth_header = request.headers.get("authorization")
+  L  51 | [request.headers] args: ('x-session-id') | in log_activity
+     Code: sid = body.sessionId or (request.headers.get("x-session-id") if request else None)
+
+=== analytics.py (24 calls) ===
+  L 187 | [event] args: ('type') | in record_event
+     Code: if not event.get("type"):
+  L 202 | [enriched_event] args: ('type') | in record_event
+     Code: event_type = enriched_event.get("type")
+  L 203 | [enriched_event] args: ('sessionId') | in record_event
+     Code: session_id = enriched_event.get("sessionId")
+  L 204 | [enriched_event] args: ('userId') | in record_event
+     Code: user_id = enriched_event.get("userId")
+  L 561 | [result] args: ('error') | in get_user_engagement_by_id
+     Code: if result.get("error"):
+  L 194 | [user_info] args: ('_id') | in record_event
+     Code: "userId": user_info.get("_id") if user_info else None,
+  L 195 | [event] args: ('timestamp') | in record_event
+     Code: "timestamp": event.get("timestamp") or datetime.now(timezone.utc).isoformat(),
+  L 205 | [enriched_event] args: ('payload') | in record_event
+     Code: payload = enriched_event.get("payload") or {}
+  L 256 | [stored] args: ('_id') | in record_event
+     Code: return {"status": "ok", "eventId": stored.get("_id")}
+  L 209 | [payload] args: ('returning', False) | in record_event
+     Code: is_returning = payload.get("returning", False)
+  L 212 | [enriched_event] args: ('page', '/') | in record_event
+     Code: page = enriched_event.get("page", "/")
+  L 215 | [payload] args: ('productId') | in record_event
+     Code: product_id = payload.get("productId")
+  L 216 | [payload] args: ('productName', 'Unknown') | in record_event
+     Code: product_name = payload.get("productName", "Unknown")
+  L 220 | [payload] args: ('productId') | in record_event
+     Code: product_id = payload.get("productId")
+  L 221 | [payload] args: ('productName', 'Unknown') | in record_event
+     Code: product_name = payload.get("productName", "Unknown")
+  L 222 | [payload] args: ('source', 'mobile_app') | in record_event
+     Code: source = payload.get("source", "mobile_app")
+  L 226 | [payload] args: ('productId') | in record_event
+     Code: product_id = payload.get("productId")
+  L 227 | [payload] args: ('quantity', 1) | in record_event
+     Code: quantity = payload.get("quantity", 1)
+  L 231 | [payload] args: ('productId') | in record_event
+     Code: product_id = payload.get("productId")
+  L 232 | [payload] args: ('quantity', 1) | in record_event
+     Code: quantity = payload.get("quantity", 1)
+  L 236 | [payload] args: ('query', '') | in record_event
+     Code: query = payload.get("query", "")
+  L 237 | [payload] args: ('resultsCount', 0) | in record_event
+     Code: results_count = payload.get("resultsCount", 0)
+  L 240 | [payload] args: ('productId') | in record_event
+     Code: product_id = payload.get("productId")
+  L 244 | [payload] args: ('reason', 'unknown') | in record_event
+     Code: reason = payload.get("reason", "unknown")
+
+=== auth.py (17 calls) ===
+  L 404 | [data] args: ('userId') | in refresh_tokens
+     Code: user_id = data.get("userId")
+  L 405 | [data] args: ('sessionId') | in refresh_tokens
+     Code: session_id = data.get("sessionId")
+  L 406 | [data] args: ('refreshId') | in refresh_tokens
+     Code: refresh_id = data.get("refreshId")
+  L 137 | [payload] args: ('otp') | in send_otp
+     Code: otp = payload.get("otp")
+  L 153 | [payload] args: ('sent', True) | in send_otp
+     Code: response_data.sent = bool(payload.get("sent", True))
+  L 152 | [payload] args: ('resend_available_in_seconds') | in send_otp
+     Code: response_data.resendAvailableInSeconds = int(payload.get("resend_available_in_seconds") or 0)
+  L 200 | [payload] args: ('Status') | in msg91_webhook
+     Code: status_val = payload.get("Status") or payload.get("status") or payload.get("type")
+  L 200 | [payload] args: ('status') | in msg91_webhook
+     Code: status_val = payload.get("Status") or payload.get("status") or payload.get("type")
+  L 200 | [payload] args: ('type') | in msg91_webhook
+     Code: status_val = payload.get("Status") or payload.get("status") or payload.get("type")
+  L 290 | [otp_result] args: ('valid') | in register
+     Code: if not otp_result.get("valid"):
+  L 505 | [otp_result] args: ('valid') | in forgot_password
+     Code: if not otp_result.get("valid"):
+  L 134 | [payload] args: ('message', 'Too many requests') | in send_otp
+     Code: detail=payload.get("message", "Too many requests"),
+  L 218 | [res_data] args: ('message', 'Token verification failed') | in verify_msg91_token_endpoint
+     Code: status_code=status.HTTP_400_BAD_REQUEST, detail=res_data.get("message", "Token verification failed")
+  L 289 | [otp_result] args: ('valid') | in register
+     Code: logger.info(f"[REGISTER] OTP verify result: valid={otp_result.get('valid')}")
+  L 293 | [otp_result] args: ('message', 'Invalid or expired OTP') | in register
+     Code: detail=otp_result.get("message", "Invalid or expired OTP"),
+  L 507 | [otp_result] args: ('message', 'Invalid or expired OTP') | in forgot_password
+     Code: status_code=status.HTTP_400_BAD_REQUEST, detail=otp_result.get("message", "Invalid or expired OTP")
+  L 135 | [payload] args: ('retry_after_seconds') | in send_otp
+     Code: headers={"Retry-After": str(int(payload.get("retry_after_seconds") or 0))},
+
+=== availability_requests.py (7 calls) ===
+  L 129 | [result] args: ('deliveredCount', 0) | in fulfill_availability_request
+     Code: push_delivered = result.get("deliveredCount", 0)
+  L 151 | [event] args: ('userId') | in fulfill_availability_request
+     Code: ev_user_id = event.get("userId")
+  L 152 | [event] args: ('email') | in fulfill_availability_request
+     Code: ev_email = event.get("email")
+  L 145 | [e] args: ('type') | in fulfill_availability_request
+     Code: if e.get("type") == "notify_pincode"
+  L 148 | [e] args: ('notified') | in fulfill_availability_request
+     Code: and not e.get("notified")
+  L 146 | [e] args: ('productId') | in fulfill_availability_request
+     Code: and str(e.get("productId")) == str(product_id)
+  L 147 | [e] args: ('pincode') | in fulfill_availability_request
+     Code: and str(e.get("pincode")) == str(pincode)
+
+=== bundles.py (1 calls) ===
+  L 232 | [product_map] args: (str(pid)) | in search_bundles
+     Code: p = product_map.get(str(pid))
+
+=== cart.py (1 calls) ===
+  L  58 | [products_map] args: (str(item.product)) | in get_cart
+     Code: product = products_map.get(str(item.product))
+
+=== category_tags.py (1 calls) ===
+  L 101 | [existing_tag] args: ('_id') | in update_category_tag
+     Code: if existing_tag and existing_tag.get("_id") != tag_id:
+
+=== commission.py (9 calls) ===
+  L 135 | [tier] args: ('minOrderValue', 0) | in resolve_commission_pct
+     Code: min_v = tier.get("minOrderValue", 0)
+  L 136 | [tier] args: ('maxOrderValue') | in resolve_commission_pct
+     Code: max_v = tier.get("maxOrderValue")  # None = unlimited
+  L 260 | [sorted_tiers[i]] args: ('maxOrderValue') | in update_commission_tiers
+     Code: curr_max = sorted_tiers[i].get("maxOrderValue")
+  L 279 | [updated] args: ('tiers', []) | in update_commission_tiers
+     Code: "tiers": updated.get("tiers", []),
+  L 280 | [updated] args: ('defaultCommissionPct', 5.0) | in update_commission_tiers
+     Code: "defaultCommissionPct": updated.get("defaultCommissionPct", 5.0),
+  L 340 | [updated] args: ('commissionOverridePct') | in set_seller_commission_override
+     Code: "commissionOverridePct": updated.get("commissionOverridePct"),
+  L 253 | [d] args: ('id') | in update_commission_tiers
+     Code: if not d.get("id"):
+  L 138 | [tier] args: ('commissionPct', default_pct) | in resolve_commission_pct
+     Code: return float(tier.get("commissionPct", default_pct))
+  L 403 | [updated] args: ('commissionStatus') | in realize_pending_commissions
+     Code: if updated.get("commissionStatus") == "realized":
+
+=== content_pages.py (7 calls) ===
+  L 178 | [result] args: ('version', 1) | in update_privacy
+     Code: version = result.get("version", 1)
+  L 139 | [about_repository] args: () | in get_public_about
+     Code: doc = await about_repository.get()
+  L 145 | [about_repository] args: () | in get_about
+     Code: doc = await about_repository.get()
+  L 162 | [privacy_repository] args: () | in get_public_privacy
+     Code: doc = await privacy_repository.get()
+  L 168 | [privacy_repository] args: () | in get_privacy
+     Code: doc = await privacy_repository.get()
+  L 177 | [result] args: ('lastUpdated', '') | in update_privacy
+     Code: last_updated = data.lastUpdated or result.get("lastUpdated", "")
+  L 187 | [privacy_repository] args: () | in get_privacy_version_history
+     Code: doc = await privacy_repository.get()
+
+=== delivery_charges.py (7 calls) ===
+  L  90 | [result] args: ('charge', 0.0) | in get_delivery_charge_by_location
+     Code: charge = result.get("charge", 0.0) or 0.0
+  L 357 | [update_dict] args: ('serviceableForCustomer') | in update_delivery_charge
+     Code: if update_dict.get("serviceableForCustomer") is False:
+  L 234 | [slot_config] args: ('slots', []) | in check_serviceability
+     Code: for slot in slot_config.get("slots", []):
+  L 168 | [seller_doc] args: ('name', '') | in check_serviceability
+     Code: "companyName": (seller_doc.company_name if seller_doc.company_name is not None else seller_doc.get("name", "")),
+  L 169 | [seller_doc.address or {}] args: ('city') | in check_serviceability
+     Code: "city": seller_doc.city or (seller_doc.address or {}).get("city"),
+  L 188 | [seller_doc] args: ('name', '') | in check_serviceability
+     Code: "companyName": (seller_doc.company_name if seller_doc.company_name is not None else seller_doc.get("name", "")),
+  L 189 | [seller_doc.address or {}] args: ('city') | in check_serviceability
+     Code: "city": seller_doc.city or (seller_doc.address or {}).get("city"),
+
+=== delivery_slots.py (55 calls) ===
+  L 141 | [config] args: ('slots', []) | in get_available_slots
+     Code: for slot in config.get("slots", []):
+  L 291 | [config] args: ('slots', []) | in book_slot
+     Code: slots = config.get("slots", [])
+  L 179 | [slot] args: ('endTime', '') | in get_available_slots
+     Code: end_time_str = slot.get("endTime", "")
+  L 230 | [config] args: ('slots', []) | in get_dates_with_slots
+     Code: for slot in config.get("slots", []):
+  L  82 | [zone_data] args: ('_id') | in _resolve_zone_config
+     Code: zone_id = zone_data.get("_id") or zone_data.get("id") if zone_data else None
+  L  82 | [zone_data] args: ('id') | in _resolve_zone_config
+     Code: zone_id = zone_data.get("_id") or zone_data.get("id") if zone_data else None
+  L 146 | [slot] args: ('isFullDay') | in get_available_slots
+     Code: is_full_day = (slot.get("isFullDay") if slot.get("isFullDay") is not None else False)
+  L 147 | [slot] args: ('isUrgent') | in get_available_slots
+     Code: is_urgent = (slot.get("isUrgent") if slot.get("isUrgent") is not None else False)
+  L 143 | [slot] args: ('isActive') | in get_available_slots
+     Code: if not (slot.get("isActive") if slot.get("isActive") is not None else True):
+  L 146 | [slot] args: ('isFullDay') | in get_available_slots
+     Code: is_full_day = (slot.get("isFullDay") if slot.get("isFullDay") is not None else False)
+  L 147 | [slot] args: ('isUrgent') | in get_available_slots
+     Code: is_urgent = (slot.get("isUrgent") if slot.get("isUrgent") is not None else False)
+  L 157 | [slot] args: ('cutoffHours') | in get_available_slots
+     Code: cutoff_hours = slot.get("cutoffHours")
+  L 173 | [config] args: ('zoneDefaultCapacity') | in get_available_slots
+     Code: cap = config.get("zoneDefaultCapacity")
+  L 192 | [slot] args: ('id', f"{slot.get('startTime')}-{slot.get('endTime')}") | in get_available_slots
+     Code: "slotId": slot.get("id", f"{slot.get('startTime')}-{slot.get('endTime')}"),
+  L 193 | [slot] args: ('startTime', '') | in get_available_slots
+     Code: "startTime": slot.get("startTime", ""),
+  L 194 | [slot] args: ('endTime', '') | in get_available_slots
+     Code: "endTime": slot.get("endTime", ""),
+  L 234 | [slot] args: ('isFullDay') | in get_dates_with_slots
+     Code: is_full_day = (slot.get("isFullDay") if slot.get("isFullDay") is not None else False)
+  L 235 | [slot] args: ('isUrgent') | in get_dates_with_slots
+     Code: is_urgent = (slot.get("isUrgent") if slot.get("isUrgent") is not None else False)
+  L 250 | [slot] args: ('endTime') | in get_dates_with_slots
+     Code: end_time_str = (slot.get("endTime") or "")
+  L 294 | [slot] args: ('id') | in book_slot
+     Code: if slot.get("id") == slot_id or f"{slot.get('startTime')}-{slot.get('endTime')}" == slot_id:
+  L 297 | [config] args: ('zoneDefaultCapacity') | in book_slot
+     Code: cap = config.get("zoneDefaultCapacity")
+  L 332 | [zone_doc] args: ('defaultCapacity', 10) | in create_delivery_slot_config
+     Code: zone_default_capacity = zone_doc.get("defaultCapacity", 10)
+  L 143 | [slot] args: ('isActive') | in get_available_slots
+     Code: if not (slot.get("isActive") if slot.get("isActive") is not None else True):
+  L 152 | [slot] args: ('urgentCutoffHours') | in get_available_slots
+     Code: slot.get("urgentCutoffHours")
+  L 154 | [slot] args: ('cutoffHours') | in get_available_slots
+     Code: else slot.get("cutoffHours")
+  L 171 | [slot] args: ('capacity') | in get_available_slots
+     Code: cap = int(slot.get("capacity")) if slot.get("capacity") not in (None, "") else None
+  L 171 | [slot] args: ('capacity') | in get_available_slots
+     Code: cap = int(slot.get("capacity")) if slot.get("capacity") not in (None, "") else None
+  L 174 | [slot] args: ('bookedCount') | in get_available_slots
+     Code: booked = int(slot.get("bookedCount") or 0)
+  L 231 | [slot] args: ('isActive') | in get_dates_with_slots
+     Code: if not (slot.get("isActive") if slot.get("isActive") is not None else True):
+  L 234 | [slot] args: ('isFullDay') | in get_dates_with_slots
+     Code: is_full_day = (slot.get("isFullDay") if slot.get("isFullDay") is not None else False)
+  L 235 | [slot] args: ('isUrgent') | in get_dates_with_slots
+     Code: is_urgent = (slot.get("isUrgent") if slot.get("isUrgent") is not None else False)
+  L 239 | [slot] args: ('urgentCutoffHours') | in get_dates_with_slots
+     Code: cutoff_hours = slot.get("urgentCutoffHours") if is_urgent and slot.get("urgentCutoffHours") is not None else slot.get("cutoffHours")
+  L 239 | [slot] args: ('cutoffHours') | in get_dates_with_slots
+     Code: cutoff_hours = slot.get("urgentCutoffHours") if is_urgent and slot.get("urgentCutoffHours") is not None else slot.get("cutoffHours")
+  L 262 | [config] args: ('zoneDefaultCapacity') | in get_dates_with_slots
+     Code: cap = config.get("zoneDefaultCapacity")
+  L 295 | [slot] args: ('capacity') | in book_slot
+     Code: cap = int(slot.get("capacity")) if slot.get("capacity") not in (None, "") else None
+  L 295 | [slot] args: ('capacity') | in book_slot
+     Code: cap = int(slot.get("capacity")) if slot.get("capacity") not in (None, "") else None
+  L 298 | [slot] args: ('bookedCount') | in book_slot
+     Code: booked = (int(slot.get("bookedCount")) if slot.get("bookedCount") not in (None, "") else 0)
+  L 298 | [slot] args: ('bookedCount') | in book_slot
+     Code: booked = (int(slot.get("bookedCount")) if slot.get("bookedCount") not in (None, "") else 0)
+  L 338 | [slot_dict] args: ('capacity') | in create_delivery_slot_config
+     Code: if slot_dict.get("capacity") is None or slot_dict.get("capacity") == 0:
+  L 338 | [slot_dict] args: ('capacity') | in create_delivery_slot_config
+     Code: if slot_dict.get("capacity") is None or slot_dict.get("capacity") == 0:
+  L 153 | [slot] args: ('urgentCutoffHours') | in get_available_slots
+     Code: if slot.get("urgentCutoffHours") is not None
+  L 160 | [slot] args: ('endTime') | in get_available_slots
+     Code: anchor_time_str = (slot.get("endTime") or "") if is_urgent else (slot.get("startTime") or "")
+  L 160 | [slot] args: ('startTime') | in get_available_slots
+     Code: anchor_time_str = (slot.get("endTime") or "") if is_urgent else (slot.get("startTime") or "")
+  L 231 | [slot] args: ('isActive') | in get_dates_with_slots
+     Code: if not (slot.get("isActive") if slot.get("isActive") is not None else True):
+  L 260 | [slot] args: ('capacity') | in get_dates_with_slots
+     Code: cap = int(slot.get("capacity")) if slot.get("capacity") not in (None, "") else None
+  L 260 | [slot] args: ('capacity') | in get_dates_with_slots
+     Code: cap = int(slot.get("capacity")) if slot.get("capacity") not in (None, "") else None
+  L 263 | [slot] args: ('bookedCount') | in get_dates_with_slots
+     Code: booked = (int(slot.get("bookedCount")) if slot.get("bookedCount") not in (None, "") else 0)
+  L 263 | [slot] args: ('bookedCount') | in get_dates_with_slots
+     Code: booked = (int(slot.get("bookedCount")) if slot.get("bookedCount") not in (None, "") else 0)
+  L 294 | [slot] args: ('startTime') | in book_slot
+     Code: if slot.get("id") == slot_id or f"{slot.get('startTime')}-{slot.get('endTime')}" == slot_id:
+  L 294 | [slot] args: ('endTime') | in book_slot
+     Code: if slot.get("id") == slot_id or f"{slot.get('startTime')}-{slot.get('endTime')}" == slot_id:
+  L 192 | [slot] args: ('startTime') | in get_available_slots
+     Code: "slotId": slot.get("id", f"{slot.get('startTime')}-{slot.get('endTime')}"),
+  L 192 | [slot] args: ('endTime') | in get_available_slots
+     Code: "slotId": slot.get("id", f"{slot.get('startTime')}-{slot.get('endTime')}"),
+  L 239 | [slot] args: ('urgentCutoffHours') | in get_dates_with_slots
+     Code: cutoff_hours = slot.get("urgentCutoffHours") if is_urgent and slot.get("urgentCutoffHours") is not None else slot.get("cutoffHours")
+  L 241 | [slot] args: ('endTime') | in get_dates_with_slots
+     Code: anchor_time_str = (slot.get("endTime") or "") if is_urgent else (slot.get("startTime") or "")
+  L 241 | [slot] args: ('startTime') | in get_dates_with_slots
+     Code: anchor_time_str = (slot.get("endTime") or "") if is_urgent else (slot.get("startTime") or "")
+
+=== delivery_zones.py (2 calls) ===
+  L  74 | [z] args: ('pincodes') | in _check_pincode_conflicts
+     Code: for pc in z.get("pincodes") or []:
+  L  75 | [z] args: ('name', str(z['_id'])) | in _check_pincode_conflicts
+     Code: taken[pc] = z.get("name", str(z["_id"]))
+
+=== feature_flags.py (1 calls) ===
+  L 141 | [flag] args: ('enabled', False) | in toggle_feature_flag
+     Code: updated = await feature_flag_repository.update(flag["_id"], {"enabled": not flag.get("enabled", False)})
+
+=== order_feedback.py (4 calls) ===
+  L 106 | [latest_eligible_order] args: ('_id') | in get_eligible_feedback_order
+     Code: return {"eligibleOrderId": latest_eligible_order.get("_id")}
+  L  70 | [f] args: ('orderId') | in get_eligible_feedback_order
+     Code: feedback_order_ids = set(f.get("orderId") for f in feedbacks)
+  L  80 | [latest_eligible_order] args: ('_id') | in get_eligible_feedback_order
+     Code: return {"eligibleOrderId": latest_eligible_order.get("_id")}
+  L  92 | [latest_feedback] args: ('createdAt') | in get_eligible_feedback_order
+     Code: latest_feedback_date = parser.parse(latest_feedback.get("createdAt"))
+
+=== orders.py (142 calls) ===
+  L 224 | [users_map] args: (o_user_id) | in populate_orders
+     Code: user = users_map.get(o_user_id)
+  L 230 | [payments_map] args: (o_id, []) | in populate_orders
+     Code: payment_entries = payments_map.get(o_id, [])
+  L 511 | [_cart_products_map] args: (str(item.product or item.product_id)) | in create_order
+     Code: p = _cart_products_map.get(str(item.product or item.product_id))
+  L 574 | [validation] args: ('eligibleItemIndices') | in create_order
+     Code: eligible_item_indices = validation.get("eligibleItemIndices")
+  L 575 | [validation] args: ('itemDiscounts') | in create_order
+     Code: item_discounts = validation.get("itemDiscounts")
+  L 576 | [validation] args: ('bxgyItemIndices') | in create_order
+     Code: validation.get("bxgyItemIndices")
+  L 631 | [_cart_products_map] args: (str(item.product or item.product_id)) | in create_order
+     Code: product = _cart_products_map.get(str(item.product or item.product_id))
+  L 717 | [ref_settings] args: ('retail', {}) | in create_order
+     Code: retail_settings = ref_settings.get("retail", {})
+  L1012 | [order_data.shippingAddress] args: ('zipCode') | in create_order
+     Code: if order_data.shippingAddress and order_data.shippingAddress.get("zipCode"):
+  L2728 | [updated_payment] args: ('amountRemaining', 0) | in settle_credit
+     Code: if updated_payment.get("amountRemaining", 0) <= 0:
+  L 227 | [users_map] args: (o_valet_id) | in populate_orders
+     Code: valet = users_map.get(o_valet_id) if o_valet_id else None
+  L 236 | [item_dict] args: ('product') | in populate_orders
+     Code: prod = item_dict.get("product")
+  L 244 | [products_map] args: (prod_id) | in populate_orders
+     Code: product = products_map.get(prod_id)
+  L 522 | [order_data.shippingAddress] args: ('state', '') | in create_order
+     Code: state = order_data.shippingAddress.get("state", "")
+  L 523 | [order_data.shippingAddress] args: ('city', '') | in create_order
+     Code: city = order_data.shippingAddress.get("city", "")
+  L 524 | [order_data.shippingAddress] args: ('district', '') | in create_order
+     Code: district = order_data.shippingAddress.get("district", "")
+  L 525 | [order_data.shippingAddress] args: ('zipCode', '') | in create_order
+     Code: zip_code = order_data.shippingAddress.get("zipCode", "")
+  L 569 | [validation] args: ('valid') | in create_order
+     Code: if not validation.get("valid"):
+  L 572 | [validation['coupon']] args: ('code') | in create_order
+     Code: coupon_code = validation["coupon"].get("code") or ("AUTO-" + (applied_coupon_id or "")[:8])
+  L 578 | [validation] args: ('coupon') | in create_order
+     Code: c_obj = validation.get("coupon") or {}
+  L 587 | [validation['coupon']] args: ('typeOfDiscount') | in create_order
+     Code: "typeOfDiscount": validation["coupon"].get("typeOfDiscount"),
+  L 605 | [best] args: ('eligibleItemIndices') | in create_order
+     Code: eligible_item_indices = best.get("eligibleItemIndices")
+  L 606 | [best] args: ('itemDiscounts') | in create_order
+     Code: item_discounts = best.get("itemDiscounts")
+  L 607 | [best] args: ('bxgyItemIndices') | in create_order
+     Code: best.get("bxgyItemIndices")
+  L 657 | [coupon_info] args: ('typeOfDiscount') | in create_order
+     Code: is_shipping_discount = coupon_info is not None and coupon_info.get("typeOfDiscount") == "shipping_discount"
+  L 752 | [order_data.shippingAddress] args: ('zipCode') | in create_order
+     Code: (order_data.shippingAddress.get("zipCode") or order_data.shippingAddress.get("pincode") or "")
+  L 752 | [order_data.shippingAddress] args: ('pincode') | in create_order
+     Code: (order_data.shippingAddress.get("zipCode") or order_data.shippingAddress.get("pincode") or "")
+  L 869 | [order_data.shippingAddress] args: ('zipCode', '') | in create_order
+     Code: zip_code = order_data.shippingAddress.get("zipCode", "") if order_data.shippingAddress else ""
+  L 910 | [sc] args: ('slots', []) | in create_order
+     Code: for sl in sc.get("slots", []):
+  L1000 | [matched_slot] args: ('_id', matched_slot.get('id')) | in create_order
+     Code: "slotId": matched_slot.get("_id", matched_slot.get("id")),
+  L1063 | [order_data.shippingAddress] args: ('state', '') | in create_order
+     Code: state = order_data.shippingAddress.get("state", "")
+  L1064 | [order_data.shippingAddress] args: ('city', '') | in create_order
+     Code: city = order_data.shippingAddress.get("city", "")
+  L1065 | [order_data.shippingAddress] args: ('district', '') | in create_order
+     Code: district = order_data.shippingAddress.get("district", "")
+  L1066 | [order_data.shippingAddress] args: ('zipCode', '') | in create_order
+     Code: zip_code = order_data.shippingAddress.get("zipCode", "")
+  L1118 | [coupon_info] args: ('typeOfDiscount') | in create_order
+     Code: is_shipping_discount = coupon_info is not None and coupon_info.get("typeOfDiscount") == "shipping_discount"
+  L1443 | [populated_order] args: ('user', {}) | in create_order
+     Code: email = populated_order.get("user", {}).email if populated_order.user else None
+  L1475 | [oi] args: ('sellerId') | in create_order
+     Code: sid = oi.get("sellerId")
+  L1947 | [updated_order] args: ('subOrderIds') | in update_order_status
+     Code: sub_ids = updated_order.get("subOrderIds") or []
+  L2708 | [payment] args: ('totalAmount', 0) | in settle_credit
+     Code: remaining_amount = (payment.amount_remaining if payment.amount_remaining is not None else payment.get("totalAmount", 0) - ((payment.amount_paid if payment.amount_paid is not None else 0) or 0)
+  L2899 | [parent] args: ('subOrderIds') | in update_seller_order_status
+     Code: if parent and parent.get("subOrderIds"):
+  L  47 | [sellers[0]] args: ('id') | in _resolve_product_seller_id
+     Code: return sellers[0].get("id") or sellers[0].get("_id")
+  L  47 | [sellers[0]] args: ('_id') | in _resolve_product_seller_id
+     Code: return sellers[0].get("id") or sellers[0].get("_id")
+  L 276 | [valet] args: ('name') | in populate_orders
+     Code: v_name = valet.get("name") if isinstance(valet, dict) else (valet.name if valet.name is not None else "")
+  L 277 | [valet] args: ('phone') | in populate_orders
+     Code: v_phone = valet.get("phone") if isinstance(valet, dict) else (valet.phone if valet.phone is not None else "")
+  L 533 | [delivery_charge_data] args: ('charge', 0) | in create_order
+     Code: charge_amount = delivery_charge_data.get("charge", 0)
+  L 534 | [delivery_charge_data] args: ('minCartValue', 0) | in create_order
+     Code: min_cart_value_for_free = delivery_charge_data.get("minCartValue", 0)
+  L 535 | [delivery_charge_data] args: ('isApplicableToRole', True) | in create_order
+     Code: if delivery_charge_data.get("isApplicableToRole", True):
+  L 579 | [c_obj] args: ('method') | in create_order
+     Code: if c_obj.get("method") == "discount_code" and c_obj.get("couponMode") == "override":
+  L 579 | [c_obj] args: ('couponMode') | in create_order
+     Code: if c_obj.get("method") == "discount_code" and c_obj.get("couponMode") == "override":
+  L 917 | [sl] args: ('capacity') | in create_order
+     Code: _cap = sl.get("capacity")
+  L 967 | [matched_slot] args: ('isFullDay') | in create_order
+     Code: is_full_day = (matched_slot.get("isFullDay") if matched_slot.get("isFullDay") is not None else False)
+  L 970 | [matched_slot] args: ('capacity') | in create_order
+     Code: _cap = matched_slot.get("capacity")
+  L 999 | [matched_config] args: ('_id', matched_config.get('id')) | in create_order
+     Code: "configId": str(matched_config.get("_id", matched_config.get("id"))),
+  L1000 | [matched_slot] args: ('id') | in create_order
+     Code: "slotId": matched_slot.get("_id", matched_slot.get("id")),
+  L1005 | [matched_slot] args: ('isUrgent') | in create_order
+     Code: "isUrgent": (matched_slot.get("isUrgent") if matched_slot.get("isUrgent") is not None else False),
+  L1077 | [delivery_charge_data] args: ('charge', 0) | in create_order
+     Code: charge_amount = delivery_charge_data.get("charge", 0)
+  L1078 | [delivery_charge_data] args: ('minCartValue', 0) | in create_order
+     Code: min_cart_value_for_free = delivery_charge_data.get("minCartValue", 0)
+  L1083 | [delivery_charge_data] args: ('isApplicableToRole', True) | in create_order
+     Code: if delivery_charge_data.get("isApplicableToRole", True):
+  L1519 | [seller_delivery_map] args: (str(seller_id) if seller_id else None) | in create_order
+     Code: sdo = seller_delivery_map.get(str(seller_id) if seller_id else None)
+  L1978 | [updated_order] args: ('subOrderIds') | in update_order_status
+     Code: _f_status = await _compute_fulfillment_status(updated_order.get("subOrderIds") or [])
+  L1984 | [populated_order] args: ('user', {}) | in update_order_status
+     Code: email = populated_order.get("user", {}).email if populated_order.user else None
+  L1990 | [updated_order] args: ('invoicePath') | in update_order_status
+     Code: if order_user and order_user.role == "customer" and not updated_order.get("invoicePath"):
+  L2045 | [entry] args: ('verified') | in accept_order
+     Code: any_verified = any(entry.get("verified") for entry in entries)
+  L2421 | [_so] args: ('sellerId') | in valet_response
+     Code: _seller_id = _so.get("sellerId")
+  L 275 | [valet] args: ('_id') | in populate_orders
+     Code: v_id = valet.get("_id") or valet.get("id") if isinstance(valet, dict) else (valet.id if valet.id is not None else "")
+  L 275 | [valet] args: ('id') | in populate_orders
+     Code: v_id = valet.get("_id") or valet.get("id") if isinstance(valet, dict) else (valet.id if valet.id is not None else "")
+  L 570 | [validation] args: ('message') | in create_order
+     Code: raise HTTPException(status_code=400, detail=validation.get("message"))
+  L 884 | [_zone_doc] args: ('_id', _zone_doc.get('id')) | in create_order
+     Code: order_zone_id = str(_zone_doc.get("_id", _zone_doc.get("id")))
+  L 885 | [_zone_doc] args: ('urgentDeliveryAvailable', False) | in create_order
+     Code: zone_urgent_available = bool(_zone_doc.get("urgentDeliveryAvailable", False))
+  L 919 | [sc] args: ('zoneDefaultCapacity') | in create_order
+     Code: _cap = sc.get("zoneDefaultCapacity")
+  L 920 | [sl] args: ('bookedCount') | in create_order
+     Code: _booked = (sl.get("bookedCount") if sl.get("bookedCount") is not None else 0)
+  L 967 | [matched_slot] args: ('isFullDay') | in create_order
+     Code: is_full_day = (matched_slot.get("isFullDay") if matched_slot.get("isFullDay") is not None else False)
+  L 972 | [matched_config] args: ('zoneDefaultCapacity') | in create_order
+     Code: _cap = matched_config.get("zoneDefaultCapacity")
+  L 973 | [matched_slot] args: ('bookedCount') | in create_order
+     Code: _booked = (matched_slot.get("bookedCount") if matched_slot.get("bookedCount") is not None else 0)
+  L 978 | [matched_slot] args: ('urgentCutoffHours') | in create_order
+     Code: matched_slot.get("urgentCutoffHours")
+  L 980 | [matched_slot] args: ('cutoffHours') | in create_order
+     Code: else matched_slot.get("cutoffHours")
+  L 999 | [matched_config] args: ('id') | in create_order
+     Code: "configId": str(matched_config.get("_id", matched_config.get("id"))),
+  L1005 | [matched_slot] args: ('isUrgent') | in create_order
+     Code: "isUrgent": (matched_slot.get("isUrgent") if matched_slot.get("isUrgent") is not None else False),
+  L1013 | [order_data.shippingAddress] args: ('zipCode') | in create_order
+     Code: shipping_zip = str(order_data.shippingAddress.get("zipCode")).strip()
+  L1035 | [sdoc.get('sellerPermissions') or {}] args: ('serviceableZoneIds', []) | in create_order
+     Code: seller_zone_ids = (sdoc.get("sellerPermissions") or {}).get("serviceableZoneIds", [])
+  L1261 | [selected_slot_info] args: ('configId') | in create_order
+     Code: selected_slot_info.get("configId"),
+  L1262 | [selected_slot_info] args: ('slotId') | in create_order
+     Code: selected_slot_info.get("slotId"),
+  L1459 | [oi] args: ('sellerId') | in create_order
+     Code: if not oi.get("sellerId") and super_admin_id:
+  L1522 | [sdo] args: ('deliverySlotId') | in create_order
+     Code: if sdo and sdo.get("deliverySlotId") and sdo.get("deliverySlotDate"):
+  L1522 | [sdo] args: ('deliverySlotDate') | in create_order
+     Code: if sdo and sdo.get("deliverySlotId") and sdo.get("deliverySlotDate"):
+  L1540 | [seller_docs] args: (str(seller_id)) | in create_order
+     Code: sdoc = seller_docs.get(str(seller_id))
+  L 169 | [prod] args: ('_id') | in populate_orders
+     Code: pid = prod.get("_id") or prod.get("id")
+  L 169 | [prod] args: ('id') | in populate_orders
+     Code: pid = prod.get("_id") or prod.get("id")
+  L 190 | [prod] args: ('_id') | in populate_orders
+     Code: pid = prod.get("_id") or prod.get("id")
+  L 190 | [prod] args: ('id') | in populate_orders
+     Code: pid = prod.get("_id") or prod.get("id")
+  L 238 | [prod] args: ('_id') | in populate_orders
+     Code: prod_id = str(prod.get("_id") or prod.get("id"))
+  L 238 | [prod] args: ('id') | in populate_orders
+     Code: prod_id = str(prod.get("_id") or prod.get("id"))
+  L 432 | [entry] args: ('amount', 0.0) | in create_order
+     Code: entry.get("amount", 0.0) for entry in (p.payment_entries or []) if entry.get("verified")
+  L 884 | [_zone_doc] args: ('id') | in create_order
+     Code: order_zone_id = str(_zone_doc.get("_id", _zone_doc.get("id")))
+  L 911 | [sl] args: ('isActive') | in create_order
+     Code: if not (sl.get("isActive") if sl.get("isActive") is not None else True):
+  L 920 | [sl] args: ('bookedCount') | in create_order
+     Code: _booked = (sl.get("bookedCount") if sl.get("bookedCount") is not None else 0)
+  L 926 | [sl] args: ('isUrgent') | in create_order
+     Code: if (sl.get("isUrgent") if sl.get("isUrgent") is not None else False):
+  L 973 | [matched_slot] args: ('bookedCount') | in create_order
+     Code: _booked = (matched_slot.get("bookedCount") if matched_slot.get("bookedCount") is not None else 0)
+  L 979 | [matched_slot] args: ('isUrgent') | in create_order
+     Code: if matched_slot.get("isUrgent") and matched_slot.get("urgentCutoffHours") is not None
+  L 985 | [matched_slot] args: ('isUrgent') | in create_order
+     Code: is_urgent = (matched_slot.get("isUrgent") if matched_slot.get("isUrgent") is not None else False)
+  L1233 | [slot_config] args: ('_db_id') | in create_order
+     Code: db_id = slot_config.get("_db_id") or config_id
+  L1284 | [spec] args: ('productId', '') | in create_order
+     Code: spec_pid = str(spec.get("productId", ""))
+  L1487 | [sdo] args: ('sellerId') | in create_order
+     Code: seller_delivery_map[sdo.get("sellerId")] = sdo
+  L1492 | [order_data.shippingAddress] args: ('state', '') | in create_order
+     Code: order_data.shippingAddress.get("state", ""),
+  L1493 | [order_data.shippingAddress] args: ('city', '') | in create_order
+     Code: order_data.shippingAddress.get("city", ""),
+  L1494 | [order_data.shippingAddress] args: ('district', '') | in create_order
+     Code: order_data.shippingAddress.get("district", ""),
+  L1495 | [order_data.shippingAddress] args: ('zipCode', '') | in create_order
+     Code: order_data.shippingAddress.get("zipCode", ""),
+  L1524 | [sdo] args: ('deliverySlotConfigId') | in create_order
+     Code: "configId": sdo.get("deliverySlotConfigId"),
+  L1525 | [sdo] args: ('deliverySlotId') | in create_order
+     Code: "slotId": sdo.get("deliverySlotId"),
+  L1526 | [sdo] args: ('deliverySlotDate') | in create_order
+     Code: "date": sdo.get("deliverySlotDate"),
+  L1827 | [slot_config] args: ('slots', []) | in update_order_status
+     Code: slots_list = slot_config.get("slots", [])
+  L 432 | [entry] args: ('verified') | in create_order
+     Code: entry.get("amount", 0.0) for entry in (p.payment_entries or []) if entry.get("verified")
+  L 911 | [sl] args: ('isActive') | in create_order
+     Code: if not (sl.get("isActive") if sl.get("isActive") is not None else True):
+  L 926 | [sl] args: ('isUrgent') | in create_order
+     Code: if (sl.get("isUrgent") if sl.get("isUrgent") is not None else False):
+  L 929 | [sl] args: ('urgentCutoffHours') | in create_order
+     Code: sl.get("urgentCutoffHours")
+  L 931 | [sl] args: ('cutoffHours') | in create_order
+     Code: else sl.get("cutoffHours")
+  L 950 | [sl] args: ('id') | in create_order
+     Code: if (sl.get("id") or f"{sl.get('startTime')}-{sl.get('endTime')}") == order_data.deliverySlotId:
+  L 979 | [matched_slot] args: ('urgentCutoffHours') | in create_order
+     Code: if matched_slot.get("isUrgent") and matched_slot.get("urgentCutoffHours") is not None
+  L 985 | [matched_slot] args: ('isUrgent') | in create_order
+     Code: is_urgent = (matched_slot.get("isUrgent") if matched_slot.get("isUrgent") is not None else False)
+  L 987 | [matched_slot] args: ('endTime') | in create_order
+     Code: (matched_slot.get("endTime") or "") if is_urgent else (matched_slot.get("startTime") or "")
+  L 987 | [matched_slot] args: ('startTime') | in create_order
+     Code: (matched_slot.get("endTime") or "") if is_urgent else (matched_slot.get("startTime") or "")
+  L1038 | [sdoc] args: ('companyName') | in create_order
+     Code: s_name = sdoc.get("companyName") or sdoc.get("name") or "Seller"
+  L1038 | [sdoc] args: ('name') | in create_order
+     Code: s_name = sdoc.get("companyName") or sdoc.get("name") or "Seller"
+  L1089 | [delivery_charge_data] args: ('urgentDeliveryCharge') | in create_order
+     Code: urgent_charge = delivery_charge_data.get("urgentDeliveryCharge")
+  L1283 | [spec] args: ('quantity', 1) | in create_order
+     Code: spec_qty = max(1, spec.get("quantity", 1) or 1)
+  L1293 | [ref_item] args: ('quantity', spec_qty) | in create_order
+     Code: copies = max(1, ref_item.get("quantity", spec_qty) // spec_qty)
+  L1542 | [sdoc] args: ('companyName') | in create_order
+     Code: seller_name = sdoc.get("companyName") or sdoc.get("name") or ""
+  L1542 | [sdoc] args: ('name') | in create_order
+     Code: seller_name = sdoc.get("companyName") or sdoc.get("name") or ""
+  L2497 | [d] args: ('valetId') | in valet_response
+     Code: if valet_id and not any(isinstance(d, dict) and d.get("valetId") == valet_id for d in decline_history) and valet_id not in decline_history:
+  L 930 | [sl] args: ('urgentCutoffHours') | in create_order
+     Code: if sl.get("urgentCutoffHours") is not None
+  L1035 | [sdoc] args: ('sellerPermissions') | in create_order
+     Code: seller_zone_ids = (sdoc.get("sellerPermissions") or {}).get("serviceableZoneIds", [])
+  L1850 | [payment['paymentEntries'][0]] args: ('entryId') | in update_order_status
+     Code: payment["paymentEntries"][0].get("entryId"),
+  L1906 | [new_payment] args: ('orderId') | in update_order_status
+     Code: "orderId": new_payment.get("orderId"),
+  L1907 | [new_payment] args: ('totalAmount', 0) | in update_order_status
+     Code: "totalAmount": new_payment.get("totalAmount", 0),
+  L 950 | [sl] args: ('startTime') | in create_order
+     Code: if (sl.get("id") or f"{sl.get('startTime')}-{sl.get('endTime')}") == order_data.deliverySlotId:
+  L 950 | [sl] args: ('endTime') | in create_order
+     Code: if (sl.get("id") or f"{sl.get('startTime')}-{sl.get('endTime')}") == order_data.deliverySlotId:
+  L1871 | [updated_payment_with_entry] args: ('orderId') | in update_order_status
+     Code: "orderId": updated_payment_with_entry.get("orderId"),
+  L1905 | [new_payment] args: ('paymentId') | in update_order_status
+     Code: "paymentId": new_payment.get("paymentId") or new_payment.id,
+  L1869 | [updated_payment_with_entry] args: ('paymentId') | in update_order_status
+     Code: "paymentId": updated_payment_with_entry.get("paymentId")
+  L1872 | [payment] args: ('totalAmount', 0) | in update_order_status
+     Code: "totalAmount": (order.total if order.total is not None else payment.get("totalAmount", 0)),
+  L1247 | [sl] args: ('bookedCount') | in create_order
+     Code: sl["bookedCount"] = (sl.get("bookedCount") if sl.get("bookedCount") is not None else 0) + 1
+  L1247 | [sl] args: ('bookedCount') | in create_order
+     Code: sl["bookedCount"] = (sl.get("bookedCount") if sl.get("bookedCount") is not None else 0) + 1
+
+=== page_info.py (5 calls) ===
+  L  34 | [page_info.get('pages', {})] args: (page_id) | in get_page_info
+     Code: page_data = page_info.get("pages", {}).get(page_id)
+  L  41 | [page_data] args: ('columns', {}) | in get_page_info
+     Code: "columns": page_data.get("columns", {}),
+  L  34 | [page_info] args: ('pages', {}) | in get_page_info
+     Code: page_data = page_info.get("pages", {}).get(page_id)
+  L  40 | [page_data] args: ('title') | in get_page_info
+     Code: "page": {"title": page_data.get("title"), "description": page_data.get("description")},
+  L  40 | [page_data] args: ('description') | in get_page_info
+     Code: "page": {"title": page_data.get("title"), "description": page_data.get("description")},
+
+=== payments.py (7 calls) ===
+  L 217 | [order_map] args: (str(payment.order_id)) | in get_payments
+     Code: order = order_map.get(str(payment.order_id))
+  L  57 | [entry] args: ('amount', 0.0) | in get_wholesaler_dues
+     Code: entry.get("amount", 0.0) for entry in (p.payment_entries or []) if entry.get("verified")
+  L 321 | [updated_payment] args: ('paymentId') | in submit_credit_settlement
+     Code: payment_id = updated_payment.get("paymentId") or updated_payment.get("_id")
+  L 321 | [updated_payment] args: ('_id') | in submit_credit_settlement
+     Code: payment_id = updated_payment.get("paymentId") or updated_payment.get("_id")
+  L  57 | [entry] args: ('verified') | in get_wholesaler_dues
+     Code: entry.get("amount", 0.0) for entry in (p.payment_entries or []) if entry.get("verified")
+  L 329 | [updated_payment] args: ('_id') | in submit_credit_settlement
+     Code: "paymentId": updated_payment.get("_id"),
+  L 331 | [updated_payment] args: ('orderId') | in submit_credit_settlement
+     Code: "orderId": updated_payment.get("orderId"),
+
+=== products.py (36 calls) ===
+  L 980 | [products_with_tags[0]] args: ('searchTags', []) | in get_product_search_tags
+     Code: resolved = products_with_tags[0].get("searchTags", [])
+  L 656 | [facets] args: ('brands', []) | in get_public_products
+     Code: "brands": facets.get("brands", []),
+  L 657 | [facets] args: ('categories', []) | in get_public_products
+     Code: "categories": facets.get("categories", []),
+  L 658 | [facets] args: ('subCategories', []) | in get_public_products
+     Code: "subCategories": facets.get("subCategories", []),
+  L 659 | [facets] args: ('collections', []) | in get_public_products
+     Code: "collections": facets.get("collections", []),
+  L 807 | [facets] args: ('brands', []) | in get_products
+     Code: "brands": facets.get("brands", []),
+  L 808 | [facets] args: ('categories', []) | in get_products
+     Code: "categories": facets.get("categories", []),
+  L 809 | [facets] args: ('subCategories', []) | in get_products
+     Code: "subCategories": facets.get("subCategories", []),
+  L 810 | [facets] args: ('collections', []) | in get_products
+     Code: "collections": facets.get("collections", []),
+  L 494 | [default_coupon] args: ('minRequirementType') | in populate_product_discounts
+     Code: if default_coupon and default_coupon.get("minRequirementType") == "quantity_based":
+  L 503 | [qty_coupon] args: ('quantityTiers') | in populate_product_discounts
+     Code: p.quantityTiers = qty_coupon.get("quantityTiers") or []
+  L 504 | [qty_coupon] args: ('applicableItemType') | in populate_product_discounts
+     Code: p.quantityItemType = qty_coupon.get("applicableItemType") or "units"
+  L 507 | [default_coupon] args: ('minRequirementType') | in populate_product_discounts
+     Code: if default_coupon and default_coupon.get("minRequirementType") == "quantity_based":
+  L 118 | [main_row] args: ('quantityPerCase') | in upload_csv
+     Code: if main_row.get("quantityPerCase") and str(main_row.get("quantityPerCase", "")).strip():
+  L 297 | [combo] args: ('attributes', {}) | in export_csv
+     Code: combo_attrs = combo.get("attributes", {}) or {}
+  L 498 | [oc] args: ('minRequirementType') | in populate_product_discounts
+     Code: if oc.get("minRequirementType") == "quantity_based":
+  L 510 | [default_coupon] args: ('typeOfDiscount') | in populate_product_discounts
+     Code: "type": default_coupon.get("typeOfDiscount"),
+  L 511 | [default_coupon] args: ('code') | in populate_product_discounts
+     Code: "code": default_coupon.get("code"),
+  L 519 | [oc] args: ('typeOfDiscount') | in populate_product_discounts
+     Code: "type": oc.get("typeOfDiscount"),
+  L 520 | [oc] args: ('code') | in populate_product_discounts
+     Code: "code": oc.get("code"),
+  L 138 | [main_row] args: ('images') | in upload_csv
+     Code: "images": [img.strip() for img in main_row.get("images", "").split(",") if img.strip()] if main_row.get("images") else [],
+  L 139 | [main_row] args: ('videos') | in upload_csv
+     Code: "videos": [vid.strip() for vid in main_row.get("videos", "").split(",") if vid.strip()] if main_row.get("videos") else [],
+  L 126 | [main_row] args: ('productId', '') | in upload_csv
+     Code: "productIdFormatted": main_row.get("productId", "").strip(),
+  L 127 | [main_row] args: ('sku', '') | in upload_csv
+     Code: "sku": main_row.get("sku", "").strip(),
+  L 129 | [main_row] args: ('subCategory', '') | in upload_csv
+     Code: "subCategory": main_row.get("subCategory", "").strip(),
+  L 130 | [main_row] args: ('description', '') | in upload_csv
+     Code: "description": main_row.get("description", "").strip(),
+  L 131 | [main_row] args: ('brand', '') | in upload_csv
+     Code: "brand": main_row.get("brand", "").strip(),
+  L 209 | [main_row] args: ('_row_number', 'N/A') | in upload_csv
+     Code: {"row": main_row.get("_row_number", "N/A"), "product": name, "error": f"Data error: {str(e)}"}
+  L 214 | [main_row] args: ('_row_number', 'N/A') | in upload_csv
+     Code: {"row": main_row.get("_row_number", "N/A"), "product": name, "error": f"Internal error: {str(e)}"}
+  L 112 | [main_row] args: ('mrpPerCase', '') | in upload_csv
+     Code: if main_row.mrp_per_case and str(main_row.get("mrpPerCase", "")).strip():
+  L 118 | [main_row] args: ('quantityPerCase', '') | in upload_csv
+     Code: if main_row.get("quantityPerCase") and str(main_row.get("quantityPerCase", "")).strip():
+  L 132 | [main_row] args: ('collection', '') | in upload_csv
+     Code: "collection": main_row.get("collection", "").strip() or None,
+  L 137 | [main_row] args: ('isActive', 'true') | in upload_csv
+     Code: "isActive": main_row.get("isActive", "true").lower() in ["true", "1", "yes"],
+  L 168 | [row] args: (val_key, '') | in upload_csv
+     Code: variant_val = row.get(val_key, "").strip()
+  L 138 | [main_row] args: ('images', '') | in upload_csv
+     Code: "images": [img.strip() for img in main_row.get("images", "").split(",") if img.strip()] if main_row.get("images") else [],
+  L 139 | [main_row] args: ('videos', '') | in upload_csv
+     Code: "videos": [vid.strip() for vid in main_row.get("videos", "").split(",") if vid.strip()] if main_row.get("videos") else [],
+
+=== push_notifications.py (8 calls) ===
+  L 303 | [request.subscription] args: ('endpoint') | in register_device
+     Code: has_web_subscription = request.subscription and request.subscription.get("endpoint")
+  L 219 | [n] args: ('_id') | in get_notification_inbox
+     Code: "_id": n.get("_id"),
+  L 220 | [n] args: ('title', '') | in get_notification_inbox
+     Code: "title": n.get("title", ""),
+  L 221 | [n] args: ('message', '') | in get_notification_inbox
+     Code: "message": n.get("message", ""),
+  L 222 | [n] args: ('image') | in get_notification_inbox
+     Code: "image": n.get("image"),
+  L 223 | [n] args: ('link') | in get_notification_inbox
+     Code: "link": n.get("link"),
+  L 224 | [n] args: ('createdAt') | in get_notification_inbox
+     Code: "createdAt": n.get("createdAt"),
+  L 229 | [n] args: ('createdAt') | in get_notification_inbox
+     Code: inbox.sort(key=lambda n: n.get("createdAt") or "", reverse=True)
+
+=== recommendations.py (19 calls) ===
+  L 334 | [request.headers] args: ('x-session-id') | in track_recommendation_event
+     Code: session_id = request.headers.get("x-session-id")
+  L 122 | [cache] args: (user_cache_key) | in get_recommendations
+     Code: cached_res = cache.get(user_cache_key)
+  L 204 | [product_map] args: (pid) | in get_favourites_page
+     Code: p = product_map.get(pid)
+  L 224 | [product_map] args: (pid) | in get_favourites_page
+     Code: p = product_map.get(pid)
+  L  91 | [_guest_rec_cache] args: (guest_key) | in get_recommendations
+     Code: entry = _guest_rec_cache.get(guest_key)
+  L 246 | [p_copy] args: ('displayImage') | in get_favourites_page
+     Code: p_copy["displayImage"] = p_copy.get("displayImage") or (
+  L  97 | [_guest_rec_cache] args: (guest_key) | in get_recommendations
+     Code: entry = _guest_rec_cache.get(guest_key)
+  L 247 | [p_copy] args: ('images') | in get_favourites_page
+     Code: p_copy.get("images")[0] if p_copy.get("images") else None
+  L 296 | [doc.meta or {}] args: ('slot', 'unknown') | in get_recommendation_metrics
+     Code: slot = (doc.meta or {}).get("slot", "unknown")
+  L 363 | [config.get('section_wise_weights') or {}] args: (body.slot) | in track_recommendation_event
+     Code: section_weights = (config.get("section_wise_weights") or {}).get(body.slot) or config.get(
+  L 363 | [config] args: ('engagement_weights', {}) | in track_recommendation_event
+     Code: section_weights = (config.get("section_wise_weights") or {}).get(body.slot) or config.get(
+  L 367 | [section_weights] args: ('add_to_cart', 3) | in track_recommendation_event
+     Code: section_weights.get("add_to_cart", 3)
+  L 369 | [section_weights] args: ('product_view', 1) | in track_recommendation_event
+     Code: else section_weights.get("product_view", 1)
+  L 172 | [user_doc] args: ('address') | in get_favourites_page
+     Code: addr = user_doc.get("address") or {}
+  L 247 | [p_copy] args: ('images') | in get_favourites_page
+     Code: p_copy.get("images")[0] if p_copy.get("images") else None
+  L 114 | [user_doc] args: ('address') | in get_recommendations
+     Code: addr = user_doc.get("address") or {}
+  L 363 | [config] args: ('section_wise_weights') | in track_recommendation_event
+     Code: section_weights = (config.get("section_wise_weights") or {}).get(body.slot) or config.get(
+  L 173 | [addr] args: ('city') | in get_favourites_page
+     Code: resolved_city = (addr.get("city") or "").strip() or None
+  L 115 | [addr] args: ('city') | in get_recommendations
+     Code: city = (addr.get("city") or "").strip() or None
+
+=== referrals.py (2 calls) ===
+  L  97 | [referrer] args: ('name', 'Another user') | in verify_referral_code
+     Code: "referrerName": referrer.get("name", "Another user"),
+  L  86 | [referrer] args: ('_id') | in verify_referral_code
+     Code: if str(referrer.get("_id")) == str(current_user.id):
+
+=== returns.py (17 calls) ===
+  L 193 | [eligibility] args: ('reason') | in create_return_request
+     Code: if eligibility.get("reason"):
+  L 148 | [returned_items_qty] args: (pid, 0) | in check_return_eligibility
+     Code: returned_qty = returned_items_qty.get(pid, 0)
+  L 366 | [populated_req] args: ('user') | in complete_return
+     Code: email = populated_req.get("user", {}).get("email") if populated_req.get("user") else None
+  L 366 | [populated_req.get('user', {})] args: ('email') | in complete_return
+     Code: email = populated_req.get("user", {}).get("email") if populated_req.get("user") else None
+  L 430 | [ret] args: ('status') | in valet_return_response
+     Code: if ret.get("status") != "pending_valet":
+  L 168 | [shipping_address] args: ('state', '') | in check_return_eligibility
+     Code: shipping_address.get("state", ""),
+  L 169 | [shipping_address] args: ('city', '') | in check_return_eligibility
+     Code: shipping_address.get("city", ""),
+  L 170 | [shipping_address] args: ('district', '') | in check_return_eligibility
+     Code: shipping_address.get("district", ""),
+  L 171 | [shipping_address] args: ('zipCode', '') | in check_return_eligibility
+     Code: shipping_address.get("zipCode", ""),
+  L 176 | [charge_data] args: ('charge', 0) | in check_return_eligibility
+     Code: delivery_charge = float(charge_data.get("charge", 0))
+  L 227 | [eligibility] args: ('returnDeliveryCharge', 0) | in create_return_request
+     Code: "deliveryCharge": eligibility.get("returnDeliveryCharge", 0),
+  L 366 | [populated_req] args: ('user', {}) | in complete_return
+     Code: email = populated_req.get("user", {}).get("email") if populated_req.get("user") else None
+  L 427 | [ret] args: ('pendingValetId', '') | in valet_return_response
+     Code: if str(ret.get("pendingValetId", "")) != str(current_user.id):
+  L 446 | [ret] args: ('valetDeclineHistory') | in valet_return_response
+     Code: history = list(ret.get("valetDeclineHistory") or [])
+  L 132 | [returned_items_qty] args: (pid, 0) | in check_return_eligibility
+     Code: returned_items_qty[pid] = returned_items_qty.get(pid, 0) + (item.quantity if item.quantity is not None else 0)
+  L 244 | [created] args: ('_id') | in create_return_request
+     Code: "returnId": created.get("_id"),
+  L 448 | [d] args: ('valetId') | in valet_return_response
+     Code: if not any(isinstance(d, dict) and d.get("valetId") == valet_id_str for d in history):
+
+=== seller_availability.py (3 calls) ===
+  L 141 | [sellers_map] args: (sid, {}) | in _enrich_with_seller_name
+     Code: seller = sellers_map.get(sid, {})
+  L 218 | [d] args: ('startAt', '') | in get_my_availability_windows
+     Code: docs.sort(key=lambda d: d.get("startAt", ""), reverse=True)
+  L 237 | [d] args: ('startAt', '') | in get_all_seller_availability
+     Code: enriched.sort(key=lambda d: d.get("startAt", ""), reverse=True)
+
+=== seller_requests.py (1 calls) ===
+  L  26 | [response] args: ('user') | in populate_request
+     Code: response_user = await user_repository.findById(response.get("user"))
+
+=== support_tickets.py (4 calls) ===
+  L  34 | [response] args: ('user') | in populate_ticket
+     Code: response_user = await user_repository.findById(response.get("user"))
+  L  58 | [assigned_to] args: ('_id') | in populate_ticket
+     Code: "_id": assigned_to.get("_id"),
+  L  59 | [assigned_to] args: ('name') | in populate_ticket
+     Code: "name": assigned_to.get("name"),
+  L  60 | [assigned_to] args: ('email') | in populate_ticket
+     Code: "email": assigned_to.get("email"),
+
+=== tracking.py (4 calls) ===
+  L 460 | [data] args: ('email') | in track_notify_pincode
+     Code: user_email = current_user.email if current_user else data.get("email")
+  L 465 | [data] args: ('productId') | in track_notify_pincode
+     Code: "productId": data.get("productId"),
+  L 466 | [data] args: ('productName') | in track_notify_pincode
+     Code: "productName": data.get("productName"),
+  L 467 | [data] args: ('pincode') | in track_notify_pincode
+     Code: "pincode": data.get("pincode"),
+
+=== users.py (22 calls) ===
+  L 299 | [current_user.seller_permissions or {}] args: ('serviceableZoneIds', []) | in get_seller_delivery_settings
+     Code: current_zone_ids = (current_user.seller_permissions or {}).get("serviceableZoneIds", [])
+  L 168 | [avail_map] args: (vid) | in get_available_valets
+     Code: a = avail_map.get(vid)
+  L 537 | [payload] args: ('otp') | in request_email_verification
+     Code: response_data.code = payload.get("otp")
+  L 557 | [result] args: ('valid') | in verify_email
+     Code: if not result.get("valid"):
+  L 189 | [av_id] args: ('_id') | in get_available_valets
+     Code: av_id = av_id.get("_id")
+  L 304 | [z] args: ('name', '') | in get_seller_delivery_settings
+     Code: "name": z.get("name", ""),
+  L 305 | [z] args: ('pincodes', []) | in get_seller_delivery_settings
+     Code: "pincodes": z.get("pincodes", []),
+  L 306 | [z] args: ('defaultCapacity', 10) | in get_seller_delivery_settings
+     Code: "defaultCapacity": z.get("defaultCapacity", 10),
+  L 308 | [z] args: ('customerType', 'retail') | in get_seller_delivery_settings
+     Code: "customerType": z.get("customerType", "retail"),
+  L 383 | [update_dict] args: ('companyName') | in update_user
+     Code: update_dict.get("companyName") if "companyName" in update_dict else existing_user.company_name
+  L 385 | [update_dict] args: ('address') | in update_user
+     Code: final_address = update_dict.get("address") if "address" in update_dict else (existing_user.address if existing_user.address is not None else {})
+  L 401 | [update_dict] args: ('companyName') | in update_user
+     Code: update_dict.get("companyName") if "companyName" in update_dict else existing_user.company_name
+  L 403 | [update_dict] args: ('address') | in update_user
+     Code: final_address = update_dict.get("address") if "address" in update_dict else (existing_user.address if existing_user.address is not None else {})
+  L 303 | [z] args: ('_id', '') | in get_seller_delivery_settings
+     Code: "id": str(z.get("_id", "")),
+  L 307 | [z] args: ('urgentDeliveryAvailable', False) | in get_seller_delivery_settings
+     Code: "urgentDeliveryAvailable": bool(z.get("urgentDeliveryAvailable", False)),
+  L 393 | [final_address] args: ('street') | in update_user
+     Code: if not final_address.get("street") or not str(final_address.get("street")).strip():
+  L 408 | [final_address] args: ('street') | in update_user
+     Code: if not final_address.get("street") or not str(final_address.get("street")).strip():
+  L 531 | [payload] args: ('message', 'Too many verification requests. Please try again later.') | in request_email_verification
+     Code: detail=payload.get("message", "Too many verification requests. Please try again later."),
+  L 558 | [result] args: ('message', 'Invalid or expired verification code.') | in verify_email
+     Code: raise HTTPException(status_code=400, detail=result.get("message", "Invalid or expired verification code."))
+  L 393 | [final_address] args: ('street') | in update_user
+     Code: if not final_address.get("street") or not str(final_address.get("street")).strip():
+  L 408 | [final_address] args: ('street') | in update_user
+     Code: if not final_address.get("street") or not str(final_address.get("street")).strip():
+  L 532 | [payload] args: ('retry_after_seconds') | in request_email_verification
+     Code: headers={"Retry-After": str(int(payload.get("retry_after_seconds") or 0))},
+
+=== valet_availability.py (5 calls) ===
+  L  60 | [info.data] args: ('availabilityType') | in validate_slots
+     Code: availability_type = info.data.get("availabilityType")
+  L 208 | [valets_map] args: (vid, {}) | in get_all_availability
+     Code: valet = valets_map.get(vid, {})
+  L 202 | [current_user.seller_permissions or {}] args: ('serviceableZoneIds') | in get_all_availability
+     Code: zone_ids = (current_user.seller_permissions or {}).get("serviceableZoneIds") or []
+  L 110 | [config] args: ('slots', []) | in mark_availability
+     Code: for slot in config.get("slots", [])
+  L 227 | [d] args: ('date', '') | in get_all_availability
+     Code: enriched.sort(key=lambda d: d.get("date", ""))
+
+=== valet_payout.py (3 calls) ===
+  L  76 | [updated] args: ('deliveryChargePerOrder', 0.0) | in update_valet_payout_settings
+     Code: "deliveryChargePerOrder": updated.get("deliveryChargePerOrder", 0.0),
+  L  77 | [updated] args: ('returnPickupChargePerOrder', 0.0) | in update_valet_payout_settings
+     Code: "returnPickupChargePerOrder": updated.get("returnPickupChargePerOrder", 0.0),
+  L  78 | [updated] args: ('updatedAt') | in update_valet_payout_settings
+     Code: "updatedAt": updated.get("updatedAt"),
+
+=== version.py (1 calls) ===
+  L  37 | [min_versions] args: (platform_key, config.MIN_APP_VERSION_WEB) | in get_version
+     Code: min_for_platform = min_versions.get(platform_key, config.MIN_APP_VERSION_WEB)
+
+=== wishlist.py (1 calls) ===
+  L  64 | [products_map] args: (str(item.product)) | in get_wishlist
+     Code: product = products_map.get(str(item.product))
+

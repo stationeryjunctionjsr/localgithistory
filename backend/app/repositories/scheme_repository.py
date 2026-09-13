@@ -18,7 +18,7 @@ class SchemeRepository:
     async def findActiveForBusiness(self) -> List[Dict]:
         """Return active schemes targeted at business/wholesaler users."""
         all_schemes = await self.storage.findAll({"isActive": True})
-        return [s for s in all_schemes if "wholesaler" in (getattr(s, "applicableRoles", None) or [])]
+        return [s for s in all_schemes if "wholesaler" in (s.applicableRoles or [])]
 
     async def findOne(self, query: Any):
         return await self.storage.findOne(query)

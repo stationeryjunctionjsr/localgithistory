@@ -63,7 +63,7 @@ class VersionedContentRepository(ContentRepository):
         if "version" in data and data.version:
             # Admin explicitly supplied a version — use it as-is
             next_version: str = str(data.version).strip()
-        elif existing and getattr(existing, "version", None):
+        elif existing and existing.version:
             # No version supplied — auto-increment the last segment
             next_version = _increment_version(str(existing.version))
         else:
@@ -74,7 +74,7 @@ class VersionedContentRepository(ContentRepository):
         history_entry = {
             "version": next_version,
             "savedAt": now,
-            "lastUpdated": getattr(data, 'lastUpdated', ""),
+            "lastUpdated": (data.lastUpdated if data.lastUpdated is not None else ""),
         }
 
         # Append to existing history (or start fresh)
@@ -104,7 +104,7 @@ class FAQRepository:
 
     async def find_all(self) -> List[Dict]:
         sections = await self.storage.findAll()
-        return sorted(sections, key=lambda s: getattr(s, "displayOrder", 0))
+        return sorted(sections, key=lambda s: (s.displayOrder if s.displayOrder is not None else 0))
 
     async def find_by_id(self, section_id: str) -> Optional[Dict]:
         return await self.storage.findById(section_id)
@@ -112,9 +112,9 @@ class FAQRepository:
     async def create_section(self, data: Any) -> Dict:
         section = {
             "title": data.title,
-            "icon": getattr(data, 'icon', "help-circle-outline"),
-            "displayOrder": getattr(data, 'displayOrder', 0),
-            "items": getattr(data, 'items', []),
+            "icon": (data.icon if data.icon is not None else "help-circle-outline"),
+            "displayOrder": (data.displayOrder if data.displayOrder is not None else 0),
+            "items": (data.items if data.items is not None else []),
             "createdAt": self._ts(),
             "updatedAt": self._ts(),
         }

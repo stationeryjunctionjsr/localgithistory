@@ -63,12 +63,12 @@ def _payment_row_to_dict(r, entries: List[Dict]) -> Dict:
 class MySQLPaymentDAO:
     @property
     def PAYMENTS_TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_payments{suffix}"
 
     @property
     def ENTRIES_TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_payment_entries{suffix}"
 
     def _factory(self):
@@ -277,10 +277,10 @@ class MySQLPaymentDAO:
         if new_id and payment_entries:
             async with factory() as session:
                 for idx, entry in enumerate(payment_entries):
-                    entry_id = getattr(entry, "entryId", idx + 1)
-                    amount = getattr(entry, "amount", 0)
-                    method = getattr(entry, "paymentMethod", None) or data.paymentMethod
-                    paid_at = _to_ts(getattr(entry, "paidAt", None)) or now
+                    entry_id = (entry.entryId if entry.entryId is not None else idx + 1)
+                    amount = (entry.amount if entry.amount is not None else 0)
+                    method = entry.paymentMethod or data.paymentMethod
+                    paid_at = _to_ts(entry.paidAt) or now
                     await session.execute(
                         text(
                             f"INSERT INTO {self.ENTRIES_TABLE} (payment_id, entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) "
@@ -292,9 +292,9 @@ class MySQLPaymentDAO:
                             "amount": amount,
                             "payment_method": method,
                             "paid_at": paid_at,
-                            "image": getattr(entry, "image", None),
-                            "notes": getattr(entry, "notes", ""),
-                            "verified": 1 if getattr(entry, "verified", False) else 0,
+                            "image": entry.image,
+                            "notes": (entry.notes if entry.notes is not None else ""),
+                            "verified": 1 if (entry.verified if entry.verified is not None else False) else 0,
                             "created_at": now,
                         },
                     )
@@ -347,8 +347,8 @@ class MySQLPaymentDAO:
                 await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": pid})
                 await session.commit()
                 for idx, entry in enumerate(update_data.paymentEntries):
-                    entry_id = getattr(entry, "entryId", idx + 1)
-                    paid_at = _to_ts(getattr(entry, "paidAt", None)) or now
+                    entry_id = (entry.entryId if entry.entryId is not None else idx + 1)
+                    paid_at = _to_ts(entry.paidAt) or now
                     await session.execute(
                         text(
                             f"INSERT INTO {self.ENTRIES_TABLE} (payment_id, entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) "
@@ -357,12 +357,12 @@ class MySQLPaymentDAO:
                         {
                             "payment_id": pid,
                             "entry_id": entry_id,
-                            "amount": getattr(entry, "amount", 0),
-                            "payment_method": getattr(entry, "paymentMethod", None) or merged["paymentMethod"],
+                            "amount": (entry.amount if entry.amount is not None else 0),
+                            "payment_method": entry.paymentMethod or merged["paymentMethod"],
                             "paid_at": paid_at,
-                            "image": getattr(entry, "image", None),
-                            "notes": getattr(entry, "notes", ""),
-                            "verified": 1 if getattr(entry, "verified", False) else None,
+                            "image": entry.image,
+                            "notes": (entry.notes if entry.notes is not None else ""),
+                            "verified": 1 if (entry.verified if entry.verified is not None else False) else None,
                             "created_at": now,
                         },
                     )

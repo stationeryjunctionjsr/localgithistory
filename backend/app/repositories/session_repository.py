@@ -48,7 +48,7 @@ class SessionRepository:
         sessions = await self.storage.findAll()
         updated = []
         for s in sessions:
-            if getattr(s, "userId", None) == user_id and s.id != exclude_session_id and getattr(s, "status", None) == "active":
+            if s.userId == user_id and s.id != exclude_session_id and s.status == "active":
                 updated.append(await self.revoke_session(s.id, "single_session"))
         return updated
 
@@ -67,14 +67,14 @@ class SessionRepository:
             await self.update_session(session_id, updates)
 
     async def check_inactivity_and_revoke(self, session: Any, max_inactive_days: int) -> Dict:
-        last_active = getattr(session, "last_active_at", None)
+        last_active = session.last_active_at
         if last_active:
             try:
                 dt = datetime.fromisoformat(last_active.replace("Z", "+00:00"))
                 if datetime.now(timezone.utc) - dt > timedelta(days=max_inactive_days):
                     return await self.revoke_session(session.id, "inactive")
             except Exception as e:
-                logger.warning("Invalid lastActiveAt for session %s: %s", getattr(session, "id", None), str(e))
+                logger.warning("Invalid lastActiveAt for session %s: %s", session.id, str(e))
         return session
 
     async def delete_all_for_user(self, user_id: str) -> None:

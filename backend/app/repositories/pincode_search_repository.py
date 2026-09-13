@@ -68,30 +68,30 @@ class PincodeSearchRepository:
             return {"items": [], "total": 0, "page": page, "limit": limit, "pages": 0}
 
         # Sort newest first
-        all_records.sort(key=lambda r: getattr(r, "searchedAt", None) or getattr(r, "createdAt", None) or "", reverse=True)
+        all_records.sort(key=lambda r: r.searchedAt or r.createdAt or "", reverse=True)
 
         filtered = []
         for r in all_records:
             if is_serviceable is not None:
-                if bool(getattr(r, "isServiceable", None)) != is_serviceable:
+                if bool(r.isServiceable) != is_serviceable:
                     continue
 
             if search:
                 term = search.strip().lower()
-                pin = str(getattr(r, "pincode", "")).lower()
-                c = str(getattr(r, "city", "") or "").lower()
-                s = str(getattr(r, "state", "") or "").lower()
-                d = str(getattr(r, "district", "") or "").lower()
+                pin = str((r.pincode if r.pincode is not None else "")).lower()
+                c = str((r.city if r.city is not None else "") or "").lower()
+                s = str((r.state if r.state is not None else "") or "").lower()
+                d = str((r.district if r.district is not None else "") or "").lower()
                 if term not in pin and term not in c and term not in s and term not in d:
                     continue
 
             if start_date:
-                dt_str = getattr(r, "searchedAt", None) or getattr(r, "createdAt", None) or ""
+                dt_str = r.searchedAt or r.createdAt or ""
                 if dt_str and dt_str < start_date:
                     continue
 
             if end_date:
-                dt_str = getattr(r, "searchedAt", None) or getattr(r, "createdAt", None) or ""
+                dt_str = r.searchedAt or r.createdAt or ""
                 if dt_str and dt_str > end_date:
                     continue
 
@@ -135,11 +135,11 @@ class PincodeSearchRepository:
         overall_freq: Dict[str, Dict[str, Any]] = {}
 
         for r in all_records:
-            pin = str(getattr(r, "pincode", "")).strip()
+            pin = str((r.pincode if r.pincode is not None else "")).strip()
             if not pin:
                 continue
             unique_pins.add(pin)
-            is_serv = bool(getattr(r, "isServiceable", None))
+            is_serv = bool(r.isServiceable)
             if is_serv:
                 serviceable_count += 1
             else:
@@ -147,28 +147,28 @@ class PincodeSearchRepository:
                 if pin not in unserviceable_freq:
                     unserviceable_freq[pin] = {
                         "pincode": pin,
-                        "city": getattr(r, "city", None),
-                        "state": getattr(r, "state", None),
+                        "city": r.city,
+                        "state": r.state,
                         "count": 0,
-                        "lastSearchedAt": getattr(r, "searchedAt", None),
+                        "lastSearchedAt": r.searchedAt,
                     }
                 unserviceable_freq[pin]["count"] += 1
                 unserviceable_freq[pin]["lastSearchedAt"] = max(
-                    unserviceable_freq[pin]["lastSearchedAt"] or "", getattr(r, "searchedAt", None) or ""
+                    unserviceable_freq[pin]["lastSearchedAt"] or "", r.searchedAt or ""
                 )
 
             if pin not in overall_freq:
                 overall_freq[pin] = {
                     "pincode": pin,
-                    "city": getattr(r, "city", None),
-                    "state": getattr(r, "state", None),
+                    "city": r.city,
+                    "state": r.state,
                     "isServiceable": is_serv,
                     "count": 0,
-                    "lastSearchedAt": getattr(r, "searchedAt", None),
+                    "lastSearchedAt": r.searchedAt,
                 }
             overall_freq[pin]["count"] += 1
             overall_freq[pin]["lastSearchedAt"] = max(
-                overall_freq[pin]["lastSearchedAt"] or "", getattr(r, "searchedAt", None) or ""
+                overall_freq[pin]["lastSearchedAt"] or "", r.searchedAt or ""
             )
 
         top_unserviceable = sorted(unserviceable_freq.values(), key=lambda x: x["count"], reverse=True)[:10]

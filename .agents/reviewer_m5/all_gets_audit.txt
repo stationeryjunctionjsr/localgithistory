@@ -1,0 +1,389 @@
+Total .get calls: 278
+Total Exempt: 278
+Total Violations: 0
+
+=== activity.py (2 .get calls) ===
+  [EXEMPT: request.headers] L17: request.headers.get('authorization')
+  [EXEMPT: request.headers] L51: request.headers.get('x-session-id')
+
+=== ads.py (2 .get calls) ===
+  [EXEMPT: FastAPI decorator] L23: router.get('/summary')
+  [EXEMPT: FastAPI decorator] L44: router.get('/')
+
+=== analytics.py (48 .get calls) ===
+  [EXEMPT: FastAPI decorator] L268: router.get('/kpi')
+  [EXEMPT: FastAPI decorator] L284: router.get('/dashboard-data')
+  [EXEMPT: FastAPI decorator] L299: router.get('/reports/bundle-performance')
+  [EXEMPT: FastAPI decorator] L311: router.get('/sales-over-time')
+  [EXEMPT: FastAPI decorator] L329: router.get('/sales-breakdown')
+  [EXEMPT: FastAPI decorator] L345: router.get('/average-order-value')
+  [EXEMPT: FastAPI decorator] L362: router.get('/sales-by-channel')
+  [EXEMPT: FastAPI decorator] L378: router.get('/sales-by-product')
+  [EXEMPT: FastAPI decorator] L396: router.get('/conversion-rate')
+  [EXEMPT: FastAPI decorator] L413: router.get('/conversion-breakdown')
+  [EXEMPT: FastAPI decorator] L429: router.get('/checkout-funnel')
+  [EXEMPT: FastAPI decorator] L445: router.get('/sessions-by-device')
+  [EXEMPT: FastAPI decorator] L461: router.get('/sessions-by-location')
+  [EXEMPT: FastAPI decorator] L477: router.get('/all-user-engagement')
+  [EXEMPT: FastAPI decorator] L491: router.get('/products-sell-through')
+  [EXEMPT: FastAPI decorator] L509: router.get('/customer-cohort')
+  [EXEMPT: FastAPI decorator] L525: router.get('/sessions-by-landing-page')
+  [EXEMPT: FastAPI decorator] L541: router.get('/user-engagement')
+  [EXEMPT: FastAPI decorator] L557: router.get('/user-engagement/{user_id}')
+  [EXEMPT: FastAPI decorator] L578: router.get('/reports/top-users')
+  [EXEMPT: FastAPI decorator] L591: router.get('/reports/user-order-stats')
+  [EXEMPT: FastAPI decorator] L603: router.get('/reports/items-by-user-type')
+  [EXEMPT: FastAPI decorator] L614: router.get('/reports/summary')
+  [EXEMPT: FastAPI decorator] L625: router.get('/reports/returns')
+  [EXEMPT: FastAPI decorator] L642: router.get('/reports/payment-methods')
+  [EXEMPT: FastAPI decorator] L659: router.get('/reports/revenue-by-category')
+  [EXEMPT: FastAPI decorator] L677: router.get('/reports/inventory-alerts')
+  [EXEMPT: FastAPI decorator] L691: router.get('/reports/fulfillment-time')
+  [EXEMPT: FastAPI decorator] L708: router.get('/reports/coupon-usage')
+  [EXEMPT: FastAPI decorator] L725: router.get('/reports/sales-by-location')
+  [EXEMPT: FastAPI decorator] L743: router.get('/reports/new-vs-returning')
+  [EXEMPT: FastAPI decorator] L759: router.get('/reports/items-bought-together')
+  [EXEMPT: FastAPI decorator] L776: router.get('/reports/sales-by-device')
+  [EXEMPT: FastAPI decorator] L792: router.get('/reports/top-returned-products')
+  [EXEMPT: FastAPI decorator] L810: router.get('/reports/inventory-value-by-category')
+  [EXEMPT: FastAPI decorator] L825: router.get('/reports/sessions-over-time')
+  [EXEMPT: FastAPI decorator] L841: router.get('/reports/visitors-now')
+  [EXEMPT: FastAPI decorator] L853: router.get('/reports/searches-no-clicks')
+  [EXEMPT: FastAPI decorator] L869: router.get('/reports/search-conversion')
+  [EXEMPT: FastAPI decorator] L885: router.get('/reports/bounce-rate')
+  [EXEMPT: FastAPI decorator] L901: router.get('/reports/rfm-segments')
+  [EXEMPT: FastAPI decorator] L917: router.get('/reports/customer-frequency')
+  [EXEMPT: FastAPI decorator] L935: router.get('/reports/net-sales')
+  [EXEMPT: FastAPI decorator] L953: router.get('/reports/sales-heatmap')
+  [EXEMPT: FastAPI decorator] L971: router.get('/reports/inventory-runway')
+  [EXEMPT: FastAPI decorator] L991: router.get('/reports/sales-by-channel-detailed')
+  [EXEMPT: FastAPI decorator] L1007: router.get('/reports/discounts-audit')
+  [EXEMPT: FastAPI decorator] L1025: router.get('/reports/products-pct-sold')
+
+=== auth.py (1 .get calls) ===
+  [EXEMPT: FastAPI decorator] L592: router.get('/me')
+
+=== availability_requests.py (2 .get calls) ===
+  [EXEMPT: FastAPI decorator] L75: router.get('')
+  [EXEMPT: FastAPI decorator] L76: router.get('/')
+
+=== banners.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L16: router.get('/public')
+  [EXEMPT: FastAPI decorator] L58: router.get('')
+  [EXEMPT: FastAPI decorator] L59: router.get('/')
+  [EXEMPT: FastAPI decorator] L111: router.get('/{banner_id}')
+
+=== brands.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L15: router.get('/public')
+  [EXEMPT: FastAPI decorator] L35: router.get('')
+  [EXEMPT: FastAPI decorator] L36: router.get('/')
+
+=== bundles.py (7 .get calls) ===
+  [EXEMPT: FastAPI decorator] L161: router.get('/search')
+  [EXEMPT: In-memory map/cache: product_map] L232: product_map.get(str(pid))
+  [EXEMPT: FastAPI decorator] L256: router.get('')
+  [EXEMPT: FastAPI decorator] L257: router.get('/')
+  [EXEMPT: FastAPI decorator] L275: router.get('/product/{product_id}')
+  [EXEMPT: FastAPI decorator] L295: router.get('/admin/all')
+  [EXEMPT: FastAPI decorator] L313: router.get('/{bundle_id}')
+
+=== cart.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L32: router.get('')
+  [EXEMPT: FastAPI decorator] L33: router.get('/')
+  [EXEMPT: In-memory map/cache: products_map] L58: products_map.get(str(item.product))
+  [EXEMPT: FastAPI decorator] L351: router.get('/saved-for-later')
+
+=== categories.py (7 .get calls) ===
+  [EXEMPT: FastAPI decorator] L45: router.get('/available')
+  [EXEMPT: FastAPI decorator] L114: router.get('/public')
+  [EXEMPT: FastAPI decorator] L139: router.get('/public/tags/{tag_name}/categories')
+  [EXEMPT: FastAPI decorator] L166: router.get('/public/tags/{tag_name}/brands')
+  [EXEMPT: FastAPI decorator] L222: router.get('')
+  [EXEMPT: FastAPI decorator] L223: router.get('/')
+  [EXEMPT: FastAPI decorator] L251: router.get('/{category_id}')
+
+=== category_tags.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L32: router.get('')
+  [EXEMPT: FastAPI decorator] L33: router.get('/')
+  [EXEMPT: FastAPI decorator] L44: router.get('/active')
+
+=== coach_marks.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L15: router.get('')
+  [EXEMPT: FastAPI decorator] L16: router.get('/')
+  [EXEMPT: FastAPI decorator] L22: router.get('/{id}')
+
+=== collections.py (5 .get calls) ===
+  [EXEMPT: FastAPI decorator] L17: router.get('/public')
+  [EXEMPT: FastAPI decorator] L30: router.get('')
+  [EXEMPT: FastAPI decorator] L31: router.get('/')
+  [EXEMPT: FastAPI decorator] L37: router.get('/{collection_id}/products')
+  [EXEMPT: FastAPI decorator] L50: router.get('/{collection_id}')
+
+=== commission.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L231: router.get('/tiers')
+  [EXEMPT: FastAPI decorator] L296: router.get('/sellers')
+  [EXEMPT: FastAPI decorator] L380: router.get('/calculate')
+
+=== contacts.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L15: router.get('')
+  [EXEMPT: FastAPI decorator] L16: router.get('/')
+  [EXEMPT: FastAPI decorator] L27: router.get('/public')
+  [EXEMPT: FastAPI decorator] L35: router.get('/{contact_id}')
+
+=== content_pages.py (12 .get calls) ===
+  [EXEMPT: FastAPI decorator] L99: router.get('/faq/public')
+  [EXEMPT: FastAPI decorator] L105: router.get('/faq')
+  [EXEMPT: FastAPI decorator] L136: router.get('/about/public')
+  [EXEMPT: DB repository] L139: about_repository.get()
+  [EXEMPT: FastAPI decorator] L143: router.get('/about')
+  [EXEMPT: DB repository] L145: about_repository.get()
+  [EXEMPT: FastAPI decorator] L159: router.get('/privacy/public')
+  [EXEMPT: DB repository] L162: privacy_repository.get()
+  [EXEMPT: FastAPI decorator] L166: router.get('/privacy')
+  [EXEMPT: DB repository] L168: privacy_repository.get()
+  [EXEMPT: FastAPI decorator] L194: router.get('/privacy/history')
+  [EXEMPT: DB repository] L197: privacy_repository.get()
+
+=== coupons.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L15: router.get('')
+  [EXEMPT: FastAPI decorator] L16: router.get('/')
+  [EXEMPT: FastAPI decorator] L26: router.get('/validate/{code}')
+  [EXEMPT: FastAPI decorator] L87: router.get('/{coupon_id}')
+
+=== customer_segments.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L49: router.get('')
+  [EXEMPT: FastAPI decorator] L50: router.get('/')
+  [EXEMPT: FastAPI decorator] L56: router.get('/{segment_id}')
+
+=== delivery_charges.py (7 .get calls) ===
+  [EXEMPT: FastAPI decorator] L75: router.get('')
+  [EXEMPT: FastAPI decorator] L76: router.get('/')
+  [EXEMPT: FastAPI decorator] L82: router.get('/default')
+  [EXEMPT: FastAPI decorator] L90: router.get('/location')
+  [EXEMPT: FastAPI decorator] L124: router.get('/serviceable-pincodes')
+  [EXEMPT: FastAPI decorator] L137: router.get('/check-serviceability')
+  [EXEMPT: FastAPI decorator] L274: router.get('/{charge_id}')
+
+=== delivery_slots.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L131: router.get('')
+  [EXEMPT: FastAPI decorator] L132: router.get('/')
+  [EXEMPT: FastAPI decorator] L151: router.get('/available')
+  [EXEMPT: FastAPI decorator] L235: router.get('/dates-with-slots')
+
+=== delivery_zones.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L86: router.get('/for-pincode')
+  [EXEMPT: FastAPI decorator] L126: router.get('')
+  [EXEMPT: FastAPI decorator] L127: router.get('/')
+  [EXEMPT: FastAPI decorator] L156: router.get('/{zone_id}')
+
+=== feature_flags.py (5 .get calls) ===
+  [EXEMPT: FastAPI decorator] L43: router.get('')
+  [EXEMPT: FastAPI decorator] L44: router.get('/')
+  [EXEMPT: FastAPI decorator] L55: router.get('/enabled')
+  [EXEMPT: FastAPI decorator] L67: router.get('/{flag_id}')
+  [EXEMPT: FastAPI decorator] L82: router.get('/check/{flag_id}')
+
+=== google_reviews.py (1 .get calls) ===
+  [EXEMPT: FastAPI decorator] L20: router.get('/rating')
+
+=== health.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L38: router.get('/health/live')
+  [EXEMPT: FastAPI decorator] L44: router.get('/health')
+  [EXEMPT: FastAPI decorator] L45: router.get('/health/ready')
+
+=== media.py (1 .get calls) ===
+  [EXEMPT: FastAPI decorator] L25: router.get('/media')
+
+=== notifications.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L32: router.get('')
+  [EXEMPT: FastAPI decorator] L33: router.get('/')
+  [EXEMPT: FastAPI decorator] L63: router.get('/unread-count')
+
+=== order_feedback.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L54: router.get('/eligible')
+  [EXEMPT: FastAPI decorator] L109: router.get('/order/{order_id}')
+  [EXEMPT: FastAPI decorator] L126: router.get('')
+  [EXEMPT: FastAPI decorator] L127: router.get('/')
+
+=== orders.py (16 .get calls) ===
+  [EXEMPT: In-memory map/cache: users_map] L218: users_map.get(str(order.user))
+  [EXEMPT: In-memory map/cache: users_map] L219: users_map.get(str(order.assigned_valet))
+  [EXEMPT: In-memory map/cache: payments_map] L221: payments_map.get(str(order.id), [])
+  [EXEMPT: In-memory map/cache: products_map] L226: products_map.get(prod_id)
+  [EXEMPT: FastAPI decorator] L284: router.get('')
+  [EXEMPT: FastAPI decorator] L285: router.get('/')
+  [EXEMPT: FastAPI decorator] L341: router.get('/{order_id}')
+  [EXEMPT: In-memory map/cache: _cart_products_map] L492: _cart_products_map.get(str(item.product or item.product_id))
+  [EXEMPT: In-memory map/cache: _cart_products_map] L622: _cart_products_map.get(str(item.product or item.product_id))
+  [EXEMPT: In-memory map/cache: seller_delivery_map] L1526: seller_delivery_map.get(str(seller_id) if seller_id else None)
+  [EXEMPT: In-memory map/cache: seller_docs] L1547: seller_docs.get(str(seller_id))
+  [EXEMPT: FastAPI decorator] L2187: router.get('/valet/pending')
+  [EXEMPT: FastAPI decorator] L2795: router.get('/{order_id}/invoice')
+  [EXEMPT: FastAPI decorator] L2831: router.get('/seller-orders')
+  [EXEMPT: FastAPI decorator] L2854: router.get('/seller-orders/{sub_order_id}')
+  [EXEMPT: FastAPI decorator] L2921: router.get('/admin/sub-orders')
+
+=== page_info.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L44: router.get('/{page_id}')
+  [EXEMPT: FastAPI decorator] L71: router.get('')
+  [EXEMPT: FastAPI decorator] L72: router.get('/')
+
+=== payments.py (5 .get calls) ===
+  [EXEMPT: FastAPI decorator] L32: router.get('/dues')
+  [EXEMPT: FastAPI decorator] L191: router.get('')
+  [EXEMPT: FastAPI decorator] L192: router.get('/')
+  [EXEMPT: In-memory map/cache: order_map] L222: order_map.get(str(payment.order_id))
+  [EXEMPT: FastAPI decorator] L231: router.get('/{payment_id}')
+
+=== pincode_searches.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L14: router.get('')
+  [EXEMPT: FastAPI decorator] L15: router.get('/')
+  [EXEMPT: FastAPI decorator] L36: router.get('/stats')
+
+=== pincodes.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L27: router.get('/states')
+  [EXEMPT: FastAPI decorator] L35: router.get('/districts')
+  [EXEMPT: FastAPI decorator] L45: router.get('/pincodes')
+  [EXEMPT: FastAPI decorator] L58: router.get('/{pincode}')
+
+=== products.py (8 .get calls) ===
+  [EXEMPT: FastAPI decorator] L284: router.get('/export-csv')
+  [EXEMPT: FastAPI decorator] L403: router.get('/suggest')
+  [EXEMPT: FastAPI decorator] L601: router.get('/public')
+  [EXEMPT: FastAPI decorator] L721: router.get('/public/{product_id}')
+  [EXEMPT: FastAPI decorator] L750: router.get('')
+  [EXEMPT: FastAPI decorator] L751: router.get('/')
+  [EXEMPT: FastAPI decorator] L874: router.get('/{product_id}')
+  [EXEMPT: FastAPI decorator] L1030: router.get('/{product_id}/search-tags')
+
+=== promo_strips.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L26: router.get('')
+  [EXEMPT: FastAPI decorator] L27: router.get('/')
+  [EXEMPT: FastAPI decorator] L33: router.get('/active')
+
+=== push_notifications.py (6 .get calls) ===
+  [EXEMPT: FastAPI decorator] L19: router.get('')
+  [EXEMPT: FastAPI decorator] L20: router.get('/')
+  [EXEMPT: FastAPI decorator] L189: router.get('/{notification_id}/analytics')
+  [EXEMPT: FastAPI decorator] L211: router.get('/inbox')
+  [EXEMPT: FastAPI decorator] L282: router.get('/vapid-public-key')
+  [EXEMPT: FastAPI decorator] L302: router.get('/{notification_id}')
+
+=== recommendations.py (10 .get calls) ===
+  [EXEMPT: FastAPI decorator] L55: router.get('')
+  [EXEMPT: FastAPI decorator] L56: router.get('/')
+  [EXEMPT: In-memory map/cache: _guest_rec_cache] L91: _guest_rec_cache.get(guest_key)
+  [EXEMPT: In-memory map/cache: _guest_rec_cache] L97: _guest_rec_cache.get(guest_key)
+  [EXEMPT: In-memory map/cache: cache] L125: cache.get(user_cache_key)
+  [EXEMPT: FastAPI decorator] L139: router.get('/favourites')
+  [EXEMPT: In-memory map/cache: product_map] L210: product_map.get(pid)
+  [EXEMPT: In-memory map/cache: product_map] L230: product_map.get(pid)
+  [EXEMPT: FastAPI decorator] L284: router.get('/metrics')
+  [EXEMPT: request.headers] L350: request.headers.get('x-session-id')
+
+=== referrals.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L18: router.get('/settings')
+  [EXEMPT: FastAPI decorator] L33: router.get('/check-eligibility')
+  [EXEMPT: FastAPI decorator] L110: router.get('/scheme')
+
+=== return_settings.py (2 .get calls) ===
+  [EXEMPT: FastAPI decorator] L11: router.get('')
+  [EXEMPT: FastAPI decorator] L12: router.get('/')
+
+=== returns.py (7 .get calls) ===
+  [EXEMPT: FastAPI decorator] L51: router.get('/my-returns')
+  [EXEMPT: FastAPI decorator] L61: router.get('/admin/all')
+  [EXEMPT: FastAPI decorator] L71: router.get('/valet/assigned')
+  [EXEMPT: FastAPI decorator] L83: router.get('/order/{order_id}/eligibility')
+  [EXEMPT: In-memory map/cache: returned_items_qty] L132: returned_items_qty.get(pid, 0)
+  [EXEMPT: In-memory map/cache: returned_items_qty] L148: returned_items_qty.get(pid, 0)
+  [EXEMPT: FastAPI decorator] L403: router.get('/valet/pending')
+
+=== reviews.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L101: router.get('/product/{product_id}')
+  [EXEMPT: FastAPI decorator] L112: router.get('/classifications')
+  [EXEMPT: FastAPI decorator] L122: router.get('/admin/list')
+  [EXEMPT: FastAPI decorator] L187: router.get('/admin/classifications')
+
+=== schemes.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L18: router.get('')
+  [EXEMPT: FastAPI decorator] L19: router.get('/')
+  [EXEMPT: FastAPI decorator] L58: router.get('/applicable/{product_id}')
+  [EXEMPT: FastAPI decorator] L112: router.get('/applicable/bundle/{bundle_id}')
+
+=== search_tags.py (2 .get calls) ===
+  [EXEMPT: FastAPI decorator] L15: router.get('')
+  [EXEMPT: FastAPI decorator] L16: router.get('/')
+
+=== seller_availability.py (4 .get calls) ===
+  [EXEMPT: In-memory map/cache: sellers_map] L158: sellers_map.get(sid, {})
+  [EXEMPT: FastAPI decorator] L226: router.get('/my')
+  [EXEMPT: FastAPI decorator] L243: router.get('')
+  [EXEMPT: FastAPI decorator] L244: router.get('/')
+
+=== seller_payouts.py (5 .get calls) ===
+  [EXEMPT: FastAPI decorator] L79: router.get('')
+  [EXEMPT: FastAPI decorator] L80: router.get('/')
+  [EXEMPT: FastAPI decorator] L191: router.get('/my-summary')
+  [EXEMPT: FastAPI decorator] L201: router.get('/summary/{seller_id}')
+  [EXEMPT: FastAPI decorator] L210: router.get('/summaries')
+
+=== seller_requests.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L83: router.get('')
+  [EXEMPT: FastAPI decorator] L84: router.get('/')
+  [EXEMPT: FastAPI decorator] L104: router.get('/{request_id}')
+
+=== support_tickets.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L99: router.get('')
+  [EXEMPT: FastAPI decorator] L100: router.get('/')
+  [EXEMPT: FastAPI decorator] L120: router.get('/{ticket_id}')
+
+=== system_settings.py (2 .get calls) ===
+  [EXEMPT: FastAPI decorator] L33: router.get('')
+  [EXEMPT: FastAPI decorator] L34: router.get('/')
+
+=== tracking.py (9 .get calls) ===
+  [EXEMPT: FastAPI decorator] L322: router.get('/recent')
+  [EXEMPT: FastAPI decorator] L344: router.get('/suggestions')
+  [EXEMPT: FastAPI decorator] L361: router.get('/most-searched')
+  [EXEMPT: FastAPI decorator] L374: router.get('/zero-result-searches')
+  [EXEMPT: FastAPI decorator] L387: router.get('/most-viewed')
+  [EXEMPT: FastAPI decorator] L400: router.get('/returning-users')
+  [EXEMPT: FastAPI decorator] L412: router.get('/drop-off-points')
+  [EXEMPT: FastAPI decorator] L425: router.get('/cart-abandonments')
+  [EXEMPT: FastAPI decorator] L438: router.get('/most-abandoned-products')
+
+=== upi.py (1 .get calls) ===
+  [EXEMPT: FastAPI decorator] L22: router.get('/details')
+
+=== users.py (9 .get calls) ===
+  [EXEMPT: FastAPI decorator] L17: router.get('')
+  [EXEMPT: FastAPI decorator] L18: router.get('/')
+  [EXEMPT: FastAPI decorator] L58: router.get('/pending-approvals')
+  [EXEMPT: FastAPI decorator] L65: router.get('/me')
+  [EXEMPT: FastAPI decorator] L66: router.get('/profile')
+  [EXEMPT: FastAPI decorator] L142: router.get('/valets/available')
+  [EXEMPT: In-memory map/cache: avail_map] L168: avail_map.get(vid)
+  [EXEMPT: FastAPI decorator] L291: router.get('/seller-delivery-settings')
+  [EXEMPT: FastAPI decorator] L360: router.get('/{user_id}')
+
+=== valet_availability.py (4 .get calls) ===
+  [EXEMPT: FastAPI decorator] L152: router.get('/my')
+  [EXEMPT: FastAPI decorator] L168: router.get('')
+  [EXEMPT: FastAPI decorator] L169: router.get('/')
+  [EXEMPT: In-memory map/cache: valets_map] L206: valets_map.get(vid, {})
+
+=== valet_payout.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L74: router.get('/settings')
+  [EXEMPT: FastAPI decorator] L164: router.get('/earnings/me')
+  [EXEMPT: FastAPI decorator] L180: router.get('/earnings/{valet_id}')
+
+=== version.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L27: router.get('/version')
+  [EXEMPT: In-memory map/cache: min_versions] L37: min_versions.get(platform_key, config.MIN_APP_VERSION_WEB)
+  [EXEMPT: FastAPI decorator] L46: router.get('/maintenance')
+
+=== wishlist.py (3 .get calls) ===
+  [EXEMPT: FastAPI decorator] L37: router.get('')
+  [EXEMPT: FastAPI decorator] L38: router.get('/')
+  [EXEMPT: In-memory map/cache: products_map] L64: products_map.get(str(item.product))

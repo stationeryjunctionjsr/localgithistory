@@ -14,7 +14,7 @@ class TrackingRepository:
     async def create(self, tracking_data: Any):
         from app.models.daos import TrackingInternalCreate
         tracking_data_dict = tracking_data if isinstance(tracking_data, dict) else dict(tracking_data)
-        tracking_data_dict.timestamp = getattr(tracking_data_dict, "timestamp", None) or self._get_current_timestamp()
+        tracking_data_dict.timestamp = tracking_data_dict.timestamp or self._get_current_timestamp()
         
         return await self.storage.create(TrackingInternalCreate.model_validate(tracking_data_dict))
 
@@ -157,7 +157,7 @@ class TrackingRepository:
         # Filter by date
         filtered_tracking = []
         for track in all_tracking:
-            ts = self._parse_timestamp(getattr(track, "timestamp", None))
+            ts = self._parse_timestamp(track.timestamp)
             if not ts:
                 continue
             if start_date and ts < start_date:
@@ -168,12 +168,12 @@ class TrackingRepository:
 
         search_stats = {}
         for track in filtered_tracking:
-            term = getattr(track, "searchTerm", "").lower()
+            term = (track.searchTerm if track.searchTerm is not None else "").lower()
             if term:
                 if term not in search_stats:
                     search_stats[term] = {"count": 0, "total_results": 0}
                 search_stats[term]["count"] += 1
-                search_stats[term]["total_results"] += getattr(track, "resultsCount", 0)
+                search_stats[term]["total_results"] += (track.resultsCount if track.resultsCount is not None else 0)
 
         return [
             {
@@ -191,7 +191,7 @@ class TrackingRepository:
 
         filtered_tracking = []
         for track in all_tracking:
-            ts = self._parse_timestamp(getattr(track, "timestamp", None))
+            ts = self._parse_timestamp(track.timestamp)
             if not ts:
                 continue
             if start_date and ts < start_date:
@@ -202,8 +202,8 @@ class TrackingRepository:
 
         search_stats = {}
         for track in filtered_tracking:
-            if getattr(track, "resultsCount", 0) == 0:
-                term = getattr(track, "searchTerm", "").lower()
+            if (track.resultsCount if track.resultsCount is not None else 0) == 0:
+                term = (track.searchTerm if track.searchTerm is not None else "").lower()
                 if term:
                     if term not in search_stats:
                         search_stats[term] = {"count": 0}
@@ -225,7 +225,7 @@ class TrackingRepository:
         # Filter by date
         filtered_tracking = []
         for track in all_tracking:
-            ts = self._parse_timestamp(getattr(track, "timestamp", None))
+            ts = self._parse_timestamp(track.timestamp)
             if not ts:
                 continue
             if start_date and ts < start_date:
@@ -236,12 +236,12 @@ class TrackingRepository:
 
         view_counts = {}
         for track in filtered_tracking:
-            product_id = getattr(track, "productId", None)
+            product_id = track.productId
             if product_id:
                 if product_id not in view_counts:
                     view_counts[product_id] = {
                         "productId": product_id,
-                        "productName": getattr(track, "productName", "Unknown"),
+                        "productName": (track.productName if track.productName is not None else "Unknown"),
                         "count": 0,
                     }
                 view_counts[product_id]["count"] += 1
@@ -254,14 +254,14 @@ class TrackingRepository:
         user_last_seen = {}
 
         for session in sessions:
-            ts = self._parse_timestamp(getattr(session, "timestamp", None))
+            ts = self._parse_timestamp(session.timestamp)
             if start_date and ts and ts < start_date:
                 continue
             if end_date and ts and ts > end_date:
                 continue
 
-            uid = getattr(session, "user_id", None)
-            if getattr(session, "is_returning", None) and uid:
+            uid = session.user_id
+            if session.is_returning and uid:
                 returning_user_ids.add(uid)
                 if ts:
                     if uid not in user_last_seen or ts > user_last_seen[uid]:
@@ -276,8 +276,8 @@ class TrackingRepository:
         return [
             {
                 "userId": u.id,
-                "name": getattr(u, "name", "Unknown"),
-                "email": getattr(u, "email", "Unknown"),
+                "name": (u.name if u.name is not None else "Unknown"),
+                "email": (u.email if u.email is not None else "Unknown"),
                 "lastSeen": user_last_seen.get(u.id).isoformat() if user_last_seen.get(u.id) else None,
             }
             for u in users
@@ -290,17 +290,17 @@ class TrackingRepository:
         drop_off_counts = {}
 
         for drop_off in drop_offs:
-            ts = self._parse_timestamp(getattr(drop_off, "timestamp", None))
+            ts = self._parse_timestamp(drop_off.timestamp)
             if start_date and ts and ts < start_date:
                 continue
             if end_date and ts and ts > end_date:
                 continue
 
-            page = getattr(drop_off, "page", "unknown")
+            page = (drop_off.page if drop_off.page is not None else "unknown")
             if page not in drop_off_counts:
                 drop_off_counts[page] = {"page": page, "count": 0, "reasons": {}}
             drop_off_counts[page]["count"] += 1
-            reason = getattr(drop_off, "reason", None)
+            reason = drop_off.reason
             if reason:
                 drop_off_counts[page]["reasons"][reason] = drop_off_counts[page]["reasons"].get(reason, 0) + 1
 
@@ -314,7 +314,7 @@ class TrackingRepository:
         # Filter by date
         filtered = []
         for a in abandonments:
-            ts = self._parse_timestamp(getattr(a, "timestamp", None))
+            ts = self._parse_timestamp(a.timestamp)
             if start_date and ts and ts < start_date:
                 continue
             if end_date and ts and ts > end_date:
@@ -333,14 +333,14 @@ class TrackingRepository:
         # Collect product IDs first, then fetch only those products (avoids full product table scan)
         abandoned_products: dict = {}
         for a in abandonments:
-            ts = self._parse_timestamp(getattr(a, "timestamp", None))
+            ts = self._parse_timestamp(a.timestamp)
             if start_date and ts and ts < start_date:
                 continue
             if end_date and ts and ts > end_date:
                 continue
 
-            for item in getattr(a, "cartItems", []):
-                pid = getattr(item, "product", None) or getattr(item, "productId", None)
+            for item in (a.cartItems if a.cartItems is not None else []):
+                pid = item.product or item.productId
                 if not pid:
                     continue
 
@@ -352,10 +352,10 @@ class TrackingRepository:
                         "valueLost": 0.0,
                     }
 
-                q = getattr(item, 'quantity', 1)
+                q = (item.quantity if item.quantity is not None else 1)
                 abandoned_products[pid]["abandonCount"] += 1
                 abandoned_products[pid]["quantityAbandoned"] += q
-                abandoned_products[pid]["valueLost"] += q * getattr(item, 'price', 0)
+                abandoned_products[pid]["valueLost"] += q * (item.price if item.price is not None else 0)
 
         # Fetch only the products that actually appeared in abandonment events
         product_ids_seen = list(abandoned_products.keys())
@@ -371,8 +371,8 @@ class TrackingRepository:
             result.append(
                 {
                     "productId": pid,
-                    "productName": getattr(product, "name", "Unknown"),
-                    "category": getattr(product, "category", "Uncategorized"),
+                    "productName": (product.name if product.name is not None else "Unknown"),
+                    "category": (product.category if product.category is not None else "Uncategorized"),
                     "abandonCount": stats["abandonCount"],
                     "quantityAbandoned": stats["quantityAbandoned"],
                     "valueLost": round(stats["valueLost"], 2),
@@ -423,7 +423,7 @@ class TrackingRepository:
         all_searches = await self.findAll(query)
         # Exclude searches that happened before the last clear event
         if last_cleared:
-            all_searches = [s for s in all_searches if getattr(s, "timestamp", "") > last_cleared]
+            all_searches = [s for s in all_searches if (s.timestamp if s.timestamp is not None else "") > last_cleared]
 
         # Sort by timestamp descending and remove duplicates
         all_searches.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
@@ -431,10 +431,10 @@ class TrackingRepository:
         seen = set()
         unique_searches = []
         for s in all_searches:
-            term = getattr(s, "searchTerm", "").strip().lower()
+            term = (s.searchTerm if s.searchTerm is not None else "").strip().lower()
             if term and term not in seen:
                 seen.add(term)
-                unique_searches.append(getattr(s, "searchTerm", None))
+                unique_searches.append(s.searchTerm)
                 if len(unique_searches) >= limit:
                     break
 
@@ -455,10 +455,10 @@ class TrackingRepository:
         all_searches = await self.findAll({"type": "product_search", "segment": segment}, limit=self._ANALYTICS_LIMIT)
         counts: Dict[str, int] = {}
         for doc in all_searches:
-            ts = self._parse_timestamp(getattr(doc, "timestamp", None))
+            ts = self._parse_timestamp(doc.timestamp)
             if not ts or ts < cutoff:
                 continue
-            for pid in getattr(doc, "productIds", None) or []:
+            for pid in doc.productIds or []:
                 if pid:
                     counts[pid] = counts.get(pid, 0) + 1
         return counts
@@ -474,16 +474,16 @@ class TrackingRepository:
         all_searches = await self.findAll({"type": "product_search", "segment": segment}, limit=self._ANALYTICS_LIMIT)
         out: List[Dict] = []
         for doc in all_searches:
-            ts = self._parse_timestamp(getattr(doc, "timestamp", None))
+            ts = self._parse_timestamp(doc.timestamp)
             if not ts or ts < cutoff:
                 continue
-            pids = getattr(doc, "productIds", None) or []
+            pids = doc.productIds or []
             if not pids:
                 continue
             out.append(
                 {
-                    "userId": getattr(doc, "userId", None),
-                    "sessionId": getattr(doc, "sessionId", None),
+                    "userId": doc.userId,
+                    "sessionId": doc.sessionId,
                     "productIds": list(pids),
                     "timestamp": ts,
                 }

@@ -16,7 +16,7 @@ from app.db.db_utils import now_utc
 class MySQLWishlistDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_wishlists{suffix}"
 
     def _factory(self):
@@ -96,8 +96,8 @@ class MySQLWishlistDAO:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
-        user_id = int((data.user if getattr(data, 'user', None) is not None else 0)) if str((data.user if getattr(data, 'user', None) is not None else "0")).isdigit() else None
-        items = (data.items if getattr(data, 'items', None) is not None else [])
+        user_id = int((data.user if data.user is not None else 0)) if str((data.user if data.user is not None else "0")).isdigit() else None
+        items = (data.items if data.items is not None else [])
 
         async with factory() as session:
             await session.execute(
@@ -138,7 +138,7 @@ class MySQLWishlistDAO:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET updated_at = :u WHERE id = :id"), {"id": wid, "u": now}
             )
-            if getattr(update_data, "items", None) is not None:
+            if update_data.items is not None:
                 await self._replace_items(session, wid, update_data.items)
             await session.commit()
 
@@ -158,7 +158,7 @@ class MySQLWishlistDAO:
         docs = await self.findAll(query)
         if not docs:
             return 0
-        wids = [int(d._id) for d in docs if str((d._id if getattr(d, '_id', None) is not None else "")).isdigit()]
+        wids = [int(d._id) for d in docs if str((d._id if d._id is not None else "")).isdigit()]
         if not wids:
             return 0
         async with factory() as session:

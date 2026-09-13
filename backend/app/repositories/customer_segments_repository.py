@@ -23,8 +23,8 @@ class CustomerSegmentsRepository:
         now = datetime.datetime.now(timezone.utc).isoformat()
         if "_id" not in data and "id" not in data:
             data._id = str(uuid.uuid4())
-        data.createdAt = getattr(data, 'createdAt', now)
-        data.updatedAt = getattr(data, 'updatedAt', now)
+        data.createdAt = (data.createdAt if data.createdAt is not None else now)
+        data.updatedAt = (data.updatedAt if data.updatedAt is not None else now)
         return await self.storage.create(data)
 
     async def update(self, segment_id: str, data: Any) -> Optional[Dict]:

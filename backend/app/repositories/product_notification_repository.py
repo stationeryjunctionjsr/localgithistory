@@ -27,7 +27,7 @@ class ProductNotificationRepository:
         if not use_oracle() or not is_oracle():
             self._initialized = True
             return
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         table_name_upper = f"SJ_PRODUCT_NOTIFICATIONS{suffix}".upper()
         table_name_lower = f"sj_product_notifications{suffix}".lower()
         constraint_name_lower = f"uq_prod_notif_external{suffix}".lower()

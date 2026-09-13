@@ -27,7 +27,7 @@ class ReturnRequestRepository:
         if not factory:
             self._columns_checked = True
             return
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         table_name = f"sj_return_requests{suffix}"
         columns_to_add = [
             ("seller_id", "VARCHAR(64) NULL"),
@@ -89,22 +89,22 @@ class ReturnRequestRepository:
             "userId": data.userId,
             "items": data.items,
             "paymentMethod": data.paymentMethod,
-            "upiPaymentScreenshot": getattr(data, "upiPaymentScreenshot", None),
-            "notes": getattr(data, "notes", None),
-            "status": getattr(data, 'status', "pending"),
-            "sellerId": getattr(data, "sellerId", None),
-            "deliverySlotId": getattr(data, "deliverySlotId", None),
-            "deliverySlotConfigId": getattr(data, "deliverySlotConfigId", None),
-            "deliverySlotDate": getattr(data, "deliverySlotDate", None),
-            "valetId": getattr(data, "valetId", None),
-            "pendingValetId": getattr(data, "pendingValetId", None),
-            "valetAssignedAt": getattr(data, "valetAssignedAt", None),
-            "valetCascadeCount": getattr(data, 'valetCascadeCount', 0),
-            "valetDeclineHistory": getattr(data, 'valetDeclineHistory', []),
-            "valetAcceptedAt": getattr(data, "valetAcceptedAt", None),
-            "valetDeclinedAt": getattr(data, "valetDeclinedAt", None),
-            "valetDeclineReason": getattr(data, "valetDeclineReason", None),
-            "deliveryCharge": getattr(data, 'deliveryCharge', 0),
+            "upiPaymentScreenshot": data.upiPaymentScreenshot,
+            "notes": data.notes,
+            "status": (data.status if data.status is not None else "pending"),
+            "sellerId": data.sellerId,
+            "deliverySlotId": data.deliverySlotId,
+            "deliverySlotConfigId": data.deliverySlotConfigId,
+            "deliverySlotDate": data.deliverySlotDate,
+            "valetId": data.valetId,
+            "pendingValetId": data.pendingValetId,
+            "valetAssignedAt": data.valetAssignedAt,
+            "valetCascadeCount": (data.valetCascadeCount if data.valetCascadeCount is not None else 0),
+            "valetDeclineHistory": (data.valetDeclineHistory if data.valetDeclineHistory is not None else []),
+            "valetAcceptedAt": data.valetAcceptedAt,
+            "valetDeclinedAt": data.valetDeclinedAt,
+            "valetDeclineReason": data.valetDeclineReason,
+            "deliveryCharge": (data.deliveryCharge if data.deliveryCharge is not None else 0),
             "createdAt": datetime.utcnow().isoformat(),
             "updatedAt": datetime.utcnow().isoformat(),
         }

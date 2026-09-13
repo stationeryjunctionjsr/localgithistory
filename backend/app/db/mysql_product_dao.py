@@ -17,7 +17,7 @@ from app.models.product import Product
 class MySQLProductDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_products{suffix}"
 
     def _factory(self):
@@ -38,8 +38,8 @@ class MySQLProductDAO:
             "mrpPerCase": float(r.mrp_per_case) if r.mrp_per_case is not None else None,
             "quantityPerCase": int(r.quantity_per_case) if r.quantity_per_case is not None else None,
             "stock": int(r.stock) if r.stock is not None else 0,
-            "rating": float(r.rating) if getattr(r, "rating", None) is not None else 0.0,
-            "reviews": int(r.reviews) if getattr(r, "reviews", None) is not None else 0,
+            "rating": float(r.rating) if r.rating is not None else 0.0,
+            "reviews": int(r.reviews) if r.reviews is not None else 0,
             "images": children.get("images", []),
             "videos": children.get("videos", []),
             "isActive": bool(r.is_active) if r.is_active is not None else True,
@@ -407,14 +407,14 @@ class MySQLProductDAO:
 
         # Insert variants
         await session.execute(text("DELETE FROM sj_product_variant_attributes WHERE product_id = :pid"), {"pid": pid})
-        for attr in getattr(data, 'variantAttributes', []) or []:
+        for attr in (data.variantAttributes if data.variantAttributes is not None else []) or []:
             await session.execute(
                 text("INSERT INTO sj_product_variant_attributes (product_id, attribute_name) VALUES (:pid, :attr)"),
                 {"pid": pid, "attr": str(attr)}
             )
             
         await session.execute(text("DELETE FROM sj_product_variants WHERE product_id = :pid"), {"pid": pid})
-        for variant in getattr(data, 'variants', []) or []:
+        for variant in (data.variants if data.variants is not None else []) or []:
             await session.execute(
                 text("INSERT INTO sj_product_variants (product_id, sku, price, price_per_case, stock) VALUES (:pid, :sku, :price, :price_per_case, :stock)"),
                 {"pid": pid, "sku": variant.get("sku"), "price": variant.get("price"), "price_per_case": variant.get("pricePerCase"), "stock": variant.get("stock", 0)}
@@ -429,7 +429,7 @@ class MySQLProductDAO:
 
 
         # Insert images
-        images = getattr(data, 'images', []) or []
+        images = (data.images if data.images is not None else []) or []
         for i, img in enumerate(images):
             await session.execute(
                 text("INSERT INTO sj_product_images (product_id, image_url, order_index) VALUES (:pid, :img, :idx)"),
@@ -437,7 +437,7 @@ class MySQLProductDAO:
             )
 
         # Insert videos
-        videos = getattr(data, 'videos', []) or []
+        videos = (data.videos if data.videos is not None else []) or []
         for i, vid in enumerate(videos):
             await session.execute(
                 text("INSERT INTO sj_product_videos (product_id, video_url, order_index) VALUES (:pid, :vid, :idx)"),
@@ -445,13 +445,13 @@ class MySQLProductDAO:
             )
 
         # Insert tags
-        for tag in getattr(data, 'tags', []) or []:
+        for tag in (data.tags if data.tags is not None else []) or []:
             await session.execute(
                 text("INSERT INTO sj_product_tags (product_id, tag) VALUES (:pid, :tag)"), {"pid": pid, "tag": tag}
             )
 
         # Insert attributes
-        # for attr in getattr(data, 'variantAttributes', []) or []:
+        # for attr in (data.variantAttributes if data.variantAttributes is not None else []) or []:
         # await session.execute(
         # text("INSERT INTO sj_product_attributes (product_id, attr_name) VALUES (:pid, :attr)"),
         # {"pid": pid, "attr": attr},
@@ -555,9 +555,9 @@ class MySQLProductDAO:
                     "mrp_per_case": merged.mrpPerCase,
                     "quantity_per_case": merged.quantityPerCase,
                     "stock": merged.stock,
-                    "is_active": 1 if (merged.isActive if getattr(merged, 'isActive', None) is not None else True) else None,
-                    "rating": (merged.rating if getattr(merged, 'rating', None) is not None else 0.0),
-                    "reviews": (merged.reviews if getattr(merged, 'reviews', None) is not None else 0),
+                    "is_active": 1 if (merged.isActive if merged.isActive is not None else True) else None,
+                    "rating": (merged.rating if merged.rating is not None else 0.0),
+                    "reviews": (merged.reviews if merged.reviews is not None else 0),
                     "updated_at": now,
                 },
             )

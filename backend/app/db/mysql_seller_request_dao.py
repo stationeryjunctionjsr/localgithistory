@@ -17,7 +17,7 @@ from app.db.db_utils import now_utc
 class MySQLSellerRequestDAO:
     @property
     def TABLE(self):
-        suffix = getattr(settings, "table_suffix", "")
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
         return f"sj_seller_requests{suffix}"
 
     def _factory(self):
@@ -82,13 +82,13 @@ class MySQLSellerRequestDAO:
         )
         await session.execute(text("DELETE FROM sj_seller_request_responses WHERE request_id = :rid"), {"rid": req_id})
 
-        for url in (data.attachments if getattr(data, 'attachments', None) is not None else []):
+        for url in (data.attachments if data.attachments is not None else []):
             await session.execute(
                 text("INSERT INTO sj_seller_request_attachments (request_id, url) VALUES (:rid, :url)"),
                 {"rid": req_id, "url": url},
             )
 
-        for resp in (data.responses if getattr(data, 'responses', None) is not None else []):
+        for resp in (data.responses if data.responses is not None else []):
             created_at = None
             if resp.get("createdAt"):
                 try:
@@ -183,11 +183,11 @@ class MySQLSellerRequestDAO:
                     "external_id": external_id,
                     "request_number": req_number,
                     "user_id": data.user,
-                    "subject": (data.subject if getattr(data, 'subject', None) is not None else ""),
-                    "description": (data.description if getattr(data, 'description', None) is not None else ""),
-                    "category": (data.category if getattr(data, 'category', None) is not None else "general"),
-                    "priority": (data.priority if getattr(data, 'priority', None) is not None else "medium"),
-                    "status": (data.status if getattr(data, 'status', None) is not None else "open"),
+                    "subject": (data.subject if data.subject is not None else ""),
+                    "description": (data.description if data.description is not None else ""),
+                    "category": (data.category if data.category is not None else "general"),
+                    "priority": (data.priority if data.priority is not None else "medium"),
+                    "status": (data.status if data.status is not None else "open"),
                     "resolved_at": to_dt(data.resolvedAt),
                     "closed_at": to_dt(data.closedAt),
                     "created_at": now,
@@ -236,11 +236,11 @@ class MySQLSellerRequestDAO:
                 {
                     "id": int(id) if str(id).isdigit() else None,
                     "user_id": merged.user,
-                    "subject": (merged.subject if getattr(merged, 'subject', None) is not None else ""),
-                    "description": (merged.description if getattr(merged, 'description', None) is not None else ""),
-                    "category": (merged.category if getattr(merged, 'category', None) is not None else "general"),
-                    "priority": (merged.priority if getattr(merged, 'priority', None) is not None else "medium"),
-                    "status": (merged.status if getattr(merged, 'status', None) is not None else "open"),
+                    "subject": (merged.subject if merged.subject is not None else ""),
+                    "description": (merged.description if merged.description is not None else ""),
+                    "category": (merged.category if merged.category is not None else "general"),
+                    "priority": (merged.priority if merged.priority is not None else "medium"),
+                    "status": (merged.status if merged.status is not None else "open"),
                     "resolved_at": to_dt(merged.resolvedAt),
                     "closed_at": to_dt(merged.closedAt),
                     "updated_at": now,

@@ -20,7 +20,7 @@ class SearchTagRepository:
 
         # First pass to find max_num
         for tag in all_tags:
-            tid = getattr(tag, "tagId", "")
+            tid = (tag.tagId if tag.tagId is not None else "")
             if tid.startswith("ST-"):
                 try:
                     num = int(tid.split("-")[1])
@@ -31,7 +31,7 @@ class SearchTagRepository:
 
         # Second pass to assign missing tagIds
         for tag in all_tags:
-            if not getattr(tag, "tagId", None):
+            if not tag.tagId:
                 max_num += 1
                 tag.tagId = f"ST-{max_num}"
                 updated = True
@@ -48,7 +48,7 @@ class SearchTagRepository:
             #     self.storage._invalidate_cache()
             # else:
             for tag in all_tags:
-                if tag.id and getattr(tag, "tagId", None):
+                if tag.id and tag.tagId:
                     await self.storage.update(
                         tag.id,
                         {"tagId": tag.tagId, "updatedAt": self._get_timestamp()},
@@ -64,7 +64,7 @@ class SearchTagRepository:
         all_tags = await self.storage.findAll()
         max_num = 0
         for tag in all_tags:
-            tag_id_str = getattr(tag, "tagId", "")
+            tag_id_str = (tag.tagId if tag.tagId is not None else "")
             if tag_id_str.startswith("ST-"):
                 try:
                     # Extract number from "ST-X"
@@ -82,13 +82,13 @@ class SearchTagRepository:
             "tagId": new_tag_id,
             "name": data.name,
             "type": data.type,
-            "isActive": getattr(data, 'isActive', True),
-            "categories": getattr(data, 'categories', []),
-            "subCategories": getattr(data, 'subCategories', []),
-            "brands": getattr(data, 'brands', []),
-            "collections": getattr(data, 'collections', []),
-            "productIds": getattr(data, 'productIds', []),
-            "excludedProductIds": getattr(data, 'excludedProductIds', []),
+            "isActive": (data.isActive if data.isActive is not None else True),
+            "categories": (data.categories if data.categories is not None else []),
+            "subCategories": (data.subCategories if data.subCategories is not None else []),
+            "brands": (data.brands if data.brands is not None else []),
+            "collections": (data.collections if data.collections is not None else []),
+            "productIds": (data.productIds if data.productIds is not None else []),
+            "excludedProductIds": (data.excludedProductIds if data.excludedProductIds is not None else []),
             "createdAt": self._get_timestamp(),
             "updatedAt": self._get_timestamp(),
         }
@@ -101,15 +101,15 @@ class SearchTagRepository:
     async def findAllActive(self) -> List[Dict]:
         """Return only active search tags"""
         all_tags = await self.findAll()
-        return [t for t in all_tags if getattr(t, "isActive", True)]
+        return [t for t in all_tags if (t.isActive if t.isActive is not None else True)]
 
     async def addProductId(self, tag_id: str, product_id: str) -> Dict:
         """Add a product ID to the tag's productIds and remove from excludedProductIds if present"""
         tag = await self.findById(tag_id)
         if not tag:
             return None
-        product_ids = list(set(getattr(tag, "productIds", []) + [product_id]))
-        excluded = [pid for pid in getattr(tag, "excludedProductIds", []) if pid != product_id]
+        product_ids = list(set((tag.productIds if tag.productIds is not None else []) + [product_id]))
+        excluded = [pid for pid in (tag.excludedProductIds if tag.excludedProductIds is not None else []) if pid != product_id]
         return await self.update(tag_id, {"productIds": product_ids, "excludedProductIds": excluded})
 
     async def excludeProductId(self, tag_id: str, product_id: str) -> Dict:
@@ -117,8 +117,8 @@ class SearchTagRepository:
         tag = await self.findById(tag_id)
         if not tag:
             return None
-        excluded = list(set(getattr(tag, "excludedProductIds", []) + [product_id]))
-        product_ids = [pid for pid in getattr(tag, "productIds", []) if pid != product_id]
+        excluded = list(set((tag.excludedProductIds if tag.excludedProductIds is not None else []) + [product_id]))
+        product_ids = [pid for pid in (tag.productIds if tag.productIds is not None else []) if pid != product_id]
         return await self.update(tag_id, {"excludedProductIds": excluded, "productIds": product_ids})
 
     async def delete(self, id: str) -> Dict:
