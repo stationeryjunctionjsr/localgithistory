@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import Field, ConfigDict
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class StockReservation(DictCompatibleModel):
+class StockReservation(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
     id: int

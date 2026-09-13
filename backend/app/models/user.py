@@ -2,9 +2,9 @@ from app.models.schemas import Address, CartItem, OrderItem, VisibilityRule, Sel
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class User(DictCompatibleModel):
+class User(BaseModel):
     id: str = Field(alias="_id")
     user_id: int = Field(alias="userId")
     user_id_formatted: Optional[str] = Field(default=None, alias="userIdFormatted")

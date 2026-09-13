@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class ReviewClassifications(DictCompatibleModel):
+class ReviewClassifications(BaseModel):
     id: str = Field(default=None, alias='_id')
     external_id: Optional[str] = Field(default=None, alias='external_id')
     review_id: Optional[str] = Field(default=None, alias='reviewId')

@@ -2,15 +2,15 @@ from app.models.schemas import AddressSnippet as Address, ItemSnippet as CartIte
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class SubOrderItem(DictCompatibleModel):
+class SubOrderItem(BaseModel):
     product_id: Optional[str] = Field(default=None, alias='productId')
     name: Optional[str] = None
     qty: Optional[int] = None
     price: Optional[float] = None
 
-class SubOrder(DictCompatibleModel):
+class SubOrder(BaseModel):
     id: str = Field(default="", alias='_id')
     external_id: Optional[str] = Field(default=None, alias='externalId')
     sub_order_number: Optional[str] = Field(default=None, alias='subOrderNumber')

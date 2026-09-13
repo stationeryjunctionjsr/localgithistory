@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class PaymentEntry(DictCompatibleModel):
+class PaymentEntry(BaseModel):
     entry_id: Optional[str] = Field(default=None, alias="entryId")
     amount: Optional[float] = None
     payment_method: Optional[str] = Field(default=None, alias="paymentMethod")
@@ -13,7 +13,7 @@ class PaymentEntry(DictCompatibleModel):
     verified: bool = False
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
 
-class Payment(DictCompatibleModel):
+class Payment(BaseModel):
     id: str = Field(alias="_id")
     order_id: Optional[str] = Field(default=None, alias="orderId")
     user_id: Optional[str] = Field(default=None, alias="userId")

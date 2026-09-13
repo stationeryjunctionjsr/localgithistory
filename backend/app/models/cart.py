@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, List, Any
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class CartItem(DictCompatibleModel):
+class CartItem(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
     product: str
     quantity: int
@@ -11,7 +11,7 @@ class CartItem(DictCompatibleModel):
     bundle_id: Optional[str] = Field(default=None, alias="bundleId")
     bundle_name: Optional[str] = Field(default=None, alias="bundleName")
 
-class Cart(DictCompatibleModel):
+class Cart(BaseModel):
     user: str
     items: List[CartItem] = []
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")

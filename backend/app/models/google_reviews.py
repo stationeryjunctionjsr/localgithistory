@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class Google_reviews(DictCompatibleModel):
+class Google_reviews(BaseModel):
     id: str = Field(default=None, alias='_id')
     external_id: Optional[str] = Field(default=None, alias='external_id')
     rating: Optional[str] = Field(default=None, alias='rating')

@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class Wishlist(DictCompatibleModel):
+class Wishlist(BaseModel):
     id: str = Field(default=None, alias='_id')
     user: Optional[str] = Field(default=None, alias='user')
     items: List[Any] = Field(default=[], alias='items')

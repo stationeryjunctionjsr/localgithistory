@@ -1,16 +1,16 @@
 from typing import List, Optional
 from typing import Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class Bundle(DictCompatibleModel):
+class Bundle(BaseModel):
     id: str = Field(default="", alias="_id")
 
-class EmailOtp(DictCompatibleModel):
+class EmailOtp(BaseModel):
     pass
 
-class FaqSection(DictCompatibleModel):
+class FaqSection(BaseModel):
     pass
 
-class Otp(DictCompatibleModel):
+class Otp(BaseModel):
     pass

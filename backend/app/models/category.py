@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, List, Any
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class Category(DictCompatibleModel):
+class Category(BaseModel):
     id: str = Field(alias='_id')
     name: str
     description: Optional[str] = None

@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class FeatureFlag(DictCompatibleModel):
+class FeatureFlag(BaseModel):
     id: str = Field(default=None, alias='_id')
     name: Optional[str] = Field(default=None, alias='name')
     description: Optional[str] = Field(default=None, alias='description')

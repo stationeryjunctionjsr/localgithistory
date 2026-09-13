@@ -2,9 +2,9 @@ from app.models.schemas import ItemSnippet as OrderItem
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class OrderAddress(DictCompatibleModel):
+class OrderAddress(BaseModel):
     name: Optional[str] = None
     street: Optional[str] = None
     city: Optional[str] = None
@@ -12,7 +12,7 @@ class OrderAddress(DictCompatibleModel):
     pincode: Optional[str] = None
     phone: Optional[str] = None
 
-class Order(DictCompatibleModel):
+class Order(BaseModel):
     session_id: Optional[str] = Field(default=None, alias="sessionId")
     id: str = Field(alias="_id")
     order_number: Optional[str] = Field(default=None, alias="orderNumber")

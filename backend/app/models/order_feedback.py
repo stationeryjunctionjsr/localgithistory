@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class OrderFeedback(DictCompatibleModel):
+class OrderFeedback(BaseModel):
     id: str = Field(default=None, alias='_id')
     external_id: Optional[str] = Field(default=None, alias='external_id')
     order_id: Optional[str] = Field(default=None, alias='orderId')

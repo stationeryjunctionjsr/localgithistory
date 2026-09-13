@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class Product(DictCompatibleModel):
+class Product(BaseModel):
     id: str = Field(alias="_id")
     product_id: int = Field(alias="productId")
     product_id_formatted: Optional[str] = Field(default=None, alias="productIdFormatted")

@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import Field
-from app.models.core import DictCompatibleModel
+from pydantic import BaseModel
 
-class Brand(DictCompatibleModel):
+class Brand(BaseModel):
     id: int = Field(alias='_id')
     name: str
     slug: str
