@@ -44,7 +44,7 @@ class PaymentRepository:
             payments = filtered_payments
 
         # Sort by order date (newest first)
-        payments.sort(key=lambda p: getattr(p, "orderDate", p.get("createdAt", "")), reverse=True)
+        payments.sort(key=lambda p: (p.orderDate if p.orderDate is not None else p.get("createdAt", "")), reverse=True)
 
         return payments
 
@@ -78,13 +78,13 @@ class PaymentRepository:
         max_id = 0
         for p in all_payments:
             if (
-                getattr(p, "paymentId", None)
-                and isinstance(getattr(p, "paymentId", None), str)
-                and getattr(p, "paymentId", "").startswith("PYMT-")
+                p.paymentId
+                and isinstance(p.paymentId, str)
+                and (p.paymentId if p.paymentId is not None else "").startswith("PYMT-")
             ):
                 import re
 
-                match = re.match(r"PYMT-(\d+)", getattr(p, "paymentId", ""))
+                match = re.match(r"PYMT-(\d+)", (p.paymentId if p.paymentId is not None else ""))
                 if match:
                     max_id = max(max_id, int(match.group(1)))
         payment["paymentId"] = f"PYMT-{max_id + 1}"
@@ -131,8 +131,12 @@ class PaymentRepository:
         payment["paymentEntries"] = entries
 
         # Update amount paid and remaining
-        payment["amountPaid"] = (payment.get("amountPaid", 0) or 0) + entry["amount"]
-        payment["amountRemaining"] = max(0, (payment.get("totalAmount", 0) or 0) - payment["amountPaid"])
+        if payment.get("amountPaid") is None:
+            raise ValueError("amountPaid is None")
+        payment["amountPaid"] = payment["amountPaid"] + entry["amount"]
+        if payment.get("totalAmount") is None:
+            raise ValueError("totalAmount is None")
+        payment["amountRemaining"] = max(0, payment["totalAmount"] - payment["amountPaid"])
 
         return await self.update(payment_id, payment)
 

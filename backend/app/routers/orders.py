@@ -1360,7 +1360,7 @@ async def create_order(
                 item.product,
                 order.id,
             )
-            new_stock = max(0, ((product.stock if product.stock is not None else 0) or 0) - (item.quantity if isinstance(item, dict) else item.quantity))
+            new_stock = max(0, product.stock - (item.quantity if isinstance(item, dict) else item.quantity)) if product.stock is not None else None
 
         # Fulfil the stock reservation for this user + product
         from app.repositories.stock_reservation_repository import stock_reservation_repository
@@ -1963,7 +1963,9 @@ async def update_order_status(
         if order.payment_method == "credit":
             user = await user_repository.findById(order.user)
             if user and user.credit_used:
-                new_credit_used = max(0, ((user.credit_used if user.credit_used is not None else 0) or 0) - ((order.total if order.total is not None else 0) or 0))
+                if user.credit_used is None or order.total is None:
+                    raise ValueError("Cannot calculate credit usage: credit_used or total is None")
+                new_credit_used = max(0, user.credit_used - order.total)
                 await user_repository.update(order.user, {"creditUsed": new_credit_used})
 
         # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
@@ -2132,7 +2134,9 @@ async def decline_order(
     if order.payment_method == "credit":
         user = await user_repository.findById(order.user)
         if user and user.credit_used:
-            new_credit_used = max(0, ((user.credit_used if user.credit_used is not None else 0) or 0) - ((order.total if order.total is not None else 0) or 0))
+            if user.credit_used is None or order.total is None:
+                raise ValueError("Cannot calculate credit usage: credit_used or total is None")
+            new_credit_used = max(0, user.credit_used - order.total)
             await user_repository.update(order.user, {"creditUsed": new_credit_used})
 
     # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
@@ -2346,7 +2350,9 @@ async def cancel_order(order_id: str, current_user: User = Depends(get_current_u
     if order.payment_method == "credit":
         user = await user_repository.findById(order.user)
         if user and user.credit_used:
-            new_credit_used = max(0, ((user.credit_used if user.credit_used is not None else 0) or 0) - ((order.total if order.total is not None else 0) or 0))
+            if user.credit_used is None or order.total is None:
+                raise ValueError("Cannot calculate credit usage: credit_used or total is None")
+            new_credit_used = max(0, user.credit_used - order.total)
             await user_repository.update(order.user, {"creditUsed": new_credit_used})
 
     # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
@@ -2760,7 +2766,9 @@ async def settle_credit(
     payment = payments[0]
 
     settle_amount = float(settle_data.amount)
-    remaining_amount = (payment.amount_remaining if payment.amount_remaining is not None else payment.total_amount - ((payment.amount_paid if payment.amount_paid is not None else 0) or 0))
+    if payment.amount_paid is None:
+        raise ValueError("Cannot calculate remaining amount: amount_paid is None")
+    remaining_amount = (payment.amount_remaining if payment.amount_remaining is not None else payment.total_amount - payment.amount_paid)
 
     if settle_amount > remaining_amount:
         raise HTTPException(status_code=400, detail=f"Amount cannot exceed remaining amount: ₹{remaining_amount:.2f}")
@@ -2772,7 +2780,9 @@ async def settle_credit(
     )
 
     # Update user credit
-    new_credit_used = max(0, ((user.credit_used if user.credit_used is not None else 0) or 0) - settle_amount)
+    if user.credit_used is None:
+        raise ValueError("Cannot calculate credit usage: credit_used is None")
+    new_credit_used = max(0, user.credit_used - settle_amount)
     await user_repository.update(current_user.id, {"creditUsed": new_credit_used})
 
     # Update payment record
