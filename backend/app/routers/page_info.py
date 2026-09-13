@@ -1,5 +1,5 @@
 from app.models.user import User
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.models.schemas import MessageResponse
 import json
 from pathlib import Path
@@ -10,11 +10,33 @@ from app.utils.auth import require_super_admin
 from app.utils.logger import logger
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
+
+
+class PageDetail(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    columns: Dict[str, Any] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PageInfoContainer(BaseModel):
+    pages: Dict[str, PageDetail] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PageInfoResponse(BaseModel):
-    id: str
-    title: str
-    content: str
+    id: Optional[str] = None
+    title: Optional[str] = None
+    content: Optional[str] = None
+    page: Optional[Dict[str, Any]] = None
+    columns: Optional[Dict[str, Any]] = None
+    pages: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(extra="allow")
+
 
 router = APIRouter()
 
@@ -29,16 +51,17 @@ async def get_page_info(page_id: str, current_user: User = Depends(require_super
             return {"page": None, "columns": {}}
 
         with open(page_info_path, "r", encoding="utf-8") as f:
-            page_info = json.load(f)
+            raw_data = json.load(f)
 
-        page_data = page_info.get("pages", {}).get(page_id)
+        container = PageInfoContainer.model_validate(raw_data)
+        page_data = container.pages[page_id] if page_id in container.pages else None
 
         if not page_data:
             return {"page": None, "columns": {}}
 
         return {
-            "page": {"title": page_data.get("title"), "description": page_data.get("description")},
-            "columns": page_data.get("columns", {}),
+            "page": {"title": page_data.title, "description": page_data.description},
+            "columns": page_data.columns,
         }
     except Exception as e:
         logger.error("get_page_info failed: %s", str(e), exc_info=True)

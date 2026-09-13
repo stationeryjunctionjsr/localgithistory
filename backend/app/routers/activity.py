@@ -1,6 +1,6 @@
 from app.models.user import User
 from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
+from app.models.schemas import MessageResponse, ActivityLogResponse, PromoteGuestResponse
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request

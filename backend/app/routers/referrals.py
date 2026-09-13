@@ -83,18 +83,22 @@ async def verify_referral_code(payload: ReferralVerifyRequest, current_user: Use
         raise HTTPException(status_code=400, detail="Invalid referral code")
 
     # Cannot refer self
-    if str(referrer.get("_id")) == str(current_user.id):
+    referrer_id = str(referrer.id)
+    if referrer_id == str(current_user.id):
         raise HTTPException(status_code=400, detail="You cannot use your own referral code")
 
     # Return details
     settings = await referral_repository.get_settings()
     retail_settings = (settings.retail or {})
 
+    referrer_name = referrer.name or "Another user"
+    
+
     return {
         "valid": True,
         "discountType": retail_settings.discount_type,
         "discountValue": retail_settings.discount_value,
-        "referrerName": referrer.get("name", "Another user"),
+        "referrerName": referrer_name,
     }
 
 

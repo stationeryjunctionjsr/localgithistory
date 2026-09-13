@@ -8,9 +8,9 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.schemas import PaginatedProductResponse, ProductCreate, ProductResponse, ProductUpdate
+from app.models.schemas import PaginatedProductResponse, ProductCreate, ProductResponse, ProductUpdate, UploadImagesResponse, UploadCSVResponse, SearchSuggestResponse
 from app.repositories.category_repository import category_repository
 from app.repositories.product_repository import product_repository
 from app.utils.auth import get_current_user, require_super_admin, get_optional_user
@@ -22,6 +22,55 @@ class BulkUpdateData(BaseModel):
     ids: List[str]
     isActive: Optional[bool] = None
     isExclusive: Optional[bool] = None
+
+
+class CSVProductRow(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    name: Optional[str] = None
+    category: Optional[str] = None
+    mrp: Optional[str] = None
+    mrpPerCase: Optional[str] = None
+    mrp_per_case: Optional[str] = None
+    quantityPerCase: Optional[str] = None
+    productId: Optional[str] = None
+    sku: Optional[str] = None
+    subCategory: Optional[str] = None
+    description: Optional[str] = None
+    brand: Optional[str] = None
+    collection: Optional[str] = None
+    isActive: Optional[str] = "true"
+    images: Optional[str] = None
+    videos: Optional[str] = None
+    stock: Optional[str] = "0"
+    row_number: Optional[int] = None
+
+
+class CSVProductPayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    name: str
+    productIdFormatted: Optional[str] = None
+    sku: Optional[str] = None
+    category: str
+    subCategory: Optional[str] = None
+    description: Optional[str] = None
+    brand: Optional[str] = None
+    collection: Optional[str] = None
+    mrp: float
+    mrpPerCase: Optional[float] = None
+    quantityPerCase: Optional[int] = None
+    stock: int = 0
+    isActive: bool = True
+    images: List[str] = Field(default_factory=list)
+    videos: List[str] = Field(default_factory=list)
+    variantAttributes: List[str] = Field(default_factory=list)
+    variants: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class ProductFacets(BaseModel):
+    brands: List[str] = Field(default_factory=list)
+    categories: List[str] = Field(default_factory=list)
+    subCategories: List[str] = Field(default_factory=list)
+    collections: List[str] = Field(default_factory=list)
 
 
 router = APIRouter()
@@ -72,9 +121,10 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
 
         # Group rows by product name
         grouped_products = {}
-        for idx, row in enumerate(csv_data):
+        for idx, r in enumerate(csv_data):
             row_num = idx + 2
-            name = (row.name or "").strip()
+            row_obj = CSVProductRow(**r, row_number=row_num)
+            name = (row_obj.name or "").strip()
 
             if not name:
                 errors.append({"row": row_num, "error": "Missing product name"})
@@ -83,14 +133,13 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
             if name not in grouped_products:
                 grouped_products[name] = []
 
-            row["_row_number"] = row_num
-            grouped_products[name].append(row)
+            grouped_products[name].append(row_obj)
 
         for name, rows in grouped_products.items():
             try:
                 # The first row defines the main product details
                 main_row = rows[0]
-                row_number = main_row["_row_number"]
+                row_number = main_row.row_number if main_row.row_number is not None else 0
 
                 if not main_row.category or not main_row.mrp:
                     errors.append(
@@ -103,43 +152,45 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                     continue
 
                 # Check if category exists, if not assign to "Others"
-                category_name = main_row.category.strip()
+                category_name = (main_row.category or "").strip()
                 existing_category = await category_repository.findByName(category_name)
                 if not existing_category:
                     category_name = "Others"
 
                 mrp_per_case = None
-                if main_row.mrp_per_case and str(main_row.get("mrpPerCase", "")).strip():
+                mrp_pc = main_row.mrp_per_case or main_row.mrpPerCase
+                if mrp_pc and str(mrp_pc).strip():
                     try:
-                        mrp_per_case = float(main_row.mrp_per_case)
+                        mrp_per_case = float(mrp_pc)
                     except (ValueError, TypeError) as e:
                         logger.warning("Invalid mrpPerCase in CSV row %s: %s", row_number, str(e))
                 qty_per_case = None
-                if main_row.get("quantityPerCase") and str(main_row.get("quantityPerCase", "")).strip():
+                qty_pc = main_row.quantity_per_case or main_row.quantityPerCase
+                if qty_pc and str(qty_pc).strip():
                     try:
-                        qty_per_case = int(float(main_row["quantityPerCase"]))
+                        qty_per_case = int(float(qty_pc))
                     except (ValueError, TypeError) as e:
                         logger.warning("Invalid quantityPerCase in CSV row %s: %s", row_number, str(e))
 
-                product_data = {
-                    "name": name,
-                    "productIdFormatted": main_row.get("productId", "").strip(),
-                    "sku": main_row.get("sku", "").strip(),
-                    "category": category_name,
-                    "subCategory": main_row.get("subCategory", "").strip(),
-                    "description": main_row.get("description", "").strip(),
-                    "brand": main_row.get("brand", "").strip(),
-                    "collection": main_row.get("collection", "").strip() or None,
-                    "mrp": float(main_row.mrp),  # MRP per unit (required)
-                    "mrpPerCase": mrp_per_case,
-                    "quantityPerCase": qty_per_case,
-                    "stock": 0,
-                    "isActive": main_row.get("isActive", "true").lower() in ["true", "1", "yes"],
-                    "images": [img.strip() for img in main_row.get("images", "").split(",") if img.strip()] if main_row.get("images") else [],
-                    "videos": [vid.strip() for vid in main_row.get("videos", "").split(",") if vid.strip()] if main_row.get("videos") else [],
-                    "variantAttributes": [],
-                    "variants": [],
-                }
+                product_data = CSVProductPayload(
+                    name=name,
+                    productIdFormatted=(main_row.productId or "").strip(),
+                    sku=(main_row.sku or "").strip(),
+                    category=category_name,
+                    subCategory=(main_row.subCategory or "").strip(),
+                    description=(main_row.description or "").strip(),
+                    brand=(main_row.brand or "").strip(),
+                    collection=(main_row.collection or "").strip() or None,
+                    mrp=float(main_row.mrp),  # MRP per unit (required)
+                    mrpPerCase=mrp_per_case,
+                    quantityPerCase=qty_per_case,
+                    stock=0,
+                    isActive=(main_row.isActive or "true").lower() in ["true", "1", "yes"],
+                    images=[img.strip() for img in (main_row.images or "").split(",") if img.strip()] if main_row.images else [],
+                    videos=[vid.strip() for vid in (main_row.videos or "").split(",") if vid.strip()] if main_row.videos else [],
+                    variantAttributes=[],
+                    variants=[],
+                )
 
                 variant_attributes = set()
                 variants_list = []
@@ -161,11 +212,12 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
 
                     attributes = {}
                     # dynamically look for Attribute X and Variant X columns
-                    for k, v in row.items():
+                    row_extra = row.model_extra or {}
+                    for k, v in row_extra.items():
                         if k and k.startswith("Attribute ") and v and str(v).strip():
                             num = k.replace("Attribute ", "")
                             val_key = f"Variant {num}"
-                            variant_val = row.get(val_key, "").strip()
+                            variant_val = str(row_extra[val_key] if val_key in row_extra else "").strip()
                             if variant_val:
                                 attr_name = str(v).strip()
                                 attributes[attr_name] = variant_val
@@ -189,29 +241,29 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
 
                 products_col = get_storage("products")
 
-                if getattr(product_data, "productIdFormatted", None):
+                if product_data.productIdFormatted:
                     existing = await products_col.findOne({"productIdFormatted": product_data.productIdFormatted})
-                elif getattr(product_data, "sku", None):
+                elif product_data.sku:
                     existing = await products_col.findOne({"sku": product_data.sku})
                 else:
                     # Also try matching by exact name to avoid duplicates if SKU isn't set either
                     existing = await products_col.findOne({"name": product_data.name})
 
                 if existing:
-                    await product_repository.update(existing.id, product_data)
-                    product_id_to_show = getattr(product_data, "productIdFormatted", product_data.name)
+                    await product_repository.update(existing.id, product_data.model_dump())
+                    product_id_to_show = (product_data.productIdFormatted if product_data.productIdFormatted is not None else product_data.name)
                     results.append({"product": product_id_to_show, "action": "updated"})
                 else:
-                    await product_repository.create(product_data)
+                    await product_repository.create(product_data.model_dump())
                     results.append({"product": product_data.name, "action": "created"})
             except (ValueError, TypeError, KeyError) as e:
                 errors.append(
-                    {"row": main_row.get("_row_number", "N/A"), "product": name, "error": f"Data error: {str(e)}"}
+                    {"row": main_row.row_number if main_row.row_number is not None else "N/A", "product": name, "error": f"Data error: {str(e)}"}
                 )
             except Exception as e:
                 logger.error("Unexpected error processing product %s in CSV: %s", name, str(e), exc_info=True)
                 errors.append(
-                    {"row": main_row.get("_row_number", "N/A"), "product": name, "error": f"Internal error: {str(e)}"}
+                    {"row": main_row.row_number if main_row.row_number is not None else "N/A", "product": name, "error": f"Internal error: {str(e)}"}
                 )
 
         _invalidate_product_caches()
@@ -294,7 +346,7 @@ async def export_csv(current_user: User = Depends(require_super_admin)):
                 combo_mrp = combo.price if combo.price is not None else mrp
                 combo_stock = combo.stock if combo.stock is not None else 0
 
-                combo_attrs = combo.get("attributes", {}) or {}
+                combo_attrs = combo.attributes or {}
                 attr_cols = [""] * 10
                 for attr_idx, (attr_key, attr_val) in enumerate(list(combo_attrs.items())[:5]):
                     attr_cols[attr_idx * 2] = attr_key
@@ -491,24 +543,26 @@ async def populate_product_discounts(
 
         # Find active quantity-based coupon if any
         qty_coupon = None
-        if default_coupon and default_coupon.get("minRequirementType") == "quantity_based":
+        default_min_req = default_coupon.minRequirementType
+        if default_coupon and default_min_req == "quantity_based":
             qty_coupon = default_coupon
         else:
             for oc in other_coupons:
-                if oc.get("minRequirementType") == "quantity_based":
+                oc_min_req = oc.minRequirementType
+                if oc_min_req == "quantity_based":
                     qty_coupon = oc
                     break
 
         if qty_coupon:
-            p.quantityTiers = qty_coupon.get("quantityTiers") or []
-            p.quantityItemType = qty_coupon.get("applicableItemType") or "units"
+            p.quantityTiers = qty_coupon.quantityTiers or []
+            p.quantityItemType = qty_coupon.applicableItemType or "units"
 
         app_discs = []
-        if default_coupon and default_coupon.get("minRequirementType") == "quantity_based":
+        if default_coupon and default_min_req == "quantity_based":
             app_discs.append(
                 {
-                    "type": default_coupon.get("typeOfDiscount"),
-                    "code": default_coupon.get("code"),
+                    "type": default_coupon.typeOfDiscount,
+                    "code": default_coupon.code,
                     "description": get_coupon_description(default_coupon),
                 }
             )
@@ -516,8 +570,8 @@ async def populate_product_discounts(
         for oc in other_coupons:
             app_discs.append(
                 {
-                    "type": oc.get("typeOfDiscount"),
-                    "code": oc.get("code"),
+                    "type": oc.typeOfDiscount,
+                    "code": oc.code,
                     "description": get_coupon_description(oc),
                 }
             )
@@ -643,20 +697,22 @@ async def get_public_products(
         if "variations" not in product or product.variations is None:
             product.variations = []
 
-        products_with_pricing.append(ProductResponse(**(product if hasattr(product, 'model_dump') else product)))
+        products_with_pricing.append(ProductResponse(**product.model_dump(by_alias=True)))
 
     # Tell browsers and CDNs to cache public product lists for 5 minutes
     # (matches the server-side TTL cache). stale-while-revalidate allows serving
     # stale content for up to 60s more while a fresh fetch happens in the background.
     response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=60"
 
+    f = ProductFacets(**facets) if isinstance(facets, dict) else (facets if isinstance(facets, ProductFacets) else ProductFacets())
+
     return {
         "products": products_with_pricing,
         "totalCount": total_count,
-        "brands": facets.get("brands", []),
-        "categories": facets.get("categories", []),
-        "subCategories": facets.get("subCategories", []),
-        "collections": facets.get("collections", []),
+        "brands": f.brands,
+        "categories": f.categories,
+        "subCategories": f.subCategories,
+        "collections": f.collections,
         "usedFuzzy": used_fuzzy,
         "suggestedQuery": suggested_query,
     }
@@ -688,7 +744,7 @@ async def get_public_product(product_id: str, role: str = "customer", response: 
         # 15-minute browser/CDN cache for individual product pages
         response.headers["Cache-Control"] = "public, max-age=900, stale-while-revalidate=60"
 
-    return ProductResponse(**(product if hasattr(product, 'model_dump') else product))
+    return ProductResponse(**product.model_dump(by_alias=True))
 
 
 @router.get("", response_model=PaginatedProductResponse)
@@ -799,15 +855,17 @@ async def get_products(
         if "variations" not in product or product.variations is None:
             product.variations = []
 
-        products_with_pricing.append(ProductResponse(**(product if hasattr(product, 'model_dump') else product)))
+        products_with_pricing.append(ProductResponse(**product.model_dump(by_alias=True)))
+
+    f = ProductFacets(**facets) if isinstance(facets, dict) else (facets if isinstance(facets, ProductFacets) else ProductFacets())
 
     return {
         "products": products_with_pricing,
         "totalCount": total_count,
-        "brands": facets.get("brands", []),
-        "categories": facets.get("categories", []),
-        "subCategories": facets.get("subCategories", []),
-        "collections": facets.get("collections", []),
+        "brands": f.brands,
+        "categories": f.categories,
+        "subCategories": f.subCategories,
+        "collections": f.collections,
         "usedFuzzy": used_fuzzy,
         "suggestedQuery": suggested_query,
     }
@@ -844,7 +902,7 @@ async def get_product(product_id: str, current_user: User = Depends(get_current_
     if "variations" not in product or product.variations is None:
         product.variations = []
 
-    return ProductResponse(**(product if hasattr(product, 'model_dump') else product))
+    return ProductResponse(**product.model_dump(by_alias=True))
 
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
@@ -864,7 +922,7 @@ async def create_product(product_data: ProductCreate, current_user: User = Depen
                 
         product = await product_repository.create(product_data)
         _invalidate_product_caches()
-        return ProductResponse(**(product if hasattr(product, 'model_dump') else product))
+        return ProductResponse(**product.model_dump(by_alias=True))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -878,7 +936,7 @@ async def update_product(
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
         _invalidate_product_caches()
-        return ProductResponse(**(product if hasattr(product, 'model_dump') else product))
+        return ProductResponse(**product.model_dump(by_alias=True))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -972,12 +1030,12 @@ async def remove_search_tag_from_product(
 @router.get("/{product_id}/search-tags", response_model=List[str])
 async def get_product_search_tags(product_id: str, current_user: User = Depends(require_super_admin)):
     """Get all resolved search tags for a specific product"""
-    product = await product_repository.findById(product_id)
-    if not product:
+    products_with_tags = await product_repository.find_with_resolved_search_tags({"_id": product_id})
+    if not products_with_tags:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    products_with_tags = await product_repository.resolve_search_tags([product])
-    resolved = products_with_tags[0].get("searchTags", [])
+    first_product = products_with_tags[0]
+    resolved = first_product.searchTags or []
 
     # Also return all available search tags for the add dropdown
     from app.repositories.search_tag_repository import search_tag_repository
@@ -986,7 +1044,7 @@ async def get_product_search_tags(product_id: str, current_user: User = Depends(
 
     return {
         "resolvedTags": resolved,
-        "allTags": [{"_id": t.id, "name": t.name, "type": getattr(t, "type", None)} for t in all_tags],
+        "allTags": [{"_id": t.id, "name": t.name, "type": t.type} for t in all_tags],
     }
 
 

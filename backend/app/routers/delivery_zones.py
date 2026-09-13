@@ -1,6 +1,6 @@
 from app.models.user import User
 from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
+from app.models.schemas import MessageResponse, DeliveryZoneResponse
 """
 Delivery Zones router.
 
@@ -68,11 +68,12 @@ async def _check_pincode_conflicts(
     storage = get_storage("deliveryZones")
     all_zones = await storage.findAll({})
     taken: Dict[str, str] = {}
-    for z in all_zones:
-        if exclude_zone_id and str(z["_id"]) == str(exclude_zone_id):
+    for raw_z in all_zones:
+        z = raw_z if isinstance(raw_z, DeliveryZoneResponse) else DeliveryZoneResponse.model_validate(raw_z)
+        if exclude_zone_id and str(z.id) == str(exclude_zone_id):
             continue
-        for pc in z.get("pincodes") or []:
-            taken[pc] = z.get("name", str(z["_id"]))
+        for pc in (z.pincodes or []):
+            taken[pc] = z.name if z.name is not None else str(z.id)
     return [pc for pc in pincodes if pc in taken]
 
 
@@ -183,7 +184,7 @@ async def update_zone(
                 detail=f"These pincodes are already assigned to another zone: {', '.join(conflicts)}",
             )
 
-    update_data = {k: v for k, v in zone.items() if v is not None}
+    update_data = {k: v for k, v in zone.model_dump().items() if v is not None}
     updated = await storage.update(zone_id, update_data)
     if not updated:
         raise HTTPException(status_code=404, detail="Zone not found")

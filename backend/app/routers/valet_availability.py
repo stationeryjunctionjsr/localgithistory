@@ -18,13 +18,12 @@ from datetime import timedelta
 from typing import Dict, Any, List, Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ValidationInfo, field_validator
+from pydantic import BaseModel, ValidationInfo, field_validator, model_validator, Field
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_current_user, require_super_admin_or_seller
 
 
-from pydantic import BaseModel, Field
 class ValetAvailabilityResponse(BaseModel):
     id: str = Field(alias="_id")
     userId: str
@@ -54,15 +53,13 @@ class ValetAvailabilityCreate(BaseModel):
             raise ValueError("availabilityType must be 'full_day' or 'custom'")
         return v
 
-    @field_validator("slots")
-    @classmethod
-    def validate_slots(cls, v, info: ValidationInfo):
-        availability_type = info.data.get("availabilityType")
-        if availability_type == "full_day" and v:
+    @model_validator(mode="after")
+    def validate_slots(self):
+        if self.availabilityType == "full_day" and self.slots:
             raise ValueError("slots must be empty when availabilityType is 'full_day'")
-        if availability_type == "custom" and not v:
+        if self.availabilityType == "custom" and not self.slots:
             raise ValueError("slots must not be empty when availabilityType is 'custom'")
-        return v or []
+        return self
 
 
 # ─── Helper ───────────────────────────────────────────────────────────────────
@@ -105,10 +102,10 @@ async def mark_availability(
         slot_cfg_storage = get_storage("deliverySlots")
         slot_configs = await slot_cfg_storage.findAll({"date": data.date, "isActive": True})
         all_valid_slot_ids = {
-            slot["id"]
+            slot.id
             for config in slot_configs
-            for slot in config.get("slots", [])
-            if (slot.is_active if slot.is_active is not None else True) and slot.id
+            for slot in (config.slots or [])
+            if slot.is_active and slot.id
         }
         invalid_slots = [s for s in data.slots if s not in all_valid_slot_ids]
         if invalid_slots:
@@ -149,7 +146,7 @@ async def mark_availability(
         return updated
     else:
         created = await storage.create(payload)
-        return created if hasattr(created, "model_dump") else created
+        return created
 
 
 @router.get("/my", response_model=ValetAvailabilityResponse)
@@ -165,7 +162,7 @@ async def get_my_availability(
     valet_id = str(current_user.id)
     all_docs = await storage.findAll({"valetId": valet_id})
 
-    return [(doc if hasattr(doc, "model_dump") else doc) for doc in all_docs if (doc.date.strftime("%Y-%m-%d") if hasattr(doc.date, "strftime") else str(doc.date)[:10]) in upcoming_dates]
+    return [(doc) for doc in all_docs if (doc.date.strftime("%Y-%m-%d")) in upcoming_dates]
 
 
 @router.get("", response_model=ValetAvailabilityResponse)
@@ -199,7 +196,8 @@ async def get_all_availability(
     seller_zones = set()
     if is_seller and current_user.role != "super_admin":
         # Use serviceableZoneIds directly — sellers now declare zones, not pincodes
-        zone_ids = (current_user.seller_permissions or {}).get("serviceableZoneIds") or []
+        perms = current_user.seller_permissions
+        zone_ids = (perms.serviceableZoneIds or perms.serviceable_zone_ids or [])
         seller_zones = set(zone_ids)
 
     enriched = []
@@ -224,8 +222,8 @@ async def get_all_availability(
         )
 
     # Sort by date ascending
-    enriched.sort(key=lambda d: d.get("date", ""))
-    return [(e if hasattr(e, "model_dump") else e) for e in enriched] if enriched and hasattr(enriched[0], "model_dump") else enriched
+    enriched.sort(key=lambda d: d.date if not isinstance(d, dict) else (d["date"] if "date" in d and d["date"] is not None else ""))
+    return enriched
 
 
 @router.delete("/{doc_id}", response_model=MessageResponse)

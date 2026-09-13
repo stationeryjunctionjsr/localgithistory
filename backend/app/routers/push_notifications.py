@@ -1,6 +1,6 @@
 from app.models.user import User
 from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
+from app.models.schemas import MessageResponse, PushNotificationResponse, PushAnalyticsResponse, VapidKeyResponse, PushSubscription
 from pathlib import Path
 from typing import Optional
 
@@ -214,19 +214,25 @@ async def get_notification_inbox():
     try:
         notifications = await push_notification_repository.findAll({"status": "published"})
         # Return only the fields needed by the mobile inbox — omit internal delivery details
-        inbox = [
-            {
-                "_id": n.get("_id"),
-                "title": n.get("title", ""),
-                "message": n.get("message", ""),
-                "image": n.get("image"),
-                "link": n.get("link"),
-                "createdAt": n.get("createdAt"),
-            }
-            for n in notifications
-        ]
+        inbox = []
+        for n in notifications:
+            nid = str(n.id) if n.id else None
+            title = n.title or ""
+            msg = n.message or ""
+            image = n.image
+            link = n.link
+            created = n.created_at
+
+            inbox.append({
+                "_id": nid,
+                "title": title,
+                "message": msg,
+                "image": image,
+                "link": link,
+                "createdAt": created,
+            })
         # Newest first
-        inbox.sort(key=lambda n: n.get("createdAt") or "", reverse=True)
+        inbox.sort(key=lambda item: item["createdAt"] or "", reverse=True)
         return inbox
     except Exception as e:
         logger.error("Failed to fetch notification inbox: %s", str(e), exc_info=True)
@@ -254,7 +260,7 @@ class VapidKeyResponse(BaseModel):
 
 class DeviceRegistrationRequest(BaseModel):
     userId: Optional[str] = None
-    subscription: Optional[dict] = None
+    subscription: Optional[PushSubscription] = None
     expoToken: Optional[str] = None
 
 
@@ -300,7 +306,13 @@ async def register_device(
     """Register device for push notifications (public endpoint, optional auth)"""
     try:
         # Must have at least one identifier
-        has_web_subscription = request.subscription and request.subscription.get("endpoint")
+        has_web_subscription = bool(
+            request.subscription and (
+                request.subscription.endpoint if request.subscription.endpoint else (
+                    request.subscription["endpoint"] if isinstance(request.subscription, dict) and "endpoint" in request.subscription else None
+                )
+            )
+        )
         has_expo_token = bool(request.expoToken)
 
         if not has_web_subscription and not has_expo_token:
@@ -318,8 +330,9 @@ async def register_device(
                 # Not authenticated or invalid token — continue as guest
                 logger.warning("Optional device registration auth token verification failed: %s", str(e))
 
+        sub_payload = request.subscription.model_dump() if has_web_subscription else None
         await push_notification_repository.registerDevice(
-            userId, request.subscription if has_web_subscription else None, expoToken=request.expoToken
+            userId, sub_payload, expoToken=request.expoToken
         )
         return {"message": "Device registered successfully"}
     except HTTPException:

@@ -174,9 +174,9 @@ async def update_privacy(data: PrivacyPolicyUpdate, user: User = Depends(require
     result = await privacy_repository.upsert(data)
 
     # Fire-and-forget background task to email all users
-    last_updated = data.lastUpdated or result.get("lastUpdated", "")
-    version = result.get("version", 1)
-    asyncio.create_task(_notify_all_users_of_privacy_update(last_updated, version))
+    last_updated = data.lastUpdated or result.last_updated
+    version = result.version or "1"
+    asyncio.create_task(_notify_all_users_of_privacy_update(last_updated, str(version)))
 
     return result
 

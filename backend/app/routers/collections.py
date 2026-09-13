@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from app.models.schemas import ProductResponse, MessageResponse, CollectionResponse, CollectionResponse, CollectionUpdate
+from app.models.schemas import ProductResponse, MessageResponse, CollectionCreate, CollectionResponse, CollectionUpdate
 from app.repositories.collection_repository import collection_repository
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache

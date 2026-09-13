@@ -130,7 +130,7 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
         bundle.display_image
         or bundle.image_url
         or next(
-            (item.product.images[0] for item in enriched_items if item.product and item.getattr(product, "images", None)),
+            (item.product.images[0] for item in enriched_items if item.product and item.product.images),
             None,
         )
     )

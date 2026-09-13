@@ -1,4 +1,5 @@
 from app.models.user import User
+from app.models.category import Category
 from app.models.schemas import MessageResponse
 from typing import List, Dict, Any
 from typing import List, Optional
@@ -255,7 +256,7 @@ async def get_category(category_id: str, current_user: User = Depends(require_su
         if not category:
             raise HTTPException(status_code=404, detail="Category not found")
         category.gst = (category.gst if category.gst is not None else 0)
-        return category if hasattr(category, "model_dump") else category
+        return category
     except HTTPException:
         raise
     except Exception as e:
@@ -366,7 +367,7 @@ async def update_category(
 
         updated_category = await category_repository.update(category_id, update_data)
         _invalidate_category_caches()
-        return updated if hasattr(updated, "model_dump") else updated_category
+        return updated
     except HTTPException:
         raise
     except Exception as e:

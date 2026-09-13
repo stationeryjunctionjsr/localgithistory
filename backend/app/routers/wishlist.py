@@ -40,13 +40,13 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
     """Get user's wishlist"""
     try:
         wishlist = await wishlist_repository.findByUser(current_user.id)
-        if not wishlist or not getattr(wishlist, "items", None):
+        if not wishlist or not wishlist.items:
             return {"items": [], "itemCount": 0}
 
         role_for_pricing = get_role_for_pricing(current_user)
         populated_items = []
 
-        raw_items = getattr(wishlist, "items", [])
+        raw_items = (wishlist.items if wishlist.items is not None else [])
         norm_items = []
         for it in raw_items:
             if isinstance(it, dict):
@@ -108,7 +108,7 @@ async def add_to_wishlist(item: WishlistItemRequest, current_user: User = Depend
         from app.repositories.tracking_repository import tracking_repository
 
         await tracking_repository.trackWishlistAdd(
-            current_user.id, item.productId, getattr(item, "sessionId", None)
+            current_user.id, item.productId, item.sessionId
         )
 
         return {"message": "Added to wishlist"}

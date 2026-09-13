@@ -1,11 +1,11 @@
 from app.models.user import User
 from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
+from app.models.schemas import MessageResponse, AvailabilityRequestResponse, AvailabilityRequestListResponse
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_optional_user, require_super_admin
@@ -14,6 +14,25 @@ from app.utils.logger import logger
 router = APIRouter()
 
 _storage = get_storage("availabilityRequests")
+
+
+class PushNotificationResult(BaseModel):
+    deliveredCount: int = Field(default=0, alias="delivered_count")
+    totalDevices: int = Field(default=0, alias="total_devices")
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+
+class TrackingNotifyEvent(BaseModel):
+    id: Optional[str] = Field(default=None, alias="_id")
+    type: Optional[str] = None
+    productId: Optional[str] = None
+    pincode: Optional[str] = None
+    notified: bool = False
+    userId: Optional[str] = None
+    email: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class AvailabilityRequestCreate(BaseModel):
@@ -126,7 +145,8 @@ async def fulfill_availability_request(
             from app.services.push_notification_service import push_notification_service
 
             result = await push_notification_service.send_to_user(user_id, notification_payload)
-            push_delivered = result.get("deliveredCount", 0)
+            push_res = PushNotificationResult.model_validate(result)
+            push_delivered = push_res.deliveredCount
         except Exception as e:
             logger.warning("Could not send push notification for availability request %s: %s", request_id, e)
 
@@ -139,30 +159,37 @@ async def fulfill_availability_request(
 
             tracking_storage = _gs("tracking")
             all_events = await tracking_storage.findAll({})
+            parsed_events: List[TrackingNotifyEvent] = [
+                e if isinstance(e, TrackingNotifyEvent) else TrackingNotifyEvent.model_validate(e)
+                for e in all_events
+            ]
             notify_events = [
                 e
-                for e in all_events
-                if e.get("type") == "notify_pincode"
-                and str(e.get("productId")) == str(product_id)
-                and str(e.get("pincode")) == str(pincode)
-                and not e.get("notified")
+                for e in parsed_events
+                if e.type == "notify_pincode"
+                and str(e.productId) == str(product_id)
+                and str(e.pincode) == str(pincode)
+                and not e.notified
             ]
             for event in notify_events:
-                ev_user_id = event.get("userId")
-                ev_email = event.get("email")
+                ev_user_id = event.userId
+                ev_email = event.email
                 if ev_user_id and ev_user_id != user_id:
                     try:
                         from app.services.push_notification_service import push_notification_service
 
                         r = await push_notification_service.send_to_user(ev_user_id, notification_payload)
-                        notify_push += (r.delivered_count if r.delivered_count is not None else 0)
+                        r_res = PushNotificationResult.model_validate(r)
+                        notify_push += (r_res.deliveredCount if r_res.deliveredCount is not None else 0)
                     except Exception:
                         pass
                 if ev_email:
                     notify_email_list.append(ev_email)
                 # Mark as notified
                 try:
-                    await tracking_storage.update(str(event["_id"]), {"notified": True})
+                    ev_id = str(event.id if event.id is not None else "")
+                    if ev_id:
+                        await tracking_storage.update(ev_id, {"notified": True})
                 except Exception:
                     pass
         except Exception as e:

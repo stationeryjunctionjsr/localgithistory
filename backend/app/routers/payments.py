@@ -1,7 +1,8 @@
 from app.models.user import User
 from app.models.schemas import MessageResponse
+from app.models.payment import Payment, PaymentEntry
 from typing import List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class DuesResponse(BaseModel):
     dues: List[Dict[str, Any]]
@@ -53,8 +54,12 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
         # Check if it is a credit payment
         if p.payment_method == "credit":
             # Calculate verified amount paid
+            entries: List[PaymentEntry] = [
+                entry if isinstance(entry, PaymentEntry) else PaymentEntry.model_validate(entry)
+                for entry in (p.payment_entries or [])
+            ]
             verified_paid = sum(
-                entry.get("amount", 0.0) for entry in (p.payment_entries or []) if entry.get("verified")
+                (entry.amount or 0.0) for entry in entries if entry.verified
             )
             # Calculate effective remaining due amount
             effective_due = (p.total_amount if p.total_amount is not None else 0.0) - verified_paid
@@ -318,7 +323,12 @@ async def submit_credit_settlement(
         try:
             super_admin = await user_repository.findOne({"role": "super_admin"})
             if super_admin:
-                payment_id = updated_payment.get("paymentId") or updated_payment.get("_id")
+                p_model = (
+                    updated_payment
+                    if isinstance(updated_payment, Payment)
+                    else Payment.model_validate(updated_payment)
+                )
+                payment_id = p_model.payment_id or p_model.id
                 await notification_repository.create(
                     {
                         "userId": super_admin.id,
@@ -326,9 +336,9 @@ async def submit_credit_settlement(
                         "title": "New Payment Received",
                         "message": f'New payment "{payment_id}" worth ₹{settlement_data.amount:.2f} received',
                         "data": {
-                            "paymentId": updated_payment.get("_id"),
+                            "paymentId": p_model.id,
                             "paymentIdFormatted": payment_id,
-                            "orderId": updated_payment.get("orderId"),
+                            "orderId": p_model.order_id,
                             "amount": settlement_data.amount,
                             "paymentMethod": "upi",
                             "createdAt": datetime.now(timezone.utc).isoformat() + "Z",

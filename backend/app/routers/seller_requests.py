@@ -1,10 +1,10 @@
 from app.models.user import User
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 
-from app.models.schemas import SellerRequestCreate, SellerRequestResponseCreate
+from app.models.schemas import SellerRequestCreate, SellerRequestResponseCreate, SellerRequestResponse
 from app.repositories.seller_request_repository import seller_request_repository
 from app.repositories.user_repository import user_repository
 from app.utils.auth import get_current_user, require_super_admin
@@ -16,22 +16,47 @@ class StatusUpdate(BaseModel):
     status: str
 
 
+class SellerRequestResponseItem(BaseModel):
+    user: Optional[Any] = None
+    message: Optional[str] = None
+    attachments: Optional[List[str]] = None
+    isAdminResponse: Optional[bool] = None
+    createdAt: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 async def populate_request(request):
     """Populate request with user data"""
-    user = await user_repository.findById(getattr(request, "user", None))
+    user = await user_repository.findById(request.user)
 
     # Populate response users
     populated_responses = []
-    for response in getattr(request, "responses", []):
-        response_user = await user_repository.findById(response.get("user"))
+    for response in (request.responses if request.responses is not None else []):
+        resp_model = (
+            response
+            if isinstance(response, SellerRequestResponseItem)
+            else SellerRequestResponseItem.model_validate(response)
+        )
+        user_val = resp_model.user
+        user_id_str = (
+            user_val
+            if isinstance(user_val, str)
+            else (
+                user_val.id
+                )
+            )
+        
+        response_user = await user_repository.findById(user_id_str) if user_id_str else None
+        resp_dict = response if isinstance(response, dict) else resp_model.model_dump()
         populated_responses.append(
             {
-                **response,
+                **resp_dict,
                 "user": {
-                    "_id": response_getattr(user, "id", None),
-                    "name": response_getattr(user, "name", None),
-                    "email": response_getattr(user, "email", None),
-                    "role": response_getattr(user, "role", None),
+                    "_id": response_user.id,
+                    "name": response_user.name,
+                    "email": response_user.email,
+                    "role": response_user.role,
                 }
                 if response_user
                 else None,
@@ -78,7 +103,7 @@ async def get_seller_request(request_id: str, current_user: User = Depends(get_c
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if current_user.role != "super_admin" and getattr(request, "user", None) != current_user.id:
+    if current_user.role != "super_admin" and request.user != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     populated_request = await populate_request(request)
@@ -127,7 +152,7 @@ async def add_request_response(
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    if current_user.role != "super_admin" and getattr(request, "user", None) != current_user.id:
+    if current_user.role != "super_admin" and request.user != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     is_admin_response = current_user.role == "super_admin"

@@ -1,6 +1,6 @@
 from app.models.user import User
 from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
+from app.models.schemas import MessageResponse, UPIDetailsResponse, UploadQRResponse
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status

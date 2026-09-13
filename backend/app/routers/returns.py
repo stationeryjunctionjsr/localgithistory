@@ -1,4 +1,5 @@
 from app.models.user import User
+from collections import defaultdict
 from typing import Dict, Any, List
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
@@ -6,7 +7,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from app.services.email_service import email_service
 
-from app.models.schemas import ReturnRequestCreate, ReturnRequestResponse, ReturnRequestStatus, ReturnRequestUpdate
+from app.models.schemas import ReturnRequestCreate, ReturnRequestResponse, ReturnRequestStatus, ReturnRequestUpdate, ReturnEligibilityResponse, ReturnEligibilityItem
 from app.repositories.category_repository import category_repository
 from app.repositories.delivery_charge_repository import delivery_charge_repository
 from app.repositories.order_repository import order_repository
@@ -21,13 +22,13 @@ router = APIRouter()
 
 
 async def populate_return_request(request: Dict) -> Dict:
-    user = await user_repository.findById(getattr(request, "userId", None))
+    user = await user_repository.findById(request.userId)
     valet = None
-    if getattr(request, "valetId", None):
-        valet = await user_repository.findById(getattr(request, "valetId", None))
+    if request.valetId:
+        valet = await user_repository.findById(request.valetId)
 
     populated_items = []
-    for item in getattr(request, "items", []):
+    for item in (request.items if request.items is not None else []):
         product = await product_repository.findById(item.product_id)
         populated_items.append(
             {**item, "product": product if product else {"_id": item.product_id, "name": "Product not found"}}
@@ -119,17 +120,21 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
 
     # Check for existing pending/approved returns for this order to avoid duplicates on same items
     existing_returns = await return_request_repository.findByOrderId(order_id)
-    returned_items_qty = {}  # map of productId to quantity already returned/requested
+    returned_items_qty = defaultdict(int)  # map of productId to quantity already returned/requested
     for req in existing_returns:
-        if req.status in [
+        req_status = req.status
+        if req_status in [
             ReturnRequestStatus.PENDING,
             ReturnRequestStatus.ASSIGNED,
             ReturnRequestStatus.COLLECTED,
             ReturnRequestStatus.RETURNED,
         ]:
-            for item in (req.items or []):
+            items_list = req.items or []
+            for item in (items_list or []):
                 pid = item.product_id
-                returned_items_qty[pid] = returned_items_qty.get(pid, 0) + (item.quantity if item.quantity is not None else 0)
+                qty = item.quantity if item.quantity is not None else 0
+                if pid:
+                    returned_items_qty[pid] += qty
 
     # Check which items are from returnable categories
     eligible_items = []
@@ -145,7 +150,7 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
         is_returnable = category and (category.is_returnable if category.is_returnable is not None else False)
 
         ordered_qty = (item.quantity if item.quantity is not None else 0)
-        returned_qty = returned_items_qty.get(pid, 0)
+        returned_qty = returned_items_qty[pid]
         available_qty = max(0, ordered_qty - returned_qty)
 
         if is_returnable and available_qty > 0:
@@ -162,18 +167,22 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
     # Calculate return delivery charge (reusing order delivery logic if possible, or computing a return charge)
     # For now, we fetch base delivery charge for customer's pincode
     delivery_charge = 0
-    shipping_address = (order.shipping_address or {})
+    shipping_address = order.shipping_address
     if shipping_address:
+        addr_state = shipping_address.state or ""
+        addr_city = shipping_address.city or ""
+        addr_district = shipping_address.district or ""
+        addr_zip = shipping_address.pincode or ""
         charge_data = await delivery_charge_repository.getChargeForLocation(
-            shipping_address.get("state", ""),
-            shipping_address.get("city", ""),
-            shipping_address.get("district", ""),
-            shipping_address.get("zipCode", ""),
+            addr_state,
+            addr_city,
+            addr_district,
+            addr_zip,
             "customer",
             0,  # total before shipping = 0 for return
         )
         if charge_data:
-            delivery_charge = float(charge_data.get("charge", 0))
+            delivery_charge = float(charge_data.charge or 0)
 
     return {
         "eligibleItems": eligible_items,
@@ -190,10 +199,15 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
 
     eligibility = await check_return_eligibility(request_data.orderId, current_user)
 
-    if eligibility.get("reason"):
-        raise HTTPException(status_code=400, detail=eligibility["reason"])
+    eligibility_reason = eligibility.reason
+    if eligibility_reason:
+        raise HTTPException(status_code=400, detail=eligibility_reason)
 
-    eligible_items_map = {item.productId: item.maxQuantity for item in eligibility["eligibleItems"]}
+    eligible_items_list = eligibility.eligibleItems
+    eligible_items_map = {
+        item.productId: item.maxQuantity
+        for item in (eligible_items_list or [])
+    }
 
     if not request_data.items:
         raise HTTPException(status_code=400, detail="No items specified for return")
@@ -215,6 +229,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
             request_data.upiPaymentScreenshot, "returns", filename_prefix="return-screenshot"
         )
 
+    delivery_charge_val = eligibility.returnDeliveryCharge or 0
     created = await return_request_repository.create(
         {
             "orderId": request_data.orderId,
@@ -224,7 +239,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
             "upiPaymentScreenshot": screenshot_path,
             "notes": request_data.notes,
             "status": ReturnRequestStatus.PENDING.value,
-            "deliveryCharge": eligibility.get("returnDeliveryCharge", 0),
+            "deliveryCharge": delivery_charge_val,
         }
     )
 
@@ -234,6 +249,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
 
         super_admin = await user_repository.findOne({"role": "super_admin"})
         if super_admin:
+            created_ret_id = str(created.id)
             await notification_repository.create(
                 {
                     "userId": super_admin.id,
@@ -241,7 +257,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
                     "title": "New Return Request",
                     "message": f"New return request for order {request_data.orderId}",
                     "data": {
-                        "returnId": created.get("_id"),
+                        "returnId": created_ret_id,
                         "orderId": request_data.orderId,
                     },
                 }
@@ -299,7 +315,7 @@ async def assign_valet(
         raise HTTPException(status_code=404, detail="Return request not found")
 
     v_user = await user_repository.findById(valet_data.valetId)
-    if not v_user or v_getattr(user, "role", None) != "valet":
+    if not v_user or v_user.role != "valet":
         raise HTTPException(status_code=400, detail="Valid Valet ID is required")
 
     updated = await return_request_repository.update(
@@ -363,7 +379,8 @@ async def complete_return(
             )
 
     populated_req = await populate_return_request(updated)
-    email = populated_req.get("user", {}).get("email") if populated_req.get("user") else None
+    user_info = populated_req.user
+    email = (user_info.email) if user_info else None
     if email:
         background_tasks.add_task(email_service.send_order_returned_email, email, populated_req)
 
@@ -424,10 +441,12 @@ async def valet_return_response(
     if current_user.role != "super_admin":
         if current_user.role != "valet":
             raise HTTPException(status_code=403, detail="Access denied")
-        if str(ret.get("pendingValetId", "")) != str(current_user.id):
+        pending_valet = ret.pendingValetId or ""
+        if str(pending_valet or "") != str(current_user.id):
             raise HTTPException(status_code=403, detail="Return is not assigned to you")
             
-    if ret.get("status") != "pending_valet":
+    current_status = ret.status
+    if current_status != "pending_valet":
         raise HTTPException(status_code=400, detail="Return is not pending valet acceptance")
         
     from datetime import datetime, timezone
@@ -443,9 +462,10 @@ async def valet_return_response(
         return await populate_return_request(updated_ret)
     else:
         # Declined -> Cascade
-        history = list(ret.get("valetDeclineHistory") or [])
+        raw_history = ret.valetDeclineHistory
+        history = list(raw_history or [])
         valet_id_str = str(current_user.id)
-        if not any(isinstance(d, dict) and d.get("valetId") == valet_id_str for d in history):
+        if not any(isinstance(d, dict) and (d["valetId"] == valet_id_str if "valetId" in d else False) for d in history):
             history.append({"valetId": valet_id_str, "reason": response_data.declineReason})
             
         await return_request_repository.update(return_id, {

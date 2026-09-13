@@ -1,10 +1,10 @@
 from app.models.user import User
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 
-from app.models.schemas import SupportTicketCreate, TicketResponseCreate
+from app.models.schemas import SupportTicketCreate, TicketResponseCreate, SupportTicketResponse
 from app.repositories.support_ticket_repository import support_ticket_repository
 from app.repositories.user_repository import user_repository
 from app.utils.auth import get_current_user, get_optional_user, require_super_admin
@@ -21,6 +21,15 @@ class PriorityUpdate(BaseModel):
     priority: str
 
 
+class TicketResponseItem(BaseModel):
+    user: Optional[Any] = None
+    message: Optional[str] = None
+    attachments: Optional[List[str]] = None
+    createdAt: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 async def populate_ticket(ticket):
     """Populate ticket with user data"""
     user = await user_repository.findById(ticket.user)
@@ -31,20 +40,43 @@ async def populate_ticket(ticket):
     # Populate response users
     populated_responses = []
     for response in (ticket.responses or []):
-        response_user = await user_repository.findById(response.get("user"))
+        resp_model = (
+            response
+            if isinstance(response, TicketResponseItem)
+            else TicketResponseItem.model_validate(response)
+        )
+        user_val = resp_model.user
+        user_id_str = (
+            user_val
+            if isinstance(user_val, str)
+            else (
+                user_val.id
+                )
+            )
+        
+        response_user = await user_repository.findById(user_id_str) if user_id_str else None
+        resp_dict = response if isinstance(response, dict) else resp_model.model_dump()
         populated_responses.append(
             {
-                **response,
+                **resp_dict,
                 "user": {
-                    "_id": response_getattr(user, "id", None),
-                    "name": response_getattr(user, "name", None),
-                    "email": response_getattr(user, "email", None),
-                    "role": response_getattr(user, "role", None),
+                    "_id": response_user.id,
+                    "name": response_user.name,
+                    "email": response_user.email,
+                    "role": response_user.role,
                 }
                 if response_user
                 else None,
             }
         )
+
+    assigned_to_dict = None
+    if assigned_to:
+        assigned_to_dict = {
+            "_id": assigned_to.id,
+            "name": assigned_to.name,
+            "email": assigned_to.email,
+        }
 
     return {
         **ticket,
@@ -54,13 +86,7 @@ async def populate_ticket(ticket):
             "email": user.email if user else ticket.email,
             "role": user.role if user else "guest",
         },
-        "assignedTo": {
-            "_id": assigned_to.get("_id"),
-            "name": assigned_to.get("name"),
-            "email": assigned_to.get("email"),
-        }
-        if assigned_to
-        else None,
+        "assignedTo": assigned_to_dict,
         "responses": populated_responses,
     }
 

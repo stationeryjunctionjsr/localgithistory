@@ -89,7 +89,7 @@ async def get_coupon(coupon_id: str, current_user: User = Depends(require_super_
     coupon = await coupon_repository.findById(coupon_id)
     if not coupon:
         raise HTTPException(status_code=404, detail="Coupon not found")
-    return CouponResponse(**(coupon if hasattr(coupon, 'model_dump') else coupon))
+    return CouponResponse(**coupon.model_dump(by_alias=True))
 
 
 @router.post("", response_model=CouponResponse, status_code=status.HTTP_201_CREATED)
@@ -105,7 +105,7 @@ async def create_coupon(
         payload.resolution = resolution
         payload.force = force
         coupon = await coupon_repository.create(payload)
-        return CouponResponse(**(coupon if hasattr(coupon, 'model_dump') else coupon))
+        return CouponResponse(**coupon.model_dump(by_alias=True))
     except ValueError as e:
         from app.repositories.coupon_repository import OverlapConflictError
 
@@ -131,7 +131,7 @@ async def update_coupon(
         coupon = await coupon_repository.update(coupon_id, data)
         if not coupon:
             raise HTTPException(status_code=404, detail="Coupon not found")
-        return CouponResponse(**(coupon if hasattr(coupon, 'model_dump') else coupon))
+        return CouponResponse(**coupon.model_dump(by_alias=True))
     except ValueError as e:
         from app.repositories.coupon_repository import OverlapConflictError
 

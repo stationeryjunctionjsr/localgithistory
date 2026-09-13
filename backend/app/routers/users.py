@@ -37,13 +37,13 @@ async def get_users(
         start = (page - 1) * limit
 
         users = await user_repository.findAll(query, skip=start, limit=limit)
-        total = await user_repository.count(query) if hasattr(user_repository, "count") else len(users)
+        total = await user_repository.count(query)
 
         # Remove passwords
         users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
 
         return {
-            "users": [UserResponse(**(user if hasattr(user, 'model_dump') else user)) for user in users_without_passwords],
+            "users": [UserResponse(**user.model_dump(by_alias=True)) for user in users_without_passwords],
             "total": total,
             "page": page,
             "limit": limit
@@ -52,14 +52,14 @@ async def get_users(
     # No pagination -- return all (backwards compatible), capped at 1000 rows to protect memory
     users = await user_repository.findAll(query, limit=1000)
     users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
-    return [UserResponse(**(user if hasattr(user, 'model_dump') else user)) for user in users_without_passwords]
+    return [UserResponse(**user.model_dump(by_alias=True)) for user in users_without_passwords]
 
 
 @router.get("/pending-approvals", response_model=List[UserResponse])
 async def get_pending_approvals(current_user: User = Depends(require_super_admin)):
     users = await user_repository.findAll({"approvalStatus": "pending"})
     users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
-    return [UserResponse(**(user if hasattr(user, 'model_dump') else user)) for user in users_without_passwords]
+    return [UserResponse(**user.model_dump(by_alias=True)) for user in users_without_passwords]
 
 
 @router.get("/me", response_model=UserResponse)
@@ -74,7 +74,7 @@ async def get_my_profile(current_user: User = Depends(get_current_user)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return UserResponse(**(user if hasattr(user, 'model_dump') else user))
+    return UserResponse(**user.model_dump(by_alias=True))
 
 
 class UserPreferencesUpdate(BaseModel):
@@ -119,7 +119,7 @@ async def deactivate_own_account(current_user: User = Depends(get_current_user))
         update_data.isDeactivated = True
 
     updated_user = await user_repository.update(user_id, update_data)
-    return UserResponse(**(updated_user if hasattr(updated_user, 'model_dump') else updated_user))
+    return UserResponse(**updated_user.model_dump(by_alias=True))
 
 
 class DutyStatusRequest(BaseModel):
@@ -161,16 +161,16 @@ async def get_available_valets(
     avail_store = get_storage("valetAvailability")
     today_avails = await avail_store.findAll({"date": today})
     
-    avail_map = {str(getattr(a, "userId", "")): a for a in today_avails}
+    avail_map = {str((a.userId if a.userId is not None else "")): a for a in today_avails}
     available_valets = []
     for v in in_area:
         vid = str((v.id or ""))
         a = avail_map.get(vid)
         if not a:
             continue
-        if getattr(a, "availabilityType", None) == "full_day":
+        if a.availabilityType == "full_day":
             available_valets.append(v)
-        elif slotId and slotId in getattr(a, "slots", []):
+        elif slotId and slotId in (a.slots if a.slots is not None else []):
             available_valets.append(v)
             
     if not available_valets:
@@ -185,8 +185,9 @@ async def get_available_valets(
     load_map = {str((v.id or "")): 0 for v in available_valets}
     for o in active_orders:
         av_id = o.assigned_valet or o.pending_valet_id
-        if type(av_id) == dict:
-            av_id = av_id.get("_id")
+        if type(av_id) is not str and type(av_id) is not type(None):
+            av_id = av_id.id
+        # Removed dictionary checking to enforce strict models
         av_id = str(av_id) if av_id else ""
         if av_id in load_map:
             load_map[av_id] += 1
@@ -204,7 +205,7 @@ async def get_available_valets(
     final_valets.sort(key=lambda v: (v.active_order_count if v.active_order_count is not None else 0))
     
     users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in final_valets]
-    return [UserResponse(**(user if hasattr(user, 'model_dump') else user)) for user in users_without_passwords]
+    return [UserResponse(**user.model_dump(by_alias=True)) for user in users_without_passwords]
 
 
 @router.put("/{user_id}/approve", response_model=UserResponse)
@@ -219,7 +220,7 @@ async def approve_user(user_id: str, current_user: User = Depends(require_super_
 
     updated_user = await user_repository.update(user_id, {"approvalStatus": "approved", "isActive": True})
 
-    return UserResponse(**(updated_user if hasattr(updated_user, 'model_dump') else updated_user))
+    return UserResponse(**updated_user.model_dump(by_alias=True))
 
 
 @router.put("/{user_id}/reject", response_model=UserResponse)
@@ -231,7 +232,7 @@ async def reject_user(user_id: str, current_user: User = Depends(require_super_a
 
     updated_user = await user_repository.update(user_id, {"approvalStatus": "rejected", "isActive": False})
 
-    return UserResponse(**(updated_user if hasattr(updated_user, 'model_dump') else updated_user))
+    return UserResponse(**updated_user.model_dump(by_alias=True))
 
 
 class RoleUpdateRequest(BaseModel):
@@ -279,7 +280,7 @@ async def update_user_role(
 
     updated_user = await user_repository.update(user_id, update_data)
 
-    return UserResponse(**(updated_user if hasattr(updated_user, 'model_dump') else updated_user))
+    return UserResponse(**updated_user.model_dump(by_alias=True))
 
 
 class SellerZoneSettingsUpdate(BaseModel):
@@ -296,19 +297,28 @@ async def get_seller_delivery_settings(
     zones_storage = get_storage("deliveryZones")
     all_zones = await zones_storage.findAll({"isActive": True})
 
-    current_zone_ids = (current_user.seller_permissions or {}).get("serviceableZoneIds", [])
+    perms = current_user.seller_permissions
+    if perms and perms.serviceableZoneIds:
+        current_zone_ids = perms.serviceableZoneIds
+    else:
+        current_zone_ids = current_user.service_area_zones or []
 
-    available_zones = [
-        {
-            "id": str(z.get("_id", "")),
-            "name": z.get("name", ""),
-            "pincodes": z.get("pincodes", []),
-            "defaultCapacity": z.get("defaultCapacity", 10),
-            "urgentDeliveryAvailable": bool(z.get("urgentDeliveryAvailable", False)),
-            "customerType": z.get("customerType", "retail"),
-        }
-        for z in all_zones
-    ]
+    available_zones = []
+    for z in all_zones:
+        z_id = str(z.id)
+        z_name = z.name or ""
+        z_pincodes = z.pincodes or []
+        z_capacity = z.default_capacity if z.default_capacity is not None else 10
+        z_urgent = z.urgent_delivery_available if z.urgent_delivery_available is not None else False
+        z_customer_type = z.customer_type or "retail"
+        available_zones.append({
+            "id": z_id,
+            "name": z_name,
+            "pincodes": z_pincodes,
+            "defaultCapacity": z_capacity,
+            "urgentDeliveryAvailable": bool(z_urgent),
+            "customerType": z_customer_type,
+        })
 
     return {
         "sellerId": str((current_user.id or "")),
@@ -344,7 +354,7 @@ async def get_user(user_id: str, current_user: User = Depends(get_current_user))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return UserResponse(**(user if hasattr(user, 'model_dump') else user))
+    return UserResponse(**user.model_dump(by_alias=True))
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -372,47 +382,49 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
     if "email" in update_dict and update_dict["email"]:
         new_email = update_dict["email"].lower()
         existing_with_email = await user_repository.findByEmail(new_email)
-        if existing_with_email and str(getattr(existing_with_email, "id", None) or getattr(existing_with_email, "_id", None)) != user_id:
+        if existing_with_email and str(existing_with_email.id or existing_with_email._id) != user_id:
             raise HTTPException(status_code=400, detail="Email already in use by another account.")
-        if not existing_user or getattr(existing_user, "email", None) != new_email:
+        if not existing_user or existing_user.email != new_email:
             update_dict["isEmailVerified"] = False
 
     # If super admin is changing role to wholesaler, validate Company Name and Address
     if current_user.role == "super_admin" and "role" in update_dict and update_dict["role"] == "wholesaler":
         final_company_name = (
-            update_dict.get("companyName") if "companyName" in update_dict else getattr(existing_user, "company_name", None)
+            user_data.companyName if user_data.companyName is not None else existing_user.company_name
         )
-        final_address = update_dict.get("address") if "address" in update_dict else getattr(existing_user, "address", {})
-        final_address = final_address or {}
+        final_address = user_data.address if user_data.address is not None else existing_user.address
 
-        if not final_company_name or not final_company_name.strip():
+        if not final_company_name or not str(final_company_name).strip():
             raise HTTPException(
                 status_code=400,
                 detail="Company name is required for Business customer. Please update the user's profile with Company Name before changing the role.",
             )
-        if not final_address.get("street") or not str(final_address.get("street")).strip():
+        final_street = final_address.street
+        
+        if not final_street or not str(final_street).strip():
             raise HTTPException(
                 status_code=400,
                 detail="Address is required for Business customer. Please update the user's profile with Address before changing the role.",
             )
 
-    if "role" not in update_dict and getattr(existing_user, "role", None) == "wholesaler":
+    if "role" not in update_dict and existing_user.role == "wholesaler":
         final_company_name = (
-            update_dict.get("companyName") if "companyName" in update_dict else getattr(existing_user, "company_name", None)
+            user_data.companyName if user_data.companyName is not None else existing_user.company_name
         )
-        final_address = update_dict.get("address") if "address" in update_dict else getattr(existing_user, "address", {})
-        final_address = final_address or {}
+        final_address = user_data.address if user_data.address is not None else existing_user.address
 
-        if not final_company_name or not final_company_name.strip():
+        if not final_company_name or not str(final_company_name).strip():
             raise HTTPException(status_code=400, detail="Company name is required for Business customer")
-        if not final_address.get("street") or not str(final_address.get("street")).strip():
+        final_street = final_address.street
+        
+        if not final_street or not str(final_street).strip():
             raise HTTPException(status_code=400, detail="Address is required for Business customer")
 
     user = await user_repository.update(user_id, update_dict)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return UserResponse(**(user if hasattr(user, 'model_dump') else user))
+    return UserResponse(**user.model_dump(by_alias=True))
 
 
 @router.put("/{user_id}/deactivate", response_model=UserResponse)
@@ -426,7 +438,7 @@ async def deactivate_user(user_id: str, current_user: User = Depends(require_sup
         raise HTTPException(status_code=400, detail="Only business customers can be deactivated")
 
     updated_user = await user_repository.update(user_id, {"isDeactivated": True})
-    return UserResponse(**(updated_user if hasattr(updated_user, 'model_dump') else updated_user))
+    return UserResponse(**updated_user.model_dump(by_alias=True))
 
 
 @router.put("/{user_id}/activate", response_model=UserResponse)
@@ -437,7 +449,7 @@ async def activate_user(user_id: str, current_user: User = Depends(require_super
         raise HTTPException(status_code=404, detail="User not found")
 
     updated_user = await user_repository.update(user_id, {"isDeactivated": False})
-    return UserResponse(**(updated_user if hasattr(updated_user, 'model_dump') else updated_user))
+    return UserResponse(**updated_user.model_dump(by_alias=True))
 
 
 @router.put("/{user_id}/mark-valet", response_model=UserResponse)
@@ -451,7 +463,7 @@ async def mark_user_as_valet(user_id: str, current_user: User = Depends(require_
         raise HTTPException(status_code=400, detail="Cannot mark super admin as valet")
 
     updated_user = await user_repository.update(user_id, {"role": "valet"})
-    return UserResponse(**(updated_user if hasattr(updated_user, 'model_dump') else updated_user))
+    return UserResponse(**updated_user.model_dump(by_alias=True))
 
 
 class PasswordChangeRequest(BaseModel):
@@ -526,15 +538,18 @@ async def request_email_verification(request: Request, current_user: User = Depe
 
     ok, payload = await request_email_otp_async(email)
     if not ok:
+        err_msg = payload.message
+        retry_secs = payload.retry_after_seconds
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=payload.get("message", "Too many verification requests. Please try again later."),
-            headers={"Retry-After": str(int(payload.get("retry_after_seconds") or 0))},
+            detail=err_msg,
+            headers={"Retry-After": str(int(retry_secs or 0))},
         )
 
     response_data = {"message": "Verification code sent to your email."}
     if os.getenv("ENVIRONMENT") == "development" or os.getenv("TESTING") == "true":
-        response_data.code = payload.get("otp")
+        otp_val = payload.otp
+        response_data["code"] = otp_val
 
     return response_data
 
@@ -554,8 +569,10 @@ async def verify_email(data: VerifyEmailRequest, request: Request, current_user:
     from app.utils.email_otp import verify_email_otp_async
 
     result = await verify_email_otp_async(email, data.code)
-    if not result.get("valid"):
-        raise HTTPException(status_code=400, detail=result.get("message", "Invalid or expired verification code."))
+    is_valid = result.valid
+    if not is_valid:
+        err_msg = result.message
+        raise HTTPException(status_code=400, detail=err_msg)
 
     await user_repository.update(user_id, {"isEmailVerified": True})
     return {"message": "Email verified successfully."}

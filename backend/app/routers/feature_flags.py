@@ -3,7 +3,7 @@ from app.models.schemas import MessageResponse
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.repositories.feature_flag_repository import FeatureFlagRepository
 from app.utils.auth import require_super_admin
@@ -12,6 +12,17 @@ from app.utils.logger import logger
 
 router = APIRouter()
 feature_flag_repository = FeatureFlagRepository()
+
+
+class FeatureFlagItem(BaseModel):
+    db_id: Optional[str] = Field(default=None, alias="_id")
+    id: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = ""
+    enabled: bool = False
+    category: Optional[str] = "features"
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class FeatureFlagCreate(BaseModel):
@@ -138,7 +149,9 @@ async def toggle_feature_flag(flag_id: str, current_user: User = Depends(require
         if not flag:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
-        updated = await feature_flag_repository.update(flag["_id"], {"enabled": not flag.get("enabled", False)})
+        flag_model = flag if isinstance(flag, FeatureFlagItem) else FeatureFlagItem.model_validate(flag)
+        flag_db_id = flag_model.db_id or flag_model.id
+        updated = await feature_flag_repository.update(flag_db_id, {"enabled": not flag_model.enabled})
         return updated
     except HTTPException:
         raise

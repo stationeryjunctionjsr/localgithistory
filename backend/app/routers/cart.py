@@ -147,7 +147,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-        sell_as_case = getattr(item, "sellAsCase", False)
+        sell_as_case = (item.sellAsCase if item.sellAsCase is not None else False)
 
         # Business ordering by case: quantity must be multiple of quantityPerCase
         if sell_as_case and role == "wholesaler":
@@ -168,7 +168,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
             "product": item.productId,
             "quantity": item.quantity,
             "sellAsCase": sell_as_case,
-            "variantAttributes": getattr(item, "variantAttributes", None),
+            "variantAttributes": item.variantAttributes,
         }
 
         if cart:
@@ -178,12 +178,12 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
                     for i in (cart.items or [])
                     if i.product == item.productId
                     and i.sell_as_case == sell_as_case
-                    and i.variant_attributes == getattr(item, "variantAttributes", None)
+                    and i.variant_attributes == item.variantAttributes
                 ),
                 None,
             )
             if existing_item:
-                new_quantity = getattr(existing_item, "quantity", 0) + item.quantity
+                new_quantity = (existing_item.quantity if existing_item.quantity is not None else 0) + item.quantity
                 items = (cart.items or [])
                 for i, it in enumerate(items):
                     if it.id == existing_item.id:
@@ -204,7 +204,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
         from app.repositories.tracking_repository import tracking_repository
 
         await tracking_repository.trackCartAdd(
-            current_user.id, item.productId, item.quantity, getattr(item, "sessionId", None)
+            current_user.id, item.productId, item.quantity, item.sessionId
         )
 
         return {"message": "Item added to cart"}

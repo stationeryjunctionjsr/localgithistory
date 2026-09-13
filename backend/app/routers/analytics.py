@@ -1,7 +1,7 @@
 from app.models.user import User
-from app.models.schemas import MessageResponse
+from app.models.schemas import MessageResponse, AnalyticsEventCreate, AnalyticsEventPayload
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Any, Dict, List, Optional
+from typing import Dict, Any, List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
@@ -179,69 +179,74 @@ class GenericDictResponse(BaseModel):
 
 @router.post("/events", response_model=RecordEventResponse)
 async def record_event(
-    event: Dict[str, Any] = Body(..., description="Analytics event payload"),
-    user_info: Optional[dict] = Depends(get_optional_user),
+    event: AnalyticsEventCreate = Body(..., description="Analytics event payload"),
+    user_info: Optional[User] = Depends(get_optional_user),
 ):
     """Record a client-side analytics event (web/mobile). Auth is optional; will attach user if token provided."""
 
-    if not event.get("type"):
+    if not event.type:
         raise HTTPException(status_code=400, detail="Event type is required")
 
-    enriched_event = {
-        **event,
-        # Never trust a client-supplied userId for unauthenticated requests —
-        # only attach the verified userId from the session token.
-        "userId": user_info.get("_id") if user_info else None,
-        "timestamp": event.get("timestamp") or datetime.now(timezone.utc).isoformat(),
-    }
+    user_id = str(user_info.id) if user_info else None
+
+    enriched_event = event.model_dump()
+    # Never trust a client-supplied userId for unauthenticated requests —
+    # only attach the verified userId from the session token.
+    enriched_event["userId"] = user_id
+    enriched_event["timestamp"] = event.timestamp if event.timestamp is not None else datetime.now(timezone.utc).isoformat()
 
     try:
         stored = await analytics_repository.record_event(enriched_event)
 
         # Sync/replicate mobile events to tracking repository
-        event_type = enriched_event.get("type")
-        session_id = enriched_event.get("sessionId")
-        user_id = enriched_event.get("userId")
-        payload = enriched_event.get("payload") or {}
+        event_type = event.type
+        session_id = event.sessionId
+        raw_payload = event.payload
+        if isinstance(raw_payload, AnalyticsEventPayload):
+            payload_obj = raw_payload
+        elif isinstance(raw_payload, dict):
+            payload_obj = AnalyticsEventPayload(**raw_payload)
+        else:
+            payload_obj = AnalyticsEventPayload()
 
         try:
             if event_type == "session_start":
-                is_returning = payload.get("returning", False)
+                is_returning = bool(payload_obj.returning) if payload_obj.returning is not None else False
                 await tracking_repository.trackSession(user_id, session_id, is_returning)
             elif event_type == "page_view":
-                page = enriched_event.get("page", "/")
+                page = event.page if event.page is not None else "/"
                 await tracking_repository.trackPageView(user_id, page, session_id)
             elif event_type == "product_view":
-                product_id = payload.get("productId")
-                product_name = payload.get("productName", "Unknown")
+                product_id = payload_obj.productId
+                product_name = payload_obj.productName if payload_obj.productName is not None else "Unknown"
                 if product_id:
                     await tracking_repository.trackProductView(user_id, product_id, product_name, session_id)
             elif event_type == "product_click":
-                product_id = payload.get("productId")
-                product_name = payload.get("productName", "Unknown")
-                source = payload.get("source", "mobile_app")
+                product_id = payload_obj.productId
+                product_name = payload_obj.productName if payload_obj.productName is not None else "Unknown"
+                source = payload_obj.source if payload_obj.source is not None else "mobile_app"
                 if product_id:
                     await tracking_repository.trackProductClick(user_id, product_id, product_name, source, session_id)
             elif event_type == "add_to_cart":
-                product_id = payload.get("productId")
-                quantity = payload.get("quantity", 1)
+                product_id = payload_obj.productId
+                quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
                 if product_id:
                     await tracking_repository.trackCartAdd(user_id, product_id, quantity, session_id)
             elif event_type == "remove_from_cart":
-                product_id = payload.get("productId")
-                quantity = payload.get("quantity", 1)
+                product_id = payload_obj.productId
+                quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
                 if product_id:
                     await tracking_repository.trackCartItemRemove(user_id, product_id, quantity, session_id)
             elif event_type == "search":
-                query = payload.get("query", "")
-                results_count = payload.get("resultsCount", 0)
+                query = payload_obj.query if payload_obj.query is not None else ""
+                results_count = payload_obj.resultsCount if payload_obj.resultsCount is not None else 0
                 await tracking_repository.trackSearch(user_id, query, results_count, session_id, segment="customer")
             elif event_type == "add_to_wishlist":
-                product_id = payload.get("productId")
+                product_id = payload_obj.productId
                 if product_id:
                     await tracking_repository.trackWishlistAdd(user_id, product_id, session_id)
             elif event_type == "session_end":
-                reason = payload.get("reason", "unknown")
+                reason = payload_obj.reason if payload_obj.reason is not None else "unknown"
                 await tracking_repository.create(
                     {"type": "session_end", "userId": user_id, "sessionId": session_id, "reason": reason}
                 )
@@ -253,7 +258,8 @@ async def record_event(
             # Prevent synchronization issues from failing the main request
             logger.error("Failed to sync event to tracking repository: %s", str(sync_err), exc_info=True)
 
-        return {"status": "ok", "eventId": stored.get("_id")}
+        event_id = str(stored.id) if stored else None
+        return {"status": "ok", "eventId": event_id}
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
@@ -558,7 +564,7 @@ async def get_user_engagement_by_id(
     """
     try:
         result = await analytics_repository.get_user_engagement_metrics(user_id)
-        if result.get("error"):
+        if "error" in result and result["error"]:
             raise HTTPException(status_code=404, detail=result["error"])
         return result
     except HTTPException:

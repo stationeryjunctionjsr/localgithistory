@@ -5,7 +5,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.repositories.customer_segments_repository import customer_segments_repository
 from app.utils.auth import require_super_admin

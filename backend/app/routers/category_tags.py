@@ -47,7 +47,7 @@ async def get_active_category_tags():
     """Get active category tags (public endpoint)"""
     try:
         tags = await category_tag_repository.findAll()
-        active_tags = [tag for tag in tags if getattr(tag, "isActive", None) is not False]
+        active_tags = [tag for tag in tags if tag.isActive is not False]
         return active_tags
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
@@ -98,15 +98,16 @@ async def update_category_tag(
         if tag_update.name is not None:
             # Check if tag with same name already exists (excluding current tag)
             existing_tag = await category_tag_repository.findByName(tag_update.name)
-            if existing_tag and existing_tag.get("_id") != tag_id:
+            existing_id = existing_tag.id if existing_tag else None
+            if existing_tag and str(existing_id) != str(tag_id):
                 raise HTTPException(status_code=400, detail="Category tag with this name already exists")
-            update_data.name = tag_update.name.strip()
+            update_data["name"] = tag_update.name.strip()
 
         if tag_update.description is not None:
-            update_data.description = tag_update.description
+            update_data["description"] = tag_update.description
 
         if tag_update.isActive is not None:
-            update_data.isActive = tag_update.isActive
+            update_data["isActive"] = tag_update.isActive
 
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")

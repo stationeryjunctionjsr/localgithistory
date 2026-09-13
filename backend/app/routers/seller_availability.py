@@ -1,4 +1,5 @@
 from app.models.user import User
+from app.models.schemas import MessageResponse
 """
 Seller Store Availability Router
 
@@ -20,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Any, Dict, List, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field, validator, ConfigDict
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_current_user, require_super_admin
@@ -31,6 +32,22 @@ storage = get_storage("sellerAvailability")
 
 # ─── Schemas ─────────────────────────────────────────────────────────────────
 
+
+
+class SellerAvailabilityItem(BaseModel):
+    id: Optional[str] = Field(default=None, alias="_id")
+    sellerId: Optional[str] = None
+    startAt: Optional[str] = None
+    endAt: Optional[str] = None
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
+    reason: Optional[str] = None
+    status: Optional[str] = None
+    sellerName: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class SellerAvailabilityResponse(BaseModel):
@@ -215,8 +232,12 @@ async def get_my_availability_windows(
     seller_id = str(current_user.id)
     docs = await storage.findAll({"sellerId": seller_id})
     # Sort by startAt descending (most recent first)
-    docs.sort(key=lambda d: d.get("startAt", ""), reverse=True)
-    return docs
+    parsed_docs = [
+        d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d)
+        for d in docs
+    ]
+    parsed_docs.sort(key=lambda d: (d.startAt or d.startDate or ""), reverse=True)
+    return parsed_docs
 
 
 @router.get("", response_model=List[SellerAvailabilityResponse])
@@ -234,8 +255,12 @@ async def get_all_seller_availability(
         query["status"] = status
     docs = await storage.findAll(query)
     enriched = await _enrich_with_seller_name(docs)
-    enriched.sort(key=lambda d: d.get("startAt", ""), reverse=True)
-    return enriched
+    parsed_enriched = [
+        d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d)
+        for d in enriched
+    ]
+    parsed_enriched.sort(key=lambda d: (d.startAt or d.startDate or ""), reverse=True)
+    return parsed_enriched
 
 
 @router.delete("/{window_id}", response_model=MessageResponse)

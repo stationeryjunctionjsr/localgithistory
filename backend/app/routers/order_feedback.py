@@ -3,7 +3,7 @@ from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.models.schemas import OrderFeedbackCreate, OrderFeedbackResponse
+from app.models.schemas import OrderFeedbackCreate, OrderFeedbackResponse, EligibleFeedbackResponse
 from app.repositories.order_feedback_repository import order_feedback_repository
 from app.repositories.order_repository import order_repository
 from app.repositories.user_repository import user_repository
@@ -67,7 +67,7 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
 
     # order orders by deliveredAt or createdAt descending
     orders.sort(key=lambda x: (x.created_at or ""), reverse=True)
-    feedback_order_ids = set(f.get("orderId") for f in feedbacks)
+    feedback_order_ids = {f.orderId for f in feedbacks if f.orderId}
     orders_without_feedback = [o for o in orders if o.id not in feedback_order_ids]
 
     if not orders_without_feedback:
@@ -77,7 +77,7 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
 
     if not feedbacks:
         # User has never given feedback, and has delivered orders. Return the latest delivered order ID.
-        return {"eligibleOrderId": latest_eligible_order.get("_id")}
+        return {"eligibleOrderId": latest_eligible_order.id}
 
     # User HAS given feedback
     # Get the latest feedback
@@ -89,7 +89,7 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
     from dateutil.relativedelta import relativedelta
 
     try:
-        latest_feedback_date = parser.parse(latest_feedback.get("createdAt"))
+        latest_feedback_date = parser.parse(latest_feedback.createdAt) if isinstance(latest_feedback.createdAt, str) else latest_feedback.createdAt
         if not latest_feedback_date.tzinfo:
             latest_feedback_date = latest_feedback_date.replace(tzinfo=timezone.utc)
     except Exception:
@@ -103,7 +103,7 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
         return {"eligibleOrderId": None}
 
     # We are past the next_eligible_date.
-    return {"eligibleOrderId": latest_eligible_order.get("_id")}
+    return {"eligibleOrderId": latest_eligible_order.id}
 
 
 @router.get("/order/{order_id}", response_model=OrderFeedbackResponse)
@@ -130,7 +130,7 @@ async def get_all_feedback(current_user: User = Depends(require_super_admin)):
 
     # populate user and order info
     for f in feedbacks:
-        if getattr(f, "userId", None):
+        if f.userId:
             user = await user_repository.findById(f.userId)
             if user:
                 f.user = {"name": (user.name if user.name is not None else "Unknown"), "email": (user.email or "")}

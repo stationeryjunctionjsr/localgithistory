@@ -24,7 +24,7 @@ from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.db.storage_factory import get_storage
 from app.repositories.return_settings_repository import return_settings_repository
@@ -66,11 +66,11 @@ async def _get_settings() -> dict:
 
 class CommissionTier(BaseModel):
     id: Optional[str] = Field(default=None)
-    minOrderValue: float = Field(..., ge=0)
-    maxOrderValue: Optional[float] = Field(default=None, ge=0)  # None = unlimited
-    commissionPct: float = Field(..., ge=0, le=100)
+    minOrderValue: float = Field(default=0.0, ge=0, alias="min_order_value")
+    maxOrderValue: Optional[float] = Field(default=None, ge=0, alias="max_order_value")  # None = unlimited
+    commissionPct: float = Field(default=0.0, ge=0, le=100, alias="commission_pct")
 
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 
@@ -128,14 +128,15 @@ async def resolve_commission_pct(order_total: float, seller_id: Optional[str]) -
 
     # 2. Fall through to global tiers
     settings = await _get_settings()
-    tiers: list = (settings.tiers or [])
+    raw_tiers = settings.tiers or []
+    tiers: List[CommissionTier] = [t if isinstance(t, CommissionTier) else CommissionTier.model_validate(t) for t in raw_tiers]
     default_pct: float = (settings.default_commission_pct if settings.default_commission_pct is not None else 5.0)
 
-    for tier in sorted(tiers, key=lambda t: getattr(t, "minOrderValue", 0)):
-        min_v = tier.get("minOrderValue", 0)
-        max_v = tier.get("maxOrderValue")  # None = unlimited
+    for tier in sorted(tiers, key=lambda t: (t.minOrderValue if t.minOrderValue is not None else 0)):
+        min_v = tier.minOrderValue if tier.minOrderValue is not None else 0.0
+        max_v = tier.maxOrderValue  # None = unlimited
         if order_total >= min_v and (max_v is None or order_total <= max_v):
-            return float(tier.get("commissionPct", default_pct))
+            return float(tier.commissionPct if tier.commissionPct is not None else default_pct)
 
     return float(default_pct)
 
@@ -247,18 +248,17 @@ async def update_commission_tiers(
     current_user: User = Depends(require_super_admin),
 ):
     # Assign stable IDs if missing
-    tiers_data = []
+    tiers_data: List[CommissionTier] = []
     for t in payload.tiers:
-        d = t
-        if not d.get("id"):
-            d["id"] = str(uuid4())
-        tiers_data.append(d)
+        if not t.id:
+            t.id = str(uuid4())
+        tiers_data.append(t)
 
     # Validate no overlaps
     sorted_tiers = sorted(tiers_data, key=lambda t: t.minOrderValue)
     for i in range(len(sorted_tiers) - 1):
-        curr_max = sorted_tiers[i].get("maxOrderValue")
-        next_min = sorted_tiers[i + 1]["minOrderValue"]
+        curr_max = sorted_tiers[i].maxOrderValue
+        next_min = sorted_tiers[i + 1].minOrderValue
         if curr_max is not None and curr_max > next_min:
             raise HTTPException(
                 status_code=400,
@@ -270,14 +270,21 @@ async def update_commission_tiers(
     updated = await storage.update(
         settings.id,
         {
-            "tiers": tiers_data,
+            "tiers": [t.model_dump() for t in tiers_data],
             "defaultCommissionPct": payload.defaultCommissionPct,
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         },
     )
+    if isinstance(updated, dict):
+        updated_tiers = updated["tiers"] if "tiers" in updated else [t.model_dump() for t in tiers_data]
+        updated_default = updated["defaultCommissionPct"] if "defaultCommissionPct" in updated else payload.defaultCommissionPct
+    else:
+        updated_tiers = updated.tiers
+        updated_default = updated.default_commission_pct if updated.default_commission_pct is not None else payload.defaultCommissionPct
+
     return {
-        "tiers": updated.get("tiers", []),
-        "defaultCommissionPct": updated.get("defaultCommissionPct", 5.0),
+        "tiers": updated_tiers if updated_tiers is not None else [],
+        "defaultCommissionPct": updated_default if updated_default is not None else 5.0,
     }
 
 
@@ -335,9 +342,11 @@ async def set_seller_commission_override(
         raise HTTPException(status_code=400, detail="User is not a marketplace seller")
 
     updated = await user_repository.update(seller_id, {"commissionOverridePct": payload.commissionOverridePct})
+    override_val = updated.commission_override_pct if updated.commission_override_pct is not None else payload.commissionOverridePct
+    
     return {
         "id": seller_id,
-        "commissionOverridePct": updated.get("commissionOverridePct"),
+        "commissionOverridePct": override_val,
         "message": "Commission override updated successfully",
     }
 
@@ -400,8 +409,12 @@ async def realize_pending_commissions(
     for so in candidates:
         try:
             updated = await maybe_realize_commission(so)
-            if updated.get("commissionStatus") == "realized":
-                await sub_order_storage.update(updated["_id"], updated)
+            status_val = updated.commission_status
+            
+            if status_val == "realized":
+                so_id = str(updated.id)
+                
+                await sub_order_storage.update(so_id, updated if isinstance(updated, dict) else updated.model_dump())
                 promoted += 1
         except Exception as e:
             logger.warning("Failed to realize commission for sub-order %s: %s", so.id, e)

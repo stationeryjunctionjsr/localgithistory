@@ -1,5 +1,5 @@
 from app.models.user import User
-from app.models.schemas import MessageResponse, CheckPhoneResponse, VerifyOtpResponse, Msg91WebhookResponse, VerifyMsg91TokenResponse
+from app.models.schemas import MessageResponse, CheckPhoneResponse, VerifyOtpResponse, Msg91WebhookResponse, VerifyMsg91TokenResponse, Msg91WebhookPayload
 import os
 from typing import Optional
 from uuid import uuid4
@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.models.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse
 from app.repositories.session_repository import session_repository
@@ -129,12 +129,14 @@ async def send_otp(data: SendOTPRequest, request: Request):
         ok, payload = await request_otp_async(normalized_phone, device_key)
         if not ok:
             # Enforce per-user hourly send rate limit (across devices)
+            err_msg = payload.message
+            retry_secs = payload.retry_after_seconds
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=payload.get("message", "Too many requests"),
-                headers={"Retry-After": str(int(payload.get("retry_after_seconds") or 0))},
+                detail=err_msg,
+                headers={"Retry-After": str(int(retry_secs or 0))},
             )
-        otp = payload.get("otp")
+        otp = payload.otp
 
         # Log OTP for development/testing
         if otp:
@@ -144,13 +146,16 @@ async def send_otp(data: SendOTPRequest, request: Request):
         # For development, return OTP in response
         import os
 
-        response_data = {"message": "OTP processed"}
+        resend_secs = payload.resend_available_in_seconds
+        sent_val = payload.sent
+        response_data = {
+            "message": "OTP processed",
+            "resendAvailableInSeconds": int(resend_secs or 0),
+            "sent": bool(sent_val if sent_val is not None else True),
+        }
         if os.getenv("ENVIRONMENT") == "development" and otp:
             logger.debug(f"Dev Mode: Returning OTP {otp} in response")
-            response_data.otp = otp
-        # Let frontend manage resend button timing without erroring early calls
-        response_data.resendAvailableInSeconds = int(payload.get("resend_available_in_seconds") or 0)
-        response_data.sent = bool(payload.get("sent", True))
+            response_data["otp"] = otp
 
         return response_data
     except HTTPException:
@@ -182,7 +187,11 @@ async def verify_otp_endpoint(data: VerifyOTPRequest, request: Request):
 
 
 @router.post("/msg91-webhook", response_model=Msg91WebhookResponse)
-async def msg91_webhook(request: Request, x_msg91_secret: Optional[str] = Header(None, alias="X-MSG91-Secret")):
+async def msg91_webhook(
+    payload: Msg91WebhookPayload,
+    request: Request,
+    x_msg91_secret: Optional[str] = Header(None, alias="X-MSG91-Secret"),
+):
     expected_secret = os.getenv("MSG91_WEBHOOK_SECRET")
     if not expected_secret:
         logger.error("MSG91_WEBHOOK_SECRET not configured")
@@ -192,14 +201,8 @@ async def msg91_webhook(request: Request, x_msg91_secret: Optional[str] = Header
         raise HTTPException(status_code=403, detail="Invalid webhook secret")
 
     try:
-        payload = await request.json()
-        # Avoid logging full payload (may contain phone / PII); log shape only.
-        status_val = None
-        keys_summary = "non-dict"
-        if isinstance(payload, dict):
-            status_val = payload.get("Status") or payload.get("status") or payload.get("type")
-            keys_summary = ",".join(sorted(payload.keys()))
-        logger.info("[MSG91 WEBHOOK] OTP status update keys=%s status=%s", keys_summary, status_val)
+        status_val = payload.effective_status
+        logger.info("[MSG91 WEBHOOK] OTP status update status=%s", status_val)
         # Add your database logging here if needed!
         return {"status": "success", "message": "Webhook received"}
     except Exception as e:
@@ -214,8 +217,9 @@ async def verify_msg91_token_endpoint(data: VerifyMsg91Request, request: Request
     try:
         ok, res_data = verify_msg91_widget_token(data.token)
         if not ok:
+            err_msg = res_data.message
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=res_data.get("message", "Token verification failed")
+                status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg
             )
         if data.phone:
             normalized_phone = normalize_phone(data.phone)
@@ -286,11 +290,13 @@ async def register(user_data: RegisterRequest, request: Request):
             otp_result = await verify_otp_async(
                 normalized_phone, user_data.otp, device_key=device_key, delete_on_success=False
             )
-            logger.info(f"[REGISTER] OTP verify result: valid={otp_result.get('valid')}")
-            if not otp_result.get("valid"):
+            otp_valid = otp_result.valid
+            logger.info(f"[REGISTER] OTP verify result: valid={otp_valid}")
+            if not otp_valid:
+                err_msg = otp_result.message
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=otp_result.get("message", "Invalid or expired OTP"),
+                    detail=err_msg,
                 )
 
         user = await user_repository.create(user_dict)
@@ -306,7 +312,7 @@ async def register(user_data: RegisterRequest, request: Request):
         access_token = create_access_token(user.id, session.id)
         refresh_token = create_refresh_token(user.id, session.id, refresh_id)
 
-        user_response = UserResponse(**(user if hasattr(user, 'model_dump') else user))
+        user_response = UserResponse(**user.model_dump(by_alias=True))
 
         auth_data = AuthResponse(
             token=access_token,
@@ -380,8 +386,8 @@ async def login(login_data: LoginRequest, request: Request):
     else:
         effective_role = (user.role if user.role is not None else "customer")
 
-    user_response_dict = {**(user if hasattr(user, 'model_dump') else user), "effectiveRole": effective_role}
-    user_response = UserResponse(**(user_response_dict if hasattr(user_response_dict, 'model_dump') else user_response_dict))
+    user_response_dict = {**user.model_dump(by_alias=True), "effectiveRole": effective_role}
+    user_response = UserResponse(**user_response_dict.model_dump(by_alias=True))
 
     auth_data = AuthResponse(
         token=access_token, refreshToken=refresh_token, sessionId=session.id, user=user_response
@@ -389,6 +395,13 @@ async def login(login_data: LoginRequest, request: Request):
     response = JSONResponse(content=auth_data)
     set_auth_cookies(response, access_token, refresh_token, session.id)
     return response
+
+
+class RefreshTokenClaims(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    userId: str
+    sessionId: str
+    refreshId: str
 
 
 class RefreshRequest(BaseModel):
@@ -401,9 +414,10 @@ async def refresh_tokens(payload: RefreshRequest, request: Request):
     if not token_str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token required")
     data = verify_refresh_token(token_str)
-    user_id = data.get("userId")
-    session_id = data.get("sessionId")
-    refresh_id = data.get("refreshId")
+    claims = RefreshTokenClaims(**data) if isinstance(data, dict) else data
+    user_id = claims.userId
+    session_id = claims.sessionId
+    refresh_id = claims.refreshId
 
     session = await session_repository.find_by_id(session_id)
     if not session:
@@ -457,8 +471,8 @@ async def refresh_tokens(payload: RefreshRequest, request: Request):
 
     user_copy = dict(user)
     user_copy.pop("password", None)
-    user_response_dict = {**(user_copy if hasattr(user_copy, 'model_dump') else user_copy), "effectiveRole": effective_role}
-    user_response = UserResponse(**(user_response_dict if hasattr(user_response_dict, 'model_dump') else user_response_dict))
+    user_response_dict = {**user_copy.model_dump(by_alias=True), "effectiveRole": effective_role}
+    user_response = UserResponse(**user_response_dict.model_dump(by_alias=True))
     auth_data = AuthResponse(token=access_token, refreshToken=refresh_token, sessionId=session_id, user=user_response)
     response = JSONResponse(content=auth_data)
     set_auth_cookies(response, access_token, refresh_token, session_id)
@@ -502,9 +516,11 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):
         else:
             device_key = (data.deviceId or "default").strip() or "default"
             otp_result = await verify_otp_async(normalized_phone, data.otp, device_key=device_key)
-            if not otp_result.get("valid"):
+            otp_valid = otp_result.valid
+            if not otp_valid:
+                err_msg = otp_result.message
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail=otp_result.get("message", "Invalid or expired OTP")
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg
                 )
 
         # Find user by phone
@@ -562,5 +578,5 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     else:
         effective_role = (current_user.role if current_user.role is not None else "customer")
 
-    user_response_dict = {**(current_user if hasattr(current_user, 'model_dump') else current_user), "effectiveRole": effective_role}
-    return UserResponse(**(user_response_dict if hasattr(user_response_dict, 'model_dump') else user_response_dict))
+    user_response_dict = {**current_user.model_dump(by_alias=True), "effectiveRole": effective_role}
+    return UserResponse(**user_response_dict.model_dump(by_alias=True))

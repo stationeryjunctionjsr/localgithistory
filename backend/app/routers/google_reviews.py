@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.models.schemas import MessageResponse
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel

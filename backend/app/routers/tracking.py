@@ -1,8 +1,7 @@
 from app.models.user import User
-from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
-from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Dict, Any, List, Optional
+from app.models.schemas import MessageResponse, TrackBeaconRequest, TrackNotifyPincodeRequest
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Body, Depends, Query, Request
 from pydantic import BaseModel, Field, ConfigDict
@@ -129,17 +128,14 @@ class MostAbandonedProductResponse(BaseModel):
 @limiter.limit("60/minute")
 async def track_beacon(
     request: Request,
-    payload: Dict[str, Any] = Body(default_factory=dict),
-    current_user: Optional[dict] = Depends(get_optional_user),
+    payload: TrackBeaconRequest = Body(default_factory=TrackBeaconRequest),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     """Accept beacon payloads (e.g. from navigator.sendBeacon on page unload)."""
-    await tracking_repository.create(
-        {
-            "type": "beacon",
-            "userId": current_user.id if current_user else None,
-            **payload,
-        }
-    )
+    beacon_data = payload.model_dump()
+    beacon_data["type"] = "beacon"
+    beacon_data["userId"] = current_user.id if current_user else None
+    await tracking_repository.create(beacon_data)
     return {"message": "Beacon tracked"}
 
 
@@ -455,19 +451,19 @@ async def get_most_abandoned_products(
 
 
 @router.post("/notify-pincode", response_model=MessageResponse)
-async def track_notify_pincode(data: dict, current_user: Optional[dict] = Depends(get_optional_user)):
+async def track_notify_pincode(data: TrackNotifyPincodeRequest, current_user: Optional[User] = Depends(get_optional_user)):
     user_id = current_user.id if current_user else None
-    user_email = current_user.email if current_user else data.get("email")
+    user_email = current_user.email if current_user else data.email
     
     # Store the notification request
     record = {
         "event": "notify_pincode",
-        "productId": data.get("productId"),
-        "productName": data.get("productName"),
-        "pincode": data.get("pincode"),
+        "productId": data.productId,
+        "productName": data.productName,
+        "pincode": data.pincode,
         "userId": user_id,
         "email": user_email,
         "createdAt": datetime.now(timezone.utc).isoformat()
     }
     await tracking_repository.create(record)
-    return {"success": True}
+    return {"message": "Notification registered", "success": True}

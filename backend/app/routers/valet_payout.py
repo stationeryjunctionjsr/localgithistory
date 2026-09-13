@@ -1,6 +1,17 @@
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field, ConfigDict
+
 from app.models.user import User
-from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
+from app.models.schemas import MessageResponse, ValetPayoutSettingsResponse, ValetEarningsResponse
+from app.db.storage_factory import get_storage
+from app.utils.auth import get_current_user, require_super_admin
+from app.repositories.order_repository import order_repository
+from app.repositories.return_request_repository import return_request_repository
+from app.repositories.user_repository import user_repository
+
 """
 Valet payout settings router.
 
@@ -8,14 +19,6 @@ Endpoints:
   GET  /api/valet-payout/settings  – Fetch global per-delivery and per-return charges
   PUT  /api/valet-payout/settings  – Update charges (super admin only)
 """
-
-from datetime import datetime, timezone
-
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
-
-from app.db.storage_factory import get_storage
-from app.utils.auth import require_super_admin
 
 router = APIRouter()
 
@@ -26,18 +29,41 @@ def _storage():
     return get_storage(COLLECTION)
 
 
-async def _get_settings() -> dict:
+class ValetPayoutSettingsModel(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    id: Optional[Any] = Field(None, alias="_id")
+    deliveryChargePerOrder: float = Field(0.0, alias="delivery_charge_per_order")
+    returnPickupChargePerOrder: float = Field(0.0, alias="return_pickup_charge_per_order")
+    createdAt: Optional[Any] = Field(None, alias="created_at")
+    updatedAt: Optional[Any] = Field(None, alias="updated_at")
+
+    @property
+    def delivery_charge_per_order(self) -> float:
+        return self.deliveryChargePerOrder
+
+    @property
+    def return_pickup_charge_per_order(self) -> float:
+        return self.returnPickupChargePerOrder
+
+    @property
+    def updated_at(self) -> Optional[Any]:
+        return self.updatedAt
+
+
+async def _get_settings() -> ValetPayoutSettingsModel:
     storage = _storage()
     docs = await storage.findAll()
     if docs:
-        return docs[0]
+        doc = docs[0]
+        return doc if isinstance(doc, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(doc)
     default = {
         "deliveryChargePerOrder": 0.0,
         "returnPickupChargePerOrder": 0.0,
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "updatedAt": datetime.now(timezone.utc).isoformat(),
     }
-    return await storage.create(default)
+    created = await storage.create(default)
+    return created if isinstance(created, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(created)
 
 
 class ValetPayoutSettingsPayload(BaseModel):
@@ -72,16 +98,21 @@ async def update_valet_payout_settings(
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         },
     )
+    if not updated:
+        return {
+            "deliveryChargePerOrder": payload.deliveryChargePerOrder,
+            "returnPickupChargePerOrder": payload.returnPickupChargePerOrder,
+            "updatedAt": datetime.now(timezone.utc).isoformat(),
+        }
+    updated_model = updated if isinstance(updated, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(updated)
     return {
-        "deliveryChargePerOrder": updated.get("deliveryChargePerOrder", 0.0),
-        "returnPickupChargePerOrder": updated.get("returnPickupChargePerOrder", 0.0),
-        "updatedAt": updated.get("updatedAt"),
+        "deliveryChargePerOrder": (updated_model.deliveryChargePerOrder if updated_model.deliveryChargePerOrder is not None else 0.0),
+        "returnPickupChargePerOrder": (updated_model.returnPickupChargePerOrder if updated_model.returnPickupChargePerOrder is not None else 0.0),
+        "updatedAt": updated_model.updatedAt,
     }
 
 
 # ── Valet Earnings History ────────────────────────────────────────────────────
-
-from app.utils.auth import get_current_user
 
 
 async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, returns: list) -> dict:
@@ -136,12 +167,7 @@ async def get_my_valet_earnings(
 ):
     """Get earnings summary for the currently authenticated valet."""
     if current_user.role != "valet":
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=403, detail="Only valets can access this endpoint")
-
-    from app.repositories.order_repository import order_repository
-    from app.repositories.return_request_repository import return_request_repository
 
     valet_id = str(current_user.id)
     settings = await _get_settings()
@@ -157,12 +183,6 @@ async def get_valet_earnings_by_id(
     current_user: User = Depends(require_super_admin),
 ):
     """Get earnings summary for a specific valet (super admin only)."""
-    from fastapi import HTTPException
-
-    from app.repositories.order_repository import order_repository
-    from app.repositories.return_request_repository import return_request_repository
-    from app.repositories.user_repository import user_repository
-
     valet = await user_repository.findById(valet_id)
     if not valet or valet.role != "valet":
         raise HTTPException(status_code=404, detail="Valet not found")

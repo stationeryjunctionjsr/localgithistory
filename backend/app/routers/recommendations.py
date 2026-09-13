@@ -5,8 +5,8 @@ import asyncio
 import time as _time
 from typing import Optional
 
-from fastapi import APIRouter, Depends
-from app.models.product import Product, HTTPException, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from app.models.product import Product
 from pydantic import BaseModel
 
 class SlotMetrics(BaseModel):
@@ -111,8 +111,10 @@ async def get_recommendations(
             try:
                 user_doc = await user_repository.findById(user_id)
                 if user_doc:
-                    addr = user_doc.get("address") or {}
-                    city = (addr.get("city") or "").strip() or None
+                    addr = user_doc.address
+                    raw_city = addr.city or ""
+                    
+                    city = (raw_city or "").strip() or None
             except Exception:
                 logger.warning("Could not resolve city for wholesaler %s", user_id)
 
@@ -169,8 +171,10 @@ async def get_favourites_page(
         try:
             user_doc = await user_repository.findById(user_id)
             if user_doc:
-                addr = user_doc.get("address") or {}
-                resolved_city = (addr.get("city") or "").strip() or None
+                addr = user_doc.address
+                raw_city = addr.city or ""
+                
+                resolved_city = (raw_city or "").strip() or None
         except Exception:
             logger.warning("Could not resolve city for wholesaler %s", user_id)
 
@@ -243,9 +247,9 @@ async def get_favourites_page(
 
         # Build skinny product payload (same as recommendations carousel)
         p_copy = dict(p)
-        p_copy["displayImage"] = p_copy.get("displayImage") or (
-            p_copy.get("images")[0] if p_copy.get("images") else None
-        )
+        disp_img = p.display_image or (p.images[0] if p.images else None)
+        
+        p_copy["displayImage"] = disp_img
         p_copy.pop("description", None)
         p_copy.pop("variantCombinations", None)
         p_copy.pop("videos", None)
@@ -293,7 +297,9 @@ async def get_recommendation_metrics(days: int = 30, current_user: User = Depend
                 created = doc.created_at or ""
                 if created < cutoff:
                     continue
-                slot = (doc.meta or {}).get("slot", "unknown")
+                meta_obj = doc.meta
+                slot = meta_obj.slot or "unknown"
+                
                 if slot not in by_slot:
                     by_slot[slot] = {"section_view": 0, "product_view": 0, "add_to_cart": 0}
                 if action == "recommendation_section_view":
@@ -360,13 +366,12 @@ async def track_recommendation_event(
         strategy = body.strategy or body.slot
         if strategy in BANDIT_STRATEGIES:
             config = get_recommendation_config()
-            section_weights = (config.get("section_wise_weights") or {}).get(body.slot) or config.get(
-                "engagement_weights", {}
-            )
-            weight = (
-                section_weights.get("add_to_cart", 3)
-                if body.eventType == "add_to_cart"
-                else section_weights.get("product_view", 1)
-            )
+            section_wise = config.section_wise_weights or {}
+            engagement = config.engagement_weights or {}
+            section_weights = (section_wise[body.slot] if isinstance(section_wise, dict) and body.slot in section_wise else None) or engagement or {}
+            if body.eventType == "add_to_cart":
+                weight = section_weights["add_to_cart"] if isinstance(section_weights, dict) and "add_to_cart" in section_weights else 3
+            else:
+                weight = section_weights["product_view"] if isinstance(section_weights, dict) and "product_view" in section_weights else 1
             await recommendation_repository.append_reward(user_id, strategy, float(weight), body.slot)
     return {"ok": True}
