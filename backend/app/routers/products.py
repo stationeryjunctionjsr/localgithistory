@@ -701,7 +701,7 @@ async def get_public_products(
         if "variations" not in product or product.variations is None:
             product.variations = []
 
-        products_with_pricing.append(ProductResponse(**product.model_dump(by_alias=True)))
+        products_with_pricing.append(product)
 
     # Tell browsers and CDNs to cache public product lists for 5 minutes
     # (matches the server-side TTL cache). stale-while-revalidate allows serving
@@ -748,7 +748,7 @@ async def get_public_product(product_id: str, role: str = "customer", response: 
         # 15-minute browser/CDN cache for individual product pages
         response.headers["Cache-Control"] = "public, max-age=900, stale-while-revalidate=60"
 
-    return ProductResponse(**product.model_dump(by_alias=True))
+    return product
 
 
 @router.get("", response_model=PaginatedProductResponse)
@@ -859,7 +859,7 @@ async def get_products(
         if "variations" not in product or product.variations is None:
             product.variations = []
 
-        products_with_pricing.append(ProductResponse(**product.model_dump(by_alias=True)))
+        products_with_pricing.append(product)
 
     f = ProductFacets(**facets) if isinstance(facets, dict) else (facets if isinstance(facets, ProductFacets) else ProductFacets())
 
@@ -906,7 +906,7 @@ async def get_product(product_id: str, current_user: User = Depends(get_current_
     if "variations" not in product or product.variations is None:
         product.variations = []
 
-    return ProductResponse(**product.model_dump(by_alias=True))
+    return product
 
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
@@ -926,7 +926,7 @@ async def create_product(product_data: ProductCreate, current_user: User = Depen
                 
         product = await product_repository.create(product_data)
         _invalidate_product_caches()
-        return ProductResponse(**product.model_dump(by_alias=True))
+        return product
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -940,7 +940,7 @@ async def update_product(
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
         _invalidate_product_caches()
-        return ProductResponse(**product.model_dump(by_alias=True))
+        return product
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

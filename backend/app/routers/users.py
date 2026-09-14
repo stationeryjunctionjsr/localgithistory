@@ -43,7 +43,7 @@ async def get_users(
         users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
 
         return {
-            "users": [UserResponse(**user.model_dump(by_alias=True)) for user in users_without_passwords],
+            "users": [user for user in users_without_passwords],
             "total": total,
             "page": page,
             "limit": limit
@@ -52,14 +52,14 @@ async def get_users(
     # No pagination -- return all (backwards compatible), capped at 1000 rows to protect memory
     users = await user_repository.findAll(query, limit=1000)
     users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
-    return [UserResponse(**user.model_dump(by_alias=True)) for user in users_without_passwords]
+    return [user for user in users_without_passwords]
 
 
 @router.get("/pending-approvals", response_model=List[UserResponse])
 async def get_pending_approvals(current_user: User = Depends(require_super_admin)):
     users = await user_repository.findAll({"approvalStatus": "pending"})
     users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
-    return [UserResponse(**user.model_dump(by_alias=True)) for user in users_without_passwords]
+    return [user for user in users_without_passwords]
 
 
 @router.get("/me", response_model=UserResponse)
@@ -74,7 +74,7 @@ async def get_my_profile(current_user: User = Depends(get_current_user)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return UserResponse(**user.model_dump(by_alias=True))
+    return user
 
 
 class UserPreferencesUpdate(BaseModel):
@@ -119,7 +119,7 @@ async def deactivate_own_account(current_user: User = Depends(get_current_user))
         update_data.isDeactivated = True
 
     updated_user = await user_repository.update(user_id, update_data)
-    return UserResponse(**updated_user.model_dump(by_alias=True))
+    return updated_user
 
 
 class DutyStatusRequest(BaseModel):
@@ -205,7 +205,7 @@ async def get_available_valets(
     final_valets.sort(key=lambda v: (v.active_order_count if v.active_order_count is not None else 0))
     
     users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in final_valets]
-    return [UserResponse(**user.model_dump(by_alias=True)) for user in users_without_passwords]
+    return [user for user in users_without_passwords]
 
 
 @router.put("/{user_id}/approve", response_model=UserResponse)
@@ -220,7 +220,7 @@ async def approve_user(user_id: str, current_user: User = Depends(require_super_
 
     updated_user = await user_repository.update(user_id, {"approvalStatus": "approved", "isActive": True})
 
-    return UserResponse(**updated_user.model_dump(by_alias=True))
+    return updated_user
 
 
 @router.put("/{user_id}/reject", response_model=UserResponse)
@@ -232,7 +232,7 @@ async def reject_user(user_id: str, current_user: User = Depends(require_super_a
 
     updated_user = await user_repository.update(user_id, {"approvalStatus": "rejected", "isActive": False})
 
-    return UserResponse(**updated_user.model_dump(by_alias=True))
+    return updated_user
 
 
 class RoleUpdateRequest(BaseModel):
@@ -280,7 +280,7 @@ async def update_user_role(
 
     updated_user = await user_repository.update(user_id, update_data)
 
-    return UserResponse(**updated_user.model_dump(by_alias=True))
+    return updated_user
 
 
 class SellerZoneSettingsUpdate(BaseModel):
@@ -354,7 +354,7 @@ async def get_user(user_id: str, current_user: User = Depends(get_current_user))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return UserResponse(**user.model_dump(by_alias=True))
+    return user
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -424,7 +424,7 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return UserResponse(**user.model_dump(by_alias=True))
+    return user
 
 
 @router.put("/{user_id}/deactivate", response_model=UserResponse)
@@ -438,7 +438,7 @@ async def deactivate_user(user_id: str, current_user: User = Depends(require_sup
         raise HTTPException(status_code=400, detail="Only business customers can be deactivated")
 
     updated_user = await user_repository.update(user_id, {"isDeactivated": True})
-    return UserResponse(**updated_user.model_dump(by_alias=True))
+    return updated_user
 
 
 @router.put("/{user_id}/activate", response_model=UserResponse)
@@ -449,7 +449,7 @@ async def activate_user(user_id: str, current_user: User = Depends(require_super
         raise HTTPException(status_code=404, detail="User not found")
 
     updated_user = await user_repository.update(user_id, {"isDeactivated": False})
-    return UserResponse(**updated_user.model_dump(by_alias=True))
+    return updated_user
 
 
 @router.put("/{user_id}/mark-valet", response_model=UserResponse)
@@ -463,7 +463,7 @@ async def mark_user_as_valet(user_id: str, current_user: User = Depends(require_
         raise HTTPException(status_code=400, detail="Cannot mark super admin as valet")
 
     updated_user = await user_repository.update(user_id, {"role": "valet"})
-    return UserResponse(**updated_user.model_dump(by_alias=True))
+    return updated_user
 
 
 class PasswordChangeRequest(BaseModel):

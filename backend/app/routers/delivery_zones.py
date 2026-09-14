@@ -184,14 +184,13 @@ async def update_zone(
                 detail=f"These pincodes are already assigned to another zone: {', '.join(conflicts)}",
             )
 
-    update_data = {k: v for k, v in zone.model_dump().items() if v is not None}
-    updated = await storage.update(zone_id, update_data)
-    if not updated:
+    updated_zone = await storage.update(zone_id, zone)
+    if not updated_zone:
         raise HTTPException(status_code=404, detail="Zone not found")
     # Evict this specific zone so fresh sellers are picked up immediately
     from app.repositories.zone_seller_cache import invalidate_zone_cache
     invalidate_zone_cache(zone_id)
-    return updated
+    return updated_zone
 
 
 @router.delete("/{zone_id}", response_model=MessageResponse)

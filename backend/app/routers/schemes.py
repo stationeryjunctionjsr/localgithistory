@@ -51,7 +51,7 @@ async def get_schemes(current_user: User = Depends(require_wholesaler)):
     out = []
     for c in business_coupons:
         # We need to map _id to id if returning as dict, or just return as CouponResponse
-        out.append(CouponResponse(**c.model_dump(by_alias=True)))
+        out.append(c)
     return out
 
 
@@ -103,7 +103,7 @@ async def get_applicable_schemes(product_id: str, current_user: User = Depends(r
 
     out = []
     for c in applicable_offers:
-        cr = CouponResponse(**c.model_dump(by_alias=True)).model_dump(by_alias=True)
+        cr = c.model_dump(by_alias=True)
         out.append(cr)
 
     return out
@@ -152,7 +152,7 @@ async def get_applicable_bundle_schemes(bundle_id: str, current_user: User = Dep
 
     out = []
     for c in applicable_offers:
-        cr = CouponResponse(**c.model_dump(by_alias=True)).model_dump(by_alias=True)
+        cr = c.model_dump(by_alias=True)
         out.append(cr)
 
     return out

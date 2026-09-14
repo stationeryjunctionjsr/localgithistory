@@ -366,12 +366,12 @@ async def create_delivery_slot_config(
         # Auto-fill slot capacities from zone default if not set
         slots_with_capacity = []
         for slot in config.slots:
-            cap_val = slot.capacity if not isinstance(slot, dict) else slot.get("capacity")
+            cap_val = slot.capacity if hasattr(slot, "capacity") else slot["capacity"]
             if cap_val is None or cap_val == 0:
-                if isinstance(slot, dict):
-                    slot["capacity"] = zone_default_capacity
-                else:
+                if hasattr(slot, "capacity"):
                     slot.capacity = zone_default_capacity
+                else:
+                    slot["capacity"] = zone_default_capacity
             slots_with_capacity.append(slot.model_dump() if hasattr(slot, "model_dump") else slot)
 
         record = {

@@ -312,7 +312,7 @@ async def register(user_data: RegisterRequest, request: Request):
         access_token = create_access_token(user.id, session.id)
         refresh_token = create_refresh_token(user.id, session.id, refresh_id)
 
-        user_response = UserResponse(**user.model_dump(by_alias=True))
+        user_response = user
 
         auth_data = AuthResponse(
             token=access_token,
@@ -387,7 +387,7 @@ async def login(login_data: LoginRequest, request: Request):
         effective_role = (user.role if user.role is not None else "customer")
 
     user_response_dict = {**user.model_dump(by_alias=True), "effectiveRole": effective_role}
-    user_response = UserResponse(**user_response_dict.model_dump(by_alias=True))
+    user_response = user_response_dict
 
     auth_data = AuthResponse(
         token=access_token, refreshToken=refresh_token, sessionId=session.id, user=user_response
@@ -472,7 +472,7 @@ async def refresh_tokens(payload: RefreshRequest, request: Request):
     user_copy = dict(user)
     user_copy.pop("password", None)
     user_response_dict = {**user_copy.model_dump(by_alias=True), "effectiveRole": effective_role}
-    user_response = UserResponse(**user_response_dict.model_dump(by_alias=True))
+    user_response = user_response_dict
     auth_data = AuthResponse(token=access_token, refreshToken=refresh_token, sessionId=session_id, user=user_response)
     response = JSONResponse(content=auth_data)
     set_auth_cookies(response, access_token, refresh_token, session_id)
@@ -579,4 +579,4 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         effective_role = (current_user.role if current_user.role is not None else "customer")
 
     user_response_dict = {**current_user.model_dump(by_alias=True), "effectiveRole": effective_role}
-    return UserResponse(**user_response_dict.model_dump(by_alias=True))
+    return user_response_dict
