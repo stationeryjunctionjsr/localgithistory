@@ -1446,29 +1446,21 @@ async def create_order(
                     if factory:
                         db_id = slot_config.id if slot_config.id is not None else config_id
                         async with factory() as session:
+                            child_table = slot_storage.CHILD_TABLE
                             result = await session.execute(
-                                text(f"SELECT doc FROM {slot_storage.table_name} WHERE id = :id FOR UPDATE"),
-                                {"id": int(db_id) if str(db_id).isdigit() else None},
+                                text(f"SELECT booked_count, capacity FROM {child_table} WHERE parent_id = :id AND slot_uuid = :slot_id FOR UPDATE"),
+                                {"id": int(db_id) if str(db_id).isdigit() else None, "slot_id": slot_id},
                             )
                             row = result.fetchone()
-                            if row and row.doc:
-                                from app.routers.delivery_slots import DeliverySlotConfigModel
-                                doc_model = DeliverySlotConfigModel(**json.loads(row.doc))
-                                updated_slots = doc_model.slots if doc_model.slots else []
-                                for sl in updated_slots:
-                                    if sl.id == slot_id:
-                                        # Flat bookedCount increment — per-zone config records
-                                        # each have their own bookedCount directly on the slot.
-                                        sl.bookedCount = (sl.bookedCount if sl.bookedCount is not None else 0) + 1
-                                        break
-                                doc_model.slots = updated_slots
-                                doc_model.updatedAt = datetime.now(__import__("datetime").timezone.utc).isoformat()
-                                doc_dump = doc_model.model_dump(by_alias=True)
+                            if row:
                                 await session.execute(
-                                    text(
-                                        f"UPDATE {slot_storage.table_name} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :id"
-                                    ),
-                                    {"doc": json.dumps(doc_dump), "id": int(db_id) if str(db_id).isdigit() else None},
+                                    text(f"UPDATE {child_table} SET booked_count = booked_count + 1 WHERE parent_id = :id AND slot_uuid = :slot_id"),
+                                    {"id": int(db_id) if str(db_id).isdigit() else None, "slot_id": slot_id},
+                                )
+                                parent_table = slot_storage.TABLE
+                                await session.execute(
+                                    text(f"UPDATE {parent_table} SET updated_at = UTC_TIMESTAMP() WHERE id = :id"),
+                                    {"id": int(db_id) if str(db_id).isdigit() else None},
                                 )
                                 await session.commit()
             except Exception as e:
@@ -2068,31 +2060,7 @@ async def update_order_status(
         from datetime import datetime
 
         # Increment deliveredCount on the slot
-        try:
-            config_id = order.delivery_slot_config_id
-            slot_id = order.delivery_slot_id
-            if config_id and slot_id:
-                from app.db.storage_factory import get_storage as _get_storage
-                slot_storage = _get_storage("deliverySlots")
-                slot_config_raw = await slot_storage.findById(config_id)
-                if slot_config_raw:
-                    from app.routers.delivery_slots import DeliverySlotConfigModel
-                    slot_config = (
-                        DeliverySlotConfigModel.model_validate(slot_config_raw)
-                        if isinstance(slot_config_raw, dict)
-                        else slot_config_raw
-                    )
-                    slots_list = slot_config.slots if slot_config.slots else []
-                    for sl in slots_list:
-                        if sl.id == slot_id:
-                            sl.deliveredCount = (sl.deliveredCount if sl.deliveredCount is not None else 0) + 1
-                            break
-                    
-                    # Update config using proper model_dump if it's a Pydantic model
-                    update_payload = {"slots": [s.model_dump() for s in slots_list]}
-                    await slot_storage.update(config_id, update_payload)
-        except Exception as e:
-            logger.error("Failed to increment deliveredCount for config %s slot %s: %s", order.delivery_slot_config_id, order.delivery_slot_id, str(e), exc_info=True)
+
 
         if order.payment_method == "cod" and "paymentStatus" not in update_data:
             update_data.paymentStatus = "paid"

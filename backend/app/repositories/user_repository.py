@@ -47,7 +47,9 @@ class UserRepository:
                 return user
         return None
 
-    async def create(self, user_data: Any) -> User:
+    async def create(self, user_data: Any):
+        if isinstance(user_data, dict):
+            user_data = UserInternalCreate(**user_data)
         # Check if user with email already exists (only if email is provided)
         email = user_data.email
         if email:

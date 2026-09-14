@@ -59,33 +59,40 @@ class MySQLDeliveryslotsDAO:
             chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
             placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
             res = await session.execute(
-                text(f"SELECT delivery_slot_id, start_time, end_time, capacity FROM {self.CHILD_TABLE} WHERE delivery_slot_id IN ({placeholders})"),
+                text(f"SELECT parent_id, slot_uuid, start_time, end_time, capacity, booked_count FROM {self.CHILD_TABLE} WHERE parent_id IN ({placeholders})"),
                 chunk_params,
             )
             for r in res.fetchall():
-                c_map[r.delivery_slot_id].append(
+                c_map[r.parent_id].append(
                     SlotBase(
+                        id=r.slot_uuid,
                         startTime=r.start_time,
                         endTime=r.end_time,
                         capacity=r.capacity,
+                        bookedCount=r.booked_count,
                     )
                 )
         return c_map
 
     async def _replace_children(self, session, parent_id: int, data: Any):
         await session.execute(
-            text(f"DELETE FROM {self.CHILD_TABLE} WHERE delivery_slot_id = :pid"),
+            text(f"DELETE FROM {self.CHILD_TABLE} WHERE parent_id = :pid"),
             {"pid": parent_id},
         )
         if data.slots:
             for slot in data.slots:
+                # generate uuid if missing
+                if not slot.id:
+                    slot.id = str(uuid.uuid4())
                 await session.execute(
-                    text(f"INSERT INTO {self.CHILD_TABLE} (delivery_slot_id, start_time, end_time, capacity) VALUES (:pid, :start_time, :end_time, :capacity)"),
+                    text(f"INSERT INTO {self.CHILD_TABLE} (parent_id, slot_uuid, start_time, end_time, capacity, booked_count) VALUES (:pid, :slot_uuid, :start_time, :end_time, :capacity, :booked_count)"),
                     {
                         "pid": parent_id,
+                        "slot_uuid": slot.id,
                         "start_time": slot.startTime,
                         "end_time": slot.endTime,
                         "capacity": slot.capacity,
+                        "booked_count": slot.bookedCount if slot.bookedCount is not None else 0,
                     },
                 )
 
@@ -191,7 +198,7 @@ class MySQLDeliveryslotsDAO:
         factory = self._factory()
         async with factory() as session:
             await session.execute(
-                text(f"DELETE FROM {self.CHILD_TABLE} WHERE delivery_slot_id = :id"),
+                text(f"DELETE FROM {self.CHILD_TABLE} WHERE parent_id = :id"),
                 {"id": int(id)},
             )
             result = await session.execute(

@@ -10,10 +10,19 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.schemas import PaginatedProductResponse, ProductCreate, ProductResponse, ProductUpdate, UploadImagesResponse, UploadCSVResponse, SearchSuggestResponse
+class SellerEntryUpdate(BaseModel):
+    stock: Optional[int] = None
+    isActive: Optional[bool] = None
+
+class SellerRequestApprove(BaseModel):
+    status: Optional[str] = "approved"
+    notes: Optional[str] = None
+
+
+from app.models.schemas import PaginatedProductResponse, ProductCreate, ProductResponse, ProductUpdate, UploadImagesResponse, UploadCSVResponse, SearchSuggestResponse, SellerProductRequestCreate, SellerProductApprove, ProductSellerEntry
 from app.repositories.category_repository import category_repository
 from app.repositories.product_repository import product_repository
-from app.utils.auth import get_current_user, require_super_admin, get_optional_user
+from app.utils.auth import get_current_user, require_super_admin, get_optional_user, require_super_admin_or_seller
 from app.utils.cache import cache
 from app.utils.logger import logger
 
@@ -1104,3 +1113,140 @@ async def upload_videos(
         if url:
             urls.append(url)
     return {"urls": urls}
+
+
+@router.post("/{product_id}/seller-requests", response_model=ProductResponse)
+async def create_seller_request(
+    product_id: str,
+    data: SellerProductRequestCreate,
+    current_user: User = Depends(require_super_admin_or_seller)
+):
+    """Seller requests to sell a product."""
+    if current_user.role not in ["seller", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Only sellers can request to sell products")
+        
+    product = await product_repository.findById(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+        
+    seller_id = str(current_user.id)
+    
+    # Initialize sellers list if None
+    sellers_list = product.sellers or []
+    
+    # Check if seller already has an entry
+    existing_entry = next((s for s in sellers_list if str(s.sellerId) == seller_id), None)
+    if existing_entry:
+        if existing_entry.requestStatus == "pending":
+            raise HTTPException(status_code=400, detail="Request already pending")
+        if existing_entry.requestStatus == "approved":
+            raise HTTPException(status_code=400, detail="Already approved to sell this product")
+        # If rejected, they can re-request
+        existing_entry.requestStatus = "pending"
+        existing_entry.stock = data.stock or 0
+        existing_entry.notes = data.notes
+    else:
+        # Create new entry
+        new_entry = ProductSellerEntry(
+            sellerId=seller_id,
+            stock=data.stock or 0,
+            isActive=False,
+            requestStatus="pending",
+            notes=data.notes
+        )
+        sellers_list.append(new_entry)
+        
+    # Save product
+    update_data = {"sellers": [s.model_dump() for s in sellers_list]}
+    updated = await product_repository.update(product_id, update_data)
+    return await populate_product(updated)
+
+
+@router.put("/{product_id}/sellers/me", response_model=ProductResponse)
+async def update_my_seller_entry(
+    product_id: str,
+    data: SellerEntryUpdate,
+    current_user: User = Depends(require_super_admin_or_seller)
+):
+    """Seller updates their stock or isActive status for a product."""
+    if current_user.role not in ["seller", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Only sellers can update their entries")
+        
+    product = await product_repository.findById(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+        
+    seller_id = str(current_user.id)
+    sellers_list = product.sellers or []
+    
+    existing_entry = next((s for s in sellers_list if str(s.sellerId) == seller_id), None)
+    if not existing_entry:
+        raise HTTPException(status_code=404, detail="You are not a seller for this product")
+        
+    if existing_entry.requestStatus != "approved":
+        raise HTTPException(status_code=400, detail="Your request to sell this product is not approved yet")
+        
+    if data.stock is not None:
+        existing_entry.stock = data.stock
+    if data.isActive is not None:
+        existing_entry.isActive = data.isActive
+        
+    update_data = {"sellers": [s.model_dump() for s in sellers_list]}
+    updated = await product_repository.update(product_id, update_data)
+    return await populate_product(updated)
+
+
+@router.put("/{product_id}/sellers/{seller_id}/approve", response_model=ProductResponse)
+async def approve_seller_request(
+    product_id: str,
+    seller_id: str,
+    data: SellerRequestApprove = None,
+    current_user: User = Depends(require_super_admin)
+):
+    """Admin approves or rejects a seller's request to sell a product."""
+    from app.repositories.user_repository import user_repository
+    
+    product = await product_repository.findById(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+        
+    sellers_list = product.sellers or []
+    target_entry = next((s for s in sellers_list if str(s.sellerId) == seller_id), None)
+    
+    if not target_entry:
+        raise HTTPException(status_code=404, detail="Seller request not found for this product")
+        
+    new_status = data.status if data and data.status else "approved"
+    
+    if new_status == "approved":
+        # ZONE EXCLUSIVITY CHECK
+        target_user = await user_repository.findById(seller_id)
+        if not target_user:
+            raise HTTPException(status_code=404, detail="Seller user not found")
+            
+        target_zones = target_user.service_area_zones or []
+        target_zones_set = set(target_zones)
+        
+        # Check all other approved sellers
+        for s in sellers_list:
+            if str(s.sellerId) != seller_id and s.requestStatus == "approved":
+                other_user = await user_repository.findById(str(s.sellerId))
+                if other_user:
+                    other_zones = other_user.service_area_zones or []
+                    overlap = target_zones_set.intersection(set(other_zones))
+                    if overlap:
+                        overlap_zones = ", ".join(overlap)
+                        raise HTTPException(
+                            status_code=400, 
+                            detail=f"Zone overlap detected. Seller '{other_user.company_name or other_user.name}' is already selling this product in zone(s): {overlap_zones}. You must remove or deactivate the 1st seller before approving the 2nd seller."
+                        )
+                        
+        target_entry.isActive = True
+        
+    target_entry.requestStatus = new_status
+    if data and data.notes:
+        target_entry.notes = data.notes
+        
+    update_data = {"sellers": [s.model_dump() for s in sellers_list]}
+    updated = await product_repository.update(product_id, update_data)
+    return await populate_product(updated)
