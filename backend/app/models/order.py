@@ -1,8 +1,7 @@
 from app.models.schemas import ItemSnippet as OrderItem, Address, ValetDeclineHistoryEntry
 from datetime import datetime
 from typing import Optional, List, Any, Dict
-from pydantic import Field
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict, AliasChoices
 
 class OrderAddress(BaseModel):
     name: Optional[str] = None
@@ -13,10 +12,11 @@ class OrderAddress(BaseModel):
     phone: Optional[str] = None
 
 class Order(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='ignore')
     session_id: Optional[str] = Field(default=None, alias="sessionId")
-    id: str = Field(alias="_id")
+    id: str = Field(default="", validation_alias=AliasChoices("_id", "id"))
     order_number: Optional[str] = Field(default=None, alias="orderNumber")
-    user: str
+    user: Optional[str] = None
     status: Optional[str] = None
     total: Optional[float] = None
     subtotal: Optional[float] = None

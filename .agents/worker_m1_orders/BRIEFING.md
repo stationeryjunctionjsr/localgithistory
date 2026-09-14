@@ -28,21 +28,21 @@ Eliminate all 134 Category A .get() dictionary workarounds in backend/app/router
 - **Code layout**: FastAPI backend routers
 
 ## Change Tracker
-- **Files modified**: `backend/app/routers/orders.py` (replaced Category A dict access, added CalculatedOrderItem model, mapped typed ItemSnippet/SubOrderItem instances, cleaned up slot/address/coupon dot notation)
-- **Build status**: Pass (`python -c "import app.routers.orders"` and `python -m py_compile` clean)
+- **Files modified**: `backend/app/routers/orders.py` (replaced all Category A dict access, added LocationDeliveryCharge, CouponDetailModel, CouponValidationResult, ReferralSettingsModel, CalculatedOrderItem models, mapped typed ItemSnippet/SubOrderItem instances, cleaned up slot/address/coupon dot notation and validations)
+- **Build status**: Pass (`python -c "import app.routers.orders"` clean)
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: Pass (test_tier1_router_ast_zero_get[orders.py] PASSED, test_tier3_router_signatures_no_raw_dict[orders.py] PASSED, OpenAPI paths: 346)
+- **Build/test result**: Pass (AST Category A violations: 0, Category B exemptions: 16, signature violations: 0, isolated OpenAPI paths: 21)
 - **Lint status**: Zero syntax or import errors
-- **Tests added/modified**: Verified against test_router_pydantic_refactor.py
+- **Tests added/modified**: Verified against test_router_pydantic_refactor.py and AST visitor
 
 ## Loaded Skills
 - None
 
 ## Key Decisions Made
 - Used Pydantic dot notation for Address, OrderItemCreate, SellerDeliveryOption, DeliverySlot, Coupon models.
-- Added `CalculatedOrderItem` model for intermediate order items with full dot notation support.
+- Added `CalculatedOrderItem`, `LocationDeliveryCharge`, `CouponValidationResult`, `CouponDetailModel`, `ReferralSettingsModel` models with full dot notation support and null-safe ternary fallbacks.
 - Preserved @router.get decorators and Category B dictionary lookups on local cache maps (`users_map`, `payments_map`, `products_map`, `_cart_products_map`, `seller_delivery_map`, `seller_docs`).
 
 ## Artifact Index

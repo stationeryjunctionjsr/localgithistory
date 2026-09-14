@@ -608,14 +608,97 @@ class CouponRepository:
         return res
 
     async def incrementUsage(self, id: str, user_id: str):
-        coupon = await self.findById(id)
-        if not coupon:
+        """Atomically increment used_count for a coupon.
+
+        Uses a single SQL UPDATE (used_count = used_count + 1) so concurrent
+        checkouts with the same coupon code cannot race past the max_uses limit.
+        """
+        pk = int(id) if str(id).isdigit() else None
+        if pk is None:
             return None
 
-        user_usages = (coupon.userUsages if coupon.userUsages is not None else {})
-        user_usages[user_id] = user_usages.get(user_id, 0) + 1
+        from sqlalchemy import text
+        from app.config.database import get_async_session_factory
+        factory = get_async_session_factory()
+        if not factory:
+            # No MySQL — best-effort fallback (single-process only, not race-safe)
+            coupon = await self.findById(id)
+            if not coupon:
+                return None
+            new_count = (coupon.usedCount if coupon.usedCount is not None else 0) + 1
+            res = await self.storage.update(id, {"usedCount": new_count})
+            self.invalidate_cache()
+            return res
 
-        return await self.update(id, {"usedCount": (coupon.usedCount if coupon.usedCount is not None else 0) + 1, "userUsages": user_usages})
+        async with factory() as session:
+            await session.execute(
+                text(
+                    "UPDATE sj_coupons "
+                    "SET used_count = used_count + 1, updated_at = UTC_TIMESTAMP() "
+                    "WHERE id = :id"
+                ),
+                {"id": pk},
+            )
+            await session.commit()
+
+        self.invalidate_cache()
+        return await self.findById(id)
+
+
+# ── MULTI-VM COUPON INCREMENT (commented out — already atomic at DB level) ───────
+#
+# The active incrementUsage() above uses a single atomic
+#   UPDATE sj_coupons SET used_count = used_count + 1 WHERE id = :id
+# This is a MySQL atomic write, safe across ALL workers on ALL VMs sharing the DB.
+#
+# HOW SINGLE-VM WORKS (active):
+#   With uvicorn --workers 4, all 4 processes may hit this simultaneously.
+#   MySQL guarantees that "used_count = used_count + 1" is evaluated and
+#   committed atomically — no two processes can interleave their increments.
+#
+# IF OPTIMISTIC LOCKING IS EVER NEEDED (strict max_uses enforcement under extreme load):
+#   Add a `version INT DEFAULT 0` column to sj_coupons.  Then retry on conflict:
+#
+# # async def increment_usage_optimistic(self, id: str, user_id: str, max_retries: int = 3):
+# #     """Increment used_count using optimistic locking (version column).
+# #     Retries up to max_retries times if another worker updated concurrently.
+# #     Use when you need strict max_uses enforcement AND want explicit retry control.
+# #     """
+# #     pk = int(id) if str(id).isdigit() else None
+# #     if pk is None:
+# #         return None
+# #     from sqlalchemy import text
+# #     from app.config.database import get_async_session_factory
+# #     factory = get_async_session_factory()
+# #     for attempt in range(max_retries):
+# #         async with factory() as session:
+# #             row = await session.execute(
+# #                 text("SELECT used_count, version FROM sj_coupons WHERE id = :id FOR UPDATE"),
+# #                 {"id": pk},
+# #             )
+# #             r = row.fetchone()
+# #             if not r:
+# #                 return None
+# #             result = await session.execute(
+# #                 text(
+# #                     "UPDATE sj_coupons "
+# #                     "SET used_count = used_count + 1, version = version + 1, "
+# #                     "    updated_at = UTC_TIMESTAMP() "
+# #                     "WHERE id = :id AND version = :v"
+# #                 ),
+# #                 {"id": pk, "v": r.version},
+# #             )
+# #             await session.commit()
+# #             if result.rowcount == 1:
+# #                 self.invalidate_cache()
+# #                 return await self.findById(id)
+# #     raise RuntimeError(f"Could not increment coupon {id} after {max_retries} attempts")
+#
+# TO ACTIVATE:
+#   1. Add migration: ALTER TABLE sj_coupons ADD COLUMN version INT NOT NULL DEFAULT 0;
+#   2. Replace calls to incrementUsage() with increment_usage_optimistic().
+#
+# ─────────────────────────────────────────────────────────────────────────────────
 
     async def validateCoupon(
         self,

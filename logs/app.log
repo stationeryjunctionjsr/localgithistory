@@ -1632,3 +1632,5 @@
 {"asctime": "2026-09-13 19:05:34,602", "levelname": "INFO", "module": "main", "request_id": "-", "message": "GET /api/support-tickets/ -> 401 in 55ms [127.0.0.1]"}
 {"asctime": "2026-09-13 19:27:51,087", "levelname": "WARNING", "module": "main", "request_id": "-", "message": "ALLOWED_ORIGINS not set; defaulting to http://localhost:3000 in non-production."}
 {"asctime": "2026-09-13 19:28:14,737", "levelname": "WARNING", "module": "main", "request_id": "-", "message": "ALLOWED_ORIGINS not set; defaulting to http://localhost:3000 in non-production."}
+{"asctime": "2026-09-13 21:56:37,147", "levelname": "WARNING", "module": "main", "request_id": "-", "message": "ALLOWED_ORIGINS not set; defaulting to http://localhost:3000 in non-production."}
+{"asctime": "2026-09-13 21:57:42,027", "levelname": "WARNING", "module": "main", "request_id": "-", "message": "ALLOWED_ORIGINS not set; defaulting to http://localhost:3000 in non-production."}

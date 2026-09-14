@@ -336,7 +336,7 @@ async def book_slot(config_id: str, slot_id: str = Query(...)):
     if not updated:
         raise HTTPException(status_code=404, detail="Slot not found in configuration")
 
-    await storage.update(config_id, {"slots": [s.model_dump() for s in cfg.slots]})
+    await storage.update(config_id, cfg)
     return {"success": True, "slot": booked_slot}
 
 
@@ -366,11 +366,13 @@ async def create_delivery_slot_config(
         # Auto-fill slot capacities from zone default if not set
         slots_with_capacity = []
         for slot in config.slots:
-            slot_dict = slot.model_dump()
-            cap_val = slot.capacity
+            cap_val = slot.capacity if not isinstance(slot, dict) else slot.get("capacity")
             if cap_val is None or cap_val == 0:
-                slot_dict["capacity"] = zone_default_capacity
-            slots_with_capacity.append(slot_dict)
+                if isinstance(slot, dict):
+                    slot["capacity"] = zone_default_capacity
+                else:
+                    slot.capacity = zone_default_capacity
+            slots_with_capacity.append(slot.model_dump() if hasattr(slot, "model_dump") else slot)
 
         record = {
             "segment": config.segment,
@@ -398,7 +400,7 @@ async def create_delivery_slot_config(
 async def update_delivery_slot_config(
     config_id: str, config: DeliverySlotConfigBase, current_user: User = Depends(require_super_admin)
 ):
-    updated = await storage.update(config_id, config.model_dump())
+    updated = await storage.update(config_id, config)
     if not updated:
         raise HTTPException(status_code=404, detail="Configuration not found")
     return updated

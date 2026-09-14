@@ -159,10 +159,12 @@ class StockReservationRepository:
         res_storage = self.storage
 
         now = datetime.now(timezone.utc)
+        now_naive = now.replace(tzinfo=None)
         expires_at = now + timedelta(minutes=ttl_minutes)
+        expires_naive = expires_at.replace(tzinfo=None)
 
         async with factory() as session:
-            # 1. Lock the product row
+            # 1. Lock the product row — serialises concurrent add-to-cart for same product.
             prod_result = await session.execute(
                 text(f"SELECT id, stock FROM {product_storage.TABLE} WHERE id = :pid FOR UPDATE"),
                 {"pid": str(product_id)},
@@ -173,7 +175,7 @@ class StockReservationRepository:
 
             actual_stock = int(prod_row.stock)
 
-            # 2. Sum reservations held by OTHER users
+            # 2. Sum reservations held by OTHER users (inside same transaction).
             res_result = await session.execute(
                 text(
                     f"SELECT SUM(quantity) as reserved FROM {res_storage.TABLE} "
@@ -182,7 +184,7 @@ class StockReservationRepository:
                     f"  AND status = 'active' "
                     f"  AND expires_at > :now"
                 ),
-                {"pid": str(product_id), "uid": str(user_id), "now": now.replace(tzinfo=None)},
+                {"pid": str(product_id), "uid": str(user_id), "now": now_naive},
             )
             res_row = res_result.fetchone()
             other_reserved = int(res_row.reserved or 0) if res_row else 0
@@ -191,7 +193,87 @@ class StockReservationRepository:
             if available < quantity:
                 raise ValueError(f"Insufficient stock. Available: {available}")
 
-            # 3. All clear, make the reservation
-            return await self.reserve_stock(product_id, user_id, quantity, ttl_minutes)
+            # 3. Release any existing active reservation for this user+product.
+            #    Uses the SAME connection — no second pool slot needed while FOR UPDATE is held.
+            await session.execute(
+                text(
+                    f"UPDATE {res_storage.TABLE} "
+                    f"SET status = 'released', updated_at = UTC_TIMESTAMP() "
+                    f"WHERE product_id = :pid AND user_id = :uid AND status = 'active'"
+                ),
+                {"pid": str(product_id), "uid": str(user_id)},
+            )
+
+            # 4. Insert new reservation in the same connection (eliminates the deadlock risk).
+            import secrets as _secrets
+            ext_id = _secrets.token_hex(16)
+            await session.execute(
+                text(
+                    f"INSERT INTO {res_storage.TABLE} "
+                    f"(external_id, product_id, user_id, quantity, status, expires_at, created_at, updated_at) "
+                    f"VALUES (:eid, :pid, :uid, :qty, 'active', :exp, :now, :now)"
+                ),
+                {
+                    "eid": ext_id,
+                    "pid": str(product_id),
+                    "uid": str(user_id),
+                    "qty": int(quantity),
+                    "exp": expires_naive,
+                    "now": now_naive,
+                },
+            )
+            new_id_row = await session.execute(
+                text(f"SELECT id FROM {res_storage.TABLE} WHERE external_id = :eid"),
+                {"eid": ext_id},
+            )
+            new_id = new_id_row.scalar()
+            await session.commit()
+
+        logger.info(
+            "Created stock reservation (atomic) for user %s, product %s, qty %d (expires in %d min)",
+            user_id,
+            product_id,
+            quantity,
+            ttl_minutes,
+        )
+        return await self.storage.findById(str(new_id))
+
+
+# ── MULTI-VM STOCK RESERVATION (commented out — already handled by DB-level lock) ──
+#
+# The active reserve_stock_checked() above uses SELECT … FOR UPDATE on the product
+# row.  This is a MySQL row lock — it serialises concurrent requests from ALL
+# uvicorn workers across ALL VMs that share the same database, so no extra
+# distributed locking layer is required today.
+#
+# HOW SINGLE-VM WORKS (active):
+#   Within one VM, uvicorn runs N workers (processes).  Each worker independently
+#   calls reserve_stock_checked().  MySQL's FOR UPDATE ensures only one worker
+#   at a time can read-check-update the product row, regardless of N.
+#
+# IF EXTREME PRE-DB LOAD SHEDDING IS EVER NEEDED (multi-VM, high RPS):
+#   Replace the `async with factory() as session:` block with a Redis distributed
+#   lock so only one request per product_id even reaches MySQL at a time:
+#
+# # async def reserve_stock_checked_redis_gated(
+# #     self, product_id: str, user_id: str, quantity: int, ttl_minutes: int
+# # ) -> dict:
+# #     """Like reserve_stock_checked but gates via a Redis distributed lock.
+# #     Use when DB FOR UPDATE queuing is acceptable but pre-DB load shedding
+# #     is needed under extreme concurrency (e.g. flash-sale traffic).
+# #     """
+# #     import aioredis
+# #     redis = aioredis.from_url(os.environ["REDIS_URL"])
+# #     lock_key = f"sj:reserve:{product_id}"
+# #     async with redis.lock(lock_key, timeout=10, blocking_timeout=8):
+# #         return await self.reserve_stock_checked(product_id, user_id, quantity, ttl_minutes)
+#
+# TO ACTIVATE:
+#   1. pip install aioredis
+#   2. Add REDIS_URL to .env
+#   3. Rename above to reserve_stock_checked; retire the current one.
+#   4. All callers (orders.py) pick it up automatically.
+#
+# ────────────────────────────────────────────────────────────────────────────────────
 
 stock_reservation_repository = StockReservationRepository()

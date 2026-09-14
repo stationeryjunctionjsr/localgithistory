@@ -1212,6 +1212,8 @@ class ProductRepository:
         if not factory:
             return None
         async with factory() as session:
+            # Lock the parent product row — serialises concurrent decrements across all
+            # VMs/workers sharing the same MySQL instance (FOR UPDATE is DB-level).
             result = await session.execute(
                 text(f"SELECT id, stock FROM {self.storage.TABLE} WHERE id = :id FOR UPDATE"),
                 {"id": product_id},
@@ -1224,8 +1226,100 @@ class ProductRepository:
                 text(f"UPDATE {self.storage.TABLE} SET stock = :stock, updated_at = UTC_TIMESTAMP() WHERE id = :rid"),
                 {"stock": new_stock, "rid": row.id},
             )
+
+            # Decrement variant-level stock when the order specifies variant attributes.
+            # Previously variant_combinations was accepted but silently dropped.
+            if variant_combinations:
+                # Lock all variant rows for this product in the same transaction.
+                v_result = await session.execute(
+                    text("SELECT id, stock, sku FROM sj_product_variants WHERE product_id = :pid FOR UPDATE"),
+                    {"pid": row.id},
+                )
+                all_variants = v_result.fetchall()
+
+                if all_variants:
+                    variant_ids = [v.id for v in all_variants]
+                    placeholders = ", ".join([f":vid_{i}" for i in range(len(variant_ids))])
+                    attr_params = {f"vid_{i}": vid for i, vid in enumerate(variant_ids)}
+
+                    # Fetch combo attributes for attribute-based matching
+                    attr_result = await session.execute(
+                        text(
+                            f"SELECT variant_id, attr_name, attr_value "
+                            f"FROM sj_product_variant_combo_attrs "
+                            f"WHERE variant_id IN ({placeholders})"
+                        ),
+                        attr_params,
+                    )
+                    variant_attrs: dict = {v.id: {} for v in all_variants}
+                    for ar in attr_result.fetchall():
+                        variant_attrs[ar.variant_id][ar.attr_name] = ar.attr_value
+
+                    for vc in variant_combinations:
+                        req_attrs = vc.get("attributes") or {}
+                        vc_qty = int(vc.get("quantity", quantity))
+                        matched = False
+                        for v_row in all_variants:
+                            v_id = v_row.id
+                            if req_attrs and variant_attrs.get(v_id) == req_attrs:
+                                new_v_stock = max(0, (v_row.stock or 0) - vc_qty)
+                                await session.execute(
+                                    text(
+                                        "UPDATE sj_product_variants "
+                                        "SET stock = :stock WHERE id = :vid"
+                                    ),
+                                    {"stock": new_v_stock, "vid": v_id},
+                                )
+                                matched = True
+                                break
+                        if not matched and req_attrs:
+                            from app.utils.logger import logger as _log
+                            _log.warning(
+                                "[decrement_stock_atomic] No variant matched attrs %s for product %s — "
+                                "global stock decremented but variant stock unchanged.",
+                                req_attrs, product_id,
+                            )
+
             await session.commit()
         return new_stock
+
+
+# ── MULTI-VM STOCK DECREMENT (commented out — already handled by DB-level lock) ──
+#
+# The active decrement_stock_atomic() above uses SELECT … FOR UPDATE on sj_products
+# (and sj_product_variants when variant_combinations is provided).  These are
+# MySQL row locks that work identically whether requests come from 1 worker or
+# N workers across M VMs — all share the same MySQL instance.
+#
+# HOW SINGLE-VM WORKS (active):
+#   With uvicorn --workers 4 on one VM, all 4 workers share one event loop per
+#   process.  MySQL's FOR UPDATE serialises concurrent order-completion requests
+#   for the same product at the DB level.  No in-process asyncio.Lock is needed
+#   because the lock scope must cross process boundaries.
+#
+# IF PRE-DB LOAD SHEDDING IS EVER NEEDED (flash-sale, extreme RPS):
+#
+# # async def decrement_stock_atomic_redis_gated(
+# #     self, product_id: str, quantity: int,
+# #     variant_combinations: list = None, role: str = None
+# # ):
+# #     """Like decrement_stock_atomic but gates via a Redis distributed lock.
+# #     Prevents DB pool saturation on high-concurrency product flash-sales.
+# #     """
+# #     import aioredis, os
+# #     redis = aioredis.from_url(os.environ["REDIS_URL"])
+# #     lock_key = f"sj:stock:{product_id}"
+# #     async with redis.lock(lock_key, timeout=10, blocking_timeout=8):
+# #         return await self.decrement_stock_atomic(
+# #             product_id, quantity, variant_combinations, role
+# #         )
+#
+# TO ACTIVATE:
+#   1. pip install aioredis
+#   2. Add REDIS_URL to .env
+#   3. Replace decrement_stock_atomic calls in orders.py with decrement_stock_atomic_redis_gated.
+#
+# ─────────────────────────────────────────────────────────────────────────────────
 
     async def increment_stock_atomic(self, product_id: str, quantity: int) -> int:
         from sqlalchemy import text

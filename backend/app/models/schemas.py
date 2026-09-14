@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices
 
 
 class UserRole(str, Enum):
@@ -1394,6 +1394,31 @@ class ReturnRequestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
+class ReturnRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='ignore')
+    id: Optional[str] = Field(None, validation_alias=AliasChoices('_id', 'id'))
+    orderId: Optional[str] = None
+    userId: Optional[str] = None
+    valetId: Optional[str] = None
+    pendingValetId: Optional[str] = None
+    status: Optional[str] = None
+    items: Optional[List[Any]] = []
+    paymentMethod: Optional[str] = None
+    upiPaymentScreenshot: Optional[str] = None
+    notes: Optional[str] = None
+    deliveryCharge: Optional[float] = 0.0
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+    sellerId: Optional[str] = None
+    deliverySlotId: Optional[str] = None
+    deliverySlotDate: Optional[str] = None
+    valetAssignedAt: Optional[str] = None
+    valetCascadeCount: Optional[int] = 0
+    valetDeclineHistory: Optional[List[Any]] = []
+    user: Optional[UserSnippet] = None
+    valet: Optional[ValetSnippet] = None
+
+
 class ProductResponse(ProductBase):
     id: str = Field(alias="_id")
     productId: Optional[int] = None
@@ -2779,14 +2804,20 @@ class EligibleFeedbackResponse(BaseModel):
 
 
 class ReturnEligibilityItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="ignore")
     productId: str
     maxQuantity: int
     reason: Optional[str] = None
+    name: Optional[str] = None
+    price: Optional[float] = None
+    image: Optional[str] = None
 
 
 class ReturnEligibilityResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="ignore")
     eligibleItems: List[ReturnEligibilityItem] = []
     reason: Optional[str] = None
+    returnDeliveryCharge: Optional[float] = 0.0
 
 
 class UPIDetailsResponse(BaseModel):
@@ -2912,3 +2943,22 @@ class ValetEarningsResponse(BaseModel):
 
 
 
+
+class ActivityCreate(BaseModel):
+    userId: Optional[str] = None
+    action: Optional[str] = None
+    entityType: Optional[str] = None
+    entityId: Optional[str] = None
+    sessionId: Optional[str] = None
+    metadata: Optional[Dict[str, str]] = None
+
+class ActivityUpdate(BaseModel):
+    userId: Optional[str] = None
+    action: Optional[str] = None
+    entityType: Optional[str] = None
+    entityId: Optional[str] = None
+    sessionId: Optional[str] = None
+    metadata: Optional[Dict[str, str]] = None
+
+class ActivityResponse(ActivityCreate):
+    id: Optional[str] = Field(default='', alias='_id')

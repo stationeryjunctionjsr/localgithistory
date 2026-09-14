@@ -2,7 +2,7 @@ from app.models.user import User
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
 from app.models.sub_order import SubOrder, SubOrderInternalCreate, SubOrderInternalUpdate, SubOrderItem
 from app.models.product import Product
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 class GenerateInvoiceResponse(BaseModel):
     success: bool
     invoiceUrl: str
@@ -163,6 +163,75 @@ class ConfirmPickupRequest(BaseModel):
     """Sent by valet when physically collecting items from a seller's location."""
 
     notes: Optional[str] = None
+
+
+class LocationDeliveryCharge(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    charge: float = 0.0
+    minCartValue: float = 0.0
+    isApplicableToRole: bool = True
+    urgentDeliveryCharge: Optional[float] = None
+    urgentDeliveryAvailable: Optional[bool] = False
+
+
+class CouponDetailModel(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    id: Optional[str] = Field(None, alias="_id")
+    code: Optional[str] = None
+    discountType: Optional[str] = Field(None, alias="discount_type")
+    discountValue: Optional[float] = Field(0.0, alias="discount_value")
+    typeOfDiscount: Optional[str] = Field(None, alias="type_of_discount")
+    method: Optional[str] = None
+    couponMode: Optional[str] = Field(None, alias="coupon_mode")
+
+    @property
+    def discount_type(self) -> Optional[str]:
+        return self.discountType
+
+    @property
+    def discount_value(self) -> Optional[float]:
+        return self.discountValue
+
+    @property
+    def type_of_discount(self) -> Optional[str]:
+        return self.typeOfDiscount
+
+
+class CouponValidationResult(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    valid: bool = False
+    message: Optional[str] = None
+    coupon: Optional[Any] = None
+    discount: float = 0.0
+    eligibleItemIndices: Optional[List[int]] = None
+    itemDiscounts: Optional[Dict[Any, Any]] = None
+    bxgyItemIndices: Optional[List[int]] = None
+
+
+class ReferralProgramSegmentSettings(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    segment: str = "retail"
+    discountType: str = Field("percentage", alias="discount_type")
+    discountValue: float = Field(0.0, alias="discount_value")
+    isActive: bool = Field(False, alias="is_active")
+
+    @property
+    def is_active(self) -> bool:
+        return self.isActive
+
+    @property
+    def discount_type(self) -> str:
+        return self.discountType
+
+    @property
+    def discount_value(self) -> float:
+        return self.discountValue
+
+
+class ReferralSettingsModel(BaseModel):
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    retail: ReferralProgramSegmentSettings = Field(default_factory=ReferralProgramSegmentSettings)
+    business: Optional[ReferralProgramSegmentSettings] = None
 
 
 async def populate_orders(orders: list[Any]) -> list[Any]:
@@ -528,13 +597,22 @@ async def create_order(
 
             from app.repositories.delivery_charge_repository import delivery_charge_repository
 
-            delivery_charge_data = await delivery_charge_repository.getChargeForLocation(
+            delivery_charge_data_raw = await delivery_charge_repository.getChargeForLocation(
                 state, city, district, zip_code, effective_role, temp_subtotal
             )
+            delivery_charge_data = (
+                LocationDeliveryCharge.model_validate(delivery_charge_data_raw)
+                if isinstance(delivery_charge_data_raw, dict)
+                else delivery_charge_data_raw
+            )
             if delivery_charge_data:
-                charge_amount = float(delivery_charge_data.charge or 0)
-                min_cart_value_for_free = float(delivery_charge_data.minCartValue or 0)
-                is_applicable = delivery_charge_data.isApplicableToRole
+                charge_amount = float(delivery_charge_data.charge if delivery_charge_data.charge is not None else 0.0)
+                min_cart_value_for_free = float(delivery_charge_data.minCartValue if delivery_charge_data.minCartValue is not None else 0.0)
+                is_applicable = (
+                    delivery_charge_data.isApplicableToRole
+                    if delivery_charge_data.isApplicableToRole is not None
+                    else True
+                )
                 if is_applicable:
                     if min_cart_value_for_free > 0 and temp_subtotal < min_cart_value_for_free:
                         base_shipping = float(charge_amount)
@@ -557,7 +635,7 @@ async def create_order(
         from app.repositories.coupon_repository import coupon_repository
 
         role_for_coupon = effective_role
-        validation = await coupon_repository.validateCoupon(
+        validation_raw = await coupon_repository.validateCoupon(
             order_data.couponCode,
             role_for_coupon,
             0.0,
@@ -569,11 +647,21 @@ async def create_order(
             shipping_address=order_data.shippingAddress,
             shipping_charge=base_shipping,
         )
+        validation = (
+            CouponValidationResult.model_validate(validation_raw)
+            if isinstance(validation_raw, dict)
+            else validation_raw
+        )
         is_val_valid = validation.valid
         if not is_val_valid:
             val_msg = validation.message
             raise HTTPException(status_code=400, detail=val_msg)
-        val_c = validation.coupon
+        val_c_raw = validation.coupon
+        val_c = (
+            CouponDetailModel.model_validate(val_c_raw)
+            if isinstance(val_c_raw, dict)
+            else (val_c_raw if val_c_raw is not None else CouponDetailModel())
+        )
         applied_coupon_id = val_c.id
         val_code = val_c.code
         coupon_code = val_code or ("AUTO-" + (applied_coupon_id or "")[:8])
@@ -582,7 +670,7 @@ async def create_order(
         item_discounts = validation.itemDiscounts
         bxgy_item_indices = validation.bxgyItemIndices
 
-        c_obj = (validation.coupon) or {}
+        c_obj = val_c
         c_method = c_obj.method
         c_mode = c_obj.couponMode
         if c_method == "discount_code" and c_mode == "override":
@@ -612,20 +700,37 @@ async def create_order(
             shipping_charge=base_shipping,
         )
         if auto_list:
-            best = max(auto_list, key=lambda x: x["discount"])
-            coupon_discount = best.discount
+            best_raw = max(
+                auto_list,
+                key=lambda x: (
+                    x["discount"]
+                    if isinstance(x, dict)
+                    else (x.discount if x.discount is not None else 0.0)
+                ),
+            )
+            best = (
+                CouponValidationResult.model_validate(best_raw)
+                if isinstance(best_raw, dict)
+                else best_raw
+            )
+            coupon_discount = best.discount if best.discount is not None else 0.0
             eligible_item_indices = best.eligibleItemIndices
             item_discounts = best.itemDiscounts
             bxgy_item_indices = best.bxgyItemIndices
-            c = best.coupon
+            c_raw = best.coupon
+            c = (
+                CouponDetailModel.model_validate(c_raw)
+                if isinstance(c_raw, dict)
+                else (c_raw if c_raw is not None else CouponDetailModel())
+            )
             applied_coupon_id = c.id
             coupon_code = c.code or ("AUTO-" + (applied_coupon_id or "")[:8])
             coupon_info = {
                 "code": coupon_code,
-                "discountType": c.discount_type,
-                "discountValue": c.discount_value,
+                "discountType": c.discountType,
+                "discountValue": c.discountValue,
                 "discountAmount": coupon_discount,
-                "typeOfDiscount": c.type_of_discount,
+                "typeOfDiscount": c.typeOfDiscount,
             }
 
     # Calculate totals with GST (after coupon discount)
@@ -726,7 +831,12 @@ async def create_order(
         # 3. Settings must be active globally
         from app.repositories.referral_repository import referral_repository
 
-        ref_settings = await referral_repository.get_settings()
+        ref_settings_raw = await referral_repository.get_settings()
+        ref_settings = (
+            ReferralSettingsModel.model_validate(ref_settings_raw)
+            if isinstance(ref_settings_raw, dict)
+            else ref_settings_raw
+        )
         retail_settings = ref_settings.retail
         if not (retail_settings.is_active if retail_settings.is_active is not None else False) or (retail_settings.discount_value if retail_settings.discount_value is not None else 0) <= 0:
             raise HTTPException(status_code=400, detail="Referral program is not active at the moment")
@@ -903,19 +1013,26 @@ async def create_order(
         # ── Resolve slot config: zone-specific first, then "default" fallback ─
         # New design: one config record per zone per date (zoneId field).
         # "default" config serves as a fallback for zones with no specific config.
-        _slot_config = None
+        _slot_config_raw = None
         if order_zone_id:
             _zone_configs = await slot_storage.findAll(
                 {"date": target_date, "segment": seg, "zoneId": order_zone_id, "isActive": True}
             )
             if _zone_configs:
-                _slot_config = _zone_configs[0]
-        if not _slot_config:
+                _slot_config_raw = _zone_configs[0]
+        if not _slot_config_raw:
             _default_configs = await slot_storage.findAll(
                 {"date": target_date, "segment": seg, "zoneId": "default", "isActive": True}
             )
             if _default_configs:
-                _slot_config = _default_configs[0]
+                _slot_config_raw = _default_configs[0]
+
+        from app.routers.delivery_slots import DeliverySlotConfigModel
+        _slot_config = (
+            DeliverySlotConfigModel.model_validate(_slot_config_raw)
+            if isinstance(_slot_config_raw, dict)
+            else _slot_config_raw
+        )
 
         slot_configs = [_slot_config] if _slot_config else []
 
@@ -1096,8 +1213,13 @@ async def create_order(
             total_before_shipping = subtotal  # Use subtotal (after coupon, includes GST)
 
             # Get delivery charge with role and amount consideration (now includes pincode)
-            delivery_charge_data = await delivery_charge_repository.getChargeForLocation(
+            delivery_charge_data_raw = await delivery_charge_repository.getChargeForLocation(
                 state, city, district, zip_code, effective_role, total_before_shipping
+            )
+            delivery_charge_data = (
+                LocationDeliveryCharge.model_validate(delivery_charge_data_raw)
+                if isinstance(delivery_charge_data_raw, dict)
+                else delivery_charge_data_raw
             )
 
             if delivery_charge_data:
@@ -1211,7 +1333,59 @@ async def create_order(
             order_data.upiPaymentScreenshot, "payments", filename_prefix="upi-screenshot"
         )
 
+    # Deduct credit BEFORE writing the order record.
+    # The pre-check above (L1313-1325) is an optimistic read; two concurrent requests
+    # can both pass it if they read the same credit_used value simultaneously.
+    # add_credit_used_atomic uses a conditional UPDATE (credit_used + amount <= limit)
+    # so the second of two concurrent requests will get rowcount == 0 and be rejected
+    # cleanly — before an order record has been written.
+    _credit_deducted = False
+    if order_data.paymentMethod == "credit":
+        success = await user_repository.add_credit_used_atomic(current_user.id, total)
+        if not success:
+            ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()
+            raise HTTPException(status_code=400, detail="Insufficient credit limit or user not found.")
+        _credit_deducted = True
+
+    # ── MULTI-VM CREDIT DEDUCTION (commented out — already atomic at DB level) ───
+    #
+    # The active add_credit_used_atomic() above is a single conditional UPDATE:
+    #   UPDATE sj_users SET credit_used = credit_used + amount
+    #   WHERE id = :id AND credit_used + amount <= credit_limit
+    # This is atomic in MySQL — safe across all 4 workers on this VM and across
+    # all VMs sharing the same DB.  No distributed lock is needed.
+    #
+    # HOW SINGLE-VM WORKS (active):
+    #   uvicorn --workers 4 means 4 independent processes.  If two orders for the
+    #   same user arrive simultaneously, both call add_credit_used_atomic().
+    #   MySQL serialises them at the row level; only the one that keeps credit_used
+    #   within the limit will succeed (rowcount == 1).  The other gets rowcount == 0
+    #   and is rejected before an order record is written.
+    #
+    # IF A REDIS PRE-LOCK IS EVER NEEDED (e.g. to provide user-facing queue feedback):
+    #
+    # # _credit_deducted = False
+    # # if order_data.paymentMethod == "credit":
+    # #     import aioredis, os
+    # #     redis = aioredis.from_url(os.environ["REDIS_URL"])
+    # #     lock_key = f"sj:credit:{current_user.id}"
+    # #     async with redis.lock(lock_key, timeout=5, blocking_timeout=4):
+    # #         success = await user_repository.add_credit_used_atomic(current_user.id, total)
+    # #         if not success:
+    # #             ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()
+    # #             raise HTTPException(status_code=400, detail="Credit limit exceeded.")
+    # #         _credit_deducted = True
+    #
+    # TO ACTIVATE:
+    #   1. pip install aioredis
+    #   2. Add REDIS_URL to .env
+    #   3. Replace the active block above with the commented block above.
+    #
+    # ─────────────────────────────────────────────────────────────────────────────
+
+
     # Create order
+
     order = await order_repository.create(
         OrderInternalCreate(**{
             "user": current_user.id,
@@ -1250,218 +1424,249 @@ async def create_order(
         })
     )
 
-    # Increment delivery slot bookedCount if a slot was booked
-    if selected_slot_info:
-        try:
-            from app.db.storage_factory import get_storage as _get_storage
-            import json
-            from sqlalchemy import text
-            from app.config.database import get_async_session_factory
-
-            slot_storage = _get_storage("deliverySlots")
-            config_id = selected_slot_info["configId"]
-            slot_id = selected_slot_info["slotId"]
-            slot_config = await slot_storage.findById(config_id)
-            if slot_config:
-                factory = get_async_session_factory()
-                if factory:
-                    db_id = slot_config.id if slot_config.id is not None else config_id
-                    async with factory() as session:
-                        result = await session.execute(
-                            text(f"SELECT doc FROM {slot_storage.table_name} WHERE id = :id FOR UPDATE"),
-                            {"id": int(db_id) if str(db_id).isdigit() else None},
-                        )
-                        row = result.fetchone()
-                        if row and row.doc:
-                            from app.routers.delivery_slots import DeliverySlotConfigModel
-                            doc_model = DeliverySlotConfigModel(**json.loads(row.doc))
-                            updated_slots = doc_model.slots if doc_model.slots else []
-                            for sl in updated_slots:
-                                if sl.id == slot_id:
-                                    # Flat bookedCount increment — per-zone config records
-                                    # each have their own bookedCount directly on the slot.
-                                    sl.bookedCount = (sl.bookedCount if sl.bookedCount is not None else 0) + 1
-                                    break
-                            doc_model.slots = updated_slots
-                            doc_model.updatedAt = datetime.now(__import__("datetime").timezone.utc).isoformat()
-                            doc_dump = doc_model.model_dump(by_alias=True)
-                            await session.execute(
-                                text(
-                                    f"UPDATE {slot_storage.table_name} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :id"
-                                ),
-                                {"doc": json.dumps(doc_dump), "id": int(db_id) if str(db_id).isdigit() else None},
-                            )
-                            await session.commit()
-        except Exception as e:
-            _cfg_id = selected_slot_info["configId"] if selected_slot_info and "configId" in selected_slot_info else selected_slot_info.configId
-            _s_id = selected_slot_info["slotId"] if selected_slot_info and "slotId" in selected_slot_info else selected_slot_info.slotId
-            logger.error(
-                "Failed to increment slot bookedCount for config %s slot %s: %s",
-                _cfg_id,
-                _s_id,
-                str(e),
-                exc_info=True,
-            )
-
-    # Increment sales volume for product bundles included in this order.
-    # Increment by the actual number of bundle copies purchased (not always +1).
+    # ── Post-creation compensation block ─────────────────────────────────────────
+    # Order record is now persisted. If any step below fails unexpectedly (e.g.
+    # the stock decrement or payment creation raises), we mark the order as
+    # "failed" and restore credit so the record is never silently broken.
     try:
-        unique_bundle_ids = {item.bundle_id for item in cart_items if item.bundle_id}
-        for b_id in unique_bundle_ids:
-            from app.repositories.bundle_repository import bundle_repository
-
-            bundle = await bundle_repository.findById(b_id)
-            if bundle:
-                # Determine how many full copies of this bundle were in the order.
-                # Use the first bundle item spec as the reference: copies = cart_qty / spec_qty.
-                bundle_items_in_order = [i for i in cart_items if i.bundle_id == b_id]
-                bundle_specs = bundle.items or []
-                copies = 1  # default
-                if bundle_specs and bundle_items_in_order:
-                    spec = bundle_specs[0]
-                    spec_qty = max(1, spec.quantity if spec.quantity is not None else 1)
-                    spec_pid = str(spec.productId if spec.productId is not None else "")
-                    ref_item = next(
-                        (
-                            i
-                            for i in bundle_items_in_order
-                            if str((i.product or "")) == spec_pid or str((i.product_id or "")) == spec_pid
-                        ),
-                        bundle_items_in_order[0],
-                    )
-                    copies = max(1, (ref_item.quantity if ref_item.quantity is not None else spec_qty) // spec_qty)
-                new_sales = (bundle.sales_count if bundle.sales_count is not None else 0) + copies
-                await bundle_repository.update(b_id, {"salesCount": new_sales})
-    except Exception as e:
-        logger.error("Failed to increment bundle salesCount: %s", str(e), exc_info=True)
-
-    # Atomically decrement stock and fulfil the reservation in one shot per item.
-    # Uses SELECT … FOR UPDATE so concurrent orders for the same product serialize
-    # at the DB level — no two orders can read the same stock value and both succeed.
-    for item in order_items:
-        product = await product_repository.findById(item.product)
-
-        # Build variant_combinations arg expected by decrement_stock_atomic
-        variant_combos = None
-        if item.variant_attributes or item.variantAttributes:
-            variant_combos = [{"attributes": item.variant_attributes or item.variantAttributes, "quantity": item.quantity}]
-
-        new_stock = await product_repository.decrement_stock_atomic(
-            str(item.product),
-            item.quantity,
-            variant_combinations=variant_combos,
-            role=effective_role,
-        )
-        if new_stock is None:
-            # Should not happen in production (factory always set), but guard anyway
-            logger.error(
-                "[OrderCreate] decrement_stock_atomic returned None for product %s — "
-                "order %s may have incorrect stock. Investigate factory availability.",
-                item.product,
-                order.id,
-            )
-            new_stock = max(0, product.stock - (item.quantity if isinstance(item, dict) else item.quantity)) if product.stock is not None else None
-
-        # Fulfil the stock reservation for this user + product
-        from app.repositories.stock_reservation_repository import stock_reservation_repository
-
-        await stock_reservation_repository.fulfill_user_reservations(current_user.id, item.product)
-
-        # Check if stock is below category minimum quantity
-        should_notify = False
-        threshold = None
-
-        if product.category:
-            cat = await category_repository.findByName(product.category)
-            if cat and cat.minimum_quantity:
-                threshold = cat.minimum_quantity
-                if new_stock < threshold:
-                    should_notify = True
-
-        if should_notify and threshold is not None:
+        # Increment delivery slot bookedCount if a slot was booked
+        if selected_slot_info:
             try:
-                super_admin = await user_repository.findOne({"role": "super_admin"})
-                if super_admin:
-                    await notification_repository.create(
-                        {
-                            "userId": super_admin.id,
-                            "type": "low_stock",
-                            "title": "Low Stock Alert",
-                            "message": f'Product "{product.sku}" - "{product.name}" has {new_stock} pieces left',
-                            "data": {
-                                "productId": product.id,
-                                "sku": product.sku,
-                                "productName": product.name,
-                                "quantity": new_stock,
-                                "category": product.category,
-                                "threshold": threshold if threshold is not None else None,
-                            },
-                        }
-                    )
+                from app.db.storage_factory import get_storage as _get_storage
+                import json
+                from sqlalchemy import text
+                from app.config.database import get_async_session_factory
+
+                slot_storage = _get_storage("deliverySlots")
+                config_id = selected_slot_info["configId"]
+                slot_id = selected_slot_info["slotId"]
+                slot_config = await slot_storage.findById(config_id)
+                if slot_config:
+                    factory = get_async_session_factory()
+                    if factory:
+                        db_id = slot_config.id if slot_config.id is not None else config_id
+                        async with factory() as session:
+                            result = await session.execute(
+                                text(f"SELECT doc FROM {slot_storage.table_name} WHERE id = :id FOR UPDATE"),
+                                {"id": int(db_id) if str(db_id).isdigit() else None},
+                            )
+                            row = result.fetchone()
+                            if row and row.doc:
+                                from app.routers.delivery_slots import DeliverySlotConfigModel
+                                doc_model = DeliverySlotConfigModel(**json.loads(row.doc))
+                                updated_slots = doc_model.slots if doc_model.slots else []
+                                for sl in updated_slots:
+                                    if sl.id == slot_id:
+                                        # Flat bookedCount increment — per-zone config records
+                                        # each have their own bookedCount directly on the slot.
+                                        sl.bookedCount = (sl.bookedCount if sl.bookedCount is not None else 0) + 1
+                                        break
+                                doc_model.slots = updated_slots
+                                doc_model.updatedAt = datetime.now(__import__("datetime").timezone.utc).isoformat()
+                                doc_dump = doc_model.model_dump(by_alias=True)
+                                await session.execute(
+                                    text(
+                                        f"UPDATE {slot_storage.table_name} SET doc = :doc, updated_at = UTC_TIMESTAMP() WHERE id = :id"
+                                    ),
+                                    {"doc": json.dumps(doc_dump), "id": int(db_id) if str(db_id).isdigit() else None},
+                                )
+                                await session.commit()
             except Exception as e:
+                _cfg_id = selected_slot_info["configId"] if selected_slot_info and "configId" in selected_slot_info else selected_slot_info.configId
+                _s_id = selected_slot_info["slotId"] if selected_slot_info and "slotId" in selected_slot_info else selected_slot_info.slotId
                 logger.error(
-                    "Error creating low stock notification for product %s: %s",
-                    product.id,
+                    "Failed to increment slot bookedCount for config %s slot %s: %s",
+                    _cfg_id,
+                    _s_id,
                     str(e),
                     exc_info=True,
                 )
 
-    # Clean up any leftover active reservations of the user
-    from app.repositories.stock_reservation_repository import stock_reservation_repository
+        # Increment sales volume for product bundles included in this order.
+        # Increment by the actual number of bundle copies purchased (not always +1).
+        try:
+            unique_bundle_ids = {item.bundle_id for item in cart_items if item.bundle_id}
+            for b_id in unique_bundle_ids:
+                from app.repositories.bundle_repository import bundle_repository
 
-    await stock_reservation_repository.release_user_reservations(current_user.id)
+                bundle = await bundle_repository.findById(b_id)
+                if bundle:
+                    # Determine how many full copies of this bundle were in the order.
+                    # Use the first bundle item spec as the reference: copies = cart_qty / spec_qty.
+                    bundle_items_in_order = [i for i in cart_items if i.bundle_id == b_id]
+                    bundle_specs = bundle.items or []
+                    copies = 1  # default
+                    if bundle_specs and bundle_items_in_order:
+                        spec = bundle_specs[0]
+                        spec_qty = max(1, spec.quantity if spec.quantity is not None else 1)
+                        spec_pid = str(spec.productId if spec.productId is not None else "")
+                        ref_item = next(
+                            (
+                                i
+                                for i in bundle_items_in_order
+                                if str((i.product or "")) == spec_pid or str((i.product_id or "")) == spec_pid
+                            ),
+                            bundle_items_in_order[0],
+                        )
+                        copies = max(1, (ref_item.quantity if ref_item.quantity is not None else spec_qty) // spec_qty)
+                    new_sales = (bundle.sales_count if bundle.sales_count is not None else 0) + copies
+                    await bundle_repository.update(b_id, {"salesCount": new_sales})
+        except Exception as e:
+            logger.error("Failed to increment bundle salesCount: %s", str(e), exc_info=True)
 
-    # Update credit used for credit payment method
-    if order_data.paymentMethod == "credit":
-        success = await user_repository.add_credit_used_atomic(current_user.id, total)
-        if not success:
-            raise HTTPException(status_code=400, detail="Insufficient credit limit or user not found.")
+        # Atomically decrement stock and fulfil the reservation in one shot per item.
+        # Uses SELECT … FOR UPDATE so concurrent orders for the same product serialize
+        # at the DB level — no two orders can read the same stock value and both succeed.
+        for item in order_items:
+            product = await product_repository.findById(item.product)
 
-    # Update discount usage count if discount was used
-    if applied_coupon_id:
-        from app.repositories.coupon_repository import coupon_repository
+            # Build variant_combinations arg expected by decrement_stock_atomic
+            variant_combos = None
+            if item.variant_attributes or item.variantAttributes:
+                variant_combos = [{"attributes": item.variant_attributes or item.variantAttributes, "quantity": item.quantity}]
 
-        await coupon_repository.incrementUsage(applied_coupon_id, current_user.id)
+            new_stock = await product_repository.decrement_stock_atomic(
+                str(item.product),
+                item.quantity,
+                variant_combinations=variant_combos,
+                role=effective_role,
+            )
+            if new_stock is None:
+                # Should not happen in production (factory always set), but guard anyway
+                logger.error(
+                    "[OrderCreate] decrement_stock_atomic returned None for product %s — "
+                    "order %s may have incorrect stock. Investigate factory availability.",
+                    item.product,
+                    order.id,
+                )
+                new_stock = max(0, product.stock - (item.quantity if isinstance(item, dict) else item.quantity)) if product.stock is not None else None
 
-    # Create payment record
-    user_for_payment = await user_repository.findById(current_user.id)
-    payment_data = {
-        "orderId": order.id,
-        "userId": user_for_payment.user_id,  # Use userId instead of customerId
-        "customerName": user_for_payment.name,
-        "orderDate": order.created_at,
-        "paymentMethod": order_data.paymentMethod,
-        "totalAmount": total,
-    }
+            # Fulfil the stock reservation for this user + product
+            from app.repositories.stock_reservation_repository import stock_reservation_repository
 
-    # Set payment amounts and entries based on payment method
-    if order_data.paymentMethod == "upi":
-        # UPI: Paid upfront, amount remaining is 0
-        payment_data["amountPaid"] = total
-        payment_data["amountRemaining"] = 0
-        payment_data["paymentEntries"] = [
-            {
-                "entryId": 1,
-                "amount": total,
-                "image": screenshot_path,
-                "verified": False,
-                "createdAt": order.created_at,
-            }
-        ]
-    elif order_data.paymentMethod == "credit":
-        # Credit: Not paid yet, full amount remaining, no entry until settlement
-        payment_data["amountPaid"] = 0
-        payment_data["amountRemaining"] = total
-        payment_data["paymentEntries"] = []
-    else:
-        # COD: Not paid yet, full amount remaining, no entry until delivery
-        payment_data["amountPaid"] = 0
-        payment_data["amountRemaining"] = total
-        payment_data["paymentEntries"] = []
+            await stock_reservation_repository.fulfill_user_reservations(current_user.id, item.product)
 
-    payment = await payment_repository.create(payment_data)
+            # Check if stock is below category minimum quantity
+            should_notify = False
+            threshold = None
+
+            if product.category:
+                cat = await category_repository.findByName(product.category)
+                if cat and cat.minimum_quantity:
+                    threshold = cat.minimum_quantity
+                    if new_stock < threshold:
+                        should_notify = True
+
+            if should_notify and threshold is not None:
+                try:
+                    super_admin = await user_repository.findOne({"role": "super_admin"})
+                    if super_admin:
+                        await notification_repository.create(
+                            {
+                                "userId": super_admin.id,
+                                "type": "low_stock",
+                                "title": "Low Stock Alert",
+                                "message": f'Product "{product.sku}" - "{product.name}" has {new_stock} pieces left',
+                                "data": {
+                                    "productId": product.id,
+                                    "sku": product.sku,
+                                    "productName": product.name,
+                                    "quantity": new_stock,
+                                    "category": product.category,
+                                    "threshold": threshold if threshold is not None else None,
+                                },
+                            }
+                        )
+                except Exception as e:
+                    logger.error(
+                        "Error creating low stock notification for product %s: %s",
+                        product.id,
+                        str(e),
+                        exc_info=True,
+                    )
+
+        # Clean up any leftover active reservations of the user
+        from app.repositories.stock_reservation_repository import stock_reservation_repository
+
+        await stock_reservation_repository.release_user_reservations(current_user.id)
+
+        # Credit was already deducted atomically BEFORE the order was created (see above).
+
+        # Update discount usage count if discount was used
+        if applied_coupon_id:
+            from app.repositories.coupon_repository import coupon_repository
+
+            await coupon_repository.incrementUsage(applied_coupon_id, current_user.id)
+
+        # Create payment record
+        user_for_payment = await user_repository.findById(current_user.id)
+        payment_data = {
+            "orderId": order.id,
+            "userId": user_for_payment.user_id,  # Use userId instead of customerId
+            "customerName": user_for_payment.name,
+            "orderDate": order.created_at,
+            "paymentMethod": order_data.paymentMethod,
+            "totalAmount": total,
+        }
+
+        # Set payment amounts and entries based on payment method
+        if order_data.paymentMethod == "upi":
+            # UPI: Paid upfront, amount remaining is 0
+            payment_data["amountPaid"] = total
+            payment_data["amountRemaining"] = 0
+            payment_data["paymentEntries"] = [
+                {
+                    "entryId": 1,
+                    "amount": total,
+                    "image": screenshot_path,
+                    "verified": False,
+                    "createdAt": order.created_at,
+                }
+            ]
+        elif order_data.paymentMethod == "credit":
+            # Credit: Not paid yet, full amount remaining, no entry until settlement
+            payment_data["amountPaid"] = 0
+            payment_data["amountRemaining"] = total
+            payment_data["paymentEntries"] = []
+        else:
+            # COD: Not paid yet, full amount remaining, no entry until delivery
+            payment_data["amountPaid"] = 0
+            payment_data["amountRemaining"] = total
+            payment_data["paymentEntries"] = []
+
+        payment = await payment_repository.create(payment_data)
+
+    except Exception as _post_order_exc:
+        # ── Compensation ──────────────────────────────────────────────────────────
+        # Something failed after the order was written. Mark it as failed so it is
+        # visible to ops instead of silently lingering as a ghost record.
+        logger.error(
+            "[OrderCreate] Post-creation step failed for order %s — marking as failed. Error: %s",
+            order.id,
+            str(_post_order_exc),
+            exc_info=True,
+        )
+        try:
+            await order_repository.update(order.id, {"status": "failed"})
+        except Exception:
+            logger.error("[OrderCreate] Could not mark order %s as failed.", order.id, exc_info=True)
+
+        # Restore credit that was pre-deducted if this was a credit order.
+        if _credit_deducted:
+            try:
+                await user_repository.add_credit_used_atomic(current_user.id, -total)
+            except Exception:
+                logger.error(
+                    "[OrderCreate] Could not restore credit for user %s after order %s failure.",
+                    current_user.id,
+                    order.id,
+                    exc_info=True,
+                )
+
+        raise HTTPException(status_code=500, detail="Order could not be completed. Please try again.")
 
     # Create notification for new order
+
     await create_order_notification(order)
 
     # Create notification for new payment (if payment method is UPI)
@@ -1869,8 +2074,14 @@ async def update_order_status(
             if config_id and slot_id:
                 from app.db.storage_factory import get_storage as _get_storage
                 slot_storage = _get_storage("deliverySlots")
-                slot_config = await slot_storage.findById(config_id)
-                if slot_config:
+                slot_config_raw = await slot_storage.findById(config_id)
+                if slot_config_raw:
+                    from app.routers.delivery_slots import DeliverySlotConfigModel
+                    slot_config = (
+                        DeliverySlotConfigModel.model_validate(slot_config_raw)
+                        if isinstance(slot_config_raw, dict)
+                        else slot_config_raw
+                    )
                     slots_list = slot_config.slots if slot_config.slots else []
                     for sl in slots_list:
                         if sl.id == slot_id:

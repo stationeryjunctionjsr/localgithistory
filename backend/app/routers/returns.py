@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from app.services.email_service import email_service
 
-from app.models.schemas import ReturnRequestCreate, ReturnRequestResponse, ReturnRequestStatus, ReturnRequestUpdate, ReturnEligibilityResponse, ReturnEligibilityItem
+from app.models.schemas import ReturnRequestCreate, ReturnRequestResponse, ReturnRequestStatus, ReturnRequestUpdate, ReturnEligibilityResponse, ReturnEligibilityItem, ReturnRequest
 from app.repositories.category_repository import category_repository
 from app.repositories.delivery_charge_repository import delivery_charge_repository
 from app.repositories.order_repository import order_repository
@@ -21,21 +21,28 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-async def populate_return_request(request: Dict) -> Dict:
-    user = await user_repository.findById(request.userId)
+async def populate_return_request(request: Any) -> Dict:
+    req_model = ReturnRequest.model_validate(request) if isinstance(request, dict) else request
+    user = await user_repository.findById(req_model.userId) if req_model.userId else None
     valet = None
-    if request.valetId:
-        valet = await user_repository.findById(request.valetId)
+    if req_model.valetId:
+        valet = await user_repository.findById(req_model.valetId)
 
     populated_items = []
-    for item in (request.items if request.items is not None else []):
-        product = await product_repository.findById(item.product_id)
+    items_list = req_model.items or []
+    for item in items_list:
+        pid = getattr(item, "product_id", getattr(item, "productId", None))
+        if pid is None and isinstance(item, dict):
+            pid = item["product_id"] if "product_id" in item else (item["productId"] if "productId" in item else None)
+        product = await product_repository.findById(pid) if pid else None
+        item_dict = item.model_dump(by_alias=True) if hasattr(item, "model_dump") else (dict(item) if isinstance(item, dict) else item.__dict__)
         populated_items.append(
-            {**item, "product": product if product else {"_id": item.product_id, "name": "Product not found"}}
+            {**item_dict, "product": product.model_dump(by_alias=True) if hasattr(product, "model_dump") else (product if product else {"_id": pid, "name": "Product not found"})}
         )
 
+    base_dict = request if isinstance(request, dict) else (request.model_dump(by_alias=True) if hasattr(request, "model_dump") else request.__dict__)
     return {
-        **request,
+        **base_dict,
         "user": {
             "_id": user.id,
             "name": user.name,
@@ -198,12 +205,13 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
         raise HTTPException(status_code=403, detail="Only retail customers can create return requests")
 
     eligibility = await check_return_eligibility(request_data.orderId, current_user)
+    elig_model = ReturnEligibilityResponse.model_validate(eligibility) if isinstance(eligibility, dict) else eligibility
 
-    eligibility_reason = eligibility.reason
+    eligibility_reason = elig_model.reason
     if eligibility_reason:
         raise HTTPException(status_code=400, detail=eligibility_reason)
 
-    eligible_items_list = eligibility.eligibleItems
+    eligible_items_list = elig_model.eligibleItems
     eligible_items_map = {
         item.productId: item.maxQuantity
         for item in (eligible_items_list or [])
@@ -229,7 +237,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
             request_data.upiPaymentScreenshot, "returns", filename_prefix="return-screenshot"
         )
 
-    delivery_charge_val = eligibility.returnDeliveryCharge or 0
+    delivery_charge_val = elig_model.returnDeliveryCharge or 0
     created = await return_request_repository.create(
         {
             "orderId": request_data.orderId,
@@ -249,7 +257,8 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
 
         super_admin = await user_repository.findOne({"role": "super_admin"})
         if super_admin:
-            created_ret_id = str(created.id)
+            created_model = ReturnRequest.model_validate(created) if isinstance(created, dict) else created
+            created_ret_id = str(created_model.id or "")
             await notification_repository.create(
                 {
                     "userId": super_admin.id,
@@ -379,8 +388,9 @@ async def complete_return(
             )
 
     populated_req = await populate_return_request(updated)
-    user_info = populated_req.user
-    email = (user_info.email) if user_info else None
+    req_model = ReturnRequest.model_validate(populated_req) if isinstance(populated_req, dict) else populated_req
+    user_info = req_model.user
+    email = user_info.email if user_info else None
     if email:
         background_tasks.add_task(email_service.send_order_returned_email, email, populated_req)
 
@@ -415,18 +425,10 @@ async def get_valet_pending_returns(current_user: User = Depends(get_current_use
     })
     return [await populate_return_request(r) for r in returns]
 
-class ReturnEligibilityItem(BaseModel):
-    productId: str
-    maxQuantity: int
-    reason: Optional[str] = None
-
-class ReturnEligibilityResponse(BaseModel):
-    eligibleItems: List[ReturnEligibilityItem]
-    reason: Optional[str] = None
-
 class ValetReturnResponseRequest(BaseModel):
     accept: bool
     declineReason: Optional[str] = None
+
 
 @router.put("/valet/{return_id}/response", response_model=ReturnRequestResponse)
 async def valet_return_response(
@@ -437,43 +439,57 @@ async def valet_return_response(
     ret = await return_request_repository.findById(return_id)
     if not ret:
         raise HTTPException(status_code=404, detail="Return request not found")
-        
+
+    ret_model = ReturnRequest.model_validate(ret) if isinstance(ret, dict) else ret
+
     if current_user.role != "super_admin":
         if current_user.role != "valet":
             raise HTTPException(status_code=403, detail="Access denied")
-        pending_valet = ret.pendingValetId or ""
+        pending_valet = ret_model.pendingValetId or ""
         if str(pending_valet or "") != str(current_user.id):
             raise HTTPException(status_code=403, detail="Return is not assigned to you")
-            
-    current_status = ret.status
+
+    current_status = ret_model.status
     if current_status != "pending_valet":
         raise HTTPException(status_code=400, detail="Return is not pending valet acceptance")
-        
+
     from datetime import datetime, timezone
+
     now_iso = datetime.now(timezone.utc).isoformat() + "Z"
-    
+
     if response_data.accept:
-        updated_ret = await return_request_repository.update(return_id, {
-            "status": "assigned",
-            "valetId": str(current_user.id),
-            "pendingValetId": None,
-            "valetAssignedAt": now_iso
-        })
+        updated_ret = await return_request_repository.update(
+            return_id,
+            {
+                "status": "assigned",
+                "valetId": str(current_user.id),
+                "pendingValetId": None,
+                "valetAssignedAt": now_iso,
+            },
+        )
         return await populate_return_request(updated_ret)
     else:
         # Declined -> Cascade
-        raw_history = ret.valetDeclineHistory
+        raw_history = ret_model.valetDeclineHistory
         history = list(raw_history or [])
         valet_id_str = str(current_user.id)
-        if not any(isinstance(d, dict) and (d["valetId"] == valet_id_str if "valetId" in d else False) for d in history):
+        if not any(
+            isinstance(d, dict) and (d["valetId"] == valet_id_str if "valetId" in d else False)
+            for d in history
+        ):
             history.append({"valetId": valet_id_str, "reason": response_data.declineReason})
-            
-        await return_request_repository.update(return_id, {
-            "valetDeclineHistory": history,
-            "pendingValetId": None
-        })
-        ret["valetDeclineHistory"] = history
-        ret["pendingValetId"] = None
+
+        await return_request_repository.update(
+            return_id, {"valetDeclineHistory": history, "pendingValetId": None}
+        )
+        if isinstance(ret, dict):
+            ret["valetDeclineHistory"] = history
+            ret["pendingValetId"] = None
+        else:
+            if hasattr(ret, "valetDeclineHistory"):
+                ret.valetDeclineHistory = history
+            if hasattr(ret, "pendingValetId"):
+                ret.pendingValetId = None
         
         from app.jobs.valet_timeout_job import _cascade_or_revert_return
         await _cascade_or_revert_return(ret)
