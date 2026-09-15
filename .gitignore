@@ -83,3 +83,15 @@ frontend/test-results/
 k6*/
 k6.zip
 
+
+# Auto-generated and one-off repair scripts
+.agents/
+backend/scratch/
+fix_*.py
+rewrite_*.py
+recover_*.py
+debug_*.py
+backend/alter_*.py
+backend/fix_*.py
+backend/patch_*.py
+backend/check_*.py
