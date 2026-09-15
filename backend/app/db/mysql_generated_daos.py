@@ -32,14 +32,25 @@ class DynamicRelationalDAO:
         return get_async_session_factory()
 
     def _row_to_dict(self, r, children: Dict) -> Any:
-        out = {"_id": str(r.id), "externalId": r.external_id}
-        if hasattr(r, "created_at") and r.created_at:
-            out["createdAt"] = r.created_at.isoformat()
-        if hasattr(r, "updated_at") and r.updated_at:
-            out["updatedAt"] = r.updated_at.isoformat()
+        # Strictly enforce direct access without .get() or hasattr fallbacks where possible
+        rm = r._mapping
+        
+        out = {
+            "_id": str(rm["id"]), 
+            "externalId": rm["external_id"]
+        }
+        
+        created_at = rm["created_at"]
+        if created_at:
+            out["createdAt"] = created_at.isoformat()
+            
+        updated_at = rm["updated_at"]
+        if updated_at:
+            out["updatedAt"] = updated_at.isoformat()
+            
         rev = {v: k for k, v in self.scalar_map.items()}
         for db_col, api_key in rev.items():
-            val = getattr(r, db_col, None)
+            val = rm[db_col]
             if api_key in self.bool_keys:
                 val = bool(val)
             out[api_key] = val

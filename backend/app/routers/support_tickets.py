@@ -4,7 +4,7 @@ from typing import List, Optional, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, ConfigDict
 
-from app.models.schemas import SupportTicketCreate, TicketResponseCreate, SupportTicketResponse
+from app.models.schemas import SupportTicketCreate, TicketResponseCreate, SupportTicketResponse, SupportTicketBase, SupportTicketInternal
 from app.repositories.support_ticket_repository import support_ticket_repository
 from app.repositories.user_repository import user_repository
 from app.utils.auth import get_current_user, get_optional_user, require_super_admin
@@ -30,69 +30,83 @@ class TicketResponseItem(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-async def populate_ticket(ticket):
+from app.models.schemas import UserSnippet
+
+
+
+
+async def populate_ticket(ticket_data):
     """Populate ticket with user data"""
-    t_user = ticket.user
-    t_assigned_to = ticket.assignedTo
-    t_responses = ticket.responses
-    
-    user = await user_repository.findById(t_user)
-    assigned_to = None
-    if t_assigned_to:
-        assigned_to = await user_repository.findById(t_assigned_to)
+    # Strictly validate incoming raw data into internal model where user is a string ID
+    ticket = SupportTicketInternal.model_validate(ticket_data)
+
+    user = await user_repository.findById(ticket.user) if ticket.user else None
+    assigned_to = await user_repository.findById(ticket.assignedTo) if ticket.assignedTo else None
 
     # Populate response users
     populated_responses = []
-    for response in (t_responses or []):
-        resp_model = (
-            response
-            if isinstance(response, TicketResponseItem)
-            else TicketResponseItem.model_validate(response)
-        )
-        user_val = resp_model.user
-        user_id_str = (
-            user_val
-            if isinstance(user_val, str)
-            else (
-                user_val.id
-                )
-            )
+    for response in (ticket.responses or []):
+        user_val = response.user
+        resp_user_id_str = user_val if isinstance(user_val, str) else (user_val.id if hasattr(user_val, "id") else None)
         
-        response_user = await user_repository.findById(user_id_str) if user_id_str else None
-        resp_dict = response if isinstance(response, dict) else resp_model.model_dump()
-        populated_responses.append(
-            {
-                **resp_dict,
-                "user": {
-                    "_id": response_user.id,
-                    "name": response_user.name,
-                    "email": response_user.email,
-                    "role": response_user.role,
-                }
-                if response_user
-                else None,
-            }
+        response_user = await user_repository.findById(resp_user_id_str) if resp_user_id_str else None
+        
+        # Build Pydantic model natively
+        new_resp_model = TicketResponseItem.model_validate(response)
+        if response_user:
+            new_resp_model.user = UserSnippet(
+                _id=response_user.id,
+                name=response_user.name,
+                email=response_user.email,
+                role=response_user.role,
+            )
+        populated_responses.append(new_resp_model)
+
+    final_assigned_to = None
+    if assigned_to:
+        final_assigned_to = UserSnippet(
+            _id=assigned_to.id,
+            name=assigned_to.name,
+            email=assigned_to.email,
         )
 
-    assigned_to_dict = None
-    if assigned_to:
-        assigned_to_dict = {
-            "_id": assigned_to.id,
-            "name": assigned_to.name,
-            "email": assigned_to.email,
-        }
-
-    return {
-        **ticket,
-        "user": {
-            "_id": user.id if user else None,
-            "name": user.name if user else (ticket.name),
-            "email": user.email if user else (ticket.email),
-            "role": user.role if user else "guest",
-        },
-        "assignedTo": assigned_to_dict,
-        "responses": populated_responses,
-    }
+    if user:
+        final_user = UserSnippet(
+            _id=user.id,
+            name=user.name,
+            email=user.email,
+            role=user.role,
+        )
+    else:
+        final_user = UserSnippet(
+            _id=None,
+            name=ticket.name,
+            email=ticket.email,
+            role="guest"
+        )
+        
+    return SupportTicketResponse(
+        _id=ticket.id,
+        name=ticket.name,
+        email=ticket.email,
+        phone=ticket.phone,
+        company=ticket.company,
+        subject=ticket.subject,
+        description=ticket.description,
+        category=ticket.category,
+        priority=ticket.priority,
+        attachments=ticket.attachments,
+        ticketNumber=ticket.ticketNumber,
+        status=ticket.status,
+        resolvedAt=ticket.resolvedAt,
+        closedAt=ticket.closedAt,
+        createdAt=ticket.createdAt,
+        updatedAt=ticket.updatedAt,
+        externalId=ticket.externalId,
+        user=final_user,
+        assignedTo=final_assigned_to,
+        responses=populated_responses
+    )
 
 
 @router.get("", response_model=List[SupportTicketResponse])
@@ -133,7 +147,7 @@ async def get_support_ticket(ticket_id: str, current_user: User = Depends(get_cu
 @router.post("", response_model=SupportTicketResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=SupportTicketResponse, status_code=status.HTTP_201_CREATED)
 async def create_support_ticket(
-    ticket_data: SupportTicketCreate, current_user: Optional[dict] = Depends(get_optional_user)
+    ticket_data: SupportTicketCreate, current_user: Optional[User] = Depends(get_optional_user)
 ):
     ticket = await support_ticket_repository.create(
         {

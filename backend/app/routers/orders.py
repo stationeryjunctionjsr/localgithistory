@@ -405,27 +405,20 @@ async def get_orders(
 
     total = await order_repository.count(query)
 
-    # Apply pagination when page + limit are provided
-    if page is not None and limit is not None and limit > 0:
-        page = max(1, page)
-        start = (page - 1) * limit
-        orders = await order_repository.findAll(query, skip=start, limit=limit)
-        has_more = (start + limit) < total
+    page = max(1, page or 1)
+    limit = limit or 50
+    start = (page - 1) * limit
+    orders = await order_repository.findAll(query, skip=start, limit=limit)
+    has_more = (start + limit) < total
 
-        populated_orders = await populate_orders(orders)
-
-        return {
-            "orders": populated_orders,
-            "totalCount": total,
-            "page": page,
-            "limit": limit,
-            "hasMore": has_more,
-        }
-
-    # No pagination -- return all (backwards compatible), capped at 1000 rows to protect memory
-    orders = await order_repository.findAll(query, limit=1000)
     populated_orders = await populate_orders(orders)
-    return populated_orders
+
+    return PaginatedOrdersResponse(
+        orders=populated_orders,
+        totalCount=total,
+        page=page,
+        limit=limit
+    )
 
 
 @router.get("/{order_id}", response_model=Order)

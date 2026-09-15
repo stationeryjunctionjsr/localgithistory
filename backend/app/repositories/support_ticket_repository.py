@@ -15,6 +15,8 @@ class SupportTicketRepository:
 
     async def findAll(self, query: Optional[Dict] = None):
         tickets = await self.storage.findAll()
+        from app.models.schemas import SupportTicketInternal
+        tickets = [SupportTicketInternal.model_validate(t) for t in tickets]
 
         query = query or {}
 
@@ -33,7 +35,11 @@ class SupportTicketRepository:
         return tickets
 
     async def findById(self, id: str):
-        return await self.storage.findById(id)
+        ticket = await self.storage.findById(id)
+        if ticket:
+            from app.models.schemas import SupportTicketInternal
+            return SupportTicketInternal.model_validate(ticket)
+        return None
 
     async def create(self, ticket_data: Any):
         if isinstance(ticket_data, dict):
@@ -89,13 +95,14 @@ class SupportTicketRepository:
         if not ticket:
             raise ValueError("Ticket not found")
 
-        response = {
-            "user": response_data.user,
-            "message": response_data.message,
-            "attachments": response_data.attachments if response_data.attachments is not None else [],
-            "isAdminResponse": response_data.isAdminResponse if response_data.isAdminResponse is not None else False,
-            "createdAt": datetime.now(timezone.utc).isoformat(),
-        }
+        from app.routers.support_tickets import TicketResponseItem
+        response = TicketResponseItem(
+            user=response_data.user,
+            message=response_data.message,
+            attachments=response_data.attachments if response_data.attachments is not None else [],
+            isAdminResponse=response_data.isAdminResponse if response_data.isAdminResponse is not None else False,
+            createdAt=datetime.now(timezone.utc).isoformat(),
+        )
 
         if ticket.responses is None:
             ticket.responses = []

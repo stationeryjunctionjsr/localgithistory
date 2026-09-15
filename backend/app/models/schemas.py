@@ -911,18 +911,32 @@ class TicketResponseCreate(BaseModel):
     attachments: Optional[List[str]] = None
 
 
-class SupportTicketResponse(SupportTicketBase):
+class SupportTicketInternal(SupportTicketBase):
+    model_config = ConfigDict(populate_by_name=True, extra='ignore')
     id: str = Field(alias="_id")
     ticketNumber: str
-    user: dict
+    user: Optional[str] = None
     status: str
-    assignedTo: Optional[dict] = None
-    responses: Optional[List[dict]] = None
+    assignedTo: Optional[str] = None
+    responses: Optional[List[Any]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: str
     updatedAt: str
+    externalId: Optional[str] = None
+
+
+class SupportTicketResponse(SupportTicketBase):
+    id: str = Field(alias="_id")
+    ticketNumber: str
     user: Optional[UserSnippet] = None
+    status: str
+    assignedTo: Optional[UserSnippet] = None
+    responses: Optional[List[Any]] = None
+    resolvedAt: Optional[str] = None
+    closedAt: Optional[str] = None
+    createdAt: str
+    updatedAt: str
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -2069,18 +2083,32 @@ class TicketResponseCreate(BaseModel):
     attachments: Optional[List[str]] = None
 
 
-class SupportTicketResponse(SupportTicketBase):
+class SupportTicketInternal(SupportTicketBase):
+    model_config = ConfigDict(populate_by_name=True, extra='ignore')
     id: str = Field(alias="_id")
     ticketNumber: str
-    user: dict
+    user: Optional[str] = None
     status: str
-    assignedTo: Optional[dict] = None
-    responses: Optional[List[dict]] = None
+    assignedTo: Optional[str] = None
+    responses: Optional[List[Any]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: str
     updatedAt: str
+    externalId: Optional[str] = None
+
+
+class SupportTicketResponse(SupportTicketBase):
+    id: str = Field(alias="_id")
+    ticketNumber: str
     user: Optional[UserSnippet] = None
+    status: str
+    assignedTo: Optional[UserSnippet] = None
+    responses: Optional[List[Any]] = None
+    resolvedAt: Optional[str] = None
+    closedAt: Optional[str] = None
+    createdAt: str
+    updatedAt: str
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
