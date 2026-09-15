@@ -112,3 +112,25 @@ backend/run_sql.py
 backend/schema_audit.py
 backend/scratch.py
 backend/test_daos.py
+
+# Additional root scripts and scratch dir
+/scratch/
+/apply_*.py
+/check_*.py
+/test_*.py
+/generate_*.py
+/delete_*.py
+/dump_*.py
+/extract_*.py
+/find_*.py
+/replace_*.py
+/revert_*.py
+/run_*.py
+/rebuild.py
+/recover.py
+/truncate_schemas.py
+backend/create_*.py
+backend/migrate_*.py
+backend/test_*.py
+backend/seed_*.py
+
