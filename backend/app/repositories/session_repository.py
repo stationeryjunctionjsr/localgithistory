@@ -39,16 +39,14 @@ class SessionRepository:
         # since we can't use getattr, we use model_fields_set and explicitly assign
         for field in updates.model_fields_set:
             match field:
-                case "userId": existing.userId = updates.userId
-                case "refreshTokenId": existing.refreshTokenId = updates.refreshTokenId
+                case "userId": existing.user_id = updates.userId
+                case "refreshTokenId": existing.refresh_token_id = updates.refreshTokenId
                 case "status": existing.status = updates.status
-                case "lastActiveAt": existing.lastActiveAt = updates.lastActiveAt
-                case "revokedAt": existing.revokedAt = updates.revokedAt
-                case "revokedReason": existing.revokedReason = updates.revokedReason
+                case "lastActiveAt": existing.last_active_at = updates.lastActiveAt
+                case "revokedAt": existing.revoked_at = updates.revokedAt
+                case "revokedReason": existing.revoked_reason = updates.revokedReason
                 case "device": existing.device = updates.device
-                case "isGuest": existing.isGuest = updates.isGuest
-                case "comment": existing.comment = updates.comment
-                case "id": existing.id = updates.id
+                case "isGuest": existing.is_guest = updates.isGuest
 
         return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing))
 

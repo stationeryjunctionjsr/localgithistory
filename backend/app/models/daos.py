@@ -162,7 +162,7 @@ class SessionInternalCreate(BaseModel):
     updated_at: Optional[Any] = None
 
 class SessionInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
     user: Optional[str] = None
     userId: Optional[str] = None
     deviceInfo: Optional[dict] = None
