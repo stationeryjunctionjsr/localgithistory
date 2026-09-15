@@ -13,13 +13,12 @@ from app.db.flat_relational_dao import FlatRelationalDAO
 def _dao(
     table: str,
     scalar: Dict[str, str],
-    clob: Optional[Dict[str, str]] = None,
     bool_keys: Optional[Set[str]] = None,
 ) -> FlatRelationalDAO:
     return FlatRelationalDAO(
         table_name=table,
         scalar_map=scalar,
-        clob_map=clob or {},
+        clob_map={},
         bool_api_keys=bool_keys or frozenset(),
     )
 
@@ -45,8 +44,7 @@ FLAT_RELATIONAL_DAOS = {
             "maxDiscountAmount": "max_discount_amount",
             "appliesToType": "applies_to_type"
         },
-        {},
-        {"isActive"}
+        {}
     ),
 
     "activities": _dao(
@@ -66,8 +64,7 @@ FLAT_RELATIONAL_DAOS = {
             "locale": "locale",
             "ip": "ip",
         },
-        {"meta": "meta"},
-        frozenset({"isGuest"}),
+        bool_keys=frozenset({"isGuest"}),
     ),
     "notifications": _dao(
         "sj_notifications",
@@ -79,8 +76,7 @@ FLAT_RELATIONAL_DAOS = {
             "isRead": "is_read",
             "isAcknowledged": "is_acknowledged",
         },
-        {"data": "data"},
-        frozenset({"isRead", "isAcknowledged"}),
+        bool_keys=frozenset({"isRead", "isAcknowledged"}),
     ),
     "returnRequests": _dao(
         "sj_return_requests",
@@ -102,7 +98,6 @@ FLAT_RELATIONAL_DAOS = {
             "valetCascadeCount": "valet_cascade_count",
             "deliveryCharge": "delivery_charge",
         },
-        {"items": "items"},
     ),
     "returnSettings": _dao(
         "sj_return_settings",
@@ -121,8 +116,7 @@ FLAT_RELATIONAL_DAOS = {
             "isActive": "is_active",
             "code": "code",
         },
-        {"applicableRoles": "applicable_roles"},
-        frozenset({"isActive"}),
+        bool_keys=frozenset({"isActive"}),
     ),
     "contacts": _dao(
         "sj_contacts",
@@ -132,8 +126,7 @@ FLAT_RELATIONAL_DAOS = {
             "isActive": "is_active",
             "displayOrder": "display_order",
         },
-        {"addresses": "addresses", "phoneNumbers": "phone_numbers"},
-        frozenset({"isActive"}),
+        bool_keys=frozenset({"isActive"}),
     ),
     "supportTickets": _dao(
         "sj_support_tickets",
@@ -153,7 +146,6 @@ FLAT_RELATIONAL_DAOS = {
             "resolvedAt": "resolved_at",
             "closedAt": "closed_at",
         },
-        {"attachments": "attachments", "responses": "responses"},
     ),
     "orderFeedback": _dao(
         "sj_order_feedback",
@@ -191,7 +183,6 @@ FLAT_RELATIONAL_DAOS = {
     "deviceSubscriptions": _dao(
         "sj_device_subscriptions",
         {"userId": "user_id", "endpoint": "endpoint", "expoToken": "expo_token"},
-        {"keys": "keys", "subscription": "subscription"},
     ),
     "collections": _dao(
         "sj_collections",
@@ -202,13 +193,7 @@ FLAT_RELATIONAL_DAOS = {
             "isActive": "is_active",
             "displayOrder": "display_order",
         },
-        {
-            "visiblePages": "visible_pages",
-            "userSegments": "user_segments",
-            "visibilityRules": "visibility_rules",
-            "productIds": "product_ids",
-        },
-        frozenset({"isActive"}),
+        bool_keys=frozenset({"isActive"}),
     ),
     "searchTags": _dao(
         "sj_search_tags",
@@ -218,15 +203,7 @@ FLAT_RELATIONAL_DAOS = {
             "type": "type",
             "isActive": "is_active",
         },
-        {
-            "categories": "categories",
-            "subCategories": "sub_categories",
-            "brands": "brands",
-            "collections": "collections",
-            "productIds": "product_ids",
-            "excludedProductIds": "excluded_product_ids",
-        },
-        frozenset({"isActive"}),
+        bool_keys=frozenset({"isActive"}),
     ),
     "coachMarks": _dao(
         "sj_coach_marks",
@@ -262,8 +239,7 @@ FLAT_RELATIONAL_DAOS = {
             "isActive": "is_active",
             "description": "description",
         },
-        {"tiers": "tiers"},
-        frozenset(
+        bool_keys=frozenset(
             {
                 "applyDefaultCharge",
                 "serviceableForCustomer",
@@ -280,8 +256,7 @@ FLAT_RELATIONAL_DAOS = {
             "applicableToRetailer": "applicable_to_retailer",
             "isActive": "is_active",
         },
-        {"tiers": "tiers"},
-        frozenset({"applicableToWholesaler", "applicableToRetailer", "isActive"}),
+        bool_keys=frozenset({"applicableToWholesaler", "applicableToRetailer", "isActive"}),
     ),
     "deliveryZones": _dao(
         "sj_delivery_zones",
@@ -303,18 +278,15 @@ FLAT_RELATIONAL_DAOS = {
             "zoneId": "zone_id",
             "isActive": "is_active",
         },
-        {"slots": "slots"},
-        frozenset({"isActive"}),
+        bool_keys=frozenset({"isActive"}),
     ),
     "events": _dao(
         "sj_events",
         {"eventType": "event_type"},
-        {"payload": "payload"},
     ),
     "customerSegments": _dao(
         "sj_customer_segments",
         {"type": "type"},
-        {"payload": "payload"},
     ),
     "google_reviews": _dao(
         "sj_google_reviews",
