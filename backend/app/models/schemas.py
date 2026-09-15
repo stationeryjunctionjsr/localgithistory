@@ -794,16 +794,7 @@ class AuthResponse(BaseModel):
 
 
 # Contact Schemas
-class Address(BaseModel):
-    address: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    district: Optional[str] = None
-    zipCode: Optional[str] = None
-    country: Optional[str] = "India"
-    googleLocation: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+
 
 
 class SocialMedia(BaseModel):
