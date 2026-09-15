@@ -28,7 +28,7 @@ class MySQLCartDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, items: List[Dict]) -> Dict:
+    def __map_to_schema(self, r, items: List[Dict]) -> Dict:
         return {
             "_id": str(r.id),
             "user": str(r.user_id),
@@ -99,7 +99,7 @@ class MySQLCartDAO:
                         }
                     )
 
-        return [Cart.model_validate(self._row_to_dict(r, items_map[r.external_id])) for r in rows]
+        return [Cart.model_validate(self.__map_to_schema(r, items_map[r.external_id])) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

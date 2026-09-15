@@ -48,14 +48,14 @@ class GoogleReviewRepository:
 
                 # If New API fails, try Legacy API as a backup
                 legacy_url = f"https://maps.googleapis.com/maps/api/place/details/json?place_id={self.place_id}&fields=rating,user_ratings_total&key={self.api_key}"
-                legacy_resp = await client.get(legacy_url)
+                legacy_resp = await (client[legacy_url] if legacy_url in client else None)
                 if legacy_resp.status_code == 200:
                     l_data = legacy_resp.json()
-                    if l_data.get("status") == "OK":
-                        res = l_data.get("result", {})
+                    if (l_data["status"] if "status" in l_data else None) == "OK":
+                        res = l_data["result"] if "result" in l_data else {}
                         return {
-                            "rating": float(res.get("rating", 5.0)),
-                            "reviewCount": str(res.get("user_ratings_total", "421")),
+                            "rating": float(res["rating"] if "rating" in res else 5.0),
+                            "reviewCount": str(res["user_ratings_total"] if "user_ratings_total" in res else "421"),
                         }
 
                 logger.warning("Places API Error (New/Legacy): %s | %s", response.text, legacy_resp.text)

@@ -49,7 +49,7 @@ async def _db_request_otp(email: str, device_key: str = "default") -> Tuple[bool
     existing = await email_otp_dao.find_active_otp(email_lower, device_key)
 
     if existing:
-        last_sent = existing.get("last_sent_at", 0)
+        last_sent = (existing["last_sent_at"] if "last_sent_at" in existing else 0)
         now = time.time()
         since_last = now - last_sent
         if since_last < EMAIL_RESEND_COOLDOWN_SECONDS:
@@ -120,12 +120,12 @@ def _prune_timestamps(timestamps: List[float], *, now: float, window_seconds: fl
 
 
 def _get_email_record(email: str) -> Optional[Dict[str, Any]]:
-    record = email_otp_store.get(email.lower())
+    record = (email_otp_store[email.lower()] if email.lower() in email_otp_store else None)
     if not record:
         return None
-    if not isinstance(record.get("devices"), dict):
+    if not isinstance((record["devices"] if "devices" in record else None), dict):
         record["devices"] = {}
-    send_timestamps = record.get("send_timestamps")
+    send_timestamps = (record["send_timestamps"] if "send_timestamps" in record else None)
     if not isinstance(send_timestamps, list):
         record["send_timestamps"] = []
     return record
@@ -133,10 +133,10 @@ def _get_email_record(email: str) -> Optional[Dict[str, Any]]:
 
 def _get_device_record(user_record: Dict[str, Any], device_key: str, *, now: float) -> Optional[Dict[str, Any]]:
     devices = user_record.setdefault("devices", {})
-    device = devices.get(device_key)
+    device = (devices[device_key] if device_key in devices else None)
     if not device:
         return None
-    expires_at = float(device.get("expires_at") or 0.0)
+    expires_at = float((device["expires_at"] if "expires_at" in device else None) or 0.0)
     if now > expires_at:
         devices.pop(device_key, None)
         return None
@@ -151,7 +151,7 @@ def _mem_request_otp(email: str, device_key: str = "default") -> Tuple[bool, Dic
         user_record = {"send_timestamps": [], "devices": {}}
         email_otp_store[email_lower] = user_record
 
-    send_timestamps = [float(x) for x in user_record.get("send_timestamps", []) if isinstance(x, (int, float))]
+    send_timestamps = [float(x) for x in (user_record["send_timestamps"] if "send_timestamps" in user_record else []) if isinstance(x, (int, float))]
     send_timestamps = _prune_timestamps(send_timestamps, now=now, window_seconds=EMAIL_SEND_WINDOW_SECONDS)
     user_record["send_timestamps"] = send_timestamps
 
@@ -166,7 +166,7 @@ def _mem_request_otp(email: str, device_key: str = "default") -> Tuple[bool, Dic
     device_record = _get_device_record(user_record, device_key, now=now)
 
     if device_record:
-        last_sent_at = float(device_record.get("last_sent_at") or 0.0)
+        last_sent_at = float((device_record["last_sent_at"] if "last_sent_at" in device_record else None) or 0.0)
         since_last = now - last_sent_at
         if since_last < EMAIL_RESEND_COOLDOWN_SECONDS:
             resend_in = int(max(1, EMAIL_RESEND_COOLDOWN_SECONDS - since_last))
@@ -174,13 +174,13 @@ def _mem_request_otp(email: str, device_key: str = "default") -> Tuple[bool, Dic
 
         user_record["send_timestamps"].append(now)
         device_record["last_sent_at"] = now
-        otp_code = str(device_record.get("otp"))
+        otp_code = str((device_record["otp"] if "otp" in device_record else None))
         sent_ok = send_verification_email_sync(email_lower, otp_code)
         if not sent_ok:
             return False, {"message": "Failed to send verification email. Please check configuration."}
         return True, {
             "otp": otp_code,
-            "expires_at": float(device_record.get("expires_at")),
+            "expires_at": float((device_record["expires_at"] if "expires_at" in device_record else None)),
             "resend_available_in_seconds": EMAIL_RESEND_COOLDOWN_SECONDS,
             "sent": True,
         }
@@ -218,16 +218,16 @@ def _mem_verify_otp(
     if not stored:
         return {"valid": False, "message": "Verification code not found or expired."}
 
-    verify_attempts = int(stored.get("verify_attempts") or 0)
+    verify_attempts = int((stored["verify_attempts"] if "verify_attempts" in stored else None) or 0)
     if verify_attempts >= 5:
-        user_record.get("devices", {}).pop(device_key, None)
+        (user_record["devices"] if "devices" in user_record else {}).pop(device_key, None)
         return {"valid": False, "message": "Too many attempts. Please request a new verification code."}
 
     stored["verify_attempts"] = verify_attempts + 1
 
-    if str(stored.get("otp")) == str(provided_otp).strip():
+    if str((stored["otp"] if "otp" in stored else None)) == str(provided_otp).strip():
         if delete_on_success:
-            user_record.get("devices", {}).pop(device_key, None)
+            (user_record["devices"] if "devices" in user_record else {}).pop(device_key, None)
         return {"valid": True, "message": "Email verified successfully."}
 
     return {"valid": False, "message": "Invalid verification code."}

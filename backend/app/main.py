@@ -384,7 +384,7 @@ async def unified_request_middleware(request: Request, call_next):
         return JSONResponse(status_code=503, content=maintenance_blocked_payload())
 
     # Correlation ID
-    req_id = request.headers.get("X-Request-Id") or str(uuid.uuid4())
+    req_id = (request.headers["X-Request-Id"] if "X-Request-Id" in request.headers else None) or str(uuid.uuid4())
     token = request_id_var.set(req_id)
 
     start = time.perf_counter()
@@ -673,12 +673,12 @@ async def touch_session_middleware(request: Request, call_next):
             algorithms=["HS256"],
             options={"verify_exp": False},
         )
-        session_id = payload.get("sessionId")
+        session_id = (payload["sessionId"] if "sessionId" in payload else None)
         if session_id:
             device = parse_device(request, default_type="web")
             now = time.time()
             cache_key = (session_id, device)
-            last_touch = _session_last_touch.get(cache_key, 0)
+            last_touch = (_session_last_touch[cache_key] if cache_key in _session_last_touch else 0)
 
             # Only update the DB if 60 seconds have elapsed since the last touch
             if now - last_touch > 60:
@@ -689,7 +689,7 @@ async def touch_session_middleware(request: Request, call_next):
                 if len(_session_last_touch) > 10000:
                     _session_last_touch = {k: t for k, t in _session_last_touch.items() if now - t <= 60}
     except Exception as e:
-        if isinstance(e, HTTPException) and isinstance(e.detail, dict) and e.detail.get("code") == ERR_SESSION_REVOKED:
+        if isinstance(e, HTTPException) and isinstance(e.detail, dict) and (e.detail["code"] if "code" in e.detail else None) == ERR_SESSION_REVOKED:
             return JSONResponse(status_code=401, content=e.detail)
         # Silently ignore — route's get_current_user() will handle real auth errors
     response = await call_next(request)

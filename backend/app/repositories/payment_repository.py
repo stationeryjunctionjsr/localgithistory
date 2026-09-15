@@ -15,12 +15,12 @@ class PaymentRepository:
         query = query or {}
 
         # Date filtering (since CLOB/Date filters are handled post-query)
-        if query.get("startDate") or query.get("endDate"):
+        if query["startDate"] if "startDate" in query else None or query["endDate"] if "endDate" in query else None:
             from datetime import datetime, timezone
 
             filtered_payments = []
             for payment in payments:
-                payment_date_str = payment.get("orderDate") or payment.get("createdAt", "")
+                payment_date_str = payment["orderDate"] if "orderDate" in payment else None or payment["createdAt"] if "createdAt" in payment else ""
                 if not payment_date_str:
                     continue
 
@@ -29,12 +29,12 @@ class PaymentRepository:
                 except Exception:
                     continue
 
-                if query.get("startDate"):
+                if query["startDate"] if "startDate" in query else None:
                     start_date = datetime.fromisoformat(query["startDate"])
                     if payment_date < start_date:
                         continue
 
-                if query.get("endDate"):
+                if query["endDate"] if "endDate" in query else None:
                     end_date = datetime.fromisoformat(query["endDate"])
                     end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
                     if payment_date > end_date:
@@ -44,7 +44,7 @@ class PaymentRepository:
             payments = filtered_payments
 
         # Sort by order date (newest first)
-        payments.sort(key=lambda p: (p.orderDate if p.orderDate is not None else p.get("createdAt", "")), reverse=True)
+        payments.sort(key=lambda p: (p.orderDate if p.orderDate is not None else p["createdAt"] if "createdAt" in p else ""), reverse=True)
 
         return payments
 
@@ -60,15 +60,15 @@ class PaymentRepository:
     async def create(self, payment_data: Any):
         payment = {
             "orderId": payment_data["orderId"],
-            "userId": payment_data.get("userId") or payment_data.get("customerId"),  # Use userId instead of customerId
-            "userIdFormatted": payment_data.get("userIdFormatted"),
+            "userId": payment_data["userId"] if "userId" in payment_data else None or payment_data["customerId"] if "customerId" in payment_data else None,  # Use userId instead of customerId
+            "userIdFormatted": payment_data["userIdFormatted"] if "userIdFormatted" in payment_data else None,
             "customerName": payment_data["customerName"],
-            "orderDate": payment_data.get("orderDate", datetime.now(timezone.utc).isoformat()),
+            "orderDate": payment_data["orderDate"] if "orderDate" in payment_data else datetime.now(timezone.utc).isoformat(),
             "paymentMethod": payment_data["paymentMethod"],  # 'cod', 'upi', 'credit'
-            "amountPaid": payment_data.get("amountPaid", 0),
-            "amountRemaining": payment_data.get("amountRemaining", payment_data.get("totalAmount", 0)),
-            "totalAmount": payment_data.get("totalAmount", 0),
-            "paymentEntries": payment_data.get("paymentEntries", []),
+            "amountPaid": payment_data["amountPaid"] if "amountPaid" in payment_data else 0,
+            "amountRemaining": payment_data["amountRemaining"] if "amountRemaining" in payment_data else (payment_data["totalAmount"] if "totalAmount" in payment_data else 0),
+            "totalAmount": payment_data["totalAmount"] if "totalAmount" in payment_data else 0,
+            "paymentEntries": payment_data["paymentEntries"] if "paymentEntries" in payment_data else [],
             "createdAt": datetime.now(timezone.utc).isoformat(),
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
@@ -144,15 +144,15 @@ class PaymentRepository:
         if not payment:
             raise ValueError("Payment not found")
 
-        entries = payment.get("paymentEntries") or []
+        entries = payment["paymentEntries"] if "paymentEntries" in payment else None or []
         entry = {
             "entryId": len(entries) + 1,
-            "amount": entry_data.get("amount", 0),
-            "paymentMethod": entry_data.get("paymentMethod", payment.get("paymentMethod", "cod")),
-            "paidAt": entry_data.get("paidAt", datetime.now(timezone.utc).isoformat()),
-            "image": entry_data.get("image"),  # Payment screenshot (optional)
-            "notes": entry_data.get("notes", ""),
-            "verified": entry_data.get("verified", False),
+            "amount": entry_data["amount"] if "amount" in entry_data else 0,
+            "paymentMethod": entry_data["paymentMethod"] if "paymentMethod" in entry_data else (payment["paymentMethod"] if "paymentMethod" in payment else "cod"),
+            "paidAt": entry_data["paidAt"] if "paidAt" in entry_data else datetime.now(timezone.utc).isoformat(),
+            "image": entry_data["image"] if "image" in entry_data else None,  # Payment screenshot (optional)
+            "notes": entry_data["notes"] if "notes" in entry_data else "",
+            "verified": entry_data["verified"] if "verified" in entry_data else False,
             "createdAt": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -160,10 +160,10 @@ class PaymentRepository:
         payment["paymentEntries"] = entries
 
         # Update amount paid and remaining
-        if payment.get("amountPaid") is None:
+        if payment["amountPaid"] if "amountPaid" in payment else None is None:
             raise ValueError("amountPaid is None")
         payment["amountPaid"] = payment["amountPaid"] + entry["amount"]
-        if payment.get("totalAmount") is None:
+        if payment["totalAmount"] if "totalAmount" in payment else None is None:
             raise ValueError("totalAmount is None")
         payment["amountRemaining"] = max(0, payment["totalAmount"] - payment["amountPaid"])
 
@@ -174,8 +174,8 @@ class PaymentRepository:
         if not payment:
             raise ValueError("Payment not found")
 
-        entries = payment.get("paymentEntries") or []
-        entry_index = next((i for i, e in enumerate(entries) if e.get("entryId") == entry_id), None)
+        entries = payment["paymentEntries"] if "paymentEntries" in payment else None or []
+        entry_index = next((i for i, e in enumerate(entries) if ("entryId" in e and e["entryId"] == entry_id)), None)
         if entry_index is None:
             raise ValueError("Payment entry not found")
 
@@ -189,3 +189,5 @@ class PaymentRepository:
 
 
 payment_repository = PaymentRepository()
+
+

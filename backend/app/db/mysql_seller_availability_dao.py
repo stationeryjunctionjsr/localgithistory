@@ -47,7 +47,7 @@ class MySQLSellerAvailabilityDAO:
     def _get_session_factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def __map_to_schema(self, row) -> Dict:
         doc = {
             "_id": str(row.id),
             "_db_id": str(row.id),
@@ -79,7 +79,7 @@ class MySQLSellerAvailabilityDAO:
                 where_clauses.append("id = :q_id")
                 params["q_id"] = int(v) if str(v).isdigit() else v
                 continue
-            col = self._COLUMN_MAP.get(k)
+            col = self._COLUMN_MAP[k] if k in self._COLUMN_MAP else None
             p_name = f"qp_{k}"
             if col:
                 if isinstance(v, dict) and "$in" in v:
@@ -107,7 +107,7 @@ class MySQLSellerAvailabilityDAO:
                 ),
                 params,
             )
-            return [self._row_to_dict(r) for r in result.fetchall()]
+            return [self.__map_to_schema(r) for r in result.fetchall()]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -143,7 +143,7 @@ class MySQLSellerAvailabilityDAO:
             result = await session.execute(sql, params)
             await session.commit()
             new_id = result.lastrowid
-        created = dict(data)
+        created = {**data}
         created["_id"] = str(new_id)
         created["createdAt"] = now.isoformat()
         created["updatedAt"] = now.isoformat()

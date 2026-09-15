@@ -103,7 +103,7 @@ async def get_applicable_schemes(product_id: str, current_user: User = Depends(r
 
     out = []
     for c in applicable_offers:
-        cr = c.model_dump(by_alias=True)
+        cr = c
         out.append(cr)
 
     return out
@@ -152,7 +152,7 @@ async def get_applicable_bundle_schemes(bundle_id: str, current_user: User = Dep
 
     out = []
     for c in applicable_offers:
-        cr = c.model_dump(by_alias=True)
+        cr = c
         out.append(cr)
 
     return out

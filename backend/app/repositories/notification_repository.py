@@ -19,30 +19,30 @@ class NotificationRepository:
 
         # Build DB query to offload exact filtering
         db_query = {}
-        if filters.get("userId"):
+        if filters["userId"] if "userId" in filters else None:
             db_query["userId"] = filters["userId"]
-        if filters.get("isRead") is not None:
+        if (filters["isRead"] if "isRead" in filters else None) is not None:
             db_query["isRead"] = filters["isRead"]
-        if filters.get("type"):
+        if filters["type"] if "type" in filters else None:
             db_query["type"] = filters["type"]
 
         notifications = await self.storage.findAll(db_query)
 
-        if filters.get("startDate"):
+        if filters["startDate"] if "startDate" in filters else None:
             start = datetime.fromisoformat(filters["startDate"].replace("Z", "+00:00"))
             notifications = [
                 n
                 for n in notifications
-                if datetime.fromisoformat(n.get("createdAt", "").replace("Z", "+00:00")) >= start
+                if datetime.fromisoformat((n["createdAt"] if "createdAt" in n else "").replace("Z", "+00:00")) >= start
             ]
-        if filters.get("endDate"):
+        if filters["endDate"] if "endDate" in filters else None:
             end = datetime.fromisoformat(filters["endDate"].replace("Z", "+00:00"))
             end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
             notifications = [
-                n for n in notifications if datetime.fromisoformat(n.get("createdAt", "").replace("Z", "+00:00")) <= end
+                n for n in notifications if datetime.fromisoformat((n["createdAt"] if "createdAt" in n else "").replace("Z", "+00:00")) <= end
             ]
 
-        return sorted(notifications, key=lambda x: x.get("createdAt", ""), reverse=True)
+        return sorted(notifications, key=lambda x: x["createdAt"] if "createdAt" in x else "", reverse=True)
 
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.storage.findById(id)

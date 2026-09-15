@@ -73,7 +73,7 @@ class MySQLFlatBaseDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r) -> Any:
+    def __map_to_schema(self, r) -> Any:
         out = {"_id": str(r.id)}
         rev = {v: k for k, v in self.scalar_map.items()}
         for col, api_key in rev.items():
@@ -160,7 +160,7 @@ class MySQLFlatBaseDAO:
                 text(f"SELECT {cols} FROM {self.table_name} WHERE {where_sql} ORDER BY id ASC" + (f" LIMIT {int(limit)}" if limit is not None else "") + (f" OFFSET {int(skip)}" if skip is not None else "")), params
             )
             rows = result.fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Any]:
         docs = await self.findAll(query)
@@ -178,7 +178,7 @@ class MySQLFlatBaseDAO:
                 {"id": pk},
             )
             row = result.fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: Dict) -> Any:
         factory = self._factory()

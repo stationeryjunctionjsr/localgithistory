@@ -386,8 +386,8 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
     else:
         effective_role = (user.role if user.role is not None else "customer")
 
-    user_response_dict = {**user.model_dump(by_alias=True), "effectiveRole": effective_role}
-    user_response = user_response_dict
+    user_response = UserResponse.model_validate(user, from_attributes=True)
+    user_response.effectiveRole = effective_role
 
     auth_data = AuthResponse(
         token=access_token, refreshToken=refresh_token, sessionId=session.id, user=user_response
@@ -468,10 +468,9 @@ async def refresh_tokens(payload: RefreshRequest, request: Request):
     else:
         effective_role = (user.role if user.role is not None else "customer")
 
-    user_copy = dict(user)
-    user_copy.pop("password", None)
-    user_response_dict = {**user_copy.model_dump(by_alias=True), "effectiveRole": effective_role}
-    user_response = user_response_dict
+    user_response = UserResponse.model_validate(user, from_attributes=True)
+    user_response.effectiveRole = effective_role
+    user_response.password = None
     auth_data = AuthResponse(token=access_token, refreshToken=refresh_token, sessionId=session_id, user=user_response)
     set_auth_cookies(response, access_token, refresh_token, session_id)
     return auth_data
@@ -576,5 +575,6 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     else:
         effective_role = (current_user.role if current_user.role is not None else "customer")
 
-    user_response_dict = {**current_user.model_dump(by_alias=True), "effectiveRole": effective_role}
-    return user_response_dict
+    user_response = UserResponse.model_validate(current_user, from_attributes=True)
+    user_response.effectiveRole = effective_role
+    return user_response

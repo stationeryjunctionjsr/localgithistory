@@ -203,7 +203,7 @@ async def get_all_availability(
     enriched = []
     for doc in docs:
         vid = (doc.valet_id or "")
-        valet = valets_map.get(vid, {})
+        valet = (valets_map[vid] if vid in valets_map else {})
 
         # Filter for sellers
         if is_seller and current_user.role != "super_admin":

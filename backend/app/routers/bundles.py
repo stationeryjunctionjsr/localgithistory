@@ -229,7 +229,7 @@ async def search_bundles(
                     # Inherit from components
                     for item in (eb.items or []):
                         pid = item.product_id
-                        p = product_map.get(str(pid))
+                        p = (product_map[str(pid)] if str(pid) in product_map else None)
                         if p:
                             c = p.category
                             if c:

@@ -119,7 +119,7 @@ class MySQLNotificationsDAO:
         }
         
         for idx, (k, v) in enumerate(filters.items()):
-            db_col = column_map.get(k, k)
+            db_col = (column_map[k] if k in column_map else k)
             param_key = f"param_{idx}"
             conditions.append(f"{db_col} = :{param_key}")
             params[param_key] = 1 if k == "isRead" and v else (0 if k == "isRead" and not v else v)
@@ -164,7 +164,7 @@ class MySQLNotificationsDAO:
             }
             
             for idx, (k, v) in enumerate(filters.items()):
-                db_col = column_map.get(k, k)
+                db_col = (column_map[k] if k in column_map else k)
                 param_key = f"param_{idx}"
                 conditions.append(f"{db_col} = :{param_key}")
                 params[param_key] = 1 if k == "isRead" and v else (0 if k == "isRead" and not v else v)

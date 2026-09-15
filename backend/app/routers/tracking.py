@@ -132,7 +132,7 @@ async def track_beacon(
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     """Accept beacon payloads (e.g. from navigator.sendBeacon on page unload)."""
-    beacon_data = payload.model_dump()
+    beacon_data = payload
     beacon_data["type"] = "beacon"
     beacon_data["userId"] = current_user.id if current_user else None
     await tracking_repository.create(beacon_data)

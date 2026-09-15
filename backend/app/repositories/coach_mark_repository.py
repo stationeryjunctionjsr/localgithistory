@@ -20,7 +20,7 @@ class CoachMarkRepository:
     async def findByAnchorId(self, anchor_id: str) -> Optional[Dict]:
         marks = await self.storage.findAll()
         for mark in marks:
-            if mark.get("anchorId") == anchor_id:
+            if "anchorId" in mark and mark["anchorId"] == anchor_id:
                 return mark
         return None
 

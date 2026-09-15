@@ -311,23 +311,23 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
     # 3. Populate each order using the maps
     populated_orders = []
     for order in orders:
-        user = users_map.get(str(order.user))
-        valet = users_map.get(str(order.assigned_valet)) if order.assigned_valet else None
+        user = (users_map[str(order.user)] if str(order.user) in users_map else None)
+        valet = (users_map[str(order.assigned_valet)] if str(order.assigned_valet) in users_map else None) if order.assigned_valet else None
         
-        payment_entries = payments_map.get(str(order.id), [])
+        payment_entries = (payments_map[str(order.id)] if str(order.id) in payments_map else [])
 
         populated_items = []
         for item in (order.items or []):
             prod_id = str(item.product.id)
-            product = products_map.get(prod_id)
+            product = (products_map[prod_id] if prod_id in products_map else None)
             
             # Since item might be a model, we dump it to modify and return a dict 
             # (or we could return a Pydantic model, but populate_orders usually returns dicts in this codebase for frontend)
-            item_dict = item.model_dump(by_alias=True)
-            item_dict["product"] = product.model_dump(by_alias=True) if product else {"_id": prod_id, "name": "Product not found"}
+            item_dict = item
+            item_dict.product = product
             populated_items.append(item_dict)
 
-        order_dict = order.model_dump(by_alias=True)
+        order_dict = order
         
         user_dict = None
         if user:
@@ -348,7 +348,7 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
         
         # Payment details
         order_dict["payment"] = {
-            "entries": [p.model_dump(by_alias=True) for p in payment_entries] if payment_entries else []
+            "entries": payment_entries if payment_entries else []
         }
         populated_order = {
             **order_dict,
@@ -572,7 +572,7 @@ async def create_order(
     # Calculate initial subtotal and base shipping before coupon application
     temp_subtotal = 0.0
     for item in cart_items:
-        p = _cart_products_map.get(str(item.product or item.product_id))
+        p = (_cart_products_map[str(item.product or item.product_id)] if str(item.product or item.product_id) in _cart_products_map else None)
         if p:
             qty = ((item.quantity if isinstance(item, dict) else item.quantity) if (item.quantity if isinstance(item, dict) else item.quantity) is not None else 0)
             sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
@@ -738,7 +738,7 @@ async def create_order(
     eligible_subtotal_for_discount = None
     item_totals = []
     for idx, item in enumerate(cart_items):
-        product = _cart_products_map.get(str(item.product or item.product_id))
+        product = (_cart_products_map[str(item.product or item.product_id)] if str(item.product or item.product_id) in _cart_products_map else None)
         if not product:
             raise HTTPException(
                 status_code=400, detail=f"Product not found: {item.product or item.product_id}"
@@ -1728,7 +1728,7 @@ async def create_order(
         # Group order_items by sellerId
         from collections import defaultdict
 
-        groups: dict = defaultdict(list)
+        groups = defaultdict(list)
         for oi in order_items:
             sid = oi.sellerId
             groups[sid].append(oi)
@@ -1774,7 +1774,7 @@ async def create_order(
                 # Inherit urgent flag from the parent order request
                 grp_is_urgent = bool(order_data.isUrgentDelivery)
 
-                sdo = seller_delivery_map.get(str(seller_id) if seller_id else None)
+                sdo = (seller_delivery_map[str(seller_id)] if seller_id and str(seller_id) in seller_delivery_map else None)
 
                 # Record the delivery slot on the sub-order (informational, no charge)
                 if sdo and sdo.deliverySlotId and sdo.deliverySlotDate:
@@ -1795,7 +1795,7 @@ async def create_order(
 
                 seller_name = ""
                 if seller_id:
-                    sdoc = seller_docs.get(str(seller_id))
+                    sdoc = (seller_docs[str(seller_id)] if str(seller_id) in seller_docs else None)
                     if sdoc:
                         seller_name = sdoc.companyName if sdoc.companyName else (sdoc.name if sdoc.name else "")
                 else:

@@ -78,7 +78,8 @@ class VersionedContentRepository(ContentRepository):
         }
 
         # Append to existing history (or start fresh)
-        history: List[Dict] = list((existing or {}).get("versionHistory", []))
+        existing_dict = existing or {}
+        history: List[Dict] = list(existing_dict["versionHistory"] if "versionHistory" in existing_dict else [])
         history.append(history_entry)
 
         payload = {

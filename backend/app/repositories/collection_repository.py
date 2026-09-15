@@ -14,34 +14,35 @@ class CollectionRepository:
 
         # Consolidate all filters into one pass for robustness
         filtered = []
-        user_role = query.get("userRole", "guest")
-        target_page_type = query.get("pageType") or query.get("visiblePage")
-        target_page_id = query.get("pageId")
+        user_role = query["userRole"] if "userRole" in query else "guest"
+        target_page_type = (query["pageType"] if "pageType" in query else None) or (query["visiblePage"] if "visiblePage" in query else None)
+        target_page_id = query["pageId"] if "pageId" in query else None
 
         for col in collections:
             # 1. Check isActive
-            if query.get("isActive") is not None:
-                if col.get("isActive") != query["isActive"]:
+            if "isActive" in query and query["isActive"] is not None:
+                col_active = col["isActive"] if "isActive" in col else None
+                if col_active != query["isActive"]:
                     continue
             else:
-                if not col.get("isActive", True):
+                if not (col["isActive"] if "isActive" in col else True):
                     continue
 
             # 2. Check user segments
-            segments = col.get("userSegments", ["all"])
+            segments = col["userSegments"] if "userSegments" in col else ["all"]
             if "all" not in segments and user_role not in segments:
                 continue
 
             # 3. Check page visibility (if a target page is requested)
             if target_page_type:
                 # Check legacy visiblePages array
-                is_visible_legacy = target_page_type in col.get("visiblePages", [])
+                is_visible_legacy = target_page_type in (col["visiblePages"] if "visiblePages" in col else [])
 
                 # Check new visibilityRules
                 is_visible_rules = False
-                rules = col.get("visibilityRules", [])
+                rules = col["visibilityRules"] if "visibilityRules" in col else []
                 for rule in rules:
-                    rule_pg = rule.get("pageType", "")
+                    rule_pg = rule["pageType"] if "pageType" in rule else ""
                     if (
                         rule_pg == target_page_type
                         or (target_page_type == "Category" and rule_pg == "all_categories")
@@ -49,7 +50,7 @@ class CollectionRepository:
                         or (target_page_type == "category" and rule_pg == "all_categories")
                         or (target_page_type == "brand" and rule_pg == "all_brands")
                     ):
-                        page_ids = rule.get("pageIds", [])
+                        page_ids = rule["pageIds"] if "pageIds" in rule else []
                         if not page_ids or target_page_id in page_ids:
                             is_visible_rules = True
                             break
@@ -63,7 +64,7 @@ class CollectionRepository:
         collections = filtered
 
         # Sort by displayOrder
-        collections.sort(key=lambda x: x.get("displayOrder", 0))
+        collections.sort(key=lambda x: x["displayOrder"] if "displayOrder" in x else 0)
 
         return collections
 
@@ -73,14 +74,14 @@ class CollectionRepository:
     async def create(self, collection_data: Any):
         collection = {
             "name": collection_data["name"],
-            "description": collection_data.get("description", ""),
-            "imageUrl": collection_data.get("imageUrl", ""),
-            "isActive": collection_data.get("isActive", True),
-            "displayOrder": collection_data.get("displayOrder", 0),
-            "visiblePages": collection_data.get("visiblePages", []),
-            "userSegments": collection_data.get("userSegments", ["all"]),
-            "visibilityRules": collection_data.get("visibilityRules", []),
-            "productIds": collection_data.get("productIds", []),
+            "description": collection_data["description"] if "description" in collection_data else "",
+            "imageUrl": collection_data["imageUrl"] if "imageUrl" in collection_data else "",
+            "isActive": collection_data["isActive"] if "isActive" in collection_data else True,
+            "displayOrder": collection_data["displayOrder"] if "displayOrder" in collection_data else 0,
+            "visiblePages": collection_data["visiblePages"] if "visiblePages" in collection_data else [],
+            "userSegments": collection_data["userSegments"] if "userSegments" in collection_data else ["all"],
+            "visibilityRules": collection_data["visibilityRules"] if "visibilityRules" in collection_data else [],
+            "productIds": collection_data["productIds"] if "productIds" in collection_data else [],
         }
 
         return await self.storage.create(collection)

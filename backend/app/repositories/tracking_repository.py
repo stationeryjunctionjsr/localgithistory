@@ -283,7 +283,7 @@ class TrackingRepository:
 
         result = []
         for pid, stats in abandoned_products.items():
-            product = product_map.get(str(pid))
+            product = product_map[str(pid)] if str(pid) in product_map else None
             product_name = product.name if product else "Unknown"
             product_category = product.category if product else "Uncategorized"
             
@@ -369,7 +369,7 @@ class TrackingRepository:
                 continue
             for pid in doc.productIds if doc.productIds is not None else []:
                 if pid:
-                    counts[pid] = counts.get(pid, 0) + 1
+                    counts[pid] = (counts[pid] if pid in counts else 0) + 1
         return counts
 
     async def get_searches_with_products(self, days: int, segment: str) -> List[Dict]:

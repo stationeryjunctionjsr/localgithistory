@@ -270,7 +270,7 @@ class AnalyticsRepository:
                 if not product_id:
                     continue
 
-                product = product_map.get(product_id)
+                product = (product_map[product_id] if product_id in product_map else None)
                 quantity = item.quantity
                 subtotal = (item.price * item.quantity)
 
@@ -447,7 +447,7 @@ class AnalyticsRepository:
         sessions = self._filter_by_date_range(sessions, start_date, end_date)
         device_counts = defaultdict(int)
         for s in sessions:
-            device_type = s.device.get("type", "desktop") if s.device else "desktop"
+            device_type = (s.device["type"] if "type" in s.device else "desktop") if s.device else "desktop"
             device_counts[device_type] += 1
         return [{"device": k, "sessions": v} for k, v in device_counts.items()]
 
@@ -624,7 +624,7 @@ class AnalyticsRepository:
 
         user_metrics = []
         for uid in user_map.keys():
-            durations = user_durations.get(uid, [])
+            durations = (user_durations[uid] if uid in user_durations else [])
             avg_duration = sum(durations) / len(durations) if durations else 0
 
             # Bucketing
@@ -643,7 +643,7 @@ class AnalyticsRepository:
                     "name": user_map[uid].name if user_map[uid].name else "Unknown",
                     "email": user_map[uid].email if user_map[uid].email else "Unknown",
                     "averageSessionTimeSeconds": round(avg_duration, 2),
-                    "totalSessions": user_session_counts.get(uid, 0),
+                    "totalSessions": (user_session_counts[uid] if uid in user_session_counts else 0),
                 }
             )
 
@@ -731,7 +731,7 @@ class AnalyticsRepository:
                 continue
             sid = t.sessionId
             if sid in session_ids:
-                page_views_by_session[sid] = page_views_by_session.get(sid, 0) + 1
+                page_views_by_session[sid] = (page_views_by_session[sid] if sid in page_views_by_session else 0) + 1
         page_counts = list(page_views_by_session.values())
         average_pages_per_session = round(sum(page_counts) / len(page_counts), 2) if page_counts else None
 
@@ -789,7 +789,7 @@ class AnalyticsRepository:
 
         result = []
         for uid, revenue in user_revenue.items():
-            user = user_map.get(uid)
+            user = (user_map[uid] if uid in user_map else None)
             if not user:
                 continue
             if role and user.role != role:
@@ -829,7 +829,7 @@ class AnalyticsRepository:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         for uid, u_orders in user_orders_map.items():
-            user = user_map.get(uid)
+            user = (user_map[uid] if uid in user_map else None)
             if not user:
                 continue
             if role and user.role != role:
@@ -902,7 +902,7 @@ class AnalyticsRepository:
         role_stats = defaultdict(RoleStats)
         for t in filtered_tracking:
             uid = t.userId
-            role = user_role_map.get(uid, "guest" if not uid else "customer")
+            role = (user_role_map[uid] if uid in user_role_map else ("guest" if not uid else "customer"))
 
             if t.type == "product_search":
                 role_stats[role].searches += 1
@@ -957,7 +957,7 @@ class AnalyticsRepository:
             "highest_selling_products": len(top_products),
             "top_business_customers": len(top_business),
             "top_retail_customers": len(top_retail),
-            "user_engagement": len(engagement.get("user_metrics", [])),
+            "user_engagement": len((engagement["user_metrics"] if "user_metrics" in engagement else [])),
             "returns": len(returns),
             "payment_methods": len(payment_methods),
             "revenue_by_category": len(revenue_by_cat),
@@ -1001,8 +1001,8 @@ class AnalyticsRepository:
             if end_date and created and created > end_date:
                 continue
 
-            order = order_map.get(ret.orderId)
-            user = user_map.get(ret.userId)
+            order = (order_map[ret.orderId] if ret.orderId in order_map else None)
+            user = (user_map[ret.userId] if ret.userId in user_map else None)
             items = ret.items
             refund_value = sum((i.subtotal or i.price) * i.quantity for i in items)
 
@@ -1021,7 +1021,7 @@ class AnalyticsRepository:
                 }
             )
 
-        result.sort(key=lambda x: x.get("createdAt") or "", reverse=True)
+        result.sort(key=lambda x: (x["createdAt"] if "createdAt" in x else None) or "", reverse=True)
         return result
 
     @cache.ttl_cache(ttl=300)
@@ -1068,7 +1068,7 @@ class AnalyticsRepository:
         for order in orders:
             for item in order.items:
                 product_id = item.product or item.productId
-                product = product_map.get(product_id)
+                product = (product_map[product_id] if product_id in product_map else None)
                 category = product.category or "Uncategorized"
 
                 if category not in category_stats:
@@ -1139,7 +1139,7 @@ class AnalyticsRepository:
             if delta_hours < 0:
                 continue
 
-            user = user_map.get(order.user)
+            user = (user_map[order.user] if order.user in user_map else None)
             result.append(
                 {
                     "orderId": order.id,
@@ -1306,8 +1306,8 @@ class AnalyticsRepository:
 
         result = []
         for pair, count in pair_counts.items():
-            product_a = product_map.get(pair[0])
-            product_b = product_map.get(pair[1])
+            product_a = (product_map[pair[0]] if pair[0] in product_map else None)
+            product_b = (product_map[pair[1]] if pair[1] in product_map else None)
 
             # Skip if products are deleted/missing
             if not product_a or not product_b:
@@ -1354,7 +1354,7 @@ class AnalyticsRepository:
             device_type = "unknown"
             if session_id and session_id in session_map:
                 s_device = session_map[session_id].device or {}
-                device_type = s_device.get("type", "unknown").lower()
+                device_type = (s_device["type"] if "type" in s_device else "unknown").lower()
 
             if device_type not in stats:
                 device_type = "unknown"
@@ -1410,7 +1410,7 @@ class AnalyticsRepository:
 
         result = []
         for pid, stats in product_returns.items():
-            product = product_map.get(pid)
+            product = (product_map[pid] if pid in product_map else None)
             result.append(
                 {
                     "productId": pid,
@@ -1548,23 +1548,23 @@ class AnalyticsRepository:
             for b_id, b_items in order_bundles.items():
                 if b_id not in stats:
                     continue
-                b_def = bundle_map.get(b_id)
+                b_def = (bundle_map[b_id] if b_id in bundle_map else None)
                 if not b_def:
                     continue
                     
-                b_specs = b_def.get("items", [])
+                b_specs = (b_def["items"] if "items" in b_def else [])
                 copies = 1
                 if b_specs and b_items:
                     spec = b_specs[0]
-                    spec_qty = max(1, spec.get("quantity", 1) or 1)
-                    spec_pid = str(spec.get("productId", ""))
+                    spec_qty = max(1, (spec["quantity"] if "quantity" in spec else 1) or 1)
+                    spec_pid = str((spec["productId"] if "productId" in spec else ""))
                     ref_item = next(
                         (i for i in b_items if str(i.product) == spec_pid or str(i.productId) == spec_pid),
                         b_items[0]
                     )
-                    copies = max(1, ref_item.get("quantity", spec_qty) // spec_qty)
+                    copies = max(1, (ref_item["quantity"] if "quantity" in ref_item else spec_qty) // spec_qty)
                 
-                b_price = b_def.get("price", 0.0)
+                b_price = (b_def["price"] if "price" in b_def else 0.0)
                 b_revenue = copies * b_price
                 
                 stats[b_id]["order_count"] += 1
@@ -1744,14 +1744,14 @@ class AnalyticsRepository:
                 continue
             day = ts.strftime("%Y-%m-%d")
             session_day.setdefault(sid, day)
-            session_views[sid] = session_views.get(sid, 0) + 1
+            session_views[sid] = (session_views[sid] if sid in session_views else 0) + 1
 
         by_day: dict = {}
         for sid, day in session_day.items():
             if day not in by_day:
                 by_day[day] = {"total": 0, "bounced": 0}
             by_day[day]["total"] += 1
-            if session_views.get(sid, 0) <= 1:
+            if (session_views[sid] if sid in session_views else 0) <= 1:
                 by_day[day]["bounced"] += 1
 
         return [
@@ -1815,7 +1815,7 @@ class AnalyticsRepository:
             else:
                 segment = "Dormant"
 
-            user = user_map.get(uid)
+            user = (user_map[uid] if uid in user_map else None)
             result.append(
                 {
                     "userId": uid,
@@ -1910,7 +1910,7 @@ class AnalyticsRepository:
             shipping = float(order.shipping or order.deliveryCharge or 0)
             net = round(subtotal - discount + tax + shipping, 2)
 
-            user = user_map.get(order.user)
+            user = (user_map[order.user] if order.user in user_map else None)
             result.append(
                 {
                     "orderId": order.id,
@@ -1926,7 +1926,7 @@ class AnalyticsRepository:
                 }
             )
 
-        return sorted(result, key=lambda x: x.get("createdAt") or "" or "", reverse=True)
+        return sorted(result, key=lambda x: (x["createdAt"] if "createdAt" in x else None) or "" or "", reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_heatmap(
@@ -2002,7 +2002,7 @@ class AnalyticsRepository:
         for product in products:
             pid = str(product.id)
             stock = int(product.stock or 0)
-            sold_30d = units_sold.get(pid, 0)
+            sold_30d = (units_sold[pid] if pid in units_sold else 0)
             avg_daily = round(sold_30d / 30, 2)
             days_remaining = round(stock / avg_daily) if avg_daily > 0 else None
 
@@ -2096,7 +2096,7 @@ class AnalyticsRepository:
                 continue  # skip orders with no discount at all
 
             coupon_info = order.couponInfo or {}
-            user = user_map.get(order.user)
+            user = (user_map[order.user] if order.user in user_map else None)
             gross = float(order.subtotal or order.total or 0)
             net = round(gross - discount, 2)
 
@@ -2116,7 +2116,7 @@ class AnalyticsRepository:
                 }
             )
 
-        return sorted(result, key=lambda x: x.get("createdAt") or "" or "", reverse=True)
+        return sorted(result, key=lambda x: (x["createdAt"] if "createdAt" in x else None) or "" or "", reverse=True)
 
     @cache.ttl_cache(ttl=300)
     async def get_products_pct_sold(
@@ -2145,7 +2145,7 @@ class AnalyticsRepository:
         result = []
         for pid, product in product_map.items():
             stock = int(product.stock or 0)
-            sold = units_sold.get(pid, 0)
+            sold = (units_sold[pid] if pid in units_sold else 0)
             total = stock + sold  # opening stock approximation
             pct = round(sold / total * 100, 1) if total > 0 else 0.0
 
@@ -2166,4 +2166,5 @@ class AnalyticsRepository:
 
 
 analytics_repository = AnalyticsRepository()
+
 

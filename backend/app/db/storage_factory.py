@@ -20,7 +20,7 @@ from app.db.mysql_saved_for_later_dao import MySQLSavedForLaterDAO
 from app.db.mysql_session_dao import MySQLSessionDAO
 from app.db.mysql_tracking_dao import MySQLTrackingDAO
 from app.db.mysql_flat_daos import FLAT_DAOS
-from app.db.mysql_doc_store import MySQLDocStore
+
 from app.db.mysql_user_dao import MySQLUserDAO
 from app.db.mysql_generated_daos import GENERATED_DAOS
 from app.db.mysql_wishlist_dao import MySQLWishlistDAO

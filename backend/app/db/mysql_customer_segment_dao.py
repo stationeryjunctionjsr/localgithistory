@@ -33,8 +33,8 @@ class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
             has_external_id=True,
         )
 
-    def _row_to_dict(self, r) -> Dict:
-        doc = super()._row_to_dict(r)
+    def __map_to_schema(self, r) -> Dict:
+        doc = super().__map_to_schema(r)
         if r.external_id is not None and r.external_id:
             doc['externalId'] = r.external_id
         return doc

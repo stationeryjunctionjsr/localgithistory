@@ -48,7 +48,7 @@ async def populate_request(request):
             )
         
         response_user = await user_repository.findById(user_id_str) if user_id_str else None
-        resp_dict = response if isinstance(response, dict) else resp_model.model_dump()
+        resp_dict = resp_model
         populated_responses.append(
             {
                 **resp_dict,

@@ -78,7 +78,7 @@ class MySQLEventsDAO:
                 id=str(r.id),
                 externalId=r.external_id,
                 eventType=r.event_type,
-                payload=payload_map.get(r.id, {}),
+                payload=(payload_map[r.id] if r.id in payload_map else {}),
                 createdAt=r.created_at,
                 updatedAt=r.updated_at
             ))

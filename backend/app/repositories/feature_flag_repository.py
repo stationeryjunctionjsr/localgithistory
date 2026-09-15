@@ -27,7 +27,7 @@ class FeatureFlagRepository:
     async def create(self, flag_data: Any) -> Dict:
         """Create a new feature flag"""
         flags = await self.find_all()
-        max_id = max([int(f.get("_id", 0)) for f in flags], default=0)
+        max_id = max([int(f["_id"] if "_id" in f else 0) for f in flags], default=0)
 
         new_flag = {
             **flag_data,
@@ -50,12 +50,12 @@ class FeatureFlagRepository:
     async def is_enabled(self, flag_id: str) -> bool:
         """Check if a feature flag is enabled"""
         flag = await self.find_by_flag_id(flag_id)
-        return flag.get("enabled", False) if flag else False
+        return (flag["enabled"] if "enabled" in flag else False) if flag else False
 
     async def get_all_enabled(self) -> List[Dict]:
         """Get all enabled feature flags"""
         flags = await self.find_all()
-        return [flag for flag in flags if flag.get("enabled", False)]
+        return [flag for flag in flags if ("enabled" in flag and flag["enabled"])]
 
     async def get_all_by_category(self, category: str) -> List[Dict]:
         """Get all feature flags in a category"""

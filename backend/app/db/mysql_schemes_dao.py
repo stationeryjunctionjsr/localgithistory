@@ -142,7 +142,7 @@ class MySQLSchemesDAO:
 
     def _map_to_response(self, row, children) -> "SchemeResponse":
         sid = row['id']
-        child_data = children.get(sid, {'categories': [], 'products': [], 'roles': []})
+        child_data = (children[sid] if sid in children else {'categories': [], 'products': [], 'roles': []})
         return SchemeResponse(
             id=sid,
             name=row['name'],
@@ -157,8 +157,8 @@ class MySQLSchemesDAO:
             applicableCategories=child_data['categories'],
             applicableProducts=child_data['products'],
             applicableRoles=child_data['roles'],
-            createdAt=row.get('created_at'),
-            updatedAt=row.get('updated_at')
+            createdAt=(row['created_at'] if 'created_at' in row else None),
+            updatedAt=(row['updated_at'] if 'updated_at' in row else None)
         )
 
     async def findById(self, scheme_id: int) -> Optional["SchemeResponse"]:

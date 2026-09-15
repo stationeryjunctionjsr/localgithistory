@@ -103,7 +103,7 @@ async def track_ad_event(ad_id: str, event: AdEventPayload, current_user: Option
         if impressions > 0:
             stats.ctr = (stats.clicks / impressions) * 100
 
-    await storage.update(ad_id, {"stats": stats.model_dump()})
+    await storage.update(ad_id, AdUpdate(stats=stats))
 
     event_data = {
         "source": "ad",

@@ -29,12 +29,12 @@ class MySQLSearchtagsDAO:
         }
         
         # Child tables
-        data["categories"] = child_map.get("categories", [])
-        data["subCategories"] = child_map.get("subCategories", [])
-        data["brands"] = child_map.get("brands", [])
-        data["collections"] = child_map.get("collections", [])
-        data["productIds"] = child_map.get("productIds", [])
-        data["excludedProductIds"] = child_map.get("excludedProductIds", [])
+        data["categories"] = (child_map["categories"] if "categories" in child_map else [])
+        data["subCategories"] = (child_map["subCategories"] if "subCategories" in child_map else [])
+        data["brands"] = (child_map["brands"] if "brands" in child_map else [])
+        data["collections"] = (child_map["collections"] if "collections" in child_map else [])
+        data["productIds"] = (child_map["productIds"] if "productIds" in child_map else [])
+        data["excludedProductIds"] = (child_map["excludedProductIds"] if "excludedProductIds" in child_map else [])
         
         return SearchTagResponse.model_validate(data)
 
@@ -91,7 +91,7 @@ class MySQLSearchtagsDAO:
             tag_ids = [str(r.tag_id) for r in rows]
             children_map = await self._fetch_children(session, tag_ids)
             
-        return [self._row_to_obj(r, children_map.get(str(r.tag_id), {})) for r in rows]
+        return [self._row_to_obj(r, children_map[str(r.tag_id)] if str(r.tag_id) in children_map else {}) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[SearchTagResponse]:
         if "_id" in query:
@@ -109,7 +109,7 @@ class MySQLSearchtagsDAO:
                 return None
             children_map = await self._fetch_children(session, [str(row.tag_id)])
             
-        return self._row_to_obj(row, children_map.get(str(row.tag_id), {}))
+        return self._row_to_obj(row, children_map[str(row.tag_id)] if str(row.tag_id) in children_map else {})
 
     async def create(self, data) -> SearchTagResponse:
         try:

@@ -15,8 +15,8 @@ class BrandRepository:
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Brand]:
         items = await self.storage.findAll(query or {})
-        if query and query.get("isActive") is not None:
-            items = [b for b in items if b.is_active == query.get('isActive')]
+        if query and 'isActive' in query and query["isActive"] is not None:
+            items = [b for b in items if b.is_active == query['isActive']]
         return sorted(items, key=lambda x: (x.name or '').lower())
 
     async def findById(self, id: str):

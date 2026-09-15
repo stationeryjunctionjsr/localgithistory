@@ -21,7 +21,7 @@ class MySQLReturnSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def __map_to_schema(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -49,7 +49,7 @@ class MySQLReturnSettingsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -69,7 +69,7 @@ class MySQLReturnSettingsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: ReturnSettingsInternalCreate) -> Dict:
         factory = self._factory()
@@ -99,7 +99,7 @@ class MySQLReturnSettingsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ReturnSettingsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = ReturnSettingsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -136,7 +136,7 @@ class MySQLOrderFeedbackDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> OrderFeedbackResponse:
+    def __map_to_schema(self, row) -> OrderFeedbackResponse:
         return OrderFeedbackResponse(**{
             "_id": str(row.id),
             "id": row.id,
@@ -188,7 +188,7 @@ class MySQLOrderFeedbackDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[OrderFeedbackResponse]:
         if "_id" in query:
@@ -208,7 +208,7 @@ class MySQLOrderFeedbackDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: OrderFeedbackInternalCreate) -> OrderFeedbackResponse:
         factory = self._factory()
@@ -262,7 +262,7 @@ class MySQLOrderFeedbackDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = OrderFeedbackInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = OrderFeedbackInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -317,7 +317,7 @@ class MySQLPromoStripsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> PromoStripResponse:
+    def __map_to_schema(self, row) -> PromoStripResponse:
         return PromoStripResponse(**{
             "_id": str(row.id),
             "text": row.text,
@@ -346,7 +346,7 @@ class MySQLPromoStripsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[PromoStripResponse]:
         if "_id" in query:
@@ -366,7 +366,7 @@ class MySQLPromoStripsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: PromoStripsInternalCreate) -> PromoStripResponse:
         factory = self._factory()
@@ -400,7 +400,7 @@ class MySQLPromoStripsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PromoStripsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = PromoStripsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -440,7 +440,7 @@ class MySQLPushNotificationsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def __map_to_schema(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -508,7 +508,7 @@ class MySQLPushNotificationsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -528,7 +528,7 @@ class MySQLPushNotificationsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: PushNotificationsInternalCreate) -> Dict:
         factory = self._factory()
@@ -598,7 +598,7 @@ class MySQLPushNotificationsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PushNotificationsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = PushNotificationsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -665,7 +665,7 @@ class MySQLCoachMarksDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def __map_to_schema(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -713,7 +713,7 @@ class MySQLCoachMarksDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -733,7 +733,7 @@ class MySQLCoachMarksDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: CoachMarksInternalCreate) -> Dict:
         factory = self._factory()
@@ -783,7 +783,7 @@ class MySQLCoachMarksDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = CoachMarksInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = CoachMarksInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -835,7 +835,7 @@ class MySQLCategoryTagsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Any:
+    def __map_to_schema(self, row) -> Any:
         return CategoryTagResponse(**{
             "_id": str(row.id),
             "id": row.id,
@@ -871,7 +871,7 @@ class MySQLCategoryTagsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[CategoryTagResponse]:
         if "_id" in query:
@@ -891,7 +891,7 @@ class MySQLCategoryTagsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: CategoryTagsInternalCreate) -> Any:
         factory = self._factory()
@@ -929,7 +929,7 @@ class MySQLCategoryTagsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = CategoryTagsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = CategoryTagsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -972,7 +972,7 @@ class MySQLGoogle_reviewsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def __map_to_schema(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -1012,7 +1012,7 @@ class MySQLGoogle_reviewsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -1032,7 +1032,7 @@ class MySQLGoogle_reviewsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: Google_reviewsInternalCreate) -> Dict:
         factory = self._factory()
@@ -1074,7 +1074,7 @@ class MySQLGoogle_reviewsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = Google_reviewsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = Google_reviewsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1224,7 +1224,7 @@ class MySQLStockReservationsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)}
+        merged = {**existing.__dict__, **data.__dict__}
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1279,7 +1279,7 @@ class MySQLProductNotificationsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def __map_to_schema(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -1323,7 +1323,7 @@ class MySQLProductNotificationsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -1343,7 +1343,7 @@ class MySQLProductNotificationsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: ProductNotificationsInternalCreate) -> Dict:
         factory = self._factory()
@@ -1389,7 +1389,7 @@ class MySQLProductNotificationsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ProductNotificationsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = ProductNotificationsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1438,7 +1438,7 @@ class MySQLProductReviewsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> ProductReviewResponse:
+    def __map_to_schema(self, row) -> ProductReviewResponse:
         return ProductReviewResponse(**{
             "_id": str(row.id),
             "id": row.id,
@@ -1482,7 +1482,7 @@ class MySQLProductReviewsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[ProductReviewResponse]:
         if "_id" in query:
@@ -1502,7 +1502,7 @@ class MySQLProductReviewsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: ProductReviewsInternalCreate) -> ProductReviewResponse:
         factory = self._factory()
@@ -1548,7 +1548,7 @@ class MySQLProductReviewsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ProductReviewsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = ProductReviewsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1597,7 +1597,7 @@ class MySQLClassificationTagsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> ProductReviewResponse:
+    def __map_to_schema(self, row) -> ProductReviewResponse:
         return ProductReviewResponse(**{
             "_id": str(row.id),
             "id": row.id,
@@ -1628,7 +1628,7 @@ class MySQLClassificationTagsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[ProductReviewResponse]:
         if "_id" in query:
@@ -1648,7 +1648,7 @@ class MySQLClassificationTagsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: ClassificationTagsInternalCreate) -> ProductReviewResponse:
         factory = self._factory()
@@ -1682,7 +1682,7 @@ class MySQLClassificationTagsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ClassificationTagsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = ClassificationTagsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1722,7 +1722,7 @@ class MySQLReviewClassificationsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> ClassificationTagResponse:
+    def __map_to_schema(self, row) -> ClassificationTagResponse:
         return ClassificationTagResponse(**{
             "_id": str(row.id),
             "id": row.id,
@@ -1762,7 +1762,7 @@ class MySQLReviewClassificationsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[ClassificationTagResponse]:
         if "_id" in query:
@@ -1782,7 +1782,7 @@ class MySQLReviewClassificationsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: ReviewClassificationsInternalCreate) -> ClassificationTagResponse:
         factory = self._factory()
@@ -1824,7 +1824,7 @@ class MySQLReviewClassificationsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ReviewClassificationsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = ReviewClassificationsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1870,7 +1870,7 @@ class MySQLAboutUsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Any:
+    def __map_to_schema(self, row) -> Any:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -1910,7 +1910,7 @@ class MySQLAboutUsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Any]:
         if "_id" in query:
@@ -1930,7 +1930,7 @@ class MySQLAboutUsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: AboutUsInternalCreate) -> Any:
         factory = self._factory()
@@ -1972,7 +1972,7 @@ class MySQLAboutUsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = AboutUsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = AboutUsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2018,7 +2018,7 @@ class MySQLPrivacyPolicyDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Any:
+    def __map_to_schema(self, row) -> Any:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -2058,7 +2058,7 @@ class MySQLPrivacyPolicyDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Any]:
         if "_id" in query:
@@ -2078,7 +2078,7 @@ class MySQLPrivacyPolicyDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: PrivacyPolicyInternalCreate) -> Any:
         factory = self._factory()
@@ -2120,7 +2120,7 @@ class MySQLPrivacyPolicyDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PrivacyPolicyInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = PrivacyPolicyInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2166,7 +2166,7 @@ class MySQLAvailabilityRequestsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> AvailabilityRequestResponse:
+    def __map_to_schema(self, row) -> AvailabilityRequestResponse:
         return AvailabilityRequestResponse(**{
             "_id": str(row.id),
             "id": row.id,
@@ -2210,7 +2210,7 @@ class MySQLAvailabilityRequestsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[AvailabilityRequestResponse]:
         if "_id" in query:
@@ -2230,7 +2230,7 @@ class MySQLAvailabilityRequestsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: AvailabilityRequestsInternalCreate) -> AvailabilityRequestResponse:
         factory = self._factory()
@@ -2276,7 +2276,7 @@ class MySQLAvailabilityRequestsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = AvailabilityRequestsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = AvailabilityRequestsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2325,7 +2325,7 @@ class MySQLPincodeSearchesDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Any:
+    def __map_to_schema(self, row) -> Any:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -2365,7 +2365,7 @@ class MySQLPincodeSearchesDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Any]:
         if "_id" in query:
@@ -2385,7 +2385,7 @@ class MySQLPincodeSearchesDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: PincodeSearchesInternalCreate) -> Any:
         factory = self._factory()
@@ -2427,7 +2427,7 @@ class MySQLPincodeSearchesDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PincodeSearchesInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = PincodeSearchesInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2473,7 +2473,7 @@ class MySQLSystemSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Any:
+    def __map_to_schema(self, row) -> Any:
         return SystemSettingsResponse(**{
             "_id": str(row.id),
             "id": row.id,
@@ -2517,7 +2517,7 @@ class MySQLSystemSettingsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[SystemSettingsResponse]:
         if "_id" in query:
@@ -2537,7 +2537,7 @@ class MySQLSystemSettingsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: SystemSettingsInternalCreate) -> Any:
         factory = self._factory()
@@ -2583,7 +2583,7 @@ class MySQLSystemSettingsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = SystemSettingsInternalUpdate(**{**existing.model_dump(by_alias=True), **data.model_dump(exclude_unset=True)})
+        merged = SystemSettingsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2632,7 +2632,7 @@ class MySQLValetPayoutSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def __map_to_schema(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -2664,7 +2664,7 @@ class MySQLValetPayoutSettingsDAO:
                     params,
                 )
             ).fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -2684,7 +2684,7 @@ class MySQLValetPayoutSettingsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: ValetPayoutSettingsInternalCreate) -> Dict:
         factory = self._factory()
@@ -2718,7 +2718,7 @@ class MySQLValetPayoutSettingsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = SystemSettingsInternalUpdate(**{**existing, **data.model_dump(exclude_unset=True)})
+        merged = SystemSettingsInternalUpdate(**{**existing, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         

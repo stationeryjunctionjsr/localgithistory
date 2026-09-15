@@ -71,7 +71,7 @@ class MySQLSubOrderDAO:
     def _get_session_factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row, items_rows=None) -> Dict:
+    def _map_to_schema(self, row, items_rows=None) -> Dict:
         """Construct the NoSQL-style dictionary from flattened SQL columns."""
         doc = {
             "_id": str(row.id),
@@ -186,7 +186,7 @@ class MySQLSubOrderDAO:
                 where_clauses.append("id = :q_id")
                 params["q_id"] = int(v) if str(v).isdigit() else v
                 continue
-            col = self._COLUMN_MAP.get(k)
+            col = self._COLUMN_MAP[k] if k in self._COLUMN_MAP else None
             p_name = f"qp_{k.replace('.', '_')}"
             if col:
                 if isinstance(v, dict):
@@ -232,7 +232,7 @@ class MySQLSubOrderDAO:
             items_result = await session.execute(text(items_sql))
             items_rows = items_result.fetchall()
 
-            return [SubOrder.model_validate(self._row_to_dict(r, items_rows) ) for r in rows]
+            return [SubOrder.model_validate(self._map_to_schema(r, items_rows) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query, limit=1)
@@ -245,7 +245,7 @@ class MySQLSubOrderDAO:
         return await self.findAll({"parentOrderId": parent_order_id})
 
     async def findBySeller(self, seller_id: str, query: Dict = None, skip: int = 0, limit: int = 0) -> List[Dict]:
-        q = dict(query or {})
+        q = {**(query or {})}
         q["sellerId"] = seller_id
         return await self.findAll(q, skip=skip, limit=limit)
 
@@ -289,9 +289,9 @@ class MySQLSubOrderDAO:
             "payment_method": data.paymentMethod,
             "payment_status": (data.paymentStatus if data.paymentStatus is not None else "pending"),
             "is_urgent_delivery": 1 if data.isUrgentDelivery else 0,
-            "delivery_slot_config_id": slot.get("configId"),
-            "delivery_slot_id": slot.get("slotId"),
-            "delivery_slot_date": slot.get("date"),
+            "delivery_slot_config_id": slot["configId"] if "configId" in slot else None,
+            "delivery_slot_id": slot["slotId"] if "slotId" in slot else None,
+            "delivery_slot_date": slot["date"] if "date" in slot else None,
             "notes": data.notes,
             "coupon_code": data.couponCode,
             "coupon_info_type": c_info.discountType,
@@ -365,7 +365,7 @@ class MySQLSubOrderDAO:
 
             await session.commit()
 
-        created = dict(data)
+        created = {**data}
         created["_id"] = str(new_id)
         created["createdAt"] = now.isoformat()
         created["updatedAt"] = now.isoformat()

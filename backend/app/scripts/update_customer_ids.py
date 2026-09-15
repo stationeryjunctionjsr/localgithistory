@@ -34,15 +34,15 @@ async def update_customer_ids():
         logger.info("Found %s users", len(users))
 
         # Find super admin
-        super_admin = next((u for u in users if u.get("role") == "super_admin"), None)
+        super_admin = next((u for u in users if ("role" in u and u["role"] == "super_admin")), None)
 
         # Sort users: super admin first, then by creation date
         def sort_key(user):
             # Super admin first
             if user.role == "super_admin":
-                return (0, user.get("createdAt", ""))
+                return (0, user["createdAt"] if "createdAt" in user else "")
             # Then by creation date
-            return (1, user.get("createdAt", ""))
+            return (1, user["createdAt"] if "createdAt" in user else "")
 
         sorted_users = sorted(users, key=sort_key)
 
@@ -75,7 +75,7 @@ async def update_customer_ids():
 
         logger.info("Migration complete! Updated %s users.", updated_count)
         if super_admin:
-            logger.info("Super admin customerId: %s", super_admin.get("customerId", 1))
+            logger.info("Super admin customerId: %s", super_admin["customerId"] if "customerId" in super_admin else 1)
 
     except Exception as error:
         logger.error("Migration failed: %s", str(error), exc_info=True)

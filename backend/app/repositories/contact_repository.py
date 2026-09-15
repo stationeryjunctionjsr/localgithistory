@@ -15,22 +15,22 @@ class ContactRepository:
 
     async def create(self, contact_data: Any):
         # Ensure addresses array has max 2 items
-        addresses = contact_data.get("addresses", [])
+        addresses = contact_data["addresses"] if "addresses" in contact_data else []
         if len(addresses) > 2:
             addresses = addresses[:2]
 
         # Ensure phoneNumbers array has max 3 items
-        phone_numbers = contact_data.get("phoneNumbers", [])
+        phone_numbers = contact_data["phoneNumbers"] if "phoneNumbers" in contact_data else []
         if len(phone_numbers) > 3:
             phone_numbers = phone_numbers[:3]
 
         contact = {
             "addresses": addresses,
             "phoneNumbers": phone_numbers,
-            "email": contact_data.get("email") if contact_data.get("email") is not None else "",
-            "description": contact_data.get("description", ""),
-            "isActive": contact_data.get("isActive", True),
-            "displayOrder": contact_data.get("displayOrder", 0),
+            "email": contact_data["email"] if "email" in contact_data and contact_data["email"] is not None else "",
+            "description": contact_data["description"] if "description" in contact_data else "",
+            "isActive": contact_data["isActive"] if "isActive" in contact_data else True,
+            "displayOrder": contact_data["displayOrder"] if "displayOrder" in contact_data else 0,
         }
 
         return await self.storage.create(contact)

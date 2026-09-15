@@ -28,8 +28,8 @@ class CategoryTagRepository:
     async def create(self, tag_data: Any) -> Dict:
         tag = {
             "name": tag_data["name"],
-            "description": tag_data.get("description", ""),
-            "isActive": tag_data.get("isActive", True),
+            "description": tag_data["description"] if "description" in tag_data else "",
+            "isActive": tag_data["isActive"] if "isActive" in tag_data else True,
             "createdAt": self._get_timestamp(),
             "updatedAt": self._get_timestamp(),
         }

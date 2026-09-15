@@ -179,16 +179,16 @@ class EmailService:
         return self.send_email(to_email, subject, body, html_body)
 
     def send_order_placed_email(self, to_email: str, order: dict) -> bool:
-        order_num = order.get("orderNumber") or order.get("_id")
+        order_num = (order["orderNumber"] if "orderNumber" in order else None) or (order["_id"] if "_id" in order else None)
         subject = f"Order Confirmation - {order_num} - Stationery Junction"
 
         # Build items rows for HTML
         items_html = ""
         items_text = ""
-        for item in order.get("items", []):
-            prod_name = item.get("product", {}).get("name", "Product")
-            qty = item.get("quantity", 0)
-            subtotal = item.get("subtotal", 0)
+        for item in (order["items"] if "items" in order else []):
+            prod_name = (item["product"]["name"] if "product" in item and "name" in item["product"] else "Product")
+            qty = (item["quantity"] if "quantity" in item else 0)
+            subtotal = (item["subtotal"] if "subtotal" in item else 0)
             items_html += f"""
             <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">{prod_name}</td>
@@ -198,7 +198,7 @@ class EmailService:
             """
             items_text += f"- {prod_name} x {qty}: ₹{subtotal:.2f}\n"
 
-        body = f"Thank you for your order! Your order {order_num} has been placed successfully.\n\nItems:\n{items_text}\nTotal: ₹{order.get('total', 0):.2f}"
+        body = f"Thank you for your order! Your order {order_num} has been placed successfully.\n\nItems:\n{items_text}\nTotal: ₹{(order['total'] if 'total' in order else 0):.2f}"
 
         html_body = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
@@ -224,12 +224,12 @@ class EmailService:
                     <tfoot>
                         <tr>
                             <td colspan="2" style="padding: 8px; font-weight: bold; text-align: right;">Shipping:</td>
-                            <td style="padding: 8px; text-align: right;">₹{order.get("shipping", 0):.2f}</td>
+                            <td style="padding: 8px; text-align: right;">₹{(order["shipping"] if "shipping" in order else 0):.2f}</td>
                         </tr>
-                        {f'<tr><td colspan="2" style="padding: 8px; font-weight: bold; text-align: right;">Discount:</td><td style="padding: 8px; text-align: right; color: #ef4444;">-₹{order.get("discount"):.2f}</td></tr>' if order.get("discount", 0) > 0 else ""}
+                        {f'<tr><td colspan="2" style="padding: 8px; font-weight: bold; text-align: right;">Discount:</td><td style="padding: 8px; text-align: right; color: #ef4444;">-₹{(order["discount"] if "discount" in order else None):.2f}</td></tr>' if (order["discount"] if "discount" in order else 0) > 0 else ""}
                         <tr style="font-size: 18px; font-weight: bold;">
                             <td colspan="2" style="padding: 8px; text-align: right; border-top: 2px solid #e0e0e0;">Total:</td>
-                            <td style="padding: 8px; text-align: right; border-top: 2px solid #e0e0e0; color: #10b981;">₹{order.get("total", 0):.2f}</td>
+                            <td style="padding: 8px; text-align: right; border-top: 2px solid #e0e0e0; color: #10b981;">₹{(order["total"] if "total" in order else 0):.2f}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -243,14 +243,14 @@ class EmailService:
         """
 
         # Attach invoice PDF if generated
-        invoice_path = order.get("invoicePath")
+        invoice_path = (order["invoicePath"] if "invoicePath" in order else None)
         if invoice_path and os.path.exists(invoice_path):
             return self.send_email_with_attachment(to_email, subject, body, invoice_path)
 
         return self.send_email(to_email, subject, body, html_body)
 
     def send_order_delivered_email(self, to_email: str, order: dict) -> bool:
-        order_num = order.get("orderNumber") or order.get("_id")
+        order_num = (order["orderNumber"] if "orderNumber" in order else None) or (order["_id"] if "_id" in order else None)
         subject = f"Order Delivered - {order_num} - Stationery Junction"
         body = f"Great news! Your order {order_num} has been delivered successfully. Thank you for shopping at Stationery Junction!"
         html_body = f"""
@@ -336,8 +336,8 @@ class EmailService:
         return self.send_email(to_email, subject, body, html_body)
 
     def send_order_returned_email(self, to_email: str, return_request: dict) -> bool:
-        order_id = return_request.get("orderId")
-        return_num = return_request.get("_id")
+        order_id = (return_request["orderId"] if "orderId" in return_request else None)
+        return_num = (return_request["_id"] if "_id" in return_request else None)
         subject = f"Return Completed - Return #{return_num} - Stationery Junction"
         body = f"Your return request for order {order_id} has been processed and completed successfully."
         html_body = f"""

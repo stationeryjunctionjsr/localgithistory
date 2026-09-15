@@ -65,14 +65,14 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
 
         for item in norm_items:
             p_id = item.product
-            product = products_map.get(str(p_id))
+            product = (products_map[str(p_id)] if str(p_id) in products_map else None)
             if not product or product.is_active is False:
                 continue
 
             quantity = item.quantity if item.quantity is not None else 1
             price = product_repository.getPriceForRole(product, role_for_pricing, quantity)
 
-            it_dict = item.copy() if isinstance(item, dict) else item.model_dump(by_alias=True)
+            it_dict = item
             populated_items.append(
                 {
                     **it_dict,

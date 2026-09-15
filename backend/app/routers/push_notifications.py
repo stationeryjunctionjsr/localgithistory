@@ -330,7 +330,7 @@ async def register_device(
                 # Not authenticated or invalid token — continue as guest
                 logger.warning("Optional device registration auth token verification failed: %s", str(e))
 
-        sub_payload = request.subscription.model_dump() if has_web_subscription else None
+        sub_payload = request.subscription if has_web_subscription else None
         await push_notification_repository.registerDevice(
             userId, sub_payload, expoToken=request.expoToken
         )

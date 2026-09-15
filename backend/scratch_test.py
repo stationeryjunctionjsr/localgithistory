@@ -1,36 +1,19 @@
-import asyncio
-import os
-import sys
+import re
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+with open('tests/test_analytics_and_tracking.py', 'r', encoding='utf-8') as f:
+    content = f.read()
 
-from app.db.storage_factory import get_storage
-from app.repositories.seller_request_repository import seller_request_repository
+content = content.replace('r["type"]', 'r.type')
+content = content.replace('r["searchTerm"]', 'r.searchTerm')
+content = content.replace('r["resultsCount"]', 'r.resultsCount')
+content = content.replace('r["productId"]', 'r.productId')
+content = content.replace('r["productName"]', 'r.productName')
+content = content.replace('r["source"]', 'r.source')
+content = content.replace('r["cartValue"]', 'r.cartValue')
+content = content.replace('r["isReturning"]', 'r.isReturning')
+content = content.replace('r["page"]', 'r.page')
+content = content.replace('r["_id"]', 'r.id')
+content = content.replace('ev.id', 'ev.id')
 
-
-async def main():
-    store = get_storage("sellerRequests")
-    print(f"Store type: {type(store)}")
-
-    # create
-    req = await seller_request_repository.create(
-        {
-            "user": "test_user",
-            "subject": "test_subj",
-            "description": "test_desc",
-        }
-    )
-    print("Created:", req)
-
-    # get
-    req2 = await seller_request_repository.findById(req["_id"])
-    print("Fetched:", req2)
-
-    # add response
-    req3 = await seller_request_repository.addResponse(
-        req["_id"], {"user": "admin_user", "message": "hello", "isAdminResponse": True}
-    )
-    print("With Response:", req3)
-
-
-asyncio.run(main())
+with open('tests/test_analytics_and_tracking.py', 'w', encoding='utf-8') as f:
+    f.write(content)

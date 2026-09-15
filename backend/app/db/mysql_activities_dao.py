@@ -220,4 +220,4 @@ class MySQLActivitiesDAO:
             "sessionId": "session_id",
             "id": "id"
         }
-        return mapping.get(key)
+        return (mapping[key] if key in mapping else None)

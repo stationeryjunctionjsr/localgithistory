@@ -18,11 +18,11 @@ async def check_scheduled_notifications():
 
         # Find all scheduled notifications
         all_notifications = await push_notification_repository.findAll()
-        scheduled_notifications = [n for n in all_notifications if n.get("status") == "scheduled"]
+        scheduled_notifications = [n for n in all_notifications if (n["status"] if "status" in n else None) == "scheduled"]
 
         notifications_to_send = []
         for notification in scheduled_notifications:
-            scheduled_for = notification.get("scheduledFor")
+            scheduled_for = notification["scheduledFor"] if "scheduledFor" in notification else None
             if scheduled_for:
                 try:
                     # Parse the scheduled date
@@ -41,7 +41,7 @@ async def check_scheduled_notifications():
                 except Exception as e:
                     logger.warning(
                         "Error parsing scheduled date for notification %s: %s",
-                        notification.get("_id"),
+                        notification["_id"] if "_id" in notification else None,
                         str(e),
                     )
                     continue
@@ -51,8 +51,8 @@ async def check_scheduled_notifications():
             try:
                 logger.info(
                     "Sending scheduled notification: %s - %s",
-                    notification.get("_id"),
-                    notification.get("title"),
+                    notification["_id"] if "_id" in notification else None,
+                    notification["title"] if "title" in notification else None,
                 )
 
                 # Send the notification
@@ -61,11 +61,11 @@ async def check_scheduled_notifications():
                 # Update status to published
                 await push_notification_repository.update(notification["_id"], {"status": "published"})
 
-                logger.info("Successfully sent scheduled notification: %s", notification.get("_id"))
+                logger.info("Successfully sent scheduled notification: %s", notification["_id"] if "_id" in notification else None)
             except Exception as error:
                 logger.error(
                     "Error sending scheduled notification %s: %s",
-                    notification.get("_id"),
+                    notification["_id"] if "_id" in notification else None,
                     str(error),
                     exc_info=True,
                 )

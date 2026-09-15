@@ -31,8 +31,8 @@ class DynamicRelationalDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, children: Dict) -> Any:
-        # Strictly enforce direct access without .get() or hasattr fallbacks where possible
+    def __map_to_schema(self, r, children: Dict) -> Any:
+        # Strictly enforce direct access without .get or hasattr fallbacks where possible
         rm = r._mapping
         
         out = {
@@ -158,7 +158,7 @@ class DynamicRelationalDAO:
             res = await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params)
             rows = res.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._row_to_dict(r, c_map[r.id]) for r in rows]
+        return [self.__map_to_schema(r, c_map[r.id]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Any]:
         docs = await self.findAll(query)
@@ -168,7 +168,7 @@ class DynamicRelationalDAO:
         return await self.findOne({"_id": id})
 
     async def create(self, data: Any) -> Any:
-        data_dict = data if isinstance(data, dict) else data.model_dump()
+        data_dict = data if isinstance(data, dict) else data.__dict__
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -195,8 +195,8 @@ class DynamicRelationalDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        existing_dict = existing if isinstance(existing, dict) else existing.model_dump(by_alias=True)
-        data_dict = data if isinstance(data, dict) else data.model_dump(exclude_unset=True)
+        existing_dict = existing if isinstance(existing, dict) else existing.__dict__
+        data_dict = data if isinstance(data, dict) else data.__dict__
         merged = {**existing_dict, **data_dict}
         now = now_utc()
         updates = ["updated_at = :u"]

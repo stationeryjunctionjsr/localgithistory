@@ -270,13 +270,13 @@ async def update_commission_tiers(
     updated = await storage.update(
         settings.id,
         {
-            "tiers": [t.model_dump() for t in tiers_data],
+            "tiers": tiers_data,
             "defaultCommissionPct": payload.defaultCommissionPct,
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         },
     )
     if isinstance(updated, dict):
-        updated_tiers = updated["tiers"] if "tiers" in updated else [t.model_dump() for t in tiers_data]
+        updated_tiers = updated["tiers"] if "tiers" in updated else tiers_data
         updated_default = updated["defaultCommissionPct"] if "defaultCommissionPct" in updated else payload.defaultCommissionPct
     else:
         updated_tiers = updated.tiers
@@ -414,7 +414,7 @@ async def realize_pending_commissions(
             if status_val == "realized":
                 so_id = str(updated.id)
                 
-                await sub_order_storage.update(so_id, updated if isinstance(updated, dict) else updated.model_dump())
+                await sub_order_storage.update(so_id, updated)
                 promoted += 1
         except Exception as e:
             logger.warning("Failed to realize commission for sub-order %s: %s", so.id, e)

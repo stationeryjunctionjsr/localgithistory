@@ -1,0 +1,15 @@
+backend/app\routers\ads.py:106 await storage.update(ad_id, {"stats": stats.model_dump()})
+backend/app\routers\categories.py:130 cat_dict = cat.model_dump(by_alias=True) if not isinstance(cat, dict) else cat.copy()
+backend/app\routers\commission.py:273 "tiers": [t.model_dump() for t in tiers_data],
+backend/app\routers\commission.py:279 updated_tiers = updated["tiers"] if "tiers" in updated else [t.model_dump() for t in tiers_data]
+backend/app\routers\commission.py:417 await sub_order_storage.update(so_id, updated if isinstance(updated, dict) else updated.model_dump())
+backend/app\routers\orders.py:326 item_dict = item.model_dump(by_alias=True)
+backend/app\routers\orders.py:327 item_dict["product"] = product.model_dump(by_alias=True) if product else {"_id": prod_id, "name": "Product not found"}
+backend/app\routers\orders.py:330 order_dict = order.model_dump(by_alias=True)
+backend/app\routers\orders.py:351 "entries": [p.model_dump(by_alias=True) for p in payment_entries] if payment_entries else []
+backend/app\routers\push_notifications.py:333 sub_payload = request.subscription.model_dump() if has_web_subscription else None
+backend/app\routers\schemes.py:106 cr = c.model_dump(by_alias=True)
+backend/app\routers\schemes.py:155 cr = c.model_dump(by_alias=True)
+backend/app\routers\seller_requests.py:51 resp_dict = response if isinstance(response, dict) else resp_model.model_dump()
+backend/app\routers\tracking.py:135 beacon_data = payload.model_dump()
+backend/app\routers\wishlist.py:75 it_dict = item.copy() if isinstance(item, dict) else item.model_dump(by_alias=True)

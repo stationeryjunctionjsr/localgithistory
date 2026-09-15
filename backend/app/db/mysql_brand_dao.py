@@ -22,7 +22,7 @@ class MySQLBrandDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r) -> BrandResponse:
+    def __map_to_schema(self, r) -> BrandResponse:
         return BrandResponse(**{
             "_id": str(r.id),
             "name": r.name,
@@ -49,7 +49,7 @@ class MySQLBrandDAO:
                 )
             )
             rows = result.fetchall()
-        docs = [Brand.model_validate(self._row_to_dict(r)) for r in rows]
+        docs = [Brand.model_validate(self.__map_to_schema(r)) for r in rows]
         if not query:
             return docs
         filtered: List[Dict] = []
@@ -60,7 +60,7 @@ class MySQLBrandDAO:
                     if str(d._id) != str(v):
                         match = False
                         break
-                elif d.get(k) != v:
+                elif (d[k] if k in d else None) != v:
                     match = False
                     break
             if match:
@@ -87,7 +87,7 @@ class MySQLBrandDAO:
                 {"id": bid},
             )
             row = result.fetchone()
-        return self._row_to_dict(row) if row else None
+        return self.__map_to_schema(row) if row else None
 
     async def create(self, data: 'BrandInternalCreate') -> BrandResponse:
         factory = self._factory()
@@ -126,8 +126,8 @@ class MySQLBrandDAO:
         if not existing:
             return None
         from app.models.daos import BrandInternalUpdate
-        existing_dict = existing.model_dump(exclude_unset=True)
-        update_dict = update_data.model_dump(exclude_unset=True)
+        existing_dict = existing.__dict__
+        update_dict = update_data.__dict__
         merged_dict = {**existing_dict, **update_dict}
         merged = BrandInternalUpdate(**merged_dict)
         factory = self._factory()

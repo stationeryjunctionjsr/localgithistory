@@ -81,12 +81,12 @@ def get_token_from_request(request: Request) -> str | None:
     Extract access token: prefer Authorization header (mobile),
     fall back to HttpOnly cookie (web).
     """
-    auth_header = request.headers.get("authorization")
+    auth_header = (request.headers["authorization"] if "authorization" in request.headers else None)
     if auth_header and auth_header.lower().startswith("bearer "):
         return auth_header.split(" ", 1)[1]
-    return request.cookies.get(ACCESS_TOKEN_COOKIE)
+    return request.cookies[ACCESS_TOKEN_COOKIE] if ACCESS_TOKEN_COOKIE in request.cookies else None
 
 
 def get_refresh_token_from_request(request: Request) -> str | None:
     """Extract refresh token from cookie."""
-    return request.cookies.get(REFRESH_TOKEN_COOKIE)
+    return request.cookies[REFRESH_TOKEN_COOKIE] if REFRESH_TOKEN_COOKIE in request.cookies else None

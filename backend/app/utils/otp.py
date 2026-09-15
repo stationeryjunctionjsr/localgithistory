@@ -66,9 +66,9 @@ def send_otp_via_sms(phone: str, otp: str) -> bool:
                 response = requests.post(url, json=payload, timeout=10)
                 res_data = response.json()
                 if (
-                    res_data.get("type") == "success"
-                    or res_data.get("message") == "success"
-                    or res_data.get("status") == "success"
+                    (res_data["type"] if "type" in res_data else None) == "success"
+                    or (res_data["message"] if "message" in res_data else None) == "success"
+                    or (res_data["status"] if "status" in res_data else None) == "success"
                 ):
                     logger.info(f"OTP sent via MSG91 to ***{target_phone[-4:]}")
                     return True
@@ -85,7 +85,7 @@ def send_otp_via_sms(phone: str, otp: str) -> bool:
                 return False
             url = f"https://2factor.in/API/V1/{api_key}/SMS/{target_phone}/{otp}"
             response = requests.get(url, timeout=10)
-            return response.json().get("Status") == "Success"
+            return (response.json()["Status"] if "Status" in response.json() else None) == "Success"
 
         elif provider == "fast2sms":
             api_key = os.getenv("OTP_API_KEY")
@@ -95,7 +95,7 @@ def send_otp_via_sms(phone: str, otp: str) -> bool:
             headers = {"authorization": api_key, "Content-Type": "application/x-www-form-urlencoded"}
             payload_data = {"variables_values": otp, "route": "otp", "numbers": normalize_phone(phone)}
             response = requests.post(url, data=payload_data, headers=headers, timeout=10)
-            return response.json().get("return") is True
+            return (response.json()["return"] if "return" in response.json() else None) is True
 
         return False
     except Exception as e:
@@ -115,12 +115,12 @@ def verify_msg91_widget_token(token: str) -> Tuple[bool, Dict[str, Any]]:
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         res_data = response.json()
-        if response.status_code == 200 and res_data.get("status") != "error":
+        if response.status_code == 200 and (res_data["status"] if "status" in res_data else None) != "error":
             logger.info("MSG91 Widget Token verified successfully")
             return True, res_data
         else:
             logger.error(f"MSG91 Token verification failed: {res_data}")
-            return False, {"message": res_data.get("message") or "Verification failed"}
+            return False, {"message": (res_data["message"] if "message" in res_data else None) or "Verification failed"}
     except Exception as e:
         logger.error(f"Error verifying MSG91 token: {e}")
         return False, {"message": "Internal verification error"}
@@ -140,7 +140,7 @@ def extract_phone_from_msg91_payload(payload: Any) -> Optional[str]:
                 "value",
             )
             for key in prioritized_keys:
-                candidate = value.get(key)
+                candidate = (value[key] if key in value else None)
                 if isinstance(candidate, str):
                     normalized = normalize_phone(candidate)
                     if len(normalized) == 10:
@@ -178,12 +178,12 @@ def verify_otp_via_msg91_headless(phone: str, otp: str) -> Tuple[bool, Dict[str,
             timeout=10,
         )
         res_data = response.json()
-        if res_data.get("status") == "success":
+        if (res_data["status"] if "status" in res_data else None) == "success":
             logger.info(f"OTP verified via MSG91 Headless API for ***{target_phone[-4:]}")
             return True, res_data
         else:
             logger.error(f"MSG91 Headless Verify Error: {res_data}")
-            return False, {"message": res_data.get("message") or "Invalid OTP"}
+            return False, {"message": (res_data["message"] if "message" in res_data else None) or "Invalid OTP"}
     except Exception as e:
         logger.error(f"Error in MSG91 manual verify: {e}")
         return False, {"message": "Verification error"}
@@ -202,7 +202,7 @@ async def _db_request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[st
     existing = await otp_dao.find_active_otp(user_key, device_key)
 
     if existing:
-        last_sent = existing.get("last_sent_at", 0)
+        last_sent = (existing["last_sent_at"] if "last_sent_at" in existing else 0)
         now = time.time()
         since_last = now - last_sent
         if since_last < RESEND_COOLDOWN_SECONDS:
@@ -269,7 +269,7 @@ async def _db_verify_otp(
                 await otp_dao.delete_otp(stored["id"])
             return {"valid": True, "message": "OTP verified"}
         else:
-            return {"valid": False, "message": res_data.get("message") or "Invalid OTP"}
+            return {"valid": False, "message": (res_data["message"] if "message" in res_data else None) or "Invalid OTP"}
 
     return {"valid": False, "message": "Invalid OTP"}
 
@@ -283,12 +283,12 @@ def _prune_timestamps(timestamps: List[float], *, now: float, window_seconds: fl
 
 
 def _get_user_record(user_key: str) -> Optional[Dict[str, Any]]:
-    record = otp_store.get(user_key)
+    record = otp_store[user_key] if user_key in otp_store else None
     if not record:
         return None
-    if not isinstance(record.get("devices"), dict):
+    if not isinstance((record["devices"] if "devices" in record else None), dict):
         record["devices"] = {}
-    send_timestamps = record.get("send_timestamps")
+    send_timestamps = (record["send_timestamps"] if "send_timestamps" in record else None)
     if not isinstance(send_timestamps, list):
         record["send_timestamps"] = []
     return record
@@ -296,10 +296,10 @@ def _get_user_record(user_key: str) -> Optional[Dict[str, Any]]:
 
 def _get_device_record(user_record: Dict[str, Any], device_key: str, *, now: float) -> Optional[Dict[str, Any]]:
     devices = user_record.setdefault("devices", {})
-    device = devices.get(device_key)
+    device = (devices[device_key] if device_key in devices else None)
     if not device:
         return None
-    expires_at = float(device.get("expires_at") or 0.0)
+    expires_at = float((device["expires_at"] if "expires_at" in device else None) or 0.0)
     if now > expires_at:
         devices.pop(device_key, None)
         return None
@@ -313,7 +313,7 @@ def _mem_request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[str, An
         user_record = {"send_timestamps": [], "devices": {}}
         otp_store[user_key] = user_record
 
-    send_timestamps = [float(x) for x in user_record.get("send_timestamps", []) if isinstance(x, (int, float))]
+    send_timestamps = [float(x) for x in (user_record["send_timestamps"] if "send_timestamps" in user_record else []) if isinstance(x, (int, float))]
     send_timestamps = _prune_timestamps(send_timestamps, now=now, window_seconds=SEND_WINDOW_SECONDS)
     user_record["send_timestamps"] = send_timestamps
 
@@ -325,7 +325,7 @@ def _mem_request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[str, An
     device_record = _get_device_record(user_record, device_key, now=now)
 
     if device_record:
-        last_sent_at = float(device_record.get("last_sent_at") or 0.0)
+        last_sent_at = float((device_record["last_sent_at"] if "last_sent_at" in device_record else None) or 0.0)
         since_last = now - last_sent_at
         if since_last < RESEND_COOLDOWN_SECONDS:
             resend_in = int(max(1, RESEND_COOLDOWN_SECONDS - since_last))
@@ -333,13 +333,13 @@ def _mem_request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[str, An
 
         user_record["send_timestamps"].append(now)
         device_record["last_sent_at"] = now
-        otp_code = str(device_record.get("otp"))
+        otp_code = str((device_record["otp"] if "otp" in device_record else None))
         sent_ok = send_otp_via_sms(user_key, otp_code)
         if not sent_ok:
             return False, {"message": "Failed to send SMS. Please check provider configuration."}
         return True, {
             "otp": otp_code,
-            "expires_at": float(device_record.get("expires_at")),
+            "expires_at": float((device_record["expires_at"] if "expires_at" in device_record else None)),
             "resend_available_in_seconds": 0,
             "sent": True,
         }
@@ -371,16 +371,16 @@ def _mem_verify_otp(
     if not stored:
         return {"valid": False, "message": "OTP not found or expired"}
 
-    verify_attempts = int(stored.get("verify_attempts") or 0)
+    verify_attempts = int((stored["verify_attempts"] if "verify_attempts" in stored else None) or 0)
     stored["verify_attempts"] = verify_attempts + 1
 
     if verify_attempts + 1 >= 5:
-        user_record.get("devices", {}).pop(device_key, None)
+        (user_record["devices"] if "devices" in user_record else {}).pop(device_key, None)
         return {"valid": False, "message": "Too many attempts. Please request a new OTP"}
 
-    if str(stored.get("otp")) == str(provided_otp):
+    if str((stored["otp"] if "otp" in stored else None)) == str(provided_otp):
         if delete_on_success:
-            user_record.get("devices", {}).pop(device_key, None)
+            (user_record["devices"] if "devices" in user_record else {}).pop(device_key, None)
         return {"valid": True, "message": "OTP verified"}
 
     provider = os.getenv("SMS_PROVIDER", "msg91")
@@ -389,10 +389,10 @@ def _mem_verify_otp(
         ok, res_data = verify_otp_via_msg91_headless(user_key, provided_otp)
         if ok:
             if delete_on_success:
-                user_record.get("devices", {}).pop(device_key, None)
+                (user_record["devices"] if "devices" in user_record else {}).pop(device_key, None)
             return {"valid": True, "message": "OTP verified"}
         else:
-            return {"valid": False, "message": res_data.get("message") or "Invalid OTP"}
+            return {"valid": False, "message": (res_data["message"] if "message" in res_data else None) or "Invalid OTP"}
 
     return {"valid": False, "message": "Invalid OTP"}
 
@@ -433,10 +433,10 @@ async def verify_otp_async(
 
 def get_otp(user_key: str, device_key: str = "default") -> Optional[str]:
     """Get OTP for user+device (for development/testing, in-memory only)"""
-    user_record = otp_store.get(user_key)
-    if not user_record or not isinstance(user_record.get("devices"), dict):
+    user_record = otp_store[user_key] if user_key in otp_store else None
+    if not user_record or not isinstance(user_(record["devices"] if "devices" in record else None), dict):
         return None
-    device = user_record["devices"].get(device_key)
+    device = (user_record["devices"][device_key] if device_key in user_record["devices"] else None)
     if not device:
         return None
-    return str(device.get("otp"))
+    return str((device["otp"] if "otp" in device else None))

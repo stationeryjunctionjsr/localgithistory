@@ -27,7 +27,7 @@ def _to_ts(val):
         return None
 
 
-def _entry_row_to_dict(entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) -> Dict:
+def _entry__map_to_schema(entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) -> Dict:
     return {
         "entryId": entry_id,
         "amount": float(amount) if amount is not None else 0,
@@ -40,7 +40,7 @@ def _entry_row_to_dict(entry_id, amount, payment_method, paid_at, image, notes, 
     }
 
 
-def _payment_row_to_dict(r, entries: List[Dict]) -> Dict:
+def _payment__map_to_schema(r, entries: List[Dict]) -> Dict:
     doc = {
         "_id": str(r.id),
         "orderId": r.order_id,
@@ -88,7 +88,7 @@ class MySQLPaymentDAO:
             pid = r[0]
             if pid not in by_payment:
                 by_payment[pid] = []
-            by_payment[pid].append(_entry_row_to_dict(r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]))
+            by_payment[pid].append(_entry__map_to_schema(r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]))
         return by_payment
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
@@ -176,7 +176,7 @@ class MySQLPaymentDAO:
             row.created_at = created_at
             row.updated_at = updated_at
             entries = entries_by_payment[id_] if id_ in entries_by_payment else []
-            docs.append(_payment_row_to_dict(row, entries))
+            docs.append(_payment__map_to_schema(row, entries))
         return docs
 
     async def findById(self, id: str) -> Optional[Dict]:
@@ -229,7 +229,7 @@ class MySQLPaymentDAO:
         async with factory() as session:
             entries_by_payment = await self._get_entries_for_payment_ids(session, [pid])
         entries = entries_by_payment[pid] if pid in entries_by_payment else []
-        return _payment_row_to_dict(r, entries)
+        return _payment__map_to_schema(r, entries)
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

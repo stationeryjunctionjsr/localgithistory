@@ -21,13 +21,13 @@ class OrderFeedbackRepository:
 
     async def create(self, feedback_data: Any):
         feedback = {
-            "orderId": feedback_data.get("orderId"),
+            "orderId": feedback_data["orderId"] if "orderId" in feedback_data else None,
             "userId": feedback_data["userId"],
             "rating": int(feedback_data["rating"]),  # 1-5
-            "comment": feedback_data.get("comment", ""),
-            "deliveryRating": int(feedback_data["deliveryRating"]) if feedback_data.get("deliveryRating") else None,
-            "deliveryComment": feedback_data.get("deliveryComment", ""),
-            "feedbackType": feedback_data.get("feedbackType", "order"),
+            "comment": feedback_data["comment"] if "comment" in feedback_data else "",
+            "deliveryRating": int(feedback_data["deliveryRating"]) if "deliveryRating" in feedback_data and feedback_data["deliveryRating"] else None,
+            "deliveryComment": feedback_data["deliveryComment"] if "deliveryComment" in feedback_data else "",
+            "feedbackType": feedback_data["feedbackType"] if "feedbackType" in feedback_data else "order",
         }
 
         return await self.storage.create(feedback)

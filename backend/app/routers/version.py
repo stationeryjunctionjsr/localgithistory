@@ -34,7 +34,7 @@ async def get_version(platform: Optional[str] = Query(None)):
         "web": config.MIN_APP_VERSION_WEB,
     }
     platform_key = (platform or "web").lower()
-    min_for_platform = min_versions.get(platform_key, config.MIN_APP_VERSION_WEB)
+    min_for_platform = (min_versions[platform_key] if platform_key in min_versions else config.MIN_APP_VERSION_WEB)
     return {
         "current": config.CURRENT_APP_VERSION,
         "currentVersion": config.CURRENT_APP_VERSION,

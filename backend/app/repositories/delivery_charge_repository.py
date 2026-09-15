@@ -19,11 +19,11 @@ class DeliveryChargeRepository:
         all_charges = await self.storage.findAll()
         for dc in all_charges:
             if (
-                dc.get("isActive")
-                and dc.get("state", "").lower() == (state or "").lower()
-                and dc.get("city", "").lower() == (city or "").lower()
-                and dc.get("district", "").lower() == (district or "").lower()
-                and not dc.get("pincode")
+                (dc["isActive"] if "isActive" in dc else None)
+                and (dc["state"] if "state" in dc else "").lower() == (state or "").lower()
+                and (dc["city"] if "city" in dc else "").lower() == (city or "").lower()
+                and (dc["district"] if "district" in dc else "").lower() == (district or "").lower()
+                and not (dc["pincode"] if "pincode" in dc else None)
             ):  # Old location-based charges don't have pincode
                 return dc
         return None
@@ -32,7 +32,7 @@ class DeliveryChargeRepository:
         """Find pincode-specific charge"""
         all_charges = await self.storage.findAll()
         for dc in all_charges:
-            if dc.get("isActive") and dc.get("pincode") and str(dc.get("pincode")) == str(pincode):
+            if (dc["isActive"] if "isActive" in dc else None) and (dc["pincode"] if "pincode" in dc else None) and str((dc["pincode"] if "pincode" in dc else None)) == str(pincode):
                 return dc
         return None
 
@@ -45,11 +45,11 @@ class DeliveryChargeRepository:
 
         # Check serviceability based on user role
         if user_role == "customer" or not user_role:
-            return charge.get("serviceableForCustomer", False) is True
+            return (charge["serviceableForCustomer"] if "serviceableForCustomer" in charge else False) is True
         elif user_role == "wholesaler":
-            return charge.get("serviceableForWholesaler", False) is True
+            return (charge["serviceableForWholesaler"] if "serviceableForWholesaler" in charge else False) is True
         # All other roles (e.g. customer) use customer serviceability
-        return charge.get("serviceableForCustomer", False) is True
+        return (charge["serviceableForCustomer"] if "serviceableForCustomer" in charge else False) is True
 
     async def getDefaultCharge(self):
         defaults = await self.default_storage.findAll()
@@ -59,25 +59,25 @@ class DeliveryChargeRepository:
         existing = await self.getDefaultCharge()
 
         # Validate tiers
-        if not default_data.get("tiers") or len(default_data.get("tiers", [])) == 0:
+        if not (default_data["tiers"] if "tiers" in default_data else None) or len((default_data["tiers"] if "tiers" in default_data else [])) == 0:
             raise ValueError("At least one tier is required for default delivery charge")
 
         default_charge = {
             # Only use tiers (no single charge fallback)
             "tiers": [
                 {
-                    "maxAmount": "Infinity" if tier.get("maxAmount") == "Infinity" else float(tier.get("maxAmount")),
-                    "charge": float(tier.get("charge")),
+                    "maxAmount": "Infinity" if (tier["maxAmount"] if "maxAmount" in tier else None) == "Infinity" else float((tier["maxAmount"] if "maxAmount" in tier else None)),
+                    "charge": float((tier["charge"] if "charge" in tier else None)),
                 }
-                for tier in default_data.get("tiers", [])
+                for tier in (default_data["tiers"] if "tiers" in default_data else [])
             ],
             # Role-based applicability
-            "applicableToWholesaler": default_data.get("applicableToWholesaler", True),
-            "deliveryChargeGst": default_data.get("deliveryChargeGst", False),
-            "deliveryChargeGstPercentage": float(default_data.get("deliveryChargeGstPercentage", 18.0)),
-            "isActive": default_data.get("isActive", True),
-            "urgentDeliveryCharge": float(default_data.get("urgentDeliveryCharge"))
-            if default_data.get("urgentDeliveryCharge") is not None
+            "applicableToWholesaler": (default_data["applicableToWholesaler"] if "applicableToWholesaler" in default_data else True),
+            "deliveryChargeGst": (default_data["deliveryChargeGst"] if "deliveryChargeGst" in default_data else False),
+            "deliveryChargeGstPercentage": float((default_data["deliveryChargeGstPercentage"] if "deliveryChargeGstPercentage" in default_data else 18.0)),
+            "isActive": (default_data["isActive"] if "isActive" in default_data else True),
+            "urgentDeliveryCharge": float((default_data["urgentDeliveryCharge"] if "urgentDeliveryCharge" in default_data else None))
+            if (default_data["urgentDeliveryCharge"] if "urgentDeliveryCharge" in default_data else None) is not None
             else None,
         }
 
@@ -109,17 +109,17 @@ class DeliveryChargeRepository:
 
         if pincode_charge:
             # Check if default charge is applied
-            if pincode_charge.get("applyDefaultCharge"):
+            if (pincode_charge["applyDefaultCharge"] if "applyDefaultCharge" in pincode_charge else None):
                 default_charge = await self.getDefaultCharge()
 
                 urgent_charge = None
                 urgent_avail = False
                 if default_charge:
-                    urgent_charge = default_charge.get("urgentDeliveryCharge")
-                    # urgent_avail = default_charge.get("urgentDeliveryAvailable", False)
+                    urgent_charge = (default_charge["urgentDeliveryCharge"] if "urgentDeliveryCharge" in default_charge else None)
+                    # urgent_avail = (default_charge["urgentDeliveryAvailable"] if "urgentDeliveryAvailable" in default_charge else False)
                     urgent_avail = False
 
-                if default_charge and default_charge.get("isActive"):
+                if default_charge and (default_charge["isActive"] if "isActive" in default_charge else None):
                     is_applicable = self.isChargeApplicableToRole(default_charge, user_role)
                     if not is_applicable:
                         return {
@@ -132,8 +132,8 @@ class DeliveryChargeRepository:
                             "urgentDeliveryCharge": urgent_charge,
                         }
 
-                    if default_charge.get("tiers") and len(default_charge.get("tiers", [])) > 0:
-                        tier_charge = self.calculateTieredCharge(default_charge.get("tiers"), order_amount)
+                    if (default_charge["tiers"] if "tiers" in default_charge else None) and len((default_charge["tiers"] if "tiers" in default_charge else [])) > 0:
+                        tier_charge = self.calculateTieredCharge((default_charge["tiers"] if "tiers" in default_charge else None), order_amount)
                         return {
                             "charge": tier_charge["charge"],
                             "minCartValue": tier_charge["minCartValue"],
@@ -155,11 +155,11 @@ class DeliveryChargeRepository:
                         "urgentDeliveryCharge": urgent_charge,
                     }
             else:
-                # urgent_avail = pincode_charge.get("urgentDeliveryAvailable", False)
+                # urgent_avail = (pincode_charge["urgentDeliveryAvailable"] if "urgentDeliveryAvailable" in pincode_charge else False)
                 urgent_avail = False
                 # Use pincode-specific tiers or charge
-                if pincode_charge.get("tiers") and len(pincode_charge.get("tiers", [])) > 0:
-                    tier_charge = self.calculateTieredCharge(pincode_charge.get("tiers"), order_amount)
+                if (pincode_charge["tiers"] if "tiers" in pincode_charge else None) and len((pincode_charge["tiers"] if "tiers" in pincode_charge else [])) > 0:
+                    tier_charge = self.calculateTieredCharge((pincode_charge["tiers"] if "tiers" in pincode_charge else None), order_amount)
                     return {
                         "charge": tier_charge["charge"],
                         "minCartValue": tier_charge["minCartValue"],
@@ -168,17 +168,17 @@ class DeliveryChargeRepository:
                         "isApplicableToRole": True,
                         "appliedTier": tier_charge["tier"],
                         "urgentDeliveryAvailable": urgent_avail,
-                        "urgentDeliveryCharge": pincode_charge.get("urgentDeliveryCharge"),
+                        "urgentDeliveryCharge": (pincode_charge["urgentDeliveryCharge"] if "urgentDeliveryCharge" in pincode_charge else None),
                     }
                 else:
                     return {
-                        "charge": pincode_charge.get("charge", 0),
-                        "minCartValue": pincode_charge.get("minCartValue", 0),
+                        "charge": (pincode_charge["charge"] if "charge" in pincode_charge else 0),
+                        "minCartValue": (pincode_charge["minCartValue"] if "minCartValue" in pincode_charge else 0),
                         "source": "pincode",
                         "deliveryCharge": pincode_charge,
                         "isApplicableToRole": True,
                         "urgentDeliveryAvailable": urgent_avail,
-                        "urgentDeliveryCharge": pincode_charge.get("urgentDeliveryCharge"),
+                        "urgentDeliveryCharge": (pincode_charge["urgentDeliveryCharge"] if "urgentDeliveryCharge" in pincode_charge else None),
                     }
 
         # Fallback to city-specific charge (for backward compatibility)
@@ -187,26 +187,26 @@ class DeliveryChargeRepository:
         if city_charge:
             # Check role applicability for city-specific charge
             is_applicable = self.isChargeApplicableToRole(city_charge, user_role)
-            # urgent_avail = city_charge.get("urgentDeliveryAvailable", False)
+            # urgent_avail = (city_charge["urgentDeliveryAvailable"] if "urgentDeliveryAvailable" in city_charge else False)
             urgent_avail = False
 
             return {
-                "charge": city_charge.get("charge", 0) if is_applicable else 0,
-                "minCartValue": city_charge.get("minCartValue", 0),
+                "charge": (city_charge["charge"] if "charge" in city_charge else 0) if is_applicable else 0,
+                "minCartValue": (city_charge["minCartValue"] if "minCartValue" in city_charge else 0),
                 "source": "city",
                 "deliveryCharge": city_charge,
                 "isApplicableToRole": is_applicable,
                 "urgentDeliveryAvailable": urgent_avail,
-                "urgentDeliveryCharge": city_charge.get("urgentDeliveryCharge"),
+                "urgentDeliveryCharge": (city_charge["urgentDeliveryCharge"] if "urgentDeliveryCharge" in city_charge else None),
             }
 
         # Use default if available
         default_charge = await self.getDefaultCharge()
-        if default_charge and default_charge.get("isActive"):
+        if default_charge and (default_charge["isActive"] if "isActive" in default_charge else None):
             is_applicable = self.isChargeApplicableToRole(default_charge, user_role)
-            # urgent_avail = default_charge.get("urgentDeliveryAvailable", False)
+            # urgent_avail = (default_charge["urgentDeliveryAvailable"] if "urgentDeliveryAvailable" in default_charge else False)
             urgent_avail = False
-            urgent_charge = default_charge.get("urgentDeliveryCharge")
+            urgent_charge = (default_charge["urgentDeliveryCharge"] if "urgentDeliveryCharge" in default_charge else None)
             
             if not is_applicable:
                 return {
@@ -220,8 +220,8 @@ class DeliveryChargeRepository:
                 }
 
             # Default charges are always tiered (no single charge fallback)
-            if default_charge.get("tiers") and len(default_charge.get("tiers", [])) > 0:
-                tier_charge = self.calculateTieredCharge(default_charge.get("tiers"), order_amount)
+            if (default_charge["tiers"] if "tiers" in default_charge else None) and len((default_charge["tiers"] if "tiers" in default_charge else [])) > 0:
+                tier_charge = self.calculateTieredCharge((default_charge["tiers"] if "tiers" in default_charge else None), order_amount)
                 return {
                     "charge": tier_charge["charge"],
                     "minCartValue": tier_charge["minCartValue"],
@@ -265,7 +265,7 @@ class DeliveryChargeRepository:
 
         # For wholesalers
         if user_role == "wholesaler":
-            return charge_data.get("applicableToWholesaler", True)  # Default to true if not specified
+            return (charge_data["applicableToWholesaler"] if "applicableToWholesaler" in charge_data else True)  # Default to true if not specified
 
         return True
 
@@ -276,7 +276,7 @@ class DeliveryChargeRepository:
 
         # Sort tiers by maxAmount ascending
         def get_max_amount(tier):
-            max_amt = tier.get("maxAmount")
+            max_amt = (tier["maxAmount"] if "maxAmount" in tier else None)
             if max_amt == "Infinity" or max_amt is None:
                 return float("inf")
             return float(max_amt)
@@ -289,7 +289,7 @@ class DeliveryChargeRepository:
 
             if order_amount < max_amount:
                 return {
-                    "charge": float(tier.get("charge")),
+                    "charge": float((tier["charge"] if "charge" in tier else None)),
                     "minCartValue": max_amount if max_amount != float("inf") else 0,
                     "tier": tier,
                 }
@@ -297,15 +297,15 @@ class DeliveryChargeRepository:
         # If no tier found, return the last tier (highest tier)
         last_tier = sorted_tiers[-1]
         return {
-            "charge": float(last_tier.get("charge")),
+            "charge": float((last_tier["charge"] if "charge" in last_tier else None)),
             "minCartValue": get_max_amount(last_tier) if get_max_amount(last_tier) != float("inf") else 0,
             "tier": last_tier,
         }
 
     async def create(self, charge_data: Any):
         # Check if pincode already exists
-        if charge_data.get("pincode"):
-            existing = await self.findByPincode(charge_data.get("pincode"))
+        if (charge_data["pincode"] if "pincode" in charge_data else None):
+            existing = await self.findByPincode((charge_data["pincode"] if "pincode" in charge_data else None))
             if existing:
                 raise ValueError("Pincode already exists")
 
@@ -313,32 +313,32 @@ class DeliveryChargeRepository:
         all_charges = await self.storage.findAll()
         max_id = 0
         for charge in all_charges:
-            if charge.get("locationId") and isinstance(charge.get("locationId"), int):
-                max_id = max(max_id, charge.get("locationId", 0))
+            if (charge["locationId"] if "locationId" in charge else None) and isinstance((charge["locationId"] if "locationId" in charge else None), int):
+                max_id = max(max_id, (charge["locationId"] if "locationId" in charge else 0))
         location_id = max_id + 1
 
-        apply_default = charge_data.get("applyDefaultCharge", False)
+        apply_default = (charge_data["applyDefaultCharge"] if "applyDefaultCharge" in charge_data else False)
 
         charge = {
             "locationId": location_id,  # Unique ID for state-district-city (for backward compatibility)
-            "pincode": charge_data.get("pincode") or None,
-            "state": charge_data.get("state", ""),
-            "city": charge_data.get("city", ""),
-            "district": charge_data.get("district", ""),
+            "pincode": (charge_data["pincode"] if "pincode" in charge_data else None) or None,
+            "state": (charge_data["state"] if "state" in charge_data else ""),
+            "city": (charge_data["city"] if "city" in charge_data else ""),
+            "district": (charge_data["district"] if "district" in charge_data else ""),
             # If default is applied, don't store charge/minCartValue/tiers
             "applyDefaultCharge": apply_default,
-            "charge": None if apply_default else (float(charge_data.get("charge")) if charge_data.get("charge") is not None else None),
-            "minCartValue": None if apply_default else (float(charge_data.get("minCartValue")) if charge_data.get("minCartValue") is not None else None),
-            "tiers": None if apply_default else (charge_data.get("tiers", [])),
+            "charge": None if apply_default else (float((charge_data["charge"] if "charge" in charge_data else None)) if (charge_data["charge"] if "charge" in charge_data else None) is not None else None),
+            "minCartValue": None if apply_default else (float((charge_data["minCartValue"] if "minCartValue" in charge_data else None)) if (charge_data["minCartValue"] if "minCartValue" in charge_data else None) is not None else None),
+            "tiers": None if apply_default else ((charge_data["tiers"] if "tiers" in charge_data else [])),
             # Serviceability flags
-            "serviceableForCustomer": charge_data.get("serviceableForCustomer", False) is True,
-            "serviceableForWholesaler": charge_data.get("serviceableForWholesaler", False) is True,
-            "isActive": charge_data.get("isActive", True),
-            "description": charge_data.get("description", ""),
-            # "urgentDeliveryAvailable": charge_data.get("urgentDeliveryAvailable", False) is True,
+            "serviceableForCustomer": (charge_data["serviceableForCustomer"] if "serviceableForCustomer" in charge_data else False) is True,
+            "serviceableForWholesaler": (charge_data["serviceableForWholesaler"] if "serviceableForWholesaler" in charge_data else False) is True,
+            "isActive": (charge_data["isActive"] if "isActive" in charge_data else True),
+            "description": (charge_data["description"] if "description" in charge_data else ""),
+            # "urgentDeliveryAvailable": (charge_data["urgentDeliveryAvailable"] if "urgentDeliveryAvailable" in charge_data else False) is True,
             "urgentDeliveryAvailable": False,
-            "urgentDeliveryCharge": float(charge_data.get("urgentDeliveryCharge"))
-            if charge_data.get("urgentDeliveryCharge") is not None
+            "urgentDeliveryCharge": float((charge_data["urgentDeliveryCharge"] if "urgentDeliveryCharge" in charge_data else None))
+            if (charge_data["urgentDeliveryCharge"] if "urgentDeliveryCharge" in charge_data else None) is not None
             else None,
         }
 
@@ -367,8 +367,8 @@ class DeliveryChargeRepository:
 
         # Try to get default charge
         default_charge = await self.getDefaultCharge()
-        if default_charge and default_charge.get("isActive"):
-            return {"charge": default_charge.get("defaultCharge", 0), "isActive": True}
+        if default_charge and (default_charge["isActive"] if "isActive" in default_charge else None):
+            return {"charge": (default_charge["defaultCharge"] if "defaultCharge" in default_charge else 0), "isActive": True}
 
         # If no default charge, return None (will be treated as 0 in order creation)
         return None

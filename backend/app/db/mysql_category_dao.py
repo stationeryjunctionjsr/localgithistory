@@ -22,7 +22,7 @@ class MySQLCategoryDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, children: Dict) -> Category:
+    def __map_to_schema(self, r, children: Dict) -> Category:
         return {
             "_id": str(r.id),
             "name": r.name,
@@ -32,9 +32,9 @@ class MySQLCategoryDAO:
             "minimumQuantity": r.minimum_quantity,
             "gst": float(r.gst) if r.gst is not None else None,
             "isReturnable": bool(r.is_returnable) if r.is_returnable is not None else True,
-            "images": children.get("images", []),
-            "subCategories": children.get("subCategories", []),
-            "categoryTags": children.get("categoryTags", []),
+            "images": (children["images"] if "images" in children else []),
+            "subCategories": (children["subCategories"] if "subCategories" in children else []),
+            "categoryTags": (children["categoryTags"] if "categoryTags" in children else []),
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
         }
@@ -124,7 +124,7 @@ class MySQLCategoryDAO:
             )
             rows = result.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [Category.model_validate(self._row_to_dict(r, c_map[r.id])) for r in rows]
+        return [Category.model_validate(self.__map_to_schema(r, c_map[r.id])) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Category]:
         docs = await self.findAll(query)
@@ -180,8 +180,8 @@ class MySQLCategoryDAO:
             return None
         # Convert existing Category to dict for merging, then instantiate the Update model
         from app.models.daos import CategoryInternalUpdate
-        existing_dict = existing.model_dump(exclude_unset=True)
-        update_dict = update_data.model_dump(exclude_unset=True)
+        existing_dict = existing.__dict__
+        update_dict = update_data.__dict__
         merged_dict = {**existing_dict, **update_dict}
         merged = CategoryInternalUpdate(**merged_dict)
 

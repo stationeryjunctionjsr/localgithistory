@@ -48,32 +48,32 @@ class ReportService:
         events = await self._read_tracking_data(start_date=start_date, limit=100000)
 
         # Filter events for the exact target date (since we used >= start_date)
-        day_events = [e for e in events if e.get("timestamp", "").startswith(target_date_str)]
+        day_events = [e for e in events if (e["timestamp"] if "timestamp" in e else "").startswith(target_date_str)]
 
         # Separate search events and conversion events
-        search_events = [e for e in day_events if e.get("type") == "product_search"]
-        conversion_events = [e for e in day_events if e.get("type") in ["cart_add", "wishlist_add"]]
+        search_events = [e for e in day_events if (e["type"] if "type" in e else None) == "product_search"]
+        conversion_events = [e for e in day_events if (e["type"] if "type" in e else None) in ["cart_add", "wishlist_add"]]
 
         report_data = []
 
         for search in search_events:
-            session_id = search.get("sessionId")
-            search_term = search.get("searchTerm", "")
-            results_count = search.get("resultsCount", 0)
-            product_ids = search.get("productIds", [])
-            search_time = search.get("timestamp")
+            session_id = search["sessionId"] if "sessionId" in search else None
+            search_term = search["searchTerm"] if "searchTerm" in search else ""
+            results_count = search["resultsCount"] if "resultsCount" in search else 0
+            product_ids = search["productIds"] if "productIds" in search else []
+            search_time = search["timestamp"] if "timestamp" in search else None
 
             added_to_cart = False
             added_to_wishlist = False
 
             if session_id:
                 for conv in conversion_events:
-                    if conv.get("sessionId") == session_id and conv.get("timestamp") >= search_time:
-                        prod_id = conv.get("productId")
+                    if (conv["sessionId"] if "sessionId" in conv else None) == session_id and (conv["timestamp"] if "timestamp" in conv else "") >= search_time:
+                        prod_id = conv["productId"] if "productId" in conv else None
                         if prod_id in product_ids:
-                            if conv.get("type") == "cart_add":
+                            if (conv["type"] if "type" in conv else None) == "cart_add":
                                 added_to_cart = True
-                            elif conv.get("type") == "wishlist_add":
+                            elif (conv["type"] if "type" in conv else None) == "wishlist_add":
                                 added_to_wishlist = True
 
             report_data.append(

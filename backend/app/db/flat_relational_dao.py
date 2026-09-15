@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Set
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
-from app.db.db_utils import json_dumps, json_loads, now_utc
+from app.db.db_utils import now_utc
 
 
 def _q(col: str) -> str:
@@ -95,9 +95,7 @@ class FlatRelationalDAO:
             except KeyError:
                 continue
             if val is not None:
-                parsed = json_loads(val)
-                if parsed is not None:
-                    out[api_key] = parsed
+                out[api_key] = val
         try:
             if r.created_at is not None:
                 out["createdAt"] = r.created_at.isoformat()
@@ -133,7 +131,7 @@ class FlatRelationalDAO:
                 params[col] = val
         for api_key, col in self.clob_map.items():
             val = data[api_key] if api_key in data else None
-            params[col] = json_dumps(val) if val is not None else None
+            params[col] = val
         return params
 
     def _all_columns(self) -> List[str]:
@@ -320,7 +318,7 @@ class FlatRelationalDAO:
                 col = self.clob_map[k]
                 param_key = f"u_{_param(col)}"
                 set_parts.append(f"{_q(col)} = :{param_key}")
-                params[param_key] = json_dumps(v) if v is not None else None
+                params[param_key] = v
 
         async with factory() as session:
             result = await session.execute(

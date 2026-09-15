@@ -16,7 +16,7 @@ from sqlalchemy.pool import NullPool
 
 # DATABASE_URL format: mysql+aiomysql://user:password@host:port/dbname
 def get_database_url() -> str | None:
-    url = os.environ.get("DATABASE_URL")
+    url = os.environ["DATABASE_URL"] if "DATABASE_URL" in os.environ else None
     if not url:
         return None
     # Ensure async driver for SQLAlchemy asyncio
@@ -53,7 +53,7 @@ def get_async_engine():
             max_overflow=10,
             pool_timeout=30,
             pool_recycle=1800,
-            echo=os.environ.get("SQL_ECHO", "").lower() in ("1", "true"),
+            echo=(os.environ["SQL_ECHO"] if "SQL_ECHO" in os.environ else "").lower() in ("1", "true"),
             connect_args=connect_args,
         )
     else:
@@ -67,7 +67,7 @@ def get_async_engine():
             max_overflow=max_overflow,
             pool_timeout=30,
             pool_recycle=1800,
-            echo=os.environ.get("SQL_ECHO", "").lower() in ("1", "true"),
+            echo=(os.environ["SQL_ECHO"] if "SQL_ECHO" in os.environ else "").lower() in ("1", "true"),
             connect_args=connect_args,
         )
     return _async_engine

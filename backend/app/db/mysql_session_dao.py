@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
-from app.db.db_utils import json_dumps, json_loads, now_utc
+from app.db.db_utils import now_utc
 
 
 def _to_ts(value: Optional[str]) -> Optional[datetime]:
@@ -32,7 +32,7 @@ class MySQLSessionDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r) -> Dict:
+    def _map_to_schema(self, r) -> Dict:
         return {
             "_id": str(r.id),
             "user": str(r.user_id),
@@ -64,7 +64,7 @@ class MySQLSessionDAO:
                 )
             )
             rows = result.fetchall()
-        docs = [self._row_to_dict(r) for r in rows]
+        docs = [self._map_to_schema(r) for r in rows]
         if not query:
             return docs
         filtered: List[Dict] = []
@@ -75,7 +75,7 @@ class MySQLSessionDAO:
                     if str(d._id) != str(v):
                         match = False
                         break
-                elif d.get(k) != v:
+                elif (d[k] if k in d else None) != v:
                     match = False
                     break
             if match:
@@ -103,7 +103,7 @@ class MySQLSessionDAO:
                 {"id": sid},
             )
             row = result.fetchone()
-        return Session.model_validate(self._row_to_dict(row)) if row else None
+        return Session.model_validate(self._map_to_schema(row)) if row else None
 
     async def create(self, data: 'SessionInternalCreate') -> Dict:
         factory = self._factory()

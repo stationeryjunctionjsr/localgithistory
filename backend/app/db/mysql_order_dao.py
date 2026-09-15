@@ -17,7 +17,7 @@ from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
-from app.db.db_utils import json_dumps, json_loads, now_utc
+from app.db.db_utils import now_utc
 
 
 def _to_ts(value: Optional[str]) -> Optional[datetime]:
@@ -64,7 +64,7 @@ class MySQLOrderDAO:
 
         return items, declines
 
-    def _row_to_dict(self, r, items: List[Dict], declines: List[Dict]) -> Order:
+    def __map_to_schema(self, r, items: List[Dict], declines: List[Dict]) -> Order:
         return Order(**{
             "_id": str(r.id),
             "orderNumber": r.order_number,
@@ -231,7 +231,7 @@ class MySQLOrderDAO:
                 for dr in decl_result.fetchall():
                     declines_map[dr.parent_id].append({"valetId": str(dr.valet_id), "reason": dr.reason})
 
-            return [self._row_to_dict(r, items_map[int(r.id)], declines_map[int(r.id)]) for r in rows]
+            return [self.__map_to_schema(r, items_map[int(r.id)], declines_map[int(r.id)]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Order]:
         docs = await self.findAll(query)
@@ -262,7 +262,7 @@ class MySQLOrderDAO:
             if not row:
                 return None
             items, declines = await self._load_children(session, oid)
-        return self._row_to_dict(row, items, declines)
+        return self.__map_to_schema(row, items, declines)
 
     async def _replace_children(self, session, order_id: int, items: List[Dict], declines: List[Dict]) -> None:
         await session.execute(
@@ -341,18 +341,18 @@ class MySQLOrderDAO:
                     "payment_status": data.paymentStatus,
                     "payment_method": data.paymentMethod,
                     "upi_payment_screenshot": data.upiPaymentScreenshot,
-                    "ship_name": (data.shippingAddress or {}).get("name"),
-                    "ship_street": (data.shippingAddress or {}).get("street"),
-                    "ship_city": (data.shippingAddress or {}).get("city"),
-                    "ship_state": (data.shippingAddress or {}).get("state"),
-                    "ship_pincode": (data.shippingAddress or {}).get("pincode"),
-                    "ship_phone": (data.shippingAddress or {}).get("phone"),
-                    "bill_name": (data.billingAddress or {}).get("name"),
-                    "bill_street": (data.billingAddress or {}).get("street"),
-                    "bill_city": (data.billingAddress or {}).get("city"),
-                    "bill_state": (data.billingAddress or {}).get("state"),
-                    "bill_pincode": (data.billingAddress or {}).get("pincode"),
-                    "bill_phone": (data.billingAddress or {}).get("phone"),
+                    "ship_name": ((data.shippingAddress or {})["name"] if "name" in (data.shippingAddress or {}) else None),
+                    "ship_street": ((data.shippingAddress or {})["street"] if "street" in (data.shippingAddress or {}) else None),
+                    "ship_city": ((data.shippingAddress or {})["city"] if "city" in (data.shippingAddress or {}) else None),
+                    "ship_state": ((data.shippingAddress or {})["state"] if "state" in (data.shippingAddress or {}) else None),
+                    "ship_pincode": ((data.shippingAddress or {})["pincode"] if "pincode" in (data.shippingAddress or {}) else None),
+                    "ship_phone": ((data.shippingAddress or {})["phone"] if "phone" in (data.shippingAddress or {}) else None),
+                    "bill_name": ((data.billingAddress or {})["name"] if "name" in (data.billingAddress or {}) else None),
+                    "bill_street": ((data.billingAddress or {})["street"] if "street" in (data.billingAddress or {}) else None),
+                    "bill_city": ((data.billingAddress or {})["city"] if "city" in (data.billingAddress or {}) else None),
+                    "bill_state": ((data.billingAddress or {})["state"] if "state" in (data.billingAddress or {}) else None),
+                    "bill_pincode": ((data.billingAddress or {})["pincode"] if "pincode" in (data.billingAddress or {}) else None),
+                    "bill_phone": ((data.billingAddress or {})["phone"] if "phone" in (data.billingAddress or {}) else None),
                     "notes": data.notes,
                     "printed_bill": 1 if data.printedBill else None,
                                         "assigned_valet": data.assignedValet,
@@ -448,18 +448,18 @@ class MySQLOrderDAO:
                     "payment_status": update_data.paymentStatus,
                     "payment_method": update_data.paymentMethod,
                     "upi_payment_screenshot": update_data.upiPaymentScreenshot,
-                    "ship_name": (update_data.shippingAddress or {}).get("name"),
-                    "ship_street": (update_data.shippingAddress or {}).get("street"),
-                    "ship_city": (update_data.shippingAddress or {}).get("city"),
-                    "ship_state": (update_data.shippingAddress or {}).get("state"),
-                    "ship_pincode": (update_data.shippingAddress or {}).get("pincode"),
-                    "ship_phone": (update_data.shippingAddress or {}).get("phone"),
-                    "bill_name": (update_data.billingAddress or {}).get("name"),
-                    "bill_street": (update_data.billingAddress or {}).get("street"),
-                    "bill_city": (update_data.billingAddress or {}).get("city"),
-                    "bill_state": (update_data.billingAddress or {}).get("state"),
-                    "bill_pincode": (update_data.billingAddress or {}).get("pincode"),
-                    "bill_phone": (update_data.billingAddress or {}).get("phone"),
+                    "ship_name": ((update_data.shippingAddress or {})["name"] if "name" in (update_data.shippingAddress or {}) else None),
+                    "ship_street": ((update_data.shippingAddress or {})["street"] if "street" in (update_data.shippingAddress or {}) else None),
+                    "ship_city": ((update_data.shippingAddress or {})["city"] if "city" in (update_data.shippingAddress or {}) else None),
+                    "ship_state": ((update_data.shippingAddress or {})["state"] if "state" in (update_data.shippingAddress or {}) else None),
+                    "ship_pincode": ((update_data.shippingAddress or {})["pincode"] if "pincode" in (update_data.shippingAddress or {}) else None),
+                    "ship_phone": ((update_data.shippingAddress or {})["phone"] if "phone" in (update_data.shippingAddress or {}) else None),
+                    "bill_name": ((update_data.billingAddress or {})["name"] if "name" in (update_data.billingAddress or {}) else None),
+                    "bill_street": ((update_data.billingAddress or {})["street"] if "street" in (update_data.billingAddress or {}) else None),
+                    "bill_city": ((update_data.billingAddress or {})["city"] if "city" in (update_data.billingAddress or {}) else None),
+                    "bill_state": ((update_data.billingAddress or {})["state"] if "state" in (update_data.billingAddress or {}) else None),
+                    "bill_pincode": ((update_data.billingAddress or {})["pincode"] if "pincode" in (update_data.billingAddress or {}) else None),
+                    "bill_phone": ((update_data.billingAddress or {})["phone"] if "phone" in (update_data.billingAddress or {}) else None),
                     "notes": update_data.notes,
                     "printed_bill": 1 if update_data.printedBill else None,
                     "assigned_valet": update_data.assignedValet,

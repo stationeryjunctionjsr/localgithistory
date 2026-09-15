@@ -56,7 +56,7 @@ class MySQLCollectionsDAO:
         docs = []
         for r in rows:
             c_id = str(r.id)
-            p_ids = prod_map.get(c_id, [])
+            p_ids = (prod_map[c_id] if c_id in prod_map else [])
             docs.append(CollectionResponse(**{
                 "_id": c_id,
                 "name": r.name,

@@ -29,7 +29,7 @@ class BannerRepository:
             banner.targetAudience = segments[0] if segments else "all"
 
             if rules and len(rules) > 0:
-                banner.position = rules[0].get("pageType", "homepage")
+                banner.position = rules[0]["pageType"] if "pageType" in rules[0] else "homepage"
             
             # 4. Ensure required date fields exist for Pydantic validation
             if not banner.startDate:
@@ -38,14 +38,14 @@ class BannerRepository:
                 banner.position = "homepage"
 
         query = query or {}
-        user_role = str(query.get("userRole") or "guest").lower()
-        target_page_type = str(query.get("pageType") or query.get("position") or "").lower()
-        target_page_id = query.get("pageId")
+        user_role = str((query["userRole"] if "userRole" in query else None) or "guest").lower()
+        target_page_type = str((query["pageType"] if "pageType" in query else None) or (query["position"] if "position" in query else None) or "").lower()
+        target_page_id = query["pageId"] if "pageId" in query else None
 
-        if query.get("isActive") is not None:
+        if "isActive" in query and query["isActive"] is not None:
             banners = [b for b in banners if b.isActive == query["isActive"]]
 
-        if query.get("isPublished") is not None:
+        if "isPublished" in query and query["isPublished"] is not None:
             banners = [b for b in banners if b.isPublished == query["isPublished"]]
 
         if target_page_type:
@@ -86,9 +86,9 @@ class BannerRepository:
                 # Check new rules
                 if not match and rules:
                     for rule in rules:
-                        rule_pg = str(rule.get("pageType", "")).lower()
+                        rule_pg = str(rule["pageType"] if "pageType" in rule else "").lower()
                         if rule_pg == target_page_type or (is_home_request and rule_pg in homepage_aliases):
-                            page_ids = rule.get("pageIds", [])
+                            page_ids = rule["pageIds"] if "pageIds" in rule else []
                             if not page_ids or target_page_id in page_ids:
                                 match = True
                                 break
@@ -98,7 +98,7 @@ class BannerRepository:
             banners = filtered
 
         # Sort by displayOrder
-        banners.sort(key=lambda x: x.get("displayOrder", 0))
+        banners.sort(key=lambda x: x.displayOrder if x.displayOrder is not None else 0)
 
         return banners
 
@@ -148,30 +148,30 @@ class BannerRepository:
     async def create(self, banner_data: Any):
         # Derive legacy fields for backward compatibility and admin table visibility
         if isinstance(banner_data, dict):
-            user_segments = banner_data.get("userSegments", ["all"])
-            visibility_rules = banner_data.get("visibilityRules", [])
-            start_date = banner_data.get("startDate")
+            user_segments = banner_data["userSegments"] if "userSegments" in banner_data else ["all"]
+            visibility_rules = banner_data["visibilityRules"] if "visibilityRules" in banner_data else []
+            start_date = banner_data["startDate"] if "startDate" in banner_data else None
         else:
             user_segments = (banner_data.userSegments if banner_data.userSegments is not None else ["all"])
             visibility_rules = (banner_data.visibilityRules if banner_data.visibilityRules is not None else [])
             start_date = banner_data.startDate
 
         target_audience = user_segments[0] if user_segments else "all"
-        position = visibility_rules[0].get("pageType", "homepage") if visibility_rules else "homepage"
+        position = (visibility_rules[0]["pageType"] if "pageType" in visibility_rules[0] else "homepage") if visibility_rules else "homepage"
 
         if not start_date or not str(start_date).strip():
             start_date = datetime.now(timezone.utc).isoformat()
 
         banner_dict = {
-            "title": banner_data.get("title", "") if isinstance(banner_data, dict) else (banner_data.title if banner_data.title is not None else ""),
-            "description": banner_data.get("description", "") if isinstance(banner_data, dict) else (banner_data.description if banner_data.description is not None else ""),
+            "title": (banner_data["title"] if "title" in banner_data else "") if isinstance(banner_data, dict) else (banner_data.title if banner_data.title is not None else ""),
+            "description": (banner_data["description"] if "description" in banner_data else "") if isinstance(banner_data, dict) else (banner_data.description if banner_data.description is not None else ""),
             "imageUrl": banner_data["imageUrl"] if isinstance(banner_data, dict) else (banner_data.imageUrl if banner_data.imageUrl is not None else ""),
-            "linkUrl": banner_data.get("linkUrl", "") if isinstance(banner_data, dict) else (banner_data.linkUrl if banner_data.linkUrl is not None else ""),
-            "displayOrder": banner_data.get("displayOrder", 0) if isinstance(banner_data, dict) else (banner_data.displayOrder if banner_data.displayOrder is not None else 0),
+            "linkUrl": (banner_data["linkUrl"] if "linkUrl" in banner_data else "") if isinstance(banner_data, dict) else (banner_data.linkUrl if banner_data.linkUrl is not None else ""),
+            "displayOrder": (banner_data["displayOrder"] if "displayOrder" in banner_data else 0) if isinstance(banner_data, dict) else (banner_data.displayOrder if banner_data.displayOrder is not None else 0),
             "startDate": start_date,
-            "endDate": banner_data.get("endDate") if isinstance(banner_data, dict) else banner_data.endDate,
-            "isActive": banner_data.get("isActive", True) if isinstance(banner_data, dict) else (banner_data.isActive if banner_data.isActive is not None else True),
-            "isPublished": banner_data.get("isPublished", False) if isinstance(banner_data, dict) else (banner_data.isPublished if banner_data.isPublished is not None else False),
+            "endDate": (banner_data["endDate"] if "endDate" in banner_data else None) if isinstance(banner_data, dict) else banner_data.endDate,
+            "isActive": (banner_data["isActive"] if "isActive" in banner_data else True) if isinstance(banner_data, dict) else (banner_data.isActive if banner_data.isActive is not None else True),
+            "isPublished": (banner_data["isPublished"] if "isPublished" in banner_data else False) if isinstance(banner_data, dict) else (banner_data.isPublished if banner_data.isPublished is not None else False),
             "targetAudience": target_audience,
             "userSegments": user_segments,
             "visibilityRules": visibility_rules,
@@ -209,7 +209,7 @@ class BannerRepository:
 
         if "visibilityRules" in update_dict:
             rules = update_dict["visibilityRules"]
-            update_dict["position"] = rules[0].get("pageType", "homepage") if rules else "homepage"
+            update_dict["position"] = (rules[0]["pageType"] if "pageType" in rules[0] else "homepage") if rules else "homepage"
 
         update_model = BannerInternalUpdate.model_validate(update_dict)
         return await self.storage.update(id, update_model)

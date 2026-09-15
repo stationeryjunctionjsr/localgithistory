@@ -17,24 +17,24 @@ class PushNotificationRepository:
             return all_notifications
 
         filtered = all_notifications
-        if query.get("status"):
-            filtered = [n for n in filtered if n.get("status") == query.get("status")]
+        if query["status"] if "status" in query else None:
+            filtered = [n for n in filtered if (n["status"] if "status" in n else None) == (query["status"] if "status" in query else None)]
 
-        if query.get("startDate"):
-            start_date = datetime.fromisoformat(query.get("startDate"))
+        if query["startDate"] if "startDate" in query else None:
+            start_date = datetime.fromisoformat(query["startDate"] if "startDate" in query else None)
             filtered = [
                 n
                 for n in filtered
-                if datetime.fromisoformat(n.get("createdAt", "").replace("Z", "+00:00").replace("+00:00", ""))
+                if datetime.fromisoformat(n["createdAt"] if "createdAt" in n else "".replace("Z", "+00:00").replace("+00:00", ""))
                 >= start_date
             ]
 
-        if query.get("endDate"):
-            end_date = datetime.fromisoformat(query.get("endDate"))
+        if query["endDate"] if "endDate" in query else None:
+            end_date = datetime.fromisoformat(query["endDate"] if "endDate" in query else None)
             filtered = [
                 n
                 for n in filtered
-                if datetime.fromisoformat(n.get("createdAt", "").replace("Z", "+00:00").replace("+00:00", ""))
+                if datetime.fromisoformat(n["createdAt"] if "createdAt" in n else "".replace("Z", "+00:00").replace("+00:00", ""))
                 <= end_date
             ]
 
@@ -47,17 +47,17 @@ class PushNotificationRepository:
     async def create(self, notification_data: Any):
         """Create a new push notification"""
         notification = {
-            "title": notification_data.get("title", ""),
-            "message": notification_data.get("message", ""),
-            "link": notification_data.get("link", ""),
-            "image": notification_data.get("image"),
-            "status": notification_data.get("status", "published"),
-            "scheduledFor": notification_data.get("scheduledFor"),
+            "title": notification_data["title"] if "title" in notification_data else "",
+            "message": notification_data["message"] if "message" in notification_data else "",
+            "link": notification_data["link"] if "link" in notification_data else "",
+            "image": notification_data["image"] if "image" in notification_data else None,
+            "status": notification_data["status"] if "status" in notification_data else "published",
+            "scheduledFor": notification_data["scheduledFor"] if "scheduledFor" in notification_data else None,
             "deliveredCount": 0,
             "readCount": 0,
-            "userSegment": notification_data.get("userSegment", "all"),
-            "userBehavior": notification_data.get("userBehavior", "none"),
-            "createdBy": notification_data.get("createdBy"),
+            "userSegment": notification_data["userSegment"] if "userSegment" in notification_data else "all",
+            "userBehavior": notification_data["userBehavior"] if "userBehavior" in notification_data else "none",
+            "createdBy": notification_data["createdBy"] if "createdBy" in notification_data else None,
             "createdAt": datetime.now(timezone.utc).isoformat(),
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
@@ -77,10 +77,10 @@ class PushNotificationRepository:
         notification = await self.findById(id)
         if notification:
             if "deliveredCount" in stats:
-                notification["deliveredCount"] = stats.get("deliveredCount", notification.get("deliveredCount", 0))
+                notification["deliveredCount"] = stats["deliveredCount"] if "deliveredCount" in stats else (notification["deliveredCount"] if "deliveredCount" in notification else 0)
 
             if "targetedUserIds" in stats:
-                notification["targetedUserIds"] = stats.get("targetedUserIds", [])
+                notification["targetedUserIds"] = stats["targetedUserIds"] if "targetedUserIds" in stats else []
 
             if userId:
                 # Idempotent read tracking
@@ -92,7 +92,7 @@ class PushNotificationRepository:
                     notification["readCount"] = len(notification["readByUserIds"])
             elif "readCount" in stats:
                 # Fallback for manual updates or legacy logic
-                notification["readCount"] = stats.get("readCount", notification.get("readCount", 0))
+                notification["readCount"] = stats["readCount"] if "readCount" in stats else (notification["readCount"] if "readCount" in notification else 0)
 
             notification["updatedAt"] = datetime.now(timezone.utc).isoformat()
             return await self.storage.update(id, notification)
@@ -106,8 +106,8 @@ class PushNotificationRepository:
         if expoToken:
             matches = await self.device_storage.findAll({"expoToken": expoToken})
             existing_device = matches[0] if matches else None
-        elif subscription and subscription.get("endpoint"):
-            matches = await self.device_storage.findAll({"endpoint": subscription.get("endpoint")})
+        elif subscription and ('endpoint' in subscription and subscription['endpoint']):
+            matches = await self.device_storage.findAll({"endpoint": subscription['endpoint']})
             existing_device = matches[0] if matches else None
         else:
             existing_device = None
@@ -117,8 +117,8 @@ class PushNotificationRepository:
             existing_device["userId"] = userId
             if subscription:
                 existing_device["subscription"] = subscription
-                existing_device["endpoint"] = subscription.get("endpoint")
-                existing_device["keys"] = subscription.get("keys", {})
+                existing_device["endpoint"] = subscription['endpoint'] if 'endpoint' in subscription else None
+                existing_device["keys"] = subscription['keys'] if 'keys' in subscription else {}
             if expoToken is not None:
                 existing_device["expoToken"] = expoToken
             existing_device["updatedAt"] = datetime.now(timezone.utc).isoformat()
@@ -127,8 +127,8 @@ class PushNotificationRepository:
             # Create new device
             device = {
                 "userId": userId,
-                "endpoint": subscription.get("endpoint") if subscription else None,
-                "keys": subscription.get("keys", {}) if subscription else {},
+                "endpoint": (subscription['endpoint'] if 'endpoint' in subscription else None) if subscription else None,
+                "keys": (subscription['keys'] if 'keys' in subscription else {}) if subscription else {},
                 "subscription": subscription or {},
                 "expoToken": expoToken,
                 "createdAt": datetime.now(timezone.utc).isoformat(),
@@ -170,3 +170,4 @@ class PushNotificationRepository:
 
 
 push_notification_repository = PushNotificationRepository()
+

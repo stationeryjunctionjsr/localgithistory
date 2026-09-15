@@ -22,7 +22,7 @@ class MySQLWishlistDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, items: List[str]) -> Dict:
+    def _map_to_schema(self, r, items: List[str]) -> Dict:
         return {
             "_id": str(r.id),
             "user": str(r.user_id),
@@ -83,7 +83,7 @@ class MySQLWishlistDAO:
             )
             rows = result.fetchall()
             items_map = await self._fetch_items(session, [r.id for r in rows])
-        return [Wishlist.model_validate(self._row_to_dict(r, items_map[r.id]) ) for r in rows]
+        return [Wishlist.model_validate(self._map_to_schema(r, items_map[r.id]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)

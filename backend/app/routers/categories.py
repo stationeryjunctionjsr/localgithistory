@@ -127,11 +127,10 @@ async def get_public_categories(forHomepage: bool = False):
             tags = (cat.category_tags or [])
             if not tag and tags:
                 tag = tags[0] if isinstance(tags, list) and tags else ""
-            cat_dict = cat.model_dump(by_alias=True) if not isinstance(cat, dict) else cat.copy()
-            cat_dict["categoryTag"] = tag or ""
-            cat_dict["categoryTags"] = [tag] if tag else []
-            cat_dict["gst"] = cat.gst if cat.gst is not None else 0
-            active_categories.append(cat_dict)
+            cat.categoryTag = tag or ""
+            cat.categoryTags = [tag] if tag else []
+            cat.gst = cat.gst if cat.gst is not None else 0
+            active_categories.append(cat)
         return active_categories
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)

@@ -107,7 +107,7 @@ class ProductNotificationRepository:
         """
 
         for notif in active_notifs:
-            email = notif.get("email")
+            email = notif["email"] if "email" in notif else None
             if email:
                 # Send email
                 email_service.send_email(email, subject, plain_text_body, html_body=html_body)
@@ -116,3 +116,4 @@ class ProductNotificationRepository:
 
 
 product_notification_repository = ProductNotificationRepository()
+

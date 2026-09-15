@@ -165,7 +165,7 @@ async def get_available_valets(
     available_valets = []
     for v in in_area:
         vid = str((v.id or ""))
-        a = avail_map.get(vid)
+        a = (avail_map[vid] if vid in avail_map else None)
         if not a:
             continue
         if a.availabilityType == "full_day":

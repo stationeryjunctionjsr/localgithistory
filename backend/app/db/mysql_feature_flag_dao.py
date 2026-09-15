@@ -24,7 +24,7 @@ class MySQLFeatureFlagDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r) -> Dict:
+    def __map_to_schema(self, r) -> Dict:
         return {
             "_id": str(r.id),
             "id": r.flag_id,
@@ -50,7 +50,7 @@ class MySQLFeatureFlagDAO:
                 )
             )
             rows = result.fetchall()
-        docs = [self._row_to_dict(r) for r in rows]
+        docs = [self.__map_to_schema(r) for r in rows]
         if not query:
             return docs
         filtered: List[Dict] = []
@@ -61,7 +61,7 @@ class MySQLFeatureFlagDAO:
                     if str(d._id) != str(v):
                         match = False
                         break
-                elif d.get(k) != v:
+                elif (d[k] if k in d else None) != v:
                     match = False
                     break
             if match:
@@ -88,7 +88,7 @@ class MySQLFeatureFlagDAO:
                 {"id": fid},
             )
             row = result.fetchone()
-        return FeatureFlag.model_validate(self._row_to_dict(row)) if row else None
+        return FeatureFlag.model_validate(self.__map_to_schema(row)) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()

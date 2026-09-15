@@ -22,7 +22,7 @@ class MySQLCommissionSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, tiers: List[Dict]) -> Dict:
+    def __map_to_schema(self, r, tiers: List[Dict]) -> Dict:
         return {
             "_id": str(r.id),
             "externalId": r.external_id,
@@ -77,7 +77,7 @@ class MySQLCommissionSettingsDAO:
                             }
                         )
 
-        return [CommissionSettings.model_validate(self._row_to_dict(r, children_map[r.id]) ) for r in rows]
+        return [CommissionSettings.model_validate(self.__map_to_schema(r, children_map[r.id]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -95,7 +95,7 @@ class MySQLCommissionSettingsDAO:
                 text(
                     "INSERT INTO sj_commission_settings_tiers (setting_id, min_val, max_val, commission_pct) VALUES (:sid, :minv, :maxv, :pct)"
                 ),
-                {"sid": setting_id, "minv": t.get("min"), "maxv": t.get("max"), "pct": t.get("pct", 0)},
+                {"sid": setting_id, "minv": (t["min"] if "min" in t else None), "maxv": (t["max"] if "max" in t else None), "pct": (t["pct"] if "pct" in t else 0)},
             )
 
     async def create(self, data: Dict) -> Dict:

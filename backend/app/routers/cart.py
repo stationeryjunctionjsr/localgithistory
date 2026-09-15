@@ -55,7 +55,7 @@ async def get_cart(current_user: User = Depends(get_current_user)):
 
         cart_items = []
         for item in cart.items:
-            product = products_map.get(str(item.product))
+            product = (products_map[str(item.product)] if str(item.product) in products_map else None)
             if not product:
                 continue
             quantity = item.quantity

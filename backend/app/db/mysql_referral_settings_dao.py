@@ -35,8 +35,8 @@ class MySQLReferralSettingsDAO:
         return get_async_session_factory()
 
     def _doc(self, rows_by_segment: Dict[str, any]) -> Any:
-        retail = rows_by_segment.get("retail")
-        business = rows_by_segment.get("business")
+        retail = (rows_by_segment["retail"] if "retail" in rows_by_segment else None)
+        business = (rows_by_segment["business"] if "business" in rows_by_segment else None)
         return ReferralSettings.model_validate({
             "_id": "1",
             "retail": _row_to_segment(retail)
@@ -88,14 +88,14 @@ class MySQLReferralSettingsDAO:
         defaults = {"segment": "retail", "discountType": "percentage", "discountValue": 0, "isActive": False}
         async with factory() as session:
             for seg in SEGMENTS:
-                obj = data.get(seg)
+                obj = (data[seg] if seg in data else None)
                 if not obj:
                     obj = {**defaults, "segment": seg}
-                discount_type = obj.get("discountType") or obj.get("discount_type") or "percentage"
+                discount_type = (obj["discountType"] if "discountType" in obj else None) or (obj["discount_type"] if "discount_type" in obj else None) or "percentage"
                 discount_value = (
-                    obj.get("discountValue") if obj.get("discountValue") is not None else obj.get("discount_value", 0)
+                    (obj["discountValue"] if "discountValue" in obj else None) if (obj["discountValue"] if "discountValue" in obj else None) is not None else (obj["discount_value"] if "discount_value" in obj else 0)
                 )
-                is_active = 1 if obj.get("isActive") or obj.get("is_active") else 0
+                is_active = 1 if (obj["isActive"] if "isActive" in obj else None) or (obj["is_active"] if "is_active" in obj else None) else 0
                 await session.execute(
                     text(
                         f"""
@@ -122,14 +122,14 @@ class MySQLReferralSettingsDAO:
             return None
         now = now_utc()
         for seg in SEGMENTS:
-            obj = update_data.get(seg)
+            obj = (update_data[seg] if seg in update_data else None)
             if obj is None:
                 continue
-            discount_type = obj.get("discountType") or obj.get("discount_type") or "percentage"
+            discount_type = (obj["discountType"] if "discountType" in obj else None) or (obj["discount_type"] if "discount_type" in obj else None) or "percentage"
             discount_value = (
-                obj.get("discountValue") if obj.get("discountValue") is not None else obj.get("discount_value", 0)
+                (obj["discountValue"] if "discountValue" in obj else None) if (obj["discountValue"] if "discountValue" in obj else None) is not None else (obj["discount_value"] if "discount_value" in obj else 0)
             )
-            is_active = 1 if obj.get("isActive") or obj.get("is_active") else 0
+            is_active = 1 if (obj["isActive"] if "isActive" in obj else None) or (obj["is_active"] if "is_active" in obj else None) else 0
             async with factory() as session:
                 result = await session.execute(
                     text(

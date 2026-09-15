@@ -37,7 +37,7 @@ class EmailLogHandler(logging.Handler):
             error_hash = hashlib.md5(msg_key.encode()).hexdigest()
 
             now = datetime.now()
-            error_data = notified_errors_data.get(error_hash)
+            error_data = notified_errors_data[error_hash] if error_hash in notified_errors_data else None
 
             if not error_data:
                 error_data = {"last_sent": None, "users": set(), "created_at": now}

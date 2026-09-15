@@ -219,7 +219,7 @@ async def get_payments(
 
     enhanced_payments = []
     for payment in payments:
-        order = order_map.get(str(payment.order_id))
+        order = (order_map[str(payment.order_id)] if str(payment.order_id) in order_map else None)
         enhanced_payments.append({
             **payment,
             "orderNumber": order.order_number if order else payment.order_id,

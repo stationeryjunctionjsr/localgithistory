@@ -82,9 +82,9 @@ def verify_refresh_token(token: str) -> 'User':
 
     try:
         payload = jwt.decode(token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("type") != "refresh":
+        if payload["type"] if "type" in payload else None != "refresh":
             raise credentials_exception
-        if not payload.get("userId") or not payload.get("sessionId") or not payload.get("refreshId"):
+        if not payload["userId"] if "userId" in payload else None or not payload["sessionId"] if "sessionId" in payload else None or not payload["refreshId"] if "refreshId" in payload else None:
             raise credentials_exception
         return payload
     except JWTError:
@@ -104,10 +104,10 @@ async def verify_token(token: str) -> 'User':
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("type") != "access":
+        if payload["type"] if "type" in payload else None != "access":
             raise base_exception
-        user_id: str = payload.get("userId")
-        session_id: str = payload.get("sessionId")
+        user_id: str = payload["userId"] if "userId" in payload else None
+        session_id: str = payload["sessionId"] if "sessionId" in payload else None
         if user_id is None or session_id is None:
             raise base_exception
     except JWTError:

@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 async def optional_user(request: Request):
-    auth_header = request.headers.get("authorization")
+    auth_header = (request.headers["authorization"] if "authorization" in request.headers else None)
     if not auth_header:
         return None
     token = auth_header.split(" ")[-1]
@@ -48,7 +48,7 @@ async def log_activity(
 ):
     action = body.action or body.type
     meta = body.meta or body.detail or {}
-    sid = body.sessionId or (request.headers.get("x-session-id") if request else None)
+    sid = body.sessionId or ((request.headers["x-session-id"] if "x-session-id" in request.headers else None) if request else None)
     if not sid:
         raise HTTPException(status_code=400, detail="sessionId is required")
     if not action:

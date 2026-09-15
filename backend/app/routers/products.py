@@ -1161,7 +1161,7 @@ async def create_seller_request(
         sellers_list.append(new_entry)
         
     # Save product
-    update_data = {"sellers": [s.model_dump() for s in sellers_list]}
+    update_data = ProductUpdate(sellers=sellers_list)
     updated = await product_repository.update(product_id, update_data)
     return await populate_product(updated)
 
@@ -1195,7 +1195,7 @@ async def update_my_seller_entry(
     if data.isActive is not None:
         existing_entry.isActive = data.isActive
         
-    update_data = {"sellers": [s.model_dump() for s in sellers_list]}
+    update_data = ProductUpdate(sellers=sellers_list)
     updated = await product_repository.update(product_id, update_data)
     return await populate_product(updated)
 
@@ -1251,6 +1251,6 @@ async def approve_seller_request(
     if data and data.notes:
         target_entry.notes = data.notes
         
-    update_data = {"sellers": [s.model_dump() for s in sellers_list]}
+    update_data = ProductUpdate(sellers=sellers_list)
     updated = await product_repository.update(product_id, update_data)
     return await populate_product(updated)

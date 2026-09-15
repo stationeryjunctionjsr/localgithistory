@@ -118,7 +118,7 @@ class MySQLDevicesubscriptionsDAO:
             "isActive": "is_active",
             "id": "id"
         }
-        return mapping.get(field, field)
+        return (mapping[field] if field in mapping else field)
         
     def _map_to_response(self, row: dict) -> DeviceSubscriptionResponse:
         return DeviceSubscriptionResponse(

@@ -5,18 +5,18 @@ OCI Object Storage configuration. Bucket is private; use PAR/signed URLs for rea
 import os
 
 # Bucket: sj-prod-assets (private). No public access.
-OCI_BUCKET_NAME = os.environ.get("OCI_BUCKET_NAME", "sj-prod-assets")
-OCI_NAMESPACE = os.environ.get("OCI_NAMESPACE", "axiekhoevpfn")
-OCI_REGION = os.environ.get("OCI_REGION", "ap-hyderabad-1")
+OCI_BUCKET_NAME = os.environ["OCI_BUCKET_NAME"] if "OCI_BUCKET_NAME" in os.environ else "sj-prod-assets"
+OCI_NAMESPACE = os.environ["OCI_NAMESPACE"] if "OCI_NAMESPACE" in os.environ else "axiekhoevpfn"
+OCI_REGION = os.environ["OCI_REGION"] if "OCI_REGION" in os.environ else "ap-hyderabad-1"
 
 # OCI API Key Authentication
-OCI_USER_OCID = os.environ.get("OCI_USER_OCID")
-OCI_TENANCY_OCID = os.environ.get("OCI_TENANCY_OCID")
-OCI_FINGERPRINT = os.environ.get("OCI_FINGERPRINT")
-OCI_PRIVATE_KEY = os.environ.get("OCI_PRIVATE_KEY")
+OCI_USER_OCID = os.environ["OCI_USER_OCID"] if "OCI_USER_OCID" in os.environ else None
+OCI_TENANCY_OCID = os.environ["OCI_TENANCY_OCID"] if "OCI_TENANCY_OCID" in os.environ else None
+OCI_FINGERPRINT = os.environ["OCI_FINGERPRINT"] if "OCI_FINGERPRINT" in os.environ else None
+OCI_PRIVATE_KEY = os.environ["OCI_PRIVATE_KEY"] if "OCI_PRIVATE_KEY" in os.environ else None
 
 # PAR validity for read URLs (seconds). Short = lower risk; 1 hour is a reasonable default.
-OCI_PAR_EXPIRY_SECONDS = int(os.environ.get("OCI_PAR_EXPIRY_SECONDS", "3600"))
+OCI_PAR_EXPIRY_SECONDS = int(os.environ["OCI_PAR_EXPIRY_SECONDS"] if "OCI_PAR_EXPIRY_SECONDS" in os.environ else "3600")
 
 
 def use_oci_storage() -> bool:

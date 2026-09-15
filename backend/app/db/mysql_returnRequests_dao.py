@@ -205,10 +205,10 @@ class MySQLReturnrequestsDAO:
             orderId=row['order_id'],
             userId=row['user_id'],
             reason=row['reason'],
-            comments=row.get('comments'),
+            comments=(row['comments'] if 'comments' in row else None),
             status=row['status'],
-            adminComments=row.get('admin_comments'),
-            refundAmount=row.get('refund_amount'),
+            adminComments=(row['admin_comments'] if 'admin_comments' in row else None),
+            refundAmount=(row['refund_amount'] if 'refund_amount' in row else None),
             isRestocked=bool(row['is_restocked']),
             items=items,
             images=images

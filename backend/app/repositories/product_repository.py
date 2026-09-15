@@ -231,7 +231,7 @@ class ProductRepository:
                             best_word = clean_word
 
                 if best_ratio >= FUZZY_THRESHOLD and best_field:
-                    total_score += self.SEARCH_WEIGHTS.get(best_field, 1) * best_ratio
+                    total_score += self.SEARCH_WEIGHTS[best_field] if best_field in self.SEARCH_WEIGHTS else 1 * best_ratio
                     product_token_suggestions[token] = {"word": best_word, "ratio": best_ratio}
                 else:
                     all_tokens_fuzzy_match = False
@@ -256,7 +256,7 @@ class ProductRepository:
         has_fuzzy = False
         suggested_words = []
         for token in tokens:
-            sugg = best_token_suggestions.get(token)
+            sugg = best_token_suggestions[token] if token in best_token_suggestions else None
             if sugg and sugg["ratio"] < 1.0 and sugg["ratio"] >= FUZZY_THRESHOLD:
                 has_fuzzy = True
                 suggested_words.append(sugg["word"])
@@ -272,7 +272,7 @@ class ProductRepository:
         effective_role = "wholesaler" if role == "wholesaler" else "customer"
 
         # Fast path: serve from warm cache without acquiring the lock
-        entry = self._light_catalog_cache.get(effective_role)
+        entry = self._light_catalog_cache[effective_role] if effective_role in self._light_catalog_cache else None
         if entry and now_m < entry["exp"]:
             return entry["data"]
 
@@ -281,7 +281,7 @@ class ProductRepository:
         async with self._light_catalog_lock:
             # Double-check: another coroutine may have built the cache
             # while we were waiting for the lock.
-            entry = self._light_catalog_cache.get(effective_role)
+            entry = self._light_catalog_cache[effective_role] if effective_role in self._light_catalog_cache else None
             if entry and now_m < entry["exp"]:
                 return entry["data"]
 
@@ -346,7 +346,7 @@ class ProductRepository:
             self._cat_gst_map = cat_gst_map
             self._cat_gst_map_exp = now_m + 60.0
         for p in products:
-            p.gst = float(cat_gst_map.get(p.category, 0))
+            p.gst = float(cat_gst_map[p.category] if p.category in cat_gst_map else 0)
         return products
 
     async def findAll(self, query: Optional[Dict] = None):
@@ -356,40 +356,40 @@ class ProductRepository:
         query = query or {}
 
         # Apply filters
-        if query.get("category"):
+        if query["category"] if "category" in query else None:
             products = [p for p in products if p.category == query["category"]]
 
         # Filter by multiple categories (comma-separated)
-        if query.get("categories"):
+        if query["categories"] if "categories" in query else None:
             category_list = [c.strip() for c in query["categories"].split(",")]
             products = [p for p in products if p.category in category_list]
 
-        if query.get("subCategory"):
+        if query["subCategory"] if "subCategory" in query else None:
             products = [p for p in products if p.subCategory == query["subCategory"]]
 
-        if query.get("brand"):
+        if query["brand"] if "brand" in query else None:
             # Support multiple brands (comma-separated)
             brand_list = [b.strip().lower() for b in query["brand"].split(",")]
             products = [p for p in products if (p.brand if p.brand is not None else "").lower() in brand_list]
 
-        if query.get("minPrice"):
+        if query["minPrice"] if "minPrice" in query else None:
             min_price = float(query["minPrice"])
-            role = query.get("role", "customer")
+            role = query["role"] if "role" in query else "customer"
             products = [p for p in products if self.getPriceForRole(p, role) >= min_price]
 
-        if query.get("maxPrice"):
+        if query["maxPrice"] if "maxPrice" in query else None:
             max_price = float(query["maxPrice"])
-            role = query.get("role", "customer")
+            role = query["role"] if "role" in query else "customer"
             products = [p for p in products if self.getPriceForRole(p, role) <= max_price]
 
         # Defer search to after tag resolution for weighted scoring
-        search_query = query.get("search", "").strip()
+        search_query = (query["search"] if "search" in query else "").strip()
 
         # categoryTag filtering will be handled after dynamic tags
 
         # Filter active products
-        is_active = query.get("isActive")
-        include_inactive = query.get("includeInactive", False)
+        is_active = query["isActive"] if "isActive" in query else None
+        include_inactive = query["includeInactive"] if "includeInactive" in query else False
         if is_active is True:
             products = [p for p in products if (p.isActive if p.isActive is not None else True)]
         elif is_active is False:
@@ -398,8 +398,8 @@ class ProductRepository:
             products = [p for p in products if (p.isActive if p.isActive is not None else True)]
 
         # Add dynamic tags (best selling, new)
-        role = query.get("role", "customer")
-        user_id = query.get("user_id")
+        role = query["role"] if "role" in query else "customer"
+        user_id = query["user_id"] if "user_id" in query else None
         products = await self.add_dynamic_tags(products, role, user_id)
 
         # Resolve search tags based on association rules
@@ -411,7 +411,7 @@ class ProductRepository:
             products = search_res["products"]
 
         # Apply popularity filter (new, best_selling, trending; exclusive → Collections)
-        if query.get("popularity"):
+        if query["popularity"] if "popularity" in query else None:
             pop = query["popularity"].lower()
             if pop == "new":
                 products = [p for p in products if "new" in [t.lower() for t in (p.tags if p.tags is not None else [])]]
@@ -426,7 +426,7 @@ class ProductRepository:
                 products = [p for p in products if "trending" in [t.lower() for t in (p.tags if p.tags is not None else [])]]
 
         # Apply minDiscount filter
-        if query.get("minDiscount"):
+        if query["minDiscount"] if "minDiscount" in query else None:
             min_disc = float(query["minDiscount"])
             products_filtered = []
             for p in products:
@@ -441,7 +441,7 @@ class ProductRepository:
             products = products_filtered
 
         # Final filter by categoryTag if present
-        if query.get("categoryTag"):
+        if query["categoryTag"] if "categoryTag" in query else None:
             target_tag = query["categoryTag"].lower()
             # Get matching categories from static config
             from app.repositories.category_repository import category_repository
@@ -457,13 +457,13 @@ class ProductRepository:
             ]
 
         # Filter by collection if present
-        if query.get("collection"):
+        if query["collection"] if "collection" in query else None:
             collection_id = query["collection"]
             from app.repositories.collection_repository import collection_repository
 
             collection = await collection_repository.findById(collection_id)
             if collection:
-                allowed_ids = collection.get("productIds", [])
+                allowed_ids = collection["productIds"] if "productIds" in collection else []
                 products = [p for p in products if p.id in allowed_ids]
             else:
                 # If collection not found, return empty results for safety
@@ -479,14 +479,14 @@ class ProductRepository:
             except (TypeError, ValueError):
                 return False
 
-        availability = (query.get("availability") or "").strip().lower()
+        availability = (query["availability"] if "availability" in query else None or "").strip().lower()
         if availability == "available":
             products = [p for p in products if _is_in_stock(p)]
         elif availability == "stock_out":
             products = [p for p in products if not _is_in_stock(p)]
 
         # Apply sorting — default to relevance when searching, newest otherwise
-        sort_by = query.get("sort", "relevance" if search_query else "newest")
+        sort_by = query["sort"] if "sort" in query else ("relevance" if search_query else "newest")
 
         if sort_by == "relevance" and search_query:
             pass  # Already sorted by relevance score from _weighted_search
@@ -531,13 +531,13 @@ class ProductRepository:
     ):
         """Orchestrates server-side pagination by calling the DAO."""
         dao_query = query.copy()
-        role = query.get("role", "customer")
-        user_id = query.get("user_id")
+        role = query["role"] if "role" in query else "customer"
+        user_id = query["user_id"] if "user_id" in query else None
 
         allowed_ids_sets = []
 
         # Handle Popularity
-        if query.get("popularity"):
+        if query["popularity"] if "popularity" in query else None:
             pop = query["popularity"].lower()
             from app.repositories.recommendation_repository import recommendation_repository as _rec_repo
 
@@ -555,17 +555,17 @@ class ProductRepository:
                 allowed_ids_sets.append(set(trending_ids))
 
         # Handle Collection
-        if query.get("collection"):
+        if query["collection"] if "collection" in query else None:
             from app.repositories.collection_repository import collection_repository
 
             collection = await collection_repository.findById(query["collection"])
             if collection:
-                allowed_ids_sets.append(set(str(pid) for pid in collection.get("productIds", [])))
+                allowed_ids_sets.append(set(str(pid) for pid in (collection["productIds"] if "productIds" in collection else [])))
             else:
                 allowed_ids_sets.append(set())
 
         # Handle CategoryTag
-        if query.get("categoryTag"):
+        if query["categoryTag"] if "categoryTag" in query else None:
             target_tag = query["categoryTag"].lower()
             from app.repositories.category_repository import category_repository
 
@@ -574,7 +574,7 @@ class ProductRepository:
 
             if matching_cats:
                 # Merge into existing categories filter if any
-                existing = dao_query.get("categories", "")
+                existing = dao_query["categories"] if "categories" in dao_query else ""
                 if existing:
                     dao_query["categories"] = existing + "," + ",".join(matching_cats)
                 else:
@@ -597,7 +597,7 @@ class ProductRepository:
                 dao_query, skip=skip, limit=limit, sort=sort
             )
 
-            search_query = dao_query.get("search", "").strip()
+            search_query = dao_query["search"] if "search" in dao_query else "".strip()
             used_fuzzy = False
             suggested_query = None
 
@@ -634,10 +634,10 @@ class ProductRepository:
                         full_products = await self.add_dynamic_tags(full_products, role, user_id)
                         full_products = await self.resolve_search_tags(full_products)
 
-                        sort_by = sort or dao_query.get("sort", "relevance")
+                        sort_by = sort or dao_query["sort"] if "sort" in dao_query else "relevance"
                         if sort_by == "relevance":
                             order_map = {str(p.id): idx for idx, p in enumerate(matched_products)}
-                            full_products.sort(key=lambda p: order_map.get(str(p.id), 9999))
+                            full_products.sort(key=lambda p: order_map[str(p.id)] if str(p.id) in order_map else 9999)
                         elif sort_by == "price_asc":
                             full_products.sort(key=lambda p: self.getPriceForRole(p, role))
                         elif sort_by == "price_desc":
@@ -667,7 +667,7 @@ class ProductRepository:
                 from app.repositories.collection_repository import collection_repository
 
                 all_collections = await collection_repository.findAll()
-                available_collections = [col.get("name") for col in all_collections if col.get("productIds")]
+                available_collections = [col["name"] if "name" in col else None for col in all_collections if (col["productIds"] if "productIds" in col else None)]
                 facets["collections"] = sorted(list(set(available_collections)))
             else:
                 facets = {"brands": [], "categories": [], "subCategories": [], "collections": []}
@@ -681,7 +681,7 @@ class ProductRepository:
         #
         #     used_fuzzy = False
         #     suggested_query = None
-        #     search_query = query.get("search", "").strip()
+        #     search_query = (query["search"] if "search" in query else "").strip()
         #     if search_query:
         #         search_res = self._weighted_search(all_products, search_query)
         #         all_products = search_res["products"]
@@ -690,7 +690,7 @@ class ProductRepository:
         #
         #     total_count = len(all_products)
         #
-        #     sort_by = sort or query.get("sort", "newest")
+        #     sort_by = sort or query["sort"] if "sort" in query else "newest"
         #
         #     paginated_products = all_products[skip:skip+limit]
         #
@@ -704,9 +704,9 @@ class ProductRepository:
         #     all_pids = set(str(p.id) for p in all_products)
         #     available_collections = []
         #     for col in all_collections:
-        #         col_pids = set(str(pid) for pid in col.get("productIds", []))
+        #         col_pids = set(str(pid) for pid in col["productIds"] if "productIds" in col else [])
         #         if all_pids.intersection(col_pids):
-        #             available_collections.append(col.get("name"))
+        #             available_collections.append(col["name"] if "name" in col else None)
         #     facets["collections"] = sorted(list(set(available_collections)))
         #
         #     return paginated_products, total_count, facets, used_fuzzy, suggested_query
@@ -724,7 +724,7 @@ class ProductRepository:
             # Only fetch orders for this specific user
             user_orders = await order_repository.findAll({"user": user_id})
             for o in user_orders:
-                for item in o.get("items", []):
+                for item in o["items"] if "items" in o else []:
                     if item.product:
                         user_ordered_pids.add(str(item.product))
 
@@ -744,7 +744,7 @@ class ProductRepository:
         except AttributeError:
             self._dyn_tag_cache: dict = {}
         cache_key = f"dyn_{role}"
-        entry = self._dyn_tag_cache.get(cache_key)
+        entry = self._dyn_tag_cache[cache_key] if cache_key in self._dyn_tag_cache else None
         _now_m = _t.monotonic()
 
         if entry and _now_m < entry["exp"]:
@@ -829,9 +829,9 @@ class ProductRepository:
         collection_product_map: Dict[str, List[str]] = {}
         product_collection_names: Dict[str, List[str]] = {}
         for col in collections:
-            col_id = str(col.get("_id", ""))
-            col_name = col.get("name", "")
-            col_product_ids = col.get("productIds", [])
+            col_id = str(col["_id"] if "_id" in col else "")
+            col_name = col["name"] if "name" in col else ""
+            col_product_ids = col["productIds"] if "productIds" in col else []
             if col_id:
                 collection_product_map[col_id] = col_product_ids
             for pid in col_product_ids:
@@ -885,7 +885,7 @@ class ProductRepository:
                     tag_collections = (tag.collections if tag.collections is not None else [])
                     if tag_collections:
                         for col_id in tag_collections:
-                            col_pids = collection_product_map.get(col_id, [])
+                            col_pids = collection_product_map[col_id] if col_id in collection_product_map else []
                             if pid in col_pids:
                                 matched = True
                                 break
@@ -897,7 +897,7 @@ class ProductRepository:
                     matched_tags.append((tag.name if tag.name is not None else ""))
 
             p.searchTags = matched_tags
-            p.resolvedCollectionNames = product_collection_names.get(pid, [])
+            p.resolvedCollectionNames = product_collection_names[pid] if pid in product_collection_names else []
 
         return products
 
@@ -919,7 +919,7 @@ class ProductRepository:
         collection = await collection_repository.findById(collection_id)
         if not collection:
             return []
-        product_ids = collection.get("productIds", [])
+        product_ids = collection["productIds"] if "productIds" in collection else []
         if not product_ids:
             return []
         str_ids = [str(pid) for pid in product_ids]
@@ -1125,11 +1125,11 @@ class ProductRepository:
                             if c.applicableItemType == "cases" and product.quantityPerCase:
                                 qty_to_use = quantity // product.quantityPerCase
 
-                        sorted_tiers = sorted(c.quantityTiers, key=lambda x: x.get("quantity", 0), reverse=True)
+                        sorted_tiers = sorted(c.quantityTiers, key=lambda x: x["quantity"] if "quantity" in x else 0, reverse=True)
                         matched_pct = 0.0
                         for tier in sorted_tiers:
-                            if qty_to_use >= tier.get("quantity", 0):
-                                matched_pct = float(tier.get("discount", 0))
+                            if qty_to_use >= tier["quantity"] if "quantity" in tier else 0:
+                                matched_pct = float(tier["discount"] if "discount" in tier else 0)
                                 break
                         pct = matched_pct
                         val = matched_pct
@@ -1250,12 +1250,12 @@ class ProductRepository:
                         variant_attrs[ar.variant_id][ar.attr_name] = ar.attr_value
 
                     for vc in variant_combinations:
-                        req_attrs = vc.get("attributes") or {}
-                        vc_qty = int(vc.get("quantity", quantity))
+                        req_attrs = vc["attributes"] if "attributes" in vc else None or {}
+                        vc_qty = int(vc["quantity"] if "quantity" in vc else quantity)
                         matched = False
                         for v_row in all_variants:
                             v_id = v_row.id
-                            if req_attrs and variant_attrs.get(v_id) == req_attrs:
+                            if req_attrs and variant_attrs[v_id] if v_id in variant_attrs else None == req_attrs:
                                 new_v_stock = max(0, (v_row.stock or 0) - vc_qty)
                                 await session.execute(
                                     text(
@@ -1339,6 +1339,9 @@ class ProductRepository:
 
 
 product_repository = ProductRepository()
+
+
+
 
 
 

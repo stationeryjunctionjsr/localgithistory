@@ -58,7 +58,7 @@ class FileStorage:
                 logger.warning("Failed to stat file %s: %s", self.file_path, exc)
                 mtime = 0
 
-        entry = _FILE_CACHE.get(self.collection_name)
+        entry = _FILE_CACHE[self.collection_name] if self.collection_name in _FILE_CACHE else None
 
         # entry structure: (data, expires_at, stored_mtime)
         if entry and now < entry[1] and entry[2] == mtime:
@@ -90,19 +90,19 @@ class FileStorage:
                 match = True
                 for key, value in query.items():
                     if key in ["_id", "id"]:
-                        if doc.get("_id") != value and doc.get("id") != value:
+                        if (doc["_id"] if "_id" in doc else None) != value and (doc["id"] if "id" in doc else None) != value:
                             match = False
                             break
                     elif key == "name":
-                        if (doc.get("name") or "").lower() != str(value).lower():
+                        if ((doc["name"] if "name" in doc else None) or "").lower() != str(value).lower():
                             match = False
                             break
                     elif key == "allowed_ids":
                         allowed_ids_strs = [str(aid) for aid in value]
-                        if str(doc.get("_id")) not in allowed_ids_strs and str(doc.get("id")) not in allowed_ids_strs:
+                        if str((doc["_id"] if "_id" in doc else None)) not in allowed_ids_strs and str((doc["id"] if "id" in doc else None)) not in allowed_ids_strs:
                             match = False
                             break
-                    elif doc.get(key) != value:
+                    elif (doc[key] if key in doc else None) != value:
                         match = False
                         break
                 if match:
@@ -129,7 +129,7 @@ class FileStorage:
         """Find max numeric ID and increment by 1. Returns "1" if empty."""
         max_id = 0
         for doc in documents:
-            id_val = doc.get("_id")
+            id_val = (doc["_id"] if "_id" in doc else None)
             if id_val:
                 try:
                     # Try to parse as int (handles "123" and 123)
@@ -146,7 +146,7 @@ class FileStorage:
         documents = await self.findAll()
 
         # Preserve caller-supplied _id (e.g. seeded system segments), otherwise auto-increment
-        supplied_id = data.get("_id")
+        supplied_id = (data["_id"] if "_id" in data else None)
         if not supplied_id:
             supplied_id = self._get_next_id(documents)
 
@@ -156,8 +156,8 @@ class FileStorage:
         new_doc = {
             "_id": supplied_id,
             **data_without_id,
-            "createdAt": data.get("createdAt", datetime.now(timezone.utc).isoformat()),
-            "updatedAt": data.get("updatedAt", datetime.now(timezone.utc).isoformat()),
+            "createdAt": (data["createdAt"] if "createdAt" in data else datetime.now(timezone.utc).isoformat()),
+            "updatedAt": (data["updatedAt"] if "updatedAt" in data else datetime.now(timezone.utc).isoformat()),
         }
 
         documents.append(new_doc)
@@ -170,7 +170,7 @@ class FileStorage:
         self._initialize()
         documents = await self.findAll()
 
-        index = next((i for i, doc in enumerate(documents) if doc.get("_id") == id), None)
+        index = next((i for i, doc in enumerate(documents) if (doc["_id"] if "_id" in doc else None) == id), None)
         if index is None:
             return None
 
@@ -186,7 +186,7 @@ class FileStorage:
         documents = await self.findAll()
         original_count = len(documents)
 
-        documents = [doc for doc in documents if doc.get("_id") != id]
+        documents = [doc for doc in documents if (doc["_id"] if "_id" in doc else None) != id]
 
         if len(documents) == original_count:
             return False
@@ -203,7 +203,7 @@ class FileStorage:
 
         filtered = [
             doc for doc in documents
-            if not all(doc.get(key) == value for key, value in query.items())
+            if not all((doc[key] if key in doc else None) == value for key, value in query.items())
         ]
 
         deleted_count = original_count - len(filtered)
@@ -224,10 +224,10 @@ class FileStorage:
             if query:
                 for key, value in query.items():
                     if key in ["_id", "id"]:
-                        if doc.get("_id") != value and doc.get("id") != value:
+                        if (doc["_id"] if "_id" in doc else None) != value and (doc["id"] if "id" in doc else None) != value:
                             match = False
                             break
-                    elif doc.get(key) != value:
+                    elif (doc[key] if key in doc else None) != value:
                         match = False
                         break
             if match:

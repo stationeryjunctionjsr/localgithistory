@@ -73,7 +73,7 @@ async def _get_sellers_for_zone(zone_external_id: str) -> frozenset:
     Queries sj_seller_zones WHERE zone_id = zone_external_id.
     Result is cached for 5 minutes.
     """
-    cached = _zone_seller_cache.get(zone_external_id)
+    cached = _zone_seller_cache[zone_external_id] if zone_external_id in _zone_seller_cache else None
     if cached and _is_fresh(cached[1]):
         return cached[0]
 

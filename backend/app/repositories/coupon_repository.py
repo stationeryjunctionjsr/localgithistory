@@ -52,7 +52,7 @@ class CouponRepository:
             cats = await self._category_storage.findAll()
             self._categories_map = {str(c.id): (c.name if c.name is not None else "") for c in cats if "_id" in c}
             self._categories_map_time = now
-        return self._categories_map.get(str(cid))
+        return (self._categories_map[str(cid)] if str(cid) in self._categories_map else None)
 
     async def _get_brand_name(self, bid: str) -> Optional[str]:
         now = datetime.now(timezone.utc)
@@ -60,7 +60,7 @@ class CouponRepository:
             brands = await self._brand_storage.findAll()
             self._brands_map = {str(b.id): (b.name if b.name is not None else "") for b in brands if "_id" in b}
             self._brands_map_time = now
-        return self._brands_map.get(str(bid))
+        return (self._brands_map[str(bid)] if str(bid) in self._brands_map else None)
 
     async def _get_collection_product_ids(self, cid: str) -> Optional[List[str]]:
         now = datetime.now(timezone.utc)
@@ -74,7 +74,7 @@ class CouponRepository:
                 str(c.id): [str(pid) for pid in (c.productIds if c.productIds is not None else [])] for c in cols if "_id" in c
             }
             self._collections_map_time = now
-        return self._collections_map.get(str(cid))
+        return (self._collections_map[str(cid)] if str(cid) in self._collections_map else None)
 
     async def _calculate_bxgy_discount(
         self, coupon: Any, cart_items: List[Dict], product_repository, user_role: str, user_id: str
@@ -94,7 +94,7 @@ class CouponRepository:
         elements = []
         for idx, item in enumerate(cart_items):
             pid = str(item.product or item.productId)
-            product = product_map.get(pid)
+            product = (product_map[pid] if pid in product_map else None)
             if not product:
                 continue
             qty = int(item.quantity) if item.quantity is not None else 0
@@ -209,19 +209,19 @@ class CouponRepository:
 
             for e in bxgy_set:
                 d = gy_discount_amount * (e["price"] / total_bxgy_price) if total_bxgy_price > 0 else 0.0
-                item_discounts[e["idx"]] = item_discounts.get(e["idx"], 0.0) + d
+                item_discounts[e["idx"]] = (item_discounts[e["idx"]] if e["idx"] in item_discounts else 0.0) + d
                 total_discount += d
             for e in elements:
                 if id(e) not in bx_ids and id(e) not in gy_ids:
                     d = best_auto_per_product[e["pid"]]
                     if d > 0:
-                        item_discounts[e["idx"]] = item_discounts.get(e["idx"], 0.0) + d
+                        item_discounts[e["idx"]] = (item_discounts[e["idx"]] if e["idx"] in item_discounts else 0.0) + d
                         total_discount += d
         else:
             for e in elements:
                 d = best_auto_per_product[e["pid"]]
                 if d > 0:
-                    item_discounts[e["idx"]] = item_discounts.get(e["idx"], 0.0) + d
+                    item_discounts[e["idx"]] = (item_discounts[e["idx"]] if e["idx"] in item_discounts else 0.0) + d
                     total_discount += d
 
         return {"discount": total_discount, "itemDiscounts": item_discounts, "bxgyItemIndices": bxgy_item_indices}
@@ -352,7 +352,7 @@ class CouponRepository:
 
                     recent_count = 0
                     for o in user_orders:
-                        c_at_str = o.get("createdAt")
+                        c_at_str = (o["createdAt"] if "createdAt" in o else None)
                         if not c_at_str or not isinstance(c_at_str, str):
                             continue
                         try:
@@ -579,7 +579,7 @@ class CouponRepository:
                     for detail in overlap["details"]:
                         conflicting = await self.findById(detail["couponId"])
                         if conflicting:
-                            excl = set(conflicting.get("excludedProductIds") or [])
+                            excl = set((conflicting["excludedProductIds"] if "excludedProductIds" in conflicting else None) or [])
                             excl.update(detail["overlappingProductIds"])
                             await self.storage.update(detail["couponId"], {"excludedProductIds": list(excl)})
                 elif resolution == "retain":
@@ -741,7 +741,7 @@ class CouponRepository:
 
         if (coupon.maxUsagePerUser if coupon.maxUsagePerUser is not None else None):
             user_usages = (coupon.userUsages if coupon.userUsages is not None else {})
-            if user_usages.get(user_id, 0) >= coupon.maxUsagePerUser:
+            if (user_usages[user_id] if user_id in user_usages else 0) >= coupon.maxUsagePerUser:
                 return {
                     "valid": False,
                     "message": f"You have reached the maximum usage limit ({coupon['maxUsagePerUser']}) for this discount",
@@ -779,11 +779,11 @@ class CouponRepository:
                 from app.repositories.user_repository import user_repository
 
                 user_record = await user_repository.findById(user_id)
-                if user_record and user_record.get("address"):
-                    shipping_address = user_record.get("address")
+                if user_record and (user_record["address"] if "address" in user_record else None):
+                    shipping_address = (user_record["address"] if "address" in user_record else None)
 
             if shipping_address:
-                pincode = shipping_address.get("zipCode") or shipping_address.get("pincode")
+                pincode = (shipping_address["zipCode"] if "zipCode" in shipping_address else None) or (shipping_address["pincode"] if "pincode" in shipping_address else None)
                 if not pincode:
                     return {"valid": False, "message": "Shipping address must include a pincode for this discount."}
                 allowed_pincodes = (coupon.shippingPincodes if coupon.shippingPincodes is not None else None) or []
@@ -861,7 +861,7 @@ class CouponRepository:
             bxgy_res = await self._calculate_bxgy_discount(coupon, cart_items, product_repository, user_role, user_id)
             discount = bxgy_res["discount"]
             item_discounts = bxgy_res["itemDiscounts"]
-            bxgy_item_indices = bxgy_res.get("bxgyItemIndices")
+            bxgy_item_indices = (bxgy_res["bxgyItemIndices"] if "bxgyItemIndices" in bxgy_res else None)
         elif (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
             if coupon.discountType == "percentage":
                 discount = (shipping_charge * coupon.discountValue) / 100
@@ -946,7 +946,7 @@ class CouponRepository:
                             addr = u.address
 
                     if addr:
-                        pincode = addr.get("zipCode") or addr.get("pincode")
+                        pincode = (addr["zipCode"] if "zipCode" in addr else None) or (addr["pincode"] if "pincode" in addr else None)
                         if not pincode:
                             continue
                         allowed_pincodes = (coupon.shippingPincodes if coupon.shippingPincodes is not None else None) or []
@@ -987,7 +987,7 @@ class CouponRepository:
                         continue
                 if (coupon.maxUsagePerUser if coupon.maxUsagePerUser is not None else None):
                     user_usages = (coupon.userUsages if coupon.userUsages is not None else {})
-                    if user_usages.get(user_id, 0) >= coupon.maxUsagePerUser:
+                    if (user_usages[user_id] if user_id in user_usages else 0) >= coupon.maxUsagePerUser:
                         continue
                 discount = 0.0
                 item_discounts = None
@@ -998,7 +998,7 @@ class CouponRepository:
                     )
                     discount = bxgy_res["discount"]
                     item_discounts = bxgy_res["itemDiscounts"]
-                    bxgy_item_indices = bxgy_res.get("bxgyItemIndices")
+                    bxgy_item_indices = (bxgy_res["bxgyItemIndices"] if "bxgyItemIndices" in bxgy_res else None)
                 elif (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
                     if coupon.discountType == "percentage":
                         discount = (shipping_charge * coupon.discountValue) / 100
@@ -1051,7 +1051,7 @@ class CouponRepository:
             for cid in applies_to_value_ids:
                 col = await self._collection_storage.findById(cid)
                 if col:
-                    pids = col.get("productIds") or []
+                    pids = (col["productIds"] if "productIds" in col else None) or []
                     for pid in pids:
                         eligible_collection_product_ids.add(str(pid))
             return set(pid for pid in eligible_collection_product_ids if pid not in excluded_product_ids)
@@ -1064,8 +1064,8 @@ class CouponRepository:
         if applies_to_type == "categories" and applies_to_value_ids:
             for cid in applies_to_value_ids:
                 cat = await self._category_storage.findById(cid)
-                if cat and cat.get("name"):
-                    eligible_category_names.add(cat.get("name").strip())
+                if cat and (cat["name"] if "name" in cat else None):
+                    eligible_category_names.add((cat["name"] if "name" in cat else None).strip())
             if eligible_category_names:
                 query["categories"] = ",".join(eligible_category_names)
             else:
@@ -1324,7 +1324,7 @@ class CouponRepository:
         # Step 2: Gather all other applicable coupons
         applicable = []
         for c in all_coupons:
-            if default_auto_discount and str(c.id) == str(default_auto_discount.get("_id")):
+            if default_auto_discount and str(c.id) == str((default_auto_discount["_id"] if "_id" in default_auto_discount else None)):
                 continue
 
             try:

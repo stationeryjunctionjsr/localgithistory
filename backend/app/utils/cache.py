@@ -68,7 +68,7 @@ class InMemoryTTLCache:
                 args_repr = f"{filtered_args}_{sorted(filtered_kwargs.items())}"
                 cache_key = f"{base_key}:{hash(args_repr)}"
 
-                entry = self._store.get(cache_key)
+                entry = self._store[cache_key] if cache_key in self._store else None
                 if entry and time.monotonic() < entry.expires_at:
                     return entry.value
 
@@ -115,7 +115,7 @@ class InMemoryTTLCache:
 
     def get(self, key: str) -> Any:
         """Return cached value or None if missing/expired."""
-        entry = self._store.get(key)
+        entry = self._store[key] if key in self._store else None
         if entry and time.monotonic() < entry.expires_at:
             return entry.value
         return None

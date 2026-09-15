@@ -8,16 +8,16 @@ from typing import Dict, List, Optional
 
 def validate_variation(variation: Dict) -> bool:
     """Validate variation structure"""
-    if not variation.get("name") or not variation.get("type"):
+    if not (variation["name"] if "name" in variation else None) or not (variation["type"] if "type" in variation else None):
         raise ValueError("Variation must have name and type")
 
-    options = variation.get("options", [])
+    options = (variation["options"] if "options" in variation else [])
     if not isinstance(options, list) or len(options) == 0:
         raise ValueError("Variation must have at least one option")
 
     # Validate each option
     for index, option in enumerate(options):
-        if not option.get("value"):
+        if not (option["value"] if "value" in option else None):
             raise ValueError(f"Option {index + 1} must have a value")
         if "priceModifier" not in option:
             option["priceModifier"] = 0
@@ -50,30 +50,30 @@ def calculate_price_with_variations(base_price: float, selected_variations: Opti
 
     for option in selected_variations.values():
         if option and "priceModifier" in option:
-            final_price += option.get("priceModifier", 0)
+            final_price += (option["priceModifier"] if "priceModifier" in option else 0)
 
     return max(0, final_price)  # Ensure price is not negative
 
 
 def get_stock_for_variations(product: Dict, selected_variations: Optional[Dict] = None) -> int:
     """Get stock for specific variation combination"""
-    if not product.get("variations") or len(product.get("variations", [])) == 0:
-        return product.get("stock", 0)
+    if not (product["variations"] if "variations" in product else None) or len((product["variations"] if "variations" in product else [])) == 0:
+        return (product["stock"] if "stock" in product else 0)
 
     # If variations are selected, check stock for that combination
     min_stock = float("inf")
 
-    for variation in product.get("variations", []):
-        selected_option = selected_variations.get(variation.get("name")) if selected_variations else None
+    for variation in (product["variations"] if "variations" in product else []):
+        selected_option = (selected_variations[variation["name"]] if "name" in variation and variation["name"] in selected_variations else None) if selected_variations else None
         if selected_option and "stock" in selected_option:
-            min_stock = min(min_stock, selected_option.get("stock", 0))
+            min_stock = min(min_stock, (selected_option["stock"] if "stock" in selected_option else 0))
 
-    return int(min_stock) if min_stock != float("inf") else product.get("stock", 0)
+    return int(min_stock) if min_stock != float("inf") else (product["stock"] if "stock" in product else 0)
 
 
 def get_all_variation_combinations(product: Dict) -> List[Dict]:
     """Get all possible variation combinations"""
-    variations = product.get("variations", [])
+    variations = (product["variations"] if "variations" in product else [])
     if not variations or len(variations) == 0:
         return [{}]  # No variations, one combination
 
@@ -85,9 +85,9 @@ def get_all_variation_combinations(product: Dict) -> List[Dict]:
             return
 
         variation = variations[index]
-        for option in variation.get("options", []):
+        for option in (variation["options"] if "options" in variation else []):
             new_current = current.copy()
-            new_current[variation.get("name")] = option
+            new_current[(variation["name"] if "name" in variation else None)] = option
             generate_combinations(index + 1, new_current)
 
     generate_combinations(0, {})
