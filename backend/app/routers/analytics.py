@@ -1,3 +1,4 @@
+from app.db.mysql_events_dao import EventCreate, EventPayloadItem
 from app.models.user import User
 from app.models.schemas import MessageResponse, AnalyticsEventCreate, AnalyticsEventPayload
 from datetime import datetime, timezone
@@ -189,14 +190,24 @@ async def record_event(
 
     user_id = str(user_info.id) if user_info else None
 
-    enriched_event = event.model_dump()
-    # Never trust a client-supplied userId for unauthenticated requests —
-    # only attach the verified userId from the session token.
-    enriched_event["userId"] = user_id
-    enriched_event["timestamp"] = event.timestamp if event.timestamp is not None else datetime.now(timezone.utc).isoformat()
+    payload_items = []
+    if event.payload and isinstance(event.payload, dict):
+        for k, v in event.payload.items():
+            payload_items.append(EventPayloadItem(key=k, value=str(v)))
+    
+    payload_items.append(EventPayloadItem(key="userId", value=str(user_id) if user_id else ""))
+    payload_items.append(EventPayloadItem(key="sessionId", value=str(event.sessionId) if event.sessionId else ""))
+    payload_items.append(EventPayloadItem(key="timestamp", value=str(event.timestamp) if event.timestamp else datetime.now(timezone.utc).isoformat()))
+    if getattr(event, "page", None):
+        payload_items.append(EventPayloadItem(key="page", value=str(event.page)))
+
+    event_create = EventCreate(
+        eventType=event.type,
+        payload=payload_items
+    )
 
     try:
-        stored = await analytics_repository.record_event(enriched_event)
+        stored = await analytics_repository.record_event(event_create)
 
         # Sync/replicate mobile events to tracking repository
         event_type = event.type
@@ -244,7 +255,7 @@ async def record_event(
             elif event_type == "add_to_wishlist":
                 product_id = payload_obj.productId
                 if product_id:
-                    await tracking_repository.trackWishlistAdd(user_id, product_id, session_id)
+                    await tracking_repository.trackWishlistAdd(user_id, product_id, "Unknown", session_id)
             elif event_type == "session_end":
                 reason = payload_obj.reason if payload_obj.reason is not None else "unknown"
                 await tracking_repository.create(

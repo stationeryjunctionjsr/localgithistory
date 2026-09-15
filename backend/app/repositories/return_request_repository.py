@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import re
 from sqlalchemy import text
 
@@ -8,6 +8,7 @@ from app.config.settings import settings
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
 
+from app.models.daos import ReturnRequestInternalCreate, ReturnRequestInternalUpdate, ReturnRequestInternal
 
 class ReturnRequestRepository:
     def __init__(self):
@@ -58,61 +59,84 @@ class ReturnRequestRepository:
 
     async def generateReturnId(self) -> str:
         prefix = "RET-"
-        all_requests = await self.storage.findAll()
+        all_requests = await self.findAll()
         max_id = 0
 
         for req in all_requests:
-            match = re.match(f"{re.escape(prefix)}(\\d+)", req.get("id", "") or req.get("returnId", ""))
+            req_id = req.id or req.returnId or ""
+            match = re.match(f"{re.escape(prefix)}(\\d+)", req_id)
             if match:
                 max_id = max(max_id, int(match.group(1)))
         next_id = max(1, max_id + 1)
         return f"{prefix}{next_id}"
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[ReturnRequestInternal]:
         requests = await self.storage.findAll(query)
+        parsed_requests = []
+        for r in requests:
+            if isinstance(r, dict):
+                parsed_requests.append(ReturnRequestInternal.model_validate(r))
+            else:
+                parsed_requests.append(ReturnRequestInternal.model_validate(r, from_attributes=True))
+                
         if not query:
-            requests.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
-        return requests
+            parsed_requests.sort(key=lambda x: x.createdAt or "", reverse=True)
+        return parsed_requests
 
-    async def findById(self, id: str) -> Optional[Dict]:
-        return await self.storage.findById(id)
+    async def findById(self, id: str) -> Optional[ReturnRequestInternal]:
+        data = await self.storage.findById(id)
+        if data:
+            if isinstance(data, dict):
+                return ReturnRequestInternal.model_validate(data)
+            return ReturnRequestInternal.model_validate(data, from_attributes=True)
+        return None
 
-    async def findByOrderId(self, order_id: str) -> List[Dict]:
+    async def findByOrderId(self, order_id: str) -> List[ReturnRequestInternal]:
         return await self.findAll({"orderId": order_id})
 
-    async def create(self, data: Any) -> Dict:
+    async def create(self, data: Any) -> ReturnRequestInternal:
+        if isinstance(data, dict):
+            model = ReturnRequestInternalCreate.model_validate(data)
+        else:
+            model = ReturnRequestInternalCreate.model_validate(data, from_attributes=True)
+            
         return_id = await self.generateReturnId()
-        request = {
-            "id": return_id,
-            "returnId": return_id,
-            "orderId": data.orderId,
-            "userId": data.userId,
-            "items": data.items,
-            "paymentMethod": data.paymentMethod,
-            "upiPaymentScreenshot": data.upiPaymentScreenshot,
-            "notes": data.notes,
-            "status": (data.status if data.status is not None else "pending"),
-            "sellerId": data.sellerId,
-            "deliverySlotId": data.deliverySlotId,
-            "deliverySlotConfigId": data.deliverySlotConfigId,
-            "deliverySlotDate": data.deliverySlotDate,
-            "valetId": data.valetId,
-            "pendingValetId": data.pendingValetId,
-            "valetAssignedAt": data.valetAssignedAt,
-            "valetCascadeCount": (data.valetCascadeCount if data.valetCascadeCount is not None else 0),
-            "valetDeclineHistory": (data.valetDeclineHistory if data.valetDeclineHistory is not None else []),
-            "valetAcceptedAt": data.valetAcceptedAt,
-            "valetDeclinedAt": data.valetDeclinedAt,
-            "valetDeclineReason": data.valetDeclineReason,
-            "deliveryCharge": (data.deliveryCharge if data.deliveryCharge is not None else 0),
-            "createdAt": datetime.utcnow().isoformat(),
-            "updatedAt": datetime.utcnow().isoformat(),
-        }
-        return await self.storage.create(request)
+        model.id = return_id
+        model.returnId = return_id
+        if getattr(model, 'status', None) is None:
+            model.status = "pending"
+        if getattr(model, 'valetCascadeCount', None) is None:
+            model.valetCascadeCount = 0
+        if getattr(model, 'valetDeclineHistory', None) is None:
+            model.valetDeclineHistory = []
+        if getattr(model, 'deliveryCharge', None) is None:
+            model.deliveryCharge = 0
+        
+        now_iso = datetime.utcnow().isoformat()
+        if getattr(model, 'createdAt', None) is None:
+            model.createdAt = now_iso
+        if getattr(model, 'updatedAt', None) is None:
+            model.updatedAt = now_iso
 
-    async def update(self, id: str, update_data: Any) -> Dict:
-        update_data.updatedAt = datetime.utcnow().isoformat()
-        return await self.storage.update(id, update_data)
+        created_data = await self.storage.create(model)
+        
+        if isinstance(created_data, dict):
+            return ReturnRequestInternal.model_validate(created_data)
+        return ReturnRequestInternal.model_validate(created_data, from_attributes=True)
+
+    async def update(self, id: str, update_data: Any) -> ReturnRequestInternal:
+        if isinstance(update_data, dict):
+            model = ReturnRequestInternalUpdate.model_validate(update_data)
+        else:
+            model = ReturnRequestInternalUpdate.model_validate(update_data, from_attributes=True)
+            
+        model.updatedAt = datetime.utcnow().isoformat()
+        
+        updated_data = await self.storage.update(id, model)
+        
+        if isinstance(updated_data, dict):
+            return ReturnRequestInternal.model_validate(updated_data)
+        return ReturnRequestInternal.model_validate(updated_data, from_attributes=True)
 
     async def delete(self, id: str) -> Dict:
         return await self.storage.delete(id)

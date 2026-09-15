@@ -1,4 +1,4 @@
-from app.models.schemas import UserInternalCreate, UserInternalUpdate
+from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserResponse
 """
 MySQL DAO for sj_users (Fully Relational).
 """
@@ -273,7 +273,7 @@ class MySQLUserDAO:
             children_map = await self._fetch_children(session, [int(r.id) for r in rows])
 
         from app.models.user import User
-        docs = [User.model_validate(_row_to_dict(r, children_map.get(int(r.id), {}))) for r in rows]
+        docs = [UserResponse.model_validate(_row_to_dict(r, children_map.get(int(r.id), {}))) for r in rows]
         if query:
             filtered = []
             for doc in docs:
@@ -327,7 +327,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return User.model_validate(_row_to_dict(row, children_map[int(row.id)]))
+        return UserResponse.model_validate(_row_to_dict(row, children_map[int(row.id)]))
 
     async def findByEmail(self, email: str) -> Optional[Dict]:
         factory = self._factory()
@@ -351,7 +351,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return User.model_validate(_row_to_dict(row, children_map[int(row.id)]))
+        return UserResponse.model_validate(_row_to_dict(row, children_map[int(row.id)]))
 
     async def findByPhone(self, phone: str) -> Optional[Dict]:
         factory = self._factory()
@@ -378,7 +378,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return User.model_validate(_row_to_dict(row, children_map[int(row.id)]))
+        return UserResponse.model_validate(_row_to_dict(row, children_map[int(row.id)]))
 
     async def findByReferralCode(self, referral_code: str) -> Optional[Dict]:
         factory = self._factory()
@@ -402,7 +402,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return User.model_validate(_row_to_dict(row, children_map[int(row.id)]))
+        return UserResponse.model_validate(_row_to_dict(row, children_map[int(row.id)]))
 
     async def create(self, data: UserInternalCreate) -> Dict:
         external_id = secrets.token_hex(16)
@@ -438,17 +438,17 @@ class MySQLUserDAO:
                     "role": (data.role if data.role is not None else "customer"),
                     "phone": data.phone or None,
                     "company_name": data.companyName,
-                    "is_active": 1 if (data.isActive if data.isActive is not None else True) else None,
+                    "is_active": 1 if (data.isActive if data.isActive is not None else True) else 0,
                     "approval_status": (data.approvalStatus if data.approvalStatus is not None else "approved"),
-                    "is_deactivated": 1 if data.isDeactivated else None,
+                    "is_deactivated": 1 if data.isDeactivated else 0,
                     "credit_limit": (data.creditLimit if data.creditLimit is not None else 0),
                     "credit_used": (data.creditUsed if data.creditUsed is not None else 0),
                     "payment_terms": str((data.paymentTerms if data.paymentTerms is not None else "30")),
                     "assigned_salesperson": data.assignedSalesperson,
-                    "is_email_verified": 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else None,
+                    "is_email_verified": 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else 0,
                     "referral_code": data.referralCode,
-                    "is_seller_admin": 1 if data.isSellerAdmin else None,
-                    "is_on_duty": 1 if data.isOnDuty else None,
+                    "is_seller_admin": 1 if data.isSellerAdmin else 0,
+                    "is_on_duty": 1 if data.isOnDuty else 0,
                     "commission_override_pct": data.commissionOverridePct,
                     "created_at": now,
                     "updated_at": now,
@@ -517,7 +517,7 @@ class MySQLUserDAO:
                     "company_name": merged.companyName,
                     "is_active": 1 if (merged.isActive if merged.isActive is not None else True) else None,
                     "approval_status": merged.approvalStatus,
-                    "is_deactivated": 1 if merged.isDeactivated else None,
+                    "is_deactivated": 1 if merged.isDeactivated else 0,
                     "credit_limit": (merged.creditLimit if merged.creditLimit is not None else 0),
                     "credit_used": (merged.creditUsed if merged.creditUsed is not None else 0),
                     "payment_terms": str(merged.paymentTerms)
@@ -526,8 +526,8 @@ class MySQLUserDAO:
                     "assigned_salesperson": merged.assignedSalesperson,
                     "is_email_verified": 1 if (merged.isEmailVerified if merged.isEmailVerified is not None else False) else None,
                     "referral_code": merged.referralCode,
-                    "is_seller_admin": 1 if merged.isSellerAdmin else None,
-                    "is_on_duty": 1 if merged.isOnDuty else None,
+                    "is_seller_admin": 1 if merged.isSellerAdmin else 0,
+                    "is_on_duty": 1 if merged.isOnDuty else 0,
                     "commission_override_pct": merged.commissionOverridePct,
                     "updated_at": now,
                 },

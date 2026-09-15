@@ -13,12 +13,8 @@ from app.repositories.session_repository import session_repository
 async def admin_auth(client: AsyncClient):
     """Create a temporary admin user, log in, yield auth headers, and clean up."""
     email = f"testadmin_{uuid.uuid4().hex[:8]}@test.com"
-    user_data = {
-        "name": "Test Admin",
-        "email": email,
-        "password": "adminpassword123",
-        "role": "super_admin",
-    }
+    from app.models.schemas import UserCreate
+    user_data = UserCreate(name="Test Admin", email=email, password="adminpassword123", role="super_admin")
     user = await user_repository.create(user_data)
     response = await client.post(
         "/api/auth/login",
@@ -232,7 +228,7 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
 
     # Verify logging in the events database
     all_event_records = await analytics_repository.event_storage.findAll()
-    event_records = [r for r in all_event_records if r.get("payload", {}).get("testRunId") == session_id]
+    event_records = [r for r in all_event_records if r.payload and "testRunId" in r.payload and r.payload["testRunId"] == session_id]
     assert len(event_records) == len(mobile_events)
 
     # Verify replication/syncing in the tracking database
@@ -242,7 +238,7 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
     # so we should have tracking records populated
     assert len(tracking_records) > 0
 
-    track_types = [r["type"] for r in tracking_records]
+    track_types = [r.type for r in tracking_records]
 
     # Verify expected event mappings
     assert "session" in track_types  # session_start -> session
@@ -335,5 +331,5 @@ async def test_analytics_reports_incorporate_events(client: AsyncClient, admin_a
     await tracking_repository.storage.deleteMany({"sessionId": session_id})
     all_events = await analytics_repository.event_storage.findAll()
     for ev in all_events:
-        if ev.get("payload", {}).get("testRunId") == session_id:
-            await analytics_repository.event_storage.delete(ev["_id"])
+        if ev.payload and "testRunId" in ev.payload and ev.payload["testRunId"] == session_id:
+            await analytics_repository.event_storage.delete(ev.id)

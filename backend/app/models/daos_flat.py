@@ -267,3 +267,30 @@ class ValetPayoutSettingsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     deliveryChargePerOrder: Optional[float] = None
     returnPickupChargePerOrder: Optional[float] = None
+
+class SupportTicketInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    ticketNumber: str
+    user: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    subject: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = "general"
+    priority: Optional[str] = "medium"
+    status: Optional[str] = "open"
+    attachments: Optional[List[str]] = []
+    assignedTo: Optional[str] = None
+    responses: Optional[List[Any]] = []
+    resolvedAt: Optional[str] = None
+    closedAt: Optional[str] = None
+    createdAt: Optional[str] = None
+
+class SupportTicketInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    status: Optional[str] = None
+    resolvedAt: Optional[str] = None
+    closedAt: Optional[str] = None
+    responses: Optional[List[Any]] = None

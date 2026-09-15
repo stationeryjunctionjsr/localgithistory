@@ -939,12 +939,8 @@ class ProductRepository:
         product_id_formatted = f"PDT-{product_id}"
 
         from app.models.daos import ProductInternalCreate
-        if hasattr(product_data, "model_dump"):
-            data_dict = product_data.model_dump(exclude_unset=True)
-        else:
-            data_dict = product_data
-
-        sku_val = data_dict.get("sku")
+        
+        sku_val = product_data.sku
         if not sku_val or str(sku_val).strip() == "":
             sku_val = f"SKU-{product_id_formatted}"
 
@@ -955,109 +951,74 @@ class ProductRepository:
         internal_create = ProductInternalCreate(
             productId=product_id,
             productIdFormatted=product_id_formatted,
-            name=data_dict["name"],
-            description=data_dict.get("description", ""),
+            name=product_data.name,
+            description=product_data.description if product_data.description is not None else "",
             sku=sku_val,
-            categoryId=data_dict["categoryId"],
-            subCategoryId=data_dict.get("subCategoryId"),
-            brandId=data_dict.get("brandId"),
-            price=float(data_dict.get("price") if data_dict.get("price") is not None else 0),
-            mrp=float(data_dict.get("mrp") if data_dict.get("mrp") is not None else 0),
-            stock=int(data_dict.get("stock") if data_dict.get("stock") is not None else 0),
-            unit=data_dict.get("unit", "pc"),
-            isActive=data_dict.get("isActive", True),
-            tags=data_dict.get("tags", []),
-            images=data_dict.get("images", []),
-            thumbnail=data_dict.get("thumbnail"),
-            variants=data_dict.get("variantCombinations", []),
-            details=data_dict.get("details", {}),
+            categoryId=product_data.categoryId,
+            subCategoryId=product_data.subCategoryId,
+            brandId=product_data.brandId,
+            price=float(product_data.price if product_data.price is not None else 0),
+            mrp=float(product_data.mrp if product_data.mrp is not None else 0),
+            stock=int(product_data.stock if product_data.stock is not None else 0),
+            unit=product_data.unit if product_data.unit is not None else "pc",
+            isActive=product_data.isActive if product_data.isActive is not None else True,
+            tags=product_data.tags if product_data.tags is not None else [],
+            images=product_data.images if product_data.images is not None else [],
+            thumbnail=product_data.thumbnail,
+            variants=product_data.variantCombinations if product_data.variantCombinations is not None else [],
+            details=product_data.details if product_data.details is not None else {},
         )
 
         if internal_create.variants:
             existing_skus = set()
             for combo in internal_create.variants:
-                if "sku" not in combo or not combo["sku"]:
-                    combo["sku"] = (
-                        f"{sku_val}-{'-'.join(str(v).replace(' ', '') for v in combo.get('attributes', {}).values())}"
+                combo_sku = combo.sku
+                combo_attrs = combo.attributes if combo.attributes is not None else {}
+                if not combo_sku:
+                    combo_sku = (
+                        f"{sku_val}-{'-'.join(str(v).replace(' ', '') for v in combo_attrs.values())}"
                     )
-                if combo["sku"] in existing_skus:
-                    raise ValueError(f"Duplicate variant SKU generated or provided: {combo['sku']}")
-                existing_skus.add(combo["sku"])
+                    combo.sku = combo_sku
+                if combo_sku in existing_skus:
+                    raise ValueError(f"Duplicate variant SKU generated or provided: {combo_sku}")
+                existing_skus.add(combo_sku)
 
         created = await self.storage.create(internal_create)
         return (await self._attach_category_gst([created]))[0]
 
     async def update(self, id: str, update_data: Any) -> Optional[Product]:
-        if hasattr(update_data, "model_dump"):
-            data_dict = update_data.model_dump(exclude_unset=True)
-        else:
-            data_dict = dict(update_data)
+        from app.models.daos import ProductInternalUpdate
+        
+        # Zero Data Stripping: Do not use model_dump or dictionary methods!
+        update_fields = {}
+        for field_name in update_data.model_fields_set:
+            val = getattr(update_data, field_name)
+            if field_name in ["mrp", "mrpPerCase"] and val is not None:
+                val = float(val)
+            elif field_name in ["quantityPerCase", "stock"] and val is not None:
+                val = int(val)
+            update_fields[field_name] = val
 
-        if "sku" in data_dict:
-            existing = await self.findBySku(data_dict["sku"])
+        if "sku" in update_fields:
+            existing = await self.findBySku(update_fields["sku"])
             if existing and str(existing.id) != str(id):
                 raise ValueError("SKU already in use")
 
-        numeric_fields = ["mrp", "mrpPerCase"]
-        for field in numeric_fields:
-            if field in data_dict and data_dict[field] is not None:
-                data_dict[field] = float(data_dict[field])
-        if "quantityPerCase" in data_dict and data_dict["quantityPerCase"] is not None:
-            data_dict["quantityPerCase"] = int(data_dict["quantityPerCase"])
-        if "stock" in data_dict:
-            data_dict["stock"] = int(data_dict["stock"])
-
-        if "variantCombinations" in data_dict:
+        if "variantCombinations" in update_fields:
             existing_product = await self.storage.findById(id)
-            sku_val = data_dict.get("sku") or existing_product.get("sku", "")
-            for combo in data_dict['variantCombinations']:
-                combo_sku = combo.get("sku", "")
+            sku_val = update_fields.get("sku") or getattr(existing_product, "sku", "")
+            for combo in update_fields['variantCombinations']:
+                combo_sku = combo.sku
+                combo_attrs = combo.attributes if combo.attributes is not None else {}
                 if not combo_sku or combo_sku.startswith("NEW-"):
-                    combo["sku"] = (
-                        f"{sku_val}-{'-'.join(str(v).replace(' ', '') for v in combo.get('attributes', {}).values())}"
+                    combo_sku = (
+                        f"{sku_val}-{'-'.join(str(v).replace(' ', '') for v in combo_attrs.values())}"
                     )
-            data_dict["variants"] = data_dict.pop("variantCombinations")
-
-        # Check stock transition before updating
-        has_stock_transition = False
-        old_product_name = ""
-        try:
-            if "stock" in data_dict or "variants" in data_dict:
-                old_product = await self.storage.findById(id)
-                if old_product:
-                    old_product_name = old_product.get("name", "")
-                    if "stock" in data_dict:
-                        old_stock = int(old_product.get("stock", 0))
-                        new_stock = int(data_dict["stock"])
-                        if old_stock <= 0 and new_stock > 0:
-                            has_stock_transition = True
-                    if not has_stock_transition and "variants" in data_dict:
-                        old_combos = old_product.get("variants") or old_product.get("variantCombinations") or []
-                        for new_combo in data_dict.get('variants', []):
-                            new_stock = int(new_combo.get("stock", 0))
-                            new_attrs = new_combo.get("attributes", {})
-                            old_combo = next((oc for oc in old_combos if oc.get("attributes") == new_attrs), None)
-                            if new_stock > 0 and (not old_combo or int(old_combo.get("stock", 0)) <= 0):
-                                has_stock_transition = True
-                                break
-        except Exception as e:
-            logger.error("Error checking stock transition in product repository update: %s", str(e))
-
-        from app.models.daos import ProductInternalUpdate
-        internal_update = ProductInternalUpdate.model_validate(data_dict)
+                    combo.sku = combo_sku
+        
+        internal_update = ProductInternalUpdate(**update_fields)
         updated = await self.storage.update(id, internal_update)
-        if updated:
-            updated = (await self._attach_category_gst([updated]))[0]
-            if has_stock_transition:
-                from app.repositories.product_notification_repository import product_notification_repository
-
-                # Trigger restock notifications asynchronously
-                asyncio.create_task(
-                    product_notification_repository.trigger_restock_notifications(
-                        id, old_product_name or updated.get("name", "")
-                    )
-                )
-        return updated
+        return (await self._attach_category_gst([updated]))[0] if updated else None
 
     async def delete(self, id: str):
         return await self.storage.update(id, {"isActive": False})

@@ -77,6 +77,7 @@ class BannerPosition(str, Enum):
 class AddressSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     name: Optional[str] = None
+    isPrimary: Optional[bool] = None
     phone: Optional[str] = None
     street: Optional[str] = None
     city: Optional[str] = None
@@ -91,6 +92,14 @@ class UserSnippet(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     role: Optional[str] = None
+
+class ProductSellerEntry(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='ignore')
+    sellerId: str
+    stock: int = 0
+    isActive: bool = False
+    requestStatus: str = "pending"
+    notes: Optional[str] = None
 
 class ItemSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -122,6 +131,10 @@ class SellerPermissionSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     canManageProducts: Optional[bool] = None
     canManageOrders: Optional[bool] = None
+    serviceablePincodes: Optional[List[str]] = None
+    urgentPincodes: Optional[List[str]] = None
+    slotPincodes: Optional[List[str]] = None
+    serviceableZoneIds: Optional[List[str]] = None
 
 # Aliases for models and snippets
 CartItem = ItemSnippet
@@ -149,6 +162,7 @@ class DiscountSnippet(BaseModel):
 
 
 class UserBase(BaseModel):
+    isActive: Optional[bool] = None
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: UserRole
@@ -173,6 +187,8 @@ class UserBase(BaseModel):
     sellerPermissions: Optional[SellerPermissions] = None
     serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
     password: Optional[str] = None
+    sessionId: Optional[str] = None
+    effectiveRole: Optional[str] = None
     approvalStatus: Optional[str] = "approved"
     isDeactivated: Optional[bool] = False
     creditLimit: Optional[float] = 0
@@ -185,6 +201,8 @@ class UserBase(BaseModel):
     sellerPermissions: Optional[SellerPermissions] = None
     serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
     password: Optional[str] = None
+    sessionId: Optional[str] = None
+    effectiveRole: Optional[str] = None
     approvalStatus: Optional[str] = "approved"
     isDeactivated: Optional[bool] = False
     creditLimit: Optional[float] = 0
@@ -197,6 +215,8 @@ class UserBase(BaseModel):
     sellerPermissions: Optional[SellerPermissions] = None
     serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
     password: Optional[str] = None
+    sessionId: Optional[str] = None
+    effectiveRole: Optional[str] = None
     approvalStatus: Optional[str] = "approved"
     isDeactivated: Optional[bool] = False
     creditLimit: Optional[float] = 0
@@ -209,6 +229,8 @@ class UserBase(BaseModel):
     sellerPermissions: Optional[SellerPermissions] = None
     serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
     password: Optional[str] = None
+    sessionId: Optional[str] = None
+    effectiveRole: Optional[str] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -403,7 +425,7 @@ class ProductBase(BaseModel):
     variants: Optional[List[VariantOption]] = Field(
         default=None, description="Actual combinations of attributes with stock and price"
     )
-    sellers: Optional[List[UserSnippet]] = None
+    sellers: Optional[List[ProductSellerEntry]] = None
     catalogSellerIds: Optional[List[str]] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
@@ -2613,6 +2635,12 @@ class PromoStripResponse(PromoStripBase):
 class UserInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     userId: int
+    isSellerAdmin: bool = False
+    sellerPermissions: Optional[List[dict]] = None
+    serviceAreaZones: Optional[List[str]] = None
+    savedAddresses: Optional[List[dict]] = None
+    isOnDuty: bool = False
+    commissionOverridePct: Optional[float] = None
     userIdFormatted: str
     name: str
     email: Optional[str] = None
@@ -2672,6 +2700,23 @@ class AnalyticsEventPayload(BaseModel):
 
 
 class AnalyticsEventCreate(BaseModel):
+    payload: Optional[Dict[str, Any]] = None
+    searchTerm: Optional[str] = None
+    resultsCount: Optional[int] = None
+    segment: Optional[str] = None
+    productIds: Optional[List[str]] = None
+    productId: Optional[str] = None
+    productName: Optional[str] = None
+    quantity: Optional[int] = None
+    price: Optional[float] = None
+    cartValue: Optional[float] = None
+    isReturning: Optional[bool] = None
+    pageViews: Optional[int] = None
+    page: Optional[str] = None
+    reason: Optional[str] = None
+    orderId: Optional[str] = None
+    orderValue: Optional[float] = None
+    cartItems: Optional[List[Any]] = None
     model_config = ConfigDict(extra="allow")
     type: str
     timestamp: Optional[str] = None
@@ -2962,3 +3007,11 @@ class ActivityUpdate(BaseModel):
 
 class ActivityResponse(ActivityCreate):
     id: Optional[str] = Field(default='', alias='_id')
+
+class SellerProductRequestCreate(BaseModel):
+    stock: Optional[int] = 0
+    notes: Optional[str] = None
+
+class SellerProductApprove(BaseModel):
+    status: str
+    notes: Optional[str] = None

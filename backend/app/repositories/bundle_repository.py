@@ -85,7 +85,8 @@ class BundleRepository:
         if isinstance(data, dict):
             internal_data = BundleInternalCreate.model_validate(data)
         elif not isinstance(data, BundleInternalCreate):
-            internal_data = BundleInternalCreate.model_validate(data.model_dump(exclude_unset=True))
+            fields = {f: getattr(data, f) for f in data.model_fields_set}
+            internal_data = BundleInternalCreate(**fields)
         else:
             internal_data = data
         return await self.storage.create(internal_data)
@@ -96,7 +97,8 @@ class BundleRepository:
         if isinstance(update_data, dict):
             internal_data = BundleInternalUpdate.model_validate(update_data)
         elif not isinstance(update_data, BundleInternalUpdate):
-            internal_data = BundleInternalUpdate.model_validate(update_data.model_dump(exclude_unset=True))
+            fields = {f: getattr(update_data, f) for f in update_data.model_fields_set}
+            internal_data = BundleInternalUpdate(**fields)
         else:
             internal_data = update_data
         internal_data.updatedAt = datetime.now(timezone.utc).isoformat()

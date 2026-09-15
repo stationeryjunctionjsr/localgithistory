@@ -18,10 +18,10 @@ class SubOrderRepository:
         return f"{parent_order_number}-{suffix}"
 
     async def create(self, data: SubOrderInternalCreate) -> Dict:
-        sub_order_dict = data.model_dump(exclude_unset=True)
+        fields = {f: getattr(data, f) for f in data.model_fields_set}
         if not data.createdAt:
-            sub_order_dict["createdAt"] = datetime.now(timezone.utc).isoformat()
-        return await self.storage.create(sub_order_dict)
+            fields["createdAt"] = datetime.now(timezone.utc).isoformat()
+        return await self.storage.create(fields)
 
     async def findAll(
         self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None
@@ -67,7 +67,7 @@ class SubOrderRepository:
         if update_data.pickupStatus == "picked_up" and update_data.pickedUpAt is None:
             update_data.pickedUpAt = datetime.now(timezone.utc).isoformat() + "Z"
 
-        update_dict = update_data.model_dump(exclude_unset=True)
+        update_dict = {f: getattr(update_data, f) for f in update_data.model_fields_set}
 
         if update_data.status == "delivered" and update_data.commissionPct is None:
             existing = await self.storage.findById(id)

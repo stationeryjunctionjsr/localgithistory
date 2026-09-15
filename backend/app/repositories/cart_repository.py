@@ -12,7 +12,10 @@ class CartRepository:
         return await self.storage.findOne({"user": user_id})
 
     async def create(self, cart_data: Any):
-        cart = CartInternalCreate(user=cart_data.user, items=(cart_data.items if cart_data.items is not None else []))
+        if isinstance(cart_data, dict):
+            cart = CartInternalCreate(**cart_data)
+        else:
+            cart = CartInternalCreate(user=cart_data.user, items=(cart_data.items if cart_data.items is not None else []))
         return await self.storage.create(cart)
 
     async def update(self, id: str, update_data: Any):
@@ -23,23 +26,30 @@ class CartRepository:
     async def clearCart(self, user_id: str):
         cart = await self.findByUser(user_id)
         if cart:
-            return await self.update(cart.id, {"items": []})
+            return await self.update(cart.id, CartInternalUpdate(items=[]))
         return None
 
     async def createOrUpdate(self, user_id: str, items: list):
         existing = await self.findByUser(user_id)
-        cart_data = {"user": user_id, "items": items or []}
+        cart_data = CartInternalUpdate(user=user_id, items=items or [])
         if existing:
             return await self.update(existing.id, cart_data)
         else:
-            return await self.create(cart_data)
+            create_data = CartInternalCreate(user=user_id, items=items or [])
+            return await self.create(create_data)
 
-    async def addItem(self, user_id: str, item: dict):
+    async def addItem(self, user_id: str, item: Any):
         cart = await self.findByUser(user_id)
         if not cart:
+            # item might be dict from old caller
+            if isinstance(item, dict):
+                item = CartItemInternal(**item)
             return await self.createOrUpdate(user_id, [item])
 
         items = (cart.items if cart.items is not None else [])
+        # item might be dict from old caller
+        if isinstance(item, dict):
+            item = CartItemInternal(**item)
         # Check for existing item with same product, variants, and sellAsCase
         existing_item_index = next(
             (

@@ -54,7 +54,7 @@ class MySQLOrderDAO:
             ),
             {"order_id": order_id},
         )
-        items = [{"product": str(r.product_id), "quantity": int(r.quantity) if r.quantity is not None else 0, "price": float(r.price) if r.price is not None else 0.0} for r in result.fetchall()]
+        items = [{"productId": str(r.product_id), "quantity": int(r.quantity) if r.quantity is not None else 0, "price": float(r.price) if r.price is not None else 0.0} for r in result.fetchall()]
 
         decl_res = await session.execute(
             text("SELECT valet_id, reason FROM sj_order_valet_declines WHERE parent_id = :order_id"),
@@ -218,7 +218,7 @@ class MySQLOrderDAO:
                 for ir in items_result.fetchall():
                     items_map[ir.order_id].append(
                         {
-                            "product": str(ir.product_id),
+                            "productId": str(ir.product_id),
                             "quantity": int(ir.quantity) if ir.quantity is not None else 0,
                             "price": float(ir.price) if ir.price is not None else 0.0,
                         }

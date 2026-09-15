@@ -1,8 +1,9 @@
 import secrets
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 from app.db.storage_factory import get_storage
+from app.models.daos import SellerRequestInternalCreate, SellerRequestInternalUpdate
 
 
 class SellerRequestRepository:
@@ -19,47 +20,44 @@ class SellerRequestRepository:
         requests = await self.storage.findAll(storage_query or None)
 
         # Python-side filter for any remaining keys not yet pushed to storage
-        remaining = {k: v for k, v in query.items() if k not in storage_query}
-        for key, val in remaining.items():
-            requests = [r for r in requests if r.get(key) == val]
+        if "category" in query and "category" not in storage_query:
+            requests = [r for r in requests if r.category == query["category"]]
+        if "subject" in query and "subject" not in storage_query:
+            requests = [r for r in requests if r.subject == query["subject"]]
+        if "requestNumber" in query and "requestNumber" not in storage_query:
+            requests = [r for r in requests if r.requestNumber == query["requestNumber"]]
 
         # Sort by creation date (newest first)
-        requests.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+        requests.sort(key=lambda x: x.createdAt if x.createdAt else "", reverse=True)
 
         return requests
 
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def create(self, request_data: Any):
-        from app.models.daos import SellerRequestInternalCreate
-        req_data = request_data if isinstance(request_data, dict) else dict(request_data)
-        request = {
-            "requestNumber": self.generateRequestNumber(),
-            "user": req_data.user,
-            "subject": req_data.subject,
-            "description": req_data.description,
-            "category": (req_data.category if req_data.category is not None else "general"),
-            "priority": (req_data.priority if req_data.priority is not None else "medium"),
-            "status": (req_data.status if req_data.status is not None else "open"),
-            "attachments": (req_data.attachments if req_data.attachments is not None else []),
-            "responses": [],
-            "resolvedAt": None,
-            "closedAt": None,
-            "createdAt": datetime.now(timezone.utc).isoformat(),
-        }
+    async def create(self, request_data: SellerRequestInternalCreate):
+        request_data.requestNumber = self.generateRequestNumber()
+        request_data.createdAt = datetime.now(timezone.utc).isoformat()
+        if request_data.category is None:
+            request_data.category = "general"
+        if request_data.priority is None:
+            request_data.priority = "medium"
+        if request_data.status is None:
+            request_data.status = "open"
+        if request_data.attachments is None:
+            request_data.attachments = []
+        if request_data.responses is None:
+            request_data.responses = []
+            
+        return await self.storage.create(request_data)
 
-        return await self.storage.create(SellerRequestInternalCreate.model_validate(request))
+    async def update(self, id: str, update_data: SellerRequestInternalUpdate):
+        if update_data.status == "resolved" and update_data.resolvedAt is None:
+            update_data.resolvedAt = datetime.now(timezone.utc).isoformat()
+        elif update_data.status == "closed" and update_data.closedAt is None:
+            update_data.closedAt = datetime.now(timezone.utc).isoformat()
 
-    async def update(self, id: str, update_data: Any):
-        from app.models.daos import SellerRequestInternalUpdate
-        update_data_dict = update_data if isinstance(update_data, dict) else dict(update_data)
-        if update_data_dict.status == "resolved" and "resolvedAt" not in update_data_dict:
-            update_data_dict.resolvedAt = datetime.now(timezone.utc).isoformat()
-        elif update_data_dict.status == "closed" and "closedAt" not in update_data_dict:
-            update_data_dict.closedAt = datetime.now(timezone.utc).isoformat()
-
-        return await self.storage.update(id, SellerRequestInternalUpdate.model_validate(update_data_dict))
+        return await self.storage.update(id, update_data)
 
     async def addResponse(self, request_id: str, response_data: Any):
         request = await self.findById(request_id)
@@ -69,19 +67,25 @@ class SellerRequestRepository:
         response = {
             "user": response_data.user,
             "message": response_data.message,
-            "attachments": (response_data.attachments if response_data.attachments is not None else []),
-            "isAdminResponse": (response_data.isAdminResponse if response_data.isAdminResponse is not None else False),
+            "attachments": response_data.attachments if response_data.attachments is not None else [],
+            "isAdminResponse": response_data.isAdminResponse if response_data.isAdminResponse is not None else False,
             "createdAt": datetime.now(timezone.utc).isoformat(),
         }
 
-        request.responses = (request.responses if request.responses is not None else [])
+        if request.responses is None:
+            request.responses = []
         request.responses.append(response)
 
         # Update request status if admin responds
         if response_data.isAdminResponse and request.status == "open":
             request.status = "in_progress"
 
-        return await self.update(request_id, {"responses": request.responses, "status": request.status})
+        update_payload = SellerRequestInternalUpdate(
+            responses=request.responses,
+            status=request.status
+        )
+
+        return await self.update(request_id, update_payload)
 
     async def delete(self, id: str):
         return await self.storage.delete(id)

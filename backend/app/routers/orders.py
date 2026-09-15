@@ -387,15 +387,15 @@ async def get_orders(
 
     # Role-based filtering
     if current_user.role in ["customer", "wholesaler"]:
-        query.user = current_user.id
+        query["user"] = str(current_user.id)
     elif current_user.role == "valet":
-        query["assignedValet"] = current_user.id
+        query["assignedValet"] = str(current_user.id)
     # Super admin sees all orders; optionally filter by assignedValet
     elif current_user.role == "super_admin" and assignedValet:
         query["assignedValet"] = assignedValet
 
     if status:
-        query.status = status
+        query["status"] = status
     if paymentMethod:
         query["paymentMethod"] = paymentMethod
     if startDate:
@@ -416,7 +416,7 @@ async def get_orders(
 
         return {
             "orders": populated_orders,
-            "total": total,
+            "totalCount": total,
             "page": page,
             "limit": limit,
             "hasMore": has_more,

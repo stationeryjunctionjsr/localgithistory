@@ -53,13 +53,14 @@ async def client():
 @pytest.fixture
 async def user_auth(client: AsyncClient):
     """Create a throwaway regular user, log in, yield auth headers, then clean up."""
+    from app.models.schemas import UserCreate
     email = f"testuser_{uuid.uuid4().hex[:8]}@test.com"
-    user_data = {
-        "name": "Test User",
-        "email": email,
-        "password": "password123",
-        "role": "customer",
-    }
+    user_data = UserCreate(
+        name="Test User",
+        email=email,
+        password="password123",
+        role="customer",
+    )
     user = await user_repository.create(user_data)
     response = await client.post(
         "/api/auth/login",
@@ -70,7 +71,8 @@ async def user_auth(client: AsyncClient):
         print(f"DEBUG: Login failed for {email}. Status: {response.status_code}, Body: {response.text}")
     yield {"Authorization": f"Bearer {token}"}
     try:
-        await session_repository.delete_all_for_user(user["_id"])
-        await user_repository.storage.delete(user["_id"])
+        await session_repository.delete_all_for_user(str(user.id))
+        from app.db.mysql_user_dao import mysql_user_dao
+        await mysql_user_dao.delete(str(user.id))
     except Exception:
         pass

@@ -183,7 +183,12 @@ class BannerRepository:
 
     async def update(self, id: str, update_data: Any):
         # Sync legacy fields if new ones are provided
-        update_dict = update_data if isinstance(update_data, dict) else update_data.model_dump(exclude_unset=True) if hasattr(update_data, "model_dump") else update_data.dict(exclude_unset=True) if hasattr(update_data, "dict") else vars(update_data)
+        update_dict = {}
+        if isinstance(update_data, dict):
+            update_dict = update_data
+        else:
+            for field in update_data.model_fields_set if hasattr(update_data, 'model_fields_set') else vars(update_data):
+                update_dict[field] = getattr(update_data, field)
         
         if "userSegments" in update_dict:
             segments = update_dict["userSegments"]

@@ -308,7 +308,7 @@ class MySQLProductDAO:
         count_sql = f"SELECT COUNT(*) FROM {self.TABLE} p {join_sql} WHERE {where_sql}"
         query_sql = f"""
             SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                   p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
+                   p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews, p.created_at, p.updated_at
             FROM {self.TABLE} p
             {join_sql} WHERE {where_sql} {sort_sql} LIMIT :limit OFFSET :skip
         """
@@ -360,7 +360,7 @@ class MySQLProductDAO:
                 await session.execute(
                     text(f"""
                 SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
+                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews, p.created_at, p.updated_at
                 FROM {self.TABLE} p {join_sql} WHERE {where_sql} ORDER BY p.id ASC
             """),
                     params,
@@ -385,7 +385,7 @@ class MySQLProductDAO:
                 await session.execute(
                     text(f"""
                 SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.created_at, p.updated_at
+                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews, p.created_at, p.updated_at
                 FROM {self.TABLE} p WHERE p.id = :id
             """),
                     {"id": pid},
@@ -528,8 +528,9 @@ class MySQLProductDAO:
         if not existing:
             return None
         from app.models.daos import ProductInternalUpdate
-        update_dict = update_data.model_dump(exclude_unset=True)
-        merged_dict = {**existing, **update_dict}
+        merged_dict = dict(existing)
+        for field in update_data.model_fields_set:
+            merged_dict[field] = getattr(update_data, field)
         merged = ProductInternalUpdate(**merged_dict)
         factory = self._factory()
         now = now_utc()

@@ -32,14 +32,18 @@ class TicketResponseItem(BaseModel):
 
 async def populate_ticket(ticket):
     """Populate ticket with user data"""
-    user = await user_repository.findById(ticket.user)
+    t_user = ticket.get("user") if isinstance(ticket, dict) else ticket.user
+    t_assigned_to = ticket.get("assignedTo") if isinstance(ticket, dict) else ticket.assignedTo
+    t_responses = ticket.get("responses") if isinstance(ticket, dict) else ticket.responses
+    
+    user = await user_repository.findById(t_user)
     assigned_to = None
-    if ticket.assigned_to:
-        assigned_to = await user_repository.findById(ticket.assignedTo)
+    if t_assigned_to:
+        assigned_to = await user_repository.findById(t_assigned_to)
 
     # Populate response users
     populated_responses = []
-    for response in (ticket.responses or []):
+    for response in (t_responses or []):
         resp_model = (
             response
             if isinstance(response, TicketResponseItem)
@@ -82,8 +86,8 @@ async def populate_ticket(ticket):
         **ticket,
         "user": {
             "_id": user.id if user else None,
-            "name": user.name if user else ticket.name,
-            "email": user.email if user else ticket.email,
+            "name": user.name if user else (ticket.get("name") if isinstance(ticket, dict) else ticket.name),
+            "email": user.email if user else (ticket.get("email") if isinstance(ticket, dict) else ticket.email),
             "role": user.role if user else "guest",
         },
         "assignedTo": assigned_to_dict,

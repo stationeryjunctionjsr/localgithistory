@@ -33,13 +33,19 @@ class CategoryRepository:
         if isinstance(category_data, dict):
             category_data = CategoryInternalCreate.model_validate(category_data)
         elif not isinstance(category_data, CategoryInternalCreate):
-            category_data = CategoryInternalCreate.model_validate(category_data.model_dump(exclude_unset=True))
+            fields = {f: getattr(category_data, f) for f in category_data.model_fields_set}
+            category_data = CategoryInternalCreate(**fields)
         return await self.storage.create(category_data)
 
     async def update(self, id: str, update_data: Any) -> Category:
         from app.models.daos import CategoryInternalUpdate
         # Synchronize categoryTag and categoryTags for backward compatibility
-        update_dict = update_data if isinstance(update_data, dict) else update_data.model_dump(exclude_unset=True)
+        update_dict = {}
+        if isinstance(update_data, dict):
+            update_dict = update_data
+        else:
+            for field in update_data.model_fields_set:
+                update_dict[field] = getattr(update_data, field)
         if "categoryTag" in update_dict:
             tag = update_dict["categoryTag"]
             update_dict["categoryTags"] = [tag] if tag else []

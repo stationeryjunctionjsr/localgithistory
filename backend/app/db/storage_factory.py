@@ -34,7 +34,9 @@ from app.db.mysql_sub_order_dao import MySQLSubOrderDAO
 from app.db.mysql_seller_request_dao import MySQLSellerRequestDAO
 from app.db.mysql_ad_dao import MySQLAdDAO
 from app.db.mysql_seller_payout_dao import MySQLSellerPayoutDAO
+from app.db.mysql_events_dao import MySQLEventsDAO
 from app.utils.file_storage import FileStorage
+
 
 
 _MYSQL_DAO_COLLECTIONS = {
@@ -62,6 +64,7 @@ _MYSQL_DAO_COLLECTIONS = {
     "sellerRequests": MySQLSellerRequestDAO,
     "ads": MySQLAdDAO,
     "sellerPayouts": MySQLSellerPayoutDAO,
+    "events": MySQLEventsDAO,
 }
 
 

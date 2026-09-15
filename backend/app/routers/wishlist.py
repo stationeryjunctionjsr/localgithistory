@@ -40,13 +40,16 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
     """Get user's wishlist"""
     try:
         wishlist = await wishlist_repository.findByUser(current_user.id)
-        if not wishlist or not wishlist.items:
-            return {"items": [], "itemCount": 0}
+        
+        raw_items = []
+        if wishlist:
+            raw_items = wishlist.get("items", []) if isinstance(wishlist, dict) else (wishlist.items or [])
+            
+        if not raw_items:
+            return []
 
         role_for_pricing = get_role_for_pricing(current_user)
         populated_items = []
-
-        raw_items = (wishlist.items if wishlist.items is not None else [])
         norm_items = []
         for it in raw_items:
             if isinstance(it, dict):
@@ -54,23 +57,25 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
             elif isinstance(it, str):
                 norm_items.append({"product": it, "quantity": 1})
 
-        product_ids = [item.product for item in norm_items if item.product]
+        product_ids = [item.get("product") if isinstance(item, dict) else item.product for item in norm_items if (item.get("product") if isinstance(item, dict) else item.product)]
         products_map = {}
         if product_ids:
             products = await product_repository.findAll({"allowed_ids": product_ids})
             products_map = {str(p.id): p for p in products}
 
         for item in norm_items:
-            product = products_map.get(str(item.product))
+            p_id = item.get("product") if isinstance(item, dict) else item.product
+            product = products_map.get(str(p_id))
             if not product or product.is_active is False:
                 continue
 
-            quantity = (item.quantity if item.quantity is not None else 1)
+            quantity = item.get("quantity", 1) if isinstance(item, dict) else (item.quantity if item.quantity is not None else 1)
             price = product_repository.getPriceForRole(product, role_for_pricing, quantity)
 
+            it_dict = item.copy() if isinstance(item, dict) else item.model_dump(by_alias=True)
             populated_items.append(
                 {
-                    **item,
+                    **it_dict,
                     "product": {
                         "_id": product.id,
                         "name": product.name,

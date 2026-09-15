@@ -89,7 +89,7 @@ class DynamicRelationalDAO:
                         c_map[row.parent_id][api_key].append(obj)
         return c_map
 
-    async def _replace_children(self, session, p_id: int, data: Dict):
+    async def _replace_children(self, session, p_id: int, data: Any):
         for api_key, c_conf in self.config["child_tables"].items():
             child_table = c_conf[0]
             db_cols = c_conf[1]
@@ -97,7 +97,12 @@ class DynamicRelationalDAO:
             is_flat = c_conf[3]
             is_kv = c_conf[4]
             await session.execute(text(f"DELETE FROM {child_table} WHERE parent_id = :pid"), {"pid": p_id})
-            val = data.get(api_key)
+            
+            # Zero Data Stripping: Support both dict and Pydantic dot notation
+            if isinstance(data, dict):
+                val = data.get(api_key)
+            else:
+                val = getattr(data, api_key, None)
             if not val:
                 continue
             if is_flat:
@@ -148,18 +153,19 @@ class DynamicRelationalDAO:
     async def findById(self, id: str) -> Optional[Any]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> Any:
+    async def create(self, data: Any) -> Any:
+        data_dict = data if isinstance(data, dict) else data.model_dump()
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
         for api_k, db_col in self.scalar_map.items():
-            if api_k in data:
+            if api_k in data_dict:
                 cols.append(db_col)
-                params[f"s_{api_k}"] = data[api_k]
+                params[f"s_{api_k}"] = data_dict[api_k]
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k, db in self.scalar_map.items() if k in data])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k, db in self.scalar_map.items() if k in data_dict])
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = (
@@ -171,11 +177,13 @@ class DynamicRelationalDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Any]:
+    async def update(self, id: str, data: Any) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **data}
+        existing_dict = existing if isinstance(existing, dict) else existing.model_dump(by_alias=True)
+        data_dict = data if isinstance(data, dict) else data.model_dump(exclude_unset=True)
+        merged = {**existing_dict, **data_dict}
         now = now_utc()
         updates = ["updated_at = :u"]
         params = {"id": int(id) if str(id).isdigit() else None, "u": now}

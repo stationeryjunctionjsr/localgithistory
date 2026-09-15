@@ -4,7 +4,7 @@ import os
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Response, Depends, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict
@@ -321,9 +321,9 @@ async def register(user_data: RegisterRequest, request: Request):
             user=user_response,
             message="Registration successful.",
         )
-        response = JSONResponse(content=auth_data, status_code=201)
+        response.status_code = 201
         set_auth_cookies(response, access_token, refresh_token, session.id)
-        return response
+        return auth_data
     except HTTPException as he:
         logger.warning(f"[REGISTER] HTTPException: status={he.status_code} detail={he.detail}")
         raise
@@ -336,7 +336,7 @@ async def register(user_data: RegisterRequest, request: Request):
 
 @router.post("/login", response_model=AuthResponse)
 @limiter.limit("5/minute")
-async def login(login_data: LoginRequest, request: Request):
+async def login(login_data: LoginRequest, request: Request, response: Response):
     # Validate password
     if not login_data.password or not login_data.password.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required")
@@ -358,16 +358,16 @@ async def login(login_data: LoginRequest, request: Request):
     if not password_match:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    if not (user.is_active if user.is_active is not None else True):
+    if not (user.isActive if user.isActive is not None else True):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is inactive")
 
     # Check approval status for wholesaler
     if user.role == "wholesaler":
-        if user.approval_status != "approved":
+        if user.approvalStatus != "approved":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your account is pending approval by Super Admin. Please wait for approval.",
-                headers={"X-Approval-Status": (user.approval_status if user.approval_status is not None else "pending")},
+                headers={"X-Approval-Status": (user.approvalStatus if user.approvalStatus is not None else "pending")},
             )
 
     device = parse_device(request, default_type="web")
@@ -381,7 +381,7 @@ async def login(login_data: LoginRequest, request: Request):
     refresh_token = create_refresh_token(user.id, session.id, refresh_id)
     # Calculate effective role
     effective_role = "customer"
-    if user.is_deactivated and user.role == "wholesaler":
+    if user.isDeactivated and user.role == "wholesaler":
         effective_role = "customer"
     else:
         effective_role = (user.role if user.role is not None else "customer")
@@ -392,9 +392,8 @@ async def login(login_data: LoginRequest, request: Request):
     auth_data = AuthResponse(
         token=access_token, refreshToken=refresh_token, sessionId=session.id, user=user_response
     )
-    response = JSONResponse(content=auth_data)
     set_auth_cookies(response, access_token, refresh_token, session.id)
-    return response
+    return auth_data
 
 
 class RefreshTokenClaims(BaseModel):
@@ -459,12 +458,12 @@ async def refresh_tokens(payload: RefreshRequest, request: Request):
     refresh_token = create_refresh_token(user_id, session_id, new_refresh_id)
 
     user = await user_repository.findById(user_id)
-    if not user or not (user.is_active if user.is_active is not None else True):
+    if not user or not (user.isActive if user.isActive is not None else True):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
     # Calculate effective role
     effective_role = "customer"
-    if user.is_deactivated and user.role == "wholesaler":
+    if user.isDeactivated and user.role == "wholesaler":
         effective_role = "customer"
     else:
         effective_role = (user.role if user.role is not None else "customer")
@@ -474,9 +473,8 @@ async def refresh_tokens(payload: RefreshRequest, request: Request):
     user_response_dict = {**user_copy.model_dump(by_alias=True), "effectiveRole": effective_role}
     user_response = user_response_dict
     auth_data = AuthResponse(token=access_token, refreshToken=refresh_token, sessionId=session_id, user=user_response)
-    response = JSONResponse(content=auth_data)
     set_auth_cookies(response, access_token, refresh_token, session_id)
-    return response
+    return auth_data
 
 
 class LogoutRequest(BaseModel):
@@ -573,7 +571,7 @@ async def delete_own_account(current_user: User = Depends(get_current_user)):
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     # Calculate effective role
     effective_role = "customer"
-    if current_user.is_deactivated and current_user.role == "wholesaler":
+    if current_user.isDeactivated and current_user.role == "wholesaler":
         effective_role = "customer"
     else:
         effective_role = (current_user.role if current_user.role is not None else "customer")

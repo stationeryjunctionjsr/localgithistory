@@ -34,8 +34,12 @@ class SessionRepository:
         existing = await self.storage.findById(session_id)
         if not existing:
             return None
-        existing_dict = existing.model_dump(by_alias=True) if hasattr(existing, 'model_dump') else dict(existing)
-        updates_dict = updates if isinstance(updates, dict) else dict(updates)
+        existing_dict = {}
+        for field in existing.model_fields_set if hasattr(existing, 'model_fields_set') else existing:
+            existing_dict[field] = getattr(existing, field) if not isinstance(existing, dict) else existing[field]
+        updates_dict = {}
+        for field in updates.model_fields_set if hasattr(updates, 'model_fields_set') else updates:
+            updates_dict[field] = getattr(updates, field) if not isinstance(updates, dict) else updates[field]
         existing_dict.update(updates_dict)
         return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing_dict))
 

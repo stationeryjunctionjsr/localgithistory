@@ -366,31 +366,27 @@ async def create_delivery_slot_config(
         # Auto-fill slot capacities from zone default if not set
         slots_with_capacity = []
         for slot in config.slots:
-            cap_val = slot.capacity if hasattr(slot, "capacity") else slot["capacity"]
+            cap_val = slot.capacity
             if cap_val is None or cap_val == 0:
-                if hasattr(slot, "capacity"):
-                    slot.capacity = zone_default_capacity
-                else:
-                    slot["capacity"] = zone_default_capacity
-            slots_with_capacity.append(slot.model_dump() if hasattr(slot, "model_dump") else slot)
+                slot.capacity = zone_default_capacity
+            slots_with_capacity.append(slot)
 
-        record = {
-            "segment": config.segment,
-            "date": config.date,
-            "zoneId": zone_id,
-            "zoneDefaultCapacity": zone_default_capacity,
-            "slots": slots_with_capacity,
-            "isActive": config.isActive,
-        }
+        config_obj = DeliverySlotConfigBase(
+            segment=config.segment,
+            date=config.date,
+            zoneId=zone_id,
+            slots=slots_with_capacity,
+            isActive=config.isActive
+        )
 
         # Check for existing config for this date/segment/zone
         existing = await storage.findAll({"date": config.date, "segment": config.segment, "zoneId": zone_id})
         if existing:
             doc_id = str(existing[0].id or (existing[0]["_id"] if isinstance(existing[0], dict) and "_id" in existing[0] else existing[0]["id"] if isinstance(existing[0], dict) and "id" in existing[0] else existing[0]))
-            updated = await storage.update(doc_id, record)
+            updated = await storage.update(doc_id, config_obj)
             created.append(updated)
         else:
-            result = await storage.create(record)
+            result = await storage.create(config_obj)
             created.append(result)
 
     return created

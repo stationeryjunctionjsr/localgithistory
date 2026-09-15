@@ -91,8 +91,8 @@ def _load_config() -> Dict:
 
 def _segment_config(segment: str) -> Dict:
     config = _load_config()
-    segments = config.get("segments") or {}
-    return segments.get(segment) or {}
+    segments = config["segments"] if "segments" in config else {}
+    return segments[segment] if segment in segments else {}
 
 
 def _get_favourites_weights(kind: str) -> Tuple[float, float]:
@@ -104,9 +104,9 @@ def _get_favourites_weights(kind: str) -> Tuple[float, float]:
     """
     config = _load_config()
     key = "customer_favourites_weights" if kind == "customer_favourites" else "business_favourites_weights"
-    weights = config.get(key) or {}
-    w_freq = float(weights.get("frequency", 0.7))
-    w_qty = float(weights.get("quantity", 0.3))
+    weights = config[key] if key in config else {}
+    w_freq = float(weights["frequency"] if "frequency" in weights else 0.7)
+    w_qty = float(weights["quantity"] if "quantity" in weights else 0.3)
     return (w_freq, w_qty)
 
 
@@ -119,7 +119,16 @@ def _strategy_to_key(strategy: str) -> str:
         "explore": "explore",
         "wholesaler_favourites": "wholesalerFavourites",
         "business_favourites": "businessFavourites",
-    }.get(strategy, "customerFavourites")
+    }
+    mapping = {
+        "new_arrivals": "newArrivals",
+        "customer_favourites": "customerFavourites",
+        "trending_now": "trendingNow",
+        "explore": "explore",
+        "wholesaler_favourites": "wholesalerFavourites",
+        "business_favourites": "businessFavourites",
+    }
+    return mapping[strategy] if strategy in mapping else "customerFavourites"  # Wait, dict on the fly is fine, or we can replace it.
 
 
 def get_recommendation_config() -> Dict:
@@ -275,7 +284,7 @@ class RecommendationRepository:
             for item in (order.items if order.items is not None else []):
                 pid = item.product or item.productId
                 if pid and pid not in exclude:
-                    product_counts[pid] = product_counts.get(pid, 0) + (item.quantity if item.quantity is not None else 1)
+                    product_counts[pid] = (product_counts[pid] if pid in product_counts else 0) + (item.quantity if item.quantity is not None else 1)
         sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
         return [pid for pid, _ in sorted_products]
 
@@ -320,8 +329,8 @@ class RecommendationRepository:
         """
         if use_cache:
             cached = _read_trending_cache()
-            seg_data = cached.get(segment, {})
-            ids = seg_data.get("product_ids")
+            seg_data = cached[segment] if segment in cached else {}
+            ids = seg_data["product_ids"] if "product_ids" in seg_data else None
             if ids is not None and isinstance(ids, list):
                 exclude = exclude_product_ids or set()
                 return [x for x in ids if x not in exclude]  # cache is already in descending rank order
@@ -372,7 +381,7 @@ class RecommendationRepository:
                         linked = True
                         break
                 if linked:
-                    converted_sales_count[pid] = converted_sales_count.get(pid, 0) + 1
+                    converted_sales_count[pid] = (converted_sales_count[pid] if pid in converted_sales_count else 0) + 1
 
         # ── Step 3: search counts per product ───────────────────────────────────
         search_count = await tracking_repository.get_search_counts_by_product(days, segment)
@@ -383,7 +392,7 @@ class RecommendationRepository:
         for pid, sc in search_count.items():
             if sc < 1:
                 continue
-            converted = converted_sales_count.get(pid, 0)
+            converted = converted_sales_count[pid] if pid in converted_sales_count else 0
             rate = converted / sc  # conversion score ∈ [0, 1]
             all_scored.append((pid, rate))
 
@@ -455,7 +464,7 @@ class RecommendationRepository:
                 continue
             # City filter: match against the order's delivery city (shippingAddress.city)
             if city_filter:
-                order_city = (order.shippingAddress or {}).get("city", "")
+                order_city = order.shippingAddress.city if getattr(order, "shippingAddress", None) and getattr(order.shippingAddress, "city", None) else ""
                 if not order_city or order_city.strip().lower() != city_filter:
                     continue
             pids_in_order = set()
@@ -463,21 +472,21 @@ class RecommendationRepository:
                 pid = item.product or item.productId
                 if not pid:
                     continue
-                subcat = pid_to_subcat.get(pid, "None")
+                subcat = pid_to_subcat[pid] if pid in pid_to_subcat else "None"
                 if subcat not in segment_order_count:
                     segment_order_count[subcat] = {}
                     segment_quantity[subcat] = {}
-                segment_quantity[subcat][pid] = segment_quantity[subcat].get(pid, 0) + (item.quantity if item.quantity is not None else 1)
+                segment_quantity[subcat][pid] = (segment_quantity[subcat][pid] if pid in segment_quantity[subcat] else 0) + (item.quantity if item.quantity is not None else 1)
                 pids_in_order.add((subcat, pid))
             for subcat, pid in pids_in_order:
-                segment_order_count[subcat][pid] = segment_order_count[subcat].get(pid, 0) + 1
+                segment_order_count[subcat][pid] = (segment_order_count[subcat][pid] if pid in segment_order_count[subcat] else 0) + 1
         # Top 1 per subcategory by weighted score; then sort by score descending
         top_per_subcat: List[Tuple[str, float]] = []  # (pid, score)
         for subcat in segment_order_count:
             candidates = [
-                (pid, segment_order_count[subcat][pid], segment_quantity[subcat].get(pid, 0))
+                (pid, segment_order_count[subcat][pid], (segment_quantity[subcat][pid] if pid in segment_quantity[subcat] else 0))
                 for pid in segment_order_count[subcat]
-                if segment_quantity[subcat].get(pid, 0) > 1
+                if (segment_quantity[subcat][pid] if pid in segment_quantity[subcat] else 0) > 1
             ]
             if not candidates:
                 continue
@@ -493,7 +502,7 @@ class RecommendationRepository:
     async def get_customer_favourites_product_ids(self) -> Set[str]:
         """Set of product IDs that are Customer Favourites (top 1 per subcategory, retail, 60d). For tagging in catalog. Reads cache when present."""
         cached = _read_customer_favourites_cache()
-        ids = cached.get("product_ids")
+        ids = cached["product_ids"] if "product_ids" in cached else None
         if ids is not None and isinstance(ids, list):
             return set(ids)
         ids = await self.get_customer_favourites_by_subcategory(days=60)
@@ -536,7 +545,7 @@ class RecommendationRepository:
                 continue
             # City filter: match against the order's delivery city (shippingAddress.city)
             if city_filter:
-                order_city = (order.shippingAddress or {}).get("city", "")
+                order_city = order.shippingAddress.city if getattr(order, "shippingAddress", None) and getattr(order.shippingAddress, "city", None) else ""
                 if not order_city or order_city.strip().lower() != city_filter:
                     continue
             pids_in_order = set()
@@ -544,20 +553,20 @@ class RecommendationRepository:
                 pid = item.product or item.productId
                 if not pid:
                     continue
-                subcat = pid_to_subcat.get(pid, "None")
+                subcat = pid_to_subcat[pid] if pid in pid_to_subcat else "None"
                 if subcat not in segment_order_count:
                     segment_order_count[subcat] = {}
                     segment_quantity[subcat] = {}
-                segment_quantity[subcat][pid] = segment_quantity[subcat].get(pid, 0) + (item.quantity if item.quantity is not None else 1)
+                segment_quantity[subcat][pid] = (segment_quantity[subcat][pid] if pid in segment_quantity[subcat] else 0) + (item.quantity if item.quantity is not None else 1)
                 pids_in_order.add((subcat, pid))
             for subcat, pid in pids_in_order:
-                segment_order_count[subcat][pid] = segment_order_count[subcat].get(pid, 0) + 1
+                segment_order_count[subcat][pid] = (segment_order_count[subcat][pid] if pid in segment_order_count[subcat] else 0) + 1
         top_per_subcat: List[Tuple[str, float]] = []
         for subcat in segment_order_count:
             candidates = [
-                (pid, segment_order_count[subcat][pid], segment_quantity[subcat].get(pid, 0))
+                (pid, segment_order_count[subcat][pid], (segment_quantity[subcat][pid] if pid in segment_quantity[subcat] else 0))
                 for pid in segment_order_count[subcat]
-                if segment_quantity[subcat].get(pid, 0) > 1
+                if (segment_quantity[subcat][pid] if pid in segment_quantity[subcat] else 0) > 1
             ]
             if not candidates:
                 continue
@@ -573,7 +582,7 @@ class RecommendationRepository:
     async def get_business_favourites_product_ids(self) -> Set[str]:
         """Set of product IDs that are Business Favourites (for tagging). Reads cache when present."""
         cached = _read_business_favourites_cache()
-        ids = cached.get("product_ids")
+        ids = cached["product_ids"] if "product_ids" in cached else None
         if ids is not None and isinstance(ids, list):
             return set(ids)
         ids = await self.get_business_favourites_by_subcategory(days=60)
@@ -636,9 +645,9 @@ class RecommendationRepository:
             if order.status == "cancelled":
                 continue
 
-            shipping = order.shippingAddress or {}
-            order_state = (shipping.get("state") or "").strip()
-            order_city = (shipping.get("city") or "").strip()
+            shipping = order.shippingAddress
+            order_state = (shipping.state if shipping and getattr(shipping, "state", None) else "").strip()
+            order_city = (shipping.city if shipping and getattr(shipping, "city", None) else "").strip()
 
             # State / city filter
             if state_filter and order_state.lower() != state_filter:
@@ -657,14 +666,14 @@ class RecommendationRepository:
                 pid = item.product or item.productId
                 if not pid:
                     continue
-                quantity_map[pid] = quantity_map.get(pid, 0) + (item.quantity if item.quantity is not None else 1)
+                quantity_map[pid] = (quantity_map[pid] if pid in quantity_map else 0) + (item.quantity if item.quantity is not None else 1)
                 pids_in_order.add(pid)
             for pid in pids_in_order:
-                order_count[pid] = order_count.get(pid, 0) + 1
+                order_count[pid] = (order_count[pid] if pid in order_count else 0) + 1
 
         # Score and rank
         ranked = sorted(
-            [(pid, w_freq * order_count[pid] + w_qty * quantity_map.get(pid, 0)) for pid in order_count],
+            [(pid, w_freq * order_count[pid] + w_qty * (quantity_map[pid] if pid in quantity_map else 0)) for pid in order_count],
             key=lambda x: x[1],
             reverse=True,
         )
@@ -685,7 +694,7 @@ class RecommendationRepository:
         if user_id:
             orders = await self.order_storage.findAll({"user": user_id})
             for o in orders:
-                for item in o.get("items", []):
+                for item in (o.items if getattr(o, "items", None) is not None else []):
                     pid = item.product or item.productId
                     if pid:
                         user_ordered.add(pid)
@@ -720,9 +729,9 @@ class RecommendationRepository:
         if strategy not in BANDIT_STRATEGIES:
             return
         config = _load_config()
-        bandit_cfg = config.get("bandit", {})
-        max_user = bandit_cfg.get("max_rewards_per_user_strategy", 500)
-        max_global = bandit_cfg.get("max_rewards_per_global_strategy", 10000)
+        bandit_cfg = config["bandit"] if "bandit" in config else {}
+        max_user = bandit_cfg["max_rewards_per_user_strategy"] if "max_rewards_per_user_strategy" in bandit_cfg else 500
+        max_global = bandit_cfg["max_rewards_per_global_strategy"] if "max_rewards_per_global_strategy" in bandit_cfg else 10000
         async with self._rewards_lock:
             data = self._load_rewards()
             # Global
@@ -748,7 +757,7 @@ class RecommendationRepository:
         strategies = strategies or BANDIT_STRATEGIES
         out = {}
         for s in strategies:
-            lst = rewards_by_strategy.get(s) or []
+            lst = rewards_by_strategy[s] if s in rewards_by_strategy else []
             out[s] = sum(lst) / len(lst) if lst else 0.0
         return out
 
@@ -756,7 +765,7 @@ class RecommendationRepository:
         self, rewards_by_strategy: Any[str, List[float]], strategies: Optional[List[str]] = None
     ) -> int:
         strategies = strategies or BANDIT_STRATEGIES
-        return sum(len(rewards_by_strategy.get(s) or []) for s in strategies)
+        return sum(len(rewards_by_strategy[s] if s in rewards_by_strategy else []) for s in strategies)
 
     async def get_arm_order_epsilon_greedy(
         self, user_id: Optional[str], applicable_strategies: Optional[List[str]] = None
@@ -773,16 +782,16 @@ class RecommendationRepository:
         return list(strategies)
 
         config = _load_config()
-        bandit_cfg = config.get("bandit", {})
-        epsilon = bandit_cfg.get("epsilon", 0.2)
-        personal_threshold = bandit_cfg.get("personal_threshold", 10)
+        bandit_cfg = config["bandit"] if "bandit" in config else {}
+        epsilon = bandit_cfg["epsilon"] if "epsilon" in bandit_cfg else 0.2
+        personal_threshold = bandit_cfg["personal_threshold"] if "personal_threshold" in bandit_cfg else 10
         async with self._rewards_lock:
             data = self._load_rewards()
-        global_rewards = data.get("global", {})
+        global_rewards = data["global"] if "global" in data else {}
         for s in strategies:
             global_rewards.setdefault(s, [])
         user_rewards = (
-            (data.get("users", {})).get(user_id) or {s: [] for s in BANDIT_STRATEGIES}
+            (data["users"] if "users" in data else {})[user_id] if user_id in (data["users"] if "users" in data else {}) else None or {s: [] for s in BANDIT_STRATEGIES}
             if user_id
             else {s: [] for s in strategies}
         )
@@ -794,7 +803,7 @@ class RecommendationRepository:
             order = list(strategies)
             random.shuffle(order)
             return order
-        return sorted(strategies, key=lambda s: avg.get(s, 0.0), reverse=True)
+        return sorted(strategies, key=lambda s: (avg[s] if s in avg else 0.0), reverse=True)
 
     async def get_most_bought_by_wholesalers(self, user_id: str, limit: int = 10, days: int = 5) -> List[str]:
         """Products most frequently bought by other wholesalers. Used only when caller is wholesaler."""
@@ -814,7 +823,7 @@ class RecommendationRepository:
             for item in (order.items if order.items is not None else []):
                 pid = item.product or item.productId
                 if pid:
-                    product_counts[pid] = product_counts.get(pid, 0) + (item.quantity if item.quantity is not None else 1)
+                    product_counts[pid] = (product_counts[pid] if pid in product_counts else 0) + (item.quantity if item.quantity is not None else 1)
         sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
         return [pid for pid, _ in sorted_products]
 
@@ -827,7 +836,7 @@ class RecommendationRepository:
             for item in (order.items if order.items is not None else []):
                 pid = item.product or item.productId
                 if pid:
-                    product_counts[pid] = product_counts.get(pid, 0) + (item.quantity if item.quantity is not None else 1)
+                    product_counts[pid] = (product_counts[pid] if pid in product_counts else 0) + (item.quantity if item.quantity is not None else 1)
         sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
         return [pid for pid, _ in sorted_products]
 
@@ -852,14 +861,14 @@ class RecommendationRepository:
         # 2. Count units purchased per subcategory (fallback to category) for this user
         subcat_counts = {}
         for o in user_orders:
-            for item in o.get("items", []):
+            for item in (o.items if getattr(o, "items", None) is not None else []):
                 pid = item.product or item.productId
                 if not pid: continue
-                p = product_by_id.get(pid)
+                p = product_by_id[pid] if pid in product_by_id else None
                 if p:
                     subcat = p.subCategory or p.category
                     if subcat:
-                        subcat_counts[subcat] = subcat_counts.get(subcat, 0) + (item.quantity if item.quantity is not None else 1)
+                        subcat_counts[subcat] = (subcat_counts[subcat] if subcat in subcat_counts else 0) + (item.quantity if item.quantity is not None else 1)
 
         n = len(subcat_counts)
         if n == 0:
@@ -885,7 +894,7 @@ class RecommendationRepository:
             for item in (order.items if order.items is not None else []):
                 pid = item.product or item.productId
                 if not pid: continue
-                p = product_by_id.get(pid)
+                p = product_by_id[pid] if pid in product_by_id else None
                 if not p: continue
                 
                 subcat = p.subCategory or p.category
@@ -893,13 +902,13 @@ class RecommendationRepository:
                     quantity = (item.quantity if item.quantity is not None else 1)
                     if subcat not in subcat_product_sales:
                         subcat_product_sales[subcat] = {}
-                    subcat_product_sales[subcat][pid] = subcat_product_sales[subcat].get(pid, 0) + quantity
+                    subcat_product_sales[subcat][pid] = (subcat_product_sales[subcat][pid] if pid in subcat_product_sales[subcat] else 0) + quantity
 
         # 6. For each neglected subcategory, pick the top products_per_subcat best-selling products
         # that are NOT in the exclude set.
         recommended_product_ids = []
         for subcat in neglected_set:
-            sales = subcat_product_sales.get(subcat, {})
+            sales = subcat_product_sales[subcat] if subcat in subcat_product_sales else {}
             # Sort by sales descending
             top_products = sorted(sales.items(), key=lambda x: x[1], reverse=True)
             
@@ -924,8 +933,8 @@ class RecommendationRepository:
         if not product_ids:
             return {}
         config = _load_config()
-        days = config.get("engagement_days", 30)
-        weights = config.get("engagement_weights", {"product_view": 1, "add_to_cart": 3})
+        days = config["engagement_days"] if "engagement_days" in config else 30
+        weights = config["engagement_weights"] if "engagement_weights" in config else {"product_view": 1, "add_to_cart": 3}
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         pid_set = set(product_ids)
         scores: Dict[str, float] = {pid: 0.0 for pid in product_ids}
@@ -939,17 +948,17 @@ class RecommendationRepository:
             return scores
 
         for docs, weight in [
-            (pv_docs, weights.get("product_view", 1)),
-            (atc_docs, weights.get("add_to_cart", 3)),
+            (pv_docs, (weights["product_view"] if "product_view" in weights else 1)),
+            (atc_docs, (weights["add_to_cart"] if "add_to_cart" in weights else 3)),
         ]:
             for doc in docs:
                 created = self._parse_created_at(doc)
                 if created and created < cutoff:
                     continue
-                meta = doc.meta or {}
-                pid = meta.get("productId")
+                meta = doc.meta if getattr(doc, "meta", None) else {}
+                pid = meta["productId"] if "productId" in meta else None
                 if pid and pid in pid_set:
-                    scores[pid] = scores.get(pid, 0) + weight
+                    scores[pid] = (scores[pid] if pid in scores else 0) + weight
 
         return scores
 
@@ -980,16 +989,16 @@ class RecommendationRepository:
 
         subcat_counts = {}
         for o in orders:
-            for item in o.get("items", []):
+            for item in (o.items if getattr(o, "items", None) is not None else []):
                 pid = item.product or item.productId
                 if not pid:
                     continue
-                p = product_by_id.get(pid)
+                p = product_by_id[pid] if pid in product_by_id else None
                 if not p:
                     continue
                 subcat = p.subCategory or p.category
                 if subcat:
-                    subcat_counts[subcat] = subcat_counts.get(subcat, 0) + (item.quantity if item.quantity is not None else 1)
+                    subcat_counts[subcat] = (subcat_counts[subcat] if subcat in subcat_counts else 0) + (item.quantity if item.quantity is not None else 1)
 
         n = len(subcat_counts)
         if n == 0:
@@ -1009,20 +1018,20 @@ class RecommendationRepository:
             for b in bundles:
                 try:
                     eb = await _enrich_bundle(b)
-                    if not eb.get("isAvailable"):
+                    if not (eb["isAvailable"] if "isAvailable" in eb else None):
                         continue
                     # Format as a product card for the frontend
                     eb["isBundle"] = True
                     # Resolving subCategory for Explore
-                    sub_cat = eb.get("subCategory")
+                    sub_cat = eb["subCategory"] if "subCategory" in eb else None
                     if not sub_cat:
                         # Attempt to derive from component products
-                        for item in eb.get("items", []):
+                        for item in eb["items"] if "items" in eb else []:
                             pid = item.productId
-                            p = product_map.get(str(pid)) if product_map else None
+                            p = product_map[str(pid)] if str(pid) in product_map else None if product_map else None
                             if p and p.subCategory:
                                 sc = p.subCategory
-                                sub_cat = sc.get("name") if isinstance(sc, dict) else sc
+                                sub_cat = sc["name"] if "name" in sc else None if isinstance(sc, dict) else sc
                                 break
                     eb["subCategory"] = sub_cat
                     enriched.append(eb)
@@ -1057,10 +1066,10 @@ class RecommendationRepository:
         All slots participate in the bandit (epsilon-greedy) for section ordering.
         """
         config = _load_config()
-        limits = config.get("strategy_limits", {})
-        limit_trending = limits.get("trending", 24)
-        limit_explore = limits.get("explore", 24)
-        limit_new = limits.get("new_arrivals") or limits.get("user_favorites") or 24
+        limits = config["strategy_limits"] if "strategy_limits" in config else {}
+        limit_trending = limits["trending"] if "trending" in limits else 24
+        limit_explore = limits["explore"] if "explore" in limits else 24
+        limit_new = (limits["new_arrivals"] if "new_arrivals" in limits else None) or (limits["user_favorites"] if "user_favorites" in limits else None) or 24
         
         # Fetch all active products once and reuse
         all_products = await self.product_storage.findAll({"isActive": True})
@@ -1074,20 +1083,20 @@ class RecommendationRepository:
             bundle_items = []
 
         for _b in bundle_items:
-            if _b.get("_id"):
+            if (_b["_id"] if "_id" in _b else None):
                 product_map[_b["_id"]] = _b
 
-        bundle_ids = {_b["_id"] for _b in bundle_items if _b.get("_id")}
+        bundle_ids = {_b["_id"] for _b in bundle_items if (_b["_id"] if "_id" in _b else None)}
 
         def _bundle_new_arrival_ids(exclude_set):
             from datetime import datetime, timedelta, timezone
             cutoff_na = datetime.now(timezone.utc) - timedelta(days=30)
             qualifying = []
             for _b in bundle_items:
-                bid = _b.get("_id")
+                bid = (_b["_id"] if "_id" in _b else None)
                 if not bid or bid in exclude_set:
                     continue
-                created = self._parse_created_at({"createdAt": _b.get("createdAt")}) if _b.get("createdAt") else None
+                created = self._parse_created_at({"createdAt": (_b["createdAt"] if "createdAt" in _b else None)}) if (_b["createdAt"] if "createdAt" in _b else None) else None
                 if created and created >= cutoff_na:
                     qualifying.append((bid, created))
             qualifying.sort(key=lambda x: x[1], reverse=True)
@@ -1095,14 +1104,14 @@ class RecommendationRepository:
 
         def _bundle_trending_ids(exclude_set, product_tn_ids):
             if not bundle_items: return []
-            counts = [_b.get("salesCount", 0) or 0 for _b in bundle_items]
+            counts = [(_b["salesCount"] if "salesCount" in _b else 0) or 0 for _b in bundle_items]
             max_count = max(counts) if counts else 0
             if max_count == 0: return []
             all_rates = []
             for _b in bundle_items:
-                bid = _b.get("_id")
+                bid = (_b["_id"] if "_id" in _b else None)
                 if not bid or bid in exclude_set: continue
-                rate = (_b.get("salesCount", 0) or 0) / max_count
+                rate = ((_b["salesCount"] if "salesCount" in _b else 0) or 0) / max_count
                 if rate > 0: all_rates.append((bid, rate))
             if not all_rates: return []
             rate_values = sorted(r for _, r in all_rates)
@@ -1112,31 +1121,23 @@ class RecommendationRepository:
             return [bid for bid, _ in eligible]
 
         def _bundle_favourites_ids(exclude_set):
-            scored = sorted([(_b["_id"], _b.get("salesCount", 0) or 0) for _b in bundle_items if _b.get("_id") and _b["_id"] not in exclude_set and (_b.get("salesCount", 0) or 0) > 0], key=lambda x: x[1], reverse=True)
+            scored = sorted([(_b["_id"], (_b["salesCount"] if "salesCount" in _b else 0) or 0) for _b in bundle_items if (_b["_id"] if "_id" in _b else None) and _b["_id"] not in exclude_set and ((_b["salesCount"] if "salesCount" in _b else 0) or 0) > 0], key=lambda x: x[1], reverse=True)
             return [bid for bid, _ in scored]
 
         def _bundle_explore_ids(neglected_subcats, exclude_set):
             neglected_set = set(neglected_subcats)
-            scored = sorted([(_b["_id"], _b.get("salesCount", 0) or 0) for _b in bundle_items if _b.get("_id") and _b["_id"] not in exclude_set and (_b.get("subCategory") or _b.get("category")) in neglected_set], key=lambda x: x[1], reverse=True)
+            scored = sorted([(_b["_id"], (_b["salesCount"] if "salesCount" in _b else 0) or 0) for _b in bundle_items if (_b["_id"] if "_id" in _b else None) and _b["_id"] not in exclude_set and ((_b["subCategory"] if "subCategory" in _b else None) or (_b["category"] if "category" in _b else None)) in neglected_set], key=lambda x: x[1], reverse=True)
             return [bid for bid, _ in scored]
 
         def to_products(ids: list[str]) -> list[dict]:
             out = []
             for pid in ids:
-                p = product_map.get(pid)
+                p = product_map[pid] if pid in product_map else None
                 if p and self._is_available_in_zone(p, seller_id_set):
-                    p_copy = dict(p)
-                    # Convert to skinny payload to reduce size (keep images array since hover card cycles images)
-                    p_copy["displayImage"] = p_copy.get("displayImage") or (
-                        p_copy.get("images")[0] if p_copy.get("images") else None
-                    )
-                    p_copy.pop("description", None)
-                    p_copy.pop("variantCombinations", None)
-                    p_copy.pop("videos", None)
-                    p_copy.pop("applicableDiscounts", None)
-                    p_copy.pop("variations", None)
-                    p_copy.pop("variantAttributes", None)
-                    out.append(p_copy)
+                    if not p.displayImage and p.images:
+                        p.displayImage = p.images[0]
+                    skinny_p = SkinnyProductResponse.model_validate(p, from_attributes=True)
+                    out.append(skinny_p)
             return out
 
         def to_products_city_only(ids: list) -> list:
@@ -1149,28 +1150,21 @@ class RecommendationRepository:
             """
             out = []
             for pid in ids:
-                p = product_map.get(pid)
+                p = product_map[pid] if pid in product_map else None
                 if p:
-                    p_copy = dict(p)
-                    p_copy["displayImage"] = p_copy.get("displayImage") or (
-                        p_copy.get("images")[0] if p_copy.get("images") else None
-                    )
-                    p_copy.pop("description", None)
-                    p_copy.pop("variantCombinations", None)
-                    p_copy.pop("videos", None)
-                    p_copy.pop("applicableDiscounts", None)
-                    p_copy.pop("variations", None)
-                    p_copy.pop("variantAttributes", None)
-                    out.append(p_copy)
+                    if not p.displayImage and p.images:
+                        p.displayImage = p.images[0]
+                    skinny_p = SkinnyProductResponse.model_validate(p, from_attributes=True)
+                    out.append(skinny_p)
             return out
 
         trending_days = 7
         
-        cf_days_config = _segment_config("guest").get("customer_favourites_days", 60)
+        cf_days_config = _segment_config("guest")["customer_favourites_days"] if "customer_favourites_days" in _segment_config("guest") else 60
 
         # Customer Favourites: from cache (job at 12 AM IST) or compute on the fly
         cf_cache = _read_customer_favourites_cache()
-        cf_ids_cached = cf_cache.get("product_ids") if isinstance(cf_cache.get("product_ids"), list) else None
+        cf_ids_cached = (cf_cache["product_ids"] if "product_ids" in cf_cache else None) if isinstance((cf_cache["product_ids"] if "product_ids" in cf_cache else None), list) else None
 
         # Guest: no user_id
         if not user_id:
@@ -1209,7 +1203,7 @@ class RecommendationRepository:
         # Retail (logged-in customer or any non-wholesaler)
         if role != "wholesaler":
             seg = _segment_config("retail")
-            exclude_days = seg.get("exclude_user_purchases_days", 60)
+            exclude_days = seg["exclude_user_purchases_days"] if "exclude_user_purchases_days" in seg else 60
             
             import asyncio
             # Parallel fetch: user purchased IDs + cart IDs
@@ -1252,9 +1246,9 @@ class RecommendationRepository:
             explore_exclude = exclude | set(cf_ids) | set(tn_ids) | set(new_ids)
             
             # 3. Fetch Explore using the consolidated exclude set
-            exp_days = seg.get("explore_days", 60)
+            exp_days = seg["explore_days"] if "explore_days" in seg else 60
             explore_ids_prod = []
-            if seg.get("explore_available", True):
+            if (seg["explore_available"] if "explore_available" in seg else True):
                 explore_ids_prod = await self.get_best_selling_from_least_bought_categories(
                     user_id, limit_explore, days=exp_days, exclude_product_ids=explore_exclude
                 )
@@ -1276,7 +1270,7 @@ class RecommendationRepository:
 
         # Business (wholesaler)
         seg = _segment_config("wholesaler")
-        bf_days = seg.get("business_favourites_days", seg.get("wholesaler_favourites_days", 60))
+        bf_days = seg["business_favourites_days"] if "business_favourites_days" in seg else (seg["wholesaler_favourites_days"] if "wholesaler_favourites_days" in seg else 60)
         
         import asyncio
         purchased_ids = await self._get_user_purchased_product_ids(user_id, bf_days)
@@ -1301,7 +1295,7 @@ class RecommendationRepository:
             bf_ids_raw = await self.get_business_favourites_by_subcategory(days=bf_days, city=city_normalised)
         else:
             bf_cache = _read_business_favourites_cache()
-            bf_ids_cached = bf_cache.get("product_ids") if isinstance(bf_cache.get("product_ids"), list) else None
+            bf_ids_cached = (bf_cache["product_ids"] if "product_ids" in bf_cache else None) if isinstance((bf_cache["product_ids"] if "product_ids" in bf_cache else None), list) else None
             bf_ids_raw = bf_ids_cached if bf_ids_cached is not None else await self.get_business_favourites_by_subcategory(days=bf_days)
 
         bf_ids_after_exclude = [x for x in (bf_ids_raw or []) if x not in exclude]
@@ -1326,9 +1320,9 @@ class RecommendationRepository:
         explore_exclude = exclude | set(cf_ids) | set(bf_ids_after_exclude) | set(tn_ids) | set(new_ids)
         
         # Fetch Explore sequentially
-        exp_days = seg.get("explore_days", 60)
+        exp_days = seg["explore_days"] if "explore_days" in seg else 60
         explore_ids_prod = []
-        if seg.get("explore_available", True):
+        if (seg["explore_available"] if "explore_available" in seg else True):
             explore_ids_prod = await self.get_best_selling_from_least_bought_categories(
                 user_id, limit_explore, days=exp_days, exclude_product_ids=explore_exclude
             )

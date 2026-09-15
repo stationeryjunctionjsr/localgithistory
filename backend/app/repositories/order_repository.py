@@ -63,12 +63,11 @@ class OrderRepository:
         return await self.storage.findById(id)
 
     async def create(self, order_data: OrderInternalCreate):
-        order_dict = order_data.model_dump(exclude_unset=True)
         if not order_data.createdAt:
-            order_dict["createdAt"] = datetime.now(timezone.utc).isoformat()
+            order_data.createdAt = datetime.now(timezone.utc).isoformat()
             
-        order_dict["orderNumber"] = await self.generateOrderNumber(order_data.userRole or "")
-        return await self.storage.create(order_dict)
+        order_data.orderNumber = await self.generateOrderNumber(order_data.userRole or "")
+        return await self.storage.create(order_data)
 
     async def update(self, id: str, update_data: OrderInternalUpdate):
         if update_data.status == "out_for_delivery" and update_data.shippedAt is None:
@@ -101,7 +100,8 @@ class OrderRepository:
         if update_data.status == "cancelled" and update_data.cancelledAt is None:
             update_data.cancelledAt = datetime.now(timezone.utc).isoformat()
 
-        return await self.storage.update(id, update_data.model_dump(exclude_unset=True))
+        fields = {f: getattr(update_data, f) for f in update_data.model_fields_set}
+        return await self.storage.update(id, fields)
 
     async def delete(self, id: str):
         return await self.storage.delete(id)

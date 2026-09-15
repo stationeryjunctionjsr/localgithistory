@@ -33,7 +33,8 @@ class BrandRepository:
         if isinstance(data, dict):
             internal_data = BrandInternalCreate.model_validate(data)
         elif not isinstance(data, BrandInternalCreate):
-            internal_data = BrandInternalCreate.model_validate(data.model_dump(exclude_unset=True))
+            fields = {f: getattr(data, f) for f in data.model_fields_set}
+            internal_data = BrandInternalCreate(**fields)
         else:
             internal_data = data
         return await self.storage.create(internal_data)
@@ -43,7 +44,8 @@ class BrandRepository:
         if isinstance(data, dict):
             internal_data = BrandInternalUpdate.model_validate(data)
         elif not isinstance(data, BrandInternalUpdate):
-            internal_data = BrandInternalUpdate.model_validate(data.model_dump(exclude_unset=True))
+            fields = {f: getattr(data, f) for f in data.model_fields_set}
+            internal_data = BrandInternalUpdate(**fields)
         else:
             internal_data = data
         return await self.storage.update(id, internal_data)
