@@ -135,7 +135,7 @@ async def get_recommendations(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/favourites", response_model=FavouritesPageResponse)
+@router.get("/favourites")
 async def get_favourites_page(
     type: str = "customer",
     state: Optional[str] = None,
@@ -264,7 +264,7 @@ async def get_favourites_page(
     }
 
 
-@router.get("/metrics", response_model=RecommendationMetricsResponse)
+@router.get("/metrics")
 async def get_recommendation_metrics(days: int = 30, current_user: User = Depends(require_super_admin)):
     """
     Return recommendation engagement metrics for the last N days.

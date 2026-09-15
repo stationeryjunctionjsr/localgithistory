@@ -1,6 +1,6 @@
 import os
-from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from datetime import datetime, timezone, timedelta
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from openpyxl import Workbook

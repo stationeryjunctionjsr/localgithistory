@@ -1164,7 +1164,7 @@ async def create_seller_request(
     # Save product
     update_data = ProductUpdate(sellers=sellers_list)
     updated = await product_repository.update(product_id, update_data)
-    return await populate_product(updated)
+    return updated
 
 
 @router.put("/{product_id}/sellers/me", response_model=ProductResponse)
@@ -1198,7 +1198,7 @@ async def update_my_seller_entry(
         
     update_data = ProductUpdate(sellers=sellers_list)
     updated = await product_repository.update(product_id, update_data)
-    return await populate_product(updated)
+    return updated
 
 
 @router.put("/{product_id}/sellers/{seller_id}/approve", response_model=ProductResponse)
@@ -1254,4 +1254,4 @@ async def approve_seller_request(
         
     update_data = ProductUpdate(sellers=sellers_list)
     updated = await product_repository.update(product_id, update_data)
-    return await populate_product(updated)
+    return updated
