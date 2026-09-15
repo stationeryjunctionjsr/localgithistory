@@ -2,15 +2,17 @@
 MySQL DAO for sj_products (Fully Relational).
 """
 
+import json
 import secrets
 
-from typing import Dict, List, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
 from app.db.db_utils import now_utc
+from app.models.daos import Product, ProductInternalCreate, ProductInternalUpdate
 from app.models.product import Product
 
 
@@ -23,7 +25,7 @@ class MySQLProductDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_product(self, r, children: dict) -> Product:
+    def _row_to_product(self, r, children: Any) -> Product:
         return Product(
             id=str(r.id),
             product_id=r.id,
@@ -52,7 +54,7 @@ class MySQLProductDAO:
             updated_at=r.updated_at
         )
 
-    def _build_query_conditions(self, query: Dict) -> tuple[str, str, Dict]:
+    def _build_query_conditions(self, query: Any) -> tuple[str, str, Dict]:
         where_clauses = []
         params = {}
         join_sql = ""
@@ -169,7 +171,7 @@ class MySQLProductDAO:
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         return join_sql, where_sql, params
 
-    async def _fetch_children_for_products(self, session, pids: List[int]) -> Dict[int, Dict]:
+    async def _fetch_children_for_products(self, session, pids: List[int]) -> Any:
         children_map = {
             pid: {"images": [], "videos": [], "tags": [], "variantAttributes": [], "variants": [], "details": {}, "sellers": []}
             for pid in pids
@@ -345,7 +347,7 @@ class MySQLProductDAO:
 
         return [self._row_to_product(r, children_map[int(r.id)]) for r in rows], total_count
 
-    async def get_facets(self, query: Dict) -> Dict[str, List[str]]:
+    async def get_facets(self, query: Any) -> Any:
         factory = self._factory()
         if not factory:
             return {"brands": [], "categories": [], "subCategories": []}
@@ -374,7 +376,7 @@ class MySQLProductDAO:
         facets["subCategories"].sort()
         return facets
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Any] = None) -> List[Product]:
         factory = self._factory()
         if not factory:
             return []
@@ -393,13 +395,13 @@ class MySQLProductDAO:
             children_map = await self._fetch_children_for_products(session, [int(r.id) for r in rows])
         return [self._row_to_product(r, children_map[int(r.id)]) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Any) -> Optional[Product]:
         if set(query.keys()) in ({"_id"}, {"id"}):
             return await self.findById((query["_id"] if "_id" in query else None) or (query["id"] if "id" in query else None))
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Product]:
         factory = self._factory()
         if not factory:
             return None
@@ -420,7 +422,7 @@ class MySQLProductDAO:
             children_map = await self._fetch_children_for_products(session, [pid])
         return self._row_to_product(row, children_map[pid])
 
-    async def _replace_children(self, session, pid: int, data: Dict):
+    async def _replace_children(self, session, pid: int, data: Any):
         # Delete old
         await session.execute(text("DELETE FROM sj_product_images WHERE product_id = :pid"), {"pid": pid})
         await session.execute(text("DELETE FROM sj_product_videos WHERE product_id = :pid"), {"pid": pid})
@@ -492,10 +494,10 @@ class MySQLProductDAO:
         await session.execute(text("DELETE FROM sj_product_sellers WHERE product_id = :pid_ext"), {"pid_ext": f"PDT-{pid}"})
         for seller in (data.sellers if data.sellers is not None else []):
             # seller might be a dict if it came from merged_dict or it might be ProductSellerEntry
-            s_id = (seller["sellerId"] if "sellerId" in seller else None) if isinstance(seller, dict) else seller.sellerId
-            s_stock = (seller["stock"] if "stock" in seller else 0) if isinstance(seller, dict) else seller.stock
-            s_active = (seller["isActive"] if "isActive" in seller else False) if isinstance(seller, dict) else seller.isActive
-            s_status = (seller["requestStatus"] if "requestStatus" in seller else "pending") if isinstance(seller, dict) else seller.requestStatus
+            s_id = seller.sellerId
+            s_stock = seller.stock
+            s_active = seller.isActive
+            s_status = seller.requestStatus
             
             await session.execute(
                 text("INSERT INTO sj_product_sellers (product_id, seller_id, stock, is_active, request_status) VALUES (:pid_ext, :seller_id, :stock, :is_active, :request_status)"),
@@ -525,7 +527,7 @@ class MySQLProductDAO:
         # ),
         # {"cid": combo_id, "k": attr_name, "v": attr_value},
         # )
-    async def create(self, data: 'ProductInternalCreate') -> Dict:
+    async def create(self, data: 'ProductInternalCreate') -> Any:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -569,38 +571,37 @@ class MySQLProductDAO:
             await session.commit()
         return await self.findById(str(pid))
 
-    async def update(self, id: str, update_data: 'ProductInternalUpdate') -> Optional[Dict]:
+    async def update(self, id: str, update_data: 'ProductInternalUpdate') -> Optional[Product]:
         existing = await self.findById(id)
         if not existing:
             return None
         from app.models.daos import ProductInternalUpdate
-        merged_dict = {**existing}
-        for field in update_data.model_fields_set:
-            if field == "sellers": merged_dict["sellers"] = update_data.sellers
-            elif field == "sku": merged_dict["sku"] = update_data.sku
-            elif field == "category": merged_dict["category"] = update_data.category
-            elif field == "subCategory": merged_dict["subCategory"] = update_data.subCategory
-            elif field == "brand": merged_dict["brand"] = update_data.brand
-            elif field == "mrpPerCase": merged_dict["mrpPerCase"] = update_data.mrpPerCase
-            elif field == "quantityPerCase": merged_dict["quantityPerCase"] = update_data.quantityPerCase
-            elif field == "stock": merged_dict["stock"] = update_data.stock
-            elif field == "rating": merged_dict["rating"] = update_data.rating
-            elif field == "reviews": merged_dict["reviews"] = update_data.reviews
-            elif field == "videos": merged_dict["videos"] = update_data.videos
-            elif field == "tags": merged_dict["tags"] = update_data.tags
-            elif field == "variantAttributes": merged_dict["variantAttributes"] = update_data.variantAttributes
-            elif field == "variants": merged_dict["variants"] = update_data.variants
-            elif field == "details": merged_dict["details"] = update_data.details
-            elif field == "name": merged_dict["name"] = update_data.name
-            elif field == "description": merged_dict["description"] = update_data.description
-            elif field == "price": merged_dict["price"] = update_data.price
-            elif field == "mrp": merged_dict["mrp"] = update_data.mrp
-            elif field == "categoryId": merged_dict["categoryId"] = update_data.categoryId
-            elif field == "brandId": merged_dict["brandId"] = update_data.brandId
-            elif field == "images": merged_dict["images"] = update_data.images
-            elif field == "isActive": merged_dict["isActive"] = update_data.isActive
-            elif field == "sellerId": merged_dict["sellerId"] = update_data.sellerId
-        merged = ProductInternalUpdate(**merged_dict)
+        existing = await self.findById(id)
+        if not existing:
+            return None
+        from app.models.daos import ProductInternalUpdate
+        merged = ProductInternalUpdate(
+            name=update_data.name if update_data.name is not None else existing.name,
+            description=update_data.description if update_data.description is not None else existing.description,
+            sku=update_data.sku if update_data.sku is not None else existing.sku,
+            category=update_data.category if update_data.category is not None else existing.category,
+            subCategory=update_data.subCategory if update_data.subCategory is not None else existing.subCategory,
+            brand=update_data.brand if update_data.brand is not None else existing.brand,
+            mrp=update_data.mrp if update_data.mrp is not None else existing.mrp,
+            mrpPerCase=update_data.mrpPerCase if update_data.mrpPerCase is not None else existing.mrpPerCase,
+            quantityPerCase=update_data.quantityPerCase if update_data.quantityPerCase is not None else existing.quantityPerCase,
+            stock=update_data.stock if update_data.stock is not None else existing.stock,
+            isActive=update_data.isActive if update_data.isActive is not None else existing.isActive,
+            rating=update_data.rating if update_data.rating is not None else existing.rating,
+            reviews=update_data.reviews if update_data.reviews is not None else existing.reviews,
+            images=update_data.images if update_data.images is not None else existing.images,
+            tags=update_data.tags if update_data.tags is not None else existing.tags,
+            videos=update_data.videos if update_data.videos is not None else existing.videos,
+            sellers=update_data.sellers if update_data.sellers is not None else existing.sellers,
+            details=update_data.details if update_data.details is not None else existing.details,
+            variantAttributes=update_data.variantAttributes if update_data.variantAttributes is not None else existing.variantAttributes,
+            variants=update_data.variants if update_data.variants is not None else existing.variants
+        )
         factory = self._factory()
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
@@ -643,7 +644,7 @@ class MySQLProductDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Dict:
+    async def deleteMany(self, query: Any) -> Any:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
@@ -651,7 +652,7 @@ class MySQLProductDAO:
                 deleted += 1
         return {"deletedCount": deleted}
 
-    async def count(self, query: Optional[Dict] = None) -> int:
+    async def count(self, query: Optional[Any] = None) -> int:
         return len(await self.findAll(query))
 
     find_all = findAll

@@ -1,6 +1,6 @@
 from pydantic import ConfigDict
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any
 from pydantic import Field
 from pydantic import BaseModel
 from app.models.schemas import VariantOption, ProductSellerEntry
@@ -31,7 +31,7 @@ class Product(BaseModel):
     variant_attributes: List[str] = Field(default=[], alias="variantAttributes")
     sellers: List[ProductSellerEntry] = []
     variants: List[VariantOption] = []
-    details: Dict[str, Any] = {}
+    details: Any = {}
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
 

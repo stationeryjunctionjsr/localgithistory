@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices
 
@@ -104,7 +104,7 @@ class ProductSellerEntry(BaseModel):
 class ItemSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     productId: Optional[str] = None
-    product: Optional[dict] = None
+    product: Optional[Any] = None
     quantity: Optional[int] = None
     sellAsCase: Optional[bool] = None
     price: Optional[float] = None
@@ -119,7 +119,7 @@ class VariantOption(BaseModel):
     priceModifier: Optional[float] = None
     stock: Optional[int] = None
     sku: Optional[str] = None
-    attributes: Optional[Dict[str, str]] = None
+    attributes: Optional[DynamicMetadata] = None
     price: Optional[float] = None
 
 class VisibilityRuleSnippet(BaseModel):
@@ -159,6 +159,41 @@ class DiscountSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     name: Optional[str] = None
     value: Optional[float] = None
+
+
+
+class DynamicMetadata(BaseModel):
+    model_config = ConfigDict(extra='allow')
+
+class ProductDetailsSchema(BaseModel):
+    model_config = ConfigDict(extra='allow')
+
+class PincodeStat(BaseModel):
+    pincode: str
+    count: int
+    
+class SearchResultItem(BaseModel):
+    id: str
+    name: str
+    type: str
+
+class RecordItem(BaseModel):
+    id: str
+    amount: float
+    date: str
+    status: str
+
+class SavedAddress(BaseModel):
+    id: str
+    street: str
+    city: str
+    state: str
+    pincode: str
+    isDefault: bool
+
+class SellerPermission(BaseModel):
+    module: str
+    access: str
 
 
 class UserBase(BaseModel):
@@ -429,7 +464,7 @@ class ProductBase(BaseModel):
     catalogSellerIds: Optional[List[str]] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[ProductDetailsSchema] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -959,7 +994,7 @@ class DeliveryChargeBase(BaseModel):
     charge: Optional[float] = None
     minCartValue: Optional[float] = None
     applyDefaultCharge: Optional[bool] = False
-    tiers: Optional[List[Union[DeliveryChargeTier, Dict[str, Any]]]] = None
+    tiers: Optional[List[DeliveryChargeTier]] = None
     serviceableForCustomer: Optional[bool] = False
 
     serviceableForWholesaler: Optional[bool] = False
@@ -982,7 +1017,7 @@ class DeliveryChargeUpdate(BaseModel):
     charge: Optional[float] = None
     minCartValue: Optional[float] = None
     applyDefaultCharge: Optional[bool] = None
-    tiers: Optional[List[Union[DeliveryChargeTier, Dict[str, Any]]]] = None
+    tiers: Optional[List[DeliveryChargeTier]] = None
     serviceableForCustomer: Optional[bool] = None
 
     serviceableForWholesaler: Optional[bool] = None
@@ -2122,7 +2157,7 @@ class DeliveryChargeBase(BaseModel):
     charge: Optional[float] = None
     minCartValue: Optional[float] = None
     applyDefaultCharge: Optional[bool] = False
-    tiers: Optional[List[Dict]] = None
+    tiers: Optional[List[DeliveryChargeTier]] = None
     serviceableForCustomer: Optional[bool] = False
 
     serviceableForWholesaler: Optional[bool] = False
@@ -2145,7 +2180,7 @@ class DeliveryChargeUpdate(BaseModel):
     charge: Optional[float] = None
     minCartValue: Optional[float] = None
     applyDefaultCharge: Optional[bool] = None
-    tiers: Optional[List[Dict]] = None
+    tiers: Optional[List[DeliveryChargeTier]] = None
     serviceableForCustomer: Optional[bool] = None
 
     serviceableForWholesaler: Optional[bool] = None
@@ -2666,9 +2701,9 @@ class UserInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     userId: int
     isSellerAdmin: bool = False
-    sellerPermissions: Optional[List[dict]] = None
+    sellerPermissions: Optional[List[SellerPermission]] = None
     serviceAreaZones: Optional[List[str]] = None
-    savedAddresses: Optional[List[dict]] = None
+    savedAddresses: Optional[List[SavedAddress]] = None
     isOnDuty: bool = False
     commissionOverridePct: Optional[float] = None
     userIdFormatted: str
@@ -2739,7 +2774,7 @@ class AnalyticsEventCreate(BaseModel):
     filterName: Optional[Any] = None
     filterValue: Optional[Any] = None
     category: Optional[Any] = None
-    payload: Optional[Dict[str, Any]] = None
+    payload: Optional[DynamicMetadata] = None
     searchTerm: Optional[str] = None
     resultsCount: Optional[int] = None
     segment: Optional[str] = None
@@ -2762,7 +2797,7 @@ class AnalyticsEventCreate(BaseModel):
     sessionId: Optional[str] = None
     userId: Optional[str] = None
     page: Optional[str] = "/"
-    payload: Optional[Union[AnalyticsEventPayload, Dict[str, Any]]] = None
+    payload: Optional[AnalyticsEventPayload] = None
 
 
 class Msg91WebhookPayload(BaseModel):
@@ -2799,7 +2834,7 @@ class OrderItemCreate(BaseModel):
     quantity: int = 1
     sellAsCase: Optional[bool] = Field(False, alias="sell_as_case")
     price: Optional[float] = None
-    selectedVariation: Optional[dict] = None
+    selectedVariation: Optional[DynamicMetadata] = None
 
     @property
     def product_id(self) -> Optional[str]:
@@ -2840,7 +2875,7 @@ class ActivityLogResponse(BaseModel):
     userId: Optional[str] = None
     sessionId: Optional[str] = None
     action: Optional[str] = None
-    meta: Optional[Dict[str, Any]] = None
+    meta: Optional[DynamicMetadata] = None
     isGuest: Optional[bool] = None
 
 
@@ -2941,9 +2976,9 @@ class PincodeSearchStatsResponse(BaseModel):
     uniquePincodesCount: int = 0
     serviceableSearches: int = 0
     unserviceableSearches: int = 0
-    topUnserviceablePincodes: List[Dict[str, Any]] = []
-    topSearchedPincodes: List[Dict[str, Any]] = []
-    topPincodes: List[Dict[str, Any]] = []
+    topUnserviceablePincodes: List[PincodeStat] = []
+    topSearchedPincodes: List[PincodeStat] = []
+    topPincodes: List[PincodeStat] = []
 
 
 class UploadImagesResponse(BaseModel):
@@ -2958,9 +2993,9 @@ class UploadCSVResponse(BaseModel):
 
 class SearchSuggestResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    products: List[Dict[str, Any]] = []
-    brands: List[Dict[str, Any]] = []
-    categories: List[Dict[str, Any]] = []
+    products: List[SearchResultItem] = []
+    brands: List[SearchResultItem] = []
+    categories: List[SearchResultItem] = []
 
 
 class PushNotificationResponse(BaseModel):
@@ -3005,7 +3040,7 @@ class SellerRequestResponse(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     status: Optional[str] = None
-    user: Optional[dict] = None
+    user: Optional[Any] = None
     attachments: Optional[List[Any]] = None
     responses: Optional[List[Any]] = None
     createdAt: Optional[str] = None
@@ -3023,7 +3058,7 @@ class ValetEarningsResponse(BaseModel):
     deliveryRatePerOrder: Optional[float] = None
     returnRatePerOrder: Optional[float] = None
     totalEarned: Optional[float] = None
-    records: List[Dict[str, Any]] = []
+    records: List[RecordItem] = []
 
 
 
@@ -3034,7 +3069,7 @@ class ActivityCreate(BaseModel):
     entityType: Optional[str] = None
     entityId: Optional[str] = None
     sessionId: Optional[str] = None
-    metadata: Optional[Dict[str, str]] = None
+    metadata: Optional[DynamicMetadata] = None
 
 class ActivityUpdate(BaseModel):
     userId: Optional[str] = None
@@ -3042,7 +3077,7 @@ class ActivityUpdate(BaseModel):
     entityType: Optional[str] = None
     entityId: Optional[str] = None
     sessionId: Optional[str] = None
-    metadata: Optional[Dict[str, str]] = None
+    metadata: Optional[DynamicMetadata] = None
 
 class ActivityResponse(ActivityCreate):
     id: Optional[str] = Field(default='', alias='_id')

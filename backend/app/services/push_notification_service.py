@@ -69,7 +69,8 @@ class PushNotificationService:
                     timeout=15,
                 )
                 if resp.status_code == 200:
-                    data = resp.json().get("data", [])
+                    resp_data = resp.json()
+                    data = resp_data["data"] if "data" in resp_data else []
                     for item in data:
                         if (item["status"] if "status" in item else None) == "ok":
                             delivered += 1
