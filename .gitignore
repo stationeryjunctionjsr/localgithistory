@@ -95,3 +95,5 @@ backend/alter_*.py
 backend/fix_*.py
 backend/patch_*.py
 backend/check_*.py
+scratch_*.py
+audit_*.py
