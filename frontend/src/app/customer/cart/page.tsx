@@ -1203,9 +1203,7 @@ export default function Cart() {
             quantity: item.quantity,
           })),
       });
-    } catch {
-      // Analytics failure should never block checkout
-    }
+    } catch (e: any) { logger.warn("Background task failed", e); }
     setShowCheckout(true);
     setCheckoutStep(1);
   };

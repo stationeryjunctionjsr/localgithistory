@@ -1,3 +1,4 @@
+import logging
 """
 Generic MySQL DAO for parent-only tables: fixed columns + JSON columns for arrays/arbitrary dicts.
 No child tables. Implements same interface as FileStorage/MySQLDocStore.
@@ -41,7 +42,8 @@ def _to_ts(val) -> Optional[datetime]:
             if not s.endswith("+00:00") and "+" not in s[-6:] and "-" not in s[-6:]:
                 s += "+00:00"
         return datetime.fromisoformat(s)
-    except Exception:
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
         return None
 
 

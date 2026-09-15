@@ -1,3 +1,4 @@
+import logging
 """
 MySQL DAO for payments: sj_payments (header) + sj_payment_entries (child rows).
 Assembles paymentEntries from child table; create/update write entries as separate rows.
@@ -23,7 +24,8 @@ def _to_ts(val):
         return val
     try:
         return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
-    except Exception:
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
         return None
 
 

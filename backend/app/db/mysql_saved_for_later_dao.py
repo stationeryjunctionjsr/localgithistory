@@ -1,3 +1,4 @@
+import logging
 """
 MySQL DAO for saved-for-later: one row per (user_id, product_id).
 Exposes virtual doc per user: { _id: user_id, user: user_id, items: [ { productId, savedAt }, ... ] }.
@@ -22,7 +23,8 @@ def _to_ts(val):
         return val
     try:
         return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
-    except Exception:
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
         return None
 
 

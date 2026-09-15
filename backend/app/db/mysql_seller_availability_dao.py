@@ -1,3 +1,4 @@
+import logging
 """
 MySQL DAO for seller availability windows.
 Fully normalized storage: no doc JSON.
@@ -24,7 +25,8 @@ def _to_dt(v) -> Optional[datetime]:
         return None
     try:
         return datetime.fromisoformat(str(v).replace("Z", ""))
-    except Exception:
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
         return None
 
 

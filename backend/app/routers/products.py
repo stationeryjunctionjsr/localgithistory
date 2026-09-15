@@ -1,3 +1,4 @@
+import logging
 from app.models.user import User
 from fastapi.responses import StreamingResponse
 from app.models.schemas import MessageResponse
@@ -601,14 +602,14 @@ def _invalidate_product_caches():
         from app.routers.categories import get_tag_brands
 
         cache.invalidate(get_tag_brands)
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
     try:
         from app.repositories.coupon_repository import coupon_repository
 
         coupon_repository.invalidate_cache()
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
 
 
 @router.get("/public", response_model=PaginatedProductResponse)

@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from typing import Dict, Optional, Any
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate, Any
@@ -92,8 +93,8 @@ class OrderRepository:
                     delivered_at = datetime.fromisoformat(update_data.deliveredAt.replace("Z", "+00:00"))
                     hours = (delivered_at - created_at).total_seconds() / 3600.0
                     update_data.turnaroundHours = round(hours, 2)
-            except Exception:
-                pass
+            except Exception as e:
+                logging.warning("Background task failed", exc_info=e)
 
         if update_data.status == "shipped" and update_data.shippedAt is None:
             update_data.shippedAt = datetime.now(timezone.utc).isoformat()

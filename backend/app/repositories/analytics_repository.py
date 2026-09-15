@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
@@ -25,7 +26,8 @@ class AnalyticsRepository:
             # Handle ISO format with or without Z
             date_str = date_str.replace("Z", "+00:00")
             return datetime.fromisoformat(date_str)
-        except Exception:
+        except Exception as e:
+            logging.warning("Background task failed", exc_info=e)
             return None
 
     def _to_naive_utc(self, dt: Optional[datetime]) -> Optional[datetime]:
@@ -1535,8 +1537,8 @@ class AnalyticsRepository:
                     else:
                         dt = order_date
                     month_key = dt.strftime("%Y-%m")
-                except:
-                    pass
+                except Exception as e:
+                    logging.warning("Background task failed", exc_info=e)
                     
             # Group items by bundleId in this order
             order_bundles = defaultdict(list)

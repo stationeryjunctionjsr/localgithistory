@@ -1,3 +1,4 @@
+import logging
 from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import ProductResponse, MessageResponse, CollectionResponse
@@ -80,8 +81,8 @@ def _invalidate_collection_caches():
         from app.routers.products import get_public_products
 
         cache.invalidate(get_public_products)
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
 
 
 @router.post("", response_model=CollectionResponse, status_code=status.HTTP_201_CREATED)

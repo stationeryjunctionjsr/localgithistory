@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 
@@ -356,7 +357,8 @@ class TrackingRepository:
             return None
         try:
             return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-        except Exception:
+        except Exception as e:
+            logging.warning("Background task failed", exc_info=e)
             return None
 
     async def get_search_counts_by_product(self, days: int, segment: str) -> Dict[str, int]:

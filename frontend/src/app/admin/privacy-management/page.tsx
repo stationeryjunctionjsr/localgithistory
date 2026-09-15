@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -37,9 +38,7 @@ export default function PrivacyManagement() {
       if (res.data && Object.keys(res.data).length > 0) {
         setData({ ...defaultData, ...res.data });
       }
-    } catch {
-      // First time
-    } finally {
+    } catch (e: any) { logger.warn("Background task failed", e); } finally {
       setLoading(false);
     }
   };

@@ -1,3 +1,4 @@
+import logging
 from app.models.user import User
 from app.models.schemas import MessageResponse
 from app.models.payment import Payment, PaymentEntry
@@ -81,8 +82,8 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
             order = await order_repository.findById(bill.order_id)
             if order:
                 order_number = (order.order_number if order.order_number is not None else bill.order_id)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning("Background task failed", exc_info=e)
 
         # Parse orderDate as naive UTC datetime
         order_date_str = bill.order_date or bill.created_at

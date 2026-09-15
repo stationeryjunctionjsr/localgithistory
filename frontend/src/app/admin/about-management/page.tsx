@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -47,9 +48,7 @@ export default function AboutManagement() {
       if (res.data && Object.keys(res.data).length > 0) {
         setData({ ...defaultData, ...res.data });
       }
-    } catch {
-      // First time, use defaults
-    } finally {
+    } catch (e: any) { logger.warn("Background task failed", e); } finally {
       setLoading(false);
     }
   };

@@ -1,3 +1,4 @@
+import logging
 """
 MySQL DAO for sj_orders (+ sj_order_items).
 Implements FileStorage-like interface for 'orders' so repositories keep working.
@@ -25,7 +26,8 @@ def _to_ts(value: Optional[str]) -> Optional[datetime]:
         return None
     try:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except Exception:
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
         return None
 
 

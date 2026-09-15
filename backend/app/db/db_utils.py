@@ -1,3 +1,4 @@
+import logging
 """
 Database utility helpers (MySQL).
 These are pure-Python helpers shared across all MySQL DAOs.
@@ -25,7 +26,8 @@ def json_loads(value: Any) -> Any:
         value = value.read()
     except AttributeError:
         pass
-    except Exception:
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
         return None
     if not isinstance(value, str):
         return value
@@ -33,5 +35,6 @@ def json_loads(value: Any) -> Any:
         return None
     try:
         return json.loads(value)
-    except Exception:
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
         return None

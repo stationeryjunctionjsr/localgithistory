@@ -67,9 +67,7 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             return;
           }
         }
-      } catch {
-        // Ignore read errors
-      }
+      } catch (e: any) { console.warn("Background task failed", e); }
 
       // If no valid serviceable pincode is stored, open non-dismissable modal
       setIsMandatory(true);

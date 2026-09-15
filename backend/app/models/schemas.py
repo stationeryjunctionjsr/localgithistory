@@ -1713,247 +1713,34 @@ class CouponValidate(BaseModel):
 
 
 
-class CouponValidationDetail(BaseModel):
-    code: str
-    discountType: str
-    discountValue: float
 
-class CouponValidationResponse(BaseModel):
-    valid: bool
-    coupon: Optional[CouponValidationDetail] = None
-    discount: float
 
-class CouponValidateCart(BaseModel):
-    """Validate discount against cart: backend computes eligible subtotal from items."""
-
-    code: str
-    items: List[ItemSnippet]  # [{ productId, quantity, sellAsCase? }]
-    shippingAddress: Optional[AddressSnippet] = None
 
 
 # Discount Scheme Schemas (Business Segment / wholesaler)
-class SchemeResponse(BaseModel):
-    id: str = Field(alias="_id")
-    name: str
-    description: Optional[str] = None
-    discountType: str  # percentage | fixed
-    discountValue: float
-    minOrderValue: float = 0
-    validFrom: Optional[str] = None
-    validUntil: Optional[str] = None
-    isActive: bool = True
-    applicableRoles: List[str] = ["wholesaler"]
-    code: Optional[str] = None
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Banner Schemas
-class BannerBase(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    imageUrl: str
-    displayOrder: Optional[int] = None
-    startDate: str
-    endDate: Optional[str] = None
-    isActive: bool = True
-    isPublished: bool = False
-    visibilityRules: List[VisibilityRuleSnippet] = []
-    userSegments: List[str] = ["all"]
-    linkUrl: Optional[str] = None
-    position: Optional[str] = None
-    targetAudience: Optional[str] = None
 
 
-class BannerCreate(BannerBase):
-    pass
 
 
-class BannerUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    displayOrder: Optional[int] = None
-    startDate: Optional[str] = None
-    endDate: Optional[str] = None
-    isActive: Optional[bool] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    isPublished: Optional[bool] = None
-    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
-    userSegments: Optional[List[str]] = None
-    linkUrl: Optional[str] = None
 
 
-class BannerResponse(BannerBase):
-    id: str = Field(alias="_id")
-    createdAt: str
-    updatedAt: str
-    user: Optional[UserSnippet] = None
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Brand Schemas
 
-class BrandResponse(BaseModel):
-    id: str = Field(alias="_id")
-    name: str
-    slug: str
-    logoUrl: Optional[str] = None
-    showInMobileHomepage: bool = False
-    isActive: bool = True
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-
-class BrandCreate(BaseModel):
-    name: str
-    logoUrl: Optional[str] = ""
-    showInMobileHomepage: bool = False
-    isActive: Optional[bool] = True
-    isActive: Optional[bool] = True
 
 
-class BrandUpdate(BaseModel):
-    name: Optional[str] = None
-    logoUrl: Optional[str] = None
-    showInMobileHomepage: Optional[bool] = None
-    isActive: Optional[bool] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    isActive: Optional[bool] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
+
 
 
 # Auth Schemas
-class LoginRequest(BaseModel):
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
-    password: str
-
-    @model_validator(mode="after")
-    def validate_phone_or_email(self):
-        # At least one of email or phone must be provided
-        if not self.email and not self.phone:
-            raise ValueError("Either email or phone must be provided")
-        return self
 
 
-class RegisterRequest(BaseModel):
-    # name and email are Optional at the API level to support the checkout
-    # registration flow (which only requires phone + password).
-    # The regular Create Account pages enforce name & email via frontend validation.
-    name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    password: str
-    phone: str  # Always mandatory
-    role: UserRole = UserRole.CUSTOMER  # Default to customer
-    companyName: Optional[str] = None
-    address: Optional[AddressSnippet] = None
-    msg91Token: Optional[str] = None  # Token from MSG91 Widget/SDK
-    otp: Optional[str] = None
-    deviceId: Optional[str] = None
 
 
-class AuthResponse(BaseModel):
-    token: str
-    refreshToken: Optional[str] = None
-    sessionId: Optional[str] = None
-    user: UserResponse
-    message: Optional[str] = None
 
 
 # Contact Schemas
@@ -1978,563 +1765,84 @@ class Address(BaseModel):
         return self.pincode or self.zipCode
 
 
-class SocialMedia(BaseModel):
-    instagram: Optional[str] = None
-    facebook: Optional[str] = None
-    twitter: Optional[str] = None
-    whatsapp: Optional[str] = None
-    youtube: Optional[str] = None
-    linkedin: Optional[str] = None
 
 
-class ContactBase(BaseModel):
-    addresses: Optional[List[Address]] = None  # Up to 2 addresses
-    phoneNumbers: Optional[List[str]] = None  # Up to 3 phone numbers
-    email: Optional[str] = None
-    description: Optional[str] = None
-    isActive: bool = True
-    displayOrder: Optional[int] = None
-    socialMedia: Optional[SocialMedia] = None
-
-    @field_validator("addresses")
-    @classmethod
-    def validate_addresses(cls, v):
-        if v and len(v) > 2:
-            raise ValueError("Maximum 2 addresses allowed")
-        return v
-
-    @field_validator("phoneNumbers")
-    @classmethod
-    def validate_phone_numbers(cls, v):
-        if v and len(v) > 3:
-            raise ValueError("Maximum 3 phone numbers allowed")
-        return v
-
-    @field_validator("email")
-    @classmethod
-    def validate_email(cls, v):
-        if v is None or v == "":
-            return None  # Allow None or empty string
-        # Validate email format if value is provided
-        import re
-
-        email_pattern = r"^[^\s@]+@[^\s@]+\.[^\s@]+$"
-        if not re.match(email_pattern, v):
-            raise ValueError("Invalid email format")
-        return v
 
 
-class ContactCreate(ContactBase):
-    pass
 
 
-class ContactUpdate(BaseModel):
-    addresses: Optional[List[Address]] = None
-    phoneNumbers: Optional[List[str]] = None
-    email: Optional[str] = None
-    description: Optional[str] = None
-    isActive: Optional[bool] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    displayOrder: Optional[int] = None
-    socialMedia: Optional[SocialMedia] = None
 
 
-class ContactResponse(ContactBase):
-    id: str = Field(alias="_id")
-    createdAt: str
-    updatedAt: str
-    user: Optional[UserSnippet] = None
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Support Ticket Schemas
-class SupportTicketBase(BaseModel):
-    name: str
-    email: str
-    phone: str
-    company: Optional[str] = None
-    subject: str
-    description: str
-    category: str = "general"
-    priority: str = "medium"
-    attachments: Optional[List[str]] = None
-    externalId: Optional[str] = Field(default=None, alias="externalId")
 
 
-class SupportTicketCreate(SupportTicketBase):
-    pass
 
 
-class SupportTicketUpdate(BaseModel):
-    status: Optional[str] = None  # open, in_progress, resolved, closed
-    priority: Optional[str] = None
-    assignedTo: Optional[str] = None
 
 
-class TicketResponseCreate(BaseModel):
-    message: str
-    attachments: Optional[List[str]] = None
 
 
-class SupportTicketInternal(SupportTicketBase):
-    model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    id: str = Field(alias="_id")
-    ticketNumber: str
-    user: Optional[str] = None
-    status: str
-    assignedTo: Optional[str] = None
-    responses: Optional[List[Any]] = None
-    resolvedAt: Optional[str] = None
-    closedAt: Optional[str] = None
-    createdAt: str
-    updatedAt: str
-    externalId: Optional[str] = None
 
 
-class SupportTicketResponse(SupportTicketBase):
-    id: str = Field(alias="_id")
-    ticketNumber: str
-    user: Optional[UserSnippet] = None
-    status: str
-    assignedTo: Optional[UserSnippet] = None
-    responses: Optional[List[Any]] = None
-    resolvedAt: Optional[str] = None
-    closedAt: Optional[str] = None
-    createdAt: str
-    updatedAt: str
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Delivery Charge Schemas
-class DeliveryChargeBase(BaseModel):
-    pincode: str
-    state: str
-    city: Optional[str] = ""
-    district: str
-    charge: Optional[float] = None
-    minCartValue: Optional[float] = None
-    applyDefaultCharge: Optional[bool] = False
-    tiers: Optional[List[DeliveryChargeTier]] = None
-    serviceableForCustomer: Optional[bool] = False
-
-    serviceableForWholesaler: Optional[bool] = False
-    isActive: Optional[bool] = True
-    description: Optional[str] = None
-    locationId: Optional[int] = None  # Unique ID for state-district-city (for backward compatibility)
-    urgentDeliveryAvailable: Optional[bool] = False
-    urgentDeliveryCharge: Optional[float] = None
 
 
-class DeliveryChargeCreate(DeliveryChargeBase):
-    pass
 
 
-class DeliveryChargeUpdate(BaseModel):
-    pincode: Optional[str] = None
-    state: Optional[str] = None
-    city: Optional[str] = None
-    district: Optional[str] = None
-    charge: Optional[float] = None
-    minCartValue: Optional[float] = None
-    applyDefaultCharge: Optional[bool] = None
-    tiers: Optional[List[DeliveryChargeTier]] = None
-    serviceableForCustomer: Optional[bool] = None
-
-    serviceableForWholesaler: Optional[bool] = None
-    isActive: Optional[bool] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    description: Optional[str] = None
 
 
-class DeliveryChargeResponse(DeliveryChargeBase):
-    id: str = Field(alias="_id")
-    locationId: Optional[int] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Default Delivery Charge Schema
-class DeliveryTier(BaseModel):
-    maxAmount: Union[float, str]  # Can be a number or "Infinity"
-    charge: float
 
 
-class DefaultDeliveryChargeBase(BaseModel):
-    tiers: List[DeliveryTier]
-    applicableToWholesaler: bool = True
-    deliveryChargeGst: bool = False
-    deliveryChargeGstPercentage: float = 18.0
-
-    isActive: bool = True
-    urgentDeliveryCharge: Optional[float] = None
 
 
-class DefaultDeliveryChargeCreate(DefaultDeliveryChargeBase):
-    pass
 
 
-class DefaultDeliveryChargeResponse(DefaultDeliveryChargeBase):
-    id: str = Field(alias="_id")
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Order Feedback Schemas
-class OrderFeedbackBase(BaseModel):
-    orderId: Optional[str] = None
-    rating: int  # 1-5
-    comment: Optional[str] = None
-    deliveryRating: Optional[int] = None  # 1-5
-    deliveryComment: Optional[str] = None
-    feedbackType: str = "order"  # "order" or "general"
 
 
-class OrderFeedbackCreate(OrderFeedbackBase):
-    pass
 
 
-class OrderFeedbackResponse(OrderFeedbackBase):
-    id: str = Field(alias="_id")
-    userId: str
-    createdAt: str
-    updatedAt: str
-    user: Optional[UserSnippet] = None
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Coach Mark Schemas
-class CoachMarkBase(BaseModel):
-    anchorId: str
-    title: str
-    description: str
-    screenName: Optional[str] = None
-    sequenceOrder: Optional[int] = None
-    isActive: bool = True
 
 
-class CoachMarkCreate(CoachMarkBase):
-    pass
 
 
-class CoachMarkUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    sequenceOrder: Optional[int] = None
-    isActive: Optional[bool] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
 
 
-class CoachMarkResponse(CoachMarkBase):
-    id: str = Field(alias="_id")
-    createdAt: str
-    updatedAt: str
-    user: Optional[UserSnippet] = None
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Search Tag Schemas
-class SearchTagBase(BaseModel):
-    tagId: Optional[str] = None
-    name: str
-    type: Literal["Occasion", "Intent", "Recipient"]
-    isActive: bool = True
-    categories: Optional[List[str]] = []
-    subCategories: Optional[List[str]] = []
-    brands: Optional[List[str]] = []
-    collections: Optional[List[str]] = []
-    productIds: Optional[List[str]] = []
-    excludedProductIds: Optional[List[str]] = []
 
 
-class SearchTagCreate(SearchTagBase):
-    pass
 
 
-class SearchTagUpdate(BaseModel):
-    name: Optional[str] = None
-    type: Optional[Literal["Occasion", "Intent", "Recipient"]] = None
-    isActive: Optional[bool] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    categories: Optional[List[str]] = None
-    subCategories: Optional[List[str]] = None
-    brands: Optional[List[str]] = None
-    collections: Optional[List[str]] = None
-    productIds: Optional[List[str]] = None
-    excludedProductIds: Optional[List[str]] = None
 
 
-class SearchTagResponse(SearchTagBase):
-    id: str = Field(alias="_id")
-    createdAt: str
-    updatedAt: str
-    user: Optional[UserSnippet] = None
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Collection Schemas
-class CollectionBase(BaseModel):
-    name: str
-    description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    isActive: bool = True
-    displayOrder: Optional[int] = None
-    productIds: List[str] = []
-    visiblePages: List[str] = ["Home"]
-    userSegments: List[str] = ["all"]
-    visibilityRules: List[VisibilityRuleSnippet] = []
 
 
-class CollectionCreate(CollectionBase):
-    pass
 
 
-class CollectionUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    isActive: Optional[bool] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    isEmailVerified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    sellerPermissions: Optional[SellerPermissions] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    displayOrder: Optional[int] = None
-    productIds: Optional[List[str]] = None
-    visiblePages: Optional[List[str]] = None
-    userSegments: Optional[List[str]] = None
-    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
 
 
-class CollectionResponse(CollectionBase):
-    id: str = Field(alias="_id")
-    createdAt: str
-    updatedAt: str
-    user: Optional[UserSnippet] = None
-
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
 # Referral Schemas
-class ReferralSegmentSetting(BaseModel):
-    segment: str  # "retail" or "business"
-    discountType: DiscountType = DiscountType.PERCENTAGE
-    discountValue: float = 0
-    isActive: bool = False
 
 
-class ReferralSettingsResponse(BaseModel):
-    retail: ReferralSegmentSetting
-    business: ReferralSegmentSetting
 
 class PaginatedUsersResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')

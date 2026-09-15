@@ -1,3 +1,4 @@
+import logging
 from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse, AvailabilityRequestResponse, AvailabilityRequestListResponse
@@ -181,8 +182,8 @@ async def fulfill_availability_request(
                         r = await push_notification_service.send_to_user(ev_user_id, notification_payload)
                         r_res = PushNotificationResult.model_validate(r)
                         notify_push += (r_res.deliveredCount if r_res.deliveredCount is not None else 0)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logging.warning("Background task failed", exc_info=e)
                 if ev_email:
                     notify_email_list.append(ev_email)
                 # Mark as notified
@@ -190,8 +191,8 @@ async def fulfill_availability_request(
                     ev_id = str(event.id if event.id is not None else "")
                     if ev_id:
                         await tracking_storage.update(ev_id, {"notified": True})
-                except Exception:
-                    pass
+                except Exception as e:
+                    logging.warning("Background task failed", exc_info=e)
         except Exception as e:
             logger.warning("Could not notify 'Notify Me' users for product %s at %s: %s", product_id, pincode, e)
 

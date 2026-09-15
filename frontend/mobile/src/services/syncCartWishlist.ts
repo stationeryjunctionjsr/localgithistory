@@ -1,3 +1,4 @@
+import Toast from 'react-native-toast-message';
 import api from '../api/client';
 import { getGuestCart, getGuestWishlist, clearGuestCart, clearGuestWishlist } from './guestStore';
 
@@ -32,8 +33,9 @@ export async function syncGuestDataToBackend(): Promise<void> {
     } else if (guestCart.length > 0) {
       await clearGuestCart();
     }
-  } catch {
-    // ignore
+  } catch (e: any) {
+    console.warn('Sync failed entirely', e);
+    Toast.show({ type: 'error', text1: 'Sync Error', text2: 'Sync failed entirely' });
   }
 
   // ── Wishlist ──────────────────────────────────────────────────────
@@ -56,7 +58,8 @@ export async function syncGuestDataToBackend(): Promise<void> {
     } else if (guestWishlist.length > 0) {
       await clearGuestWishlist();
     }
-  } catch {
-    // ignore
+  } catch (e: any) {
+    console.warn('Sync failed entirely', e);
+    Toast.show({ type: 'error', text1: 'Sync Error', text2: 'Sync failed entirely' });
   }
 }

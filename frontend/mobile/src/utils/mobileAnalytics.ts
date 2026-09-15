@@ -82,9 +82,7 @@ export async function storeDeepLinkAttribution(url: string): Promise<void> {
     if (Object.keys(data).length > 0) {
       await AsyncStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(data));
     }
-  } catch {
-    // Non-critical
-  }
+  } catch (e: any) { console.warn("Background task failed", e); }
 }
 
 export async function getStoredAttribution(): Promise<AttributionData | null> {
@@ -99,7 +97,7 @@ export async function getStoredAttribution(): Promise<AttributionData | null> {
 export async function clearAttribution(): Promise<void> {
   try {
     await AsyncStorage.removeItem(ATTRIBUTION_KEY);
-  } catch {}
+  } catch (e: any) { console.warn('Background task failed', e); }
 }
 
 // ── Device info ───────────────────────────────────────────────────────────────
@@ -132,9 +130,7 @@ export async function trackEvent(event: MobileAnalyticsEvent): Promise<void> {
     };
 
     await api.post('/analytics/events', payload);
-  } catch {
-    // Analytics failures are non-critical; silently ignore
-  }
+  } catch (e: any) { console.warn("Background task failed", e); }
 }
 
 // ── Convenience wrappers (mirrors web GTM dataLayer pushes) ──────────────────
@@ -206,7 +202,7 @@ export const trackAdClick = async (adId: string, url: string, platform: string) 
       event_type: 'click',
       platform,
     });
-  } catch {}
+  } catch (e: any) { console.warn('Background task failed', e); }
 };
 
 export const trackAdConversion = async (
@@ -227,5 +223,5 @@ export const trackAdConversion = async (
       value,
       currency,
     });
-  } catch {}
+  } catch (e: any) { console.warn('Background task failed', e); }
 };

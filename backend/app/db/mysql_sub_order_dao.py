@@ -1,3 +1,4 @@
+import logging
 """
 MySQL DAO for sub-orders.
 Fully normalized storage: no doc JSON.

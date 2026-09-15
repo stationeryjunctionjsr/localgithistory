@@ -506,9 +506,7 @@ export default function Checkout() {
           }));
           if (res.data.state) fetchMobileDistricts(res.data.state);
         }
-      } catch {
-        // silently ignore — user can still select manually
-      } finally {
+      } catch (e: any) { console.warn(\'Background task failed\', e); } finally {
         setPincodeLoading(false);
       }
     };

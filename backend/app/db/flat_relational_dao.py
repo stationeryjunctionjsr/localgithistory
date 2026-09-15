@@ -1,3 +1,4 @@
+import logging
 """
 Generic Oracle DAO for parent-only tables: fixed columns + JSON columns for arrays/arbitrary dicts.
 No child tables. Implements same interface as FileStorage/OracleDocStore.
@@ -37,7 +38,8 @@ def _to_ts(val) -> Optional[datetime]:
         pass
     try:
         return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
-    except Exception:
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
         return None
 
 

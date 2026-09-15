@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 'use client';
 
 import React, {
@@ -131,9 +132,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
           if (token) {
             await api.patch('/users/me/preferences', { preferredLanguage: code });
           }
-        } catch {
-          // Non-critical — local preference is already saved
-        } finally {
+        } catch (e: any) { logger.warn("Background task failed", e); } finally {
           syncedRef.current = false;
         }
       }

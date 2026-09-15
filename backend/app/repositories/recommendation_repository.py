@@ -145,7 +145,8 @@ def _parse_order_date(order: Any) -> Optional[datetime]:
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt
-    except Exception:
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
         return None
 
 
@@ -971,7 +972,8 @@ class RecommendationRepository:
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt
-        except Exception:
+        except Exception as e:
+            logging.warning("Background task failed", exc_info=e)
             return None
 
     async def _derive_neglected_subcats(self, user_id: str, days: int) -> list:

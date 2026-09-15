@@ -512,8 +512,8 @@ async def create_order(
                             if now > due_date:
                                 has_overdue = True
                                 break
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logging.warning("Background task failed", exc_info=e)
         if has_overdue:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1754,8 +1754,8 @@ async def create_order(
                     effective_role,
                     subtotal,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logging.warning("Background task failed", exc_info=e)
 
             for idx, (seller_id, items_group) in enumerate(groups.items()):
                 sub_number = sub_order_repository._generate_sub_order_number(parent_order_number, idx)
@@ -2641,8 +2641,8 @@ async def valet_response(
                 )
         except HTTPException:
             raise
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning("Background task failed", exc_info=e)
 
     now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
     valet_id = str(current_user.id) if current_user.role == "valet" else str((order.pending_valet_id or ""))

@@ -1,3 +1,4 @@
+import logging
 """
 MySQL DAO for sj_seller_requests. Implements FileStorage-like interface.
 """
@@ -93,8 +94,8 @@ class MySQLSellerRequestDAO:
             if (resp["createdAt"] if "createdAt" in resp else None):
                 try:
                     created_at = datetime.fromisoformat(resp["createdAt"].replace("Z", "+00:00"))
-                except:
-                    pass
+                except Exception as e:
+                    logging.warning("Background task failed", exc_info=e)
             if not created_at:
                 created_at = now_utc()
             await session.execute(
@@ -165,7 +166,8 @@ class MySQLSellerRequestDAO:
                 return None
             try:
                 return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
-            except:
+            except Exception as e:
+                logging.warning("Background task failed", exc_info=e)
                 return None
 
         async with factory() as session:
@@ -231,7 +233,8 @@ class MySQLSellerRequestDAO:
                 return None
             try:
                 return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
-            except:
+            except Exception as e:
+                logging.warning("Background task failed", exc_info=e)
                 return None
 
         async with factory() as session:

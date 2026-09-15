@@ -1,3 +1,4 @@
+import logging
 """
 OCI Object Storage configuration. Bucket is private; use PAR/signed URLs for read access.
 """

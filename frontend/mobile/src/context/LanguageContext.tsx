@@ -60,9 +60,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
           setLocaleState(code);
           applyRTL(code);
         }
-      } catch {
-        // fall back to default locale on storage error
-      }
+      } catch (e: any) { console.warn("Background task failed", e); }
     })();
   }, [applyRTL]);
 
@@ -89,16 +87,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
       try {
         await AsyncStorage.setItem(LOCALE_STORAGE_KEY, code);
-      } catch {
-        // ignore storage error
-      }
+      } catch (e: any) { console.warn("Background task failed", e); }
 
       if (user) {
         try {
           await api.patch('/users/me/preferences', { preferredLanguage: code });
-        } catch {
-          // non-critical — preference will sync on next successful request
-        }
+        } catch (e: any) { console.warn("Background task failed", e); }
       }
     },
     [user, applyRTL]

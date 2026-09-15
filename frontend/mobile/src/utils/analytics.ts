@@ -24,9 +24,7 @@ export const recordEvent = async (event: AnalyticsEvent) => {
       device: event.device || buildDevice(),
     };
     await api.post('/analytics/events', payload);
-  } catch (err) {
-    // ignore analytics failures
-  }
+  } catch (e: any) { console.warn("Background task failed", e); }
 };
 
 export const trackError = async (error: {
@@ -42,9 +40,7 @@ export const trackError = async (error: {
       // sessionId management might be different on mobile, but for now we look in SecureStore if needed
       // but let's just send the message for now
     });
-  } catch (err) {
-    // ignore error reporting failures
-  }
+  } catch (e: any) { console.warn("Background task failed", e); }
 };
 
 export interface RecommendationEventPayload {

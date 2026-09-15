@@ -1,3 +1,4 @@
+import logging
 """
 MySQL DAO for sj_sessions. Implements FileStorage-like interface for 'sessions'.
 """
@@ -19,7 +20,8 @@ def _to_ts(value: Optional[str]) -> Optional[datetime]:
         return None
     try:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except Exception:
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
         return None
 
 
@@ -247,8 +249,8 @@ class MySQLSessionDAO:
                         {"now": now, "id": sid},
                     )
                 await session.commit()
-        except Exception:
-            pass  # Fire-and-forget — don't break the request on touch failure
+        except Exception as e:
+            logging.warning("Background task failed", exc_info=e)  # Fire-and-forget — don't break the request on touch failure
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()

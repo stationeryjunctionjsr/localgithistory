@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from typing import Optional
@@ -74,8 +75,8 @@ async def create_category_tag(tag: CategoryTagBase, current_user: dict = Depends
             cache.invalidate(get_public_categories)
             cache.invalidate(get_tag_categories)
             cache.invalidate(get_tag_brands)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning("Background task failed", exc_info=e)
         return new_tag
     except HTTPException:
         raise
@@ -120,8 +121,8 @@ async def update_category_tag(
             cache.invalidate(get_public_categories)
             cache.invalidate(get_tag_categories)
             cache.invalidate(get_tag_brands)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning("Background task failed", exc_info=e)
         return updated_tag
     except HTTPException:
         raise
@@ -146,8 +147,8 @@ async def hide_category_tag(tag_id: str, current_user: dict = Depends(require_su
             cache.invalidate(get_public_categories)
             cache.invalidate(get_tag_categories)
             cache.invalidate(get_tag_brands)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning("Background task failed", exc_info=e)
         return {"message": "Category tag hidden successfully"}
     except HTTPException:
         raise

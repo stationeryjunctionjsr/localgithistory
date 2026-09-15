@@ -1,3 +1,4 @@
+import logging
 from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
@@ -62,8 +63,8 @@ def _invalidate_brand_caches():
         from app.routers.categories import get_tag_brands
 
         cache.invalidate(get_tag_brands)
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning("Background task failed", exc_info=e)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=BrandResponse)

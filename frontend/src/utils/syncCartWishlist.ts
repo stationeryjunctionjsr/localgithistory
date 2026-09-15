@@ -42,6 +42,7 @@ export async function syncGuestDataToBackend(): Promise<void> {
     }
   } catch (e) {
     logger.error("Cart sync failed entirely", e);
+    toast.warn("Your cart could not be synchronized");
   }
 
   // ── Wishlist ──────────────────────────────────────────────────────
@@ -79,6 +80,7 @@ export async function syncGuestDataToBackend(): Promise<void> {
     }
   } catch (e) {
     logger.error("Wishlist sync failed entirely", e);
+    toast.warn("Your wishlist could not be synchronized");
   }
 
   if (typeof window !== 'undefined') {

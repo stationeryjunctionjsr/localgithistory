@@ -1,3 +1,4 @@
+import { logger } from "@/utils/logger";
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -82,9 +83,7 @@ export default function DeliverySlotsPage() {
       const res = await api.get('/delivery-charges/default');
       setUrgentDeliveryCharge(res.data?.urgentDeliveryCharge?.toString() ?? '');
       setDefaultChargeId(res.data?._id ?? null);
-    } catch {
-      // Default charge may not exist yet
-    }
+    } catch (e: any) { logger.warn("Background task failed", e); }
   };
 
   const handleSaveUrgentCharge = async () => {

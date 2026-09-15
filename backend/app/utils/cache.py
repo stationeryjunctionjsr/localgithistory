@@ -1,3 +1,4 @@
+import logging
 """
 Lightweight in-memory TTL cache for the backend.
 
@@ -77,8 +78,8 @@ class InMemoryTTLCache:
                 if cache_key in self._inflight:
                     try:
                         return await asyncio.shield(self._inflight[cache_key])
-                    except Exception:
-                        pass  # fallthrough to fetch fresh
+                    except Exception as e:
+                        logging.warning("Background task failed", exc_info=e)  # fallthrough to fetch fresh
 
                 loop = asyncio.get_event_loop()
                 future: asyncio.Future = loop.create_future()

@@ -296,9 +296,7 @@ function HomeInner() {
         const readIds: string[] = raw ? JSON.parse(raw) : [];
         const notifs = response.data || [];
         setUnreadNotifCount(notifs.filter((n: any) => !readIds.includes(n._id)).length);
-      } catch {
-        // non-critical; leave badge at 0
-      }
+      } catch (e: any) { console.warn(\'Background task failed\', e); }
     })();
     return () => { cancelled = true; };
   }, []);

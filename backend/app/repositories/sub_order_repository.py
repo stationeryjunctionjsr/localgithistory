@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -118,7 +119,7 @@ class SubOrderRepository:
                     if "deliveredAt" not in commission_fields:
                         update_dict.setdefault("deliveredAt", datetime.now(timezone.utc).isoformat())
                 except Exception as e:
-                    pass
+                    logging.warning("Background task failed", exc_info=e)
 
         return await self.storage.update(id, update_dict)
 

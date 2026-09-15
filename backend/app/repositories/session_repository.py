@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 
@@ -98,8 +99,8 @@ class SessionRepository:
             for s in all_sessions:
                 try:
                     await self.storage.delete(s.id)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logging.warning("Background task failed", exc_info=e)
 
 
 session_repository = SessionRepository()
