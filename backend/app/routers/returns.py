@@ -31,16 +31,100 @@ async def populate_return_request(request: Any) -> Dict:
     populated_items = []
     items_list = req_model.items or []
     for item in items_list:
-        pid = getattr(item, "product_id", getattr(item, "productId", None))
-        if pid is None and isinstance(item, dict):
+        pid = None
+        if isinstance(item, dict):
             pid = item["product_id"] if "product_id" in item else (item["productId"] if "productId" in item else None)
-        product = await product_repository.findById(pid) if pid else None
-        item_dict = item.model_dump(by_alias=True) if hasattr(item, "model_dump") else (dict(item) if isinstance(item, dict) else item.__dict__)
-        populated_items.append(
-            {**item_dict, "product": product.model_dump(by_alias=True) if hasattr(product, "model_dump") else (product if product else {"_id": pid, "name": "Product not found"})}
-        )
+        else:
+            try:
+                pid = item.product_id
+            except AttributeError:
+                try:
+                    pid = item.productId
+                except AttributeError:
+                    pass
 
-    base_dict = request if isinstance(request, dict) else (request.model_dump(by_alias=True) if hasattr(request, "model_dump") else request.__dict__)
+        product = await product_repository.findById(pid) if pid else None
+
+        if isinstance(item, dict):
+            item_dict = item.copy()
+        else:
+            item_dict = {}
+            for f in item.model_fields_set:
+                match f:
+                    case "productId": item_dict[f] = item.productId
+                    case "product_id": item_dict[f] = item.product_id
+                    case "quantity": item_dict[f] = item.quantity
+                    case "sellAsCase": item_dict[f] = item.sellAsCase
+                    case "price": item_dict[f] = item.price
+                    case "mrp": item_dict[f] = item.mrp
+                    case "name": item_dict[f] = item.name
+                    case "image": item_dict[f] = item.image
+                    case "status": item_dict[f] = item.status
+                    case "reason": item_dict[f] = item.reason
+
+        if isinstance(product, dict):
+            prod_dict = product.copy()
+        elif product:
+            prod_dict = {}
+            for f in product.model_fields_set:
+                match f:
+                    case "id" | "_id": prod_dict["_id"] = product.id
+                    case "product_id" | "productId": prod_dict["productId"] = product.product_id
+                    case "product_id_formatted" | "productIdFormatted": prod_dict["productIdFormatted"] = product.product_id_formatted
+                    case "name": prod_dict["name"] = product.name
+                    case "description": prod_dict["description"] = product.description
+                    case "sku": prod_dict["sku"] = product.sku
+                    case "category": prod_dict["category"] = product.category
+                    case "sub_category" | "subCategory": prod_dict["subCategory"] = product.sub_category
+                    case "brand": prod_dict["brand"] = product.brand
+                    case "mrp": prod_dict["mrp"] = product.mrp
+                    case "mrp_per_case" | "mrpPerCase": prod_dict["mrpPerCase"] = product.mrp_per_case
+                    case "quantity_per_case" | "quantityPerCase": prod_dict["quantityPerCase"] = product.quantity_per_case
+                    case "stock": prod_dict["stock"] = product.stock
+                    case "rating": prod_dict["rating"] = product.rating
+                    case "reviews": prod_dict["reviews"] = product.reviews
+                    case "images": prod_dict["images"] = product.images
+                    case "videos": prod_dict["videos"] = product.videos
+                    case "is_active" | "isActive": prod_dict["isActive"] = product.is_active
+                    case "is_exclusive" | "isExclusive": prod_dict["isExclusive"] = product.is_exclusive
+                    case "collection": prod_dict["collection"] = product.collection
+                    case "tags": prod_dict["tags"] = product.tags
+                    case "variant_attributes" | "variantAttributes": prod_dict["variantAttributes"] = product.variant_attributes
+                    case "sellers": prod_dict["sellers"] = product.sellers
+                    case "variants": prod_dict["variants"] = product.variants
+                    case "details": prod_dict["details"] = product.details
+                    case "created_at" | "createdAt": prod_dict["createdAt"] = product.created_at
+                    case "updated_at" | "updatedAt": prod_dict["updatedAt"] = product.updated_at
+        else:
+            prod_dict = {"_id": pid, "name": "Product not found"}
+
+        populated_items.append({**item_dict, "product": prod_dict})
+
+    if isinstance(request, dict):
+        base_dict = request.copy()
+    else:
+        base_dict = {}
+        for f in request.model_fields_set:
+            match f:
+                case "id" | "_id": base_dict["_id"] = request.id
+                case "orderId": base_dict["orderId"] = request.orderId
+                case "userId": base_dict["userId"] = request.userId
+                case "valetId": base_dict["valetId"] = request.valetId
+                case "pendingValetId": base_dict["pendingValetId"] = request.pendingValetId
+                case "status": base_dict["status"] = request.status
+                case "items": base_dict["items"] = request.items
+                case "paymentMethod": base_dict["paymentMethod"] = request.paymentMethod
+                case "upiPaymentScreenshot": base_dict["upiPaymentScreenshot"] = request.upiPaymentScreenshot
+                case "notes": base_dict["notes"] = request.notes
+                case "deliveryCharge": base_dict["deliveryCharge"] = request.deliveryCharge
+                case "createdAt": base_dict["createdAt"] = request.createdAt
+                case "updatedAt": base_dict["updatedAt"] = request.updatedAt
+                case "sellerId": base_dict["sellerId"] = request.sellerId
+                case "deliverySlotId": base_dict["deliverySlotId"] = request.deliverySlotId
+                case "deliverySlotDate": base_dict["deliverySlotDate"] = request.deliverySlotDate
+                case "valetAssignedAt": base_dict["valetAssignedAt"] = request.valetAssignedAt
+                case "valetCascadeCount": base_dict["valetCascadeCount"] = request.valetCascadeCount
+                case "valetDeclineHistory": base_dict["valetDeclineHistory"] = request.valetDeclineHistory
     return {
         **base_dict,
         "user": {
@@ -486,10 +570,14 @@ async def valet_return_response(
             ret["valetDeclineHistory"] = history
             ret["pendingValetId"] = None
         else:
-            if hasattr(ret, "valetDeclineHistory"):
+            try:
                 ret.valetDeclineHistory = history
-            if hasattr(ret, "pendingValetId"):
+            except AttributeError:
+                pass
+            try:
                 ret.pendingValetId = None
+            except AttributeError:
+                pass
         
         from app.jobs.valet_timeout_job import _cascade_or_revert_return
         await _cascade_or_revert_return(ret)

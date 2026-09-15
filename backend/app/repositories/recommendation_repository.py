@@ -464,7 +464,7 @@ class RecommendationRepository:
                 continue
             # City filter: match against the order's delivery city (shippingAddress.city)
             if city_filter:
-                order_city = order.shippingAddress.city if getattr(order, "shippingAddress", None) and getattr(order.shippingAddress, "city", None) else ""
+                order_city = order.shippingAddress.city if order.shippingAddress is not None and order.shippingAddress.city is not None else ""
                 if not order_city or order_city.strip().lower() != city_filter:
                     continue
             pids_in_order = set()
@@ -545,7 +545,7 @@ class RecommendationRepository:
                 continue
             # City filter: match against the order's delivery city (shippingAddress.city)
             if city_filter:
-                order_city = order.shippingAddress.city if getattr(order, "shippingAddress", None) and getattr(order.shippingAddress, "city", None) else ""
+                order_city = order.shippingAddress.city if order.shippingAddress is not None and order.shippingAddress.city is not None else ""
                 if not order_city or order_city.strip().lower() != city_filter:
                     continue
             pids_in_order = set()
@@ -646,8 +646,8 @@ class RecommendationRepository:
                 continue
 
             shipping = order.shippingAddress
-            order_state = (shipping.state if shipping and getattr(shipping, "state", None) else "").strip()
-            order_city = (shipping.city if shipping and getattr(shipping, "city", None) else "").strip()
+            order_state = (shipping.state if shipping and shipping.state is not None else "").strip()
+            order_city = (shipping.city if shipping and shipping.city is not None else "").strip()
 
             # State / city filter
             if state_filter and order_state.lower() != state_filter:
@@ -694,7 +694,7 @@ class RecommendationRepository:
         if user_id:
             orders = await self.order_storage.findAll({"user": user_id})
             for o in orders:
-                for item in (o.items if getattr(o, "items", None) is not None else []):
+                for item in (o.items if o.items is not None else []):
                     pid = item.product or item.productId
                     if pid:
                         user_ordered.add(pid)
@@ -861,7 +861,7 @@ class RecommendationRepository:
         # 2. Count units purchased per subcategory (fallback to category) for this user
         subcat_counts = {}
         for o in user_orders:
-            for item in (o.items if getattr(o, "items", None) is not None else []):
+            for item in (o.items if o.items is not None else []):
                 pid = item.product or item.productId
                 if not pid: continue
                 p = product_by_id[pid] if pid in product_by_id else None
@@ -955,7 +955,7 @@ class RecommendationRepository:
                 created = self._parse_created_at(doc)
                 if created and created < cutoff:
                     continue
-                meta = doc.meta if getattr(doc, "meta", None) else {}
+                meta = doc.meta if doc.meta is not None else {}
                 pid = meta["productId"] if "productId" in meta else None
                 if pid and pid in pid_set:
                     scores[pid] = (scores[pid] if pid in scores else 0) + weight
@@ -989,7 +989,7 @@ class RecommendationRepository:
 
         subcat_counts = {}
         for o in orders:
-            for item in (o.items if getattr(o, "items", None) is not None else []):
+            for item in (o.items if o.items is not None else []):
                 pid = item.product or item.productId
                 if not pid:
                     continue

@@ -103,19 +103,19 @@ class ReturnRequestRepository:
         return_id = await self.generateReturnId()
         model.id = return_id
         model.returnId = return_id
-        if getattr(model, 'status', None) is None:
+        if model.status is None:
             model.status = "pending"
-        if getattr(model, 'valetCascadeCount', None) is None:
+        if model.valetCascadeCount is None:
             model.valetCascadeCount = 0
-        if getattr(model, 'valetDeclineHistory', None) is None:
+        if model.valetDeclineHistory is None:
             model.valetDeclineHistory = []
-        if getattr(model, 'deliveryCharge', None) is None:
+        if model.deliveryCharge is None:
             model.deliveryCharge = 0
         
         now_iso = datetime.utcnow().isoformat()
-        if getattr(model, 'createdAt', None) is None:
+        if model.createdAt is None:
             model.createdAt = now_iso
-        if getattr(model, 'updatedAt', None) is None:
+        if model.updatedAt is None:
             model.updatedAt = now_iso
 
         created_data = await self.storage.create(model)

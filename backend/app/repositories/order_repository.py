@@ -18,9 +18,9 @@ class OrderRepository:
         if user_role == "wholesaler":
             prefix = "ORDER-WH-"  # Business (wholesaler) orders
 
-        if hasattr(self.storage, "get_max_order_number_suffix"):
+        try:
             max_id = await self.storage.get_max_order_number_suffix(prefix)
-        else:
+        except AttributeError:
             # Generate incremental ID for each type
             all_orders = await self.storage.findAll()
             orders_of_type = [
@@ -51,9 +51,10 @@ class OrderRepository:
             return docs
 
     async def count(self, query: Optional[Dict] = None) -> int:
-        if hasattr(self.storage, "count"):
+        try:
             return await self.storage.count(query)
-        orders = await self.storage.findAll(query)
+        except AttributeError:
+            orders = await self.storage.findAll(query)
         return len(orders)
 
     async def countByUser(self, user_id: str) -> int:
@@ -100,7 +101,24 @@ class OrderRepository:
         if update_data.status == "cancelled" and update_data.cancelledAt is None:
             update_data.cancelledAt = datetime.now(timezone.utc).isoformat()
 
-        fields = {f: getattr(update_data, f) for f in update_data.model_fields_set}
+        fields = {}
+        for f in update_data.model_fields_set:
+            if f == "status": fields[f] = update_data.status
+            elif f == "shippedAt": fields[f] = update_data.shippedAt
+            elif f == "deliveredAt": fields[f] = update_data.deliveredAt
+            elif f == "paymentStatus": fields[f] = update_data.paymentStatus
+            elif f == "codPaymentReceived": fields[f] = update_data.codPaymentReceived
+            elif f == "codPaymentReceivedAt": fields[f] = update_data.codPaymentReceivedAt
+            elif f == "turnaroundHours": fields[f] = update_data.turnaroundHours
+            elif f == "cancelledAt": fields[f] = update_data.cancelledAt
+            elif f == "fulfillmentStatus": fields[f] = update_data.fulfillmentStatus
+            elif f == "shipping": fields[f] = update_data.shipping
+            elif f == "total": fields[f] = update_data.total
+            elif f == "assignedValet": fields[f] = update_data.assignedValet
+            elif f == "declineReason": fields[f] = update_data.declineReason
+            elif f == "pendingValetId": fields[f] = update_data.pendingValetId
+            elif f == "valetAssignedAt": fields[f] = update_data.valetAssignedAt
+            elif f == "cancelledBy": fields[f] = update_data.cancelledBy
         return await self.storage.update(id, fields)
 
     async def delete(self, id: str):

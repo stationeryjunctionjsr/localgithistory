@@ -187,8 +187,21 @@ class BannerRepository:
         if isinstance(update_data, dict):
             update_dict = update_data
         else:
-            for field in update_data.model_fields_set if hasattr(update_data, 'model_fields_set') else vars(update_data):
-                update_dict[field] = getattr(update_data, field)
+            for field in update_data.model_fields_set:
+                match field:
+                    case "title": update_dict["title"] = update_data.title
+                    case "description": update_dict["description"] = update_data.description
+                    case "imageUrl": update_dict["imageUrl"] = update_data.imageUrl
+                    case "linkUrl": update_dict["linkUrl"] = update_data.linkUrl
+                    case "displayOrder": update_dict["displayOrder"] = update_data.displayOrder
+                    case "startDate": update_dict["startDate"] = update_data.startDate
+                    case "endDate": update_dict["endDate"] = update_data.endDate
+                    case "isActive": update_dict["isActive"] = update_data.isActive
+                    case "isPublished": update_dict["isPublished"] = update_data.isPublished
+                    case "targetAudience": update_dict["targetAudience"] = update_data.targetAudience
+                    case "userSegments": update_dict["userSegments"] = update_data.userSegments
+                    case "visibilityRules": update_dict["visibilityRules"] = update_data.visibilityRules
+                    case "position": update_dict["position"] = update_data.position
         
         if "userSegments" in update_dict:
             segments = update_dict["userSegments"]

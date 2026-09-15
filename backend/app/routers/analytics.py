@@ -199,8 +199,11 @@ async def record_event(
     payload_items.append(EventPayloadItem(key="userId", value=str(user_id) if user_id else ""))
     payload_items.append(EventPayloadItem(key="sessionId", value=str(event.sessionId) if event.sessionId else ""))
     payload_items.append(EventPayloadItem(key="timestamp", value=str(event.timestamp) if event.timestamp else datetime.now(timezone.utc).isoformat()))
-    if getattr(event, "page", None):
-        payload_items.append(EventPayloadItem(key="page", value=str(event.page)))
+    try:
+        if event.page:
+            payload_items.append(EventPayloadItem(key="page", value=str(event.page)))
+    except AttributeError:
+        pass
 
     event_create = EventCreate(
         eventType=event.type,

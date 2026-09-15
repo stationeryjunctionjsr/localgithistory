@@ -13,9 +13,9 @@ class MySQLAdDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Ad:
-        return Ad(**self._row_to_dict_raw(row))
-    def _row_to_dict_raw(self, row) -> dict:
+    def _map_to_schema(self, row) -> Ad:
+        return Ad(**self._map_to_schema_raw(row))
+    def _map_to_schema_raw(self, row) -> dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -80,7 +80,7 @@ class MySQLAdDAO:
                     params,
                 )
             ).fetchall()
-        return [Ad.model_validate(self._row_to_dict(r) ) for r in rows]
+        return [Ad.model_validate(self._map_to_schema(r) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if "_id" in query:
@@ -100,7 +100,7 @@ class MySQLAdDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return Ad.model_validate(self._row_to_dict(row)) if row else None
+        return Ad.model_validate(self._map_to_schema(row)) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -123,7 +123,33 @@ class MySQLAdDAO:
             "meta_pixel_id": "meta_pixel_id", "notes": "notes", "launched_at": "launched_at"
         }
         for api_k, db_k in scalar_map.items():
-            val = getattr(data, api_k, None)
+            val = None
+            match api_k:
+                case "name": val = data.name if data.name is not None else None
+                case "platform": val = data.platform if data.platform is not None else None
+                case "objective": val = data.objective if data.objective is not None else None
+                case "status": val = data.status if data.status is not None else None
+                case "budget_daily": val = data.budget_daily if data.budget_daily is not None else None
+                case "budget_total": val = data.budget_total if data.budget_total is not None else None
+                case "currency": val = data.currency if data.currency is not None else None
+                case "start_date": val = data.start_date if data.start_date is not None else None
+                case "end_date": val = data.end_date if data.end_date is not None else None
+                case "target_url": val = data.target_url if data.target_url is not None else None
+                case "headline": val = data.headline if data.headline is not None else None
+                case "description": val = data.description if data.description is not None else None
+                case "image_url": val = data.image_url if data.image_url is not None else None
+                case "google_campaign_id": val = data.google_campaign_id if data.google_campaign_id is not None else None
+                case "google_ad_group_id": val = data.google_ad_group_id if data.google_ad_group_id is not None else None
+                case "meta_campaign_id": val = data.meta_campaign_id if data.meta_campaign_id is not None else None
+                case "meta_ad_set_id": val = data.meta_ad_set_id if data.meta_ad_set_id is not None else None
+                case "utm_source": val = data.utm_source if data.utm_source is not None else None
+                case "utm_medium": val = data.utm_medium if data.utm_medium is not None else None
+                case "utm_campaign": val = data.utm_campaign if data.utm_campaign is not None else None
+                case "google_conversion_id": val = data.google_conversion_id if data.google_conversion_id is not None else None
+                case "google_conversion_label": val = data.google_conversion_label if data.google_conversion_label is not None else None
+                case "meta_pixel_id": val = data.meta_pixel_id if data.meta_pixel_id is not None else None
+                case "notes": val = data.notes if data.notes is not None else None
+                case "launched_at": val = data.launched_at if data.launched_at is not None else None
             if val is not None:
                 cols.append(db_k)
                 vals.append(f":{api_k}")
@@ -137,7 +163,17 @@ class MySQLAdDAO:
         }
         if stats:
             for api_k, db_k in stats_map.items():
-                val = getattr(stats, api_k, None)
+                val = None
+                match api_k:
+                    case "impressions": val = stats.impressions if stats.impressions is not None else None
+                    case "clicks": val = stats.clicks if stats.clicks is not None else None
+                    case "leads": val = stats.leads if stats.leads is not None else None
+                    case "purchases": val = stats.purchases if stats.purchases is not None else None
+                    case "add_to_cart": val = stats.add_to_cart if stats.add_to_cart is not None else None
+                    case "conversions": val = stats.conversions if stats.conversions is not None else None
+                    case "conversion_value": val = stats.conversion_value if stats.conversion_value is not None else None
+                    case "ctr": val = stats.ctr if stats.ctr is not None else None
+                    case "cvr": val = stats.cvr if stats.cvr is not None else None
                 if val is not None:
                     cols.append(db_k)
                     vals.append(f":s_{api_k}")
@@ -190,7 +226,7 @@ class MySQLAdDAO:
             "add_to_cart": "add_to_cart", "conversions": "conversions", "conversion_value": "conversion_value",
             "ctr": "ctr", "cvr": "cvr"
         }
-        stats = merged.get("stats", {})
+        stats = merged["stats"] if "stats" in merged else {}
         for api_k, db_k in stats_map.items():
             if api_k in stats:
                 updates.append(f"{db_k} = :s_{api_k}")

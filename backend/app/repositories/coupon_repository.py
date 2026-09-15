@@ -1187,9 +1187,6 @@ class CouponRepository:
     async def get_active_coupons(self) -> List[Any]:
         """Get all active coupons with a short 60s cache"""
         now = datetime.now(timezone.utc)
-        if not hasattr(self, "_active_coupons_cache"):
-            self._active_coupons_cache = None
-            self._active_coupons_cache_time = None
 
         if (
             self._active_coupons_cache is not None

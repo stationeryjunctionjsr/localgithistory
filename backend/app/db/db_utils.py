@@ -21,11 +21,12 @@ def json_dumps(value: Any) -> Optional[str]:
 def json_loads(value: Any) -> Any:
     if value is None:
         return None
-    if hasattr(value, "read"):
-        try:
-            value = value.read()
-        except Exception:
-            return None
+    try:
+        value = value.read()
+    except AttributeError:
+        pass
+    except Exception:
+        return None
     if not isinstance(value, str):
         return value
     if value == "":

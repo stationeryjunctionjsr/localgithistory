@@ -18,7 +18,7 @@ from app.db.db_utils import now_utc
 def _to_ts(val):
     if val is None:
         return None
-    if hasattr(val, "isoformat"):
+    if not isinstance(val, str):
         return val
     try:
         return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
@@ -48,7 +48,7 @@ class MySQLSavedForLaterDAO:
         return [
             {
                 "productId": r[0],
-                "savedAt": r[1].isoformat() if hasattr(r[1], "isoformat") and r[1] else None,
+                "savedAt": r[1].isoformat() if r[1] and not isinstance(r[1], str) else None,
             }
             for r in rows
         ]
@@ -62,7 +62,7 @@ class MySQLSavedForLaterDAO:
         if not factory:
             return []
 
-        user_id = query.get("user") if query else None
+        user_id = (query["user"] if "user" in query else None) if query else None
         if user_id:
             items = await self._get_items_for_user(str(user_id))
             return [self._doc(str(user_id), items)]
@@ -77,7 +77,7 @@ class MySQLSavedForLaterDAO:
         return docs
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
-        user_id = query.get("user")
+        user_id = (query["user"] if "user" in query else None)
         if not user_id:
             return None
         items = await self._get_items_for_user(str(user_id))

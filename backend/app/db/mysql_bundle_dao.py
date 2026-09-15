@@ -46,8 +46,8 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
                         stmt,
                         {
                             "b_id": bundle_id,
-                            "p_id": p.get("productId") or p.get("product_id"),
-                            "qty": p.get("quantity", 1),
+                            "p_id": (p["productId"] if "productId" in p else None) or (p["product_id"] if "product_id" in p else None),
+                            "qty": p["quantity"] if "quantity" in p else 1,
                         },
                     )
             await session.commit()
@@ -55,43 +55,89 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
     async def findById(self, id: str) -> Optional[Dict]:
         doc = await super().findById(id)
         if doc:
-            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else getattr(doc, "id", None)))
+            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else doc.id))
         return doc
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         doc = await super().findOne(query)
         if doc:
-            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else getattr(doc, "id", None)))
+            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else doc.id))
         return doc
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         docs = await super().findAll(query)
         for doc in docs:
-            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else getattr(doc, "id", None)))
+            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else doc.id))
         return docs
 
     async def create(self, data: 'BundleInternalCreate') -> Dict:
-        data_dict = data.model_dump(exclude_unset=True)
-        items = data_dict.pop("items", [])
-        # Fallback to products if passed
-        if not items and "products" in data_dict:
-            items = data_dict.pop("products")
+        data_dict = {}
+        try:
+            if data.name is not None: data_dict["name"] = data.name
+        except AttributeError: pass
+        try:
+            if data.description is not None: data_dict["description"] = data.description
+        except AttributeError: pass
+        try:
+            if data.price is not None: data_dict["price"] = data.price
+        except AttributeError: pass
+        try:
+            if data.discountPercentage is not None: data_dict["discountPercentage"] = data.discountPercentage
+        except AttributeError: pass
+        try:
+            if data.isActive is not None: data_dict["isActive"] = data.isActive
+        except AttributeError: pass
+        try:
+            if data.salesCount is not None: data_dict["salesCount"] = data.salesCount
+        except AttributeError: pass
+
+        items = []
+        try:
+            if data.items is not None: items = data.items
+        except AttributeError: pass
+        if not items:
+            try:
+                if data.products is not None: items = data.products
+            except AttributeError: pass
+            
         doc = await super().create(data_dict)
-        await self._save_products((doc.external_id if doc.external_id is not None else getattr(doc, "id", None)), items)
-        doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else getattr(doc, "id", None)))
+        await self._save_products((doc.external_id if doc.external_id is not None else doc.id), items)
+        doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else doc.id))
         return doc
 
     async def update(self, id: str, update_data: 'BundleInternalUpdate') -> Optional[Dict]:
-        update_dict = update_data.model_dump(exclude_unset=True)
+        update_dict = {}
+        try:
+            if update_data.name is not None: update_dict["name"] = update_data.name
+        except AttributeError: pass
+        try:
+            if update_data.description is not None: update_dict["description"] = update_data.description
+        except AttributeError: pass
+        try:
+            if update_data.price is not None: update_dict["price"] = update_data.price
+        except AttributeError: pass
+        try:
+            if update_data.discountPercentage is not None: update_dict["discountPercentage"] = update_data.discountPercentage
+        except AttributeError: pass
+        try:
+            if update_data.isActive is not None: update_dict["isActive"] = update_data.isActive
+        except AttributeError: pass
+        try:
+            if update_data.salesCount is not None: update_dict["salesCount"] = update_data.salesCount
+        except AttributeError: pass
+
         items = None
-        if "items" in update_dict:
-            items = update_dict.pop("items")
-        elif "products" in update_dict:
-            items = update_dict.pop("products")
+        try:
+            if update_data.items is not None: items = update_data.items
+        except AttributeError: pass
+        if items is None:
+            try:
+                if update_data.products is not None: items = update_data.products
+            except AttributeError: pass
 
         doc = await super().update(id, update_dict)
         if doc:
             if items is not None:
-                await self._save_products((doc.external_id if doc.external_id is not None else getattr(doc, "id", None)), items)
-            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else getattr(doc, "id", None)))
+                await self._save_products((doc.external_id if doc.external_id is not None else doc.id), items)
+            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else doc.id))
         return doc

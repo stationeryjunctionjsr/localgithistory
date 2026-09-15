@@ -4,7 +4,7 @@ Assembles paymentEntries from child table; create/update write entries as separa
 """
 
 import secrets
-from datetime import datetime
+from datetime import datetime, date
 from typing import Dict
 from app.models.payment import Payment, List, Optional
 
@@ -19,7 +19,7 @@ from app.db.db_utils import now_utc
 def _to_ts(val):
     if val is None:
         return None
-    if hasattr(val, "isoformat"):
+    if isinstance(val, (datetime, date)):
         return val
     try:
         return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
@@ -32,11 +32,11 @@ def _entry_row_to_dict(entry_id, amount, payment_method, paid_at, image, notes, 
         "entryId": entry_id,
         "amount": float(amount) if amount is not None else 0,
         "paymentMethod": payment_method,
-        "paidAt": paid_at.isoformat() if hasattr(paid_at, "isoformat") and paid_at else None,
+        "paidAt": paid_at.isoformat() if isinstance(paid_at, (datetime, date)) and paid_at else None,
         "image": image,
         "notes": notes,
         "verified": bool(verified) if verified is not None else False,
-        "createdAt": created_at.isoformat() if hasattr(created_at, "isoformat") and created_at else None,
+        "createdAt": created_at.isoformat() if isinstance(created_at, (datetime, date)) and created_at else None,
     }
 
 
@@ -99,10 +99,10 @@ class MySQLPaymentDAO:
         where_clauses = []
         params = {}
         if query:
-            if query.get("orderId"):
+            if "orderId" in query and query["orderId"]:
                 where_clauses.append("order_id = :order_id")
                 params["order_id"] = query["orderId"]
-            if query.get("userId"):
+            if "userId" in query and query["userId"]:
                 where_clauses.append("user_id = :user_id")
                 params["user_id"] = query["userId"]
             if "allowed_order_ids" in query:
@@ -175,7 +175,7 @@ class MySQLPaymentDAO:
             row.payment_id = payment_id
             row.created_at = created_at
             row.updated_at = updated_at
-            entries = entries_by_payment.get(id_, [])
+            entries = entries_by_payment[id_] if id_ in entries_by_payment else []
             docs.append(_payment_row_to_dict(row, entries))
         return docs
 
@@ -228,7 +228,7 @@ class MySQLPaymentDAO:
         r.updated_at = updated_at
         async with factory() as session:
             entries_by_payment = await self._get_entries_for_payment_ids(session, [pid])
-        entries = entries_by_payment.get(pid, [])
+        entries = entries_by_payment[pid] if pid in entries_by_payment else []
         return _payment_row_to_dict(r, entries)
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
@@ -309,9 +309,19 @@ class MySQLPaymentDAO:
         # falling back to existing.
         merged = {}
         for k in ["orderId", "userId", "userIdFormatted", "customerName", "orderDate", "paymentMethod", "amountPaid", "amountRemaining", "totalAmount", "paymentId"]:
-            val = getattr(update_data, k, None)
+            if k == "orderId": val = update_data.orderId
+            elif k == "userId": val = update_data.userId
+            elif k == "userIdFormatted": val = update_data.userIdFormatted
+            elif k == "customerName": val = update_data.customerName
+            elif k == "orderDate": val = update_data.orderDate
+            elif k == "paymentMethod": val = update_data.paymentMethod
+            elif k == "amountPaid": val = update_data.amountPaid
+            elif k == "amountRemaining": val = update_data.amountRemaining
+            elif k == "totalAmount": val = update_data.totalAmount
+            elif k == "paymentId": val = update_data.paymentId
+            else: val = None
             if val is None:
-                val = existing.get(k)
+                val = existing[k] if k in existing else None
             merged[k] = val
 
         factory = self._factory()

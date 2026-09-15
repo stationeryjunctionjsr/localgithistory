@@ -58,7 +58,13 @@ class MySQLDocStore:
         return get_async_session_factory()
 
     def _row_to_dict(self, row) -> Dict:
-        doc = _parse_doc(getattr(row, self.doc_column, None))
+        if self.doc_column == "doc":
+            doc_val = row.doc if row.doc is not None else None
+        elif self.doc_column == "payload":
+            doc_val = row.payload if row.payload is not None else None
+        else:
+            doc_val = None
+        doc = _parse_doc(doc_val)
         doc["_db_id"] = str(row.id)
         if "_id" not in doc:
             doc["_id"] = str(row.id)
@@ -66,7 +72,7 @@ class MySQLDocStore:
         doc["updatedAt"] = row.updated_at.isoformat() if row.updated_at else _now_iso()
 
         # Read from row.used_count if available and not present in doc
-        if hasattr(row, "used_count") and row.used_count is not None:
+        if self._raw_table_name == "sj_coupons" and row.used_count is not None:
             if "usedCount" not in doc:
                 doc["usedCount"] = int(row.used_count)
 
@@ -168,7 +174,7 @@ class MySQLDocStore:
                         elif isinstance(v, dict) and any(
                             op in v for op in ("$in", "$nin", "$gt", "$gte", "$lt", "$lte", "$ne")
                         ):
-                            doc_val = d.get(k)
+                            doc_val = d[k] if k in d else None
                             for op, op_val in v.items():
                                 if op == "$in" and doc_val not in op_val:
                                     match = False
@@ -199,7 +205,7 @@ class MySQLDocStore:
                                     break
                             if not match:
                                 break
-                        elif d.get(k) != v:
+                        elif (d[k] if k in d else None) != v:
                             match = False
                             break
                     if match:
@@ -324,7 +330,13 @@ class MySQLDocStore:
             row = result.fetchone()
             if not row:
                 return None
-            doc = _parse_doc(getattr(row, self.doc_column, None))
+            if self.doc_column == "doc":
+                doc_val = row.doc if row.doc is not None else None
+            elif self.doc_column == "payload":
+                doc_val = row.payload if row.payload is not None else None
+            else:
+                doc_val = None
+            doc = _parse_doc(doc_val)
             doc.update(update_data)
             if "_id" in existing and not str(existing["_id"]).isdigit():
                 doc["_id"] = existing["_id"]

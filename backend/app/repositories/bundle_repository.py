@@ -85,7 +85,13 @@ class BundleRepository:
         if isinstance(data, dict):
             internal_data = BundleInternalCreate.model_validate(data)
         elif not isinstance(data, BundleInternalCreate):
-            fields = {f: getattr(data, f) for f in data.model_fields_set}
+            fields = {}
+            for f in data.model_fields_set:
+                match f:
+                    case "name": fields["name"] = data.name
+                    case "items": fields["items"] = data.items
+                    case "price": fields["price"] = data.price
+                    case "isActive": fields["isActive"] = data.isActive
             internal_data = BundleInternalCreate(**fields)
         else:
             internal_data = data
@@ -97,7 +103,13 @@ class BundleRepository:
         if isinstance(update_data, dict):
             internal_data = BundleInternalUpdate.model_validate(update_data)
         elif not isinstance(update_data, BundleInternalUpdate):
-            fields = {f: getattr(update_data, f) for f in update_data.model_fields_set}
+            fields = {}
+            for f in update_data.model_fields_set:
+                match f:
+                    case "name": fields["name"] = update_data.name
+                    case "items": fields["items"] = update_data.items
+                    case "price": fields["price"] = update_data.price
+                    case "isActive": fields["isActive"] = update_data.isActive
             internal_data = BundleInternalUpdate(**fields)
         else:
             internal_data = update_data

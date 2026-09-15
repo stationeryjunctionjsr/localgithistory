@@ -30,8 +30,11 @@ def _param(col: str) -> str:
 def _to_ts(val) -> Optional[datetime]:
     if val is None:
         return None
-    if hasattr(val, "isoformat"):
+    try:
+        val.isoformat
         return val
+    except AttributeError:
+        pass
     try:
         return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
     except Exception:
@@ -67,33 +70,44 @@ class FlatRelationalDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r) -> Any:
+    def _map_to_schema(self, r) -> Any:
         out = {"_id": str(r.id)}
         rev = {v: k for k, v in self.scalar_map.items()}
         for col, api_key in rev.items():
-            if not hasattr(r, col):
+            try:
+                val = r._mapping[col]
+            except KeyError:
                 continue
-            val = getattr(r, col)
             if val is None:
                 continue
             if api_key in self.bool_api_keys and val in (0, 1):
                 out[api_key] = bool(val)
-            elif hasattr(val, "isoformat") and not isinstance(val, str):
-                out[api_key] = val.isoformat()
+            elif not isinstance(val, str):
+                try:
+                    out[api_key] = val.isoformat()
+                except AttributeError:
+                    out[api_key] = val
             else:
                 out[api_key] = val
         for api_key, col in self.clob_map.items():
-            if not hasattr(r, col):
+            try:
+                val = r._mapping[col]
+            except KeyError:
                 continue
-            val = getattr(r, col)
             if val is not None:
                 parsed = json_loads(val)
                 if parsed is not None:
                     out[api_key] = parsed
-        if hasattr(r, "created_at") and r.created_at:
-            out["createdAt"] = r.created_at.isoformat()
-        if hasattr(r, "updated_at") and r.updated_at:
-            out["updatedAt"] = r.updated_at.isoformat()
+        try:
+            if r.created_at is not None:
+                out["createdAt"] = r.created_at.isoformat()
+        except AttributeError:
+            pass
+        try:
+            if r.updated_at is not None:
+                out["updatedAt"] = r.updated_at.isoformat()
+        except AttributeError:
+            pass
         return self.schema_cls(**out) if self.schema_cls else out
 
     def _doc_to_params(self, data: Dict, now: datetime) -> Dict:
@@ -101,7 +115,7 @@ class FlatRelationalDAO:
         if self.has_external_id:
             params["external_id"] = secrets.token_hex(16)
         for api_key, col in self.scalar_map.items():
-            val = data.get(api_key)
+            val = data[api_key] if api_key in data else None
             if val is None:
                 params[col] = None
                 continue
@@ -118,7 +132,7 @@ class FlatRelationalDAO:
             else:
                 params[col] = val
         for api_key, col in self.clob_map.items():
-            val = data.get(api_key)
+            val = data[api_key] if api_key in data else None
             params[col] = json_dumps(val) if val is not None else None
         return params
 
@@ -161,7 +175,7 @@ class FlatRelationalDAO:
                 text(f"SELECT {cols} FROM {self.table_name} WHERE {where_sql} ORDER BY id ASC"), params
             )
             rows = result.fetchall()
-        return [self._row_to_dict(r) for r in rows]
+        return [self._map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -179,7 +193,7 @@ class FlatRelationalDAO:
                 {"id": pk},
             )
             row = result.fetchone()
-        return self._row_to_dict(row) if row else None
+        return self._map_to_schema(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -262,7 +276,7 @@ class FlatRelationalDAO:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d.get("_id")):
+            if await self.delete(d["_id"] if "_id" in d else None):
                 deleted += 1
         return {"deletedCount": deleted}
 

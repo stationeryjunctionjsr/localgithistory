@@ -14,7 +14,7 @@ class MySQLSellerPayoutDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, row) -> Dict:
+    def _map_row(self, row) -> Dict:
         return {
             "_id": str(row.id),
             "id": row.id,
@@ -68,7 +68,7 @@ class MySQLSellerPayoutDAO:
                 )
             ).fetchall()
         
-        docs = [self._row_to_dict(r) for r in rows]
+        docs = [self._map_row(r) for r in rows]
         for d in docs:
             d.subOrderIds = await self._fetch_sub_orders(d.id)
         return docs
@@ -94,7 +94,7 @@ class MySQLSellerPayoutDAO:
         
         if not row:
             return None
-        doc = self._row_to_dict(row)
+        doc = self._map_row(row)
         doc["subOrderIds"] = await self._fetch_sub_orders(doc["id"])
         return doc
 
@@ -107,16 +107,26 @@ class MySQLSellerPayoutDAO:
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
 
-        scalar_map = {
-            "sellerId": "seller_id", "amount": "amount", "periodStart": "period_start", 
-            "periodEnd": "period_end", "notes": "notes"
-        }
-        for api_k, db_k in scalar_map.items():
-            val = getattr(data, api_k, None)
-            if val is not None:
-                cols.append(db_k)
-                vals.append(f":{api_k}")
-                params[api_k] = val
+        if data.sellerId is not None:
+            cols.append("seller_id")
+            vals.append(":sellerId")
+            params["sellerId"] = data.sellerId
+        if data.amount is not None:
+            cols.append("amount")
+            vals.append(":amount")
+            params["amount"] = data.amount
+        if data.periodStart is not None:
+            cols.append("period_start")
+            vals.append(":periodStart")
+            params["periodStart"] = data.periodStart
+        if data.periodEnd is not None:
+            cols.append("period_end")
+            vals.append(":periodEnd")
+            params["periodEnd"] = data.periodEnd
+        if data.notes is not None:
+            cols.append("notes")
+            vals.append(":notes")
+            params["notes"] = data.notes
 
         sub_orders = (data.subOrderIds if data.subOrderIds is not None else [])
 
@@ -144,23 +154,23 @@ class MySQLSellerPayoutDAO:
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
 
-        scalar_map = {
-            "sellerId": "seller_id", "amount": "amount", "periodStart": "period_start", 
-            "periodEnd": "period_end", "notes": "notes"
-        }
-        for api_k, db_k in scalar_map.items():
-            val = getattr(data, api_k, None)
-            if val is not None:
+        def _handle_field(api_k, db_k, new_val):
+            if new_val is not None:
                 updates.append(f"{db_k} = :{api_k}")
-                params[api_k] = val
+                params[api_k] = new_val
             else:
-                # Fallback to existing
-                fallback_val = existing.get(api_k)
+                fallback_val = existing[api_k] if api_k in existing else None
                 if fallback_val is not None:
                     updates.append(f"{db_k} = :{api_k}")
                     params[api_k] = fallback_val
 
-        sub_orders = data.subOrderIds if data.subOrderIds is not None else existing.get("subOrderIds")
+        _handle_field("sellerId", "seller_id", data.sellerId)
+        _handle_field("amount", "amount", data.amount)
+        _handle_field("periodStart", "period_start", data.periodStart)
+        _handle_field("periodEnd", "period_end", data.periodEnd)
+        _handle_field("notes", "notes", data.notes)
+
+        sub_orders = data.subOrderIds if data.subOrderIds is not None else (existing["subOrderIds"] if "subOrderIds" in existing else None)
 
         set_sql = ", ".join(updates)
         factory = self._factory()

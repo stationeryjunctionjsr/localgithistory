@@ -23,7 +23,7 @@ class MySQLSellerRequestDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, children: Dict) -> Dict:
+    def _map_row(self, r, children: Dict) -> Dict:
         return {
             "_id": str(r.id),
             "externalId": r.external_id,
@@ -34,8 +34,8 @@ class MySQLSellerRequestDAO:
             "category": r.category,
             "priority": r.priority,
             "status": r.status,
-            "attachments": children.get("attachments", []),
-            "responses": children.get("responses", []),
+            "attachments": (children["attachments"] if "attachments" in children else []),
+            "responses": (children["responses"] if "responses" in children else []),
             "resolvedAt": r.resolved_at.isoformat() if r.resolved_at else None,
             "closedAt": r.closed_at.isoformat() if r.closed_at else None,
             "createdAt": r.created_at.isoformat() if r.created_at else None,
@@ -90,7 +90,7 @@ class MySQLSellerRequestDAO:
 
         for resp in (data.responses if data.responses is not None else []):
             created_at = None
-            if resp.get("createdAt"):
+            if (resp["createdAt"] if "createdAt" in resp else None):
                 try:
                     created_at = datetime.fromisoformat(resp["createdAt"].replace("Z", "+00:00"))
                 except:
@@ -103,8 +103,8 @@ class MySQLSellerRequestDAO:
                 ),
                 {
                     "rid": req_id,
-                    "admin": resp.get("adminId"),
-                    "text": resp.get("response") or resp.get("text"),
+                    "admin": (resp["adminId"] if "adminId" in resp else None),
+                    "text": (resp["response"] if "response" in resp else None) or (resp["text"] if "text" in resp else None),
                     "c": created_at,
                 },
             )
@@ -143,7 +143,7 @@ class MySQLSellerRequestDAO:
             )
             rows = result.fetchall()
             children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-        return [SellerRequest.model_validate(self._row_to_dict(r, children_map[int(r.id)]) ) for r in rows]
+        return [SellerRequest.model_validate(self._map_row(r, children_map[int(r.id)]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -208,8 +208,18 @@ class MySQLSellerRequestDAO:
         if not existing:
             return None
             
-        existing_dict = existing.model_dump(exclude_unset=True) if hasattr(existing, 'model_dump') else dict(existing)
-        update_dict = update_data.model_dump(exclude_unset=True)
+        existing_dict = {**existing}
+        update_dict = {}
+        for field in update_data.model_fields_set:
+            if field == "user": update_dict["user"] = update_data.user
+            elif field == "subject": update_dict["subject"] = update_data.subject
+            elif field == "description": update_dict["description"] = update_data.description
+            elif field == "category": update_dict["category"] = update_data.category
+            elif field == "priority": update_dict["priority"] = update_data.priority
+            elif field == "status": update_dict["status"] = update_data.status
+            elif field == "resolvedAt": update_dict["resolvedAt"] = update_data.resolvedAt
+            elif field == "closedAt": update_dict["closedAt"] = update_data.closedAt
+            elif field == "comments": update_dict["comments"] = update_data.comments
         merged_dict = {**existing_dict, **update_dict}
         from app.models.daos import SellerRequestInternalUpdate
         merged = SellerRequestInternalUpdate(**merged_dict)

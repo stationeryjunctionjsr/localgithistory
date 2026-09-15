@@ -56,7 +56,7 @@ class MySQLTrackingDAO:
             type=r.event_type,
             userId=r.user_id,
             sessionId=r.session_id,
-            timestamp=r.event_timestamp.isoformat() if hasattr(r.event_timestamp, "isoformat") else str(r.event_timestamp) if r.event_timestamp else None,
+            timestamp=r.event_timestamp.isoformat() if r.event_timestamp and not isinstance(r.event_timestamp, str) else str(r.event_timestamp) if r.event_timestamp else None,
             searchTerm=r.search_term,
             resultsCount=int(r.results_count) if r.results_count is not None else None,
             productId=r.product_id,
@@ -229,14 +229,34 @@ class MySQLTrackingDAO:
         if not existing:
             return None
             
-        data_dict = data.model_dump(exclude_unset=True)
-        existing_dict = existing.model_dump(exclude_unset=True) if hasattr(existing, 'model_dump') else dict(existing)
+        data_dict = {}
+        for field in data.model_fields_set:
+            if field == "type": data_dict["type"] = data.type
+            elif field == "userId": data_dict["userId"] = data.userId
+            elif field == "sessionId": data_dict["sessionId"] = data.sessionId
+            elif field == "timestamp": data_dict["timestamp"] = data.timestamp
+            elif field == "searchTerm": data_dict["searchTerm"] = data.searchTerm
+            elif field == "resultsCount": data_dict["resultsCount"] = data.resultsCount
+            elif field == "productId": data_dict["productId"] = data.productId
+            elif field == "productName": data_dict["productName"] = data.productName
+            elif field == "segment": data_dict["segment"] = data.segment
+            elif field == "page": data_dict["page"] = data.page
+            elif field == "reason": data_dict["reason"] = data.reason
+            elif field == "cartValue": data_dict["cartValue"] = data.cartValue
+            elif field == "isReturning": data_dict["isReturning"] = data.isReturning
+            elif field == "source": data_dict["source"] = data.source
+            elif field == "filterName": data_dict["filterName"] = data.filterName
+            elif field == "filterValue": data_dict["filterValue"] = data.filterValue
+            elif field == "payload": data_dict["payload"] = data.payload
+            elif field == "productIds": data_dict["productIds"] = data.productIds
+        
+        existing_dict = {**existing}
         merged = {**existing_dict, **data_dict}
         
-        payload = (merged.get('payload', {}))
+        payload = ((merged['payload'] if 'payload' in merged else {}))
         if not isinstance(payload, dict):
             payload = {}
-        payload = dict(payload)
+        payload = {k: v for k, v in payload.items()}
         
         now = now_utc()
 
@@ -252,7 +272,7 @@ class MySQLTrackingDAO:
                 
             if val is not None or api_k in merged: # Just use the merged value unconditionally like before
                 # Wait, if we pop from payload, we should set it
-                val = val if val is not None else merged.get(api_k)
+                val = val if val is not None else (merged[api_k] if api_k in merged else None)
                 if val is not None:
                     updates.append(f"{db_col} = :s_{api_k}")
                     if api_k == "timestamp":

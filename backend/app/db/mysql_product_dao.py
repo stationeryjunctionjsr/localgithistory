@@ -149,10 +149,10 @@ class MySQLProductDAO:
             is_active = 1 if query["isActive"] else 0
             where_clauses.append("p.is_active = :isActive")
             params["isActive"] = is_active
-        elif query.get("includeInactive") is not True:
+        elif (query["includeInactive"] if "includeInactive" in query else None) is not True:
             where_clauses.append("p.is_active = 1")
 
-        price_col = "COALESCE(p.mrp_per_case, p.mrp)" if query.get("role") == "wholesaler" else "p.mrp"
+        price_col = "COALESCE(p.mrp_per_case, p.mrp)" if (query["role"] if "role" in query else None) == "wholesaler" else "p.mrp"
         if "minPrice" in query and query["minPrice"]:
             where_clauses.append(f"{price_col} >= :minPrice")
             params["minPrice"] = float(query["minPrice"])
@@ -160,7 +160,7 @@ class MySQLProductDAO:
             where_clauses.append(f"{price_col} <= :maxPrice")
             params["maxPrice"] = float(query["maxPrice"])
 
-        availability = (query.get("availability") or "").strip().lower()
+        availability = ((query["availability"] if "availability" in query else None) or "").strip().lower()
         if availability == "available":
             where_clauses.append("p.stock > 0")
         elif availability == "stock_out":
@@ -317,7 +317,7 @@ class MySQLProductDAO:
         join_sql, where_sql, params = self._build_query_conditions(query)
         sort_sql = "ORDER BY p.created_at DESC"
         
-        price_col = "COALESCE(p.mrp_per_case, p.mrp)" if query.get("role") == "wholesaler" else "p.mrp"
+        price_col = "COALESCE(p.mrp_per_case, p.mrp)" if (query["role"] if "role" in query else None) == "wholesaler" else "p.mrp"
         
         if sort == "price_asc":
             sort_sql = f"ORDER BY {price_col} ASC NULLS LAST"
@@ -395,7 +395,7 @@ class MySQLProductDAO:
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if set(query.keys()) in ({"_id"}, {"id"}):
-            return await self.findById(query.get("_id") or query.get("id"))
+            return await self.findById((query["_id"] if "_id" in query else None) or (query["id"] if "id" in query else None))
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
@@ -441,10 +441,10 @@ class MySQLProductDAO:
         for variant in (data.variants if data.variants is not None else []) or []:
             await session.execute(
                 text("INSERT INTO sj_product_variants (product_id, sku, price, price_per_case, stock) VALUES (:pid, :sku, :price, :price_per_case, :stock)"),
-                {"pid": pid, "sku": variant.get("sku"), "price": variant.get("price"), "price_per_case": variant.get("pricePerCase"), "stock": variant.get("stock", 0)}
+                {"pid": pid, "sku": (variant["sku"] if "sku" in variant else None), "price": (variant["price"] if "price" in variant else None), "price_per_case": (variant["pricePerCase"] if "pricePerCase" in variant else None), "stock": (variant["stock"] if "stock" in variant else 0)}
             )
             vid = (await session.execute(text("SELECT LAST_INSERT_ID()"))).scalar()
-            attrs = variant.get("attributes") or {}
+            attrs = (variant["attributes"] if "attributes" in variant else None) or {}
             for k, v in attrs.items():
                 await session.execute(
                     text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"),
@@ -490,12 +490,12 @@ class MySQLProductDAO:
             
         # Insert sellers
         await session.execute(text("DELETE FROM sj_product_sellers WHERE product_id = :pid_ext"), {"pid_ext": f"PDT-{pid}"})
-        for seller in (data.sellers if getattr(data, 'sellers', None) is not None else []):
+        for seller in (data.sellers if data.sellers is not None else []):
             # seller might be a dict if it came from merged_dict or it might be ProductSellerEntry
-            s_id = seller.get("sellerId") if isinstance(seller, dict) else seller.sellerId
-            s_stock = seller.get("stock", 0) if isinstance(seller, dict) else seller.stock
-            s_active = seller.get("isActive", False) if isinstance(seller, dict) else seller.isActive
-            s_status = seller.get("requestStatus", "pending") if isinstance(seller, dict) else seller.requestStatus
+            s_id = (seller["sellerId"] if "sellerId" in seller else None) if isinstance(seller, dict) else seller.sellerId
+            s_stock = (seller["stock"] if "stock" in seller else 0) if isinstance(seller, dict) else seller.stock
+            s_active = (seller["isActive"] if "isActive" in seller else False) if isinstance(seller, dict) else seller.isActive
+            s_status = (seller["requestStatus"] if "requestStatus" in seller else "pending") if isinstance(seller, dict) else seller.requestStatus
             
             await session.execute(
                 text("INSERT INTO sj_product_sellers (product_id, seller_id, stock, is_active, request_status) VALUES (:pid_ext, :seller_id, :stock, :is_active, :request_status)"),
@@ -515,10 +515,10 @@ class MySQLProductDAO:
         # text(
         # "INSERT INTO sj_product_variant_combinations (product_id, sku, price, stock) VALUES (:pid, :sku, :price, :stock)"
         # ),
-        # {"pid": pid, "sku": combo.get("sku"), "price": combo.get("price"), "stock": combo.get("stock")},
+        # {"pid": pid, "sku": (combo["sku"] if "sku" in combo else None), "price": (combo["price"] if "price" in combo else None), "stock": (combo["stock"] if "stock" in combo else None)},
         # )
         # combo_id = res.lastrowid
-        #         # for attr_name, attr_value in (combo.get("attributes") or {}).items():
+        #         # for attr_name, attr_value in ((combo["attributes"] if "attributes" in combo else None) or {}).items():
         # await session.execute(
         # text(
         # "INSERT INTO sj_product_variant_options (combination_id, attr_name, attr_value) VALUES (:cid, :k, :v)"
@@ -574,9 +574,32 @@ class MySQLProductDAO:
         if not existing:
             return None
         from app.models.daos import ProductInternalUpdate
-        merged_dict = dict(existing)
+        merged_dict = {**existing}
         for field in update_data.model_fields_set:
-            merged_dict[field] = getattr(update_data, field)
+            if field == "sellers": merged_dict["sellers"] = update_data.sellers
+            elif field == "sku": merged_dict["sku"] = update_data.sku
+            elif field == "category": merged_dict["category"] = update_data.category
+            elif field == "subCategory": merged_dict["subCategory"] = update_data.subCategory
+            elif field == "brand": merged_dict["brand"] = update_data.brand
+            elif field == "mrpPerCase": merged_dict["mrpPerCase"] = update_data.mrpPerCase
+            elif field == "quantityPerCase": merged_dict["quantityPerCase"] = update_data.quantityPerCase
+            elif field == "stock": merged_dict["stock"] = update_data.stock
+            elif field == "rating": merged_dict["rating"] = update_data.rating
+            elif field == "reviews": merged_dict["reviews"] = update_data.reviews
+            elif field == "videos": merged_dict["videos"] = update_data.videos
+            elif field == "tags": merged_dict["tags"] = update_data.tags
+            elif field == "variantAttributes": merged_dict["variantAttributes"] = update_data.variantAttributes
+            elif field == "variants": merged_dict["variants"] = update_data.variants
+            elif field == "details": merged_dict["details"] = update_data.details
+            elif field == "name": merged_dict["name"] = update_data.name
+            elif field == "description": merged_dict["description"] = update_data.description
+            elif field == "price": merged_dict["price"] = update_data.price
+            elif field == "mrp": merged_dict["mrp"] = update_data.mrp
+            elif field == "categoryId": merged_dict["categoryId"] = update_data.categoryId
+            elif field == "brandId": merged_dict["brandId"] = update_data.brandId
+            elif field == "images": merged_dict["images"] = update_data.images
+            elif field == "isActive": merged_dict["isActive"] = update_data.isActive
+            elif field == "sellerId": merged_dict["sellerId"] = update_data.sellerId
         merged = ProductInternalUpdate(**merged_dict)
         factory = self._factory()
         now = now_utc()

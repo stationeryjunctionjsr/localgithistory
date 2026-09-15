@@ -35,7 +35,7 @@ class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
 
     def _row_to_dict(self, r) -> Dict:
         doc = super()._row_to_dict(r)
-        if hasattr(r, 'external_id') and r.external_id:
+        if r.external_id is not None and r.external_id:
             doc['externalId'] = r.external_id
         return doc
 

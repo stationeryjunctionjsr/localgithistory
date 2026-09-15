@@ -33,7 +33,12 @@ class BrandRepository:
         if isinstance(data, dict):
             internal_data = BrandInternalCreate.model_validate(data)
         elif not isinstance(data, BrandInternalCreate):
-            fields = {f: getattr(data, f) for f in data.model_fields_set}
+            fields = {}
+            for f in data.model_fields_set:
+                match f:
+                    case "name": fields["name"] = data.name
+                    case "description": fields["description"] = data.description
+                    case "isActive": fields["isActive"] = data.isActive
             internal_data = BrandInternalCreate(**fields)
         else:
             internal_data = data
@@ -44,7 +49,12 @@ class BrandRepository:
         if isinstance(data, dict):
             internal_data = BrandInternalUpdate.model_validate(data)
         elif not isinstance(data, BrandInternalUpdate):
-            fields = {f: getattr(data, f) for f in data.model_fields_set}
+            fields = {}
+            for f in data.model_fields_set:
+                match f:
+                    case "name": fields["name"] = data.name
+                    case "description": fields["description"] = data.description
+                    case "isActive": fields["isActive"] = data.isActive
             internal_data = BrandInternalUpdate(**fields)
         else:
             internal_data = data

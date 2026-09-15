@@ -38,15 +38,7 @@ class SearchTagRepository:
 
         if updated:
             # Persist tagId back via Oracle (per-doc update).
-            # FileStorage direct file write is disabled — Oracle is the only supported backend.
-            # if hasattr(self.storage, "file_path"):
-            #     import json
-            #     self.storage.file_path.write_text(
-            #         json.dumps(all_tags, indent=2, default=str),
-            #         encoding="utf-8",
-            #     )
-            #     self.storage._invalidate_cache()
-            # else:
+
             for tag in all_tags:
                 if tag.id and tag.tagId:
                     await self.storage.update(

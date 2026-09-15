@@ -353,32 +353,31 @@ class MySQLCouponsDAO:
 
     async def _map_to_response(self, row) -> CouponResponse:
         async with self._factory()() as session:
-            row_dict = dict(row._mapping) if hasattr(row, '_mapping') else dict(row)
-            coupon_id = row_dict.get('id')
+            coupon_id = row.id
 
             response_data = {
                 "id": coupon_id,
-                "code": row_dict.get('code'),
-                "description": row_dict.get('description'),
-                "discountType": row_dict.get('discount_type'),
-                "discountValue": row_dict.get('discount_value'),
-                "minOrderValue": row_dict.get('min_order_value'),
-                "maxDiscount": row_dict.get('max_discount'),
-                "validFrom": row_dict.get('valid_from'),
-                "validUntil": row_dict.get('valid_until'),
-                "usageLimit": row_dict.get('usage_limit'),
-                "usedCount": row_dict.get('used_count'),
-                "isActive": bool(row_dict.get('is_active')) if row_dict.get('is_active') is not None else None,
-                "isPublic": bool(row_dict.get('is_public')) if row_dict.get('is_public') is not None else None,
-                "firstOrderOnly": bool(row_dict.get('first_order_only')) if row_dict.get('first_order_only') is not None else None,
-                "platform": row_dict.get('platform'),
-                "appliesTo": row_dict.get('applies_to'),
-                "maxUsagePerUser": row_dict.get('max_usage_per_user'),
-                "requiresBank": bool(row_dict.get('requires_bank')) if row_dict.get('requires_bank') is not None else None,
-                "bankName": row_dict.get('bank_name'),
-                "termsAndConditions": row_dict.get('terms_and_conditions'),
-                "createdAt": str(row_dict.get('created_at')),
-                "updatedAt": str(row_dict.get('updated_at'))
+                "code": row.code,
+                "description": row.description,
+                "discountType": row.discount_type,
+                "discountValue": row.discount_value,
+                "minOrderValue": row.min_order_value,
+                "maxDiscount": row.max_discount,
+                "validFrom": row.valid_from,
+                "validUntil": row.valid_until,
+                "usageLimit": row.usage_limit,
+                "usedCount": row.used_count,
+                "isActive": bool(row.is_active) if row.is_active is not None else None,
+                "isPublic": bool(row.is_public) if row.is_public is not None else None,
+                "firstOrderOnly": bool(row.first_order_only) if row.first_order_only is not None else None,
+                "platform": row.platform,
+                "appliesTo": row.applies_to,
+                "maxUsagePerUser": row.max_usage_per_user,
+                "requiresBank": bool(row.requires_bank) if row.requires_bank is not None else None,
+                "bankName": row.bank_name,
+                "termsAndConditions": row.terms_and_conditions,
+                "createdAt": str(row.created_at),
+                "updatedAt": str(row.updated_at)
             }
 
             qt_res = await session.execute(text("SELECT * FROM sj_coupon_quantity_tiers WHERE coupon_id = :id"), {"id": coupon_id})

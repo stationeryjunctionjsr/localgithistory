@@ -54,7 +54,10 @@ class ProductRepository:
         for attr in (product.variantAttributes if product.variantAttributes is not None else []) or []:
             parts.append(str(attr).lower())
         for combo in (product.variantCombinations if product.variantCombinations is not None else []) or []:
-            attrs = combo.attributes if getattr(combo, 'attributes', None) is not None else {}
+            try:
+                attrs = combo.attributes if combo.attributes is not None else {}
+            except AttributeError:
+                attrs = {}
             for k, v in attrs.items():
                 parts.append(str(k).lower())
                 parts.append(str(v).lower())
@@ -589,7 +592,7 @@ class ProductRepository:
                 final_allowed = final_allowed.intersection(s)
             dao_query["allowed_ids"] = list(final_allowed)
 
-        if hasattr(self.storage, "find_paginated"):
+        if True:
             paginated_products, total_count = await self.storage.find_paginated(
                 dao_query, skip=skip, limit=limit, sort=sort
             )
@@ -736,7 +739,9 @@ class ProductRepository:
         from app.repositories.recommendation_repository import recommendation_repository as _rec_repo
 
         _TAG_TTL = 30.0
-        if not hasattr(self, "_dyn_tag_cache"):
+        try:
+            self._dyn_tag_cache
+        except AttributeError:
             self._dyn_tag_cache: dict = {}
         cache_key = f"dyn_{role}"
         entry = self._dyn_tag_cache.get(cache_key)
@@ -923,7 +928,10 @@ class ProductRepository:
 
     async def create(self, product_data: Any) -> Product:
         # Use DB-native MAX(id) instead of loading all products into memory
-        factory_fn = self.storage._factory() if hasattr(self.storage, "_factory") else None
+        try:
+            factory_fn = self.storage._factory()
+        except AttributeError:
+            factory_fn = None
         if factory_fn:
             from sqlalchemy import text as _text
 
@@ -992,7 +1000,32 @@ class ProductRepository:
         # Zero Data Stripping: Do not use model_dump or dictionary methods!
         update_fields = {}
         for field_name in update_data.model_fields_set:
-            val = getattr(update_data, field_name)
+            val = None
+            if field_name == "sellers": val = update_data.sellers
+            elif field_name == "sku": val = update_data.sku
+            elif field_name == "category": val = update_data.category
+            elif field_name == "subCategory": val = update_data.subCategory
+            elif field_name == "brand": val = update_data.brand
+            elif field_name == "mrpPerCase": val = update_data.mrpPerCase
+            elif field_name == "quantityPerCase": val = update_data.quantityPerCase
+            elif field_name == "stock": val = update_data.stock
+            elif field_name == "rating": val = update_data.rating
+            elif field_name == "reviews": val = update_data.reviews
+            elif field_name == "videos": val = update_data.videos
+            elif field_name == "tags": val = update_data.tags
+            elif field_name == "variantAttributes": val = update_data.variantAttributes
+            elif field_name == "variants": val = update_data.variants
+            elif field_name == "details": val = update_data.details
+            elif field_name == "name": val = update_data.name
+            elif field_name == "description": val = update_data.description
+            elif field_name == "price": val = update_data.price
+            elif field_name == "mrp": val = update_data.mrp
+            elif field_name == "categoryId": val = update_data.categoryId
+            elif field_name == "brandId": val = update_data.brandId
+            elif field_name == "images": val = update_data.images
+            elif field_name == "isActive": val = update_data.isActive
+            elif field_name == "sellerId": val = update_data.sellerId
+
             if field_name in ["mrp", "mrpPerCase"] and val is not None:
                 val = float(val)
             elif field_name in ["quantityPerCase", "stock"] and val is not None:

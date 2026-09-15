@@ -321,7 +321,7 @@ class MySQLPromoStripsDAO:
         return PromoStripResponse(**{
             "_id": str(row.id),
             "text": row.text,
-            "isActive": bool(row.is_active) if getattr(row, "is_active", None) is not None else False,
+            "isActive": bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
         })
@@ -675,7 +675,7 @@ class MySQLCoachMarksDAO:
             "description": row.description,
             "screenName": row.screen_name,
             "sequenceOrder": row.sequence_order,
-            "isActive": bool(row.is_active) if getattr(row, "is_active", None) is not None else False,
+            "isActive": bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
@@ -842,7 +842,7 @@ class MySQLCategoryTagsDAO:
             "external_id": row.external_id,
             "name": row.name,
             "description": row.description,
-            "isActive": bool(row.is_active) if getattr(row, "is_active", None) is not None else False,
+            "isActive": bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
@@ -1878,7 +1878,7 @@ class MySQLAboutUsDAO:
             "title": row.title,
             "content": row.content,
             "version": row.version,
-            "isPublished": bool(row.is_published) if getattr(row, "is_published", None) is not None else False,
+            "isPublished": bool(row.is_published) if ("is_published" in row._mapping and row.is_published is not None) else False,
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
@@ -2026,7 +2026,7 @@ class MySQLPrivacyPolicyDAO:
             "version": row.version,
             "content": row.content,
             "effectiveDate": row.effective_date,
-            "isActive": bool(row.is_active) if getattr(row, "is_active", None) is not None else False,
+            "isActive": bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
@@ -2332,7 +2332,7 @@ class MySQLPincodeSearchesDAO:
             "external_id": row.external_id,
             "pincode": row.pincode,
             "query": row.query,
-            "isServiceable": bool(row.is_serviceable) if getattr(row, "is_serviceable", None) is not None else False,
+            "isServiceable": bool(row.is_serviceable) if ("is_serviceable" in row._mapping and row.is_serviceable is not None) else False,
             "timestamp": row.timestamp,
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
@@ -2478,8 +2478,8 @@ class MySQLSystemSettingsDAO:
             "_id": str(row.id),
             "id": row.id,
             "external_id": row.external_id,
-            "maintenanceMode": bool(row.maintenance_mode) if getattr(row, "maintenance_mode", None) is not None else False,
-            "allowSignups": bool(row.allow_signups) if getattr(row, "allow_signups", None) is not None else False,
+            "maintenanceMode": bool(row.maintenance_mode) if ("maintenance_mode" in row._mapping and row.maintenance_mode is not None) else False,
+            "allowSignups": bool(row.allow_signups) if ("allow_signups" in row._mapping and row.allow_signups is not None) else False,
             "maxUploadSizeMb": row.max_upload_size_mb,
             "defaultCurrency": row.default_currency,
             "timezone": row.timezone,

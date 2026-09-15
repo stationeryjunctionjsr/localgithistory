@@ -23,15 +23,15 @@ class MySQLValetAvailabilityDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, children: Dict) -> Dict:
+    def _map_row(self, r, children: Dict) -> Dict:
         return {
             "_id": str(r.id),
             "externalId": r.external_id,
             "valetId": str(r.valet_id) if r.valet_id is not None else None,
-            "date": r.date.isoformat() if hasattr(r.date, "isoformat") else str(r.date),
+            "date": r.date.isoformat() if not isinstance(r.date, str) else str(r.date),
             "availabilityType": r.availability_type,
-            "slots": children.get("slots", []),
-            "zones": children.get("zones", []),
+            "slots": (children["slots"] if "slots" in children else []),
+            "zones": (children["zones"] if "zones" in children else []),
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
         }
@@ -114,7 +114,7 @@ class MySQLValetAvailabilityDAO:
                     for zr in z_res.fetchall():
                         children_map[zr.availability_id]["zones"].append(zr.zone)
 
-        return [ValetAvailability.model_validate(self._row_to_dict(r, children_map[r.id]) ) for r in rows]
+        return [ValetAvailability.model_validate(self._map_row(r, children_map[r.id]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -160,11 +160,11 @@ class MySQLValetAvailabilityDAO:
             return None
 
         merged = {}
-        for k in ["valetId", "date", "availabilityType", "slots", "zones"]:
-            val = getattr(update_data, k, None)
-            if val is None:
-                val = existing.get(k)
-            merged[k] = val
+        merged["valetId"] = update_data.valetId if update_data.valetId is not None else (existing["valetId"] if "valetId" in existing else None)
+        merged["date"] = update_data.date if update_data.date is not None else (existing["date"] if "date" in existing else None)
+        merged["availabilityType"] = update_data.availabilityType if update_data.availabilityType is not None else (existing["availabilityType"] if "availabilityType" in existing else None)
+        merged["slots"] = update_data.slots if update_data.slots is not None else (existing["slots"] if "slots" in existing else None)
+        merged["zones"] = update_data.zones if update_data.zones is not None else (existing["zones"] if "zones" in existing else None)
 
         factory = self._factory()
         if not factory:
@@ -181,9 +181,9 @@ class MySQLValetAvailabilityDAO:
                 """),
                 {
                     "id": pk,
-                    "valet_id": str(merged["valetId"]) if merged.get("valetId") is not None else "",
-                    "date": merged.get("date"),
-                    "atype": merged.get("availabilityType") if merged.get("availabilityType") is not None else "",
+                    "valet_id": str(merged["valetId"]) if (merged["valetId"] if "valetId" in merged else None) is not None else "",
+                    "date": (merged["date"] if "date" in merged else None),
+                    "atype": (merged["availabilityType"] if "availabilityType" in merged else None) if (merged["availabilityType"] if "availabilityType" in merged else None) is not None else "",
                     "up": now,
                 },
             )
@@ -191,8 +191,8 @@ class MySQLValetAvailabilityDAO:
             # Create wrapper for _replace_children
             class _UpdateDataWrapper:
                 def __init__(self, d):
-                    self.slots = d.get("slots", [])
-                    self.zones = d.get("zones", [])
+                    self.slots = (d["slots"] if "slots" in d else [])
+                    self.zones = (d["zones"] if "zones" in d else [])
             
             await self._replace_children(session, pk, _UpdateDataWrapper(merged))
             await session.commit()

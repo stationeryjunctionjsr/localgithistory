@@ -99,10 +99,39 @@ class PaymentRepository:
                 update_data = PaymentInternalUpdate.model_validate(update_data)
             else:
                 update_dict = {}
-                for k in ["orderId", "userId", "userIdFormatted", "customerName", "orderDate", "paymentMethod", "amountPaid", "amountRemaining", "totalAmount", "paymentId", "paymentEntries"]:
-                    val = getattr(update_data, k, None)
-                    if val is not None:
-                        update_dict[k] = val
+                try:
+                    if update_data.orderId is not None: update_dict["orderId"] = update_data.orderId
+                except AttributeError: pass
+                try:
+                    if update_data.userId is not None: update_dict["userId"] = update_data.userId
+                except AttributeError: pass
+                try:
+                    if update_data.userIdFormatted is not None: update_dict["userIdFormatted"] = update_data.userIdFormatted
+                except AttributeError: pass
+                try:
+                    if update_data.customerName is not None: update_dict["customerName"] = update_data.customerName
+                except AttributeError: pass
+                try:
+                    if update_data.orderDate is not None: update_dict["orderDate"] = update_data.orderDate
+                except AttributeError: pass
+                try:
+                    if update_data.paymentMethod is not None: update_dict["paymentMethod"] = update_data.paymentMethod
+                except AttributeError: pass
+                try:
+                    if update_data.amountPaid is not None: update_dict["amountPaid"] = update_data.amountPaid
+                except AttributeError: pass
+                try:
+                    if update_data.amountRemaining is not None: update_dict["amountRemaining"] = update_data.amountRemaining
+                except AttributeError: pass
+                try:
+                    if update_data.totalAmount is not None: update_dict["totalAmount"] = update_data.totalAmount
+                except AttributeError: pass
+                try:
+                    if update_data.paymentId is not None: update_dict["paymentId"] = update_data.paymentId
+                except AttributeError: pass
+                try:
+                    if update_data.paymentEntries is not None: update_dict["paymentEntries"] = update_data.paymentEntries
+                except AttributeError: pass
                 update_dict["updatedAt"] = datetime.now(timezone.utc).isoformat()
                 update_data = PaymentInternalUpdate.model_validate(update_dict)
         else:

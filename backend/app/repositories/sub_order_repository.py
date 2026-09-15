@@ -18,7 +18,32 @@ class SubOrderRepository:
         return f"{parent_order_number}-{suffix}"
 
     async def create(self, data: SubOrderInternalCreate) -> Dict:
-        fields = {f: getattr(data, f) for f in data.model_fields_set}
+        fields = {}
+        for f in data.model_fields_set:
+            match f:
+                case "subOrderNumber": fields[f] = data.subOrderNumber
+                case "parentOrderId": fields[f] = data.parentOrderId
+                case "parentOrderNumber": fields[f] = data.parentOrderNumber
+                case "sellerId": fields[f] = data.sellerId
+                case "sellerName": fields[f] = data.sellerName
+                case "user": fields[f] = data.user
+                case "items": fields[f] = data.items
+                case "subtotal": fields[f] = data.subtotal
+                case "tax": fields[f] = data.tax
+                case "shipping": fields[f] = data.shipping
+                case "deliveryGst": fields[f] = data.deliveryGst
+                case "discount": fields[f] = data.discount
+                case "total": fields[f] = data.total
+                case "orderType": fields[f] = data.orderType
+                case "status": fields[f] = data.status
+                case "paymentMethod": fields[f] = data.paymentMethod
+                case "paymentStatus": fields[f] = data.paymentStatus
+                case "isUrgentDelivery": fields[f] = data.isUrgentDelivery
+                case "deliverySlot": fields[f] = data.deliverySlot
+                case "shippingAddress": fields[f] = data.shippingAddress
+                case "createdAt": fields[f] = data.createdAt
+                case "updatedAt": fields[f] = data.updatedAt
+
         if not data.createdAt:
             fields["createdAt"] = datetime.now(timezone.utc).isoformat()
         return await self.storage.create(fields)
@@ -45,15 +70,16 @@ class SubOrderRepository:
     async def findBySeller(
         self, seller_id: str, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None
     ) -> List[Dict]:
-        q = dict(query or {})
-        q.sellerId = seller_id
+        q = query.copy() if query else {}
+        q["sellerId"] = seller_id
         return await self.findAll(q, skip=skip, limit=limit)
 
     async def count(self, query: Optional[Dict] = None) -> int:
-        if hasattr(self.storage, "count"):
+        try:
             return await self.storage.count(query or {})
-        docs = await self.storage.findAll(query or {})
-        return len(docs)
+        except AttributeError:
+            docs = await self.storage.findAll(query or {})
+            return len(docs)
 
     async def update(self, id: str, update_data: SubOrderInternalUpdate) -> Optional[Dict]:
         if update_data.status == "out_for_delivery" and update_data.shippedAt is None:
@@ -67,7 +93,20 @@ class SubOrderRepository:
         if update_data.pickupStatus == "picked_up" and update_data.pickedUpAt is None:
             update_data.pickedUpAt = datetime.now(timezone.utc).isoformat() + "Z"
 
-        update_dict = {f: getattr(update_data, f) for f in update_data.model_fields_set}
+        update_dict = {}
+        for f in update_data.model_fields_set:
+            match f:
+                case "status": update_dict[f] = update_data.status
+                case "shippedAt": update_dict[f] = update_data.shippedAt
+                case "deliveredAt": update_dict[f] = update_data.deliveredAt
+                case "cancelledAt": update_dict[f] = update_data.cancelledAt
+                case "pickupStatus": update_dict[f] = update_data.pickupStatus
+                case "pickedUpAt": update_dict[f] = update_data.pickedUpAt
+                case "commissionPct": update_dict[f] = update_data.commissionPct
+                case "commissionAmount": update_dict[f] = update_data.commissionAmount
+                case "commissionStatus": update_dict[f] = update_data.commissionStatus
+                case "assignedValet": update_dict[f] = update_data.assignedValet
+
 
         if update_data.status == "delivered" and update_data.commissionPct is None:
             existing = await self.storage.findById(id)

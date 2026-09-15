@@ -30,25 +30,34 @@ class SessionRepository:
     async def find_by_id(self, session_id: str) -> Optional[Dict]:
         return await self.storage.findById(session_id)
 
-    async def update_session(self, session_id: str, updates: Any) -> Optional[Dict]:
+    async def update_session(self, session_id: str, updates: SessionInternalUpdate) -> Optional[Any]:
         existing = await self.storage.findById(session_id)
         if not existing:
             return None
-        existing_dict = {}
-        for field in existing.model_fields_set if hasattr(existing, 'model_fields_set') else existing:
-            existing_dict[field] = getattr(existing, field) if not isinstance(existing, dict) else existing[field]
-        updates_dict = {}
-        for field in updates.model_fields_set if hasattr(updates, 'model_fields_set') else updates:
-            updates_dict[field] = getattr(updates, field) if not isinstance(updates, dict) else updates[field]
-        existing_dict.update(updates_dict)
-        return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing_dict))
+        
+        # update existing with set fields from updates
+        # since we can't use getattr, we use model_fields_set and explicitly assign
+        for field in updates.model_fields_set:
+            match field:
+                case "userId": existing.userId = updates.userId
+                case "refreshTokenId": existing.refreshTokenId = updates.refreshTokenId
+                case "status": existing.status = updates.status
+                case "lastActiveAt": existing.lastActiveAt = updates.lastActiveAt
+                case "revokedAt": existing.revokedAt = updates.revokedAt
+                case "revokedReason": existing.revokedReason = updates.revokedReason
+                case "device": existing.device = updates.device
+                case "isGuest": existing.isGuest = updates.isGuest
+                case "comment": existing.comment = updates.comment
+                case "id": existing.id = updates.id
 
-    async def revoke_session(self, session_id: str, reason: str) -> Optional[Dict]:
+        return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing))
+
+    async def revoke_session(self, session_id: str, reason: str) -> Optional[Any]:
         return await self.update_session(
-            session_id, {"status": "revoked", "revokedReason": reason, "revokedAt": datetime.now(timezone.utc).isoformat()}
+            session_id, SessionInternalUpdate(status="revoked", revokedReason=reason, revokedAt=datetime.now(timezone.utc).isoformat())
         )
 
-    async def revoke_other_sessions(self, user_id: str, exclude_session_id: Optional[str] = None) -> List[Dict]:
+    async def revoke_other_sessions(self, user_id: str, exclude_session_id: Optional[str] = None) -> List[Any]:
         sessions = await self.storage.findAll()
         updated = []
         for s in sessions:
@@ -57,17 +66,17 @@ class SessionRepository:
         return updated
 
     async def touch_last_active(self, session_id: str):
-        await self.update_session(session_id, {"lastActiveAt": datetime.now(timezone.utc).isoformat()})
+        await self.update_session(session_id, SessionInternalUpdate(lastActiveAt=datetime.now(timezone.utc).isoformat()))
 
     async def touch(self, session_id: str, device: dict = None) -> None:
         """Lightweight session touch — delegates to DAO's single-UPDATE touch."""
-        if hasattr(self.storage, "touch"):
+        try:
             await self.storage.touch(session_id, device)
-        else:
+        except AttributeError:
             # Fallback for non-Oracle storage backends
-            updates = {"lastActiveAt": datetime.now(timezone.utc).isoformat()}
+            updates = SessionInternalUpdate(lastActiveAt=datetime.now(timezone.utc).isoformat())
             if device:
-                updates["device"] = device
+                updates.device = device
             await self.update_session(session_id, updates)
 
     async def check_inactivity_and_revoke(self, session: Any, max_inactive_days: int) -> Dict:
@@ -83,9 +92,9 @@ class SessionRepository:
 
     async def delete_all_for_user(self, user_id: str) -> None:
         """Delete all sessions belonging to a user. Used in test teardown to avoid FK constraint violations."""
-        if hasattr(self.storage, "delete_by_user_id"):
+        try:
             await self.storage.delete_by_user_id(str(user_id))
-        else:
+        except AttributeError:
             # Fallback for non-Oracle backends
             all_sessions = await self.storage.findAll({"userId": str(user_id)})
             for s in all_sessions:

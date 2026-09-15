@@ -51,9 +51,9 @@ class AnalyticsRepository:
         filtered = []
         for item in items:
             if date_field == "createdAt":
-                item_date = self._parse_date(item.createdAt if getattr(item, "createdAt", None) else "")
+                item_date = self._parse_date(item.createdAt if item.createdAt is not None else "")
             elif date_field == "timestamp":
-                item_date = self._parse_date(item.timestamp if getattr(item, "timestamp", None) else "")
+                item_date = self._parse_date(item.timestamp if item.timestamp is not None else "")
             else:
                 item_date = None
             if not item_date:

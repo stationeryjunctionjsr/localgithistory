@@ -47,7 +47,13 @@ async def populate_ticket(ticket_data):
     populated_responses = []
     for response in (ticket.responses or []):
         user_val = response.user
-        resp_user_id_str = user_val if isinstance(user_val, str) else (user_val.id if hasattr(user_val, "id") else None)
+        if isinstance(user_val, str):
+            resp_user_id_str = user_val
+        else:
+            try:
+                resp_user_id_str = user_val.id
+            except AttributeError:
+                resp_user_id_str = None
         
         response_user = await user_repository.findById(resp_user_id_str) if resp_user_id_str else None
         

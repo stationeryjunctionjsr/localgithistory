@@ -6,7 +6,7 @@ Table must have: id (IDENTITY), external_id, created_at, updated_at, plus config
 """
 
 import secrets
-from datetime import datetime
+from datetime import datetime, date
 from typing import Dict, List, Optional, Set
 
 from sqlalchemy import text
@@ -32,7 +32,7 @@ def _param(col: str) -> str:
 def _to_ts(val) -> Optional[datetime]:
     if val is None:
         return None
-    if hasattr(val, "isoformat"):
+    if isinstance(val, (datetime, date)):
         return val
     try:
         s = str(val)
@@ -77,23 +77,23 @@ class MySQLFlatBaseDAO:
         out = {"_id": str(r.id)}
         rev = {v: k for k, v in self.scalar_map.items()}
         for col, api_key in rev.items():
-            if not hasattr(r, col):
+            if col not in r._mapping:
                 continue
-            val = getattr(r, col)
+            val = r._mapping[col]
             if val is None:
                 continue
             if api_key in self.bool_api_keys and val in (0, 1):
                 out[api_key] = bool(val)
-            elif hasattr(val, "isoformat") and not isinstance(val, str):
+            elif isinstance(val, (datetime, date)):
                 out[api_key] = val.isoformat()
             else:
                 out[api_key] = val
         
-        if hasattr(r, "external_id") and r.external_id:
+        if "external_id" in r._mapping and r.external_id:
             out["external_id"] = r.external_id
-        if hasattr(r, "created_at") and r.created_at:
+        if "created_at" in r._mapping and r.created_at:
             out["createdAt"] = r.created_at.isoformat()
-        if hasattr(r, "updated_at") and r.updated_at:
+        if "updated_at" in r._mapping and r.updated_at:
             out["updatedAt"] = r.updated_at.isoformat()
         return self.schema_cls(**out) if self.schema_cls else out
 
@@ -102,7 +102,7 @@ class MySQLFlatBaseDAO:
         if self.has_external_id:
             params["external_id"] = secrets.token_hex(16)
         for api_key, col in self.scalar_map.items():
-            val = data.get(api_key)
+            val = data[api_key] if api_key in data else None
             if val is None:
                 params[col] = None
                 continue

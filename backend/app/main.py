@@ -271,15 +271,11 @@ async def lifespan(app: FastAPI):
                 skinny=True,
             )
             try:
-                products_list = (
-                    products_res.get("products", [])
-                    if isinstance(products_res, dict)
-                    else (products_res.products if hasattr(products_res, "products") else [])
-                )
+                products_list = products_res.products if products_res.products is not None else []
                 if products_list:
-                    # In PaginatedProductResponse, products is a list of objects/dicts.
+                    # In PaginatedProductResponse, products is a list of objects.
                     p0 = products_list[0]
-                    p0_id = p0.id if hasattr(p0, "id") else p0.get("id")
+                    p0_id = p0.id
                     if p0_id:
                         await get_public_product(str(p0_id), role="customer", response=_WarmupResponse())
             except Exception as e:

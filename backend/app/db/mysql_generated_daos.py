@@ -19,7 +19,7 @@ class DynamicRelationalDAO:
         self.config = config
         # Fetch the original scalar_map from the old config
         api_name = config["api_name"]
-        self.flat_relational_dao = FLAT_RELATIONAL_DAOS.get(api_name)
+        self.flat_relational_dao = FLAT_RELATIONAL_DAOS[api_name] if api_name in FLAT_RELATIONAL_DAOS else None
         self.scalar_map = self.flat_relational_dao.scalar_map if self.flat_relational_dao else {}
         self.bool_keys = self.flat_relational_dao.bool_api_keys if self.flat_relational_dao else set()
 
@@ -88,15 +88,15 @@ class DynamicRelationalDAO:
                 res = await session.execute(sql, chunk_params)
                 for row in res.fetchall():
                     if is_flat:
-                        c_map[row.parent_id][api_key].append(getattr(row, db_cols[0]))
+                        c_map[row.parent_id][api_key].append(row._mapping[db_cols[0]])
                     elif is_kv:
-                        k = getattr(row, db_cols[0])
-                        v = getattr(row, db_cols[1])
+                        k = row._mapping[db_cols[0]]
+                        v = row._mapping[db_cols[1]]
                         c_map[row.parent_id][api_key][k] = v
                     else:
                         obj = {}
                         for i, db_c in enumerate(db_cols):
-                            obj[api_cols[i]] = getattr(row, db_c)
+                            obj[api_cols[i]] = row._mapping[db_c]
                         c_map[row.parent_id][api_key].append(obj)
         return c_map
 
@@ -109,11 +109,10 @@ class DynamicRelationalDAO:
             is_kv = c_conf[4]
             await session.execute(text(f"DELETE FROM {child_table} WHERE parent_id = :pid"), {"pid": p_id})
             
-            # Zero Data Stripping: Support both dict and Pydantic dot notation
             if isinstance(data, dict):
-                val = data.get(api_key)
+                val = data[api_key] if api_key in data else None
             else:
-                val = getattr(data, api_key, None)
+                val = data.__dict__[api_key] if api_key in data.__dict__ else None
             if not val:
                 continue
             if is_flat:
@@ -133,7 +132,11 @@ class DynamicRelationalDAO:
                     sql = text(f"INSERT INTO {child_table} (parent_id, {cols_sql}) VALUES (:pid, {vals_sql})")
                     params = {"pid": p_id}
                     for i, a_col in enumerate(api_cols):
-                        params[f"v{i}"] = str(item.get(a_col, ""))
+                        if isinstance(item, dict):
+                            val_i = item[a_col] if a_col in item and item[a_col] is not None else ""
+                        else:
+                            val_i = item.__dict__[a_col] if a_col in item.__dict__ and item.__dict__[a_col] is not None else ""
+                        params[f"v{i}"] = str(val_i)
                     await session.execute(sql, params)
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Any]:

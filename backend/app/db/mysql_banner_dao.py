@@ -23,7 +23,7 @@ class MySQLBannerDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, children: Dict) -> BannerResponse:
+    def _map_to_schema(self, r, children: Dict) -> BannerResponse:
         return BannerResponse(**{
             "_id": str(r.id),
             "title": r.title,
@@ -37,8 +37,8 @@ class MySQLBannerDAO:
             "isPublished": bool(r.is_published) if r.is_published is not None else False,
             "targetAudience": r.target_audience,
             "position": r.position,
-            "userSegments": children.get("userSegments", []),
-            "visibilityRules": children.get("visibilityRules", []),
+            "userSegments": children["userSegments"] if "userSegments" in children else [],
+            "visibilityRules": children["visibilityRules"] if "visibilityRules" in children else [],
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
         })
@@ -112,7 +112,7 @@ class MySQLBannerDAO:
             )
             rows = result.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [Banner.model_validate(self._row_to_dict(r, c_map[r.id]) ) for r in rows]
+        return [Banner.model_validate(self._map_to_schema(r, c_map[r.id]) ) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[BannerResponse]:
         docs = await self.findAll(query)
@@ -175,9 +175,19 @@ class MySQLBannerDAO:
             
         merged = {}
         for k in ["title", "description", "imageUrl", "linkUrl", "displayOrder", "startDate", "endDate", "isActive", "isPublished", "targetAudience", "position"]:
-            val = getattr(update_data, k, None)
-            if val is None:
-                val = getattr(existing, k, None)
+            val = None
+            match k:
+                case "title": val = update_data.title if update_data.title is not None else existing.title
+                case "description": val = update_data.description if update_data.description is not None else existing.description
+                case "imageUrl": val = update_data.imageUrl if update_data.imageUrl is not None else existing.imageUrl
+                case "linkUrl": val = update_data.linkUrl if update_data.linkUrl is not None else existing.linkUrl
+                case "displayOrder": val = update_data.displayOrder if update_data.displayOrder is not None else existing.displayOrder
+                case "startDate": val = update_data.startDate if update_data.startDate is not None else existing.startDate
+                case "endDate": val = update_data.endDate if update_data.endDate is not None else existing.endDate
+                case "isActive": val = update_data.isActive if update_data.isActive is not None else existing.isActive
+                case "isPublished": val = update_data.isPublished if update_data.isPublished is not None else existing.isPublished
+                case "targetAudience": val = update_data.targetAudience if update_data.targetAudience is not None else existing.targetAudience
+                case "position": val = update_data.position if update_data.position is not None else existing.position
             merged[k] = val
 
         factory = self._factory()
@@ -209,11 +219,11 @@ class MySQLBannerDAO:
                     "description": merged["description"],
                     "image_url": merged["imageUrl"],
                     "link_url": merged["linkUrl"],
-                    "display_order": (merged["displayOrder"] if merged.get("displayOrder") is not None else 0),
+                    "display_order": (merged["displayOrder"] if ("displayOrder" in merged and merged["displayOrder"] is not None) else 0),
                     "start_date": merged["startDate"],
                     "end_date": merged["endDate"],
-                    "is_active": int(bool(merged.get("isActive", True))),
-                    "is_published": int(bool(merged.get("isPublished", False))),
+                    "is_active": int(bool(merged["isActive"] if "isActive" in merged else True)),
+                    "is_published": int(bool(merged["isPublished"] if "isPublished" in merged else False)),
                     "target_audience": merged["targetAudience"],
                     "position": merged["position"],
                     "updated_at": now,
