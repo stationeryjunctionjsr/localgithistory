@@ -10,7 +10,7 @@ export default function SellerDiscounts() {
   useEffect(() => {
     api.get('/coupons')
       .then(res => setCoupons(res.data || []))
-      .catch(() => {})
+      .catch((e: any) => console.warn('Background task failed', e))
       .finally(() => setLoading(false));
   }, []);
 

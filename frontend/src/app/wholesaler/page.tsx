@@ -63,7 +63,7 @@ export default async function WholesalerDashboardPage() {
       extractJson(homeBannersRes, 'banners/homepage'),
       extractJson(wholeBannersRes, 'banners/wholesaler'),
       extractJson(googleRatingRes, 'google-reviews/rating'),
-      extractJson(productsRes, 'products/public'),
+      extractJson(productsRes, 'products/public', true),
     ]);
 
   let categories = [];

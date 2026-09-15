@@ -48,7 +48,7 @@ export function useAuth() {
           const res = await api.get('/auth/me', { timeout: 8000 });
           setUser(res.data);
           // Register push token on app startup (token already stored)
-          registerExpoPushToken().catch(() => {});
+          registerExpoPushToken().catch((e) => console.warn('Background task failed', e));
         } catch (err) {
           const status = (err as any)?.response?.status;
           if (status === 401 || status === 403) {
@@ -86,7 +86,7 @@ export function useAuth() {
         });
       });
       // Register Expo push token after login
-      registerExpoPushToken().catch(() => {});
+      registerExpoPushToken().catch((e) => console.warn('Background task failed', e));
       return userData;
     },
     []

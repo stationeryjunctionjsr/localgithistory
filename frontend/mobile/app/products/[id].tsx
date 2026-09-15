@@ -176,9 +176,9 @@ export default function ProductDetail() {
     if (!product || !productId) return;
     const name = product.name || '';
     // Send to /tracking/view so it feeds Most-Viewed Products report
-    api.post('/tracking/view', { productId, productName: name }).catch(() => {});
+    api.post('/tracking/view', { productId, productName: name }).catch((e: any) => console.warn('Background task failed', e));
     // Also send via mobileAnalytics for GA4 Measurement Protocol
-    trackProductView(productId, name, product.price).catch(() => {});
+    trackProductView(productId, name, product.price).catch((e: any) => console.warn('Background task failed', e));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, !!product]);
 
@@ -277,8 +277,8 @@ export default function ProductDetail() {
       }
 
       // Track cart-add to backend tracking table (feeds cart abandonment & conversion reports)
-      api.post('/tracking/cart-add', { productId, quantity }).catch(() => {});
-      trackAddToCart(productId, product?.name || '', quantity, product?.price || 0).catch(() => {});
+      api.post('/tracking/cart-add', { productId, quantity }).catch((e: any) => console.warn('Background task failed', e));
+      trackAddToCart(productId, product?.name || '', quantity, product?.price || 0).catch((e: any) => console.warn('Background task failed', e));
 
       setAddedToCart(true);
       setTimeout(() => {

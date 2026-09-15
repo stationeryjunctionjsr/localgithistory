@@ -75,7 +75,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         setLocaleState(code);
         applyRTL(code);
         // Keep local storage in sync with user preference
-        AsyncStorage.setItem(LOCALE_STORAGE_KEY, code).catch(() => {});
+        AsyncStorage.setItem(LOCALE_STORAGE_KEY, code).catch((e) => console.warn('Background task failed', e));
       }
     }
   }, [user, applyRTL]);

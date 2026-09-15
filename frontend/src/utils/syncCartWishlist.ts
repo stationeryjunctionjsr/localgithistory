@@ -23,15 +23,20 @@ export async function syncGuestDataToBackend(): Promise<void> {
       ...guestCart,
       ...legacyCart.map((l: any) => ({ productId: l.productId, quantity: l.quantity || 1 })),
     ];
+    const failedCartItems: any[] = [];
     for (const item of allCartItems) {
       try {
         await api.post('/cart', { productId: item.productId, quantity: item.quantity });
       } catch (e) {
         logger.error("Failed to sync cart item", e);
-        toast.warn("Some cart items could not be synced");
+        failedCartItems.push(item);
       }
     }
-    if (allCartItems.length > 0) {
+    if (failedCartItems.length > 0) {
+      toast.warn("Some cart items could not be synced");
+      // use saveGuestCart equivalent inline since it wasn't exported in a way we know for sure
+      localStorage.setItem('guest_cart', JSON.stringify(failedCartItems));
+    } else if (allCartItems.length > 0) {
       clearGuestCart();
       localStorage.removeItem('guestCart');
     }
@@ -54,19 +59,26 @@ export async function syncGuestDataToBackend(): Promise<void> {
         .map((l: any) => ({ productId: l.product?._id || l.productId }))
         .filter((i: any) => i.productId),
     ];
+    const failedWishlistItems: any[] = [];
     for (const item of allWishlistItems) {
       try {
         await api.post('/wishlist', { productId: item.productId });
       } catch (e) {
         logger.error("Failed to sync wishlist item", e);
+        failedWishlistItems.push(item);
       }
     }
-    if (allWishlistItems.length > 0) {
+    if (failedWishlistItems.length > 0) {
+      toast.warn("Some wishlist items could not be synced");
+      // Optionally could write them back to localStorage via a new saveGuestWishlist,
+      // but for now let's just use localStorage.setItem if saveGuestWishlist isn't available
+      localStorage.setItem('guest_wishlist', JSON.stringify(failedWishlistItems));
+    } else if (allWishlistItems.length > 0) {
       clearGuestWishlist();
       localStorage.removeItem('guestWishlist');
     }
   } catch (e) {
-    logger.error("Cart sync failed entirely", e);
+    logger.error("Wishlist sync failed entirely", e);
   }
 
   if (typeof window !== 'undefined') {

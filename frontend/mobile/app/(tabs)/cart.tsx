@@ -216,7 +216,7 @@ export default function Cart() {
               api.post('/tracking/cart-remove', {
                 productId: item.productId || item._id,
                 quantity: item.quantity || 1,
-              }).catch(() => {});
+              }).catch((e: any) => console.warn('Background task failed', e));
             } catch {
               Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to remove item' });
             }
@@ -239,8 +239,8 @@ export default function Cart() {
       }
       fetchCart();
       // Track cart add for backend analytics
-      api.post('/tracking/cart-add', { productId, quantity: 1 }).catch(() => {});
-      trackAddToCart(productId, product?.name || '', 1, product?.price || 0).catch(() => {});
+      api.post('/tracking/cart-add', { productId, quantity: 1 }).catch((e: any) => console.warn('Background task failed', e));
+      trackAddToCart(productId, product?.name || '', 1, product?.price || 0).catch((e: any) => console.warn('Background task failed', e));
     } catch {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Could not add to cart' });
     }

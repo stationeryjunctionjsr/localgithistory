@@ -50,7 +50,7 @@ export default function SellerProducts() {
       try {
         const res = await api.get('/users/me');
         setMyId(res.data?._id || '');
-      } catch {}
+      } catch (e) { console.warn('Failed to init user', e); }
       fetchMyProducts();
     };
     init();

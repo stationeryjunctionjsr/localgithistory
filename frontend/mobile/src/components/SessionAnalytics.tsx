@@ -53,7 +53,7 @@ export default function SessionAnalytics() {
       api.post('/tracking/session', {
         sessionId: sessionIdRef.current,
         isReturning: hasReturned,
-      }).catch(() => {});
+      }).catch((e) => console.warn('Background task failed', e));
 
       if (!hasReturned) {
         try {
@@ -88,7 +88,7 @@ export default function SessionAnalytics() {
     api.post('/tracking/page-view', {
       page: pathname,
       sessionId: sessionIdRef.current || undefined,
-    }).catch(() => {});
+    }).catch((e) => console.warn('Background task failed', e));
   }, [pathname]);
 
   useEffect(() => {
