@@ -64,7 +64,14 @@ class OrderRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def create(self, order_data: OrderInternalCreate):
+    async def create(self, order_data: Any):
+        if isinstance(order_data, dict):
+            order_data.setdefault("tax", 0.0)
+            order_data.setdefault("shipping", 0.0)
+            order_data.setdefault("discount", 0.0)
+            order_data.setdefault("createdAt", datetime.now(timezone.utc).isoformat())
+            order_data.setdefault("items", [])
+            order_data = OrderInternalCreate(**order_data)
         if not order_data.createdAt:
             order_data.createdAt = datetime.now(timezone.utc).isoformat()
             

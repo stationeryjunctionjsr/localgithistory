@@ -53,6 +53,7 @@ from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Optional
 
 class OrderInternalCreate(BaseModel):
+    orderNumber: Optional[str] = None
     userRole: Optional[str] = None
     user: str
     sessionId: Optional[str] = None
@@ -72,7 +73,13 @@ class OrderInternalCreate(BaseModel):
     notes: str = ""
     printedBill: bool = False
     assignedValet: Optional[str] = None
+    isUrgentDelivery: bool = False
+    pendingValetId: Optional[str] = None
+    valetAssignedAt: Optional[str] = None
+    valetCascadeCount: Optional[int] = 0
+    turnaroundHours: Optional[float] = None
     shippedAt: Optional[str] = None
+    valetDeclineHistory: Optional[List[Any]] = None
     deliveredAt: Optional[str] = None
     codPaymentReceived: bool = False
     codPaymentReceivedAt: Optional[str] = None
@@ -84,6 +91,7 @@ class OrderInternalCreate(BaseModel):
 class OrderInternalUpdate(BaseModel, extra='forbid'):
     status: Optional[str] = None
     shippedAt: Optional[str] = None
+    valetDeclineHistory: Optional[List[Any]] = None
     deliveredAt: Optional[str] = None
     paymentStatus: Optional[str] = None
     codPaymentReceived: Optional[bool] = None

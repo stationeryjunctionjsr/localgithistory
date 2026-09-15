@@ -103,10 +103,11 @@ def _try_acquire_scheduler_lock() -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
-    from app.config.database import get_async_engine
-    engine = get_async_engine()
+    import app.config.database as db_config
+    engine = db_config.get_async_engine()
     if engine:
         await engine.dispose()
+        db_config._async_engine = None
 
     logger.info("Application shutting down")
 

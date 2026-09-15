@@ -1,6 +1,6 @@
 from app.models.user import User
 from typing import Any
-from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserUpdate
+from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserUpdate, UserCreate
 from typing import Dict, Optional
 
 from app.db.storage_factory import get_storage
@@ -55,7 +55,7 @@ class UserRepository:
 
     async def create(self, user_data: Any):
         if isinstance(user_data, dict):
-            user_data = UserInternalCreate(**user_data)
+            user_data = UserCreate(**user_data)
         # Check if user with email already exists (only if email is provided)
         email = user_data.email
         if email:

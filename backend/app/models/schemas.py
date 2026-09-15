@@ -1609,7 +1609,7 @@ class AnalyticsEventCreate(BaseModel):
     filterName: Optional[Any] = None
     filterValue: Optional[Any] = None
     category: Optional[Any] = None
-    payload: Optional[DynamicMetadata] = None
+    payload: Optional[AnalyticsEventPayload] = None
     searchTerm: Optional[str] = None
     resultsCount: Optional[int] = None
     segment: Optional[str] = None

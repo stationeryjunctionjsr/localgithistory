@@ -6,8 +6,14 @@ from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 
 class DuesResponse(BaseModel):
-    dues: List[Dict[str, Any]]
-    totalOwed: float
+    hasOverdueBills: bool
+    totalDues: float
+    currentOverdue: float
+    minimumOverdue: float
+    nearestDueAmount: float
+    nearestDueDate: Optional[str] = None
+    bills: List[Dict[str, Any]]
+    paymentTerms: int
 
 class SettlementResponse(BaseModel):
     message: str
