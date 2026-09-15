@@ -1,5 +1,5 @@
 from typing import Any
-from app.models.schemas import UserInternalCreate, UserInternalUpdate
+from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserUpdate
 from typing import Dict, Optional
 
 from app.db.storage_factory import get_storage
@@ -122,23 +122,23 @@ class UserRepository:
 
     async def update(self, id: str, update_data: Any):
         # Don't allow updating email to an existing one
-        if "email" in update_data:
+        if update_data.email is not None:
             existing = await self.findByEmail(update_data.email)
             if existing and existing.id != id:
                 raise ValueError("Email already in use")
             update_data.email = update_data.email.lower()
 
         # Don't allow updating phone to an existing one
-        if "phone" in update_data:
+        if update_data.phone is not None:
             existing_phone = await self.findByPhone(update_data.phone)
             if existing_phone and existing_phone.id != id:
                 raise ValueError("Phone number already in use")
 
         # Hash password if provided
-        if "password" in update_data:
+        if update_data.password is not None:
             update_data.password = get_password_hash(update_data.password)
 
-        return await self.storage.update(id, UserInternalUpdate.model_validate(update_data) if isinstance(update_data, dict) else update_data)
+        return await self.storage.update(id, update_data)
 
     async def delete(self, id: str):
         return await self.storage.delete(id)
@@ -164,7 +164,7 @@ class UserRepository:
 
         if not is_duplicate:
             saved_addresses.append(address)
-            await self.update(user_id, {"savedAddresses": saved_addresses})
+            await self.update(user_id, UserUpdate(savedAddresses=saved_addresses))
 
         return saved_addresses
 
@@ -192,7 +192,7 @@ class UserRepository:
         for user in users:
             if not user.referral_code:
                 code = await get_unique_referral_code(self)
-                await self.update(user.id, {"referralCode": code})
+                await self.update(user.id, UserUpdate(referralCode=code))
                 updated_count += 1
         return updated_count
 

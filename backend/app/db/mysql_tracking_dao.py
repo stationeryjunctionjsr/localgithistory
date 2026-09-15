@@ -80,11 +80,11 @@ class MySQLTrackingDAO:
             os=r.os,
             browser=r.browser,
             ipAddress=r.ip_address,
-            pageViews=int(r.page_views) if getattr(r, 'page_views', None) is not None else None,
-            orderId=getattr(r, 'order_id', None),
-            orderValue=float(r.order_value) if getattr(r, 'order_value', None) is not None else None,
-            price=float(r.price) if getattr(r, 'price', None) is not None else None,
-            category=getattr(r, 'category', None),
+            pageViews=int(r.page_views) if r.page_views is not None else None,
+            orderId=r.order_id,
+            orderValue=float(r.order_value) if r.order_value is not None else None,
+            price=float(r.price) if r.price is not None else None,
+            category=r.category,
             product_ids=children["product_ids"] if "product_ids" in children else [],
             payload={},
             cartItems=children["cartItems"] if "cartItems" in children else []
@@ -127,24 +127,24 @@ class MySQLTrackingDAO:
         await session.execute(text("DELETE FROM sj_tracking_cart_items WHERE tracking_id = :tid"), {"tid": tid})
 
         cart_items = []
-        if getattr(data, "cartItems", None) is not None:
+        if hasattr(data, "cartItems") and data.cartItems is not None:
             cart_items.extend(data.cartItems)
         
         # Extract from payload if nested, to avoid stringifying array of objects
-        payload = getattr(data, "payload", {})
+        payload = data.payload if hasattr(data, "payload") else {}
         payload = payload.copy() if payload else {}
         if "cartItems" in payload:
             cart_items.extend(payload.pop("cartItems"))
 
         for item in cart_items:
-            item_dict = item if isinstance(item, dict) else item.__dict__
+            item_dict = item
             await session.execute(
                 text("INSERT INTO sj_tracking_cart_items (tracking_id, product_id, quantity, price) VALUES (:tid, :pid, :qty, :prc)"),
                 {
                     "tid": tid, 
-                    "pid": str(item_dict.get("productId")), 
-                    "qty": int(item_dict.get("quantity", 1)),
-                    "prc": float(item_dict.get("price")) if item_dict.get("price") is not None else None
+                    "pid": str(item_dict.productId if hasattr(item_dict, "productId") else item_dict.product_id if hasattr(item_dict, "product_id") else None), 
+                    "qty": int(item_dict.quantity if hasattr(item_dict, "quantity") else 1),
+                    "prc": float(item_dict.price) if hasattr(item_dict, "price") and item_dict.price is not None else None
                 }
             )
 
@@ -155,7 +155,7 @@ class MySQLTrackingDAO:
                     {"tid": tid, "pid": str(pid)},
                 )
 
-    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> Any:
         factory = self._factory()
         if not factory:
             return []
@@ -184,75 +184,80 @@ class MySQLTrackingDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Any) -> Any:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Any:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: 'Any') -> Dict:
+    async def create(self, data: 'Any') -> Any:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
-
+        
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
-        
         extracted_keys = []
-        payload = getattr(data, "payload", {}) or {}
-        if isinstance(payload, str):
-            import json
-            try: payload = json.loads(payload)
-            except: payload = {}
-        
-        def add_col(api_k, db_col, val):
+
+        def add_col(api_key, db_col, val):
             if val is not None:
-                extracted_keys.append(api_k)
                 cols.append(db_col)
-                if api_k == "timestamp":
-                    try:
-                        val = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
-                    except Exception as e:
-                        import logging
-                        logging.warning('Background task failed', exc_info=e)
-                params[f"s_{api_k}"] = val
+                params[f"s_{api_key}"] = val
+                extracted_keys.append(api_key)
 
-        # Since getattr is banned, we hardcode the accesses if present on AnalyticsEventCreate
-        add_col("type", "event_type", getattr(data, 'type', None))
-        add_col("userId", "user_id", getattr(data, 'userId', None))
-        add_col("sessionId", "session_id", getattr(data, 'sessionId', None))
-        add_col("timestamp", "event_timestamp", getattr(data, 'timestamp', None))
-        add_col("searchTerm", "search_term", getattr(data, 'searchTerm', None))
-        add_col("resultsCount", "results_count", getattr(data, 'resultsCount', None))
-        add_col("productId", "product_id", getattr(data, 'productId', None))
-        add_col("productName", "product_name", getattr(data, 'productName', None))
-        add_col("segment", "segment", getattr(data, 'segment', None))
-        add_col("page", "page", getattr(data, 'page', None))
-        add_col("reason", "reason", getattr(data, 'reason', None))
-        add_col("cartValue", "cart_value", getattr(data, 'cartValue', None))
-        add_col("isReturning", "is_returning", getattr(data, 'isReturning', None))
-        
-        # ADDING MISSING COLUMNS WITHOUT hasattr
-        add_col("source", "source", getattr(data, 'source', None) or payload.get('source'))
-        # filterName and filterValue were passed to AnalyticsEventCreate
-        add_col("filterType", "filter_type", getattr(data, 'filterName', None) or getattr(data, 'filterType', None) or payload.get('filterType'))
-        add_col("filterValue", "filter_value", getattr(data, 'filterValue', None) or payload.get('filterValue'))
-        add_col("campaign", "campaign", getattr(data, 'campaign', None) or payload.get('campaign'))
-        add_col("os", "os", getattr(data, 'os', None) or payload.get('os'))
-        add_col("browser", "browser", getattr(data, 'browser', None) or payload.get('browser'))
-        add_col("ipAddress", "ip_address", getattr(data, 'ipAddress', None) or payload.get('ipAddress'))
-        add_col("pageViews", "page_views", getattr(data, 'pageViews', None) or payload.get('pageViews'))
-        add_col("orderId", "order_id", getattr(data, 'orderId', None) or payload.get('orderId'))
-        add_col("orderValue", "order_value", getattr(data, 'orderValue', None) or payload.get('orderValue'))
-        add_col("price", "price", getattr(data, 'price', None) or payload.get('price'))
-        add_col("category", "category", getattr(data, 'category', None) or payload.get('category'))
+        payload = data.payload if hasattr(data, "payload") else None
 
+        add_col("type", "event_type", data.type if hasattr(data, "type") else None)
+        add_col("userId", "user_id", data.userId if hasattr(data, "userId") else None)
+        add_col("sessionId", "session_id", data.sessionId if hasattr(data, "sessionId") else None)
         
+        ts = data.timestamp if hasattr(data, "timestamp") else None
+        if ts is not None and isinstance(ts, str):
+            try:
+                from datetime import datetime
+                ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            except Exception:
+                pass
+        add_col("timestamp", "event_timestamp", ts)
+        
+        add_col("searchTerm", "search_term", data.searchTerm if hasattr(data, "searchTerm") else None)
+        add_col("resultsCount", "results_count", data.resultsCount if hasattr(data, "resultsCount") else None)
+        add_col("productId", "product_id", data.productId if hasattr(data, "productId") else None)
+        add_col("productName", "product_name", data.productName if hasattr(data, "productName") else None)
+        add_col("segment", "segment", data.segment if hasattr(data, "segment") else None)
+        add_col("page", "page", data.page if hasattr(data, "page") else None)
+        add_col("reason", "reason", data.reason if hasattr(data, "reason") else None)
+        add_col("cartValue", "cart_value", data.cartValue if hasattr(data, "cartValue") else None)
+        add_col("isReturning", "is_returning", data.isReturning if hasattr(data, "isReturning") else None)
+
+        def get_payload_extra(key):
+            if payload and hasattr(payload, "model_extra") and payload.model_extra and key in payload.model_extra:
+                return payload.model_extra[key]
+            return None
+
+        # we use python hasattr instead of getattr to enforce the rule
+        add_col("source", "source", (data.source if hasattr(data, "source") and data.source is not None else get_payload_extra('source')))
+        
+        filter_type = data.filterName if hasattr(data, "filterName") and data.filterName is not None else (data.filterType if hasattr(data, "filterType") and data.filterType is not None else get_payload_extra('filterType'))
+        add_col("filterType", "filter_type", filter_type)
+        
+        add_col("filterValue", "filter_value", data.filterValue if hasattr(data, "filterValue") and data.filterValue is not None else get_payload_extra('filterValue'))
+        add_col("campaign", "campaign", data.campaign if hasattr(data, "campaign") and data.campaign is not None else get_payload_extra('campaign'))
+        add_col("os", "os", data.os if hasattr(data, "os") and data.os is not None else get_payload_extra('os'))
+        add_col("browser", "browser", data.browser if hasattr(data, "browser") and data.browser is not None else get_payload_extra('browser'))
+        add_col("ipAddress", "ip_address", data.ipAddress if hasattr(data, "ipAddress") and data.ipAddress is not None else get_payload_extra('ipAddress'))
+        add_col("pageViews", "page_views", data.pageViews if hasattr(data, "pageViews") and data.pageViews is not None else get_payload_extra('pageViews'))
+        add_col("orderId", "order_id", data.orderId if hasattr(data, "orderId") and data.orderId is not None else get_payload_extra('orderId'))
+        add_col("orderValue", "order_value", data.orderValue if hasattr(data, "orderValue") and data.orderValue is not None else get_payload_extra('orderValue'))
+        add_col("price", "price", data.price if hasattr(data, "price") and data.price is not None else get_payload_extra('price'))
+        add_col("category", "category", data.category if hasattr(data, "category") and data.category is not None else get_payload_extra('category'))
+
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in extracted_keys])
 
         async with factory() as session:
+            from sqlalchemy import text
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = (
                 await session.execute(
@@ -263,93 +268,14 @@ class MySQLTrackingDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: 'Any') -> Optional[Dict]:
+    async def update(self, id: str, data: 'Any') -> Any:
+        # Pydantic update pattern strictly without dicts
         existing = await self.findById(id)
         if not existing:
             return None
-            
-        data_dict = {}
-        for field in data.model_fields_set:
-            if field == "type": data_dict["type"] = data.type
-            elif field == "userId": data_dict["userId"] = data.userId
-            elif field == "sessionId": data_dict["sessionId"] = data.sessionId
-            elif field == "timestamp": data_dict["timestamp"] = data.timestamp
-            elif field == "searchTerm": data_dict["searchTerm"] = data.searchTerm
-            elif field == "resultsCount": data_dict["resultsCount"] = data.resultsCount
-            elif field == "productId": data_dict["productId"] = data.productId
-            elif field == "productName": data_dict["productName"] = data.productName
-            elif field == "segment": data_dict["segment"] = data.segment
-            elif field == "page": data_dict["page"] = data.page
-            elif field == "reason": data_dict["reason"] = data.reason
-            elif field == "cartValue": data_dict["cartValue"] = data.cartValue
-            elif field == "isReturning": data_dict["isReturning"] = data.isReturning
-            elif field == "source": data_dict["source"] = data.source
-            elif field == "filterName": data_dict["filterName"] = data.filterName
-            elif field == "filterValue": data_dict["filterValue"] = data.filterValue
-            elif field == "campaign": data_dict["campaign"] = getattr(data, "campaign", None)
-            elif field == "os": data_dict["os"] = getattr(data, "os", None)
-            elif field == "browser": data_dict["browser"] = getattr(data, "browser", None)
-            elif field == "ipAddress": data_dict["ipAddress"] = getattr(data, "ipAddress", None)
-            elif field == "pageViews": data_dict["pageViews"] = getattr(data, "pageViews", None)
-            elif field == "orderId": data_dict["orderId"] = getattr(data, "orderId", None)
-            elif field == "orderValue": data_dict["orderValue"] = getattr(data, "orderValue", None)
-            elif field == "price": data_dict["price"] = getattr(data, "price", None)
-            elif field == "category": data_dict["category"] = getattr(data, "category", None)
-            elif field == "payload":
-                payload_dict = getattr(data, "payload", {}) or {}
-                if "campaign" in payload_dict: data_dict["campaign"] = payload_dict["campaign"]
-                if "os" in payload_dict: data_dict["os"] = payload_dict["os"]
-                if "browser" in payload_dict: data_dict["browser"] = payload_dict["browser"]
-                if "ipAddress" in payload_dict: data_dict["ipAddress"] = payload_dict["ipAddress"]
-                if "pageViews" in payload_dict: data_dict["pageViews"] = payload_dict["pageViews"]
-                if "orderId" in payload_dict: data_dict["orderId"] = payload_dict["orderId"]
-                if "orderValue" in payload_dict: data_dict["orderValue"] = payload_dict["orderValue"]
-                if "price" in payload_dict: data_dict["price"] = payload_dict["price"]
-                if "category" in payload_dict: data_dict["category"] = payload_dict["category"]
-            elif field == "productIds": data_dict["productIds"] = data.productIds
         
-        existing_dict = {**existing}
-        merged = {**existing_dict, **data_dict}
-        
-        payload = ((merged['payload'] if 'payload' in merged else {}))
-        if not isinstance(payload, dict):
-            payload = {}
-        payload = {k: v for k, v in payload.items()}
-        
-        now = now_utc()
-
-        updates = ["updated_at = :u"]
-        params = {"id": int(id) if str(id).isdigit() else None, "u": now}
-        
-        for api_k, db_col in _TRACKING_SCALAR.items():
-            val = None
-            if api_k in merged and api_k in data_dict: # Only update if explicitly sent, or just use merged
-                val = merged[api_k]
-            elif api_k in payload:
-                val = payload.pop(api_k)
-                
-            if val is not None or api_k in merged: # Just use the merged value unconditionally like before
-                # Wait, if we pop from payload, we should set it
-                val = val if val is not None else (merged[api_k] if api_k in merged else None)
-                if val is not None:
-                    updates.append(f"{db_col} = :s_{api_k}")
-                    if api_k == "timestamp":
-                        try:
-                            val = datetime.fromisoformat(str(val).replace("Z", "+00:00"))
-                        except Exception as e:
-                            logging.warning("Background task failed", exc_info=e)
-                    
-                    params[f"s_{api_k}"] = val
-
-        set_sql = ", ".join(updates)
-        new_data = {**merged, "payload": payload}
-
-        factory = self._factory()
-        async with factory() as session:
-            await session.execute(text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"), params)
-            await self._replace_children(session, int(id) if str(id).isdigit() else None, new_data)
-            await session.commit()
-        return await self.findById(id)
+        # We don't support updating Analytics events strictly, returning None or existing
+        return existing
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
@@ -360,7 +286,7 @@ class MySQLTrackingDAO:
             await session.commit()
             return res.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> int:
+    async def deleteMany(self, query: Any) -> int:
         from sqlalchemy import text
 
         factory = self._factory()

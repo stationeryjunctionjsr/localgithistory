@@ -250,128 +250,102 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
 
     # 1. Collect all unique IDs across all orders
     for order in orders:
-        if isinstance(order, dict):
-            u = order.get("user")
-            if u: user_ids.add(str(u))
-            v = order.get("assignedValet") or order.get("assigned_valet")
-            if v: valet_ids.add(str(v))
-            oid = order.get("id") or order.get("_id")
-            if oid: order_ids.add(str(oid))
-            for item in order.get("items", []):
-                prod = item.get("product") if isinstance(item, dict) else (getattr(item, "product", None))
-                if isinstance(prod, dict):
-                    pid = prod.get("_id") or prod.get("id")
-                    if pid: product_ids.add(str(pid))
-                elif hasattr(prod, "id") and prod.id:
-                    product_ids.add(str(prod.id))
-                elif prod:
-                    product_ids.add(str(prod))
-        else:
-            if getattr(order, "user", None):
-                user_ids.add(str(order.user))
-            v = getattr(order, "assignedValet", None) or getattr(order, "assigned_valet", None)
-            if v:
-                valet_ids.add(str(v))
-            if getattr(order, "id", None):
-                order_ids.add(str(order.id))
-            for item in getattr(order, "items", []) or []:
-                prod = getattr(item, "product", None)
-                if isinstance(prod, dict):
-                    pid = prod.get("_id") or prod.get("id")
-                    if pid: product_ids.add(str(pid))
-                elif hasattr(prod, "id") and prod.id:
-                    product_ids.add(str(prod.id))
-                elif prod:
-                    product_ids.add(str(prod))
+        if order.user:
+            user_ids.add(str(order.user))
+        
+        # We access properties directly based on the Order model fields
+        v = order.assignedValet if hasattr(order, "assignedValet") else (order.assigned_valet if hasattr(order, "assigned_valet") else None)
+        if v:
+            valet_ids.add(str(v))
+            
+        if order.id:
+            order_ids.add(str(order.id))
+            
+        for item in order.items if order.items else []:
+            if item.product:
+                pid = str(item.product)
+                if pid: product_ids.add(pid)
+            elif hasattr(item, "product_id") and item.product_id:
+                product_ids.add(str(item.product_id))
 
-    # 2. Bulk fetch references
-    users_map = {}
-    if user_ids or valet_ids:
-        all_u_ids = list(user_ids.union(valet_ids))
-        users = await user_repository.findAll({"_id": {"$in": all_u_ids}})
-        for u in users:
-            users_map[str(u.id)] = u
+    # 2. Fetch all required users, valets, products, and payments in parallel
+    users_task = get_storage("users").findAll({"_id": {"$in": list(user_ids.union(valet_ids))}}) if user_ids.union(valet_ids) else None
+    products_task = get_storage("products").findAll({"_id": {"$in": list(product_ids)}}) if product_ids else None
+    payments_task = get_storage("payments").findAll({"orderId": {"$in": list(order_ids)}}) if order_ids else None
 
-    products_map = {}
-    if product_ids:
-        prods = await product_repository.findAll({"_id": {"$in": list(product_ids)}})
-        for p in prods:
-            products_map[str(p.id)] = p
+    # Execute DB queries concurrently (if any)
+    users_list = await users_task if users_task else []
+    products_list = await products_task if products_task else []
+    payments_list = await payments_task if payments_task else []
 
+    # 3. Build lookup maps
+    users_map = {str(u.id): u for u in users_list if u.id}
+    products_map = {str(p.id): p for p in products_list if p.id}
     payments_map = {}
-    if order_ids:
-        payments = await payment_repository.findAll({"allowed_order_ids": list(order_ids)})
-        for p in payments:
-            oid = p.order_id
-            if oid:
-                payments_map[str(oid)] = p.payment_entries or []
+    for p in payments_list:
+        oid = str(p.orderId) if hasattr(p, "orderId") else str(p.order_id)
+        if oid not in payments_map:
+            payments_map[oid] = []
+        payments_map[oid].append(p)
 
-    # 3. Populate each order using the maps
-    populated_orders = []
+    # 4. Construct fully populated responses
+    populated = []
     for order in orders:
-        is_dict = isinstance(order, dict)
+        o_user = str(order.user) if order.user else None
+        user = users_map[o_user] if o_user and o_user in users_map else None
         
-        o_user = order.get("user") if is_dict else getattr(order, "user", None)
-        user = users_map.get(str(o_user)) if o_user else None
+        o_valet = str(order.assignedValet if hasattr(order, "assignedValet") else (order.assigned_valet if hasattr(order, "assigned_valet") else None))
+        valet = users_map[o_valet] if o_valet and o_valet in users_map else None
         
-        o_valet = (order.get("assignedValet") or order.get("assigned_valet")) if is_dict else (getattr(order, "assignedValet", None) or getattr(order, "assigned_valet", None))
-        valet = users_map.get(str(o_valet)) if o_valet else None
-
-        o_id = (order.get("id") or order.get("_id")) if is_dict else getattr(order, "id", None)
-        payment_entries = payments_map.get(str(o_id), []) if o_id else []
-
-        o_items = order.get("items", []) if is_dict else (getattr(order, "items", []) or [])
+        o_id = str(order.id) if order.id else None
+        payment_entries = payments_map[o_id] if o_id and o_id in payments_map else []
+        
+        o_items = order.items if order.items else []
         populated_items = []
-        for item in o_items:
-            i_dict = item if isinstance(item, dict) else (item.model_dump() if hasattr(item, "model_dump") else (item.dict() if hasattr(item, "dict") else dict(item)))
-            prod = i_dict.get("product")
+        
+        for i_dict in o_items:
+            # i_dict is a Pydantic OrderItem
+            pid = str(i_dict.product) if i_dict.product else (str(i_dict.product_id) if hasattr(i_dict, "product_id") else None)
+            product = products_map[pid] if pid and pid in products_map else None
             
-            pid = None
-            if isinstance(prod, dict):
-                pid = prod.get("_id") or prod.get("id")
-            elif hasattr(prod, "id") and prod.id:
-                pid = str(prod.id)
-            elif prod:
-                pid = str(prod)
-                
-            product = products_map.get(pid) if pid else None
-            
-            if product:
-                i_dict["product"] = product.model_dump() if hasattr(product, "model_dump") else (product.dict() if hasattr(product, "dict") else product)
-                
-            populated_items.append(i_dict)
-
-        user_snippet = None
-        if user:
-            user_snippet = UserSnippet(
-                _id=str(user.id),
-                userId=user.user_id,
-                userIdFormatted=user.user_id_formatted,
-                name=user.name,
-                email=user.email,
-                phone=user.phone,
-                companyName=user.companyName
+            p_item = PopulatedOrderItemResponse(
+                product=product,
+                quantity=i_dict.quantity,
+                price=i_dict.price,
+                stockStatus=i_dict.stockStatus if hasattr(i_dict, "stockStatus") else None,
+                taxRate=i_dict.taxRate if hasattr(i_dict, "taxRate") else None,
+                taxAmount=i_dict.taxAmount if hasattr(i_dict, "taxAmount") else None
             )
+            populated_items.append(p_item)
             
-        valet_snippet = None
-        if valet:
-            valet_snippet = ValetSnippet(
-                _id=str(valet.id),
-                name=valet.name,
-                phone=valet.phone
-            )
-            
-        payment_snippet = PaymentSnippet(entries=payment_entries)
+        from app.models.schemas import OrderResponse
+        order_resp = OrderResponse.model_validate(order, from_attributes=True)
+        order_resp.items = populated_items
         
-        base_dict = order if is_dict else (order.model_dump() if hasattr(order, "model_dump") else (order.dict() if hasattr(order, "dict") else dict(order)))
-        
-        base_dict["user"] = user_snippet
-        base_dict["assignedValet"] = valet_snippet
-        base_dict["payment"] = payment_snippet
-        base_dict["paymentEntries"] = payment_entries
-        base_dict["items"] = populated_items
-        
-        populated_orders.append(PopulatedOrderResponse(**base_dict))
+        pop_order = PopulatedOrderResponse(
+            id=order_resp.id,
+            user=user,
+            assignedValet=valet,
+            paymentEntries=payment_entries,
+            items=populated_items,
+            sub_orders=order_resp.sub_orders,
+            orderStatus=order_resp.orderStatus,
+            totalAmount=order_resp.totalAmount,
+            deliveryFee=order_resp.deliveryFee,
+            discount=order_resp.discount,
+            couponCode=order_resp.couponCode,
+            paymentMethod=order_resp.paymentMethod,
+            paymentStatus=order_resp.paymentStatus,
+            address=order_resp.address,
+            createdAt=order_resp.createdAt,
+            updatedAt=order_resp.updatedAt,
+            zoneId=order_resp.zoneId,
+            sellerId=order_resp.sellerId,
+            notes=order_resp.notes,
+            invoiceLink=order_resp.invoiceLink,
+            commissionCalculated=order_resp.commissionCalculated
+        )
+        populated.append(pop_order)
 
     return populated_orders
 async def populate_order(order: Any) -> Optional[PopulatedOrderResponse]:

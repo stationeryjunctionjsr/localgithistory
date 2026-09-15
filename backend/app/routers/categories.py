@@ -333,7 +333,6 @@ async def update_category(
         if not category:
             raise HTTPException(status_code=404, detail="Category not found")
 
-        update_data = {}
         if category_update.name is not None:
             # Check if category with same name already exists (excluding current category) (case-insensitive)
             all_categories = await category_repository.findAll()
@@ -341,35 +340,15 @@ async def update_category(
             for cat in all_categories:
                 if (cat.name or "").strip().lower() == name_lower and str(cat.id) != str(category_id):
                     raise HTTPException(status_code=400, detail=f"Category with name '{category_update.name}' already exists")
-            update_data.name = category_update.name.strip()
-
-        if category_update.description is not None:
-            update_data.description = category_update.description
-        if category_update.images is not None:
-            update_data.images = category_update.images
-        if category_update.subCategories is not None:
-            update_data.subCategories = category_update.subCategories
-        if category_update.minimumQuantity is not None:
-            update_data.minimumQuantity = category_update.minimumQuantity
-        # Always update categoryTags if it's provided in the request (even if empty list)
-        if category_update.categoryTag is not None:
-            update_data.categoryTag = category_update.categoryTag
-        if category_update.isActive is not None:
-            update_data.isActive = category_update.isActive
-        if category_update.showInMobileHomepage is not None:
-            update_data.showInMobileHomepage = category_update.showInMobileHomepage
-        if category_update.gst is not None:
-            update_data.gst = category_update.gst
-        if category_update.isReturnable is not None:
-            update_data.isReturnable = category_update.isReturnable
+            category_update.name = category_update.name.strip()
 
         # Ensure we have at least one field to update
-        if not update_data:
+        if not category_update.model_fields_set:
             raise HTTPException(status_code=400, detail="No fields to update")
 
-        updated_category = await category_repository.update(category_id, update_data)
+        updated_category = await category_repository.update(category_id, category_update)
         _invalidate_category_caches()
-        return updated
+        return updated_category
     except HTTPException:
         raise
     except Exception as e:

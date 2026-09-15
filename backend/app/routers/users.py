@@ -96,7 +96,7 @@ async def update_my_preferences(
             detail=f"Unsupported language '{data.preferredLanguage}'. Supported: {sorted(SUPPORTED_LANGUAGES)}",
         )
     user_id = current_user.id
-    await user_repository.update(user_id, {"preferredLanguage": data.preferredLanguage})
+    await user_repository.update(user_id, UserUpdate(preferredLanguage=data.preferredLanguage))
     return {"preferredLanguage": data.preferredLanguage}
 
 
@@ -114,7 +114,7 @@ async def deactivate_own_account(current_user: User = Depends(get_current_user))
     if user.role == "super_admin":
         raise HTTPException(status_code=400, detail="Super admin accounts cannot self-deactivate")
 
-    update_data = {"isActive": False}
+    update_data = UserUpdate(isActive=False)
     if user.role == "wholesaler":
         update_data.isDeactivated = True
 
@@ -135,7 +135,7 @@ async def update_duty_status(
     if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can update duty status")
     
-    await user_repository.update(user_id, {"isOnDuty": data.isOnDuty})
+    await user_repository.update(user_id, UserUpdate(isOnDuty=data.isOnDuty))
     return {"isOnDuty": data.isOnDuty, "message": f"You are now {'on duty' if data.isOnDuty else 'off duty'}"}
 
 
@@ -218,7 +218,7 @@ async def approve_user(user_id: str, current_user: User = Depends(require_super_
     if user.role != "wholesaler":
         raise HTTPException(status_code=400, detail="Only business customers require approval")
 
-    updated_user = await user_repository.update(user_id, {"approvalStatus": "approved", "isActive": True})
+    updated_user = await user_repository.update(user_id, UserUpdate(approvalStatus="approved", isActive=True))
 
     return updated_user
 
@@ -230,7 +230,7 @@ async def reject_user(user_id: str, current_user: User = Depends(require_super_a
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    updated_user = await user_repository.update(user_id, {"approvalStatus": "rejected", "isActive": False})
+    updated_user = await user_repository.update(user_id, UserUpdate(approvalStatus="rejected", isActive=False))
 
     return updated_user
 
@@ -271,7 +271,7 @@ async def update_user_role(
                 detail="Address is required for Business customer. Please update the user's profile with Address before changing the role.",
             )
 
-    update_data = {"role": role_data.role}
+    update_data = UserUpdate(role=role_data.role)
 
     if role_data.role in ["wholesaler", "valet"]:
         update_data.approvalStatus = role_data.approvalStatus or "approved"
@@ -337,7 +337,7 @@ async def update_seller_delivery_settings(
     from app.repositories.zone_seller_cache import invalidate_zone_cache
 
     seller_id = str((current_user.id or ""))
-    await user_repository.update(seller_id, {"serviceAreaZones": data.serviceableZoneIds})
+    await user_repository.update(seller_id, UserUpdate(serviceAreaZones=data.serviceableZoneIds))
     # Invalidate the full seller-zone cache so changes take effect immediately
     invalidate_zone_cache()
     return {"ok": True}
@@ -367,11 +367,11 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
 
     if current_user.role != "super_admin":
         # Non-super admins cannot change certain fields
-        update_dict = user_data
-        for key in ["role", "approvalStatus", "isActive", "creditLimit"]:
-            update_dict.pop(key, None)
-    else:
-        update_dict = user_data
+        user_data.role = None
+        user_data.approvalStatus = None
+        user_data.isActive = None
+        user_data.creditLimit = None
+
 
     # Get existing user for validation
     existing_user = await user_repository.findById(user_id)
@@ -379,16 +379,16 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
         raise HTTPException(status_code=404, detail="User not found")
 
     # Check email uniqueness if email is being updated
-    if "email" in update_dict and update_dict["email"]:
-        new_email = update_dict["email"].lower()
+    if user_data.email is not None and user_data.email:
+        new_email = user_data.email.lower()
         existing_with_email = await user_repository.findByEmail(new_email)
         if existing_with_email and str(existing_with_email.id or existing_with_email._id) != user_id:
             raise HTTPException(status_code=400, detail="Email already in use by another account.")
         if not existing_user or existing_user.email != new_email:
-            update_dict["isEmailVerified"] = False
+            user_data.isEmailVerified = False
 
     # If super admin is changing role to wholesaler, validate Company Name and Address
-    if current_user.role == "super_admin" and "role" in update_dict and update_dict["role"] == "wholesaler":
+    if current_user.role == "super_admin" and user_data.role is not None and user_data.role == "wholesaler":
         final_company_name = (
             user_data.companyName if user_data.companyName is not None else existing_user.company_name
         )
@@ -407,7 +407,7 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
                 detail="Address is required for Business customer. Please update the user's profile with Address before changing the role.",
             )
 
-    if "role" not in update_dict and existing_user.role == "wholesaler":
+    if user_data.role is None and existing_user.role == "wholesaler":
         final_company_name = (
             user_data.companyName if user_data.companyName is not None else existing_user.company_name
         )
@@ -420,7 +420,7 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
         if not final_street or not str(final_street).strip():
             raise HTTPException(status_code=400, detail="Address is required for Business customer")
 
-    user = await user_repository.update(user_id, update_dict)
+    user = await user_repository.update(user_id, user_data)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -437,7 +437,7 @@ async def deactivate_user(user_id: str, current_user: User = Depends(require_sup
     if user.role != "wholesaler":
         raise HTTPException(status_code=400, detail="Only business customers can be deactivated")
 
-    updated_user = await user_repository.update(user_id, {"isDeactivated": True})
+    updated_user = await user_repository.update(user_id, UserUpdate(isDeactivated=True))
     return updated_user
 
 
@@ -448,7 +448,7 @@ async def activate_user(user_id: str, current_user: User = Depends(require_super
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    updated_user = await user_repository.update(user_id, {"isDeactivated": False})
+    updated_user = await user_repository.update(user_id, UserUpdate(isDeactivated=False))
     return updated_user
 
 
@@ -462,7 +462,7 @@ async def mark_user_as_valet(user_id: str, current_user: User = Depends(require_
     if user.role == "super_admin":
         raise HTTPException(status_code=400, detail="Cannot mark super admin as valet")
 
-    updated_user = await user_repository.update(user_id, {"role": "valet"})
+    updated_user = await user_repository.update(user_id, UserUpdate(role="valet"))
     return updated_user
 
 
@@ -499,7 +499,7 @@ async def change_password(
         if not stored_hash or not verify_password(password_data.currentPassword, stored_hash):
             raise HTTPException(status_code=400, detail="Current password is incorrect")
 
-    await user_repository.update(user_id, {"password": password_data.newPassword})
+    await user_repository.update(user_id, UserUpdate(password=password_data.newPassword))
     return {"message": "Password changed successfully"}
 
 
@@ -574,7 +574,7 @@ async def verify_email(data: VerifyEmailRequest, request: Request, current_user:
         err_msg = result.message
         raise HTTPException(status_code=400, detail=err_msg)
 
-    await user_repository.update(user_id, {"isEmailVerified": True})
+    await user_repository.update(user_id, UserUpdate(isEmailVerified=True))
     return {"message": "Email verified successfully."}
 
 
