@@ -1,3 +1,4 @@
+from app.models.product import Product
 from typing import Any
 import asyncio
 import time as time_module

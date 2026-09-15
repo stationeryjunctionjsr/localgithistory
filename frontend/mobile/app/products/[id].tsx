@@ -21,7 +21,7 @@ import Toast from 'react-native-toast-message';
 import { useAuth } from '../../src/hooks/useAuth';
 import { usePincode } from '../../src/context/PincodeContext';
 import { trackRecommendationEvent } from '../../src/utils/analytics';
-import { trackProductView, trackEvent } from '../../src/utils/mobileAnalytics';
+import { trackProductView, trackEvent, trackAddToCart } from '../../src/utils/mobileAnalytics';
 import {
   addGuestCartItem,
   getGuestCart,

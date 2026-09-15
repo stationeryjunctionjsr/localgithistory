@@ -1936,6 +1936,16 @@ class PaymentSnippet(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
     entries: List[Any] = []
 
+
+class PopulatedOrderItemResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    product: Optional[Any] = None
+    quantity: Optional[int] = None
+    price: Optional[float] = None
+    stockStatus: Optional[str] = None
+    taxRate: Optional[float] = None
+    taxAmount: Optional[float] = None
+
 class PopulatedOrderResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
     id: Optional[str] = Field(default=None, alias="_id")

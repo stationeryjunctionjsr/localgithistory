@@ -1,3 +1,7 @@
+from app.models.schemas import UserInternalUpdate
+import logging
+from app.models.schemas import PopulatedOrderResponse, PopulatedOrderItemResponse
+from app.db.storage_factory import get_storage
 from app.models.user import User
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
 from app.models.sub_order import SubOrder, SubOrderInternalCreate, SubOrderInternalUpdate, SubOrderItem
@@ -347,7 +351,7 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
         )
         populated.append(pop_order)
 
-    return populated_orders
+    return populated
 async def populate_order(order: Any) -> Optional[PopulatedOrderResponse]:
     """Populate a single order by reusing populate_orders"""
     if not order:
@@ -1293,10 +1297,10 @@ async def create_order(
     if order_data.paymentMethod == "credit":
         # Initialize credit if not set
         if user.credit_used is None:
-            await user_repository.update(current_user.id, {"creditUsed": 0})
+            await user_repository.update(current_user.id, UserInternalUpdate(creditUsed=0))
             user.creditUsed = 0
         if user.credit_limit is None:
-            await user_repository.update(current_user.id, {"creditLimit": 0})
+            await user_repository.update(current_user.id, UserInternalUpdate(creditLimit=0))
             user.creditLimit = 0
 
         if ((user.credit_used if user.credit_used is not None else 0) + total) > (user.credit_limit if user.credit_limit is not None else 0):
@@ -1681,7 +1685,7 @@ async def create_order(
     # Save address to user's profile
     await user_repository.addSavedAddress(current_user.id, order_data.shippingAddress)
     # Update current address to the one just used
-    await user_repository.update(current_user.id, {"address": order_data.shippingAddress})
+    await user_repository.update(current_user.id, UserInternalUpdate(address=order_data.shippingAddress))
 
     populated_order = await populate_order(order)
     email = populated_order.user.email if (populated_order.user and populated_order.user.email) else None
@@ -2153,7 +2157,7 @@ async def update_order_status(
                 if user.credit_used is None or order.total is None:
                     raise ValueError("Cannot calculate credit usage: credit_used or total is None")
                 new_credit_used = max(0, user.credit_used - order.total)
-                await user_repository.update(order.user, {"creditUsed": new_credit_used})
+                await user_repository.update(order.user, UserInternalUpdate(creditUsed=new_credit_used))
 
         # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
         # cannot race against this restoration and produce a wrong stock count.
@@ -2327,7 +2331,7 @@ async def decline_order(
             if user.credit_used is None or order.total is None:
                 raise ValueError("Cannot calculate credit usage: credit_used or total is None")
             new_credit_used = max(0, user.credit_used - order.total)
-            await user_repository.update(order.user, {"creditUsed": new_credit_used})
+            await user_repository.update(order.user, UserInternalUpdate(creditUsed=new_credit_used))
 
     # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
     # cannot race against this restoration and produce a wrong stock count.
@@ -2543,7 +2547,7 @@ async def cancel_order(order_id: str, current_user: User = Depends(get_current_u
             if user.credit_used is None or order.total is None:
                 raise ValueError("Cannot calculate credit usage: credit_used or total is None")
             new_credit_used = max(0, user.credit_used - order.total)
-            await user_repository.update(order.user, {"creditUsed": new_credit_used})
+            await user_repository.update(order.user, UserInternalUpdate(creditUsed=new_credit_used))
 
     # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
     # cannot race against this restoration and produce a wrong stock count.
@@ -2973,7 +2977,7 @@ async def settle_credit(
     if user.credit_used is None:
         raise ValueError("Cannot calculate credit usage: credit_used is None")
     new_credit_used = max(0, user.credit_used - settle_amount)
-    await user_repository.update(current_user.id, {"creditUsed": new_credit_used})
+    await user_repository.update(current_user.id, UserInternalUpdate(creditUsed=new_credit_used))
 
     # Update payment record
     updated_payment = await payment_repository.findById(payment.id)

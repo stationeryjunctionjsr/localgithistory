@@ -1,3 +1,4 @@
+from app.models.user import User
 from typing import Any
 from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserUpdate
 from typing import Dict, Optional

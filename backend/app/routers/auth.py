@@ -1,3 +1,4 @@
+from app.models.schemas import UserUpdate
 from app.models.user import User
 from app.models.schemas import MessageResponse, CheckPhoneResponse, VerifyOtpResponse, Msg91WebhookResponse, VerifyMsg91TokenResponse, Msg91WebhookPayload
 import os
@@ -526,7 +527,7 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found with this phone number")
 
         # Update password (UserRepository.update will handle hashing)
-        await user_repository.update(user.id, {"password": data.newPassword})
+        await user_repository.update(user.id, UserUpdate(password=data.newPassword))
 
         return {"message": "Password reset successful"}
     except HTTPException:

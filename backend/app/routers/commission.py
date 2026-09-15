@@ -1,3 +1,4 @@
+from app.models.schemas import UserUpdate
 from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
@@ -341,7 +342,7 @@ async def set_seller_commission_override(
     if not seller.is_seller_admin:
         raise HTTPException(status_code=400, detail="User is not a marketplace seller")
 
-    updated = await user_repository.update(seller_id, {"commissionOverridePct": payload.commissionOverridePct})
+    updated = await user_repository.update(seller_id, UserUpdate(commissionOverridePct=payload.commissionOverridePct))
     override_val = updated.commission_override_pct if updated.commission_override_pct is not None else payload.commissionOverridePct
     
     return {
@@ -365,7 +366,7 @@ async def remove_seller_commission_override(
     if not seller:
         raise HTTPException(status_code=404, detail="Seller not found")
 
-    await user_repository.update(seller_id, {"commissionOverridePct": None})
+    await user_repository.update(seller_id, UserUpdate(commissionOverridePct=None))
     return {"id": seller_id, "message": "Commission override removed. Seller will use global tiers."}
 
 

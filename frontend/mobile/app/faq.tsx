@@ -96,14 +96,9 @@ export default function FAQ() {
     }
   };
 
-  const toggleSection = (title: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedSection(expandedSection === title ? null : title);
-  };
-
   const toggleItem = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedItems((prev) => ({ ...prev, [id]: !prev[id] }));
+    setExpandedKey(expandedKey === id ? null : id);
   };
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
