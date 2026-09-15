@@ -1586,15 +1586,7 @@ CREATE TABLE `sj_tracking_cart_items` (
   CONSTRAINT `sj_tracking_cart_items_ibfk_1` FOREIGN KEY (`tracking_id`) REFERENCES `sj_tracking` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE `sj_tracking_payload` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `tracking_id` int NOT NULL,
-  `payload_key` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `payload_value` text COLLATE utf8mb4_unicode_ci,
-  PRIMARY KEY (`id`),
-  KEY `fk_sj_tracking_pay` (`tracking_id`),
-  CONSTRAINT `fk_sj_tracking_pay` FOREIGN KEY (`tracking_id`) REFERENCES `sj_tracking` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 CREATE TABLE `sj_tracking_products` (
   `id` int NOT NULL AUTO_INCREMENT,
