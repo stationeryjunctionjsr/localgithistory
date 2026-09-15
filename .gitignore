@@ -134,3 +134,11 @@ backend/migrate_*.py
 backend/test_*.py
 backend/seed_*.py
 
+/backend/apply_indexes.py
+/backend/apply_relational_schema.py
+/backend/generate_daos.py
+/backend/recreate_table.py
+/backend/set_admin.py
+/backend/start_db.py
+/backend/whitelist_current_ip.py
+/fix.py
