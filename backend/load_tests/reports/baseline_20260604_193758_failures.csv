@@ -1,2 +1,0 @@
-Method,Name,Error,Occurrences,First Seen,Last Seen
-GET,/api/schemes,HTTPError('401 Client Error: Unauthorized for url: /api/schemes'),1,2026-06-04T14:08:25Z,2026-06-04T14:08:25Z

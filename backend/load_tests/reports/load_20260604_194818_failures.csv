@@ -1,2 +1,0 @@
-Method,Name,Error,Occurrences,First Seen,Last Seen
-GET,/api/coupons/validate,CatchResponseError('Coupon validate failed: 401'),4,2026-06-04T14:19:11Z,2026-06-04T14:19:25Z

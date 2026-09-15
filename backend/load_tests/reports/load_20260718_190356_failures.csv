@@ -1,3 +1,0 @@
-Method,Name,Error,Occurrences,First Seen,Last Seen
-GET,/api/coupons/validate,CatchResponseError('Coupon validate failed: 401'),15,2026-07-18T13:34:56Z,2026-07-18T13:36:41Z
-GET,/api/delivery-charges/check-serviceability,HTTPError('500 Server Error: Internal Server Error for url: /api/delivery-charges/check-serviceability'),57,2026-07-18T13:34:59Z,2026-07-18T13:36:48Z

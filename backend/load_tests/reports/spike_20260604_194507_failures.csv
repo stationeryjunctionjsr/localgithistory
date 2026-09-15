@@ -1,3 +1,0 @@
-Method,Name,Error,Occurrences,First Seen,Last Seen
-GET,/api/coupons/validate,CatchResponseError('Coupon validate failed: 401'),12,2026-06-04T14:17:36Z,2026-06-04T14:17:50Z
-GET,/api/recommendations/trending,HTTPError('404 Client Error: Not Found for url: /api/recommendations/trending'),57,2026-06-04T14:17:35Z,2026-06-04T14:17:50Z
