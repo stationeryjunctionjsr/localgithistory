@@ -53,10 +53,10 @@ class KPIMetricsResponse(BaseModel):
     orders: int
 
 class DashboardDataResponse(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
 
 class BundlePerformanceResponse(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
 
 class SalesOverTimeResponse(BaseModel):
     period: str
@@ -173,10 +173,10 @@ class TopUsersReportResponse(BaseModel):
     revenue: float
 
 class GenericListResponse(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
     
 class GenericDictResponse(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
 
 @router.post("/events", response_model=RecordEventResponse)
 async def record_event(

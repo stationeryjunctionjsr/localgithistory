@@ -269,7 +269,7 @@ class ValetPayoutSettingsInternalUpdate(BaseModel):
     returnPickupChargePerOrder: Optional[float] = None
 
 class SupportTicketInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='ignore')
+    model_config = ConfigDict(extra='forbid')
     ticketNumber: str
     user: Optional[str] = None
     name: Optional[str] = None
@@ -289,7 +289,7 @@ class SupportTicketInternalCreate(BaseModel):
     createdAt: Optional[str] = None
 
 class SupportTicketInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='ignore')
+    model_config = ConfigDict(extra='forbid')
     status: Optional[str] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None

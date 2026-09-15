@@ -125,7 +125,7 @@ class OrderCreateRequest(BaseModel):
 
 
 class CalculatedOrderItem(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     product: Any
     sellerId: Optional[str] = None
     productName: Optional[str] = None
@@ -166,7 +166,7 @@ class ConfirmPickupRequest(BaseModel):
 
 
 class LocationDeliveryCharge(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     charge: float = 0.0
     minCartValue: float = 0.0
     isApplicableToRole: bool = True
@@ -175,7 +175,7 @@ class LocationDeliveryCharge(BaseModel):
 
 
 class CouponDetailModel(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[str] = Field(None, alias="_id")
     code: Optional[str] = None
     discountType: Optional[str] = Field(None, alias="discount_type")
@@ -198,7 +198,7 @@ class CouponDetailModel(BaseModel):
 
 
 class CouponValidationResult(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     valid: bool = False
     message: Optional[str] = None
     coupon: Optional[Any] = None
@@ -209,7 +209,7 @@ class CouponValidationResult(BaseModel):
 
 
 class ReferralProgramSegmentSettings(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     segment: str = "retail"
     discountType: str = Field("percentage", alias="discount_type")
     discountValue: float = Field(0.0, alias="discount_value")
@@ -229,7 +229,7 @@ class ReferralProgramSegmentSettings(BaseModel):
 
 
 class ReferralSettingsModel(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     retail: ReferralProgramSegmentSettings = Field(default_factory=ReferralProgramSegmentSettings)
     business: Optional[ReferralProgramSegmentSettings] = None
 

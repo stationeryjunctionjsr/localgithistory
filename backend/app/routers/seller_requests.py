@@ -23,7 +23,7 @@ class SellerRequestResponseItem(BaseModel):
     isAdminResponse: Optional[bool] = None
     createdAt: Optional[str] = None
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
 
 async def populate_request(request):

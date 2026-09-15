@@ -912,7 +912,7 @@ class TicketResponseCreate(BaseModel):
 
 
 class SupportTicketInternal(SupportTicketBase):
-    model_config = ConfigDict(populate_by_name=True, extra='ignore')
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
     id: str = Field(alias="_id")
     ticketNumber: str
     user: Optional[str] = None
@@ -2084,7 +2084,7 @@ class TicketResponseCreate(BaseModel):
 
 
 class SupportTicketInternal(SupportTicketBase):
-    model_config = ConfigDict(populate_by_name=True, extra='ignore')
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
     id: str = Field(alias="_id")
     ticketNumber: str
     user: Optional[str] = None

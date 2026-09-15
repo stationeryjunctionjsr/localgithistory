@@ -15,7 +15,7 @@ DEFAULT_ZONE_ID = "default"
 
 
 class SlotBase(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[str] = None
     startTime: str = ""
     endTime: str = ""
@@ -31,7 +31,7 @@ class SlotBase(BaseModel):
 
 
 class DeliverySlotConfigModel(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[Any] = Field(None, alias="_id")
     segment: Optional[str] = None
     date: Optional[str] = None
@@ -42,7 +42,7 @@ class DeliverySlotConfigModel(BaseModel):
 
 
 class DeliverySlotConfigResponse(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[Any] = Field(None, alias="_id")
     segment: str
     date: str
@@ -54,7 +54,7 @@ class DeliverySlotConfigResponse(BaseModel):
 
 
 class AvailableSlotItem(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     configId: str
     slotId: str
     startTime: str
@@ -64,13 +64,13 @@ class AvailableSlotItem(BaseModel):
 
 
 class AvailableSlotsResponse(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     date: Optional[str] = None
     slots: List[SlotBase] = Field(default_factory=list)
 
 
 class DatesWithSlotsResponse(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     availableDates: List[str] = Field(default_factory=list)
     urgentAvailable: bool = False
 

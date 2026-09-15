@@ -18,13 +18,13 @@ class PageDetail(BaseModel):
     description: Optional[str] = None
     columns: Dict[str, Any] = Field(default_factory=dict)
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
 
 class PageInfoContainer(BaseModel):
     pages: Dict[str, PageDetail] = Field(default_factory=dict)
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
 
 class PageInfoResponse(BaseModel):
@@ -35,7 +35,7 @@ class PageInfoResponse(BaseModel):
     columns: Optional[Dict[str, Any]] = None
     pages: Optional[Dict[str, Any]] = None
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
 
 router = APIRouter()

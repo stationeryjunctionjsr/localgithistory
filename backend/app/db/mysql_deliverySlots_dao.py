@@ -8,13 +8,13 @@ from app.db.db_utils import now_utc
 from app.config.settings import settings
 
 class SlotBase(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     startTime: Optional[str] = None
     endTime: Optional[str] = None
     capacity: Optional[int] = None
 
 class DeliverySlotResponse(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[str] = Field(None, alias="_id")
     segment: Optional[str] = None
     date: Optional[str] = None

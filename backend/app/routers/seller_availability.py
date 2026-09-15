@@ -47,7 +47,7 @@ class SellerAvailabilityItem(BaseModel):
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
 class SellerAvailabilityResponse(BaseModel):

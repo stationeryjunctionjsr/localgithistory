@@ -70,7 +70,7 @@ class CommissionTier(BaseModel):
     maxOrderValue: Optional[float] = Field(default=None, ge=0, alias="max_order_value")  # None = unlimited
     commissionPct: float = Field(default=0.0, ge=0, le=100, alias="commission_pct")
 
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
 

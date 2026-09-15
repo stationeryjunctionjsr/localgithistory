@@ -20,7 +20,7 @@ class PushNotificationResult(BaseModel):
     deliveredCount: int = Field(default=0, alias="delivered_count")
     totalDevices: int = Field(default=0, alias="total_devices")
 
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
 class TrackingNotifyEvent(BaseModel):
@@ -32,7 +32,7 @@ class TrackingNotifyEvent(BaseModel):
     userId: Optional[str] = None
     email: Optional[str] = None
 
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
 class AvailabilityRequestCreate(BaseModel):

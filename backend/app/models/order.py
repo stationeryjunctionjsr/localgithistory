@@ -12,7 +12,7 @@ class OrderAddress(BaseModel):
     phone: Optional[str] = None
 
 class Order(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='ignore')
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     session_id: Optional[str] = Field(default=None, alias="sessionId")
     id: str = Field(default="", validation_alias=AliasChoices("_id", "id"))
     order_number: Optional[str] = Field(default=None, alias="orderNumber")

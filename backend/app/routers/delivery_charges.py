@@ -56,7 +56,7 @@ class UploadCsvResponse(BaseModel):
 
 
 class CsvDeliveryChargeRow(BaseModel):
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     pincode: Optional[str] = None
     state: Optional[str] = None
     city: Optional[str] = None

@@ -34,7 +34,7 @@ class BulkUpdateData(BaseModel):
 
 
 class CSVProductRow(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     name: Optional[str] = None
     category: Optional[str] = None
     mrp: Optional[str] = None
@@ -55,7 +55,7 @@ class CSVProductRow(BaseModel):
 
 
 class CSVProductPayload(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     name: str
     productIdFormatted: Optional[str] = None
     sku: Optional[str] = None

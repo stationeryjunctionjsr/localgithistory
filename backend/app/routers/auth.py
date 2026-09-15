@@ -397,7 +397,7 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
 
 
 class RefreshTokenClaims(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     userId: str
     sessionId: str
     refreshId: str

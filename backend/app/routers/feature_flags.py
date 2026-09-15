@@ -22,7 +22,7 @@ class FeatureFlagItem(BaseModel):
     enabled: bool = False
     category: Optional[str] = "features"
 
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
 class FeatureFlagCreate(BaseModel):

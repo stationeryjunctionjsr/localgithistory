@@ -27,7 +27,7 @@ class TicketResponseItem(BaseModel):
     attachments: Optional[List[str]] = None
     createdAt: Optional[str] = None
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
 
 from app.models.schemas import UserSnippet

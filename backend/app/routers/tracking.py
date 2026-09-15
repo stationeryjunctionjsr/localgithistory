@@ -114,7 +114,7 @@ class CartAbandonmentResponse(BaseModel):
     cartItems: List[Any] = []
     cartValue: Optional[float] = 0.0
     
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
 class MostAbandonedProductResponse(BaseModel):
     productId: str

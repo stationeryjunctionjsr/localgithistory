@@ -30,7 +30,7 @@ def _storage():
 
 
 class ValetPayoutSettingsModel(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[Any] = Field(None, alias="_id")
     deliveryChargePerOrder: float = Field(0.0, alias="delivery_charge_per_order")
     returnPickupChargePerOrder: float = Field(0.0, alias="return_pickup_charge_per_order")
