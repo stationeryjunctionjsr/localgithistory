@@ -14,16 +14,20 @@ class UserRepository:
         self.storage = get_storage("users")
 
     async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
-        return await self.storage.findAll(query or {}, skip=skip, limit=limit)
+        users_data = await self.storage.findAll(query or {}, skip=skip, limit=limit)
+        return [User(**u) for u in users_data]
 
-    async def findById(self, id: str):
-        return await self.storage.findById(id)
+    async def findById(self, id: str) -> Optional[User]:
+        data = await self.storage.findById(id)
+        return User(**data) if data else None
 
-    async def findOne(self, query: Any):
-        return await self.storage.findOne(query)
+    async def findOne(self, query: Any) -> Optional[User]:
+        data = await self.storage.findOne(query)
+        return User(**data) if data else None
 
-    async def findByEmail(self, email: str):
-        return await self.storage.findOne({"email": email.lower()})
+    async def findByEmail(self, email: str) -> Optional[User]:
+        data = await self.storage.findOne({"email": email.lower()})
+        return User(**data) if data else None
 
     async def findByPhone(self, phone: str):
         if not phone:

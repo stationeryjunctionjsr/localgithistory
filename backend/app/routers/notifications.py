@@ -1,5 +1,5 @@
 from app.models.user import User
-from typing import Dict, Any, List
+from typing import Optional, Dict, Any, List
 from app.models.schemas import MessageResponse
 
 from pydantic import BaseModel, Field
@@ -18,7 +18,7 @@ class NotificationResponse(BaseModel):
 
 class UnreadCountResponse(BaseModel):
     unreadCount: int
-from typing import Optional
+from typing import Optional, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 

@@ -40,7 +40,7 @@ async def get_users(
         total = await user_repository.count(query)
 
         # Remove passwords
-        users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
+        users_without_passwords = users
 
         return {
             "users": users_without_passwords,
@@ -51,7 +51,7 @@ async def get_users(
         
     # No pagination -- return all (backwards compatible), capped at 1000 rows to protect memory
     users = await user_repository.findAll(query, limit=1000)
-    users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
+    users_without_passwords = users
     return {
         "users": users_without_passwords,
         "totalCount": len(users_without_passwords),
@@ -63,7 +63,7 @@ async def get_users(
 @router.get("/pending-approvals", response_model=List[UserResponse])
 async def get_pending_approvals(current_user: User = Depends(require_super_admin)):
     users = await user_repository.findAll({"approvalStatus": "pending"})
-    users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
+    users_without_passwords = users
     return [user for user in users_without_passwords]
 
 
@@ -209,7 +209,7 @@ async def get_available_valets(
     # Sort least busy first
     final_valets.sort(key=lambda v: (v.active_order_count if v.active_order_count is not None else 0))
     
-    users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in final_valets]
+    users_without_passwords = final_valets
     return [user for user in users_without_passwords]
 
 
