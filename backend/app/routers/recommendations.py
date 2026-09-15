@@ -135,7 +135,7 @@ async def get_recommendations(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/favourites", response_model=List[Product])
+@router.get("/favourites", response_model=FavouritesPageResponse)
 async def get_favourites_page(
     type: str = "customer",
     state: Optional[str] = None,
@@ -198,7 +198,7 @@ async def get_favourites_page(
 
     product_storage = _get_storage("products")
     all_products = await product_storage.findAll({"isActive": True})
-    product_map: dict = {p.id: p for p in all_products if p.id}
+    product_map: Any = {p.id: p for p in all_products if p.id}
 
     # Collect filter option lists from the full ranked set (before product-level filters)
     categories_seen: set = set()
@@ -245,18 +245,10 @@ async def get_favourites_page(
         if max_price is not None and price > max_price:
             continue
 
-        # Build skinny product payload (same as recommendations carousel)
-        p_copy = dict(p)
-        disp_img = p.display_image or (p.images[0] if p.images else None)
+        # We no longer cast to dict. We return the strict Product model and let FastAPI's response_model strip fields if needed.
+        # Wait, if we return Product, we can just append p.
         
-        p_copy["displayImage"] = disp_img
-        p_copy.pop("description", None)
-        p_copy.pop("variantCombinations", None)
-        p_copy.pop("videos", None)
-        p_copy.pop("applicableDiscounts", None)
-        p_copy.pop("variations", None)
-        p_copy.pop("variantAttributes", None)
-        products_out.append(p_copy)
+        products_out.append(p)
 
     return {
         "products": products_out,
