@@ -79,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
     });
     return () => setSessionRevokedHandler(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Dispatch language-sync event so LanguageContext can pick up preferredLanguage from DB */

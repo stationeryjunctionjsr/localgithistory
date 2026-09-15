@@ -359,16 +359,16 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
     if not password_match:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    if not (user.isActive if user.isActive is not None else True):
+    if not (user.is_active if user.is_active is not None else True):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is inactive")
 
     # Check approval status for wholesaler
     if user.role == "wholesaler":
-        if user.approvalStatus != "approved":
+        if user.approval_status != "approved":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your account is pending approval by Super Admin. Please wait for approval.",
-                headers={"X-Approval-Status": (user.approvalStatus if user.approvalStatus is not None else "pending")},
+                headers={"X-Approval-Status": (user.approval_status if user.approval_status is not None else "pending")},
             )
 
     device = parse_device(request, default_type="web")
@@ -382,7 +382,7 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
     refresh_token = create_refresh_token(user.id, session.id, refresh_id)
     # Calculate effective role
     effective_role = "customer"
-    if user.isDeactivated and user.role == "wholesaler":
+    if user.is_deactivated and user.role == "wholesaler":
         effective_role = "customer"
     else:
         effective_role = (user.role if user.role is not None else "customer")
@@ -459,12 +459,12 @@ async def refresh_tokens(payload: RefreshRequest, request: Request, response: Re
     refresh_token = create_refresh_token(user_id, session_id, new_refresh_id)
 
     user = await user_repository.findById(user_id)
-    if not user or not (user.isActive if user.isActive is not None else True):
+    if not user or not (user.is_active if user.is_active is not None else True):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
     # Calculate effective role
     effective_role = "customer"
-    if user.isDeactivated and user.role == "wholesaler":
+    if user.is_deactivated and user.role == "wholesaler":
         effective_role = "customer"
     else:
         effective_role = (user.role if user.role is not None else "customer")
@@ -571,7 +571,7 @@ async def delete_own_account(current_user: User = Depends(get_current_user)):
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     # Calculate effective role
     effective_role = "customer"
-    if current_user.isDeactivated and current_user.role == "wholesaler":
+    if current_user.is_deactivated and current_user.role == "wholesaler":
         effective_role = "customer"
     else:
         effective_role = (current_user.role if current_user.role is not None else "customer")

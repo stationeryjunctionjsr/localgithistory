@@ -1,8 +1,9 @@
 from __future__ import annotations
+from datetime import datetime
 from enum import Enum
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Union, Dict
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices, RootModel
 
 
 class UserRole(str, Enum):
@@ -163,11 +164,11 @@ class DiscountSnippet(BaseModel):
 
 
 
-class DynamicMetadata(BaseModel):
-    model_config = ConfigDict(extra='allow')
+class DynamicMetadata(RootModel[Dict[str, Any]]):
+    pass
 
-class ProductDetailsSchema(BaseModel):
-    model_config = ConfigDict(extra='allow')
+class ProductDetailsSchema(RootModel[Dict[str, Any]]):
+    pass
 
 class PincodeStat(BaseModel):
     pincode: str
@@ -212,19 +213,19 @@ class UserBase(BaseModel):
     isEmailVerified: Optional[bool] = False
     preferredLanguage: Optional[str] = Field(default="en", description="User's preferred UI language (BCP-47 code, e.g. 'hi', 'ta')")
     approvalStatus: Optional[str] = "approved"
-    isDeactivated: Optional[bool] = False
+    isDeactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
     creditLimit: Optional[float] = 0
     creditUsed: Optional[float] = 0
     paymentTerms: Optional[str] = "30"
-    assignedSalesperson: Optional[str] = None
-    isSellerAdmin: Optional[bool] = False
+    assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
+    isSellerAdmin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
     isOnDuty: Optional[bool] = False
-    commissionOverridePct: Optional[float] = None
+    commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
     sellerPermissions: Optional[SellerPermissions] = None
     serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
     password: Optional[str] = None
     sessionId: Optional[str] = None
-    effectiveRole: Optional[str] = None
+    effectiveRole: Optional[str] = Field(default=None, validation_alias=AliasChoices("effectiveRole", "effective_role"))
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
 
@@ -268,14 +269,14 @@ class UserUpdate(BaseModel):
     creditLimit: Optional[float] = None
     creditUsed: Optional[float] = None
     paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
+    assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
     isEmailVerified: Optional[bool] = None
     isSellerAdmin: Optional[bool] = None
     isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
+    commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
     sellerPermissions: Optional[SellerPermissions] = None
     serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
+    referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
     preferredLanguage: Optional[str] = None
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
@@ -283,23 +284,23 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     id: str = Field(alias="_id")
-    userId: Optional[int] = None
-    userIdFormatted: Optional[str] = None
+    userId: Optional[int] = Field(default=None, validation_alias=AliasChoices("userId", "user_id"))
+    userIdFormatted: Optional[str] = Field(default=None, validation_alias=AliasChoices("userIdFormatted", "user_id_formatted"))
     role: Optional[str] = None
-    effectiveRole: Optional[str] = None
-    approvalStatus: Optional[str] = None
-    isActive: bool
-    isDeactivated: Optional[bool] = False
-    creditLimit: float
-    creditUsed: float
-    paymentTerms: Optional[int] = None
-    assignedSalesperson: Optional[str] = None
-    referralCode: Optional[str] = None
-    isSellerAdmin: Optional[bool] = False
-    sellerPermissions: Optional[SellerPermissionSnippet] = None
-    commissionOverridePct: Optional[float] = None
-    createdAt: str
-    updatedAt: Optional[str] = None
+    effectiveRole: Optional[str] = Field(default=None, validation_alias=AliasChoices("effectiveRole", "effective_role"))
+    approvalStatus: Optional[str] = Field(default=None, validation_alias=AliasChoices("approvalStatus", "approval_status"))
+    isActive: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
+    isDeactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
+    creditLimit: float = Field(validation_alias=AliasChoices("creditLimit", "credit_limit"))
+    creditUsed: float = Field(validation_alias=AliasChoices("creditUsed", "credit_used"))
+    paymentTerms: Optional[int] = Field(default=None, validation_alias=AliasChoices("paymentTerms", "payment_terms"))
+    assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
+    referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
+    isSellerAdmin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
+    sellerPermissions: Optional[SellerPermissionSnippet] = Field(default=None, validation_alias=AliasChoices("sellerPermissions", "seller_permissions"))
+    commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -322,14 +323,14 @@ class ProductReviewResponse(BaseModel):
     reviewText: Optional[str] = None
     status: str
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
 class ClassificationTagResponse(BaseModel):
     id: str = Field(alias="_id")
     name: str
-    isActive: bool
+    isActive: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
 class ReviewActionResponse(BaseModel):
     message: str
@@ -354,11 +355,11 @@ class BundleResponse(BaseModel):
     description: Optional[str] = None
     price: float
     discountPercentage: Optional[float] = None
-    isActive: bool
+    isActive: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
     salesCount: Optional[int] = None
     items: List[BundleItemResponse] = []
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
 class BundlesListResponse(BaseModel):
     bundles: List[BundleResponse]
@@ -508,7 +509,7 @@ class BannerUpdate(BaseModel):
 
 class BannerResponse(BannerBase):
     id: str = Field(alias="_id")
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
     user: Optional[UserSnippet] = None
 
@@ -525,7 +526,7 @@ class BrandResponse(BaseModel):
     showInMobileHomepage: bool = False
     isActive: bool = True
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
 class BrandCreate(BaseModel):
     name: str
@@ -645,7 +646,7 @@ class ContactUpdate(BaseModel):
 
 class ContactResponse(ContactBase):
     id: str = Field(alias="_id")
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
     user: Optional[UserSnippet] = None
 
@@ -691,7 +692,7 @@ class SupportTicketInternal(SupportTicketBase):
     responses: Optional[List[Any]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
     externalId: Optional[str] = None
 
@@ -705,7 +706,7 @@ class SupportTicketResponse(SupportTicketBase):
     responses: Optional[List[Any]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -764,7 +765,7 @@ class DeliveryChargeResponse(DeliveryChargeBase):
     id: str = Field(alias="_id")
     locationId: Optional[int] = None
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -792,7 +793,7 @@ class DefaultDeliveryChargeCreate(DefaultDeliveryChargeBase):
 class DefaultDeliveryChargeResponse(DefaultDeliveryChargeBase):
     id: str = Field(alias="_id")
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -814,7 +815,7 @@ class OrderFeedbackCreate(OrderFeedbackBase):
 class OrderFeedbackResponse(OrderFeedbackBase):
     id: str = Field(alias="_id")
     userId: str
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
     user: Optional[UserSnippet] = None
 
@@ -844,7 +845,7 @@ class CoachMarkUpdate(BaseModel):
 
 class CoachMarkResponse(CoachMarkBase):
     id: str = Field(alias="_id")
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
     user: Optional[UserSnippet] = None
 
@@ -883,7 +884,7 @@ class SearchTagUpdate(BaseModel):
 
 class SearchTagResponse(SearchTagBase):
     id: str = Field(alias="_id")
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
     user: Optional[UserSnippet] = None
 
@@ -921,7 +922,7 @@ class CollectionUpdate(BaseModel):
 
 class CollectionResponse(CollectionBase):
     id: str = Field(alias="_id")
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
     user: Optional[UserSnippet] = None
 
@@ -960,7 +961,7 @@ class ReferralEligibilityResponse(BaseModel):
 
 
 class ReferralPublicSchemeResponse(BaseModel):
-    isActive: bool
+    isActive: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
     discountType: DiscountType
     discountValue: float
 
@@ -1026,7 +1027,7 @@ class ReturnRequestResponse(BaseModel):
     valetAssignedAt: Optional[str] = None
     user: Optional[UserSnippet] = None  # populated user
     deliveryCharge: float
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1046,7 +1047,7 @@ class ReturnRequest(BaseModel):
     notes: Optional[str] = None
     deliveryCharge: Optional[float] = 0.0
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
     sellerId: Optional[str] = None
     deliverySlotId: Optional[str] = None
     deliverySlotDate: Optional[str] = None
@@ -1069,7 +1070,7 @@ class ProductResponse(ProductBase):
     variations: Optional[List[VariantOption]] = None
     searchTags: Optional[List[str]] = None
     gst: Optional[float] = 0  # Evaluated from category level
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
     user: Optional[UserSnippet] = None
 
@@ -1098,7 +1099,7 @@ class SkinnyProductResponse(BaseModel):
     searchTags: Optional[List[str]] = None
     gst: Optional[float] = 0
     displayImage: Optional[str] = None
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
     user: Optional[UserSnippet] = None
 
@@ -1223,7 +1224,7 @@ class CouponUpdate(BaseModel):
 class CouponResponse(CouponBase):
     id: str = Field(alias="_id")
     usedCount: Optional[int] = None
-    createdAt: str
+    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: str
     user: Optional[UserSnippet] = None
 
@@ -1509,7 +1510,7 @@ class PromoStripUpdate(BaseModel):
 class PromoStripResponse(PromoStripBase):
     id: str = Field(alias='_id')
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
 
 
@@ -1536,7 +1537,7 @@ class UserInternalCreate(BaseModel):
     serviceAreaZones: Optional[List[str]] = None
     savedAddresses: Optional[List[SavedAddress]] = None
     isOnDuty: bool = False
-    commissionOverridePct: Optional[float] = None
+    commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
     userIdFormatted: str
     name: str
     email: Optional[str] = None
@@ -1551,14 +1552,14 @@ class UserInternalCreate(BaseModel):
     creditLimit: Optional[float] = None
     creditUsed: Optional[float] = None
     paymentTerms: str = "30"
-    assignedSalesperson: Optional[str] = None
-    referralCode: Optional[str] = None
+    assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
+    referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
     isEmailVerified: bool = False
 
 class UserInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    userId: Optional[int] = None
-    userIdFormatted: Optional[str] = None
+    userId: Optional[int] = Field(default=None, validation_alias=AliasChoices("userId", "user_id"))
+    userIdFormatted: Optional[str] = Field(default=None, validation_alias=AliasChoices("userIdFormatted", "user_id_formatted"))
     name: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
@@ -1568,13 +1569,13 @@ class UserInternalUpdate(BaseModel):
     address: Optional[Address] = None
     savedAddresses: Optional[List[Address]] = None
     isActive: Optional[bool] = None
-    approvalStatus: Optional[str] = None
+    approvalStatus: Optional[str] = Field(default=None, validation_alias=AliasChoices("approvalStatus", "approval_status"))
     isDeactivated: Optional[bool] = None
     creditLimit: Optional[float] = None
     creditUsed: Optional[float] = None
     paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = None
-    referralCode: Optional[str] = None
+    assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
+    referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
     isEmailVerified: Optional[bool] = None
     sellerPermissions: Optional[list] = None
     serviceAreaZones: Optional[List[str]] = None
@@ -1595,6 +1596,8 @@ class AnalyticsEventPayload(BaseModel):
     resultsCount: Optional[int] = 0
     reason: Optional[str] = "unknown"
     testRunId: Optional[str] = None
+    device: Optional[str] = None
+    screen: Optional[str] = None
 
 
 class AnalyticsEventCreate(BaseModel):
@@ -1720,7 +1723,7 @@ class AvailabilityRequestResponse(BaseModel):
     userName: Optional[str] = None
     userEmail: Optional[str] = None
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
 
 class AvailabilityRequestListResponse(BaseModel):
@@ -1776,7 +1779,7 @@ class UPIDetailsResponse(BaseModel):
 class ValetPayoutSettingsResponse(BaseModel):
     deliveryChargePerOrder: Optional[float] = None
     returnPickupChargePerOrder: Optional[float] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
 
 class PincodeSearchResponse(BaseModel):
@@ -1834,7 +1837,7 @@ class PushNotificationResponse(BaseModel):
     targetSegmentId: Optional[str] = None
     status: Optional[str] = None
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
 
 class PushAnalyticsResponse(BaseModel):
@@ -1871,7 +1874,7 @@ class SellerRequestResponse(BaseModel):
     attachments: Optional[List[Any]] = None
     responses: Optional[List[Any]] = None
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
 
 class UploadQRResponse(BaseModel):
@@ -1920,8 +1923,8 @@ class SellerProductApprove(BaseModel):
 class UserSnippet(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
     id: Optional[str] = Field(default=None, alias="_id")
-    userId: Optional[int] = None
-    userIdFormatted: Optional[str] = None
+    userId: Optional[int] = Field(default=None, validation_alias=AliasChoices("userId", "user_id"))
+    userIdFormatted: Optional[str] = Field(default=None, validation_alias=AliasChoices("userIdFormatted", "user_id_formatted"))
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -1965,3 +1968,5 @@ class PopulatedOrderResponse(BaseModel):
     billingAddress: Optional[Any] = None
     paymentStatus: Optional[str] = None
     notes: Optional[str] = None
+
+UserResponse.model_rebuild()

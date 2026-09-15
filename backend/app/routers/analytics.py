@@ -39,7 +39,7 @@ def _resolve_seller_id(current_user: dict, requested_seller_id: Optional[str] = 
 
 
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, RootModel
 from typing import List, Dict, Any, Optional
 
 class RecordEventResponse(BaseModel):
@@ -52,11 +52,26 @@ class KPIMetricsResponse(BaseModel):
     orders_fulfilled: int
     orders: int
 
+class DashboardStats(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    totalProducts: int
+    totalWholesalers: int
+    totalCustomers: int
+    totalValets: int
+    totalOrders: int
+    totalRevenue: float
+
 class DashboardDataResponse(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    stats: DashboardStats
+    topProducts: List[Dict[str, Any]]
+    topWholesalers: List[Dict[str, Any]]
+    topCustomers: List[Dict[str, Any]]
+    mostSearched: List[Dict[str, Any]]
+    mostViewed: List[Dict[str, Any]]
 
-class BundlePerformanceResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+class BundlePerformanceResponse(RootModel[Dict[str, Any]]):
+    pass
 
 class SalesOverTimeResponse(BaseModel):
     period: str
@@ -172,11 +187,11 @@ class TopUsersReportResponse(BaseModel):
     role: str
     revenue: float
 
-class GenericListResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+class GenericListResponse(RootModel[Dict[str, Any]]):
+    pass
     
-class GenericDictResponse(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+class GenericDictResponse(RootModel[Dict[str, Any]]):
+    pass
 
 @router.post("/events", response_model=RecordEventResponse)
 async def record_event(
@@ -192,7 +207,8 @@ async def record_event(
 
     payload_items = []
     if event.payload:
-        items_to_iter = event.payload.items() if isinstance(event.payload, dict) else event.payload
+        raw_dict = event.payload.root if hasattr(event.payload, "root") else (event.payload if isinstance(event.payload, dict) else {})
+        items_to_iter = raw_dict.items()
         for k, v in items_to_iter:
             payload_items.append(EventPayloadItem(key=k, value=str(v)))
     
@@ -217,12 +233,8 @@ async def record_event(
         event_type = event.type
         session_id = event.sessionId
         raw_payload = event.payload
-        if isinstance(raw_payload, AnalyticsEventPayload):
-            payload_obj = raw_payload
-        elif isinstance(raw_payload, dict):
-            payload_obj = AnalyticsEventPayload(**raw_payload)
-        else:
-            payload_obj = AnalyticsEventPayload()
+        raw_payload_dict = raw_payload.root if hasattr(raw_payload, "root") else (raw_payload if isinstance(raw_payload, dict) else {})
+        payload_obj = AnalyticsEventPayload(**raw_payload_dict)
 
         try:
             if event_type == "session_start":

@@ -1298,10 +1298,10 @@ async def create_order(
         # Initialize credit if not set
         if user.credit_used is None:
             await user_repository.update(current_user.id, UserInternalUpdate(creditUsed=0))
-            user.creditUsed = 0
+            user.credit_used = 0
         if user.credit_limit is None:
             await user_repository.update(current_user.id, UserInternalUpdate(creditLimit=0))
-            user.creditLimit = 0
+            user.credit_limit = 0
 
         if ((user.credit_used if user.credit_used is not None else 0) + total) > (user.credit_limit if user.credit_limit is not None else 0):
             ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()

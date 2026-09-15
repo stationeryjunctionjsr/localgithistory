@@ -7,7 +7,7 @@ from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
 
-def __map_to_schema(r, children: Dict) -> Dict:
+def _map_to_schema(r, children: Dict) -> Dict:
 
     def clean_terms(t):
         if not t:
@@ -136,7 +136,7 @@ class MySQLUserDAO:
             rows = (await session.execute(text(query_str), params)).fetchall()
             children_map = await self._fetch_children(session, [int(r.id) for r in rows])
         from app.models.user import User
-        docs = [UserResponse.model_validate(__map_to_schema(r, children_map[int(r.id)] if int(r.id) in children_map else {})) for r in rows]
+        docs = [UserResponse.model_validate(_map_to_schema(r, children_map[int(r.id)] if int(r.id) in children_map else {})) for r in rows]
         if query:
             filtered = []
             for doc in docs:
@@ -177,7 +177,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return UserResponse.model_validate(__map_to_schema(row, children_map[int(row.id)]))
+        return _map_to_schema(row, children_map[int(row.id)])
 
     async def findByEmail(self, email: str) -> Optional[Dict]:
         factory = self._factory()
@@ -188,7 +188,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return UserResponse.model_validate(__map_to_schema(row, children_map[int(row.id)]))
+        return _map_to_schema(row, children_map[int(row.id)])
 
     async def findByPhone(self, phone: str) -> Optional[Dict]:
         factory = self._factory()
@@ -202,7 +202,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return UserResponse.model_validate(__map_to_schema(row, children_map[int(row.id)]))
+        return _map_to_schema(row, children_map[int(row.id)])
 
     async def findByReferralCode(self, referral_code: str) -> Optional[Dict]:
         factory = self._factory()
@@ -213,7 +213,7 @@ class MySQLUserDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-        return UserResponse.model_validate(__map_to_schema(row, children_map[int(row.id)]))
+        return _map_to_schema(row, children_map[int(row.id)])
 
     async def create(self, data: UserInternalCreate) -> Dict:
         external_id = secrets.token_hex(16)

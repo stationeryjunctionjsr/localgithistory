@@ -104,7 +104,7 @@ async def verify_token(token: str) -> 'User':
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload["type"] if "type" in payload else None != "access":
+        if ("type" not in payload) or (payload["type"] != "access"):
             raise base_exception
         user_id: str = payload["userId"] if "userId" in payload else None
         session_id: str = payload["sessionId"] if "sessionId" in payload else None
@@ -133,15 +133,15 @@ async def verify_token(token: str) -> 'User':
     await session_repository.touch_last_active(session_id)
 
     user = await user_repository.findById(user_id)
-    if user is None or not (user.isActive if user.isActive is not None else True):
+    if user is None or not (user.is_active if user.is_active is not None else True):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
 
-    if (user.isDeactivated if user.isDeactivated is not None else False) and user.role == "wholesaler":
-        user.effectiveRole = "customer"
+    if (user.is_deactivated if user.is_deactivated is not None else False) and user.role == "wholesaler":
+        user.effective_role = "customer"
     else:
-        user.effectiveRole = (user.role if user.role is not None else "customer")
+        user.effective_role = (user.role if user.role is not None else "customer")
 
-    user.sessionId = session_id
+    user.session_id = session_id
     user.password = None
     return user
 
@@ -150,7 +150,7 @@ def check_roles(user: 'User', *allowed_roles: str):
     """Check if user has required role. Uses effectiveRole when present
     (e.g. deactivated wholesalers get effectiveRole='customer'), falling
     back to role for backwards compatibility."""
-    effective = user.effectiveRole or user.role
+    effective = user.effective_role or user.role
     print(f"USER ROLE: {effective}, Allowed: {allowed_roles}")
     if effective not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Insufficient permissions.")
