@@ -23,40 +23,46 @@ class MySQLProductDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, children: Dict) -> Dict:
-        return {
-            "_id": str(r.id),
-            "productId": r.id,
-            "productIdFormatted": f"PDT-{r.id}",
-            "name": r.name,
-            "description": r.description,
-            "sku": r.sku,
-            "category": r.category,
-            "subCategory": r.sub_category,
-            "brand": r.brand,
-            "mrp": float(r.mrp) if r.mrp is not None else None,
-            "mrpPerCase": float(r.mrp_per_case) if r.mrp_per_case is not None else None,
-            "quantityPerCase": int(r.quantity_per_case) if r.quantity_per_case is not None else None,
-            "stock": int(r.stock) if r.stock is not None else 0,
-            "rating": float(r.rating) if r.rating is not None else 0.0,
-            "reviews": int(r.reviews) if r.reviews is not None else 0,
-            "images": children.get("images", []),
-            "videos": children.get("videos", []),
-            "isActive": bool(r.is_active) if r.is_active is not None else True,
-            "tags": children.get("tags", []),
-            "variantAttributes": children.get("variantAttributes", []),
-            "variants": children.get("variants", []),
-            "details": children.get("details", {}),
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
+    def _row_to_product(self, r, children: dict) -> Product:
+        return Product(
+            id=str(r.id),
+            product_id=r.id,
+            product_id_formatted=f"PDT-{r.id}",
+            name=r.name,
+            description=r.description,
+            sku=r.sku,
+            category=r.category,
+            sub_category=r.sub_category,
+            brand=r.brand,
+            mrp=float(r.mrp) if r.mrp is not None else None,
+            mrp_per_case=float(r.mrp_per_case) if r.mrp_per_case is not None else None,
+            quantity_per_case=int(r.quantity_per_case) if r.quantity_per_case is not None else None,
+            stock=int(r.stock) if r.stock is not None else 0,
+            rating=float(r.rating) if r.rating is not None else 0.0,
+            reviews=int(r.reviews) if r.reviews is not None else 0,
+            images=children["images"] if "images" in children else [],
+            videos=children["videos"] if "videos" in children else [],
+            is_active=bool(r.is_active) if r.is_active is not None else True,
+            tags=children["tags"] if "tags" in children else [],
+            variant_attributes=children["variantAttributes"] if "variantAttributes" in children else [],
+            variants=children["variants"] if "variants" in children else [],
+            details=children["details"] if "details" in children else {},
+            sellers=children["sellers"] if "sellers" in children else [],
+            created_at=r.created_at,
+            updated_at=r.updated_at
+        )
 
     def _build_query_conditions(self, query: Dict) -> tuple[str, str, Dict]:
         where_clauses = []
         params = {}
         join_sql = ""
 
-        if "seller_ids" in query:
+        if "my_seller_id" in query:
+            my_seller_id = query["my_seller_id"]
+            join_sql = " JOIN sj_product_sellers ps ON ps.product_id = p.external_id "
+            where_clauses.append("ps.seller_id = :my_seller_id")
+            params["my_seller_id"] = str(my_seller_id)
+        elif "seller_ids" in query:
             seller_ids = query["seller_ids"]
             if not seller_ids:
                 where_clauses.append("1=0")
@@ -165,7 +171,7 @@ class MySQLProductDAO:
 
     async def _fetch_children_for_products(self, session, pids: List[int]) -> Dict[int, Dict]:
         children_map = {
-            pid: {"images": [], "videos": [], "tags": [], "variantAttributes": [], "variants": [], "details": {}}
+            pid: {"images": [], "videos": [], "tags": [], "variantAttributes": [], "variants": [], "details": {}, "sellers": []}
             for pid in pids
         }
         if not pids:
@@ -219,7 +225,7 @@ class MySQLProductDAO:
             )
             variants_by_id = {}
             for r in res.fetchall():
-                v = {"sku": r.sku, "price": float(r.price) if r.price is not None else None, "pricePerCase": float(r.price_per_case) if r.price_per_case is not None else None, "stock": int(r.stock) if r.stock is not None else 0, "attributes": {}}
+                v = VariantOption(sku=r.sku, price=float(r.price) if r.price is not None else None, pricePerCase=float(r.price_per_case) if r.price_per_case is not None else None, stock=int(r.stock) if r.stock is not None else 0, attributes={})
                 variants_by_id[r.id] = v
                 children_map[r.product_id]["variants"].append(v)
             
@@ -234,7 +240,25 @@ class MySQLProductDAO:
                         v_params
                     )
                     for ar in attr_res.fetchall():
-                        variants_by_id[ar.variant_id]["attributes"][ar.attr_name] = ar.attr_value
+                        variants_by_id[ar.variant_id].attributes[ar.attr_name] = ar.attr_value
+                        # Sellers
+            ext_placeholders = ", ".join([f"'PDT-{k}'" for k in chunk])
+            res = await session.execute(
+                text(f"SELECT product_id, seller_id, stock, is_active, request_status FROM sj_product_sellers WHERE product_id IN ({ext_placeholders})")
+            )
+            for r in res.fetchall():
+                # Convert PDT-123 back to 123
+                pid_int = int(r.product_id.replace("PDT-", ""))
+                children_map[pid_int]["sellers"].append(
+                    ProductSellerEntry(
+                        sellerId=r.seller_id,
+                        stock=int(r.stock) if r.stock is not None else 0,
+                        isActive=bool(r.is_active),
+                        requestStatus=r.request_status,
+                        notes=None
+                    )
+                )
+
             # Attributes
         # res = await session.execute(
         # text(f"SELECT product_id, attr_name FROM sj_product_attributes WHERE product_id IN ({placeholders})"),
@@ -319,7 +343,7 @@ class MySQLProductDAO:
             rows = (await session.execute(text(query_sql), params_with_pagination)).fetchall()
             children_map = await self._fetch_children_for_products(session, [int(r.id) for r in rows])
 
-        return [Product.model_validate(self._row_to_dict(r, children_map[int(r.id)])) for r in rows], total_count
+        return [self._row_to_product(r, children_map[int(r.id)]) for r in rows], total_count
 
     async def get_facets(self, query: Dict) -> Dict[str, List[str]]:
         factory = self._factory()
@@ -367,7 +391,7 @@ class MySQLProductDAO:
                 )
             ).fetchall()
             children_map = await self._fetch_children_for_products(session, [int(r.id) for r in rows])
-        return [Product.model_validate(self._row_to_dict(r, children_map[int(r.id)])) for r in rows]
+        return [self._row_to_product(r, children_map[int(r.id)]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         if set(query.keys()) in ({"_id"}, {"id"}):
@@ -394,7 +418,7 @@ class MySQLProductDAO:
             if not row:
                 return None
             children_map = await self._fetch_children_for_products(session, [pid])
-        return self._row_to_dict(row, children_map[pid])
+        return self._row_to_product(row, children_map[pid])
 
     async def _replace_children(self, session, pid: int, data: Dict):
         # Delete old
@@ -456,12 +480,34 @@ class MySQLProductDAO:
         # text("INSERT INTO sj_product_attributes (product_id, attr_name) VALUES (:pid, :attr)"),
         # {"pid": pid, "attr": attr},
         # )
-        #         # Insert details
+        # 
+        # Insert details
         for k, v in (data.details or {}).items():
             await session.execute(
                 text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"),
                 {"pid": pid, "k": k, "v": str(v)},
             )
+            
+        # Insert sellers
+        await session.execute(text("DELETE FROM sj_product_sellers WHERE product_id = :pid_ext"), {"pid_ext": f"PDT-{pid}"})
+        for seller in (data.sellers if getattr(data, 'sellers', None) is not None else []):
+            # seller might be a dict if it came from merged_dict or it might be ProductSellerEntry
+            s_id = seller.get("sellerId") if isinstance(seller, dict) else seller.sellerId
+            s_stock = seller.get("stock", 0) if isinstance(seller, dict) else seller.stock
+            s_active = seller.get("isActive", False) if isinstance(seller, dict) else seller.isActive
+            s_status = seller.get("requestStatus", "pending") if isinstance(seller, dict) else seller.requestStatus
+            
+            await session.execute(
+                text("INSERT INTO sj_product_sellers (product_id, seller_id, stock, is_active, request_status) VALUES (:pid_ext, :seller_id, :stock, :is_active, :request_status)"),
+                {
+                    "pid_ext": f"PDT-{pid}", 
+                    "seller_id": str(s_id), 
+                    "stock": int(s_stock) if s_stock is not None else 0, 
+                    "is_active": 1 if s_active else 0, 
+                    "request_status": str(s_status) if s_status else "pending"
+                }
+            )
+
 
         # Insert combinations
         # for combo in data.variantCombinations or []:

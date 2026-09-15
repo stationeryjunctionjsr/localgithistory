@@ -155,19 +155,29 @@ class MySQLSessionDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        existing_dict = existing.model_dump(exclude_unset=True) if hasattr(existing, 'model_dump') else dict(existing)
-        update_dict = update_data.model_dump(exclude_unset=True)
-        merged_dict = {**existing_dict, **update_dict}
-        from app.models.daos import SessionInternalUpdate
-        merged = SessionInternalUpdate(**merged_dict)
+        
+        # update_data is SessionInternalUpdate. It uses userId, not user_id.
+        # existing is Session. We can just use explicit properties.
         factory = self._factory()
         if not factory:
             return None
+        
         now = now_utc()
         sid = int(id) if str(id).isdigit() else None
-        user_id_raw = merged.userId
-        user_id = int(user_id_raw) if str(user_id_raw or "").isdigit() else None
-        if user_id is None and merged.userId is not None:
+        
+        # Extract fields from existing
+        # existing is a Session object, which has user_id
+        final_user_id = update_data.userId if update_data.userId is not None else existing.user_id
+        final_refresh_token_id = update_data.refreshTokenId if update_data.refreshTokenId is not None else existing.refresh_token_id
+        final_status = update_data.status if update_data.status is not None else existing.status
+        final_last_active_at = update_data.lastActiveAt if update_data.lastActiveAt is not None else (existing.last_active_at.isoformat() if existing.last_active_at else None)
+        final_revoked_at = update_data.revokedAt if update_data.revokedAt is not None else (existing.revoked_at.isoformat() if existing.revoked_at else None)
+        final_revoked_reason = update_data.revokedReason if update_data.revokedReason is not None else existing.revoked_reason
+        final_is_guest = update_data.isGuest if update_data.isGuest is not None else existing.is_guest
+        final_comments = update_data.comment if update_data.comment is not None else existing.comments
+
+        user_id = int(final_user_id) if str(final_user_id or "").isdigit() else None
+        if user_id is None and final_user_id is not None:
             return None
 
         async with factory() as session:
@@ -190,13 +200,13 @@ class MySQLSessionDAO:
                 {
                     "id": sid,
                     "user_id": user_id,
-                    "refresh_token_id": merged.refreshTokenId,
-                    "status": merged.status,
-                    "last_active_at": _to_ts(merged.lastActiveAt),
-                    "revoked_at": _to_ts(merged.revokedAt),
-                    "revoked_reason": merged.revokedReason,
-                    "is_guest": 1 if merged.isGuest else 0,
-                    "comments": merged.comment,
+                    "refresh_token_id": final_refresh_token_id,
+                    "status": final_status,
+                    "last_active_at": _to_ts(final_last_active_at),
+                    "revoked_at": _to_ts(final_revoked_at),
+                    "revoked_reason": final_revoked_reason,
+                    "is_guest": 1 if final_is_guest else 0,
+                    "comments": final_comments,
                     "updated_at": now,
                 },
             )

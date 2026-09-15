@@ -43,7 +43,7 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
         
         raw_items = []
         if wishlist:
-            raw_items = wishlist.get("items", []) if isinstance(wishlist, dict) else (wishlist.items or [])
+            raw_items = wishlist.items or []
             
         if not raw_items:
             return []
@@ -57,19 +57,19 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
             elif isinstance(it, str):
                 norm_items.append({"product": it, "quantity": 1})
 
-        product_ids = [item.get("product") if isinstance(item, dict) else item.product for item in norm_items if (item.get("product") if isinstance(item, dict) else item.product)]
+        product_ids = [item.product for item in norm_items if (item.product)]
         products_map = {}
         if product_ids:
             products = await product_repository.findAll({"allowed_ids": product_ids})
             products_map = {str(p.id): p for p in products}
 
         for item in norm_items:
-            p_id = item.get("product") if isinstance(item, dict) else item.product
+            p_id = item.product
             product = products_map.get(str(p_id))
             if not product or product.is_active is False:
                 continue
 
-            quantity = item.get("quantity", 1) if isinstance(item, dict) else (item.quantity if item.quantity is not None else 1)
+            quantity = item.quantity if item.quantity is not None else 1
             price = product_repository.getPriceForRole(product, role_for_pricing, quantity)
 
             it_dict = item.copy() if isinstance(item, dict) else item.model_dump(by_alias=True)

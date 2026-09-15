@@ -46,32 +46,37 @@ class MySQLTrackingDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_dict(self, r, children: Dict) -> Dict:
-        out = {
-            "_id": str(r.id),
-            "externalId": r.external_id,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
-        for api_k, db_col in _TRACKING_SCALAR.items():
-            val = getattr(r, db_col, None)
-            if api_k in ("resultsCount",) and val is not None:
-                val = int(val)
-            elif api_k in ("cartValue",) and val is not None:
-                val = float(val)
-            elif api_k in ("isReturning",) and val is not None:
-                val = bool(val)
-            
-            elif api_k in ("timestamp",) and val:
-                val = val.isoformat() if hasattr(val, "isoformat") else str(val)
-            out[api_k] = val
-
-        out["productIds"] = children.get("product_ids", [])
-        payload = children.get("payload", {})
-        out.update(payload)
-        out["payload"] = {}
-        out["cartItems"] = children.get("cartItems", [])
-        return out
+    def _row_to_tracking(self, r, children) -> Tracking:
+        from app.models.tracking import Tracking
+        return Tracking(
+            id=str(r.id),
+            external_id=r.external_id,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+            type=r.event_type,
+            userId=r.user_id,
+            sessionId=r.session_id,
+            timestamp=r.event_timestamp.isoformat() if hasattr(r.event_timestamp, "isoformat") else str(r.event_timestamp) if r.event_timestamp else None,
+            searchTerm=r.search_term,
+            resultsCount=int(r.results_count) if r.results_count is not None else None,
+            productId=r.product_id,
+            productName=r.product_name,
+            segment=r.segment,
+            page=r.page,
+            reason=r.reason,
+            filterType=r.filter_type,
+            filterValue=r.filter_value,
+            cartValue=float(r.cart_value) if r.cart_value is not None else None,
+            isReturning=bool(r.is_returning) if r.is_returning is not None else None,
+            source=r.source,
+            campaign=r.campaign,
+            os=r.os,
+            browser=r.browser,
+            ipAddress=r.ip_address,
+            product_ids=children["product_ids"] if "product_ids" in children else [],
+            payload=children["payload"] if "payload" in children else {},
+            cartItems=children["cartItems"] if "cartItems" in children else []
+        )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {"product_ids": [], "payload": {}} for rid in ids}
@@ -153,7 +158,7 @@ class MySQLTrackingDAO:
             res = await session.execute(text(query_str), params)
             rows = res.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [Tracking.model_validate(self._row_to_dict(r, c_map[r.id]) ) for r in rows]
+        return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -197,6 +202,13 @@ class MySQLTrackingDAO:
         add_col("reason", "reason", data.reason)
         add_col("cartValue", "cart_value", data.cartValue)
         add_col("isReturning", "is_returning", data.isReturning)
+        
+        # ADDING MISSING COLUMNS WITHOUT hasattr
+        add_col("source", "source", data.source)
+        # filterName and filterValue were passed to AnalyticsEventCreate
+        add_col("filterType", "filter_type", data.filterName)
+        add_col("filterValue", "filter_value", data.filterValue)
+
         
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in extracted_keys])

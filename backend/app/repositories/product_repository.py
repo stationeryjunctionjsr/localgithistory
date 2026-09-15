@@ -54,8 +54,8 @@ class ProductRepository:
         for attr in (product.variantAttributes if product.variantAttributes is not None else []) or []:
             parts.append(str(attr).lower())
         for combo in (product.variantCombinations if product.variantCombinations is not None else []) or []:
-            attrs = combo.get("attributes", {}) or combo
-            for k, v in attrs.items() if isinstance(attrs, dict) else []:
+            attrs = combo.attributes if getattr(combo, 'attributes', None) is not None else {}
+            for k, v in attrs.items():
                 parts.append(str(k).lower())
                 parts.append(str(v).lower())
             if "price" in combo and combo["price"] is not None:
@@ -339,7 +339,7 @@ class ProductRepository:
             cat_gst_map = self._cat_gst_map
         else:
             categories = await category_repository.findAll()
-            cat_gst_map = {(cat.name if hasattr(cat, "name") else cat.get("name")): (cat.gst if hasattr(cat, "gst") else cat.get("gst", 0)) for cat in categories}
+            cat_gst_map = {cat.name: (cat.gst if cat.gst is not None else 0) for cat in categories}
             self._cat_gst_map = cat_gst_map
             self._cat_gst_map_exp = now_m + 60.0
         for p in products:
@@ -1006,7 +1006,7 @@ class ProductRepository:
 
         if "variantCombinations" in update_fields:
             existing_product = await self.storage.findById(id)
-            sku_val = update_fields.get("sku") or getattr(existing_product, "sku", "")
+            sku_val = update_fields["sku"] if "sku" in update_fields else existing_product.sku
             for combo in update_fields['variantCombinations']:
                 combo_sku = combo.sku
                 combo_attrs = combo.attributes if combo.attributes is not None else {}
@@ -1051,14 +1051,14 @@ class ProductRepository:
         if selected_attributes and product.variantCombinations:
             for combo in product.variantCombinations:
                 match = True
-                combo_attrs = combo.get("attributes", {})
+                combo_attrs = combo.attributes if combo.attributes is not None else {}
                 for k, v in selected_attributes.items():
-                    if combo_attrs.get(k) != v:
+                    if k not in combo_attrs or combo_attrs[k] != v:
                         match = False
                         break
                 if match:
-                    if combo.get("price") is not None:
-                        mrp = float(combo["price"])
+                    if combo.price is not None:
+                        mrp = float(combo.price)
                     break
 
         if mrp <= 0:

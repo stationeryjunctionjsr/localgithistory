@@ -1,3 +1,4 @@
+from pydantic import ConfigDict
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
@@ -5,6 +6,7 @@ from pydantic import BaseModel
 from app.models.schemas import VariantOption, ProductSellerEntry
 
 class Product(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     id: str = Field(alias="_id")
     product_id: int = Field(alias="productId")
     product_id_formatted: Optional[str] = Field(default=None, alias="productIdFormatted")

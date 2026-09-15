@@ -117,10 +117,10 @@ class TrackingRepository:
     async def trackCartItemRemove(self, user_id, product_id, quantity, session_id=None):
         return await self.trackRemoveFromCart(user_id, product_id, "Unknown", quantity, 0, session_id)
 
-    async def trackFilterClick(self, user_id, category, filter_name, filter_value, session_id=None):
+    async def trackFilterClick(self, user_id, filter_name, filter_value, session_id=None):
         return await self.create(AnalyticsEventCreate(
             type="filter_click", userId=user_id, sessionId=session_id,
-            category=category, filterName=filter_name, filterValue=filter_value
+            filterName=filter_name, filterValue=filter_value
         ))
 
     async def trackWishlistAdd(self, user_id, product_id, product_name, session_id=None):
@@ -154,9 +154,9 @@ class TrackingRepository:
             )
         )
 
-    async def trackCartAbandonment(self, user_id: Optional[str], cart_items: List[Any], session_id: Optional[str] = None):
+    async def trackCartAbandonment(self, user_id: Optional[str], cart_items: List[Any], cart_value: Optional[float], session_id: Optional[str] = None):
         return await self.create(
-            AnalyticsEventCreate(type="cart_abandonment", userId=user_id, cartItems=cart_items, sessionId=session_id)
+            AnalyticsEventCreate(type="cart_abandonment", userId=user_id, cartItems=cart_items, cartValue=cart_value, sessionId=session_id)
         )
 
     async def getSessionsCount(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):

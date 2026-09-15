@@ -633,6 +633,7 @@ async def get_public_products(
     sort: Optional[str] = None,
     includeFacets: bool = True,
     skinny: bool = False,
+    myProducts: bool = False,
     pincode: Optional[str] = None,
 ):
     """Get all products (public endpoint - no auth required)"""
@@ -782,6 +783,7 @@ async def get_products(
     limit: int = 50,
     includeFacets: bool = True,
     skinny: bool = False,
+    myProducts: bool = False,
     pincode: Optional[str] = None,
     current_user: User = Depends(get_current_user),
 ):
@@ -831,6 +833,8 @@ async def get_products(
         sa_id = await get_super_admin_seller_id()
         if sa_id:
             query["allowed_seller_ids"] = [sa_id]
+    elif effective_role == "seller" and myProducts:
+        query["my_seller_id"] = user_id
     elif pincode:
         # Zone-based seller filter for retail customers: only show products
         # serviceable in their zone. None = pincode not in any zone → fail-open.

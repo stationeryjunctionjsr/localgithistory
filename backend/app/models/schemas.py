@@ -94,7 +94,7 @@ class UserSnippet(BaseModel):
     role: Optional[str] = None
 
 class ProductSellerEntry(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='ignore')
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     sellerId: str
     stock: int = 0
     isActive: bool = False
@@ -893,6 +893,7 @@ class SupportTicketBase(BaseModel):
     category: str = "general"
     priority: str = "medium"
     attachments: Optional[List[str]] = None
+    externalId: Optional[str] = Field(default=None, alias="externalId")
 
 
 class SupportTicketCreate(SupportTicketBase):
@@ -928,7 +929,7 @@ class SupportTicketResponse(SupportTicketBase):
 
 # Delivery Charge Schemas
 class DeliveryChargeTier(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     minOrderValue: Optional[float] = None
     maxOrderValue: Optional[float] = None
     charge: Optional[float] = None
@@ -1417,7 +1418,7 @@ class ReturnRequestResponse(BaseModel):
 
 
 class ReturnRequest(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='ignore')
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     id: Optional[str] = Field(None, validation_alias=AliasChoices('_id', 'id'))
     orderId: Optional[str] = None
     userId: Optional[str] = None
@@ -1908,7 +1909,7 @@ class AuthResponse(BaseModel):
 
 # Contact Schemas
 class Address(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     address: Optional[str] = None
     street: Optional[str] = None
     name: Optional[str] = None
@@ -2050,6 +2051,7 @@ class SupportTicketBase(BaseModel):
     category: str = "general"
     priority: str = "medium"
     attachments: Optional[List[str]] = None
+    externalId: Optional[str] = Field(default=None, alias="externalId")
 
 
 class SupportTicketCreate(SupportTicketBase):
@@ -2566,7 +2568,7 @@ class AdStatusUpdate(BaseModel):
 
 
 class AdSummaryResponse(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     total_views: int = 0
     total_clicks: int = 0
     active_campaigns: int = 0
@@ -2688,7 +2690,7 @@ class UserInternalUpdate(BaseModel):
 # --- Shared Payload DTOs ---
 
 class AnalyticsEventPayload(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     returning: Optional[bool] = False
     productId: Optional[str] = None
     productName: Optional[str] = "Unknown"
@@ -2697,9 +2699,18 @@ class AnalyticsEventPayload(BaseModel):
     query: Optional[str] = ""
     resultsCount: Optional[int] = 0
     reason: Optional[str] = "unknown"
+    testRunId: Optional[str] = None
 
 
 class AnalyticsEventCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    type: str
+    userId: Optional[str] = None
+    sessionId: Optional[str] = None
+    source: Optional[str] = None
+    filterName: Optional[Any] = None
+    filterValue: Optional[Any] = None
+    category: Optional[Any] = None
     payload: Optional[Dict[str, Any]] = None
     searchTerm: Optional[str] = None
     resultsCount: Optional[int] = None
@@ -2717,7 +2728,7 @@ class AnalyticsEventCreate(BaseModel):
     orderId: Optional[str] = None
     orderValue: Optional[float] = None
     cartItems: Optional[List[Any]] = None
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     type: str
     timestamp: Optional[str] = None
     sessionId: Optional[str] = None
@@ -2727,7 +2738,7 @@ class AnalyticsEventCreate(BaseModel):
 
 
 class Msg91WebhookPayload(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     status: Optional[str] = None
     Status: Optional[str] = None
     type: Optional[str] = None
@@ -2738,7 +2749,7 @@ class Msg91WebhookPayload(BaseModel):
 
 
 class TrackBeaconRequest(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     event: Optional[str] = None
     page: Optional[str] = None
     sessionId: Optional[str] = None
@@ -2754,7 +2765,7 @@ class TrackNotifyPincodeRequest(BaseModel):
 
 
 class OrderItemCreate(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     productId: Optional[str] = Field(None, alias="product_id")
     product: Optional[str] = None
     quantity: int = 1
@@ -2772,7 +2783,7 @@ class OrderItemCreate(BaseModel):
 
 
 class SellerDeliveryOption(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     sellerId: str
     deliverySlotId: Optional[str] = None
     deliverySlotDate: Optional[str] = None
@@ -2781,13 +2792,13 @@ class SellerDeliveryOption(BaseModel):
 
 
 class PushSubscriptionKeys(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     p256dh: str
     auth: str
 
 
 class PushSubscription(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     endpoint: str
     expirationTime: Optional[float] = None
     keys: PushSubscriptionKeys
@@ -2796,7 +2807,7 @@ class PushSubscription(BaseModel):
 # --- Router Response and Request DTOs ---
 
 class ActivityLogResponse(BaseModel):
-    model_config = ConfigDict(extra="allow", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[str] = Field(None, alias="_id")
     userId: Optional[str] = None
     sessionId: Optional[str] = None
@@ -2810,7 +2821,7 @@ class PromoteGuestResponse(BaseModel):
 
 
 class AvailabilityRequestResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
     external_id: Optional[str] = Field(None, alias="externalId")
     productId: Optional[str] = None
@@ -2823,7 +2834,7 @@ class AvailabilityRequestResponse(BaseModel):
 
 
 class AvailabilityRequestListResponse(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     requests: List[AvailabilityRequestResponse] = []
     total: int = 0
     page: int = 1
@@ -2831,7 +2842,7 @@ class AvailabilityRequestListResponse(BaseModel):
 
 
 class DeliveryZoneResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     zoneId: Optional[str] = None
@@ -2849,7 +2860,7 @@ class EligibleFeedbackResponse(BaseModel):
 
 
 class ReturnEligibilityItem(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="ignore")
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
     productId: str
     maxQuantity: int
     reason: Optional[str] = None
@@ -2859,7 +2870,7 @@ class ReturnEligibilityItem(BaseModel):
 
 
 class ReturnEligibilityResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="ignore")
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
     eligibleItems: List[ReturnEligibilityItem] = []
     reason: Optional[str] = None
     returnDeliveryCharge: Optional[float] = 0.0
@@ -2879,7 +2890,7 @@ class ValetPayoutSettingsResponse(BaseModel):
 
 
 class PincodeSearchResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
     pincode: Optional[str] = None
     isServiceable: Optional[bool] = None
@@ -2896,7 +2907,7 @@ class PincodeSearchResponse(BaseModel):
 
 
 class PincodeSearchStatsResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
     totalSearches: int = 0
     uniquePincodes: int = 0
     uniquePincodesCount: int = 0
@@ -2918,14 +2929,14 @@ class UploadCSVResponse(BaseModel):
 
 
 class SearchSuggestResponse(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
     products: List[Dict[str, Any]] = []
     brands: List[Dict[str, Any]] = []
     categories: List[Dict[str, Any]] = []
 
 
 class PushNotificationResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
     title: Optional[str] = None
     message: Optional[str] = None
@@ -2959,7 +2970,7 @@ class SellerRequestResponseCreate(BaseModel):
 
 
 class SellerRequestResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="allow")
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
     subject: Optional[str] = None
     description: Optional[str] = None

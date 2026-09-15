@@ -191,8 +191,9 @@ async def record_event(
     user_id = str(user_info.id) if user_info else None
 
     payload_items = []
-    if event.payload and isinstance(event.payload, dict):
-        for k, v in event.payload.items():
+    if event.payload:
+        items_to_iter = event.payload.items() if isinstance(event.payload, dict) else event.payload
+        for k, v in items_to_iter:
             payload_items.append(EventPayloadItem(key=k, value=str(v)))
     
     payload_items.append(EventPayloadItem(key="userId", value=str(user_id) if user_id else ""))
@@ -258,8 +259,9 @@ async def record_event(
                     await tracking_repository.trackWishlistAdd(user_id, product_id, "Unknown", session_id)
             elif event_type == "session_end":
                 reason = payload_obj.reason if payload_obj.reason is not None else "unknown"
+                from app.models.schemas import AnalyticsEventCreate
                 await tracking_repository.create(
-                    {"type": "session_end", "userId": user_id, "sessionId": session_id, "reason": reason}
+                    AnalyticsEventCreate(type="session_end", userId=user_id, sessionId=session_id, reason=reason)
                 )
             elif event_type == "begin_checkout":
                 await tracking_repository.trackPageView(user_id, "/checkout/step1", session_id)

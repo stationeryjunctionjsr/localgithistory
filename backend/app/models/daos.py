@@ -255,7 +255,7 @@ class SellerRequestInternalUpdate(BaseModel):
 
 
 class ProductInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
     name: str
     description: Optional[str] = None
     price: float
@@ -267,7 +267,22 @@ class ProductInternalCreate(BaseModel):
     sellerId: Optional[str] = None
 
 class ProductInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
+    sellers: Optional[List[Any]] = None
+    sku: Optional[str] = None
+    category: Optional[str] = None
+    subCategory: Optional[str] = None
+    brand: Optional[str] = None
+    mrpPerCase: Optional[float] = None
+    quantityPerCase: Optional[int] = None
+    stock: Optional[int] = None
+    rating: Optional[float] = None
+    reviews: Optional[int] = None
+    videos: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    variantAttributes: Optional[List[str]] = None
+    variants: Optional[List[Any]] = None
+    details: Optional[Dict[str, Any]] = None
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
@@ -279,27 +294,27 @@ class ProductInternalUpdate(BaseModel):
     sellerId: Optional[str] = None
 
 class CategoryInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
     name: str
     description: Optional[str] = None
     parentId: Optional[str] = None
     isActive: bool = True
 
 class CategoryInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
     name: Optional[str] = None
     description: Optional[str] = None
     parentId: Optional[str] = None
     isActive: Optional[bool] = None
 
 class BrandInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
     name: str
     description: Optional[str] = None
     isActive: bool = True
 
 class BrandInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
     name: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
@@ -313,14 +328,14 @@ class BundleItemInternal(BaseModel):
     discountPrice: Optional[float] = None
 
 class BundleInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
     name: str
     items: Optional[List[BundleItemInternal]] = []
     price: float
     isActive: bool = True
 
 class BundleInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra='forbid')
     name: Optional[str] = None
     items: Optional[List[BundleItemInternal]] = None
     price: Optional[float] = None
@@ -378,7 +393,7 @@ class ReturnRequestInternalUpdate(BaseModel):
     updatedAt: Optional[str] = None
 
 class ReturnRequestInternal(BaseModel):
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     id: Optional[str] = Field(default=None, alias="_id")
     returnId: Optional[str] = None
     orderId: Optional[str] = None

@@ -23,8 +23,8 @@ async def admin_auth(client: AsyncClient):
     token = response.json().get("token", "")
     yield {"Authorization": f"Bearer {token}"}
     try:
-        await session_repository.delete_all_for_user(user["_id"])
-        await user_repository.storage.delete(user["_id"])
+        await session_repository.delete_all_for_user(user.id)
+        await user_repository.storage.delete(user.id)
     except Exception:
         pass
 
@@ -150,22 +150,22 @@ async def test_web_tracking_endpoints(client: AsyncClient):
     assert len(records) >= 10
 
     # Validate specific fields of some stored events
-    search_record = next(r for r in records if r["type"] == "product_search")
-    assert search_record["searchTerm"] == "fountain pen"
-    assert search_record["resultsCount"] == 10
+    search_record = next(r for r in records if r.type == "product_search")
+    assert search_record.searchTerm == "fountain pen"
+    assert search_record.resultsCount == 10
 
-    view_record = next(r for r in records if r["type"] == "product_view")
-    assert view_record["productId"] == product_id
-    assert view_record["productName"] == product_name
+    view_record = next(r for r in records if r.type == "product_view")
+    assert view_record.product_id == product_id
+    assert view_record.productName == product_name
 
-    click_record = next(r for r in records if r["type"] == "product_click")
-    assert click_record["source"] == "homepage_banner"
+    click_record = next(r for r in records if r.type == "product_click")
+    assert click_record.source == "homepage_banner"
 
-    abandon_record = next(r for r in records if r["type"] == "cart_abandonment")
-    assert abandon_record["cartValue"] == 998.0
+    abandon_record = next(r for r in records if r.type == "cart_abandonment")
+    assert abandon_record.cartValue == 998.0
 
-    session_record = next(r for r in records if r["type"] == "session")
-    assert session_record["isReturning"] is True
+    session_record = next(r for r in records if r.type == "session")
+    assert session_record.isReturning is True
 
     # Cleanup test tracking events
     await tracking_repository.storage.deleteMany({"sessionId": session_id})
@@ -252,23 +252,23 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
     assert "session_end" in track_types  # session_end -> session_end
 
     # Verify specific details of replicated records
-    rep_search = next(r for r in tracking_records if r["type"] == "product_search")
-    assert rep_search["searchTerm"] == "notebook"
-    assert rep_search["resultsCount"] == 5
+    rep_search = next(r for r in tracking_records if r.type == "product_search")
+    assert rep_search.searchTerm == "notebook"
+    assert rep_search.resultsCount == 5
 
-    rep_view = next(r for r in tracking_records if r["type"] == "product_view")
-    assert rep_view["productId"] == product_id
-    assert rep_view["productName"] == product_name
+    rep_view = next(r for r in tracking_records if r.type == "product_view")
+    assert rep_view.product_id == product_id
+    assert rep_view.productName == product_name
 
-    rep_checkout = next(r for r in tracking_records if r["type"] == "page_view" and r["page"] == "/checkout/step1")
+    rep_checkout = next(r for r in tracking_records if r.type == "page_view" and r.page == "/checkout/step1")
     assert rep_checkout is not None
 
-    rep_purchase = next(r for r in tracking_records if r["type"] == "page_view" and r["page"] == "/checkout/complete")
+    rep_purchase = next(r for r in tracking_records if r.type == "page_view" and r.page == "/checkout/complete")
     assert rep_purchase is not None
 
     # Cleanup (since we can't query clob directly, find our specific record IDs to delete)
     for r in event_records:
-        await analytics_repository.event_storage.delete(r["_id"])
+        await analytics_repository.event_storage.delete(r.id)
     await tracking_repository.storage.deleteMany({"sessionId": session_id})
 
 
