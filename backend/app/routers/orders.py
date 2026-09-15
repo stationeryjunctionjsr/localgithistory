@@ -331,6 +331,7 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
         
         user_dict = None
         valet_dict = None
+        
         if user:
             user_dict = {
                 "_id": str(user.id),
@@ -340,10 +341,15 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
                 "email": user.email,
                 "phone": user.phone,
                 "companyName": user.companyName,
+            }
+            
+        if valet:
+            valet_dict = {
+                "_id": str(valet.id),
                 "name": valet.name,
                 "phone": valet.phone,
             }
-            
+
         order_dict["user"] = user_dict
         order_dict["assignedValet"] = valet_dict
         
