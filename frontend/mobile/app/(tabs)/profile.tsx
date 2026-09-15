@@ -149,7 +149,7 @@ export default function Profile() {
                         await Share.share({
                           message: `Use my referral code ${user.referralCode} to get a discount on your first order!`,
                         });
-                      } catch (e: any) { console.warn(\'Background task failed\', e); }
+                      } catch (e: any) { console.warn('Background task failed', e); }
                     }}
                   >
                     <Ionicons name="share-social-outline" size={20} color={colors.primary} />

@@ -68,7 +68,7 @@ async function loadReadIds(): Promise<Set<string>> {
 async function saveReadIds(ids: Set<string>) {
   try {
     await AsyncStorage.setItem(READ_IDS_KEY, JSON.stringify([...ids]));
-  } catch (e: any) { console.warn(\'Background task failed\', e); }
+  } catch (e: any) { console.warn('Background task failed', e); }
 }
 
 export default function NotificationsScreen() {

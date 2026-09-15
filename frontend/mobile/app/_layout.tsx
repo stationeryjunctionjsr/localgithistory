@@ -90,7 +90,7 @@ async function registerForPushNotifications() {
     await api.post('/push-notifications/register-device', {
       expoToken: tokenData.data,
     });
-  } catch (e: any) { console.warn(\'Background task failed\', e); }
+  } catch (e: any) { console.warn('Background task failed', e); }
 }
 
 /** Resolve a notification link to an in-app route or external URL. */

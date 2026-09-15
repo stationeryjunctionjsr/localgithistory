@@ -775,7 +775,7 @@ async def create_order(
         eligible_subtotal_for_discount = sum(item_totals[i][1] for i in eligible_item_indices if i < len(item_totals))
 
     # --- Phase 1: Apply Coupon Discount ---
-    c_type_of_disc = coupon_info.typeOfDiscount
+    c_type_of_disc = coupon_info["typeOfDiscount"] if coupon_info is not None else None
     is_shipping_discount = coupon_info is not None and c_type_of_disc == "shipping_discount"
 
     for idx, (product, item_total_before_coupon, quantity, sell_as_case, item) in enumerate(item_totals):
@@ -1267,9 +1267,10 @@ async def create_order(
 
     # Apply shipping discount calculation and compute net shipping to charge
     base_shipping = shipping
-    c_tod = coupon_info.typeOfDiscount
+    c_tod = coupon_info["typeOfDiscount"] if coupon_info is not None else None
     is_shipping_discount = coupon_info is not None and c_tod == "shipping_discount"
-
+    
+    shipping_net_to_charge = base_shipping
     if is_shipping_discount:
         shipping_discount_amount = coupon_discount
         shipping_net_to_charge = max(0.0, base_shipping - shipping_discount_amount)

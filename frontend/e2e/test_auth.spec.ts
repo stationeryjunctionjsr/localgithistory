@@ -5,7 +5,7 @@ test.describe('Flow 1: Sign up and Login', () => {
     // Add network listeners
     page.on('request', async req => {
         if (req.url().includes('/api/tracking/error')) {
-            try { console.log('FRONTEND ERROR TRACKED:', req.postData()); } catch (e: any) { console.warn(\'Background task failed\', e); }
+            try { console.log('FRONTEND ERROR TRACKED:', req.postData()); } catch (e: any) { console.warn('Background task failed', e); }
         }
     });
     page.on('response', res => console.log('<<', res.status(), res.url()));

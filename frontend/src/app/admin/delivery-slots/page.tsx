@@ -1,5 +1,5 @@
-import { logger } from "@/utils/logger";
 'use client';
+import { logger } from "@/utils/logger";
 
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/Admin/AdminLayout';
