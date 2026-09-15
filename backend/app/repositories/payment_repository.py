@@ -95,7 +95,7 @@ class PaymentRepository:
     async def update(self, id: str, update_data: Any):
         if not isinstance(update_data, PaymentInternalUpdate):
             if isinstance(update_data, dict):
-                update_data.updatedAt = datetime.now(timezone.utc).isoformat()
+                update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
                 update_data = PaymentInternalUpdate.model_validate(update_data)
             else:
                 update_dict = {}

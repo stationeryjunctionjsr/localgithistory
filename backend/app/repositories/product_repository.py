@@ -1216,7 +1216,9 @@ class ProductRepository:
             row = result.fetchone()
             if not row:
                 return None
-            new_stock = max(0, row.stock - quantity)
+            if row.stock < quantity:
+                raise ValueError(f"Insufficient stock for product {product_id}")
+            new_stock = row.stock - quantity
             await session.execute(
                 text(f"UPDATE {self.storage.TABLE} SET stock = :stock, updated_at = UTC_TIMESTAMP() WHERE id = :rid"),
                 {"stock": new_stock, "rid": row.id},
@@ -1257,7 +1259,9 @@ class ProductRepository:
                         for v_row in all_variants:
                             v_id = v_row.id
                             if req_attrs and variant_attrs[v_id] if v_id in variant_attrs else None == req_attrs:
-                                new_v_stock = max(0, (v_row.stock or 0) - vc_qty)
+                                if (v_row.stock or 0) < vc_qty:
+                                    raise ValueError(f"Insufficient stock for variant of product {product_id}")
+                                new_v_stock = (v_row.stock or 0) - vc_qty
                                 await session.execute(
                                     text(
                                         "UPDATE sj_product_variants "

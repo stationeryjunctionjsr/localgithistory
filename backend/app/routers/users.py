@@ -43,8 +43,8 @@ async def get_users(
         users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
 
         return {
-            "users": [user for user in users_without_passwords],
-            "total": total,
+            "users": users_without_passwords,
+            "totalCount": total,
             "page": page,
             "limit": limit
         }
@@ -52,7 +52,12 @@ async def get_users(
     # No pagination -- return all (backwards compatible), capped at 1000 rows to protect memory
     users = await user_repository.findAll(query, limit=1000)
     users_without_passwords = [{k: v for k, v in user.items() if k != "password"} for user in users]
-    return [user for user in users_without_passwords]
+    return {
+        "users": users_without_passwords,
+        "totalCount": len(users_without_passwords),
+        "page": 1,
+        "limit": len(users_without_passwords) or 1
+    }
 
 
 @router.get("/pending-approvals", response_model=List[UserResponse])

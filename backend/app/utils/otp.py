@@ -434,7 +434,7 @@ async def verify_otp_async(
 def get_otp(user_key: str, device_key: str = "default") -> Optional[str]:
     """Get OTP for user+device (for development/testing, in-memory only)"""
     user_record = otp_store[user_key] if user_key in otp_store else None
-    if not user_record or not isinstance(user_(record["devices"] if "devices" in record else None), dict):
+    if not user_record or not isinstance((user_record["devices"] if "devices" in user_record else None), dict):
         return None
     device = (user_record["devices"][device_key] if device_key in user_record["devices"] else None)
     if not device:

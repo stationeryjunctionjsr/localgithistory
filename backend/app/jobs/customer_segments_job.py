@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from datetime import timezone
 
 from app.repositories.customer_segments_repository import customer_segments_repository
 from app.routers.customer_segments import FilterCriteria, run_segment_filter

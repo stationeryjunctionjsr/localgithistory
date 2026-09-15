@@ -2238,6 +2238,8 @@ async def update_order_status(
         # Check if it's retail and hasn't been generated yet
         if order_user and order_user.role == "customer" and not updated_order.invoicePath:
             try:
+                    payments_for_order = await payment_repository.findByOrderId(order_id)
+                    payment_for_invoice = payments_for_order[0] if payments_for_order else None
                     super_admin = await user_repository.findOne({"role": "super_admin"})
                     pdf_buffer = await generate_invoice_pdf(
                         populated_order,

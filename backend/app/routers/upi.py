@@ -1,6 +1,6 @@
 from app.models.user import User
 from typing import Dict, Any, List
-from app.models.schemas import MessageResponse, UPIDetailsResponse, UploadQRResponse
+from app.models.schemas import MessageResponse, UPIDetailsResponse, UploadQRResponse, UserUpdate
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -23,7 +23,7 @@ class UPIUpdateRequest(BaseModel):
 async def get_upi_details(current_user: User = Depends(get_current_user)):
     # Find super admin user
     super_admin = await user_repository.findOne({"role": "super_admin"})
-    if super_admin and super_admin.upi_id and super_admin.qr_code_url:
+    if super_admin and super_admin.upiId and super_admin.qrCodeUrl:
         return {
             "upiId": super_admin.upiId,
             "qrCodeUrl": super_admin.qrCodeUrl,
@@ -50,7 +50,7 @@ async def update_upi_details(upi_data: UPIUpdateRequest, current_user: User = De
         raise HTTPException(status_code=404, detail="Super admin not found")
 
     # Update UPI details
-    await user_repository.update(super_admin.id, {"upiId": upi_data.upiId, "qrCodeUrl": upi_data.qrCodeUrl})
+    await user_repository.update(super_admin.id, UserUpdate(upiId=upi_data.upiId, qrCodeUrl=upi_data.qrCodeUrl))
 
     return {"message": "UPI details updated successfully", "upiId": upi_data.upiId, "qrCodeUrl": upi_data.qrCodeUrl}
 

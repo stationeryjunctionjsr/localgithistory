@@ -224,6 +224,8 @@ class UserBase(BaseModel):
     password: Optional[str] = None
     sessionId: Optional[str] = None
     effectiveRole: Optional[str] = None
+    upiId: Optional[str] = None
+    qrCodeUrl: Optional[str] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -274,6 +276,8 @@ class UserUpdate(BaseModel):
     serviceAreaZones: Optional[List[str]] = None
     referralCode: Optional[str] = None
     preferredLanguage: Optional[str] = None
+    upiId: Optional[str] = None
+    qrCodeUrl: Optional[str] = None
 
 
 class UserResponse(UserBase):
@@ -1573,6 +1577,8 @@ class UserInternalUpdate(BaseModel):
     isEmailVerified: Optional[bool] = None
     sellerPermissions: Optional[list] = None
     serviceAreaZones: Optional[List[str]] = None
+    upiId: Optional[str] = None
+    qrCodeUrl: Optional[str] = None
 
 
 # --- Shared Payload DTOs ---
