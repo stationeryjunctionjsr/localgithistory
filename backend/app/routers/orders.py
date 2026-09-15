@@ -1447,22 +1447,51 @@ async def create_order(
                         db_id = slot_config.id if slot_config.id is not None else config_id
                         async with factory() as session:
                             child_table = slot_storage.CHILD_TABLE
-                            result = await session.execute(
-                                text(f"SELECT booked_count, capacity FROM {child_table} WHERE parent_id = :id AND slot_uuid = :slot_id FOR UPDATE"),
+                            parent_table = slot_storage.TABLE
+                            
+                            # --- BEGIN OLD COMMENTED CODE ---
+                            # result = await session.execute(
+                            #     text(f"SELECT booked_count, capacity FROM {child_table} WHERE parent_id = :id AND slot_uuid = :slot_id FOR UPDATE"),
+                            #     {"id": int(db_id) if str(db_id).isdigit() else None, "slot_id": slot_id},
+                            # )
+                            # row = result.fetchone()
+                            # if row:
+                            #     await session.execute(
+                            #         text(f"UPDATE {child_table} SET booked_count = booked_count + 1 WHERE parent_id = :id AND slot_uuid = :slot_id"),
+                            #         {"id": int(db_id) if str(db_id).isdigit() else None, "slot_id": slot_id},
+                            #     )
+                            #     await session.execute(
+                            #         text(f"UPDATE {parent_table} SET updated_at = UTC_TIMESTAMP() WHERE id = :id"),
+                            #         {"id": int(db_id) if str(db_id).isdigit() else None},
+                            #     )
+                            #     await session.commit()
+                            # --- END OLD COMMENTED CODE ---
+
+                            # --- NEW ATOMIC CODE ---
+                            # Atomic increment that strictly enforces capacity at the database level.
+                            # capacity is a varchar in DB, so we cast to UNSIGNED for safe numeric comparison.
+                            update_result = await session.execute(
+                                text(f"""
+                                    UPDATE {child_table} 
+                                    SET booked_count = booked_count + 1 
+                                    WHERE parent_id = :id 
+                                      AND slot_uuid = :slot_id 
+                                      AND (capacity IS NULL OR capacity = '' OR booked_count < CAST(capacity AS UNSIGNED))
+                                """),
                                 {"id": int(db_id) if str(db_id).isdigit() else None, "slot_id": slot_id},
                             )
-                            row = result.fetchone()
-                            if row:
-                                await session.execute(
-                                    text(f"UPDATE {child_table} SET booked_count = booked_count + 1 WHERE parent_id = :id AND slot_uuid = :slot_id"),
-                                    {"id": int(db_id) if str(db_id).isdigit() else None, "slot_id": slot_id},
-                                )
-                                parent_table = slot_storage.TABLE
-                                await session.execute(
-                                    text(f"UPDATE {parent_table} SET updated_at = UTC_TIMESTAMP() WHERE id = :id"),
-                                    {"id": int(db_id) if str(db_id).isdigit() else None},
-                                )
-                                await session.commit()
+                            
+                            if update_result.rowcount == 0:
+                                # Rowcount 0 means either the slot doesn't exist OR it's fully booked.
+                                # Raising an exception triggers the order compensation block, refunding credit and marking order as failed.
+                                raise ValueError("Delivery slot is fully booked or unavailable.")
+                                
+                            await session.execute(
+                                text(f"UPDATE {parent_table} SET updated_at = UTC_TIMESTAMP() WHERE id = :id"),
+                                {"id": int(db_id) if str(db_id).isdigit() else None},
+                            )
+                            await session.commit()
+                            # --- END NEW ATOMIC CODE ---
             except Exception as e:
                 _cfg_id = selected_slot_info["configId"] if selected_slot_info and "configId" in selected_slot_info else selected_slot_info.configId
                 _s_id = selected_slot_info["slotId"] if selected_slot_info and "slotId" in selected_slot_info else selected_slot_info.slotId
