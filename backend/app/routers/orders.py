@@ -234,12 +234,15 @@ class ReferralSettingsModel(BaseModel):
     business: Optional[ReferralProgramSegmentSettings] = None
 
 
-async def populate_orders(orders: list[Any]) -> list[Any]:
+async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
     """
     Bulk populates references (user, assignedValet, products, and payment) for a list of orders.
     Optimized to minimize DB queries by fetching all needed references in bulk.
-    Handles both Pydantic objects and dictionaries.
+    Returns strongly-typed Pydantic PopulatedOrderResponse models.
     """
+    if not orders:
+        return []
+
     user_ids = set()
     valet_ids = set()
     product_ids = set()
@@ -248,57 +251,53 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
     # 1. Collect all unique IDs across all orders
     for order in orders:
         if isinstance(order, dict):
-            if order.user:
-                user_ids.add(str(order.user))
-            if order.assignedValet:
-                valet_ids.add(str(order.assignedValet))
-            if order.id or order.id:
-                order_ids.add(str(order.id or order.id))
-            for item in order.items or []:
-                prod = item.product
+            u = order.get("user")
+            if u: user_ids.add(str(u))
+            v = order.get("assignedValet") or order.get("assigned_valet")
+            if v: valet_ids.add(str(v))
+            oid = order.get("id") or order.get("_id")
+            if oid: order_ids.add(str(oid))
+            for item in order.get("items", []):
+                prod = item.get("product") if isinstance(item, dict) else (getattr(item, "product", None))
                 if isinstance(prod, dict):
-                    pid = prod["_id"] if "_id" in prod else (prod["id"] if "id" in prod else None)
+                    pid = prod.get("_id") or prod.get("id")
                     if pid: product_ids.add(str(pid))
-                elif prod.id:
+                elif hasattr(prod, "id") and prod.id:
                     product_ids.add(str(prod.id))
                 elif prod:
                     product_ids.add(str(prod))
         else:
-            if order.user:
+            if getattr(order, "user", None):
                 user_ids.add(str(order.user))
-            if order.assigned_valet:
-                valet_ids.add(str(order.assigned_valet))
-            elif order.assignedValet:
-                valet_ids.add(str(order.assignedValet))
-            if order.id:
+            v = getattr(order, "assignedValet", None) or getattr(order, "assigned_valet", None)
+            if v:
+                valet_ids.add(str(v))
+            if getattr(order, "id", None):
                 order_ids.add(str(order.id))
-            for item in (order.items if order.items is not None else []) or []:
-                if isinstance(item, dict):
-                    prod = item.product
-                else:
-                    prod = item.product
+            for item in getattr(order, "items", []) or []:
+                prod = getattr(item, "product", None)
                 if isinstance(prod, dict):
-                    pid = prod["_id"] if "_id" in prod else (prod["id"] if "id" in prod else None)
+                    pid = prod.get("_id") or prod.get("id")
                     if pid: product_ids.add(str(pid))
-                elif prod.id:
+                elif hasattr(prod, "id") and prod.id:
                     product_ids.add(str(prod.id))
                 elif prod:
                     product_ids.add(str(prod))
 
-    # 2. Bulk fetch users, valets, payments, and products with smart database-level queries
-    all_users_to_fetch = list(user_ids.union(valet_ids))
+    # 2. Bulk fetch references
     users_map = {}
-    if all_users_to_fetch:
-        users = await user_repository.findAll({"allowed_ids": all_users_to_fetch})
-        users_map = {str(u.id): u for u in users}
+    if user_ids or valet_ids:
+        all_u_ids = list(user_ids.union(valet_ids))
+        users = await user_repository.findAll({"_id": {"$in": all_u_ids}})
+        for u in users:
+            users_map[str(u.id)] = u
 
-    # For products:
     products_map = {}
     if product_ids:
-        products = await product_repository.findAll({"allowed_ids": list(product_ids)})
-        products_map = {str(p.id): p for p in products}
+        prods = await product_repository.findAll({"_id": {"$in": list(product_ids)}})
+        for p in prods:
+            products_map[str(p.id)] = p
 
-    # For payments:
     payments_map = {}
     if order_ids:
         payments = await payment_repository.findAll({"allowed_order_ids": list(order_ids)})
@@ -307,70 +306,75 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
             if oid:
                 payments_map[str(oid)] = p.payment_entries or []
 
-    
     # 3. Populate each order using the maps
     populated_orders = []
     for order in orders:
-        user = (users_map[str(order.user)] if str(order.user) in users_map else None)
-        valet = (users_map[str(order.assigned_valet)] if str(order.assigned_valet) in users_map else None) if order.assigned_valet else None
+        is_dict = isinstance(order, dict)
         
-        payment_entries = (payments_map[str(order.id)] if str(order.id) in payments_map else [])
+        o_user = order.get("user") if is_dict else getattr(order, "user", None)
+        user = users_map.get(str(o_user)) if o_user else None
+        
+        o_valet = (order.get("assignedValet") or order.get("assigned_valet")) if is_dict else (getattr(order, "assignedValet", None) or getattr(order, "assigned_valet", None))
+        valet = users_map.get(str(o_valet)) if o_valet else None
 
+        o_id = (order.get("id") or order.get("_id")) if is_dict else getattr(order, "id", None)
+        payment_entries = payments_map.get(str(o_id), []) if o_id else []
+
+        o_items = order.get("items", []) if is_dict else (getattr(order, "items", []) or [])
         populated_items = []
-        for item in (order.items or []):
-            prod_id = str(item.product.id)
-            product = (products_map[prod_id] if prod_id in products_map else None)
+        for item in o_items:
+            i_dict = item if isinstance(item, dict) else (item.model_dump() if hasattr(item, "model_dump") else (item.dict() if hasattr(item, "dict") else dict(item)))
+            prod = i_dict.get("product")
             
-            # Since item might be a model, we dump it to modify and return a dict 
-            # (or we could return a Pydantic model, but populate_orders usually returns dicts in this codebase for frontend)
-            item_dict = item
-            item_dict.product = product
-            populated_items.append(item_dict)
+            pid = None
+            if isinstance(prod, dict):
+                pid = prod.get("_id") or prod.get("id")
+            elif hasattr(prod, "id") and prod.id:
+                pid = str(prod.id)
+            elif prod:
+                pid = str(prod)
+                
+            product = products_map.get(pid) if pid else None
+            
+            if product:
+                i_dict["product"] = product.model_dump() if hasattr(product, "model_dump") else (product.dict() if hasattr(product, "dict") else product)
+                
+            populated_items.append(i_dict)
 
-        order_dict = order
-        
-        user_dict = None
-        valet_dict = None
-        
+        user_snippet = None
         if user:
-            user_dict = {
-                "_id": str(user.id),
-                "userId": user.user_id,
-                "userIdFormatted": user.user_id_formatted,
-                "name": user.name,
-                "email": user.email,
-                "phone": user.phone,
-                "companyName": user.companyName,
-            }
+            user_snippet = UserSnippet(
+                _id=str(user.id),
+                userId=user.user_id,
+                userIdFormatted=user.user_id_formatted,
+                name=user.name,
+                email=user.email,
+                phone=user.phone,
+                companyName=user.companyName
+            )
             
+        valet_snippet = None
         if valet:
-            valet_dict = {
-                "_id": str(valet.id),
-                "name": valet.name,
-                "phone": valet.phone,
-            }
-
-        order_dict["user"] = user_dict
-        order_dict["assignedValet"] = valet_dict
+            valet_snippet = ValetSnippet(
+                _id=str(valet.id),
+                name=valet.name,
+                phone=valet.phone
+            )
+            
+        payment_snippet = PaymentSnippet(entries=payment_entries)
         
-        # Payment details
-        order_dict["payment"] = {
-            "entries": payment_entries if payment_entries else []
-        }
-        populated_order = {
-            **order_dict,
-            "user": user_dict,
-            "assignedValet": valet_dict,
-            "items": populated_items,
-            "paymentEntries": payment_entries,
-        }
-        populated_orders.append(populated_order)
+        base_dict = order if is_dict else (order.model_dump() if hasattr(order, "model_dump") else (order.dict() if hasattr(order, "dict") else dict(order)))
+        
+        base_dict["user"] = user_snippet
+        base_dict["assignedValet"] = valet_snippet
+        base_dict["payment"] = payment_snippet
+        base_dict["paymentEntries"] = payment_entries
+        base_dict["items"] = populated_items
+        
+        populated_orders.append(PopulatedOrderResponse(**base_dict))
 
     return populated_orders
-
-
-
-async def populate_order(order: dict) -> Optional[dict]:
+async def populate_order(order: Any) -> Optional[PopulatedOrderResponse]:
     """Populate a single order by reusing populate_orders"""
     if not order:
         return None
@@ -428,7 +432,7 @@ async def get_orders(
     )
 
 
-@router.get("/{order_id}", response_model=Order)
+@router.get("/{order_id}", response_model=PopulatedOrderResponse)
 async def get_order(order_id: str, current_user: User = Depends(get_current_user)):
     order = await order_repository.findById(order_id)
 

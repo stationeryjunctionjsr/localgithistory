@@ -2,10 +2,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Dict, Any, Optional
 from app.models.order import Order
 from app.models.sub_order import SubOrder
+from app.models.schemas import PopulatedOrderResponse
 
 class PaginatedOrdersResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    orders: List[Order]
+    orders: List[PopulatedOrderResponse]
     totalCount: int = Field(alias="totalCount")
     page: int
     limit: int

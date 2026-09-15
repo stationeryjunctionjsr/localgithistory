@@ -1909,3 +1909,42 @@ class SellerProductRequestCreate(BaseModel):
 class SellerProductApprove(BaseModel):
     status: str
     notes: Optional[str] = None
+
+class UserSnippet(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    id: Optional[str] = Field(default=None, alias="_id")
+    userId: Optional[int] = None
+    userIdFormatted: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    companyName: Optional[str] = None
+
+class ValetSnippet(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    id: Optional[str] = Field(default=None, alias="_id")
+    name: Optional[str] = None
+    phone: Optional[str] = None
+
+class PaymentSnippet(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    entries: List[Any] = []
+
+class PopulatedOrderResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    id: Optional[str] = Field(default=None, alias="_id")
+    orderId: Optional[str] = None
+    status: Optional[str] = None
+    user: Optional[UserSnippet] = None
+    assignedValet: Optional[ValetSnippet] = None
+    payment: Optional[PaymentSnippet] = None
+    paymentEntries: Optional[List[Any]] = None
+    items: Optional[List[Any]] = None
+    subTotal: Optional[float] = None
+    shippingCharge: Optional[float] = None
+    total: Optional[float] = None
+    createdAt: Optional[Any] = None
+    shippingAddress: Optional[Any] = None
+    billingAddress: Optional[Any] = None
+    paymentStatus: Optional[str] = None
+    notes: Optional[str] = None
