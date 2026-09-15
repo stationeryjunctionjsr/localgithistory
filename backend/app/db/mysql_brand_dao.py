@@ -2,6 +2,8 @@
 MySQL DAO for sj_brands. Implements FileStorage-like interface for 'brands'.
 """
 
+from app.models.schemas import BrandResponse
+from app.models.daos import BrandInternalCreate, BrandInternalUpdate
 import secrets
 from typing import Dict, List, Optional, Any
 

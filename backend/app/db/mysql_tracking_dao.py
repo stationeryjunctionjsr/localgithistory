@@ -1,3 +1,4 @@
+from typing import Any
 import logging
 """
 MySQL DAO for sj_tracking. Fully relational with child tables.

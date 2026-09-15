@@ -239,7 +239,7 @@ async def verify_msg91_token_endpoint(data: VerifyMsg91Request, request: Request
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-async def register(user_data: RegisterRequest, request: Request):
+async def register(user_data: RegisterRequest, request: Request, response: Response):
     try:
         normalized_phone = normalize_phone(user_data.phone)
         logger.info(
@@ -408,7 +408,7 @@ class RefreshRequest(BaseModel):
 
 
 @router.post("/refresh", response_model=AuthResponse)
-async def refresh_tokens(payload: RefreshRequest, request: Request):
+async def refresh_tokens(payload: RefreshRequest, request: Request, response: Response):
     token_str = payload.refreshToken or get_refresh_token_from_request(request)
     if not token_str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token required")

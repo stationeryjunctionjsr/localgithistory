@@ -1,3 +1,4 @@
+from app.models.daos import SellerRequestInternalCreate, SellerRequestInternalUpdate
 import logging
 """
 MySQL DAO for sj_seller_requests. Implements FileStorage-like interface.

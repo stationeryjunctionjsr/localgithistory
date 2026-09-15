@@ -1,3 +1,4 @@
+from app.models.daos import BundleInternalCreate, BundleInternalUpdate
 from typing import Dict
 from app.models.bundle import Bundle, List, Optional
 

@@ -1,3 +1,4 @@
+from typing import Any
 import logging
 """
 MySQL DAO for saved-for-later: one row per (user_id, product_id).

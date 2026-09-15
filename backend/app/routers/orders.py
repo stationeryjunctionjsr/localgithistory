@@ -330,6 +330,7 @@ async def populate_orders(orders: list[Any]) -> list[Any]:
         order_dict = order
         
         user_dict = None
+        valet_dict = None
         if user:
             user_dict = {
                 "_id": str(user.id),

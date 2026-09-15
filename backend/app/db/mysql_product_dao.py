@@ -2,6 +2,8 @@
 MySQL DAO for sj_products (Fully Relational).
 """
 
+from typing import Dict
+from app.models.schemas import ProductSellerEntry, VariantOption
 import json
 import secrets
 

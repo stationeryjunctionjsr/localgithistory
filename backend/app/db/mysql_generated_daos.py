@@ -2,6 +2,7 @@
 Auto-generated DAOs for tables that were refactored from JSON clobs to relational child tables.
 """
 
+from typing import Any
 import secrets
 from typing import Dict, List, Optional
 

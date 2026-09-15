@@ -1,3 +1,4 @@
+from app.models.schemas import CouponCreateInternal
 from app.models.user import User
 from app.models.schemas import MessageResponse
 from typing import Dict, Any, List, List, Optional

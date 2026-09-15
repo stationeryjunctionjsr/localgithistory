@@ -1,3 +1,5 @@
+from typing import Any
+from app.models.schemas import SkinnyProductResponse
 import asyncio
 import json
 import random

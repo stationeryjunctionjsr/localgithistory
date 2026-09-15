@@ -2,6 +2,7 @@
 MySQL DAO for sj_categories. Fully relational with child tables for images, sub_categories, and category_tags.
 """
 
+from app.models.daos import CategoryInternalCreate, CategoryInternalUpdate
 import secrets
 from typing import Dict, List, Optional
 

@@ -1,3 +1,4 @@
+from typing import Any
 import logging
 """
 Generic MySQL DAO for parent-only tables: fixed columns + JSON columns for arrays/arbitrary dicts.

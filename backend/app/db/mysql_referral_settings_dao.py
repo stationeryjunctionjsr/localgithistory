@@ -3,6 +3,7 @@ MySQL DAO for referral settings: one row per segment (retail / business), typed 
 Exposes single virtual doc: { _id, retail: { segment, discountType, discountValue, isActive }, business: {...} }.
 """
 
+from typing import Any
 import secrets
 from typing import Dict
 from app.models.referral_settings import ReferralSettings, List, Optional
