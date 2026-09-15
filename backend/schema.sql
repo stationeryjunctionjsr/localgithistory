@@ -1800,6 +1800,7 @@ CREATE TABLE `sj_tracking_cart_items` (
   `tracking_id` int NOT NULL,
   `product_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `quantity` int DEFAULT '1',
+  `price` DECIMAL(10,2) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `tracking_id` (`tracking_id`),
   CONSTRAINT `sj_tracking_cart_items_ibfk_1` FOREIGN KEY (`tracking_id`) REFERENCES `sj_tracking` (`id`) ON DELETE CASCADE

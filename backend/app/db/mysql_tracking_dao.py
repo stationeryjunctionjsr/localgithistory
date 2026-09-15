@@ -89,13 +89,13 @@ class MySQLTrackingDAO:
             placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
             
             res = await session.execute(
-                text(f"SELECT tracking_id, product_id, quantity FROM sj_tracking_cart_items WHERE tracking_id IN ({placeholders})"),
+                text(f"SELECT tracking_id, product_id, quantity, price FROM sj_tracking_cart_items WHERE tracking_id IN ({placeholders})"),
                 chunk_params
             )
             for r in res.fetchall():
-                if "cartItems" not in children_map[r.tracking_id]:
-                    children_map[r.tracking_id]["cartItems"] = []
-                children_map[r.tracking_id]["cartItems"].append({"productId": r.product_id, "quantity": r.quantity})
+                if "cartItems" not in c_map[r.tracking_id]:
+                    c_map[r.tracking_id]["cartItems"] = []
+                c_map[r.tracking_id]["cartItems"].append({"productId": r.product_id, "quantity": r.quantity, "price": r.price})
 
         for chunk in chunks:
             chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
@@ -113,6 +113,29 @@ class MySQLTrackingDAO:
     async def _replace_children(self, session, tid: int, data: 'Any'):
         await session.execute(text("DELETE FROM sj_tracking_products WHERE tracking_id = :tid"), {"tid": tid})
         await session.execute(text("DELETE FROM sj_tracking_payload WHERE tracking_id = :tid"), {"tid": tid})
+        await session.execute(text("DELETE FROM sj_tracking_cart_items WHERE tracking_id = :tid"), {"tid": tid})
+
+        cart_items = []
+        if getattr(data, "cartItems", None) is not None:
+            cart_items.extend(data.cartItems)
+        
+        # Extract from payload if nested, to avoid stringifying array of objects
+        payload = getattr(data, "payload", {})
+        payload = payload.copy() if payload else {}
+        if "cartItems" in payload:
+            cart_items.extend(payload.pop("cartItems"))
+
+        for item in cart_items:
+            item_dict = item if isinstance(item, dict) else item.__dict__
+            await session.execute(
+                text("INSERT INTO sj_tracking_cart_items (tracking_id, product_id, quantity, price) VALUES (:tid, :pid, :qty, :prc)"),
+                {
+                    "tid": tid, 
+                    "pid": str(item_dict.get("productId")), 
+                    "qty": int(item_dict.get("quantity", 1)),
+                    "prc": float(item_dict.get("price")) if item_dict.get("price") is not None else None
+                }
+            )
 
         if data.productIds is not None:
             for pid in data.productIds:
@@ -121,11 +144,10 @@ class MySQLTrackingDAO:
                     {"tid": tid, "pid": str(pid)},
                 )
 
-        if data.payload is not None:
-            # We assume payload is still a Dict because it represents arbitrary JSON
-            # But the prompt said no dicts. If payload is allowed to be dict, then fine.
-            # Otherwise we have to serialize it. I'll just iterate its items.
-            for k, v in data.payload.items():
+        if payload:
+            for k, v in payload.items():
+                if isinstance(v, (list, dict)):
+                    v = str(v)
                 await session.execute(
                     text("INSERT INTO sj_tracking_payload (tracking_id, payload_key, payload_value) VALUES (:tid, :k, :v)"),
                     {"tid": tid, "k": str(k), "v": str(v)},
