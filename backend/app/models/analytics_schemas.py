@@ -200,6 +200,11 @@ class ProductsPctSoldResponse(BaseModel):
     unitsSold: int
     pctSold: float
 
+class MonthlyRevenueItem(BaseModel):
+    month: str
+    revenue: float
+    orders: Optional[int] = None
+
 class BundlePerformanceReportResponse(BaseModel):
     bundleId: Optional[str] = None
     name: Optional[str] = None
@@ -209,7 +214,7 @@ class BundlePerformanceReportResponse(BaseModel):
     orderCount: Optional[int] = None
     revenue: Optional[float] = None
     copiesSold: Optional[int] = None
-    monthlyRevenue: Optional[List[Dict[str, Any]]] = None
+    monthlyRevenue: Optional[List[MonthlyRevenueItem]] = None
 
 class SalesByChannelDetailedResponse(BaseModel):
     channel: str

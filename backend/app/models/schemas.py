@@ -121,7 +121,7 @@ class VariantOption(BaseModel):
     priceModifier: Optional[float] = None
     stock: Optional[int] = None
     sku: Optional[str] = None
-    attributes: Optional[DynamicMetadata] = None
+    attributes: Optional[VariantAttributes] = None
     price: Optional[float] = None
 
 class VisibilityRuleSnippet(BaseModel):
@@ -164,11 +164,37 @@ class DiscountSnippet(BaseModel):
 
 
 
-class DynamicMetadata(RootModel[Dict[str, Any]]):
-    pass
+class VariantAttributes(BaseModel):
+    size: Optional[str] = None
+    color: Optional[str] = None
+    material: Optional[str] = None
+    style: Optional[str] = None
+    weight: Optional[str] = None
+    flavor: Optional[str] = None
 
-class ProductDetailsSchema(RootModel[Dict[str, Any]]):
-    pass
+class NotificationMetadata(BaseModel):
+    orderId: Optional[str] = None
+    productId: Optional[str] = None
+    url: Optional[str] = None
+    type: Optional[str] = None
+    status: Optional[str] = None
+
+class ProductDetails(BaseModel):
+    material: Optional[str] = None
+    weight: Optional[str] = None
+    dimensions: Optional[str] = None
+    manufacturer: Optional[str] = None
+    origin: Optional[str] = None
+    warranty: Optional[str] = None
+
+class ActivityMetadata(BaseModel):
+    page: Optional[str] = None
+    reason: Optional[str] = None
+    search_query: Optional[str] = None
+    ipAddress: Optional[str] = None
+    userAgent: Optional[str] = None
+    orderId: Optional[str] = None
+    productId: Optional[str] = None
 
 class PincodeStat(BaseModel):
     pincode: str
@@ -394,7 +420,7 @@ class ProductBase(BaseModel):
     catalogSellerIds: Optional[List[str]] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
-    details: Optional[ProductDetailsSchema] = None
+    details: Optional[ProductDetails] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -1665,7 +1691,7 @@ class OrderItemCreate(BaseModel):
     quantity: int = 1
     sellAsCase: Optional[bool] = Field(False, alias="sell_as_case")
     price: Optional[float] = None
-    selectedVariation: Optional[DynamicMetadata] = None
+    selectedVariation: Optional[VariantAttributes] = None
 
     @property
     def product_id(self) -> Optional[str]:
@@ -1706,7 +1732,7 @@ class ActivityLogResponse(BaseModel):
     userId: Optional[str] = None
     sessionId: Optional[str] = None
     action: Optional[str] = None
-    meta: Optional[DynamicMetadata] = None
+    meta: Optional[ActivityMetadata] = None
     isGuest: Optional[bool] = None
 
 
@@ -1900,7 +1926,7 @@ class ActivityCreate(BaseModel):
     entityType: Optional[str] = None
     entityId: Optional[str] = None
     sessionId: Optional[str] = None
-    metadata: Optional[DynamicMetadata] = None
+    metadata: Optional[ActivityMetadata] = None
 
 class ActivityUpdate(BaseModel):
     userId: Optional[str] = None
@@ -1908,7 +1934,7 @@ class ActivityUpdate(BaseModel):
     entityType: Optional[str] = None
     entityId: Optional[str] = None
     sessionId: Optional[str] = None
-    metadata: Optional[DynamicMetadata] = None
+    metadata: Optional[ActivityMetadata] = None
 
 class ActivityResponse(ActivityCreate):
     id: Optional[str] = Field(default='', alias='_id')

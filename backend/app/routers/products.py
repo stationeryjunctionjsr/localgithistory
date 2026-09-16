@@ -20,7 +20,7 @@ class SellerRequestApprove(BaseModel):
     notes: Optional[str] = None
 
 
-from app.models.schemas import PaginatedProductResponse, ProductCreate, ProductResponse, ProductUpdate, UploadImagesResponse, UploadCSVResponse, SearchSuggestResponse, SellerProductRequestCreate, SellerProductApprove, ProductSellerEntry
+from app.models.schemas import PaginatedProductResponse, ProductCreate, ProductResponse, ProductUpdate, UploadImagesResponse, UploadCSVResponse, SearchSuggestResponse, SellerProductRequestCreate, SellerProductApprove, ProductSellerEntry, VariantOption
 from app.repositories.category_repository import category_repository
 from app.repositories.product_repository import product_repository
 from app.utils.auth import get_current_user, require_super_admin, get_optional_user, require_super_admin_or_seller
@@ -73,7 +73,7 @@ class CSVProductPayload(BaseModel):
     images: List[str] = Field(default_factory=list)
     videos: List[str] = Field(default_factory=list)
     variantAttributes: List[str] = Field(default_factory=list)
-    variants: List[Dict[str, Any]] = Field(default_factory=list)
+    variants: List[VariantOption] = Field(default_factory=list)
 
 
 class ProductFacets(BaseModel):
@@ -1000,10 +1000,17 @@ class UploadCSVResponse(BaseModel):
 class UploadVideosResponse(BaseModel):
     urls: List[str]
 
+class SearchSuggestProduct(BaseModel):
+    productId: str
+    name: str
+    productName: str
+    displayImage: Optional[str] = None
+
 class SearchSuggestResponse(BaseModel):
-    products: List[Dict[str, Any]]
-    brands: List[Dict[str, Any]]
-    categories: List[Dict[str, Any]]
+    products: List[SearchSuggestProduct]
+    suggestions: Optional[List[str]] = None
+    brands: List[str]
+    categories: List[str]
 
 class ProductTagAction(BaseModel):
     searchTagId: str

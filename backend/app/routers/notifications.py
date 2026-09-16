@@ -1,6 +1,6 @@
 from app.models.user import User
+from app.models.schemas import MessageResponse, NotificationMetadata
 from typing import Optional, Dict, Any, List
-from app.models.schemas import MessageResponse
 
 from pydantic import BaseModel, Field
 
@@ -12,7 +12,7 @@ class NotificationResponse(BaseModel):
     message: str
     isRead: bool
     isAcknowledged: bool
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[NotificationMetadata] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 

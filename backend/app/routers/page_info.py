@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, ConfigDict
 class PageDetail(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    columns: Dict[str, Any] = Field(default_factory=dict)
+    columns: Dict[str, str] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -31,9 +31,9 @@ class PageInfoResponse(BaseModel):
     id: Optional[str] = None
     title: Optional[str] = None
     content: Optional[str] = None
-    page: Optional[Dict[str, Any]] = None
-    columns: Optional[Dict[str, Any]] = None
-    pages: Optional[Dict[str, Any]] = None
+    page: Optional[Dict[str, str]] = None
+    columns: Optional[Dict[str, str]] = None
+    pages: Optional[Dict[str, PageDetail]] = None
 
     model_config = ConfigDict(extra="forbid")
 

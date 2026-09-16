@@ -5,6 +5,17 @@ from app.models.payment import Payment, PaymentEntry
 from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 
+class BillInfoResponse(BaseModel):
+    orderId: str
+    orderNumber: str
+    amountRemaining: float
+    totalAmount: float
+    orderDate: Optional[str] = None
+    dueDate: str
+    timeRemaining: str
+    overdue: bool
+    paymentId: Optional[str] = None
+
 class DuesResponse(BaseModel):
     hasOverdueBills: bool
     totalDues: float
@@ -12,12 +23,12 @@ class DuesResponse(BaseModel):
     minimumOverdue: float
     nearestDueAmount: float
     nearestDueDate: Optional[str] = None
-    bills: List[Dict[str, Any]]
+    bills: List[BillInfoResponse]
     paymentTerms: int
 
 class SettlementResponse(BaseModel):
     message: str
-    payment: Dict[str, Any]
+    payment: Payment
 
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -131,42 +142,42 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
                 time_remaining_str = f"{days_left} day{'s' if days_left > 1 else ''} remaining"
 
         bills_info.append(
-            {
-                "orderId": bill.order_id,
-                "orderNumber": order_number,
-                "amountRemaining": effective_due,
-                "totalAmount": (bill.total_amount if bill.total_amount is not None else 0.0),
-                "orderDate": order_date_raw if "order_date_raw" in locals() else (bill.order_date or bill.created_at),
-                "dueDate": due_date.isoformat() + "Z",
-                "timeRemaining": time_remaining_str,
-                "overdue": is_overdue,
-                "paymentId": bill.id,
-            }
+            BillInfoResponse(
+                orderId=bill.order_id,
+                orderNumber=order_number,
+                amountRemaining=effective_due,
+                totalAmount=(bill.total_amount if bill.total_amount is not None else 0.0),
+                orderDate=order_date_raw if "order_date_raw" in locals() else (bill.order_date or bill.created_at),
+                dueDate=due_date.isoformat() + "Z",
+                timeRemaining=time_remaining_str,
+                overdue=is_overdue,
+                paymentId=bill.id,
+            )
         )
 
     # Sort bills by due date (earliest first)
-    bills_info.sort(key=lambda b: b["dueDate"])
+    bills_info.sort(key=lambda b: b.dueDate)
 
     nearest_due_amount = 0.0
     nearest_due_date = None
 
     if bills_info:
         nearest_due = bills_info[0]
-        nearest_due_amount = nearest_due["amountRemaining"]
-        nearest_due_date = nearest_due["dueDate"]
+        nearest_due_amount = nearest_due.amountRemaining
+        nearest_due_date = nearest_due.dueDate
 
     minimum_overdue = total_overdue if has_overdue_bills else nearest_due_amount
 
-    return {
-        "hasOverdueBills": has_overdue_bills,
-        "totalDues": total_dues,
-        "currentOverdue": total_overdue,
-        "minimumOverdue": minimum_overdue,
-        "nearestDueAmount": nearest_due_amount,
-        "nearestDueDate": nearest_due_date,
-        "bills": bills_info,
-        "paymentTerms": terms_days,
-    }
+    return DuesResponse(
+        hasOverdueBills=has_overdue_bills,
+        totalDues=total_dues,
+        currentOverdue=total_overdue,
+        minimumOverdue=minimum_overdue,
+        nearestDueAmount=nearest_due_amount,
+        nearestDueDate=nearest_due_date,
+        bills=bills_info,
+        paymentTerms=terms_days,
+    )
 
 
 class VerifyEntryRequest(BaseModel):
@@ -359,7 +370,7 @@ async def submit_credit_settlement(
         except Exception as e:
             logger.error("Error creating payment notification: %s", str(e), exc_info=True)
 
-        return {"message": "Settlement payment submitted successfully", "payment": updated_payment}
+        return SettlementResponse(message="Settlement payment submitted successfully", payment=updated_payment)
     except HTTPException:
         raise
     except Exception as e:

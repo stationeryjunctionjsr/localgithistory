@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
+from app.models.schemas import VisibilityRuleSnippet, ProductDetails
 from datetime import datetime
 
 class CartItemInternal(BaseModel):
@@ -84,7 +85,7 @@ class BannerInternalCreate(BaseModel):
     isPublished: Optional[bool] = False
     targetAudience: Optional[str] = None
     userSegments: Optional[List[str]] = []
-    visibilityRules: Optional[List[Dict[str, Any]]] = []
+    visibilityRules: Optional[List[VisibilityRuleSnippet]] = []
     position: Optional[str] = None
 
 class BannerInternalUpdate(BaseModel):
@@ -102,7 +103,7 @@ class BannerInternalUpdate(BaseModel):
     isPublished: Optional[bool] = None
     targetAudience: Optional[str] = None
     userSegments: Optional[List[str]] = None
-    visibilityRules: Optional[List[Dict[str, Any]]] = None
+    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
     position: Optional[str] = None
 
 class SellerPayoutInternalCreate(BaseModel):
@@ -225,6 +226,12 @@ class TrackingInternalUpdate(BaseModel):
     status: Optional[str] = None
     details: Optional[str] = None
 
+class BusinessDetailsInternal(BaseModel):
+    companyName: Optional[str] = None
+    gstNumber: Optional[str] = None
+    panNumber: Optional[str] = None
+    address: Optional[str] = None
+
 class SellerRequestInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     requestNumber: Optional[str] = None
@@ -239,7 +246,7 @@ class SellerRequestInternalCreate(BaseModel):
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: Optional[str] = None
-    businessDetails: Optional[Dict[str, Any]] = None
+    businessDetails: Optional[BusinessDetailsInternal] = None
 
 class SellerRequestInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -255,7 +262,7 @@ class SellerRequestInternalUpdate(BaseModel):
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: Optional[str] = None
-    businessDetails: Optional[Dict[str, Any]] = None
+    businessDetails: Optional[BusinessDetailsInternal] = None
 
 
 class ProductInternalCreate(BaseModel):
@@ -317,7 +324,7 @@ class ProductInternalUpdate(BaseModel):
     tags: Optional[List[str]] = None
     variantAttributes: Optional[List[str]] = None
     variants: Optional[List[Any]] = None
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[ProductDetails] = None
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None

@@ -1,4 +1,5 @@
 from app.models.user import User
+from app.models.customer_segment import CustomerSegmentFilters
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 import uuid
@@ -20,7 +21,7 @@ class CustomerSegmentResponse(BaseModel):
     name: str
     type: str
     userIds: List[str]
-    filters: Optional[Dict[str, Any]] = None
+    filters: Optional[CustomerSegmentFilters] = None
     isActive: bool
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
@@ -30,19 +31,19 @@ class RefreshSegmentResponse(BaseModel):
     matchedUserIds: List[str]
 
 class FilterSegmentResponse(BaseModel):
-    users: List[Dict[str, Any]]
+    userIds: List[str]
 
 class CustomerSegmentCreate(BaseModel):
     name: str
     type: str  # 'retail' | 'business'
     userIds: List[str]
-    filters: Optional[Dict[str, Any]] = None
+    filters: Optional[CustomerSegmentFilters] = None
 
 
 class CustomerSegmentUpdate(BaseModel):
     name: Optional[str] = None
     userIds: Optional[List[str]] = None
-    filters: Optional[Dict[str, Any]] = None
+    filters: Optional[CustomerSegmentFilters] = None
     isActive: Optional[bool] = None
 
 
@@ -202,7 +203,7 @@ async def run_segment_filter(criteria: FilterCriteria):
         result = await session.execute(text(sql), params)
         rows = result.fetchall()
         
-    return [{"_id": str(r.id)} for r in rows]
+    return [str(r.id) for r in rows]
 
 
 async def seed_system_segments():
@@ -244,8 +245,7 @@ async def seed_system_segments():
             if not existing:
                 logger.info("Seeding system segment: %s (%s)", behavior_name, seg_type)
                 criteria = FilterCriteria(role=role, behavior=behavior_id)
-                users = await run_segment_filter(criteria)
-                user_ids = [str((u.id if u.id is not None else u.id)) for u in users]
+                user_ids = await run_segment_filter(criteria)
 
                 await customer_segments_repository.create(
                     {
@@ -265,7 +265,8 @@ async def seed_system_segments():
 
 @router.post("/filter", response_model=FilterSegmentResponse)
 async def filter_users(criteria: FilterCriteria, admin: User = Depends(require_super_admin)):
-    return await run_segment_filter(criteria)
+    userIds = await run_segment_filter(criteria)
+    return FilterSegmentResponse(userIds=userIds)
 
 
 @router.post("/{segment_id}/refresh", response_model=RefreshSegmentResponse)
@@ -281,8 +282,7 @@ async def refresh_segment(segment_id: str, admin: User = Depends(require_super_a
     role = "customer" if segment.type == "retail" else "wholesaler"
     criteria = FilterCriteria(role=role, **filters)
 
-    users = await run_segment_filter(criteria)
-    user_ids = [str((u.id if u.id is not None else u.id)) for u in users]
+    user_ids = await run_segment_filter(criteria)
 
     from datetime import datetime, timezone
 

@@ -1478,21 +1478,22 @@ class AnalyticsRepository:
         most_searched = await tracking_repository.getMostSearched(10, start_date, end_date)
         most_viewed = await tracking_repository.getMostViewed(10, start_date, end_date)
 
-        return {
-            "stats": {
-                "totalProducts": total_products,
-                "totalWholesalers": total_wholesalers,
-                "totalCustomers": total_customers,
-                "totalValets": total_valets,
-                "totalOrders": total_orders,
-                "totalRevenue": round(total_revenue, 2),
-            },
-            "topProducts": top_products,
-            "topWholesalers": top_wholesalers,
-            "topCustomers": top_customers,
-            "mostSearched": most_searched,
-            "mostViewed": most_viewed,
-        }
+        from app.routers.analytics import DashboardDataResponse, DashboardStats
+        return DashboardDataResponse(
+            stats=DashboardStats(
+                totalProducts=total_products,
+                totalWholesalers=total_wholesalers,
+                totalCustomers=total_customers,
+                totalValets=total_valets,
+                totalOrders=total_orders,
+                totalRevenue=round(total_revenue, 2),
+            ),
+            topProducts=top_products,
+            topWholesalers=top_wholesalers,
+            topCustomers=top_customers,
+            mostSearched=most_searched,
+            mostViewed=most_viewed,
+        )
 
     async def get_bundle_performance_report(self) -> Dict:
         """

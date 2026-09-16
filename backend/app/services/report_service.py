@@ -18,7 +18,7 @@ class ReportService:
     def __init__(self):
         pass
 
-    async def _read_tracking_data(self, start_date: Optional[datetime] = None, limit: int = 50000) -> List[Dict[str, Any]]:
+    async def _read_tracking_data(self, start_date: Optional[datetime] = None, limit: int = 50000) -> List[Any]:
         """Read tracking events from the MySQL tracking table with a safety limit."""
         try:
             from app.db.storage_factory import get_storage
@@ -41,39 +41,37 @@ class ReportService:
             date = datetime.now() - timedelta(days=1)
 
         target_date_str = date.strftime("%Y-%m-%d")
-        
-        # Start of the target day
-        start_date = datetime.strptime(target_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        start_date = datetime.combine(date, datetime.min.time())
         
         events = await self._read_tracking_data(start_date=start_date, limit=100000)
 
         # Filter events for the exact target date (since we used >= start_date)
-        day_events = [e for e in events if (e["timestamp"] if "timestamp" in e else "").startswith(target_date_str)]
+        day_events = [e for e in events if (e.timestamp or "").startswith(target_date_str)]
 
         # Separate search events and conversion events
-        search_events = [e for e in day_events if (e["type"] if "type" in e else None) == "product_search"]
-        conversion_events = [e for e in day_events if (e["type"] if "type" in e else None) in ["cart_add", "wishlist_add"]]
+        search_events = [e for e in day_events if e.type == "product_search"]
+        conversion_events = [e for e in day_events if e.type in ["cart_add", "wishlist_add"]]
 
         report_data = []
 
         for search in search_events:
-            session_id = search["sessionId"] if "sessionId" in search else None
-            search_term = search["searchTerm"] if "searchTerm" in search else ""
-            results_count = search["resultsCount"] if "resultsCount" in search else 0
-            product_ids = search["productIds"] if "productIds" in search else []
-            search_time = search["timestamp"] if "timestamp" in search else None
+            session_id = search.sessionId
+            search_term = search.searchTerm or ""
+            results_count = search.resultsCount or 0
+            product_ids = search.productIds or []
+            search_time = search.timestamp
 
             added_to_cart = False
             added_to_wishlist = False
 
             if session_id:
                 for conv in conversion_events:
-                    if (conv["sessionId"] if "sessionId" in conv else None) == session_id and (conv["timestamp"] if "timestamp" in conv else "") >= search_time:
-                        prod_id = conv["productId"] if "productId" in conv else None
+                    if conv.sessionId == session_id and (conv.timestamp or "") >= (search_time or ""):
+                        prod_id = conv.productId
                         if prod_id in product_ids:
-                            if (conv["type"] if "type" in conv else None) == "cart_add":
+                            if conv.type == "cart_add":
                                 added_to_cart = True
-                            elif (conv["type"] if "type" in conv else None) == "wishlist_add":
+                            elif conv.type == "wishlist_add":
                                 added_to_wishlist = True
 
             report_data.append(

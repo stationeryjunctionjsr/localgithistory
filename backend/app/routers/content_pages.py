@@ -6,7 +6,7 @@ import os
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.repositories.content_repository import about_repository, faq_repository, privacy_repository
 from app.utils.auth import require_super_admin
@@ -58,11 +58,12 @@ class AboutUsUpdate(BaseModel):
 
 
 class FAQSectionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
     id: str = Field(alias="_id")
     title: str
-    order: int
+    displayOrder: Optional[int] = 0
     isActive: bool
-    questions: List[Dict[str, Any]]
+    items: List[FAQItem]
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 

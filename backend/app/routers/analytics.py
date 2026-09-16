@@ -74,14 +74,36 @@ class DashboardStats(BaseModel):
     totalOrders: int
     totalRevenue: float
 
+class TopProductResponse(BaseModel):
+    productId: str
+    productName: str
+    quantity: int
+    revenue: float
+
+class TopCustomerResponse(BaseModel):
+    userId: str
+    name: str
+    orderCount: int
+    revenue: float
+
+class MostSearchedResponse(BaseModel):
+    term: str
+    searchCount: int
+    resultsCount: int
+
+class MostViewedResponse(BaseModel):
+    productId: str
+    productName: str
+    viewCount: int
+
 class DashboardDataResponse(BaseModel):
     model_config = ConfigDict(extra='forbid')
     stats: DashboardStats
-    topProducts: List[Dict[str, Any]]
-    topWholesalers: List[Dict[str, Any]]
-    topCustomers: List[Dict[str, Any]]
-    mostSearched: List[Dict[str, Any]]
-    mostViewed: List[Dict[str, Any]]
+    topProducts: List[TopProductResponse]
+    topWholesalers: List[TopCustomerResponse]
+    topCustomers: List[TopCustomerResponse]
+    mostSearched: List[MostSearchedResponse]
+    mostViewed: List[MostViewedResponse]
 
 
 class SalesOverTimeResponse(BaseModel):
