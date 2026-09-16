@@ -55,6 +55,8 @@ class UserRepository:
 
     async def create(self, user_data: Any):
         if isinstance(user_data, dict):
+            if "role" in user_data and hasattr(user_data["role"], "value"):
+                user_data["role"] = user_data["role"].value
             user_data = UserCreate(**user_data)
         # Check if user with email already exists (only if email is provided)
         email = user_data.email

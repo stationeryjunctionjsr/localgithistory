@@ -322,7 +322,9 @@ class MySQLCouponsDAO:
             return await self._map_to_response(row)
 
 
-    async def findOne(self, **kwargs) -> Optional[CouponResponse]:
+    async def findOne(self, query=None, **kwargs) -> Optional[CouponResponse]:
+        if query:
+            kwargs.update(query)
         async with self._factory()() as session:
             if not kwargs:
                 return None

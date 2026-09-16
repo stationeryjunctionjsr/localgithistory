@@ -61,7 +61,7 @@ async def test_orders_optimization_logic():
         {
             "user": user["_id"],
             "userRole": "customer",
-            "items": [{"product": product["_id"], "quantity": 2, "price": 100.0}],
+            "items": [{"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 2, "price": 100.0}],
             "subtotal": 200.0,
             "total": 200.0,
             "orderType": "b2c",
@@ -118,7 +118,7 @@ async def test_orders_pagination_and_counting_logic():
         {
             "user": user["_id"],
             "userRole": "customer",
-            "items": [{"product": product["_id"], "quantity": 1, "price": 100.0}],
+            "items": [{"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 1, "price": 100.0}],
             "subtotal": 100.0,
             "total": 100.0,
             "orderType": "b2c",
@@ -131,7 +131,7 @@ async def test_orders_pagination_and_counting_logic():
         {
             "user": user["_id"],
             "userRole": "customer",
-            "items": [{"product": product["_id"], "quantity": 1, "price": 100.0}],
+            "items": [{"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 1, "price": 100.0}],
             "subtotal": 100.0,
             "total": 100.0,
             "orderType": "b2c",
@@ -144,7 +144,7 @@ async def test_orders_pagination_and_counting_logic():
         {
             "user": user["_id"],
             "userRole": "customer",
-            "items": [{"product": product["_id"], "quantity": 1, "price": 100.0}],
+            "items": [{"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 1, "price": 100.0}],
             "subtotal": 100.0,
             "total": 100.0,
             "orderType": "b2c",

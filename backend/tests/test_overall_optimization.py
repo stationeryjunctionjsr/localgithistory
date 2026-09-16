@@ -50,7 +50,7 @@ async def test_oracle_doc_store_filtering():
     # Clean up test reservations first
     all_res = await store.findAll()
     for res in all_res:
-        if res.get("userId") == "TEST_GEN_OPT_USER_ID":
+        if getattr(res, "userId", getattr(res, "user_id", None)) == "TEST_GEN_OPT_USER_ID":
             await store.delete(res["_id"])
 
     # Create dummy reservations
@@ -95,10 +95,10 @@ async def test_wishlist_and_cart_bulk_populating(client):
     )
 
     # Add to wishlist
-    await wishlist_repository.addItem(user["_id"], {"product": product["_id"], "quantity": 1})
+    await wishlist_repository.addItem(user["_id"], {"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 1})
 
     # Add to cart
-    await cart_repository.addItem(user["_id"], {"product": product["_id"], "quantity": 2, "sellAsCase": False})
+    await cart_repository.addItem(user["_id"], {"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 2, "sellAsCase": False})
 
     # Perform login via endpoint to get auth token
     login_resp = await client.post(

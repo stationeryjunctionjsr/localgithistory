@@ -264,7 +264,7 @@ class MySQLUserDAO:
         approval_status = (update_data.approvalStatus if update_data.approvalStatus is not None else existing.approval_status)
         is_deactivated = (update_data.isDeactivated if update_data.isDeactivated is not None else existing.is_deactivated)
         credit_limit = (update_data.creditLimit if update_data.creditLimit is not None else existing.credit_limit)
-        credit_used = (update_data.creditUsed if update_data.creditUsed is not None else existing.creditUsed)
+        credit_used = (update_data.creditUsed if update_data.creditUsed is not None else existing.credit_used)
         payment_terms = (update_data.paymentTerms if update_data.paymentTerms is not None else existing.paymentTerms)
         assigned_salesperson = (update_data.assignedSalesperson if update_data.assignedSalesperson is not None else existing.assignedSalesperson)
         is_email_verified = (update_data.isEmailVerified if update_data.isEmailVerified is not None else existing.isEmailVerified)

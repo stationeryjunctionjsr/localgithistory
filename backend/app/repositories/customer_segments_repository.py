@@ -23,7 +23,10 @@ class CustomerSegmentsRepository:
     async def create(self, data: Any) -> Dict:
         now = datetime.datetime.now(timezone.utc).isoformat()
         if "_id" not in data and "id" not in data:
-            data._id = str(uuid.uuid4())
+            if isinstance(data, dict):
+            data["_id"] = str(uuid.uuid4())
+        else:
+            data.id = str(uuid.uuid4())
         data.createdAt = (data.createdAt if data.createdAt is not None else now)
         data.updatedAt = (data.updatedAt if data.updatedAt is not None else now)
         return await self.storage.create(data)

@@ -9,7 +9,7 @@ async def test_coupon_override_and_stacking():
     # Pre-test cleanup: delete product/coupons if they already exist
     existing_product = await product_repository.findBySku("SKU-TEST-COUPON-MODE")
     if existing_product:
-        await product_repository.storage.delete(existing_product["_id"])
+        await product_repository.storage.delete(existing_product.id if hasattr(product, "id") else product["_id"])
 
     existing_override = await coupon_repository.findByCode("OVERRIDE10")
     if existing_override:
@@ -28,7 +28,7 @@ async def test_coupon_override_and_stacking():
         "isActive": True,
     }
     product = await product_repository.create(product_data)
-    product_id = str(product["_id"])
+    product_id = str(product.id if hasattr(product, "id") else product["_id"])
 
     # 2. Create an automatic product discount (15% off)
     auto_discount_data = {
@@ -130,7 +130,7 @@ async def test_coupon_override_and_stacking():
 
     finally:
         # Cleanup db
-        await product_repository.storage.delete(product["_id"])
+        await product_repository.storage.delete(product.id if hasattr(product, "id") else product["_id"])
         await coupon_repository.storage.delete(auto_coupon["_id"])
         await coupon_repository.storage.delete(override_coupon["_id"])
         await coupon_repository.storage.delete(extra_coupon["_id"])

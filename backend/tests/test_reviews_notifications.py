@@ -31,7 +31,7 @@ async def test_notify_me_registration_guest(client: AsyncClient):
     product = await product_repository.create(
         {"name": "Guest Out of Stock Pen", "mrp": 10.0, "category": "Stationery", "stock": 0}
     )
-    product_id = product["_id"]
+    product_id = product.id if hasattr(product, "id") else product["_id"]
 
     # 2. Register for notification as guest
     response = await client.post(f"/api/products/{product_id}/notify-me", json={"email": "guest@test.com"})
@@ -68,7 +68,7 @@ async def test_notify_me_registration_auth(client: AsyncClient, user_auth):
     product = await product_repository.create(
         {"name": "Auth Out of Stock Pen", "mrp": 12.0, "category": "Stationery", "stock": 0}
     )
-    product_id = product["_id"]
+    product_id = product.id if hasattr(product, "id") else product["_id"]
 
     # 2. Register for notification as auth user
     response = await client.post(f"/api/products/{product_id}/notify-me", json={}, headers=user_auth)
@@ -91,7 +91,7 @@ async def test_reviews_submission_validation(client: AsyncClient, user_auth):
     product = await product_repository.create(
         {"name": "Reviewable Notepad", "mrp": 25.0, "category": "Stationery", "stock": 10}
     )
-    product_id = product["_id"]
+    product_id = product.id if hasattr(product, "id") else product["_id"]
 
     # 2. Verify classifications pre-populated
     classifications = await review_classification_repository.findAll()

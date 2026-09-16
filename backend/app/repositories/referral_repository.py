@@ -32,7 +32,7 @@ class ReferralRepository:
             await self.storage.create(default_settings)
             return await self.storage.findOne({"_id": "1"}) or default_settings
 
-        doc = {k: v for k, v in settings[0].items()}
+        doc = {k: v for k, v in settings[0].model_dump().items()} if hasattr(settings[0], "model_dump") else {k: v for k, v in settings[0].items()}
         if "retail" not in doc:
             doc.retail = {"segment": "retail", "discountType": "percentage", "discountValue": 0, "isActive": False}
         if "business" not in doc:

@@ -1,3 +1,4 @@
+import os
 import ast
 import importlib
 import pytest
@@ -8,7 +9,7 @@ TARGET_ROUTERS = ['products', 'returns', 'order_feedback']
 
 def test_zero_category_a_get_calls_in_catalog_routers():
     for mod_name in TARGET_ROUTERS:
-        file_path = f'app/routers/{mod_name}.py'
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'routers', f'{mod_name}.py')
         with open(file_path, 'r', encoding='utf-8') as f:
             code = f.read()
 

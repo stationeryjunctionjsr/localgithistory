@@ -96,12 +96,12 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
     fully_available = True
 
     for item in (bundle.items or []):
-        p_id = item.get("productId", item.get("product_id")) if isinstance(item, dict) else getattr(item, "productId", getattr(item, "product_id", None))
+        p_id = item["productId"] if "productId" in item else (item["product_id"] if "product_id" in item else None) if isinstance(item, dict) else getattr(item, "productId", getattr(item, "product_id", None))
         product = await product_repository.findById(p_id)
         if not product:
             continue
         mrp = product.mrp or 0
-        qty = item.get("quantity", getattr(item, "quantity", 1)) if isinstance(item, dict) else (item.quantity if item.quantity is not None else 1)
+        qty = item["quantity"] if "quantity" in item else getattr(item, "quantity", 1) if isinstance(item, dict) else (item.quantity if item.quantity is not None else 1)
         line_mrp = mrp * qty
         total_mrp += line_mrp
 
@@ -130,7 +130,7 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
     display_img = (
         getattr(bundle, "displayImage", getattr(bundle, "display_image", getattr(bundle, "imageUrl", getattr(bundle, "image_url", None))))
         or next(
-            (item["product"]["images"][0] for item in enriched_items if item.get("product") and item["product"].get("images")),
+            (item["product"]["images"][0] for item in enriched_items if item["product"] if "product" in item else None and item["product"]["images"] if "images" in item["product"] else None),
             None,
         )
     )
@@ -152,7 +152,7 @@ async def _validate_bundle_items(items: List[BundleItemSchema]):
     for item in items:
         if item.quantity < 1:
             raise HTTPException(status_code=400, detail=f"Quantity for product {item.productId} must be at least 1")
-        p_id = item.get("productId", item.get("product_id")) if isinstance(item, dict) else getattr(item, "productId", getattr(item, "product_id", None))
+        p_id = item["productId"] if "productId" in item else (item["product_id"] if "product_id" in item else None) if isinstance(item, dict) else getattr(item, "productId", getattr(item, "product_id", None))
         product = await product_repository.findById(p_id)
         if not product:
             raise HTTPException(status_code=400, detail=f"Product {item.productId} not found")
@@ -288,7 +288,7 @@ async def list_bundles_for_product(product_id: str):
             except Exception as e:
                 logger.warning("Could not enrich bundle %s: %s", b.id, e)
         # Sort by salesCount descending
-        enriched.sort(key=lambda x: (x.get("salesCount", x.get("sales_count")) if x.get("salesCount", x.get("sales_count")) is not None else 0) if isinstance(x, dict) else (x.sales_count if x.sales_count is not None else 0), reverse=True)
+        enriched.sort(key=lambda x: (x["salesCount"] if "salesCount" in x else (x["sales_count"] if "sales_count" in x else 0)) if isinstance(x, dict) else (getattr(x, "salesCount", getattr(x, "sales_count", 0)) or 0), reverse=True)
         return enriched
     except Exception as e:
         logger.error("Error fetching bundles for product %s: %s", product_id, str(e), exc_info=True)
@@ -353,24 +353,24 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
 
         # Validate stock before touching the cart
         for item in (bundle.items or []):
-            p_id = item.get("productId", item.get("product_id")) if isinstance(item, dict) else getattr(item, "productId", getattr(item, "product_id", None))
+            p_id = item["productId"] if "productId" in item else (item["product_id"] if "product_id" in item else None) if isinstance(item, dict) else getattr(item, "productId", getattr(item, "product_id", None))
             product = await product_repository.findById(p_id)
             if not product or not product.is_active:
                 raise HTTPException(status_code=400, detail=f"Product {p_id} is no longer available")
             available = await product_repository.get_available_stock(p_id, exclude_user_id=user_id)
-            if available < (item.get("quantity", getattr(item, "quantity", 1)) if isinstance(item, dict) else getattr(item, "quantity", 1)):
+            if available < (item["quantity"] if "quantity" in item else getattr(item, "quantity", 1) if isinstance(item, dict) else getattr(item, "quantity", 1)):
                 pname = (product.name if product.name is not None else p_id)
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Insufficient stock for '{pname}'. Available: {available}, required: {item.get("quantity", getattr(item, "quantity", 1)) if isinstance(item, dict) else getattr(item, "quantity", 1)}",
+                    detail=f"Insufficient stock for '{pname}'. Available: {available}, required: {item["quantity"] if "quantity" in item else getattr(item, "quantity", 1) if isinstance(item, dict) else getattr(item, "quantity", 1)}",
                 )
 
         cart = await cart_repository.findByUser(user_id)
         added_product_ids = []
 
         for item in (bundle.items or []):
-            pid = item.get("productId", item.get("product_id")) if isinstance(item, dict) else getattr(item, "productId", getattr(item, "product_id", None))
-            qty = item.get("quantity", getattr(item, "quantity", 1)) if isinstance(item, dict) else getattr(item, "quantity", 1)
+            pid = item["productId"] if "productId" in item else (item["product_id"] if "product_id" in item else None) if isinstance(item, dict) else getattr(item, "productId", getattr(item, "product_id", None))
+            qty = item["quantity"] if "quantity" in item else getattr(item, "quantity", 1) if isinstance(item, dict) else getattr(item, "quantity", 1)
 
             new_item = {
                 "_id": str(uuid.uuid4()),

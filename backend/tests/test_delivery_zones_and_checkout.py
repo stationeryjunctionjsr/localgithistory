@@ -203,11 +203,8 @@ async def test_check_serviceability_urgent_flag_propagated():
     """B4 – urgentDeliveryAvailable from zone is forwarded correctly."""
     from app.routers.delivery_charges import check_serviceability
 
-    mock_zone = {
-        "_id": "zone_test",
-        "urgentDeliveryAvailable": True,
-        "customerType": "retail",
-    }
+    from app.models.schemas import DeliveryZoneResponse
+        mock_zone = DeliveryZoneResponse(id="zone_test", urgentDeliveryAvailable=True, customerType="retail", name="Zone", isActive=True, pincodes=[], cutoffTime="18:00")
 
     repo_path = "app.routers.delivery_charges.delivery_charge_repository"
     # get_zone_for_pincode and get_storage are imported inside the function body,
@@ -673,7 +670,14 @@ async def test_get_zone_for_pincode_found():
     """G2 – get_zone_for_pincode returns the matching zone document."""
     from app.repositories.zone_seller_cache import get_zone_for_pincode
 
-    mock_zone = {"_id": "z1", "name": "Test Zone", "pincodes": ["831001"], "isActive": True}
+    from app.models.schemas import DeliveryZoneResponse
+    mock_zone = DeliveryZoneResponse(
+        id="z1",
+        name="Test Zone",
+        pincodes=["831001"],
+        isActive=True,
+        cutoffTime="18:00"
+    )
 
     with patch("app.repositories.zone_seller_cache._fetch_all_zones", new_callable=AsyncMock) as mock_zones:
         mock_zones.return_value = [mock_zone]

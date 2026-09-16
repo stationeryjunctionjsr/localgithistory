@@ -175,10 +175,10 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
         for o in all_orders:
             for item in o.get("items", []):
                 pid = item.get("product") or item.get("productId")
-                if pid and str(pid) == str(existing_product["_id"]):
+                if pid and str(pid) == str(existing_product.id if hasattr(product, "id") else product["_id"]):
                     await order_repository.storage.delete(o["_id"])
                     break
-        await product_repository.storage.delete(existing_product["_id"])
+        await product_repository.storage.delete(existing_product.id if hasattr(product, "id") else product["_id"])
     product = await product_repository.create(product_data)
 
     order_payload = {
@@ -192,7 +192,7 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
         },
         "paymentMethod": "cod",
         "notes": "My test order",
-        "items": [{"productId": str(product["_id"]), "quantity": 1}],
+        "items": [{"productId": str(product.id if hasattr(product, "id") else product["_id"]), "quantity": 1}],
         "referralCode": ref_code,
     }
     order_resp = await client.post("/api/orders/", json=order_payload, headers=user_auth)
@@ -214,7 +214,7 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
 
     # Clean up
     await order_repository.storage.delete(order_data["_id"])
-    await product_repository.storage.delete(product["_id"])
+    await product_repository.storage.delete(product.id if hasattr(product, "id") else product["_id"])
     await user_repository.storage.delete(referrer["_id"])
     if not existing_pincode:
         await delivery_charge_repository.storage.delete("831001")

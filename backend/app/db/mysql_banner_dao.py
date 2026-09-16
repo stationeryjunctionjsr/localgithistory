@@ -114,7 +114,7 @@ class MySQLBannerDAO:
             )
             rows = result.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [Banner.model_validate(self._map_to_schema(r, c_map[r.id]) ) for r in rows]
+        return [self._map_to_schema(r, c_map[r.id]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[BannerResponse]:
         docs = await self.findAll(query)

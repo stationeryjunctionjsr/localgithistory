@@ -75,14 +75,14 @@ class NotificationRepository:
         unread_notifs = await self.storage.findAll({"isRead": False})
         count1 = 0
         for n in unread_notifs:
-            await self.storage.update(n["_id"], update_data)
+            await self.storage.update(n["_id"] if isinstance(n, dict) else n.id, update_data)
             count1 += 1
             
         unack_notifs = await self.storage.findAll({"isAcknowledged": False})
         count2 = 0
         for n in unack_notifs:
-            if n["_id"] not in [u.id for u in unread_notifs]:
-                await self.storage.update(n["_id"], update_data)
+            if n["_id"] if isinstance(n, dict) else n.id not in [u["_id"] if isinstance(u, dict) else u.id for u in unread_notifs]:
+                await self.storage.update(n["_id"] if isinstance(n, dict) else n.id, update_data)
                 count2 += 1
                 
         return count1 + count2

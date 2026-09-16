@@ -33,7 +33,7 @@ async def test_products_fuzzy_search_typo_tolerance(client):
     product = await product_repository.create(
         {"name": "SuperFuzzyWidget", "mrp": 100.0, "category": "Gadgets", "stock": 10, "isActive": True}
     )
-    product_id = product["_id"]
+    product_id = product.id if hasattr(product, "id") else product["_id"]
 
     try:
         # 2. Search using typo (similarity ratio >= 0.7)
