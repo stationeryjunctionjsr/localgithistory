@@ -61,34 +61,9 @@ const nextConfig = {
   },
 
   async headers() {
-    const cspDirectives = [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://verify.msg91.com https://pass.hostnsoft.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://www.google-analytics.com https://www.clarity.ms https://control.msg91.com https://verify.msg91.com https://pass.hostnsoft.com " +
-        (process.env.NEXT_PUBLIC_API_URL),
-      "frame-src 'self' https://www.google.com https://www.googletagmanager.com https://verify.msg91.com https://pass.hostnsoft.com",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join('; ');
-
-    const securityHeaders = [
-      { key: 'Content-Security-Policy', value: cspDirectives },
-      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-      {
-        key: 'Permissions-Policy',
-        value: 'camera=(), microphone=(), geolocation=(self), payment=()',
-      },
-    ];
-
+    // CSP, Referrer-Policy, and Permissions-Policy are set dynamically by
+    // middleware.ts with a per-request nonce. Only cache-control rules live here.
     const routes = [
-      {
-        source: '/(.*)',
-        headers: securityHeaders,
-      },
       {
         source: '/uploads/:path*',
         headers: [
@@ -109,7 +84,7 @@ const nextConfig = {
     // `next dev` restarts while module IDs change, causing:
     // TypeError: Cannot read properties of undefined (reading 'call') (options.factory).
     if (process.env.NODE_ENV === 'production') {
-      routes.splice(1, 0, {
+      routes.splice(0, 0, {
         source: '/_next/static/:path*',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       });
