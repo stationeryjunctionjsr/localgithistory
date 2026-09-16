@@ -53,18 +53,16 @@ class ProductRepository:
     def _get_variant_search_text(self, product: Any) -> str:
         """Flatten variant attributes and combination values into searchable text."""
         parts = []
-        for attr in (product.variantAttributes if product.variantAttributes is not None else []) or []:
+        for attr in product.variantAttributes or []:
             parts.append(str(attr).lower())
-        for combo in (product.variantCombinations if product.variantCombinations is not None else []) or []:
-            try:
-                attrs = combo.attributes if combo.attributes is not None else {}
-            except AttributeError:
-                attrs = {}
+        for combo in product.variantCombinations or []:
+            attrs = combo.attributes or {}
             for k, v in attrs.items():
                 parts.append(str(k).lower())
                 parts.append(str(v).lower())
-            if "price" in combo and combo["price"] is not None:
-                p_val = float(combo["price"])
+            price = combo.price
+            if price is not None:
+                p_val = float(price)
                 parts.append(str(p_val))
                 parts.append(str(int(p_val)))
         return " ".join(parts)
@@ -72,12 +70,18 @@ class ProductRepository:
     def _extract_price_text(self, product: Any) -> str:
         """Collect text representations of all prices for a product (MRP, case MRP, variant prices)."""
         parts = []
-        fmrp = float(product.mrp)
-        parts.extend([str(fmrp), str(int(fmrp)), f"rs {int(fmrp)}", f"₹{int(fmrp)}", f"rs.{int(fmrp)}"])
-        mrp_case = product.mrpPerCase
-        if mrp_case is not None:
-            fmrp_case = float(mrp_case)
-            parts.extend([str(fmrp_case), str(int(fmrp_case))])
+        if product.mrp is not None:
+            try:
+                fmrp = float(product.mrp)
+                parts.extend([str(fmrp), str(int(fmrp)), f"rs {int(fmrp)}", f"₹{int(fmrp)}", f"rs.{int(fmrp)}"])
+            except ValueError:
+                pass
+        if product.mrpPerCase is not None:
+            try:
+                fmrp_case = float(product.mrpPerCase)
+                parts.extend([str(fmrp_case), str(int(fmrp_case))])
+            except ValueError:
+                pass
         return " ".join(parts).lower()
 
     def _score_product(self, product: Any, tokens: List[str]) -> float:
@@ -85,6 +89,7 @@ class ProductRepository:
         Supports text matching, price matching, and price range expression matching."""
         score = 0.0
         price_text = self._extract_price_text(product)
+            
         fields = {
             "name": (product.name or "").lower(),
             "sku": (product.sku or "").lower(),
@@ -1268,7 +1273,7 @@ class ProductRepository:
                         matched = False
                         for v_row in all_variants:
                             v_id = v_row.id
-                            if req_attrs and variant_attrs[v_id] if v_id in variant_attrs else None == req_attrs:
+                            if req_attrs and v_id in variant_attrs and variant_attrs[v_id] == req_attrs:
                                 if (v_row.stock or 0) < vc_qty:
                                     raise ValueError(f"Insufficient stock for variant of product {product_id}")
                                 new_v_stock = (v_row.stock or 0) - vc_qty

@@ -309,7 +309,34 @@ class MySQLUserDAO:
                 'qr_code_url': qr_code_url, 
                 'updated_at': now
             })
-            await self._replace_children(session, int(id) if str(id).isdigit() else None, update_data)
+            
+            child_keys = ['address', 'savedAddresses', 'sellerPermissions', 'serviceAreaZones']
+            has_child_updates = False
+            for k in child_keys:
+                if isinstance(update_data, dict):
+                    if k in update_data:
+                        has_child_updates = True
+                else:
+                    fields_set = getattr(update_data, 'model_fields_set', getattr(update_data, '__fields_set__', set()))
+                    if k in fields_set:
+                        has_child_updates = True
+                        
+            if has_child_updates:
+                merged_dict = existing.model_dump()
+                if isinstance(update_data, dict):
+                    for k in child_keys:
+                        if k in update_data:
+                            merged_dict[k] = update_data[k]
+                else:
+                    dump = update_data.model_dump(exclude_unset=True)
+                    for k in child_keys:
+                        if k in dump:
+                            merged_dict[k] = dump[k]
+                            
+                from app.models.user import User
+                updated_user = User.model_validate(merged_dict)
+                await self._replace_children(session, int(id) if str(id).isdigit() else None, updated_user)
+                
             await session.commit()
         return await self.findById(id)
     async def delete(self, id: str) -> bool:

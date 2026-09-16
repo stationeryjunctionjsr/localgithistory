@@ -23,14 +23,11 @@ class PromoStripRepository:
         strip = {
             "text": data.text,
             "isActive": (data.isActive if data.isActive is not None else True),
-            "createdAt": self._get_timestamp(),
-            "updatedAt": self._get_timestamp(),
         }
         return await self.storage.create(strip)
 
     async def update(self, id: str, update_data: Any) -> PromoStripResponse:
-        updates = {**update_data, "updatedAt": self._get_timestamp()}
-        return await self.storage.update(id, updates)
+        return await self.storage.update(id, update_data)
 
     async def delete(self, id: str) -> PromoStripResponse:
         return await self.storage.delete(id)

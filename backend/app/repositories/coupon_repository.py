@@ -245,7 +245,8 @@ class CouponRepository:
         applies_to_value_ids: Optional[List[str]],
         excluded_product_ids: Optional[List[str]] = None,
     ) -> bool:
-        pid = str((product.id if product.id is not None else ""))
+        pid = str(product.id if product.id is not None else getattr(product, "_id", ""))
+        
         if excluded_product_ids and pid in [str(x) for x in excluded_product_ids]:
             return False
         if not applies_to_value_ids:
@@ -274,7 +275,6 @@ class CouponRepository:
                     return True
             return False
         if applies_to_type == "collections":
-            pid = str((product.id if product.id is not None else ""))
             if not pid:
                 return False
             for cid in applies_to_value_ids:
@@ -283,7 +283,6 @@ class CouponRepository:
                     return True
             return False
         if applies_to_type == "products":
-            pid = str((product.id if product.id is not None else ""))
             return pid in [str(x) for x in applies_to_value_ids]
         return False
 
@@ -295,7 +294,8 @@ class CouponRepository:
         excluded_product_ids: Optional[List[str]] = None,
     ) -> bool:
         """Determines if a bundle is eligible for a discount scheme."""
-        bid = str((bundle.id if bundle.id is not None else ""))
+        bid = str(bundle.id if bundle.id is not None else getattr(bundle, "_id", ""))
+        
         if excluded_product_ids and bid in [str(x) for x in excluded_product_ids]:
             return False
             
@@ -307,6 +307,8 @@ class CouponRepository:
             return bid in [str(x) for x in applies_to_value_ids]
         # Bundles don't inherently belong to collections, subcategories, or products
         return False
+
+
 
     async def _user_matches_behavior(
         self,
