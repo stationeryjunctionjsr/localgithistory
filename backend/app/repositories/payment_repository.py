@@ -3,6 +3,7 @@ from typing import Dict, Optional, Any
 from app.models.daos import PaymentInternalCreate, PaymentInternalUpdate, PaymentEntryInternal
 
 from app.db.storage_factory import get_storage
+from app.utils.logger import logger
 
 
 class PaymentRepository:
@@ -26,7 +27,11 @@ class PaymentRepository:
 
                 try:
                     payment_date = datetime.fromisoformat(payment_date_str.replace("Z", "+00:00"))
-                except Exception:
+                except Exception as e:
+                    logger.warning(
+                        "Skipping payment record with unparseable date %r: %s",
+                        payment_date_str, e,
+                    )
                     continue
 
                 if query["startDate"] if "startDate" in query else None:
