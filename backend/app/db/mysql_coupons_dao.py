@@ -340,10 +340,31 @@ class MySQLCouponsDAO:
             return await self._map_to_response(row)
 
 
-    async def findAll(self) -> List[CouponResponse]:
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[CouponResponse]:
+        query = query or {}
         async with self._factory()() as session:
-            query = text("SELECT * FROM sj_coupons")
-            result = await session.execute(query)
+            sql = "SELECT * FROM sj_coupons"
+            params = {}
+            if query:
+                conditions = []
+                for k, v in query.items():
+                    if k == "isActive":
+                        conditions.append("is_active = :isActive")
+                        params["isActive"] = int(v) if isinstance(v, bool) else v
+                    elif k == "method":
+                        conditions.append("method = :method")
+                        params["method"] = v
+                    elif k == "typeOfDiscount":
+                        conditions.append("type_of_discount = :typeOfDiscount")
+                        params["typeOfDiscount"] = v
+                    elif k == "id":
+                        conditions.append("id = :id")
+                        params["id"] = v
+                if conditions:
+                    sql += " WHERE " + " AND ".join(conditions)
+            
+            q = text(sql)
+            result = await session.execute(q, params)
             rows = result.fetchall()
             responses = []
             for row in rows:

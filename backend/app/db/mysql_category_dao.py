@@ -179,13 +179,6 @@ class MySQLCategoryDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        # Convert existing Category to dict for merging, then instantiate the Update model
-        from app.models.daos import CategoryInternalUpdate
-        existing_dict = existing.__dict__
-        update_dict = update_data.__dict__
-        merged_dict = {**existing_dict, **update_dict}
-        merged = CategoryInternalUpdate(**merged_dict)
-
         factory = self._factory()
         now = now_utc()
         cid = int(id) if str(id).isdigit() else None
@@ -207,17 +200,23 @@ class MySQLCategoryDAO:
                 ),
                 {
                     "id": cid,
-                    "name": merged.name,
-                    "description": merged.description,
-                    "is_active": int(bool(merged.isActive if merged.isActive is not None else True)),
-                    "category_tag": merged.categoryTag,
-                    "minimum_quantity": merged.minimumQuantity,
-                    "gst": merged.gst,
-                    "is_returnable": int(bool(merged.isReturnable if merged.isReturnable is not None else True)),
+                    "name": update_data.name if update_data.name is not None else existing.name,
+                    "description": update_data.description if update_data.description is not None else existing.description,
+                    "is_active": int(bool(update_data.isActive if update_data.isActive is not None else existing.is_active)),
+                    "category_tag": update_data.categoryTag if update_data.categoryTag is not None else existing.category_tag,
+                    "minimum_quantity": update_data.minimumQuantity if update_data.minimumQuantity is not None else existing.minimum_quantity,
+                    "gst": update_data.gst if update_data.gst is not None else existing.gst,
+                    "is_returnable": int(bool(update_data.isReturnable if update_data.isReturnable is not None else existing.is_returnable)),
                     "updated_at": now,
                 },
             )
-            await self._replace_children(session, cid, merged)
+            class DummyMerged:
+                pass
+            dummy_merged = DummyMerged()
+            dummy_merged.images = update_data.images if update_data.images is not None else existing.images
+            dummy_merged.subCategories = update_data.subCategories if update_data.subCategories is not None else existing.sub_categories
+            dummy_merged.categoryTags = update_data.categoryTags if update_data.categoryTags is not None else existing.category_tags
+            await self._replace_children(session, cid, dummy_merged)
             await session.commit()
         return await self.findById(id)
 

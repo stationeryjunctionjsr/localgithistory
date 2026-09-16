@@ -389,13 +389,18 @@ class MySQLOrderDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+        existing_dict = existing if isinstance(existing, dict) else getattr(existing, "__dict__", {})
+        if isinstance(update_data, dict):
+            update_dict = update_data
+        else:
+            update_dict = {k: getattr(update_data, k) for k in getattr(update_data, "model_fields_set", getattr(update_data, "__dict__", {}))}
+        merged = {**existing_dict, **update_dict}
         factory = self._factory()
         if not factory:
             return None
         now = now_utc()
         oid = int(id) if str(id).isdigit() else None
-        user_id = int(update_data.user) if str((update_data.user if update_data.user is not None else "")).isdigit() else None
+        user_id = int(merged.get("user")) if str((merged.get("user") if merged.get("user") is not None else "")).isdigit() else None
         if user_id is None:
             return None
 
@@ -440,49 +445,49 @@ class MySQLOrderDAO:
                 {
                     "id": oid,
                     "user_id": user_id,
-                    "order_number": update_data.orderNumber,
-                    "status": update_data.status,
-                    "total": (update_data.total if update_data.total is not None else 0),
-                    "subtotal": (update_data.subtotal if update_data.subtotal is not None else 0),
-                    "tax": (update_data.tax if update_data.tax is not None else 0),
-                    "shipping": (update_data.shipping if update_data.shipping is not None else 0),
-                    "discount": (update_data.discount if update_data.discount is not None else 0),
-                    "order_type": update_data.orderType,
-                    "payment_status": update_data.paymentStatus,
-                    "payment_method": update_data.paymentMethod,
-                    "upi_payment_screenshot": update_data.upiPaymentScreenshot,
-                    "ship_name": ((update_data.shippingAddress or {})["name"] if "name" in (update_data.shippingAddress or {}) else None),
-                    "ship_street": ((update_data.shippingAddress or {})["street"] if "street" in (update_data.shippingAddress or {}) else None),
-                    "ship_city": ((update_data.shippingAddress or {})["city"] if "city" in (update_data.shippingAddress or {}) else None),
-                    "ship_state": ((update_data.shippingAddress or {})["state"] if "state" in (update_data.shippingAddress or {}) else None),
-                    "ship_pincode": ((update_data.shippingAddress or {})["pincode"] if "pincode" in (update_data.shippingAddress or {}) else None),
-                    "ship_phone": ((update_data.shippingAddress or {})["phone"] if "phone" in (update_data.shippingAddress or {}) else None),
-                    "bill_name": ((update_data.billingAddress or {})["name"] if "name" in (update_data.billingAddress or {}) else None),
-                    "bill_street": ((update_data.billingAddress or {})["street"] if "street" in (update_data.billingAddress or {}) else None),
-                    "bill_city": ((update_data.billingAddress or {})["city"] if "city" in (update_data.billingAddress or {}) else None),
-                    "bill_state": ((update_data.billingAddress or {})["state"] if "state" in (update_data.billingAddress or {}) else None),
-                    "bill_pincode": ((update_data.billingAddress or {})["pincode"] if "pincode" in (update_data.billingAddress or {}) else None),
-                    "bill_phone": ((update_data.billingAddress or {})["phone"] if "phone" in (update_data.billingAddress or {}) else None),
-                    "notes": update_data.notes,
-                    "printed_bill": 1 if update_data.printedBill else None,
-                    "assigned_valet": update_data.assignedValet,
-                    "pending_valet_id": update_data.pendingValetId,
-                    "valet_assigned_at": _to_ts(update_data.valetAssignedAt),
-                    "valet_cascade_count": update_data.valetCascadeCount or 0,
+                    "order_number": merged.get("orderNumber"),
+                    "status": merged.get("status"),
+                    "total": (merged.get("total") if merged.get("total") is not None else 0),
+                    "subtotal": (merged.get("subtotal") if merged.get("subtotal") is not None else 0),
+                    "tax": (merged.get("tax") if merged.get("tax") is not None else 0),
+                    "shipping": (merged.get("shipping") if merged.get("shipping") is not None else 0),
+                    "discount": (merged.get("discount") if merged.get("discount") is not None else 0),
+                    "order_type": merged.get("orderType"),
+                    "payment_status": merged.get("paymentStatus"),
+                    "payment_method": merged.get("paymentMethod"),
+                    "upi_payment_screenshot": merged.get("upiPaymentScreenshot"),
+                    "ship_name": ((merged.get("shippingAddress") or {})["name"] if "name" in (merged.get("shippingAddress") or {}) else None),
+                    "ship_street": ((merged.get("shippingAddress") or {})["street"] if "street" in (merged.get("shippingAddress") or {}) else None),
+                    "ship_city": ((merged.get("shippingAddress") or {})["city"] if "city" in (merged.get("shippingAddress") or {}) else None),
+                    "ship_state": ((merged.get("shippingAddress") or {})["state"] if "state" in (merged.get("shippingAddress") or {}) else None),
+                    "ship_pincode": ((merged.get("shippingAddress") or {})["pincode"] if "pincode" in (merged.get("shippingAddress") or {}) else None),
+                    "ship_phone": ((merged.get("shippingAddress") or {})["phone"] if "phone" in (merged.get("shippingAddress") or {}) else None),
+                    "bill_name": ((merged.get("billingAddress") or {})["name"] if "name" in (merged.get("billingAddress") or {}) else None),
+                    "bill_street": ((merged.get("billingAddress") or {})["street"] if "street" in (merged.get("billingAddress") or {}) else None),
+                    "bill_city": ((merged.get("billingAddress") or {})["city"] if "city" in (merged.get("billingAddress") or {}) else None),
+                    "bill_state": ((merged.get("billingAddress") or {})["state"] if "state" in (merged.get("billingAddress") or {}) else None),
+                    "bill_pincode": ((merged.get("billingAddress") or {})["pincode"] if "pincode" in (merged.get("billingAddress") or {}) else None),
+                    "bill_phone": ((merged.get("billingAddress") or {})["phone"] if "phone" in (merged.get("billingAddress") or {}) else None),
+                    "notes": merged.get("notes"),
+                    "printed_bill": 1 if merged.get("printedBill") else None,
+                    "assigned_valet": merged.get("assignedValet"),
+                    "pending_valet_id": merged.get("pendingValetId"),
+                    "valet_assigned_at": _to_ts(merged.get("valetAssignedAt")),
+                    "valet_cascade_count": merged.get("valetCascadeCount") or 0,
                     
-                    "is_urgent_delivery": 1 if update_data.isUrgentDelivery else None,
-                    "shipped_at": _to_ts(update_data.shippedAt),
-                    "delivered_at": _to_ts(update_data.deliveredAt),
-                    "cod_payment_received": 1 if update_data.codPaymentReceived else None,
-                    "cod_payment_received_at": _to_ts(update_data.codPaymentReceivedAt),
-                    "decline_reason": update_data.declineReason,
-                    "cancelled_at": _to_ts(update_data.cancelledAt),
-                    "cancelled_by": update_data.cancelledBy,
-                    "turnaround_hours": update_data.turnaroundHours,
+                    "is_urgent_delivery": 1 if merged.get("isUrgentDelivery") else None,
+                    "shipped_at": _to_ts(merged.get("shippedAt")),
+                    "delivered_at": _to_ts(merged.get("deliveredAt")),
+                    "cod_payment_received": 1 if merged.get("codPaymentReceived") else None,
+                    "cod_payment_received_at": _to_ts(merged.get("codPaymentReceivedAt")),
+                    "decline_reason": merged.get("declineReason"),
+                    "cancelled_at": _to_ts(merged.get("cancelledAt")),
+                    "cancelled_by": merged.get("cancelledBy"),
+                    "turnaround_hours": merged.get("turnaroundHours"),
                     "updated_at": now,
                 },
             )
-            await self._replace_children(session, oid, update_data.items or [], update_data.valetDeclineHistory or [])
+            await self._replace_children(session, oid, merged.get("items") or [], merged.get("valetDeclineHistory") or [])
             await session.commit()
         return await self.findById(id)
 

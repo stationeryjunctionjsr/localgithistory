@@ -12,6 +12,7 @@ class CartItem(BaseModel):
     bundle_name: Optional[str] = Field(default=None, alias="bundleName")
 
 class Cart(BaseModel):
+    id: Optional[str] = Field(default=None, alias="_id")
     user: str
     items: List[CartItem] = []
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")

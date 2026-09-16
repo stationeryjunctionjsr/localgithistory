@@ -302,10 +302,10 @@ class ProductRepository:
                     "searchTags": p.searchTags,
                     "category": p.category,
                     "categoryTag": p.categoryTag,
-                    "subCategory": p.subCategory,
+                    "subCategory": p.sub_category,
                     "resolvedCollectionNames": p.resolvedCollectionNames,
                     "brand": p.brand,
-                    "variantAttributes": p.variantAttributes,
+                    "variantAttributes": p.variant_attributes,
                     "variantCombinations": p.variantCombinations,
                     "description": p.description,
                     # Seller IDs for pincode-based availability filtering in autocomplete
@@ -367,7 +367,7 @@ class ProductRepository:
             products = [p for p in products if p.category in category_list]
 
         if query["subCategory"] if "subCategory" in query else None:
-            products = [p for p in products if p.subCategory == query["subCategory"]]
+            products = [p for p in products if p.sub_category == query["subCategory"]]
 
         if query["brand"] if "brand" in query else None:
             # Support multiple brands (comma-separated)
@@ -393,11 +393,11 @@ class ProductRepository:
         is_active = query["isActive"] if "isActive" in query else None
         include_inactive = query["includeInactive"] if "includeInactive" in query else False
         if is_active is True:
-            products = [p for p in products if (p.isActive if p.isActive is not None else True)]
+            products = [p for p in products if (p.is_active if p.is_active is not None else True)]
         elif is_active is False:
-            products = [p for p in products if not (p.isActive if p.isActive is not None else True)]
+            products = [p for p in products if not (p.is_active if p.is_active is not None else True)]
         elif not include_inactive:
-            products = [p for p in products if (p.isActive if p.isActive is not None else True)]
+            products = [p for p in products if (p.is_active if p.is_active is not None else True)]
 
         # Add dynamic tags (best selling, new)
         role = query["role"] if "role" in query else "customer"
@@ -504,8 +504,8 @@ class ProductRepository:
             products.sort(
                 key=lambda p: (
                     -1 if any("best_selling" in t for t in (p.tags if p.tags is not None else [])) else 0,
-                    self._parse_date((p.createdAt if p.createdAt is not None else "2000-01-01")).timestamp()
-                    if self._parse_date(p.createdAt)
+                    self._parse_date((p.created_at if p.created_at is not None else "2000-01-01")).timestamp()
+                    if self._parse_date(p.created_at)
                     else 0,
                 ),
                 reverse=True,
@@ -513,8 +513,8 @@ class ProductRepository:
         else:  # newest
             products.sort(
                 key=lambda p: (
-                    self._parse_date((p.createdAt if p.createdAt is not None else "2000-01-01")).timestamp()
-                    if self._parse_date(p.createdAt)
+                    self._parse_date((p.created_at if p.created_at is not None else "2000-01-01")).timestamp()
+                    if self._parse_date(p.created_at)
                     else 0
                 ),
                 reverse=True,
@@ -699,7 +699,7 @@ class ProductRepository:
         #     facets = {
         #         "brands": sorted(list(set(p.brand for p in all_products if p.brand))),
         #         "categories": sorted(list(set(p.category for p in all_products if p.category))),
-        #         "subCategories": sorted(list(set(p.subCategory for p in all_products if p.subCategory)))
+        #         "subCategories": sorted(list(set(p.sub_category for p in all_products if p.sub_category)))
         #     }
         #     from app.repositories.collection_repository import collection_repository
         #     all_collections = await collection_repository.findAll()
@@ -771,7 +771,7 @@ class ProductRepository:
 
         for p in products:
             pid = p.id
-            created_date = self._parse_date(p.createdAt)
+            created_date = self._parse_date(p.created_at)
             is_new = created_date and created_date >= thirty_days_ago and str(pid) not in user_ordered_pids
             final_tags = []
             if is_new:
@@ -846,7 +846,7 @@ class ProductRepository:
         for p in products:
             pid = str((p.id if p.id is not None else ""))
             p_category = (p.category if p.category is not None else "")
-            p_sub_category = (p.subCategory if p.subCategory is not None else "")
+            p_sub_category = (p.sub_category if p.sub_category is not None else "")
             p_brand = (p.brand if p.brand is not None else "")
             p_collection = (p.collection if p.collection is not None else "")
 
@@ -929,6 +929,12 @@ class ProductRepository:
         return await self._attach_category_gst(products)
 
     async def create(self, product_data: Any) -> Product:
+        from app.models.daos import ProductInternalCreate
+        if isinstance(product_data, dict):
+            product_data.setdefault("mrp", 0.0)
+            product_data.setdefault("price", 0.0)
+            product_data.setdefault("category", "Uncategorized")
+            product_data = ProductInternalCreate(**product_data)
         # Use DB-native MAX(id) instead of loading all products into memory
         try:
             factory_fn = self.storage._factory()
@@ -943,7 +949,7 @@ class ProductRepository:
         else:
             all_products = await self.storage.findAll()
             max_id = max(
-                ((p.productId if p.productId is not None else 0) for p in all_products if isinstance(p.productId, int)), default=0
+                ((p.product_id if p.product_id is not None else 0) for p in all_products if isinstance(p.product_id, int)), default=0
             )
         product_id = max_id + 1
         product_id_formatted = f"PDT-{product_id}"
@@ -965,7 +971,7 @@ class ProductRepository:
             description=product_data.description if product_data.description is not None else "",
             sku=sku_val,
             categoryId=product_data.categoryId,
-            subCategoryId=product_data.subCategoryId,
+            subCategory=product_data.subCategory,
             brandId=product_data.brandId,
             price=float(product_data.price if product_data.price is not None else 0),
             mrp=float(product_data.mrp if product_data.mrp is not None else 0),
@@ -974,8 +980,11 @@ class ProductRepository:
             isActive=product_data.isActive if product_data.isActive is not None else True,
             tags=product_data.tags if product_data.tags is not None else [],
             images=product_data.images if product_data.images is not None else [],
+            videos=getattr(product_data, "videos", []),
             thumbnail=product_data.thumbnail,
-            variants=product_data.variantCombinations if product_data.variantCombinations is not None else [],
+            variants=getattr(product_data, "variants", []),
+            variantAttributes=getattr(product_data, "variantAttributes", []),
+
             details=product_data.details if product_data.details is not None else {},
         )
 

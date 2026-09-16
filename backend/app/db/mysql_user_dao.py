@@ -1,4 +1,5 @@
 from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserResponse
+from app.models.user import User
 '\nMySQL DAO for sj_users (Fully Relational).\n'
 import secrets
 from datetime import datetime, timezone
@@ -7,7 +8,7 @@ from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
 
-def _map_to_schema(r, children: Dict) -> Dict:
+def _map_to_schema(r, children: Dict) -> User:
 
     def clean_terms(t):
         if not t:
@@ -21,7 +22,7 @@ def _map_to_schema(r, children: Dict) -> Dict:
     is_seller_admin_val = r.is_seller_admin
     is_on_duty_val = r.is_on_duty
     commission_override_val = r.commission_override_pct
-    return {'_id': str(r.id), 'userId': r.id, 'userIdFormatted': r.user_id_formatted or (f'USER-{r.id}' if r.id else None), 'name': r.name, 'email': r.email, 'password': r.password_hash, 'role': r.role, 'phone': r.phone or '', 'companyName': r.company_name, 'address': address, 'savedAddresses': saved_addresses, 'isActive': bool(r.is_active) if r.is_active is not None else True, 'approvalStatus': r.approval_status, 'isDeactivated': bool(r.is_deactivated) if r.is_deactivated is not None else False, 'creditLimit': float(r.credit_limit) if r.credit_limit is not None else 0, 'creditUsed': float(r.credit_used) if r.credit_used is not None else 0, 'paymentTerms': clean_terms(r.payment_terms), 'assignedSalesperson': r.assigned_salesperson, 'isEmailVerified': bool(r.is_email_verified) if r.is_email_verified is not None else False, 'referralCode': r.referral_code, 'isSellerAdmin': bool(is_seller_admin_val) if is_seller_admin_val is not None else False, 'sellerPermissions': seller_permissions, 'serviceAreaZones': children['zones'] if 'zones' in children else [], 'isOnDuty': bool(is_on_duty_val) if is_on_duty_val is not None else False, 'commissionOverridePct': float(commission_override_val) if commission_override_val is not None else None, 'createdAt': r.created_at.isoformat() if r.created_at else None, 'updatedAt': r.updated_at.isoformat() if r.updated_at else None}
+    return User(**{'_id': str(r.id), 'userId': r.id, 'userIdFormatted': r.user_id_formatted or (f'USER-{r.id}' if r.id else None), 'name': r.name, 'email': r.email, 'password': r.password_hash, 'role': r.role, 'phone': r.phone or '', 'companyName': r.company_name, 'address': address, 'savedAddresses': saved_addresses, 'isActive': bool(r.is_active) if r.is_active is not None else True, 'approvalStatus': r.approval_status, 'isDeactivated': bool(r.is_deactivated) if r.is_deactivated is not None else False, 'creditLimit': float(r.credit_limit) if r.credit_limit is not None else 0, 'creditUsed': float(r.credit_used) if r.credit_used is not None else 0, 'paymentTerms': clean_terms(r.payment_terms), 'assignedSalesperson': r.assigned_salesperson, 'isEmailVerified': bool(r.is_email_verified) if r.is_email_verified is not None else False, 'referralCode': r.referral_code, 'isSellerAdmin': bool(is_seller_admin_val) if is_seller_admin_val is not None else False, 'sellerPermissions': seller_permissions, 'serviceAreaZones': children['zones'] if 'zones' in children else [], 'isOnDuty': bool(is_on_duty_val) if is_on_duty_val is not None else False, 'commissionOverridePct': float(commission_override_val) if commission_override_val is not None else None, 'createdAt': r.created_at, 'updatedAt': r.updated_at})
 
 class MySQLUserDAO:
 
@@ -97,7 +98,7 @@ class MySQLUserDAO:
                     children_map[r.user_id]['serviceableZoneIds'].append(r.zone_id)
         return children_map
 
-    async def _replace_children(self, session, uid: int, data: Dict):
+    async def _replace_children(self, session, uid: int, data: User):
         await session.execute(text('DELETE FROM sj_user_addresses WHERE user_id = :uid'), {'uid': uid})
         await session.execute(text('DELETE FROM sj_seller_pincodes WHERE user_id = :uid'), {'uid': uid})
         await session.execute(text('DELETE FROM sj_seller_zones WHERE user_id = :uid'), {'uid': uid})
@@ -122,7 +123,7 @@ class MySQLUserDAO:
             zone_name = name_row.name if name_row else zone_ext_id
             await session.execute(text('INSERT INTO sj_seller_zones (user_id, zone_name, zone_id) VALUES (:uid, :zn, :zi)'), {'uid': uid, 'zn': zone_name, 'zi': zone_ext_id})
 
-    async def findAll(self, query: Optional[Dict]=None, skip: Optional[int]=None, limit: Optional[int]=None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict]=None, skip: Optional[int]=None, limit: Optional[int]=None) -> List[User]:
         factory = self._factory()
         if not factory:
             return []
@@ -156,7 +157,7 @@ class MySQLUserDAO:
             return filtered
         return docs
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[User]:
         if set(query.keys()) in ({'_id'}, {'id'}):
             return await self.findById((query['_id'] if '_id' in query else None) or (query['id'] if 'id' in query else None))
         if set(query.keys()) == {'email'} and (query['email'] if 'email' in query else None):
@@ -168,7 +169,7 @@ class MySQLUserDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[User]:
         factory = self._factory()
         if not factory:
             return None
@@ -179,7 +180,7 @@ class MySQLUserDAO:
             children_map = await self._fetch_children(session, [int(row.id)])
         return _map_to_schema(row, children_map[int(row.id)])
 
-    async def findByEmail(self, email: str) -> Optional[Dict]:
+    async def findByEmail(self, email: str) -> Optional[User]:
         factory = self._factory()
         if not factory or not email:
             return None
@@ -190,7 +191,7 @@ class MySQLUserDAO:
             children_map = await self._fetch_children(session, [int(row.id)])
         return _map_to_schema(row, children_map[int(row.id)])
 
-    async def findByPhone(self, phone: str) -> Optional[Dict]:
+    async def findByPhone(self, phone: str) -> Optional[User]:
         factory = self._factory()
         if not factory or not phone:
             return None
@@ -204,7 +205,7 @@ class MySQLUserDAO:
             children_map = await self._fetch_children(session, [int(row.id)])
         return _map_to_schema(row, children_map[int(row.id)])
 
-    async def findByReferralCode(self, referral_code: str) -> Optional[Dict]:
+    async def findByReferralCode(self, referral_code: str) -> Optional[User]:
         factory = self._factory()
         if not factory or not referral_code:
             return None
@@ -215,7 +216,7 @@ class MySQLUserDAO:
             children_map = await self._fetch_children(session, [int(row.id)])
         return _map_to_schema(row, children_map[int(row.id)])
 
-    async def create(self, data: UserInternalCreate) -> Dict:
+    async def create(self, data: UserInternalCreate) -> User:
         external_id = secrets.token_hex(16)
         now = datetime.now(timezone.utc)
         factory = self._factory()
@@ -243,19 +244,74 @@ class MySQLUserDAO:
             await session.commit()
             return res.rowcount > 0
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+
+    async def update(self, id: str, update_data: Any) -> Optional[User]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+            
         now = datetime.now(timezone.utc)
         factory = self._factory()
+        
+        # Manually extract fields from the Pydantic update_data model, falling back to existing dict
+        name = (update_data.name if update_data.name is not None else existing.name)
+        email = (update_data.email if update_data.email is not None else existing.email)
+        password_hash = (update_data.password if update_data.password is not None else existing.password)
+        role = (update_data.role if update_data.role is not None else existing.role)
+        phone = (update_data.phone if update_data.phone is not None else existing.phone)
+        company_name = (update_data.companyName if update_data.companyName is not None else existing.companyName)
+        is_active = (update_data.isActive if update_data.isActive is not None else existing.isActive)
+        approval_status = (update_data.approvalStatus if update_data.approvalStatus is not None else existing.approvalStatus)
+        is_deactivated = (update_data.isDeactivated if update_data.isDeactivated is not None else existing.isDeactivated)
+        credit_limit = (update_data.creditLimit if update_data.creditLimit is not None else existing.creditLimit)
+        credit_used = (update_data.creditUsed if update_data.creditUsed is not None else existing.creditUsed)
+        payment_terms = (update_data.paymentTerms if update_data.paymentTerms is not None else existing.paymentTerms)
+        assigned_salesperson = (update_data.assignedSalesperson if update_data.assignedSalesperson is not None else existing.assignedSalesperson)
+        is_email_verified = (update_data.isEmailVerified if update_data.isEmailVerified is not None else existing.isEmailVerified)
+        referral_code = (update_data.referralCode if update_data.referralCode is not None else existing.referralCode)
+        is_seller_admin = (update_data.isSellerAdmin if update_data.isSellerAdmin is not None else existing.isSellerAdmin)
+        is_on_duty = (update_data.isOnDuty if update_data.isOnDuty is not None else existing.isOnDuty)
+        commission_override_pct = (update_data.commissionOverridePct if update_data.commissionOverridePct is not None else existing.commissionOverridePct)
+        upi_id = (update_data.upiId if update_data.upiId is not None else existing.upiId)
+        qr_code_url = (update_data.qrCodeUrl if update_data.qrCodeUrl is not None else existing.qrCodeUrl)
+
         async with factory() as session:
-            await session.execute(text(f'\n                UPDATE {self.TABLE} SET\n                    name = :name, email = :email, password_hash = :password_hash, role = :role, phone = :phone,\n                    company_name = :company_name, is_active = :is_active, approval_status = :approval_status,\n                    is_deactivated = :is_deactivated, credit_limit = :credit_limit, credit_used = :credit_used,\n                    payment_terms = :payment_terms, assigned_salesperson = :assigned_salesperson,\n                    is_email_verified = :is_email_verified, referral_code = :referral_code, is_seller_admin = :is_seller_admin,\n                    is_on_duty = :is_on_duty, commission_override_pct = :commission_override_pct, upi_id = :upi_id, qr_code_url = :qr_code_url, updated_at = :updated_at\n                WHERE id = :id\n            '), {'id': int(id) if str(id).isdigit() else None, 'name': merged.name, 'email': merged.email, 'password_hash': merged.password, 'role': merged.role, 'phone': merged.phone or None, 'company_name': merged.companyName, 'is_active': 1 if (merged.isActive if merged.isActive is not None else True) else None, 'approval_status': merged.approvalStatus, 'is_deactivated': 1 if merged.isDeactivated else 0, 'credit_limit': merged.creditLimit if merged.creditLimit is not None else 0, 'credit_used': merged.creditUsed if merged.creditUsed is not None else 0, 'payment_terms': str(merged.paymentTerms) if merged.paymentTerms is not None else None, 'assigned_salesperson': merged.assignedSalesperson, 'is_email_verified': 1 if (merged.isEmailVerified if merged.isEmailVerified is not None else False) else None, 'referral_code': merged.referralCode, 'is_seller_admin': 1 if merged.isSellerAdmin else 0, 'is_on_duty': 1 if merged.isOnDuty else 0, 'commission_override_pct': merged.commissionOverridePct, 'upi_id': getattr(merged, 'upiId', None), 'qr_code_url': getattr(merged, 'qrCodeUrl', None), 'updated_at': now})
-            await self._replace_children(session, int(id) if str(id).isdigit() else None, merged)
+            await session.execute(text('''
+                UPDATE sj_users SET
+                    name = :name, email = :email, password_hash = :password_hash, role = :role, phone = :phone,
+                    company_name = :company_name, is_active = :is_active, approval_status = :approval_status,
+                    is_deactivated = :is_deactivated, credit_limit = :credit_limit, credit_used = :credit_used,
+                    payment_terms = :payment_terms, assigned_salesperson = :assigned_salesperson,
+                    is_email_verified = :is_email_verified, referral_code = :referral_code, is_seller_admin = :is_seller_admin,
+                    is_on_duty = :is_on_duty, commission_override_pct = :commission_override_pct, upi_id = :upi_id, qr_code_url = :qr_code_url, updated_at = :updated_at
+                WHERE id = :id
+            '''), {
+                'id': int(id) if str(id).isdigit() else None, 
+                'name': name, 
+                'email': email, 
+                'password_hash': password_hash, 
+                'role': role, 
+                'phone': phone or None, 
+                'company_name': company_name, 
+                'is_active': 1 if (is_active if is_active is not None else True) else 0, 
+                'approval_status': approval_status, 
+                'is_deactivated': 1 if is_deactivated else 0, 
+                'credit_limit': credit_limit if credit_limit is not None else 0, 
+                'credit_used': credit_used if credit_used is not None else 0, 
+                'payment_terms': str(payment_terms) if payment_terms is not None else None, 
+                'assigned_salesperson': assigned_salesperson, 
+                'is_email_verified': 1 if is_email_verified else 0, 
+                'referral_code': referral_code, 
+                'is_seller_admin': 1 if is_seller_admin else 0, 
+                'is_on_duty': 1 if is_on_duty else 0, 
+                'commission_override_pct': commission_override_pct, 
+                'upi_id': upi_id, 
+                'qr_code_url': qr_code_url, 
+                'updated_at': now
+            })
+            await self._replace_children(session, int(id) if str(id).isdigit() else None, update_data)
             await session.commit()
         return await self.findById(id)
-
     async def delete(self, id: str) -> bool:
         factory = self._factory()
         if not factory:

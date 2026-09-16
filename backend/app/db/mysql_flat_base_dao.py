@@ -98,7 +98,8 @@ class MySQLFlatBaseDAO:
             out["createdAt"] = r.created_at.isoformat()
         if "updated_at" in r._mapping and r.updated_at:
             out["updatedAt"] = r.updated_at.isoformat()
-        return self.schema_cls(**out) if self.schema_cls else out
+        cls = getattr(self, "schema_cls", getattr(self, "pydantic_model", None))
+        return cls(**out) if cls else out
 
     def _doc_to_params(self, data: Dict, now: datetime) -> Any:
         params = {"created_at": now, "updated_at": now}
@@ -222,7 +223,12 @@ class MySQLFlatBaseDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+        existing_dict = existing if isinstance(existing, dict) else getattr(existing, "__dict__", {})
+        if isinstance(update_data, dict):
+            update_dict = update_data
+        else:
+            update_dict = {k: getattr(update_data, k) for k in getattr(update_data, "model_fields_set", getattr(update_data, "__dict__", {}))}
+        merged = {**existing_dict, **update_dict}
         factory = self._factory()
         if not factory:
             return None

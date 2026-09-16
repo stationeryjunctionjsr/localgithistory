@@ -97,6 +97,8 @@ class BannerInternalUpdate(BaseModel):
     startDate: Optional[str] = None
     endDate: Optional[str] = None
     isActive: Optional[bool] = None
+    salesCount: Optional[int] = None
+    updatedAt: Optional[str] = None
     isPublished: Optional[bool] = None
     targetAudience: Optional[str] = None
     userSegments: Optional[List[str]] = None
@@ -168,6 +170,8 @@ class SessionInternalUpdate(BaseModel):
     deviceInfo: Optional[dict] = None
     ipAddress: Optional[str] = None
     isActive: Optional[bool] = None
+    salesCount: Optional[int] = None
+    updatedAt: Optional[str] = None
     refreshTokenId: Optional[str] = None
     status: Optional[str] = None
     lastActiveAt: Optional[str] = None
@@ -260,11 +264,42 @@ class ProductInternalCreate(BaseModel):
     description: Optional[str] = None
     price: float
     mrp: Optional[float] = None
-    categoryId: str
+    categoryId: str = "1"
     brandId: Optional[str] = None
     images: List[str] = []
     isActive: bool = True
     sellerId: Optional[str] = None
+    sku: Optional[str] = None
+    category: Optional[str] = None
+    subCategory: Optional[str] = None
+    brand: Optional[str] = None
+    mrpPerCase: Optional[float] = None
+    pricePerCase: Optional[float] = None
+    itemsPerCase: Optional[int] = None
+    isReturnable: Optional[bool] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+    minimumQuantity: Optional[int] = None
+    searchTags: Optional[list] = []
+    attributes: Optional[dict] = {}
+    salesCount: Optional[int] = 0
+    viewCount: Optional[int] = 0
+    isNewArrival: Optional[bool] = False
+    newArrivalUntil: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+    sellers: Optional[list] = []
+    stock: Optional[int] = 0
+    productId: Optional[int] = None
+    productIdFormatted: Optional[str] = None
+    unit: Optional[str] = "pc"
+    tags: Optional[list] = []
+    thumbnail: Optional[str] = None
+    variants: Optional[list] = []
+    variantAttributes: Optional[list] = []
+    details: Optional[dict] = {}
+    videos: Optional[list] = []
+    quantityPerCase: Optional[int] = None
 
 class ProductInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -291,6 +326,8 @@ class ProductInternalUpdate(BaseModel):
     brandId: Optional[str] = None
     images: Optional[List[str]] = None
     isActive: Optional[bool] = None
+    salesCount: Optional[int] = None
+    updatedAt: Optional[str] = None
     sellerId: Optional[str] = None
 
 class CategoryInternalCreate(BaseModel):
@@ -299,6 +336,14 @@ class CategoryInternalCreate(BaseModel):
     description: Optional[str] = None
     parentId: Optional[str] = None
     isActive: bool = True
+    images: Optional[list] = []
+    subCategories: Optional[list] = []
+    minimumQuantity: Optional[int] = None
+    categoryTag: Optional[str] = None
+    categoryTags: Optional[list] = []
+    showInMobileHomepage: Optional[bool] = False
+    gst: Optional[float] = None
+    isReturnable: Optional[bool] = True
 
 class CategoryInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -306,6 +351,18 @@ class CategoryInternalUpdate(BaseModel):
     description: Optional[str] = None
     parentId: Optional[str] = None
     isActive: Optional[bool] = None
+    salesCount: Optional[int] = None
+    updatedAt: Optional[str] = None
+    images: Optional[list] = None
+    subCategories: Optional[list] = None
+    minimumQuantity: Optional[int] = None
+    categoryTag: Optional[str] = None
+    categoryTags: Optional[list] = None
+    showInMobileHomepage: Optional[bool] = None
+    gst: Optional[float] = None
+    isReturnable: Optional[bool] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
 
 class BrandInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -318,6 +375,8 @@ class BrandInternalUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
+    salesCount: Optional[int] = None
+    updatedAt: Optional[str] = None
 
 
 class BundleItemInternal(BaseModel):
@@ -331,6 +390,8 @@ class BundleInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     name: str
     items: Optional[List[BundleItemInternal]] = []
+    products: Optional[List[BundleItemInternal]] = []
+    salesCount: Optional[int] = 0
     price: float
     isActive: bool = True
 
@@ -340,6 +401,8 @@ class BundleInternalUpdate(BaseModel):
     items: Optional[List[BundleItemInternal]] = None
     price: Optional[float] = None
     isActive: Optional[bool] = None
+    salesCount: Optional[int] = None
+    updatedAt: Optional[str] = None
 
 class ReturnRequestInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)

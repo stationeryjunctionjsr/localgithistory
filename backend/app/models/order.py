@@ -45,6 +45,7 @@ class Order(BaseModel):
     cancelled_by: Optional[str] = Field(default=None, alias="cancelledBy")
     turnaround_hours: Optional[float] = Field(default=None, alias="turnaroundHours")
     items: List['OrderItem'] = []
+    sub_orders: Optional[List[Any]] = Field(default=None, alias="subOrders")
     valet_decline_history: List[ValetDeclineHistoryEntry] = Field(default=[], alias="valetDeclineHistory")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")

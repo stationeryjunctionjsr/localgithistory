@@ -20,7 +20,7 @@ class PaymentRepository:
 
             filtered_payments = []
             for payment in payments:
-                payment_date_str = payment["orderDate"] if "orderDate" in payment else None or payment["createdAt"] if "createdAt" in payment else ""
+                payment_date_str = payment.order_date or payment.created_at or ""
                 if not payment_date_str:
                     continue
 
@@ -44,7 +44,7 @@ class PaymentRepository:
             payments = filtered_payments
 
         # Sort by order date (newest first)
-        payments.sort(key=lambda p: (p.orderDate if p.orderDate is not None else p["createdAt"] if "createdAt" in p else ""), reverse=True)
+        payments.sort(key=lambda p: (p.order_date if p.order_date is not None else p.created_at if p.created_at is not None else ""), reverse=True)
 
         return payments
 
@@ -78,13 +78,13 @@ class PaymentRepository:
         max_id = 0
         for p in all_payments:
             if (
-                p.paymentId
-                and isinstance(p.paymentId, str)
-                and (p.paymentId if p.paymentId is not None else "").startswith("PYMT-")
+                p.payment_id
+                and isinstance(p.payment_id, str)
+                and (p.payment_id if p.payment_id is not None else "").startswith("PYMT-")
             ):
                 import re
 
-                match = re.match(r"PYMT-(\d+)", (p.paymentId if p.paymentId is not None else ""))
+                match = re.match(r"PYMT-(\d+)", (p.payment_id if p.payment_id is not None else ""))
                 if match:
                     max_id = max(max_id, int(match.group(1)))
         payment["paymentId"] = f"PYMT-{max_id + 1}"
@@ -144,11 +144,11 @@ class PaymentRepository:
         if not payment:
             raise ValueError("Payment not found")
 
-        entries = payment["paymentEntries"] if "paymentEntries" in payment else None or []
+        entries = payment.payment_entries or []
         entry = {
             "entryId": len(entries) + 1,
             "amount": entry_data["amount"] if "amount" in entry_data else 0,
-            "paymentMethod": entry_data["paymentMethod"] if "paymentMethod" in entry_data else (payment["paymentMethod"] if "paymentMethod" in payment else "cod"),
+            "paymentMethod": entry_data["paymentMethod"] if "paymentMethod" in entry_data else (payment.payment_method or "cod"),
             "paidAt": entry_data["paidAt"] if "paidAt" in entry_data else datetime.now(timezone.utc).isoformat(),
             "image": entry_data["image"] if "image" in entry_data else None,  # Payment screenshot (optional)
             "notes": entry_data["notes"] if "notes" in entry_data else "",
@@ -157,15 +157,15 @@ class PaymentRepository:
         }
 
         entries.append(entry)
-        payment["paymentEntries"] = entries
+        payment.payment_entries = entries
 
         # Update amount paid and remaining
-        if payment["amountPaid"] if "amountPaid" in payment else None is None:
+        if payment.amount_paid is None:
             raise ValueError("amountPaid is None")
-        payment["amountPaid"] = payment["amountPaid"] + entry["amount"]
-        if payment["totalAmount"] if "totalAmount" in payment else None is None:
+        payment.amount_paid = payment.amount_paid + entry["amount"]
+        if payment.total_amount is None:
             raise ValueError("totalAmount is None")
-        payment["amountRemaining"] = max(0, payment["totalAmount"] - payment["amountPaid"])
+        payment.amount_remaining = max(0, payment.total_amount - payment.amount_paid)
 
         return await self.update(payment_id, payment)
 
@@ -174,13 +174,13 @@ class PaymentRepository:
         if not payment:
             raise ValueError("Payment not found")
 
-        entries = payment["paymentEntries"] if "paymentEntries" in payment else None or []
+        entries = payment.payment_entries or []
         entry_index = next((i for i, e in enumerate(entries) if ("entryId" in e and e["entryId"] == entry_id)), None)
         if entry_index is None:
             raise ValueError("Payment entry not found")
 
         entries[entry_index].update(update_data)
-        payment["paymentEntries"] = entries
+        payment.payment_entries = entries
 
         return await self.update(payment_id, payment)
 

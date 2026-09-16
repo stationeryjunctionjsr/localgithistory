@@ -71,12 +71,14 @@ class CategoryRepository:
             update_dict["categoryTag"] = tags[0] if isinstance(tags, list) and tags else ""
 
         updates = {**update_dict, "updatedAt": self._get_timestamp()}
+        print("UPDATE_DATA:", type(update_data), update_data)
+        print("UPDATES:", updates)
         internal_update = CategoryInternalUpdate.model_validate(updates)
         return await self.storage.update(id, internal_update)
 
     async def delete(self, id: str) -> Category:
         # Soft delete - set isActive to false
-        return await self.storage.update(id, {"isActive": False})
+        return await self.update(id, {"isActive": False})
 
 
 category_repository = CategoryRepository()

@@ -29,21 +29,23 @@ def _to_ts(val):
         return None
 
 
-def _entry__map_to_schema(entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) -> Dict:
-    return {
-        "entryId": entry_id,
-        "amount": float(amount) if amount is not None else 0,
-        "paymentMethod": payment_method,
-        "paidAt": paid_at.isoformat() if isinstance(paid_at, (datetime, date)) and paid_at else None,
-        "image": image,
-        "notes": notes,
-        "verified": bool(verified) if verified is not None else False,
-        "createdAt": created_at.isoformat() if isinstance(created_at, (datetime, date)) and created_at else None,
-    }
+from app.models.payment import PaymentEntry
+
+def _entry__map_to_schema(entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) -> PaymentEntry:
+    return PaymentEntry(
+        entryId=entry_id,
+        amount=float(amount) if amount is not None else 0,
+        paymentMethod=payment_method,
+        paidAt=paid_at.isoformat() if isinstance(paid_at, (datetime, date)) and paid_at else None,
+        image=image,
+        notes=notes,
+        verified=bool(verified) if verified is not None else False,
+        createdAt=created_at.isoformat() if isinstance(created_at, (datetime, date)) and created_at else None,
+    )
 
 
-def _payment__map_to_schema(r, entries: List[Dict]) -> Dict:
-    doc = {
+def _payment__map_to_schema(r, entries: List[PaymentEntry]) -> Payment:
+    return Payment(**{
         "_id": str(r.id),
         "orderId": r.order_id,
         "userId": r.user_id,
@@ -58,8 +60,7 @@ def _payment__map_to_schema(r, entries: List[Dict]) -> Dict:
         "paymentEntries": entries,
         "createdAt": r.created_at.isoformat() if r.created_at else None,
         "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-    }
-    return doc
+    })
 
 
 class MySQLPaymentDAO:
@@ -93,7 +94,7 @@ class MySQLPaymentDAO:
             by_payment[pid].append(_entry__map_to_schema(r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]))
         return by_payment
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Payment]:
         factory = self._factory()
         if not factory:
             return []
@@ -181,7 +182,7 @@ class MySQLPaymentDAO:
             docs.append(_payment__map_to_schema(row, entries))
         return docs
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Payment]:
         factory = self._factory()
         if not factory:
             return None
@@ -233,11 +234,11 @@ class MySQLPaymentDAO:
         entries = entries_by_payment[pid] if pid in entries_by_payment else []
         return _payment__map_to_schema(r, entries)
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Payment]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def create(self, data: PaymentInternalCreate) -> Dict:
+    async def create(self, data: PaymentInternalCreate) -> Payment:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -303,7 +304,7 @@ class MySQLPaymentDAO:
                 await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: PaymentInternalUpdate) -> Optional[Dict]:
+    async def update(self, id: str, update_data: PaymentInternalUpdate) -> Optional[Payment]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -323,7 +324,7 @@ class MySQLPaymentDAO:
             elif k == "paymentId": val = update_data.paymentId
             else: val = None
             if val is None:
-                val = existing[k] if k in existing else None
+                val = getattr(existing, k, None) if k != "orderId" else getattr(existing, "order_id", None) or getattr(existing, "orderId", None)
             merged[k] = val
 
         factory = self._factory()
@@ -392,7 +393,7 @@ class MySQLPaymentDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Dict:
+    async def deleteMany(self, query: Dict) -> Payment:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:

@@ -128,8 +128,8 @@ async def get_public_categories(forHomepage: bool = False):
             tags = (cat.category_tags or [])
             if not tag and tags:
                 tag = tags[0] if isinstance(tags, list) and tags else ""
-            cat.categoryTag = tag or ""
-            cat.categoryTags = [tag] if tag else []
+            cat.category_tag = tag or ""
+            cat.category_tags = [tag] if tag else []
             cat.gst = cat.gst if cat.gst is not None else 0
             active_categories.append(cat)
         return active_categories

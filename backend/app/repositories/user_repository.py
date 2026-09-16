@@ -15,19 +15,19 @@ class UserRepository:
 
     async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
         users_data = await self.storage.findAll(query or {}, skip=skip, limit=limit)
-        return [User(**u) for u in users_data]
+        return users_data
 
     async def findById(self, id: str) -> Optional[User]:
         data = await self.storage.findById(id)
-        return User(**data) if data else None
+        return data
 
     async def findOne(self, query: Any) -> Optional[User]:
         data = await self.storage.findOne(query)
-        return User(**data) if data else None
+        return data
 
     async def findByEmail(self, email: str) -> Optional[User]:
         data = await self.storage.findOne({"email": email.lower()})
-        return User(**data) if data else None
+        return data
 
     async def findByPhone(self, phone: str):
         if not phone:
@@ -123,7 +123,9 @@ class UserRepository:
         if user_model.address and user_model.address not in user_model.savedAddresses:
             user_model.savedAddresses.append(user_model.address)
 
-        return await self.storage.create(user_model)
+        created_dict = await self.storage.create(user_model)
+        from app.models.schemas import UserResponse
+        return UserResponse.model_validate(created_dict) if isinstance(created_dict, dict) else created_dict
 
     async def update(self, id: str, update_data: Any):
         # Don't allow updating email to an existing one

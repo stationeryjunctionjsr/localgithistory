@@ -1,6 +1,6 @@
-from app.models.schemas import UserInternalUpdate
+from app.models.schemas import UserSnippet, ValetSnippet, UserInternalUpdate
 import logging
-from app.models.schemas import PopulatedOrderResponse, PopulatedOrderItemResponse
+from app.models.schemas import UserSnippet, ValetSnippet, PopulatedOrderResponse, PopulatedOrderItemResponse
 from app.db.storage_factory import get_storage
 from app.models.user import User
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
@@ -12,7 +12,7 @@ class GenerateInvoiceResponse(BaseModel):
     invoiceUrl: str
 from fastapi.responses import FileResponse
 from app.schemas.orders import PaginatedOrdersResponse, PaginatedSubOrdersResponse, DeliveryChargeUpdateResponse
-from app.models.schemas import Address, OrderItemCreate, SellerDeliveryOption, ItemSnippet as OrderItem
+from app.models.schemas import UserSnippet, ValetSnippet, Address, OrderItemCreate, SellerDeliveryOption, ItemSnippet as OrderItem
 from typing import Dict, Any
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -48,11 +48,12 @@ router = APIRouter()
 def _resolve_product_seller_id(product: Product, serviceable_seller_ids: list[str] = None) -> str:
     if product.sellers:
         return product.sellers[0].id
-    return product.seller_id
+    return getattr(product, "seller_id", None)
 
 
 # Helper function to create order notification
 async def create_order_notification(order):
+    order_zone_id = None
     try:
         super_admin = await user_repository.findOne({"role": "super_admin"})
         if not super_admin:
@@ -273,9 +274,9 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
                 product_ids.add(str(item.product_id))
 
     # 2. Fetch all required users, valets, products, and payments in parallel
-    users_task = get_storage("users").findAll({"_id": {"$in": list(user_ids.union(valet_ids))}}) if user_ids.union(valet_ids) else None
-    products_task = get_storage("products").findAll({"_id": {"$in": list(product_ids)}}) if product_ids else None
-    payments_task = get_storage("payments").findAll({"orderId": {"$in": list(order_ids)}}) if order_ids else None
+    users_task = get_storage("users").findAll({"allowed_ids": list(user_ids.union(valet_ids))}) if user_ids.union(valet_ids) else None
+    products_task = get_storage("products").findAll({"allowed_ids": list(product_ids)}) if product_ids else None
+    payments_task = get_storage("payments").findAll({"allowed_order_ids": list(order_ids)}) if order_ids else None
 
     # Execute DB queries concurrently (if any)
     users_list = await users_task if users_task else []
@@ -283,11 +284,11 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
     payments_list = await payments_task if payments_task else []
 
     # 3. Build lookup maps
-    users_map = {str(u.id): u for u in users_list if u.id}
-    products_map = {str(p.id): p for p in products_list if p.id}
+    users_map = {str(u.id): u for u in users_list if getattr(u, "id", None)}
+    products_map = {str(p.id): p for p in products_list if getattr(p, "id", None)}
     payments_map = {}
     for p in payments_list:
-        oid = str(p.orderId) if hasattr(p, "orderId") else str(p.order_id)
+        oid = str(getattr(p, "orderId", getattr(p, "order_id", None)))
         if oid not in payments_map:
             payments_map[oid] = []
         payments_map[oid].append(p)
@@ -322,32 +323,31 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
             )
             populated_items.append(p_item)
             
-        from app.models.schemas import OrderResponse
-        order_resp = OrderResponse.model_validate(order, from_attributes=True)
+        from app.models.order import Order
+        order_resp = Order.model_validate(order, from_attributes=True)
         order_resp.items = populated_items
         
         pop_order = PopulatedOrderResponse(
             id=order_resp.id,
-            user=user,
-            assignedValet=valet,
+            user=UserSnippet.model_validate(user, from_attributes=True) if user else None,
+            assignedValet=ValetSnippet.model_validate(valet, from_attributes=True) if valet else None,
             paymentEntries=payment_entries,
             items=populated_items,
             sub_orders=order_resp.sub_orders,
-            orderStatus=order_resp.orderStatus,
-            totalAmount=order_resp.totalAmount,
-            deliveryFee=order_resp.deliveryFee,
+            orderStatus=order_resp.status,
+            totalAmount=order_resp.total,
+            deliveryFee=order_resp.shipping,
             discount=order_resp.discount,
-            couponCode=order_resp.couponCode,
-            paymentMethod=order_resp.paymentMethod,
-            paymentStatus=order_resp.paymentStatus,
-            address=order_resp.address,
-            createdAt=order_resp.createdAt,
-            updatedAt=order_resp.updatedAt,
-            zoneId=order_resp.zoneId,
-            sellerId=order_resp.sellerId,
-            notes=order_resp.notes,
-            invoiceLink=order_resp.invoiceLink,
-            commissionCalculated=order_resp.commissionCalculated
+            couponCode=getattr(order_resp, "couponCode", None),
+            paymentMethod=order_resp.payment_method,
+            paymentStatus=order_resp.payment_status,
+            address=order_resp.shipping_address,
+            createdAt=order_resp.created_at,
+            updatedAt=order_resp.updated_at,
+            zoneId=getattr(order_resp, "zoneId", None),
+            orderNotes=order_resp.notes,
+            adminNotes=getattr(order_resp, "adminNotes", None),
+            valetNotes=getattr(order_resp, "valetNotes", None)
         )
         populated.append(pop_order)
 
@@ -429,8 +429,8 @@ async def get_order(order_id: str, current_user: User = Depends(get_current_user
     return populated_order
 
 
-@router.post("", response_model=Order, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=Order, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=PopulatedOrderResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=PopulatedOrderResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def create_order(
     request: Request,
@@ -438,6 +438,7 @@ async def create_order(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
 ):
+    order_zone_id = None
     # User must be logged in to place an order
     if not current_user:
         raise HTTPException(status_code=401, detail="Please log in to place an order")
@@ -563,7 +564,7 @@ async def create_order(
     for item in cart_items:
         p = (_cart_products_map[str(item.product or item.product_id)] if str(item.product or item.product_id) in _cart_products_map else None)
         if p:
-            qty = ((item.quantity if isinstance(item, dict) else item.quantity) if (item.quantity if isinstance(item, dict) else item.quantity) is not None else 0)
+            qty = (item.quantity if item.quantity is not None else 0)
             sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
             temp_subtotal += product_repository.calculateTotalPrice(
                 p, effective_role, qty, sell_as_case=sell_as_case, user_id=current_user.id
@@ -583,9 +584,7 @@ async def create_order(
                 state, city, district, zip_code, effective_role, temp_subtotal
             )
             delivery_charge_data = (
-                LocationDeliveryCharge.model_validate(delivery_charge_data_raw)
-                if isinstance(delivery_charge_data_raw, dict)
-                else delivery_charge_data_raw
+                delivery_charge_data_raw
             )
             if delivery_charge_data:
                 charge_amount = float(delivery_charge_data.charge if delivery_charge_data.charge is not None else 0.0)
@@ -630,9 +629,7 @@ async def create_order(
             shipping_charge=base_shipping,
         )
         validation = (
-            CouponValidationResult.model_validate(validation_raw)
-            if isinstance(validation_raw, dict)
-            else validation_raw
+            validation_raw
         )
         is_val_valid = validation.valid
         if not is_val_valid:
@@ -640,9 +637,7 @@ async def create_order(
             raise HTTPException(status_code=400, detail=val_msg)
         val_c_raw = validation.coupon
         val_c = (
-            CouponDetailModel.model_validate(val_c_raw)
-            if isinstance(val_c_raw, dict)
-            else (val_c_raw if val_c_raw is not None else CouponDetailModel())
+            val_c_raw
         )
         applied_coupon_id = val_c.id
         val_code = val_c.code
@@ -685,15 +680,11 @@ async def create_order(
             best_raw = max(
                 auto_list,
                 key=lambda x: (
-                    x["discount"]
-                    if isinstance(x, dict)
-                    else (x.discount if x.discount is not None else 0.0)
+                    (x.discount if x.discount is not None else 0.0)
                 ),
             )
             best = (
-                CouponValidationResult.model_validate(best_raw)
-                if isinstance(best_raw, dict)
-                else best_raw
+                best_raw
             )
             coupon_discount = best.discount if best.discount is not None else 0.0
             eligible_item_indices = best.eligibleItemIndices
@@ -701,9 +692,7 @@ async def create_order(
             bxgy_item_indices = best.bxgyItemIndices
             c_raw = best.coupon
             c = (
-                CouponDetailModel.model_validate(c_raw)
-                if isinstance(c_raw, dict)
-                else (c_raw if c_raw is not None else CouponDetailModel())
+                c_raw
             )
             applied_coupon_id = c.id
             coupon_code = c.code or ("AUTO-" + (applied_coupon_id or "")[:8])
@@ -732,7 +721,7 @@ async def create_order(
             raise HTTPException(
                 status_code=400, detail=f"Product not found: {item.product or item.product_id}"
             )
-        quantity = ((item.quantity if isinstance(item, dict) else item.quantity) if (item.quantity if isinstance(item, dict) else item.quantity) is not None else 0)
+        quantity = (item.quantity if item.quantity is not None else 0)
         sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
 
         ignore_auto = False
@@ -815,9 +804,7 @@ async def create_order(
 
         ref_settings_raw = await referral_repository.get_settings()
         ref_settings = (
-            ReferralSettingsModel.model_validate(ref_settings_raw)
-            if isinstance(ref_settings_raw, dict)
-            else ref_settings_raw
+            ref_settings_raw
         )
         retail_settings = ref_settings.retail
         if not (retail_settings.is_active if retail_settings.is_active is not None else False) or (retail_settings.discount_value if retail_settings.discount_value is not None else 0) <= 0:
@@ -932,7 +919,7 @@ async def create_order(
                 taxableValue=round(taxable_value, 2),
                 cgst=round(cgst, 2),
                 sgst=round(sgst, 2),
-                variantAttributes=item.variant_attributes,
+                variantAttributes=getattr(item, "variantAttributes", getattr(item, "variant_attributes", None)),
             )
         )
 
@@ -1011,9 +998,7 @@ async def create_order(
 
         from app.routers.delivery_slots import DeliverySlotConfigModel
         _slot_config = (
-            DeliverySlotConfigModel.model_validate(_slot_config_raw)
-            if isinstance(_slot_config_raw, dict)
-            else _slot_config_raw
+            _slot_config_raw
         )
 
         slot_configs = [_slot_config] if _slot_config else []
@@ -1199,9 +1184,7 @@ async def create_order(
                 state, city, district, zip_code, effective_role, total_before_shipping
             )
             delivery_charge_data = (
-                LocationDeliveryCharge.model_validate(delivery_charge_data_raw)
-                if isinstance(delivery_charge_data_raw, dict)
-                else delivery_charge_data_raw
+                delivery_charge_data_raw
             )
 
             if delivery_charge_data:
@@ -1402,7 +1385,7 @@ async def create_order(
             "upiPaymentScreenshot": screenshot_path if order_data.paymentMethod == "upi" else None,
             "notes": f"Referral Code Applied: {applied_referral_code} | {order_data.notes or ''}".strip(" |")
             if applied_referral_code
-            else order_data.notes,
+            else (order_data.notes or ""),
             "printedBill": order_data.printedBill,
         })
     )
@@ -1503,17 +1486,18 @@ async def create_order(
                     if bundle_specs and bundle_items_in_order:
                         spec = bundle_specs[0]
                         spec_qty = max(1, spec.quantity if spec.quantity is not None else 1)
-                        spec_pid = str(spec.productId if spec.productId is not None else "")
+                        spec_pid = str(spec.productId or "")
                         ref_item = next(
                             (
                                 i
                                 for i in bundle_items_in_order
-                                if str((i.product or "")) == spec_pid or str((i.product_id or "")) == spec_pid
+                                if str((i.product or "")) == spec_pid or str(getattr(i, "product_id", getattr(i, "productId", ""))) == spec_pid
                             ),
                             bundle_items_in_order[0],
                         )
                         copies = max(1, (ref_item.quantity if ref_item.quantity is not None else spec_qty) // spec_qty)
-                    new_sales = (bundle.sales_count if bundle.sales_count is not None else 0) + copies
+                    sales_c = getattr(bundle, "salesCount", getattr(bundle, "sales_count", 0))
+                    new_sales = (sales_c if sales_c is not None else 0) + copies
                     await bundle_repository.update(b_id, {"salesCount": new_sales})
         except Exception as e:
             logger.error("Failed to increment bundle salesCount: %s", str(e), exc_info=True)
@@ -1543,7 +1527,7 @@ async def create_order(
                     item.product,
                     order.id,
                 )
-                new_stock = max(0, product.stock - (item.quantity if isinstance(item, dict) else item.quantity)) if product.stock is not None else None
+                new_stock = max(0, product.stock - item.quantity) if product.stock is not None else None
 
             # Fulfil the stock reservation for this user + product
             from app.repositories.stock_reservation_repository import stock_reservation_repository
@@ -1606,9 +1590,9 @@ async def create_order(
         user_for_payment = await user_repository.findById(current_user.id)
         payment_data = {
             "orderId": order.id,
-            "userId": user_for_payment.user_id,  # Use userId instead of customerId
+            "userId": str(user_for_payment.user_id),  # Use userId instead of customerId
             "customerName": user_for_payment.name,
-            "orderDate": order.created_at,
+            "orderDate": order.created_at if isinstance(order.created_at, str) else str(order.created_at),
             "paymentMethod": order_data.paymentMethod,
             "totalAmount": total,
         }
@@ -1821,7 +1805,7 @@ async def create_order(
                     "deliverySlot": grp_slot_info,
                     "shippingAddress": order_data.shippingAddress,
                     "billingAddress": order_data.billingAddress or order_data.shippingAddress,
-                    "notes": order_data.notes,
+                    "notes": order_data.notes or "",
                     "couponCode": coupon_code,
                     "couponInfo": coupon_info,
                     "createdAt": order.created_at,
@@ -1873,7 +1857,7 @@ class TrackingUpdateRequest(BaseModel):
     courierPartner: Optional[str] = None
 
 
-@router.put("/{order_id}/tracking", response_model=Order)
+@router.put("/{order_id}/tracking")
 async def update_order_tracking(
     order_id: str,
     data: TrackingUpdateRequest,
@@ -2021,7 +2005,7 @@ async def _compute_fulfillment_status(sub_order_ids: list) -> Optional[str]:
     return "unfulfilled"
 
 
-@router.put("/{order_id}/status", response_model=Order)
+@router.put("/{order_id}/status", response_model=PopulatedOrderResponse)
 async def update_order_status(
     order_id: str,
     status_data: OrderStatusUpdate,
@@ -2122,7 +2106,7 @@ async def update_order_status(
                         "orderId": order.id,
                         "userId": user.user_id if user else None,  # Use userId instead of customerId
                         "customerName": user.name if user else "Unknown",
-                        "orderDate": order.created_at,
+                        "orderDate": order.created_at if isinstance(order.created_at, str) else str(order.created_at),
                         "paymentMethod": "cod",
                         "totalAmount": (order.total if order.total is not None else 0),
                         "amountPaid": (order.total if order.total is not None else 0),
@@ -2162,8 +2146,8 @@ async def update_order_status(
         # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
         # cannot race against this restoration and produce a wrong stock count.
         for item in (order.items or []):
-            if item.product and (item.quantity if isinstance(item, dict) else item.quantity):
-                await product_repository.increment_stock_atomic(str(item.product), int(((item.quantity if isinstance(item, dict) else item.quantity) if (item.quantity if isinstance(item, dict) else item.quantity) is not None else 0)))
+            if item.product and item.quantity:
+                await product_repository.increment_stock_atomic(str(item.product), int((item.quantity if item.quantity is not None else 0)))
 
         from datetime import datetime
 
@@ -2277,7 +2261,7 @@ async def update_order_status(
     return populated_order
 
 
-@router.put("/{order_id}/accept", response_model=Order)
+@router.put("/{order_id}/accept", response_model=PopulatedOrderResponse)
 async def accept_order(order_id: str, current_user: User = Depends(require_super_admin)):
     """Accept order (Pending -> Processing)"""
     order = await order_repository.findById(order_id)
@@ -2306,7 +2290,7 @@ class DeclineOrderRequest(BaseModel):
         reason: str
 
 
-@router.put("/{order_id}/decline", response_model=Order)
+@router.put("/{order_id}/decline", response_model=PopulatedOrderResponse)
 async def decline_order(
     order_id: str, decline_data: DeclineOrderRequest, current_user: User = Depends(require_super_admin)
 ):
@@ -2336,8 +2320,8 @@ async def decline_order(
     # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
     # cannot race against this restoration and produce a wrong stock count.
     for item in (order.items or []):
-        if item.product and (item.quantity if isinstance(item, dict) else item.quantity):
-            await product_repository.increment_stock_atomic(str(item.product), int(((item.quantity if isinstance(item, dict) else item.quantity) if (item.quantity if isinstance(item, dict) else item.quantity) is not None else 0)))
+        if item.product and item.quantity:
+            await product_repository.increment_stock_atomic(str(item.product), int((item.quantity if item.quantity is not None else 0)))
 
     updated_order = await order_repository.update(
         order_id, OrderInternalUpdate(**{"status": "declined", "declineReason": decline_data.reason})
@@ -2347,7 +2331,7 @@ async def decline_order(
     return populated_order
 
 
-@router.put("/{order_id}/dispatch", response_model=Order)
+@router.put("/{order_id}/dispatch", response_model=PopulatedOrderResponse)
 async def dispatch_order(
     order_id: str,
     valet_data: AssignValetRequest,
@@ -2448,7 +2432,7 @@ async def get_valet_pending_orders(current_user: User = Depends(get_current_user
 #     declineReason: Optional[str] = None
 #
 #
-# @router.put("/{order_id}/valet-response", response_model=Order)
+# @router.put("/{order_id}/valet-response", response_model=PopulatedOrderResponse)
 # async def valet_response(
 #     order_id: str,
 #     response_data: ValetResponseRequest,
@@ -2521,7 +2505,7 @@ async def get_valet_pending_orders(current_user: User = Depends(get_current_user
 # ── END DUPLICATE ROUTE ───────────────────────────────────────────────────────
 
 
-@router.put("/{order_id}/cancel", response_model=Order)
+@router.put("/{order_id}/cancel", response_model=PopulatedOrderResponse)
 async def cancel_order(order_id: str, current_user: User = Depends(get_current_user)):
     """Cancel order (Customer/Wholesaler only, before Accept)"""
     order = await order_repository.findById(order_id)
@@ -2552,8 +2536,8 @@ async def cancel_order(order_id: str, current_user: User = Depends(get_current_u
     # Restore stock atomically — uses SELECT … FOR UPDATE so a concurrent new order
     # cannot race against this restoration and produce a wrong stock count.
     for item in (order.items or []):
-        if item.product and (item.quantity if isinstance(item, dict) else item.quantity):
-            await product_repository.increment_stock_atomic(str(item.product), int(((item.quantity if isinstance(item, dict) else item.quantity) if (item.quantity if isinstance(item, dict) else item.quantity) is not None else 0)))
+        if item.product and item.quantity:
+            await product_repository.increment_stock_atomic(str(item.product), int((item.quantity if item.quantity is not None else 0)))
 
     from datetime import datetime
 
@@ -2566,7 +2550,7 @@ async def cancel_order(order_id: str, current_user: User = Depends(get_current_u
     return populated_order
 
 
-@router.put("/{order_id}/assign-valet", response_model=Order)
+@router.put("/{order_id}/assign-valet", response_model=PopulatedOrderResponse)
 async def assign_valet(
     order_id: str, valet_data: AssignValetRequest, current_user: User = Depends(require_super_admin)
 ):
@@ -2592,7 +2576,7 @@ class ValetResponseRequest(BaseModel):
     declineReason: Optional[str] = None
 
 
-@router.put("/{order_id}/valet-response", response_model=Order)
+@router.put("/{order_id}/valet-response", response_model=PopulatedOrderResponse)
 async def valet_response(
     order_id: str,
     response_data: ValetResponseRequest,
@@ -2830,7 +2814,7 @@ async def valet_response(
 # ─── Valet Confirms Pickup from a Seller (multi-seller orders) ────────────────
 
 
-@router.put("/{order_id}/sub-orders/{sub_order_id}/confirm-pickup", response_model=Order)
+@router.put("/{order_id}/sub-orders/{sub_order_id}/confirm-pickup")
 async def confirm_sub_order_pickup(
     order_id: str,
     sub_order_id: str,
@@ -2931,7 +2915,7 @@ class SettleCreditRequest(BaseModel):
     upiPaymentScreenshot: Optional[str] = None
 
 
-@router.post("/{order_id}/settle-credit", response_model=Order)
+@router.post("/{order_id}/settle-credit")
 async def settle_credit(
     order_id: str, settle_data: SettleCreditRequest, current_user: User = Depends(get_current_user)
 ):

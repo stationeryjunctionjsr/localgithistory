@@ -132,7 +132,7 @@ class BundleRepository:
         result = []
         for bundle in all_bundles:
             items = (bundle.items if bundle.items is not None else [])
-            if any(i.productId == product_id for i in items):
+            if any(getattr(i, "productId", i.get("productId", i.get("product_id")) if isinstance(i, dict) else getattr(i, "product_id", None)) == product_id for i in items):
                 result.append(bundle)
         return result
 

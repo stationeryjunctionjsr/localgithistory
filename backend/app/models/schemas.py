@@ -350,6 +350,7 @@ class BundleItemResponse(BaseModel):
     discountPrice: Optional[float] = None
 
 class BundleResponse(BaseModel):
+    external_id: Optional[str] = None
     id: str = Field(alias="_id")
     name: str
     description: Optional[str] = None

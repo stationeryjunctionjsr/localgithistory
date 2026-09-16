@@ -1,4 +1,4 @@
-from app.models.daos import BundleInternalCreate, BundleInternalUpdate
+from app.models.daos import BundleInternalCreate, BundleItemInternal, BundleInternalUpdate
 from typing import Dict
 from app.models.bundle import Bundle, List, Optional
 
@@ -10,6 +10,7 @@ from app.models.schemas import BundleResponse
 
 
 class MySQLBundleDAO(MySQLFlatBaseDAO):
+    schema_cls = BundleResponse
     def __init__(self):
         super().__init__(
             table_name="sj_bundles",
@@ -23,7 +24,6 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
             },
             
             bool_api_keys=frozenset({"isActive"}),
-            schema_cls=BundleResponse,
         )
 
     async def _fetch_products(self, bundle_id: str) -> List[Dict]:
@@ -32,9 +32,10 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
             result = await session.execute(
                 text("SELECT product_id, quantity FROM sj_bundle_products WHERE bundle_id = :b_id"), {"b_id": bundle_id}
             )
-            return [{"productId": row[0], "quantity": row[1]} for row in result.all()]
+            from app.models.schemas import BundleItemResponse
+            return [BundleItemResponse(productId=row[0], quantity=row[1]) for row in result.all()]
 
-    async def _save_products(self, bundle_id: str, products: List[Dict]):
+    async def _save_products(self, bundle_id: str, products: List["BundleItemInternal"]):
         async_session = get_async_session_factory()
         async with async_session() as session:
             await session.execute(text("DELETE FROM sj_bundle_products WHERE bundle_id = :b_id"), {"b_id": bundle_id})
@@ -47,8 +48,8 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
                         stmt,
                         {
                             "b_id": bundle_id,
-                            "p_id": (p["productId"] if "productId" in p else None) or (p["product_id"] if "product_id" in p else None),
-                            "qty": p["quantity"] if "quantity" in p else 1,
+                            "p_id": p.productId,
+                            "qty": p.quantity,
                         },
                     )
             await session.commit()
@@ -56,22 +57,22 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
     async def findById(self, id: str) -> Optional[Dict]:
         doc = await super().findById(id)
         if doc:
-            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else doc.id))
+            doc.items = await self._fetch_products(doc.external_id if getattr(doc, "external_id", None) is not None else doc.id)
         return doc
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         doc = await super().findOne(query)
         if doc:
-            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else doc.id))
+            doc.items = await self._fetch_products(doc.external_id if getattr(doc, "external_id", None) is not None else doc.id)
         return doc
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         docs = await super().findAll(query)
         for doc in docs:
-            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else doc.id))
+            doc.items = await self._fetch_products(doc.external_id if getattr(doc, "external_id", None) is not None else doc.id)
         return docs
 
-    async def create(self, data: 'BundleInternalCreate') -> Dict:
+    async def create(self, data: 'BundleInternalCreate, BundleItemInternal') -> Dict:
         data_dict = {}
         try:
             if data.name is not None: data_dict["name"] = data.name
@@ -102,8 +103,8 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
             except AttributeError: pass
             
         doc = await super().create(data_dict)
-        await self._save_products((doc.external_id if doc.external_id is not None else doc.id), items)
-        doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else doc.id))
+        await self._save_products((doc.external_id if getattr(doc, "external_id", None) is not None else doc.id), items)
+        doc.items = await self._fetch_products(doc.external_id if getattr(doc, "external_id", None) is not None else doc.id)
         return doc
 
     async def update(self, id: str, update_data: 'BundleInternalUpdate') -> Optional[Dict]:
@@ -139,6 +140,6 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
         doc = await super().update(id, update_dict)
         if doc:
             if items is not None:
-                await self._save_products((doc.external_id if doc.external_id is not None else doc.id), items)
-            doc["items"] = await self._fetch_products((doc.external_id if doc.external_id is not None else doc.id))
+                await self._save_products((doc.external_id if getattr(doc, "external_id", None) is not None else doc.id), items)
+            doc.items = await self._fetch_products(doc.external_id if getattr(doc, "external_id", None) is not None else doc.id)
         return doc
