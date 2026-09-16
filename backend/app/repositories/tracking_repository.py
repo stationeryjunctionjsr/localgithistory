@@ -357,9 +357,8 @@ class TrackingRepository:
             return None
         try:
             return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-        except Exception as e:
-            logging.warning("Background task failed", exc_info=e)
-            return None
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid timestamp format: {raw}") from e
 
     async def get_search_counts_by_product(self, days: int, segment: str) -> Dict[str, int]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)

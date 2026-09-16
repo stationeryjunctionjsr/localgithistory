@@ -40,8 +40,8 @@ class FeatureFlagUpdate(BaseModel):
     category: Optional[str] = None
 
 
-@router.get("", response_model=List[Dict])
-@router.get("/", response_model=List[Dict])
+@router.get("", response_model=List[FeatureFlagItem])
+@router.get("/", response_model=List[FeatureFlagItem])
 async def get_all_feature_flags(current_user: User = Depends(require_super_admin)):
     """Get all feature flags (Super Admin only)"""
     try:
@@ -52,7 +52,7 @@ async def get_all_feature_flags(current_user: User = Depends(require_super_admin
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.get("/enabled", response_model=List[Dict])
+@router.get("/enabled", response_model=List[FeatureFlagItem])
 @cache.ttl_cache(ttl=300.0)
 async def get_enabled_feature_flags():
     """Get all enabled feature flags (Public for frontend)"""
@@ -64,7 +64,7 @@ async def get_enabled_feature_flags():
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.get("/{flag_id}", response_model=Dict)
+@router.get("/{flag_id}", response_model=FeatureFlagItem)
 async def get_feature_flag(flag_id: str, current_user: User = Depends(require_super_admin)):
     """Get feature flag by ID (Super Admin only)"""
     try:
@@ -79,7 +79,7 @@ async def get_feature_flag(flag_id: str, current_user: User = Depends(require_su
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.get("/check/{flag_id}", response_model=Dict)
+@router.get("/check/{flag_id}", response_model=FeatureFlagItem)
 @cache.ttl_cache(ttl=300.0)
 async def check_feature_flag(flag_id: str):
     """Check if a feature is enabled (Public endpoint)"""
@@ -91,8 +91,8 @@ async def check_feature_flag(flag_id: str):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.post("", response_model=Dict, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=Dict, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=FeatureFlagItem, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=FeatureFlagItem, status_code=status.HTTP_201_CREATED)
 async def create_feature_flag(flag_data: FeatureFlagCreate, current_user: User = Depends(require_super_admin)):
     """Create new feature flag (Super Admin only)"""
     try:
@@ -121,7 +121,7 @@ async def create_feature_flag(flag_data: FeatureFlagCreate, current_user: User =
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.put("/{flag_id}", response_model=Dict)
+@router.put("/{flag_id}", response_model=FeatureFlagItem)
 async def update_feature_flag(
     flag_id: str, update_data: FeatureFlagUpdate, current_user: User = Depends(require_super_admin)
 ):
@@ -141,7 +141,7 @@ async def update_feature_flag(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.patch("/{flag_id}/toggle", response_model=Dict)
+@router.patch("/{flag_id}/toggle", response_model=FeatureFlagItem)
 async def toggle_feature_flag(flag_id: str, current_user: User = Depends(require_super_admin)):
     """Toggle feature flag (Super Admin only)"""
     try:

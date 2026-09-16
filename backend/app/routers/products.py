@@ -666,7 +666,7 @@ async def get_public_products(
         query["availability"] = availability
     if sort:
         query["sort"] = sort
-    query.role = role
+    query["role"] = role
 
     # Zone-based seller filter: resolve pincode → zone → seller set so only
     # products serviceable in the user's zone are returned.
@@ -826,7 +826,7 @@ async def get_products(
     elif status == "all":
         query["includeInactive"] = True
 
-    query.role = effective_role
+    query["role"] = effective_role
     query["user_id"] = user_id
 
     if effective_role == "wholesaler":

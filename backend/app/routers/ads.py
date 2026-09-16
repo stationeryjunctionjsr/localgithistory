@@ -47,7 +47,7 @@ async def get_all_ads(placement: Optional[str] = None, active_only: bool = Query
     if active_only:
         query["status"] = "active"
     ads = await storage.findAll(query)
-    return {"ads": ads}
+    return ads
 
 
 @router.post("/", response_model=Ad)

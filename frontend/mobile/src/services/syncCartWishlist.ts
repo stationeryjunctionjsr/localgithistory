@@ -16,13 +16,15 @@ export async function syncGuestDataToBackend(): Promise<void> {
       try {
         await api.post('/cart', { productId: item.productId, quantity: item.quantity });
       } catch (e) {
+        if (__DEV__) {
+          console.warn(`Failed to sync cart item ${item.productId}`, e);
+        }
         // keep items that fail to sync
         failedCartItems.push(item);
       }
     }
     if (failedCartItems.length > 0) {
-      // Store back only the failed ones
-      await api.post('/cart-error-log', { failedItems: failedCartItems }).catch((e: any) => console.warn('Background task failed', e)); // optional log
+      Toast.show({ type: 'error', text1: 'Sync Error', text2: 'Some cart items failed to sync' });
       // In mobile, getGuestCart gets from SecureStore or similar. We need to clear and re-add or directly set
       // We will just clear all then add the failed ones back.
       await clearGuestCart();
@@ -34,8 +36,10 @@ export async function syncGuestDataToBackend(): Promise<void> {
       await clearGuestCart();
     }
   } catch (e: any) {
-    console.warn('Sync failed entirely', e);
-    Toast.show({ type: 'error', text1: 'Sync Error', text2: 'Sync failed entirely' });
+    if (__DEV__) {
+      console.warn('Cart sync failed entirely', e);
+    }
+    Toast.show({ type: 'error', text1: 'Sync Error', text2: 'Cart sync failed entirely' });
   }
 
   // ── Wishlist ──────────────────────────────────────────────────────
@@ -45,11 +49,15 @@ export async function syncGuestDataToBackend(): Promise<void> {
     for (const item of guestWishlist) {
       try {
         await api.post('/wishlist', { productId: item.productId });
-      } catch {
+      } catch (e) {
+        if (__DEV__) {
+          console.warn(`Failed to sync wishlist item ${item.productId}`, e);
+        }
         failedWishlistItems.push(item);
       }
     }
     if (failedWishlistItems.length > 0) {
+      Toast.show({ type: 'error', text1: 'Sync Error', text2: 'Some wishlist items failed to sync' });
       await clearGuestWishlist();
       for (const item of failedWishlistItems) {
         const { addGuestWishlistItem } = require('./guestStore');
@@ -59,7 +67,9 @@ export async function syncGuestDataToBackend(): Promise<void> {
       await clearGuestWishlist();
     }
   } catch (e: any) {
-    console.warn('Sync failed entirely', e);
-    Toast.show({ type: 'error', text1: 'Sync Error', text2: 'Sync failed entirely' });
+    if (__DEV__) {
+      console.warn('Wishlist sync failed entirely', e);
+    }
+    Toast.show({ type: 'error', text1: 'Sync Error', text2: 'Wishlist sync failed entirely' });
   }
 }

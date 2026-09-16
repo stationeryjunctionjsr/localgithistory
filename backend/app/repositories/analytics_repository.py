@@ -27,9 +27,8 @@ class AnalyticsRepository:
             # Handle ISO format with or without Z
             date_str = date_str.replace("Z", "+00:00")
             return datetime.fromisoformat(date_str)
-        except Exception as e:
-            logging.warning("Background task failed", exc_info=e)
-            return None
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Invalid date format: {date_str}") from e
 
     def _to_naive_utc(self, dt: Optional[datetime]) -> Optional[datetime]:
         """Normalize to naive UTC for consistent arithmetic."""
@@ -1476,14 +1475,8 @@ class AnalyticsRepository:
         top_wholesalers = await self.get_top_users_by_revenue("wholesaler", start_date, end_date, 10)
         top_customers = await self.get_top_users_by_revenue("customer", start_date, end_date, 10)
 
-        try:
-            most_searched = await tracking_repository.getMostSearched(10, start_date, end_date)
-        except Exception:
-            most_searched = []
-        try:
-            most_viewed = await tracking_repository.getMostViewed(10, start_date, end_date)
-        except Exception:
-            most_viewed = []
+        most_searched = await tracking_repository.getMostSearched(10, start_date, end_date)
+        most_viewed = await tracking_repository.getMostViewed(10, start_date, end_date)
 
         return {
             "stats": {
@@ -1538,8 +1531,8 @@ class AnalyticsRepository:
                     else:
                         dt = order_date
                     month_key = dt.strftime("%Y-%m")
-                except Exception as e:
-                    logging.warning("Background task failed", exc_info=e)
+                except (ValueError, TypeError) as e:
+                    raise ValueError(f"Invalid order date format: {order_date}") from e
                     
             # Group items by bundleId in this order
             order_bundles = defaultdict(list)
