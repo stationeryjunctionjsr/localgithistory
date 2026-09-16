@@ -16,8 +16,8 @@ async def test_bundle_product_recommendations(client: AsyncClient, user_auth: di
         {"name": "Test Notebook", "mrp": 50.0, "price": 40.0, "stock": 100, "isActive": True, "category": "Stationery"}
     )
 
-    pid1 = p1["_id"]
-    pid2 = p2["_id"]
+    pid1 = p1.id
+    pid2 = p2.id
 
     # 2. Create active bundles with different salesCount values
     b1 = await bundle_repository.create(
@@ -44,8 +44,8 @@ async def test_bundle_product_recommendations(client: AsyncClient, user_auth: di
     response = await client.get(f"/api/bundles/product/{pid1}")
     assert response.status_code == 200
     data = response.json()
-    assert "bundles" in data
-    bundles = data["bundles"]
+    assert isinstance(data, list)
+    bundles = data
     print(f"b1: {b1}")
     print(f"b2: {b2}")
     print(f"bundles: {bundles}")
@@ -60,8 +60,8 @@ async def test_bundle_product_recommendations(client: AsyncClient, user_auth: di
     # 4. Cleanup
     await product_repository.storage.delete(pid1)
     await product_repository.storage.delete(pid2)
-    await bundle_repository.storage.delete(b1["_id"])
-    await bundle_repository.storage.delete(b2["_id"])
+    await bundle_repository.storage.delete(b1.id)
+    await bundle_repository.storage.delete(b2.id)
 
 
 @pytest.mark.asyncio
@@ -70,7 +70,7 @@ async def test_bundle_purchase_increments_sales_count(client: AsyncClient, user_
     p = await product_repository.create(
         {"name": "Test Item", "mrp": 20.0, "price": 15.0, "stock": 50, "isActive": True, "category": "Stationery"}
     )
-    pid = p["_id"]
+    pid = p.id
 
     b = await bundle_repository.create(
         {
@@ -81,7 +81,7 @@ async def test_bundle_purchase_increments_sales_count(client: AsyncClient, user_
             "salesCount": 10,
         }
     )
-    bid = b["_id"]
+    bid = b.id
 
     # 2. Add bundle to the user's cart (API handles tagging it with bundleId/bundleName)
     add_response = await client.post(f"/api/bundles/{bid}/add-to-cart", headers=user_auth)
@@ -94,7 +94,7 @@ async def test_bundle_purchase_increments_sales_count(client: AsyncClient, user_
             "city": "Testville",
             "state": "TestState",
             "zipCode": "831001",
-            "mobile": "9999999999",
+            "phone": "9999999999",
         },
         "paymentMethod": "cod",
     }
@@ -102,7 +102,7 @@ async def test_bundle_purchase_increments_sales_count(client: AsyncClient, user_
     with patch("app.repositories.feature_flag_repository.FeatureFlagRepository.is_enabled", return_value=True):
         order_response = await client.post("/api/orders/", json=order_data, headers=user_auth)
     assert order_response.status_code == 201, order_response.text
-    order_id = order_response.json().get("_id")
+    order_id = order_response.json().get("_id", order_response.json().get("id"))
 
     # 4. Fetch the bundle again and verify salesCount incremented to 11
     updated_bundle = await bundle_repository.findById(bid)

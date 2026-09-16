@@ -310,22 +310,18 @@ class MySQLPaymentDAO:
             return None
         # Since existing is a Dict and update_data is a PaymentInternalUpdate, we merge by accessing update_data fields
         # falling back to existing.
-        merged = {}
-        for k in ["orderId", "userId", "userIdFormatted", "customerName", "orderDate", "paymentMethod", "amountPaid", "amountRemaining", "totalAmount", "paymentId"]:
-            if k == "orderId": val = update_data.orderId
-            elif k == "userId": val = update_data.userId
-            elif k == "userIdFormatted": val = update_data.userIdFormatted
-            elif k == "customerName": val = update_data.customerName
-            elif k == "orderDate": val = update_data.orderDate
-            elif k == "paymentMethod": val = update_data.paymentMethod
-            elif k == "amountPaid": val = update_data.amountPaid
-            elif k == "amountRemaining": val = update_data.amountRemaining
-            elif k == "totalAmount": val = update_data.totalAmount
-            elif k == "paymentId": val = update_data.paymentId
-            else: val = None
-            if val is None:
-                val = getattr(existing, k, None) if k != "orderId" else getattr(existing, "order_id", None) or getattr(existing, "orderId", None)
-            merged[k] = val
+        merged = {
+            "orderId": update_data.orderId if update_data.orderId is not None else existing.order_id,
+            "userId": update_data.userId if update_data.userId is not None else existing.user_id,
+            "userIdFormatted": update_data.userIdFormatted if update_data.userIdFormatted is not None else existing.user_id_formatted,
+            "customerName": update_data.customerName if update_data.customerName is not None else existing.customer_name,
+            "orderDate": update_data.orderDate if update_data.orderDate is not None else existing.order_date,
+            "paymentMethod": update_data.paymentMethod if update_data.paymentMethod is not None else existing.payment_method,
+            "amountPaid": update_data.amountPaid if update_data.amountPaid is not None else existing.amount_paid,
+            "amountRemaining": update_data.amountRemaining if update_data.amountRemaining is not None else existing.amount_remaining,
+            "totalAmount": update_data.totalAmount if update_data.totalAmount is not None else existing.total_amount,
+            "paymentId": update_data.paymentId if update_data.paymentId is not None else existing.payment_id,
+        }
 
         factory = self._factory()
         if not factory:

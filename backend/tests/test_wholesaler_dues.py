@@ -46,7 +46,7 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
         # Create corresponding order record via repository to generate IDs & number correctly
         order = await order_repository.create(
             {
-                "user": user["_id"],
+                "user": user.id,
                 "userRole": "wholesaler",
                 "subtotal": 500.0,
                 "total": 500.0,
@@ -58,9 +58,9 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
         )
 
         payment_data = {
-            "orderId": order["_id"],
-            "userId": user.get("userId", str(user["_id"])),
-            "customerName": user["name"],
+            "orderId": order.id,
+            "userId": user.get("userId", str(user.id)),
+            "customerName": user.name,
             "orderDate": order_date.isoformat().replace("+00:00", "Z"),
             "paymentMethod": "credit",
             "amountPaid": 0.0,
@@ -141,11 +141,11 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
 
         if "user" in locals():
             try:
-                await session_repository.delete_all_for_user(user["_id"])
+                await session_repository.delete_all_for_user(user.id)
             except Exception:
                 pass
             try:
-                await user_repository.storage.delete(user["_id"])
+                await user_repository.storage.delete(user.id)
             except Exception:
                 pass
         if "payment" in locals():
@@ -155,6 +155,6 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
                 pass
         if "order" in locals():
             try:
-                await order_repository.delete(order["_id"])
+                await order_repository.delete(order.id)
             except Exception:
                 pass

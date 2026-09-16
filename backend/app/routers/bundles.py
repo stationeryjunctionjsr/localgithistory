@@ -128,15 +128,16 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
 
     bundle_price = float((bundle.price if bundle.price is not None else 0))
     display_img = (
-        bundle.display_image
-        or bundle.image_url
+        getattr(bundle, "displayImage", getattr(bundle, "display_image", getattr(bundle, "imageUrl", getattr(bundle, "image_url", None))))
         or next(
-            (item.product.images[0] for item in enriched_items if item.product and item.product.images),
+            (item["product"]["images"][0] for item in enriched_items if item.get("product") and item["product"].get("images")),
             None,
         )
     )
+    
+    bundle_dict = bundle.model_dump(by_alias=True) if hasattr(bundle, 'model_dump') else (bundle if isinstance(bundle, dict) else {})
     return {
-        **bundle,
+        **bundle_dict,
         "items": enriched_items,
         "totalMrp": round(total_mrp, 2),
         "savings": round(total_mrp - bundle_price, 2),
@@ -287,7 +288,7 @@ async def list_bundles_for_product(product_id: str):
             except Exception as e:
                 logger.warning("Could not enrich bundle %s: %s", b.id, e)
         # Sort by salesCount descending
-        enriched.sort(key=lambda x: (x.sales_count if x.sales_count is not None else 0), reverse=True)
+        enriched.sort(key=lambda x: (x.get("salesCount", x.get("sales_count")) if x.get("salesCount", x.get("sales_count")) is not None else 0) if isinstance(x, dict) else (x.sales_count if x.sales_count is not None else 0), reverse=True)
         return enriched
     except Exception as e:
         logger.error("Error fetching bundles for product %s: %s", product_id, str(e), exc_info=True)

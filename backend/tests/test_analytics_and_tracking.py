@@ -228,7 +228,7 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
 
     # Verify logging in the events database
     all_event_records = await analytics_repository.event_storage.findAll()
-    event_records = [r for r in all_event_records if r.payload and "testRunId" in r.payload and r.payload["testRunId"] == session_id]
+    event_records = [r for r in all_event_records if r.payload and r.payload.get("testRunId") == session_id]
     assert len(event_records) == len(mobile_events)
 
     # Verify replication/syncing in the tracking database

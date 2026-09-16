@@ -19,7 +19,7 @@ async def test_category_crud_workflow(client: AsyncClient):
     # Pre-test cleanup: delete category if it already exists
     existing = await category_repository.findByName("Test Category Returnable")
     if existing:
-        await category_repository.storage.delete(existing["_id"])
+        await category_repository.storage.delete(existing.id)
 
     # 1. Create Category
     payload = {
