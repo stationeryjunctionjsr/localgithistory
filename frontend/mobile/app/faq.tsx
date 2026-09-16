@@ -90,7 +90,7 @@ export default function FAQ() {
         setSections(res.data);
       }
     } catch (err) {
-      console.log('Failed to fetch FAQs, using fallback', err);
+      if (__DEV__) console.warn('Failed to fetch FAQs, using fallback', err);
     } finally {
       setLoading(false);
     }
@@ -277,5 +277,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 4,
   },
-  contactButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  contactButtonText: { color: colors.surface, fontWeight: '600', fontSize: 14 },
 });

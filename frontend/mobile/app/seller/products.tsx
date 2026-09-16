@@ -50,7 +50,7 @@ export default function SellerProducts() {
       try {
         const res = await api.get('/users/me');
         setMyId(res.data?._id || '');
-      } catch (e) { console.warn('Failed to init user', e); }
+      } catch (e) { if (__DEV__) console.warn('Failed to init user', e); }
       fetchMyProducts();
     };
     init();
@@ -219,7 +219,7 @@ export default function SellerProducts() {
                 <Text style={[styles.stepText, (entry?.stock ?? 0) <= 0 && { color: '#D1D5DB' }]}>-</Text>
               </TouchableOpacity>
               
-              <Text style={[styles.stockValue, { color: (entry?.stock ?? 0) < 5 ? '#EF4444' : '#111827', width: 36, textAlign: 'center' }]}>
+              <Text style={[styles.stockValue, { color: (entry?.stock ?? 0) < 5 ? colors.error : '#111827', width: 36, textAlign: 'center' }]}>
                 {entry?.stock ?? item.stock ?? 0}
               </Text>
 
@@ -243,7 +243,7 @@ export default function SellerProducts() {
           onPress={() => handleToggleActive(item)}
           disabled={togglingId === item._id}
         >
-          <Text style={[styles.toggleBtnText, { color: entry?.isActive ? '#DC2626' : '#16A34A' }]}>
+          <Text style={[styles.toggleBtnText, { color: entry?.isActive ? colors.error : '#16A34A' }]}>
             {togglingId === item._id ? 'Updating...' : (entry?.isActive ? 'Mark Inactive' : 'Mark Active')}
           </Text>
         </TouchableOpacity>
@@ -379,7 +379,7 @@ export default function SellerProducts() {
                 onPress={handleSubmitRequest}
                 disabled={submitting}
               >
-                <Text style={{ color: '#fff', fontWeight: '700' }}>{submitting ? 'Submitting...' : 'Submit Request'}</Text>
+                <Text style={{ color: colors.surface, fontWeight: '700' }}>{submitting ? 'Submitting...' : 'Submit Request'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -391,14 +391,14 @@ export default function SellerProducts() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
-  tabBar: { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  tabBar: { flexDirection: 'row', backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center' },
   tabActive: { borderBottomWidth: 2, borderBottomColor: '#4f46e5' },
   tabText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
   tabTextActive: { color: '#4f46e5' },
   list: { padding: 16 },
   card: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
+    backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 12,
     ...shadows.sm,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
@@ -425,14 +425,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#4f46e5', borderRadius: 8, paddingVertical: 8,
     alignItems: 'center', marginTop: 8,
   },
-  requestBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  requestBtnText: { color: colors.surface, fontSize: 13, fontWeight: '700' },
   empty: { flex: 1, alignItems: 'center', paddingTop: 60 },
   emptyText: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  emptySubText: { fontSize: 13, color: '#9CA3AF', marginTop: 8, textAlign: 'center' },
+  emptySubText: { fontSize: 13, color: colors.textMuted, marginTop: 8, textAlign: 'center' },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalCard: {
-    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
     padding: 24, paddingBottom: 36,
   },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 2 },

@@ -22,7 +22,7 @@ export default function SellerDashboard() {
       
       setStats({ total, pending, delivered, revenue });
     } catch (error) {
-      console.error('Failed to fetch stats:', error);
+      if (__DEV__) console.error('Failed to fetch stats:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -48,9 +48,9 @@ export default function SellerDashboard() {
 
   const cards = [
     { label: 'Total Orders', value: stats.total, icon: 'cube', color: '#6366f1' },
-    { label: 'Pending', value: stats.pending, icon: 'time', color: '#f59e0b' },
+    { label: 'Pending', value: stats.pending, icon: 'time', color: colors.warning },
     { label: 'Delivered', value: stats.delivered, icon: 'checkmark-circle', color: '#22c55e' },
-    { label: 'Revenue (est.)', value: `₹${Math.round(stats.revenue).toLocaleString('en-IN')}`, icon: 'cash', color: '#3b82f6' },
+    { label: 'Revenue (est.)', value: `₹${Math.round(stats.revenue).toLocaleString('en-IN')}`, icon: 'cash', color: colors.info },
   ];
 
   return (
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', padding: 10 },
   card: {
     width: '45%',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     margin: '2.5%',

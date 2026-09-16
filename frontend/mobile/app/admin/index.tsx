@@ -25,7 +25,7 @@ export default function AdminDashboard() {
         setStats(response.data.stats);
       }
     } catch (error) {
-      console.error('Failed to fetch stats:', error);
+      if (__DEV__) console.error('Failed to fetch stats:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -52,9 +52,9 @@ export default function AdminDashboard() {
   const formatCurrency = (val: number) => `₹${(val || 0).toLocaleString('en-IN')}`;
 
   const cards = [
-    { label: 'Revenue', value: formatCurrency(stats?.totalRevenue || 0), icon: 'cash', color: '#10B981' },
-    { label: 'Orders', value: stats?.totalOrders || 0, icon: 'cart', color: '#3B82F6' },
-    { label: 'Products', value: stats?.totalProducts || 0, icon: 'cube', color: '#F59E0B' },
+    { label: 'Revenue', value: formatCurrency(stats?.totalRevenue || 0), icon: 'cash', color: colors.success },
+    { label: 'Orders', value: stats?.totalOrders || 0, icon: 'cart', color: colors.info },
+    { label: 'Products', value: stats?.totalProducts || 0, icon: 'cube', color: colors.warning },
     { label: 'Customers', value: stats?.totalCustomers || 0, icon: 'people', color: '#8B5CF6' },
     { label: 'Wholesalers', value: stats?.totalWholesalers || 0, icon: 'business', color: '#EC4899' },
     { label: 'Valets', value: stats?.totalValets || 0, icon: 'bicycle', color: '#14B8A6' },
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', padding: 10 },
   card: {
     width: '45%',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     margin: '2.5%',

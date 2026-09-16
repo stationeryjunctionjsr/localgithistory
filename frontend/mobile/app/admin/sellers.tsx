@@ -16,7 +16,7 @@ export default function AdminSellers() {
         setSellers(Array.isArray(res.data) ? res.data : (res.data.users || []));
       }
     } catch (error) {
-      console.error('Failed to fetch sellers:', error);
+      if (__DEV__) console.error('Failed to fetch sellers:', error);
       Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to load sellers' });
     } finally {
       setLoading(false);
@@ -71,7 +71,7 @@ export default function AdminSellers() {
               </View>
             </View>
             <TouchableOpacity 
-              style={[styles.btn, { backgroundColor: item.isActive ? '#DC2626' : '#10B981' }]}
+              style={[styles.btn, { backgroundColor: item.isActive ? colors.error : colors.success }]}
               onPress={() => confirmToggle(item.id || item._id, item.companyName || item.name, item.isActive)}
             >
               <Text style={styles.btnText}>{item.isActive ? 'Deactivate' : 'Activate'}</Text>
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3F4F6' },
   list: { padding: 16 },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -103,5 +103,5 @@ const styles = StyleSheet.create({
   badge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 },
   badgeText: { fontSize: 10, fontWeight: '700' },
   btn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
-  btnText: { color: '#fff', fontSize: 13, fontWeight: '600' }
+  btnText: { color: colors.surface, fontSize: 13, fontWeight: '600' }
 });

@@ -58,7 +58,7 @@ const InputField = ({
     <View
       className={`flex-row items-center rounded-xl px-4 py-3 ${error ? 'border border-red-400 bg-red-50' : 'bg-slate-100'}`}
     >
-      {icon && <Ionicons name={icon as any} size={18} color={error ? '#EF4444' : '#64748B'} style={{ marginRight: 8 }} />}
+      {icon && <Ionicons name={icon as any} size={18} color={error ? colors.error : '#64748B'} style={{ marginRight: 8 }} />}
       <TextInput
         className={`flex-1 text-slate-800 ${multiline ? 'h-24 pt-0' : ''}`}
         placeholder={placeholder}
@@ -87,7 +87,7 @@ const PaymentOption = ({ value, label, icon, currentMethod, onPress }: any) => {
       onPress={() => onPress(value)}
       activeOpacity={0.7}
     >
-      <Ionicons name={icon} size={22} color={active ? '#fff' : '#64748B'} />
+      <Ionicons name={icon} size={22} color={active ? colors.surface : '#64748B'} />
       <Text className={`mt-1 text-xs font-medium ${active ? 'text-white' : 'text-neutral-500'}`}>
         {label}
       </Text>
@@ -506,7 +506,7 @@ export default function Checkout() {
           }));
           if (res.data.state) fetchMobileDistricts(res.data.state);
         }
-      } catch (e: any) { console.warn('Background task failed', e); } finally {
+      } catch (e: any) { if (__DEV__) console.warn('Background task failed', e); } finally {
         setPincodeLoading(false);
       }
     };
@@ -764,7 +764,7 @@ export default function Checkout() {
                 style={{ backgroundColor: isActive ? colors.primary : '#E2E8F0' }}
               >
                 {isPast ? (
-                  <Ionicons name="checkmark" size={16} color="#fff" />
+                  <Ionicons name="checkmark" size={16} color={colors.surface} />
                 ) : (
                   <Text
                     className={`text-xs font-bold ${isActive ? 'text-white' : 'text-slate-500'}`}
@@ -869,7 +869,7 @@ export default function Checkout() {
                     }}
                     disabled={authBusy}
                   >
-                    {authBusy ? <ActivityIndicator color="#fff" /> : <Text className="font-bold text-white">Log In</Text>}
+                    {authBusy ? <ActivityIndicator color={colors.surface} /> : <Text className="font-bold text-white">Log In</Text>}
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => router.push('/login')} className="mt-3 items-center">
                     <Text className="text-sm text-slate-500">Forgot password?</Text>
@@ -900,7 +900,7 @@ export default function Checkout() {
                   disabled={authBusy}
                 >
                   {authBusy ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.surface} />
                   ) : (
                     <Text className="font-bold text-white">Continue</Text>
                   )}
@@ -928,7 +928,7 @@ export default function Checkout() {
                     disabled={authBusy}
                   >
                     {authBusy ? (
-                      <ActivityIndicator color="#fff" />
+                      <ActivityIndicator color={colors.surface} />
                     ) : (
                       <Text className="font-bold text-white">Log In</Text>
                     )}
@@ -963,14 +963,14 @@ export default function Checkout() {
                     <View className="justify-end">
                       <TouchableOpacity
                         className="rounded-xl px-4 py-3"
-                        style={{ backgroundColor: otpVerified ? '#10B981' : otpSent ? '#F59E0B' : colors.primary }}
+                        style={{ backgroundColor: otpVerified ? colors.success : otpSent ? colors.warning : colors.primary }}
                         onPress={otpVerified ? undefined : otpSent ? verifyOTP : sendOTP}
                         disabled={authBusy || otpVerified}
                       >
                         {authBusy ? (
-                          <ActivityIndicator color="#fff" size="small" />
+                          <ActivityIndicator color={colors.surface} size="small" />
                         ) : otpVerified ? (
-                          <Ionicons name="checkmark" size={20} color="#fff" />
+                          <Ionicons name="checkmark" size={20} color={colors.surface} />
                         ) : (
                           <Text className="text-sm font-semibold text-white">
                             {otpSent ? 'Verify' : 'Send'}
@@ -1013,7 +1013,7 @@ export default function Checkout() {
                         disabled={authBusy || !otpVerified}
                       >
                         {authBusy ? (
-                          <ActivityIndicator color="#fff" />
+                          <ActivityIndicator color={colors.surface} />
                         ) : (
                           <Text className="font-bold text-white">Create Account & Continue</Text>
                         )}
@@ -1044,7 +1044,7 @@ export default function Checkout() {
                       className="mb-2 rounded-xl border p-4"
                     style={{
                       borderColor: selectedAddressIdx === idx ? colors.primary : '#E2E8F0',
-                      backgroundColor: selectedAddressIdx === idx ? `${colors.primary}12` : '#FFFFFF',
+                      backgroundColor: selectedAddressIdx === idx ? `${colors.primary}12` : colors.surface,
                     }}
                       onPress={() => {
                         setSelectedAddressIdx(idx);
@@ -1407,7 +1407,7 @@ export default function Checkout() {
                     className={`mr-3 h-5 w-5 items-center justify-center rounded border-2 ${saveAddress ? 'border-transparent' : 'border-slate-300'}`}
                     style={saveAddress ? { backgroundColor: colors.primary } : undefined}
                   >
-                    {saveAddress && <Ionicons name="checkmark" size={12} color="#fff" />}
+                    {saveAddress && <Ionicons name="checkmark" size={12} color={colors.surface} />}
                   </View>
                   <Text className="text-sm text-slate-600">Save this address to my account</Text>
                 </TouchableOpacity>
@@ -1522,7 +1522,7 @@ export default function Checkout() {
                         className="absolute right-4 top-4 h-8 w-8 items-center justify-center rounded-full bg-red-500"
                         onPress={() => setUpiScreenshot('')}
                       >
-                        <Ionicons name="close" size={20} color="#fff" />
+                        <Ionicons name="close" size={20} color={colors.surface} />
                       </TouchableOpacity>
                     </View>
                   ) : (
@@ -1621,11 +1621,11 @@ export default function Checkout() {
                     <Ionicons
                       name="pricetag-outline"
                       size={18}
-                      color={appliedCoupon ? '#10B981' : '#64748B'}
+                      color={appliedCoupon ? colors.success : '#64748B'}
                     />
                     <Text
                       className="text-sm font-medium"
-                      style={{ color: appliedCoupon ? '#10B981' : '#64748B' }}
+                      style={{ color: appliedCoupon ? colors.success : '#64748B' }}
                     >
                       {appliedCoupon
                         ? `"${appliedCoupon.code}" applied — save ₹${appliedCoupon.discount.toFixed(2)}`
@@ -1661,7 +1661,7 @@ export default function Checkout() {
                         disabled={couponLoading}
                       >
                         {couponLoading ? (
-                          <ActivityIndicator size="small" color="#fff" />
+                          <ActivityIndicator size="small" color={colors.surface} />
                         ) : (
                           <Text className="text-sm font-bold text-white">Apply</Text>
                         )}
@@ -1679,7 +1679,7 @@ export default function Checkout() {
                           setCouponError('');
                         }}
                       >
-                        <Ionicons name="close-circle" size={14} color="#EF4444" />
+                        <Ionicons name="close-circle" size={14} color={colors.error} />
                         <Text className="ml-1 text-xs text-red-500">Remove coupon</Text>
                       </TouchableOpacity>
                     )}
@@ -1759,7 +1759,7 @@ export default function Checkout() {
                     <Ionicons
                       name="location"
                       size={16}
-                      color="#475569"
+                      color={colors.textSecondary}
                       style={{ marginRight: 6 }}
                     />
                     <Text className="text-sm font-semibold text-neutral-700">Delivery Address</Text>
@@ -1771,7 +1771,7 @@ export default function Checkout() {
 
                 <View className="rounded-xl border border-neutral-100 bg-white p-3">
                   <View className="mb-2 flex-row items-center">
-                    <Ionicons name="card" size={16} color="#475569" style={{ marginRight: 6 }} />
+                    <Ionicons name="card" size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
                     <Text className="text-sm font-semibold text-neutral-700">Payment Method</Text>
                   </View>
                   <Text className="text-sm font-medium capitalize text-neutral-800">
@@ -1803,7 +1803,7 @@ export default function Checkout() {
                   disabled={placing}
                 >
                   {placing ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.surface} />
                   ) : (
                     <Text className="font-bold text-white">Place Order</Text>
                   )}

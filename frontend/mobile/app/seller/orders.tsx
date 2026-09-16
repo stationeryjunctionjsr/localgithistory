@@ -13,7 +13,7 @@ export default function SellerOrders() {
       const res = await api.get('/orders/seller-orders?page=1&limit=50');
       setOrders(res.data?.subOrders || []);
     } catch (error) {
-      console.error('Failed to fetch seller orders:', error);
+      if (__DEV__) console.error('Failed to fetch seller orders:', error);
       Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to load orders' });
     } finally {
       setLoading(false);
@@ -51,12 +51,12 @@ export default function SellerOrders() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'delivered': return '#10B981';
-      case 'shipped': return '#3B82F6';
-      case 'cancelled': return '#EF4444';
-      case 'pending': return '#F59E0B';
+      case 'delivered': return colors.success;
+      case 'shipped': return colors.info;
+      case 'cancelled': return colors.error;
+      case 'pending': return colors.warning;
       case 'processing': return '#8B5CF6';
-      case 'pending_valet': return '#F59E0B';
+      case 'pending_valet': return colors.warning;
       default: return '#6B7280';
     }
   };
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   list: { padding: 16 },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
