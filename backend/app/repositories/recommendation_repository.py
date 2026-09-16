@@ -140,7 +140,12 @@ def get_recommendation_config() -> Dict:
 
 
 def _parse_order_date(order: Any) -> Optional[datetime]:
-    raw = order.createdAt
+    """Helper to safely parse order creation date for time-decay weighting."""
+    if isinstance(order, dict):
+        raw = order.get("createdAt")
+    else:
+        raw = getattr(order, "createdAt", None)
+        
     if not raw:
         return None
     try:
@@ -967,7 +972,11 @@ class RecommendationRepository:
         return scores
 
     def _parse_created_at(self, doc) -> Optional[datetime]:
-        raw = doc.createdAt
+        if isinstance(doc, dict):
+            raw = doc.get("createdAt")
+        else:
+            raw = getattr(doc, "createdAt", None)
+            
         if not raw:
             return None
         try:
