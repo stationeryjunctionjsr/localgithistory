@@ -3,7 +3,7 @@
 import Script from 'next/script';
 import { logger } from '@/utils/logger';
 
-export default function MSG91Initializer() {
+export default function MSG91Initializer({ nonce }: { nonce?: string }) {
   // Removed duplicate useEffect initialization which causes "Widget not found"
   // MSG91 script is solely initialized through the onLoad callback of the Script tag now.
 
@@ -11,6 +11,7 @@ export default function MSG91Initializer() {
     <Script
       src="https://verify.msg91.com/otp-provider.js"
       strategy="afterInteractive"
+      nonce={nonce}
       onLoad={() => {
         if (typeof window !== 'undefined') {
           const initFn = (window as any).initSendOTP || (window as any).initOTP;
@@ -48,3 +49,16 @@ export default function MSG91Initializer() {
     />
   );
 }
+
+/* OLD MSG91Initializer — kept for reference. Replaced by version above which accepts nonce prop.
+export default function MSG91InitializerOld() {
+  return (
+    <Script
+      src="https://verify.msg91.com/otp-provider.js"
+      strategy="afterInteractive"
+      onLoad={...}
+    />
+  );
+}
+*/
+

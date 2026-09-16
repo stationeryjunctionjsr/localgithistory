@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
@@ -26,10 +26,12 @@ export function middleware(request: NextRequest) {
 
   const cspDirectives = [
     `default-src 'self'`,
-    // 'unsafe-inline' kept temporarily until layout.tsx / <Script> tags carry the nonce.
-    // 'strict-dynamic' means browsers that support it will trust scripts loaded by nonced
-    // scripts automatically; the explicit domain list is a fallback for older browsers.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://verify.msg91.com https://pass.hostnsoft.com`,
+    // 'strict-dynamic' means browsers that support it trust scripts loaded by nonced scripts
+    // automatically. The explicit domain list is a fallback for older browsers only.
+    // 'unsafe-inline' has been removed — all scripts in layout.tsx, ConsentBasedTracking,
+    // and MSG91Initializer now carry the per-request nonce.
+    // TODO: evaluate removing 'unsafe-eval' — may break Next.js Turbopack, test in production first.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://verify.msg91.com https://pass.hostnsoft.com`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `font-src 'self' https://fonts.gstatic.com`,
     `img-src 'self' data: blob: https:`,
