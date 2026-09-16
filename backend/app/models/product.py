@@ -38,4 +38,14 @@ class Product(BaseModel):
     searchTags: Optional[List[str]] = None
     resolvedCollectionNames: Optional[List[str]] = None
     previouslyBought: Optional[bool] = None
+    
+    # Discount fields added dynamically by populate_product_discounts
+    originalPrice: Optional[float] = None
+    price: Optional[float] = None
+    defaultDiscountPercentage: Optional[float] = None
+    discountPercentage: Optional[float] = None
+    applicableDiscounts: Optional[List[Any]] = None
+    quantityTiers: Optional[List[Any]] = None
+    quantityItemType: Optional[str] = None
+    displayImage: Optional[str] = None
 

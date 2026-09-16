@@ -707,7 +707,7 @@ class RecommendationRepository:
             pid = p.id
             if not pid or pid in user_ordered:
                 continue
-            created = _parse_order_date({"createdAt": p.createdAt}) if p.createdAt else None
+            created = _parse_order_date({"createdAt": p.created_at}) if p.created_at else None
             if created and created >= cutoff:
                 candidates.append((pid, created))
         candidates.sort(key=lambda x: x[1] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
