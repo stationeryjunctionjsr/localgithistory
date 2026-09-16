@@ -13,7 +13,7 @@ from fastapi import HTTPException
 
 from app.utils.retry import with_retry
 
-ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico"}
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".ico"}
 MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 
 IMAGE_MAGIC_BYTES = {
@@ -22,7 +22,6 @@ IMAGE_MAGIC_BYTES = {
     b"GIF87a": ".gif",
     b"GIF89a": ".gif",
     b"RIFF": ".webp",  # WebP starts with RIFF....WEBP
-    b"<svg": ".svg",
     b"\x00\x00\x01\x00": ".ico",
     b"BM": ".bmp",
 }

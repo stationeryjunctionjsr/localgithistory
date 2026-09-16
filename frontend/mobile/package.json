@@ -19,7 +19,7 @@
     "@sj/api-client": "file:../packages/api-client",
     "@sj/i18n": "file:../packages/i18n",
     "@tanstack/react-query": "^5.101.0",
-    "axios": "^1.6.8",
+    "axios": "^1.15.2",
     "babel-preset-expo": "~54.0.10",
     "expo": "~54.0.35",
     "expo-clipboard": "~8.0.8",

@@ -516,7 +516,7 @@ export default function AuthModal({
     }
 
     if (forgotPasswordData.newPassword !== forgotPasswordData.confirmPassword) {
-      console.log('PASSWORDS DO NOT MATCH', formData.password, formData.confirmPassword); toast.error('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
@@ -617,8 +617,6 @@ export default function AuthModal({
   };
 
   const handleRegister = async (e: React.FormEvent) => {
-    console.log('HANDLE REGISTER CALLED', formData);
-    console.log('otpVerified', otpVerified);
     e.preventDefault();
 
     if (!otpVerified) {
@@ -627,7 +625,7 @@ export default function AuthModal({
     }
 
     if (formData.password !== formData.confirmPassword) {
-      console.log('PASSWORDS DO NOT MATCH', formData.password, formData.confirmPassword); toast.error('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
