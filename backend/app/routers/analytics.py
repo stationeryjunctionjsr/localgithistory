@@ -621,7 +621,7 @@ async def get_top_users_report(
     return await analytics_repository.get_top_users_by_revenue(role, start, end, limit)
 
 
-@router.get("/reports/user-order-stats", response_model=AllReportsSummaryResponse)
+@router.get("/reports/user-order-stats", response_model=List[UserOrderStatsResponse])
 async def get_user_order_stats_report(
     role: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
@@ -633,7 +633,7 @@ async def get_user_order_stats_report(
     return await analytics_repository.get_user_order_stats(role, start, end)
 
 
-@router.get("/reports/items-by-user-type", response_model=List[UserOrderStatsResponse])
+@router.get("/reports/items-by-user-type", response_model=List[ItemsByUserTypeResponse])
 async def get_items_by_user_type_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -644,7 +644,7 @@ async def get_items_by_user_type_report(
     return await analytics_repository.get_items_by_user_type(start, end)
 
 
-@router.get("/reports/summary", response_model=List[ItemsByUserTypeResponse])
+@router.get("/reports/summary", response_model=AllReportsSummaryResponse)
 async def get_reports_summary(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -655,7 +655,7 @@ async def get_reports_summary(
     return await analytics_repository.get_all_reports_summary(start, end)
 
 
-@router.get("/reports/returns", response_model=AllReportsSummaryResponse)
+@router.get("/reports/returns", response_model=List[ReturnsReportResponse])
 async def get_returns_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
@@ -672,7 +672,7 @@ async def get_returns_report(
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/reports/payment-methods", response_model=List[ReturnsReportResponse])
+@router.get("/reports/payment-methods", response_model=List[PaymentMethodsReportResponse])
 async def get_payment_methods_report(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),

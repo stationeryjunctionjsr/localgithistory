@@ -220,4 +220,29 @@ class SalesByChannelDetailedResponse(BaseModel):
     aov: float
 
 class AllReportsSummaryResponse(BaseModel):
-    model_config = ConfigDict(extra='allow')
+    searched_products: int
+    viewed_products: int
+    drop_off_points: int
+    cart_abandonments: int
+    returning_users: int
+    items_by_user_type: int
+    highest_selling_products: int
+    top_business_customers: int
+    top_retail_customers: int
+    user_engagement: int
+    returns: int
+    payment_methods: int
+    revenue_by_category: int
+    inventory_alerts: int
+    fulfillment_time: int
+    coupon_usage: int
+    sales_by_location: int
+    new_vs_returning: int
+    items_bought_together: int
+    zero_result_searches: int
+    sales_by_device: int
+    products_sell_through: int
+    aov_over_time: int
+    top_returned_products: int
+    inventory_value: int
+    most_abandoned_products: int
