@@ -10,7 +10,7 @@ class Category(BaseModel):
     is_active: bool = Field(default=True, alias='isActive')
     show_in_mobile_homepage: bool = Field(default=False, alias='showInMobileHomepage')
     category_tag: Optional[str] = Field(default=None, alias='categoryTag')
-    minimum_quantity: Optional[int] = Field(default=None, alias='minimumQuantity')
+    minimum_quantity: Optional[int] = Field(default=1, alias='minimumQuantity')
     gst: Optional[float] = None
     is_returnable: bool = Field(default=True, alias='isReturnable')
     images: List[str] = []

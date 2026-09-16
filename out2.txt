@@ -1,0 +1,40 @@
+                        "configId": order_data.deliverySlotConfigId,
+                        "slotId": order_data.deliverySlotId,
+                        "date": order_data.deliverySlotDate,
+                    }
+
+                grp_total = round(grp_subtotal - grp_discount, 2)
+
+                seller_name = ""
+                if seller_id:
+                    sdoc = (seller_docs[str(seller_id)] if str(seller_id) in seller_docs else None)
+                    if sdoc:
+                        seller_name = sdoc.companyName if sdoc.companyName else (sdoc.name if sdoc.name else "")
+                else:
+                    seller_name = "Platform"
+
+                sub_order_data = {
+                    "subOrderNumber": sub_number,
+                    "parentOrderId": str(order.id),
+                    "parentOrderNumber": parent_order_number,
+                    "sellerId": str(seller_id) if seller_id else None,
+                    "sellerName": seller_name,
+                    "user": current_user.id,
+                    "items": [
+                        SubOrderItem(
+                            productId=str(i.product),
+                            name=i.productName,
+                            qty=i.quantity,
+                            price=i.price,
+                        )
+                        for i in items_group
+                    ],
+                    "subtotal": round(grp_subtotal, 2),
+                    "tax": round(grp_tax, 2),
+                    "shipping": round(grp_shipping, 2),
+                    "deliveryGst": round(grp_delivery_gst, 2),
+                    "discount": round(grp_discount, 2),
+                    "total": grp_total,
+                    "orderType": order_type,
+                    "status": "pending",
+                    "paymentMethod": order_data.paymentMethod,

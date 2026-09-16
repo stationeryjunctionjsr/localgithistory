@@ -92,16 +92,20 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
             logging.warning("Background task failed", exc_info=e)
 
         # Parse orderDate as naive UTC datetime
-        order_date_str = bill.order_date or bill.created_at
-        if order_date_str:
-            try:
-                order_date = (
-                    datetime.fromisoformat(order_date_str.replace("Z", "+00:00"))
-                    .astimezone(timezone.utc)
-                    .replace(tzinfo=None)
-                )
-            except Exception:
-                order_date = now
+        order_date_raw = bill.order_date or bill.created_at
+        if order_date_raw:
+            if isinstance(order_date_raw, str):
+                try:
+                    order_date = (
+                        datetime.fromisoformat(order_date_raw.replace("Z", "+00:00"))
+                        .astimezone(timezone.utc)
+                        .replace(tzinfo=None)
+                    )
+                except Exception:
+                    order_date = now
+            else:
+                # It's already a datetime object
+                order_date = order_date_raw.replace(tzinfo=None)
         else:
             order_date = now
 
@@ -132,7 +136,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
                 "orderNumber": order_number,
                 "amountRemaining": effective_due,
                 "totalAmount": (bill.total_amount if bill.total_amount is not None else 0.0),
-                "orderDate": order_date_str,
+                "orderDate": order_date_raw if "order_date_raw" in locals() else (bill.order_date or bill.created_at),
                 "dueDate": due_date.isoformat() + "Z",
                 "timeRemaining": time_remaining_str,
                 "overdue": is_overdue,
@@ -141,7 +145,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
         )
 
     # Sort bills by due date (earliest first)
-    bills_info.sort(key=lambda b: b.dueDate)
+    bills_info.sort(key=lambda b: b["dueDate"])
 
     nearest_due_amount = 0.0
     nearest_due_date = None

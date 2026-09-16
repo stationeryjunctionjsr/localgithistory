@@ -488,16 +488,20 @@ async def create_order(
                 effective_due = (p.total_amount if p.total_amount is not None else 0.0) - verified_paid
 
                 if effective_due > 0:
-                    order_date_str = p.order_date or p.created_at
-                    if order_date_str:
+                    order_date_raw = p.order_date or p.created_at
+                    if order_date_raw:
                         try:
                             from datetime import timedelta
+                            
+                            if isinstance(order_date_raw, str):
+                                order_date = (
+                                    datetime.fromisoformat(order_date_raw.replace("Z", "+00:00"))
+                                    .astimezone(__import__("datetime").timezone.utc)
+                                    .replace(tzinfo=None)
+                                )
+                            else:
+                                order_date = order_date_raw.replace(tzinfo=None)
 
-                            order_date = (
-                                datetime.fromisoformat(order_date_str.replace("Z", "+00:00"))
-                                .astimezone(__import__("datetime").timezone.utc)
-                                .replace(tzinfo=None)
-                            )
                             due_date = order_date + timedelta(days=terms_days)
                             if now > due_date:
                                 has_overdue = True

@@ -279,7 +279,7 @@ class ProductInternalCreate(BaseModel):
     isReturnable: Optional[bool] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
-    minimumQuantity: Optional[int] = None
+    minimumQuantity: Optional[int] = 1
     searchTags: Optional[list] = []
     attributes: Optional[dict] = {}
     salesCount: Optional[int] = 0
@@ -338,7 +338,7 @@ class CategoryInternalCreate(BaseModel):
     isActive: bool = True
     images: Optional[list] = []
     subCategories: Optional[list] = []
-    minimumQuantity: Optional[int] = None
+    minimumQuantity: Optional[int] = 1
     categoryTag: Optional[str] = None
     categoryTags: Optional[list] = []
     showInMobileHomepage: Optional[bool] = False
@@ -355,7 +355,7 @@ class CategoryInternalUpdate(BaseModel):
     updatedAt: Optional[str] = None
     images: Optional[list] = None
     subCategories: Optional[list] = None
-    minimumQuantity: Optional[int] = None
+    minimumQuantity: Optional[int] = 1
     categoryTag: Optional[str] = None
     categoryTags: Optional[list] = None
     showInMobileHomepage: Optional[bool] = None

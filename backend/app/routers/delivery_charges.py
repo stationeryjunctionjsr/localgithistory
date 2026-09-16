@@ -102,7 +102,7 @@ async def get_delivery_charge_by_location(
     )
 
     # Calculate delivery GST and total charge
-    charge = (result.charge) or 0.0
+    charge = (result["charge"] if isinstance(result, dict) and "charge" in result else (getattr(result, "charge", None) if not isinstance(result, dict) else None)) or 0.0
     gst_percentage = 18.0
     gst_amount = 0.0
     total_charge = charge
@@ -159,8 +159,8 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
 
     # ── Zone metadata (urgent delivery flag + customerType + seller IDs) ───────
     zone = await get_zone_for_pincode(pincode)
-    platform_urgent = bool((zone.urgent_delivery_available if zone.urgent_delivery_available is not None else False)) if zone else False
-    zone_customer_type = (zone.customer_type if zone.customer_type is not None else "retail") if zone else "retail"
+    platform_urgent = bool((zone.urgentDeliveryAvailable if zone.urgentDeliveryAvailable is not None else False)) if zone else False
+    zone_customer_type = (zone.customerType if zone.customerType is not None else "retail") if zone else "retail"
 
     is_wholesaler = (userRole == "wholesaler")
 

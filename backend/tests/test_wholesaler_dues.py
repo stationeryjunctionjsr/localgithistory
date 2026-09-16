@@ -91,9 +91,10 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
                 "name": "Business Office",
             },
             "paymentMethod": "credit",
-            "items": [],
+            "items": [{"productId": "1", "quantity": 1, "price": 100}],
         }
         response = await client.post("/api/orders/", headers=headers, json=order_payload)
+        print(response.json())
         assert response.status_code == 400
         assert "pending dues" in response.json()["detail"]
 
@@ -101,7 +102,7 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
         # Settle credit endpoint: POST /api/orders/{order_id}/settle-credit
         # This will add an unverified payment entry.
         settle_response = await client.post(
-            f"/api/orders/{payment['orderId']}/settle-credit",
+            f"/api/orders/{payment.order_id}/settle-credit",
             headers=headers,
             json={
                 "amount": 500.0,
@@ -117,13 +118,13 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
         assert data["totalDues"] == 500.0
 
         # 8. Manually verify the payment entry (simulating admin verification)
-        updated_payment = await payment_repository.findById(payment["_id"])
-        entries = updated_payment.get("paymentEntries", [])
+        updated_payment = await payment_repository.findById(payment.id)
+        entries = updated_payment.payment_entries or []
         assert len(entries) == 1
-        entry_id = entries[0]["entryId"]
+        entry_id = entries[0].entry_id
 
         # Verify the entry via repository update
-        await payment_repository.updatePaymentEntry(payment["_id"], entry_id, {"verified": True})
+        await payment_repository.updatePaymentEntry(payment.id, entry_id, {"verified": True})
 
         # 9. Fetch dues again. Now it should be cleared!
         response = await client.get("/api/payments/dues", headers=headers)
@@ -150,7 +151,7 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
                 pass
         if "payment" in locals():
             try:
-                await payment_repository.delete(payment["_id"])
+                await payment_repository.delete(payment.id)
             except Exception:
                 pass
         if "order" in locals():

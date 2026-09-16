@@ -1,0 +1,18 @@
+            )
+            # Refresh populated_order to include subOrderIds
+            updated_parent = await order_repository.findById(str(order.id))
+            populated_order = await populate_order(updated_parent)
+    except Exception as sub_err:
+        logger.error(
+            "Sub-order creation failed (parent order %s still valid): %s", order.id, str(sub_err), exc_info=True
+        )
+
+    return populated_order
+
+
+class TrackingUpdateRequest(BaseModel):
+    trackingId: str
+    courierPartner: Optional[str] = None
+
+
+@router.put("/{order_id}/tracking", response_model=Order)

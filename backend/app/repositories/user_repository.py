@@ -131,21 +131,24 @@ class UserRepository:
 
     async def update(self, id: str, update_data: Any):
         # Don't allow updating email to an existing one
-        if update_data.email is not None:
-            existing = await self.findByEmail(update_data.email)
+        email_val = update_data.get("email") if isinstance(update_data, dict) else getattr(update_data, "email", None)
+        if email_val is not None:
+            existing = await self.findByEmail(email_val)
             if existing and existing.id != id:
                 raise ValueError("Email already in use")
-            update_data.email = update_data.email.lower()
+            email_val = email_val.lower()
 
         # Don't allow updating phone to an existing one
-        if update_data.phone is not None:
-            existing_phone = await self.findByPhone(update_data.phone)
+        phone_val = update_data.get("phone") if isinstance(update_data, dict) else getattr(update_data, "phone", None)
+        if phone_val is not None:
+            existing_phone = await self.findByPhone(phone_val)
             if existing_phone and existing_phone.id != id:
                 raise ValueError("Phone number already in use")
 
         # Hash password if provided
-        if update_data.password is not None:
-            update_data.password = get_password_hash(update_data.password)
+        if getattr(update_data, "password", getattr(update_data, "get", lambda x: None)("password")) is not None:
+            if isinstance(update_data, dict): update_data["password"] = get_password_hash(update_data["password"])
+            else: update_data.password = get_password_hash(update_data.password)
 
         return await self.storage.update(id, update_data)
 

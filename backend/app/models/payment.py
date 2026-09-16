@@ -20,6 +20,7 @@ class Payment(BaseModel):
     user_id_formatted: Optional[str] = Field(default=None, alias="userIdFormatted")
     customer_name: Optional[str] = Field(default=None, alias="customerName")
     order_date: Optional[datetime] = Field(default=None, alias="orderDate")
+    payment_method: Optional[str] = Field(default=None, alias="paymentMethod")
     amount_paid: Optional[float] = Field(default=None, alias="amountPaid")
     amount_remaining: Optional[float] = Field(default=None, alias="amountRemaining")
     total_amount: Optional[float] = Field(default=None, alias="totalAmount")

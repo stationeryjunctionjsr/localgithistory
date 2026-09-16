@@ -74,7 +74,8 @@ class MySQLReturnSettingsDAO:
     async def create(self, data: ReturnSettingsInternalCreate) -> Dict:
 
         if isinstance(data, dict):
-            data = ReturnSettingsInternalCreate(**data)        factory = self._factory()
+            data = ReturnSettingsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -100,7 +101,8 @@ class MySQLReturnSettingsDAO:
     async def update(self, id: str, data: ReturnSettingsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = ReturnSettingsInternalUpdate(**data)        existing = await self.findById(id)
+            data = ReturnSettingsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = ReturnSettingsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -217,7 +219,8 @@ class MySQLOrderFeedbackDAO:
     async def create(self, data: OrderFeedbackInternalCreate) -> OrderFeedbackResponse:
 
         if isinstance(data, dict):
-            data = OrderFeedbackInternalCreate(**data)        factory = self._factory()
+            data = OrderFeedbackInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -267,7 +270,8 @@ class MySQLOrderFeedbackDAO:
     async def update(self, id: str, data: OrderFeedbackInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = OrderFeedbackInternalUpdate(**data)        existing = await self.findById(id)
+            data = OrderFeedbackInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = OrderFeedbackInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -379,7 +383,8 @@ class MySQLPromoStripsDAO:
     async def create(self, data: PromoStripsInternalCreate) -> PromoStripResponse:
 
         if isinstance(data, dict):
-            data = PromoStripsInternalCreate(**data)        factory = self._factory()
+            data = PromoStripsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -409,7 +414,8 @@ class MySQLPromoStripsDAO:
     async def update(self, id: str, data: PromoStripsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = PromoStripsInternalUpdate(**data)        existing = await self.findById(id)
+            data = PromoStripsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = PromoStripsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -545,7 +551,8 @@ class MySQLPushNotificationsDAO:
     async def create(self, data: PushNotificationsInternalCreate) -> Dict:
 
         if isinstance(data, dict):
-            data = PushNotificationsInternalCreate(**data)        factory = self._factory()
+            data = PushNotificationsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -611,7 +618,8 @@ class MySQLPushNotificationsDAO:
     async def update(self, id: str, data: PushNotificationsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = PushNotificationsInternalUpdate(**data)        existing = await self.findById(id)
+            data = PushNotificationsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = PushNotificationsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -754,7 +762,8 @@ class MySQLCoachMarksDAO:
     async def create(self, data: CoachMarksInternalCreate) -> Dict:
 
         if isinstance(data, dict):
-            data = CoachMarksInternalCreate(**data)        factory = self._factory()
+            data = CoachMarksInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -800,7 +809,8 @@ class MySQLCoachMarksDAO:
     async def update(self, id: str, data: CoachMarksInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = CoachMarksInternalUpdate(**data)        existing = await self.findById(id)
+            data = CoachMarksInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = CoachMarksInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -916,7 +926,8 @@ class MySQLCategoryTagsDAO:
     async def create(self, data: CategoryTagsInternalCreate) -> Any:
 
         if isinstance(data, dict):
-            data = CategoryTagsInternalCreate(**data)        factory = self._factory()
+            data = CategoryTagsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -950,7 +961,8 @@ class MySQLCategoryTagsDAO:
     async def update(self, id: str, data: CategoryTagsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = CategoryTagsInternalUpdate(**data)        existing = await self.findById(id)
+            data = CategoryTagsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = CategoryTagsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -1061,7 +1073,8 @@ class MySQLGoogle_reviewsDAO:
     async def create(self, data: Google_reviewsInternalCreate) -> Dict:
 
         if isinstance(data, dict):
-            data = Google_reviewsInternalCreate(**data)        factory = self._factory()
+            data = Google_reviewsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -1099,7 +1112,8 @@ class MySQLGoogle_reviewsDAO:
     async def update(self, id: str, data: Google_reviewsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = Google_reviewsInternalUpdate(**data)        existing = await self.findById(id)
+            data = Google_reviewsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = Google_reviewsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -1204,7 +1218,8 @@ class MySQLStockReservationsDAO:
     async def create(self, data: StockReservationsInternalCreate) -> StockReservation:
 
         if isinstance(data, dict):
-            data = StockReservationsInternalCreate(**data)        factory = self._factory()
+            data = StockReservationsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -1386,7 +1401,8 @@ class MySQLProductNotificationsDAO:
     async def create(self, data: ProductNotificationsInternalCreate) -> Dict:
 
         if isinstance(data, dict):
-            data = ProductNotificationsInternalCreate(**data)        factory = self._factory()
+            data = ProductNotificationsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -1428,7 +1444,8 @@ class MySQLProductNotificationsDAO:
     async def update(self, id: str, data: ProductNotificationsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = ProductNotificationsInternalUpdate(**data)        existing = await self.findById(id)
+            data = ProductNotificationsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = ProductNotificationsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -1549,7 +1566,8 @@ class MySQLProductReviewsDAO:
     async def create(self, data: ProductReviewsInternalCreate) -> ProductReviewResponse:
 
         if isinstance(data, dict):
-            data = ProductReviewsInternalCreate(**data)        factory = self._factory()
+            data = ProductReviewsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -1591,7 +1609,8 @@ class MySQLProductReviewsDAO:
     async def update(self, id: str, data: ProductReviewsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = ProductReviewsInternalUpdate(**data)        existing = await self.findById(id)
+            data = ProductReviewsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = ProductReviewsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -1699,7 +1718,8 @@ class MySQLClassificationTagsDAO:
     async def create(self, data: ClassificationTagsInternalCreate) -> ProductReviewResponse:
 
         if isinstance(data, dict):
-            data = ClassificationTagsInternalCreate(**data)        factory = self._factory()
+            data = ClassificationTagsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -1729,7 +1749,8 @@ class MySQLClassificationTagsDAO:
     async def update(self, id: str, data: ClassificationTagsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = ClassificationTagsInternalUpdate(**data)        existing = await self.findById(id)
+            data = ClassificationTagsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = ClassificationTagsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -1837,7 +1858,8 @@ class MySQLReviewClassificationsDAO:
     async def create(self, data: ReviewClassificationsInternalCreate) -> ClassificationTagResponse:
 
         if isinstance(data, dict):
-            data = ReviewClassificationsInternalCreate(**data)        factory = self._factory()
+            data = ReviewClassificationsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -1875,7 +1897,8 @@ class MySQLReviewClassificationsDAO:
     async def update(self, id: str, data: ReviewClassificationsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = ReviewClassificationsInternalUpdate(**data)        existing = await self.findById(id)
+            data = ReviewClassificationsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = ReviewClassificationsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -1989,7 +2012,8 @@ class MySQLAboutUsDAO:
     async def create(self, data: AboutUsInternalCreate) -> Any:
 
         if isinstance(data, dict):
-            data = AboutUsInternalCreate(**data)        factory = self._factory()
+            data = AboutUsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -2027,7 +2051,8 @@ class MySQLAboutUsDAO:
     async def update(self, id: str, data: AboutUsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = AboutUsInternalUpdate(**data)        existing = await self.findById(id)
+            data = AboutUsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = AboutUsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -2141,7 +2166,8 @@ class MySQLPrivacyPolicyDAO:
     async def create(self, data: PrivacyPolicyInternalCreate) -> Any:
 
         if isinstance(data, dict):
-            data = PrivacyPolicyInternalCreate(**data)        factory = self._factory()
+            data = PrivacyPolicyInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -2179,7 +2205,8 @@ class MySQLPrivacyPolicyDAO:
     async def update(self, id: str, data: PrivacyPolicyInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = PrivacyPolicyInternalUpdate(**data)        existing = await self.findById(id)
+            data = PrivacyPolicyInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = PrivacyPolicyInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -2297,7 +2324,8 @@ class MySQLAvailabilityRequestsDAO:
     async def create(self, data: AvailabilityRequestsInternalCreate) -> AvailabilityRequestResponse:
 
         if isinstance(data, dict):
-            data = AvailabilityRequestsInternalCreate(**data)        factory = self._factory()
+            data = AvailabilityRequestsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -2339,7 +2367,8 @@ class MySQLAvailabilityRequestsDAO:
     async def update(self, id: str, data: AvailabilityRequestsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = AvailabilityRequestsInternalUpdate(**data)        existing = await self.findById(id)
+            data = AvailabilityRequestsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = AvailabilityRequestsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -2456,7 +2485,8 @@ class MySQLPincodeSearchesDAO:
     async def create(self, data: PincodeSearchesInternalCreate) -> Any:
 
         if isinstance(data, dict):
-            data = PincodeSearchesInternalCreate(**data)        factory = self._factory()
+            data = PincodeSearchesInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -2494,7 +2524,8 @@ class MySQLPincodeSearchesDAO:
     async def update(self, id: str, data: PincodeSearchesInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = PincodeSearchesInternalUpdate(**data)        existing = await self.findById(id)
+            data = PincodeSearchesInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = PincodeSearchesInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -2612,7 +2643,8 @@ class MySQLSystemSettingsDAO:
     async def create(self, data: SystemSettingsInternalCreate) -> Any:
 
         if isinstance(data, dict):
-            data = SystemSettingsInternalCreate(**data)        factory = self._factory()
+            data = SystemSettingsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -2654,7 +2686,8 @@ class MySQLSystemSettingsDAO:
     async def update(self, id: str, data: SystemSettingsInternalUpdate) -> Optional[Any]:
 
         if isinstance(data, dict):
-            data = SystemSettingsInternalUpdate(**data)        existing = await self.findById(id)
+            data = SystemSettingsInternalUpdate(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = SystemSettingsInternalUpdate(**{**existing.__dict__, **data.__dict__})
@@ -2763,7 +2796,8 @@ class MySQLValetPayoutSettingsDAO:
     async def create(self, data: ValetPayoutSettingsInternalCreate) -> Dict:
 
         if isinstance(data, dict):
-            data = ValetPayoutSettingsInternalCreate(**data)        factory = self._factory()
+            data = ValetPayoutSettingsInternalCreate(**data)
+        factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
@@ -2793,7 +2827,8 @@ class MySQLValetPayoutSettingsDAO:
     async def update(self, id: str, data: Dict) -> Optional[Dict]:
 
         if isinstance(data, dict):
-            data = Dict(**data)        existing = await self.findById(id)
+            data = Dict(**data)
+        existing = await self.findById(id)
         if not existing:
             return None
         merged = SystemSettingsInternalUpdate(**{**existing, **data.__dict__})

@@ -130,7 +130,7 @@ async def _enrich_bundle(bundle: Dict) -> Dict:
     display_img = (
         getattr(bundle, "displayImage", getattr(bundle, "display_image", getattr(bundle, "imageUrl", getattr(bundle, "image_url", None))))
         or next(
-            (item["product"]["images"][0] for item in enriched_items if item["product"] if "product" in item else None and item["product"]["images"] if "images" in item["product"] else None),
+            (item["product"]["images"][0] for item in enriched_items if "product" in item and item["product"] and "images" in item["product"] and item["product"]["images"]),
             None,
         )
     )

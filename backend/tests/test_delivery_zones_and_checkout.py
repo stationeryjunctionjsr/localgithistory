@@ -204,7 +204,7 @@ async def test_check_serviceability_urgent_flag_propagated():
     from app.routers.delivery_charges import check_serviceability
 
     from app.models.schemas import DeliveryZoneResponse
-        mock_zone = DeliveryZoneResponse(id="zone_test", urgentDeliveryAvailable=True, customerType="retail", name="Zone", isActive=True, pincodes=[], cutoffTime="18:00")
+    mock_zone = DeliveryZoneResponse(id="zone_test", urgentDeliveryAvailable=True, customerType="retail", name="Zone", isActive=True, pincodes=[],)
 
     repo_path = "app.routers.delivery_charges.delivery_charge_repository"
     # get_zone_for_pincode and get_storage are imported inside the function body,
@@ -676,7 +676,7 @@ async def test_get_zone_for_pincode_found():
         name="Test Zone",
         pincodes=["831001"],
         isActive=True,
-        cutoffTime="18:00"
+       
     )
 
     with patch("app.repositories.zone_seller_cache._fetch_all_zones", new_callable=AsyncMock) as mock_zones:
@@ -684,7 +684,7 @@ async def test_get_zone_for_pincode_found():
         result = await get_zone_for_pincode("831001")
 
     assert result is not None
-    assert result["name"] == "Test Zone"
+    assert result.name == "Test Zone"
 
 
 def test_invalidate_zone_cache_specific():

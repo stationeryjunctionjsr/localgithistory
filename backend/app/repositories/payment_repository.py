@@ -167,7 +167,49 @@ class PaymentRepository:
             raise ValueError("totalAmount is None")
         payment.amount_remaining = max(0, payment.total_amount - payment.amount_paid)
 
-        return await self.update(payment_id, payment)
+
+        def _to_internal_entry(e):
+            if isinstance(e, dict):
+                return PaymentEntryInternal(
+                    entryId=e.get("entryId"),
+                    amount=e.get("amount", 0),
+                    paymentMethod=e.get("paymentMethod"),
+                    paidAt=e.get("paidAt"),
+                    image=e.get("image"),
+                    notes=e.get("notes"),
+                    verified=e.get("verified", False),
+                    createdAt=e.get("createdAt")
+                )
+            return PaymentEntryInternal(
+                entryId=int(e.entry_id) if e.entry_id else None,
+                amount=e.amount,
+                paymentMethod=e.payment_method,
+                paidAt=e.paid_at.isoformat() if e.paid_at else None,
+                image=e.image,
+                notes=e.notes,
+                verified=e.verified,
+                createdAt=e.created_at.isoformat() if e.created_at else None
+            )
+
+        internal_entries = [_to_internal_entry(e) for e in payment.payment_entries]
+
+        update_payload = PaymentInternalUpdate(
+            orderId=payment.order_id,
+            userId=payment.user_id,
+            userIdFormatted=payment.user_id_formatted,
+            customerName=payment.customer_name,
+            orderDate=payment.order_date.isoformat() if payment.order_date else None,
+            paymentMethod=payment.payment_method,
+            amountPaid=payment.amount_paid,
+            amountRemaining=payment.amount_remaining,
+            totalAmount=payment.total_amount,
+            paymentId=payment.payment_id,
+            paymentEntries=internal_entries
+        )
+        return await self.update(payment_id, update_payload)
+
+
+
 
     async def updatePaymentEntry(self, payment_id: str, entry_id: int, update_data: Any):
         payment = await self.findById(payment_id)
@@ -175,14 +217,60 @@ class PaymentRepository:
             raise ValueError("Payment not found")
 
         entries = payment.payment_entries or []
-        entry_index = next((i for i, e in enumerate(entries) if ("entryId" in e and e["entryId"] == entry_id)), None)
+        entry_index = next((i for i, e in enumerate(entries) if (getattr(e, "entry_id", None) == str(entry_id) or getattr(e, "entry_id", None) == entry_id)), None)
         if entry_index is None:
             raise ValueError("Payment entry not found")
 
-        entries[entry_index].update(update_data)
-        payment.payment_entries = entries
+        # Update the object fields based on update_data dict
+        entry = entries[entry_index]
+        if "verified" in update_data:
+            entry.verified = update_data["verified"]
+        if "amount" in update_data:
+            entry.amount = update_data["amount"]
+        if "image" in update_data:
+            entry.image = update_data["image"]
+        if "notes" in update_data:
+            entry.notes = update_data["notes"]
+            
+        def _to_internal_entry(e):
+            if isinstance(e, dict):
+                return PaymentEntryInternal(
+                    entryId=e.get("entryId"),
+                    amount=e.get("amount", 0),
+                    paymentMethod=e.get("paymentMethod"),
+                    paidAt=e.get("paidAt"),
+                    image=e.get("image"),
+                    notes=e.get("notes"),
+                    verified=e.get("verified", False),
+                    createdAt=e.get("createdAt")
+                )
+            return PaymentEntryInternal(
+                entryId=int(e.entry_id) if e.entry_id else None,
+                amount=e.amount,
+                paymentMethod=e.payment_method,
+                paidAt=e.paid_at.isoformat() if e.paid_at else None,
+                image=e.image,
+                notes=e.notes,
+                verified=e.verified,
+                createdAt=e.created_at.isoformat() if e.created_at else None
+            )
 
-        return await self.update(payment_id, payment)
+        internal_entries = [_to_internal_entry(e) for e in entries]
+
+        update_payload = PaymentInternalUpdate(
+            orderId=payment.order_id,
+            userId=payment.user_id,
+            userIdFormatted=payment.user_id_formatted,
+            customerName=payment.customer_name,
+            orderDate=payment.order_date.isoformat() if payment.order_date else None,
+            paymentMethod=payment.payment_method,
+            amountPaid=payment.amount_paid,
+            amountRemaining=payment.amount_remaining,
+            totalAmount=payment.total_amount,
+            paymentId=payment.payment_id,
+            paymentEntries=internal_entries
+        )
+        return await self.update(payment_id, update_payload)
 
     async def delete(self, id: str):
         return await self.storage.delete(id)

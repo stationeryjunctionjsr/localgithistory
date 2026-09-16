@@ -12,28 +12,28 @@ async def clean_database():
         # Delete test orders
         orders = await order_repository.storage.findAll()
         for o in orders:
-            if o.get("notes", "").startswith("TEST_ORDER_OPT_") or o.get("notes", "").startswith(
+            if getattr(o, "notes", "") or "".startswith("TEST_ORDER_OPT_") or getattr(o, "notes", "") or "".startswith(
                 "Referral Code Applied: TEST_ORDER_OPT_"
             ):
-                await order_repository.storage.delete(o["_id"])
+                await order_repository.storage.delete(getattr(o, "id", getattr(o, "_id", None)))
 
         # Delete test payments
         payments = await payment_repository.storage.findAll()
         for p in payments:
-            if p.get("customerName") == "TEST_ORDER_OPT_User":
-                await payment_repository.storage.delete(p["_id"])
+            if getattr(p, "customer_name", getattr(p, "customerName", None)) == "TEST_ORDER_OPT_User":
+                await payment_repository.storage.delete(getattr(p, "id", getattr(p, "_id", None)))
 
         # Delete test user
         users = await user_repository.findAll()
         for u in users:
-            if u.get("name") == "TEST_ORDER_OPT_User" or u.get("email") == "opt_user@test.com":
-                await user_repository.delete(u["_id"])
+            if getattr(u, "name", None) == "TEST_ORDER_OPT_User" or getattr(u, "email", None) == "opt_user@test.com":
+                await user_repository.delete(getattr(u, "id", getattr(u, "_id", None)))
 
         # Delete test product
         products = await product_repository.findAll()
         for p in products:
-            if p.get("name") == "TEST_ORDER_OPT_Product" or p.get("sku") == "SKU-OPT-123":
-                await product_repository.storage.delete(p["_id"])
+            if getattr(p, "name", None) == "TEST_ORDER_OPT_Product" or getattr(p, "sku", None) == "SKU-OPT-123":
+                await product_repository.storage.delete(getattr(p, "id", getattr(p, "_id", None)))
     except Exception:
         pass
 
@@ -178,8 +178,8 @@ async def test_orders_pagination_and_counting_logic():
 
     # Verify that the order IDs in pagination correspond to the correct order of created_at desc
     # (since the newest order is created last, it should be first in results)
-    ids_p1 = [o["_id"] for o in p1]
-    ids_p2 = [o["_id"] for o in p2]
+    ids_p1 = [getattr(o, "id", getattr(o, "_id", None)) for o in p1]
+    ids_p2 = [getattr(o, "id", getattr(o, "_id", None)) for o in p2]
 
     assert o3["_id"] in ids_p1
     assert o2["_id"] in ids_p1

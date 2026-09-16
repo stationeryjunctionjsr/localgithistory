@@ -11,26 +11,26 @@ async def clean_database():
     try:
         users = await user_repository.storage.findAll()
         for u in users:
-            if u.get("name") == "TEST_GEN_OPT_User" or u.get("email") == "gen_opt_user@test.com":
+            if getattr(u, "name", None) == "TEST_GEN_OPT_User" or getattr(u, "email", None) == "gen_opt_user@test.com":
                 try:
-                    await wishlist_repository.storage.deleteMany({"user": u["_id"]})
+                    await wishlist_repository.storage.deleteMany({"user": getattr(u, "id", getattr(u, "_id", None))})
                 except Exception:
                     pass
                 try:
-                    await cart_repository.storage.deleteMany({"user": u["_id"]})
+                    await cart_repository.storage.deleteMany({"user": getattr(u, "id", getattr(u, "_id", None))})
                 except Exception:
                     pass
                 try:
                     from app.repositories.session_repository import session_repository
-                    await session_repository.storage.deleteMany({"user": u["_id"]})
+                    await session_repository.storage.deleteMany({"user": getattr(u, "id", getattr(u, "_id", None))})
                 except Exception:
                     pass
-                await user_repository.storage.delete(u["_id"])
+                await user_repository.storage.delete(getattr(u, "id", getattr(u, "_id", None)))
 
         products = await product_repository.storage.findAll()
         for p in products:
-            if p.get("name") == "TEST_GEN_OPT_Product" or p.get("sku") == "SKU-GEN-OPT":
-                await product_repository.storage.delete(p["_id"])
+            if getattr(p, "name", None) == "TEST_GEN_OPT_Product" or getattr(p, "sku", None) == "SKU-GEN-OPT":
+                await product_repository.storage.delete(getattr(p, "id", getattr(p, "_id", None)))
     except Exception as e:
         print(f"CLEANUP ERROR: {e}")
 
@@ -51,7 +51,7 @@ async def test_oracle_doc_store_filtering():
     all_res = await store.findAll()
     for res in all_res:
         if getattr(res, "userId", getattr(res, "user_id", None)) == "TEST_GEN_OPT_USER_ID":
-            await store.delete(res["_id"])
+            await store.delete(getattr(res, "id", getattr(res, "_id", None)))
 
     # Create dummy reservations
     r1 = await store.create(
