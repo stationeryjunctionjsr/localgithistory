@@ -225,10 +225,8 @@ export default function AuthModal({
         setCanResend(false);
         setTimer(30);
         toast.success('OTP sent to your phone');
-        if (response.data.otp) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.log('OTP (Development):', response.data.otp);
-          }
+        if (response.data.otp && process.env.NODE_ENV !== 'production') {
+          console.log('OTP (Development):', response.data.otp);
           toast(`OTP (Dev): ${response.data.otp}`, { duration: 2000 });
         }
         setSendingOTP(false);
@@ -405,10 +403,8 @@ export default function AuthModal({
         setForgotPasswordCanResend(false);
         setForgotPasswordTimer(30);
         toast.success('OTP sent to your phone');
-        if (response.data.otp) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.log('OTP (Development):', response.data.otp);
-          }
+        if (response.data.otp && process.env.NODE_ENV !== 'production') {
+          console.log('OTP (Development):', response.data.otp);
           toast(`OTP (Dev): ${response.data.otp}`, { duration: 2000 });
         }
         setSendingForgotPasswordOTP(false);
