@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
     marginBottom: spacing.md,
     overflow: 'hidden',

@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   retryText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: '600',
     fontSize: 15,
   },

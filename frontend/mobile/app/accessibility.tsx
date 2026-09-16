@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   infoBody: {
     fontSize: 12,
-    color: '#2E7D32',
+    color: colors.success,
     lineHeight: 18,
   },
 });

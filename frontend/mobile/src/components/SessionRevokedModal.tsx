@@ -1,4 +1,6 @@
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { colors } from '../theme';
+
 
 interface Props {
   detail: any | null;
@@ -37,7 +39,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  card: { backgroundColor: '#fff', padding: 20, borderRadius: 14, width: '100%', maxWidth: 380 },
+  card: { backgroundColor: colors.surface, padding: 20, borderRadius: 14, width: '100%', maxWidth: 380 },
   title: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
   body: { fontSize: 15, color: '#4b5563', marginBottom: 16 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
@@ -45,5 +47,5 @@ const styles = StyleSheet.create({
   secondary: { borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#f9fafb' },
   primary: { backgroundColor: '#111827' },
   secondaryText: { color: '#111827', fontWeight: '600' },
-  primaryText: { color: '#fff', fontWeight: '700' },
+  primaryText: { color: colors.surface, fontWeight: '700' },
 });

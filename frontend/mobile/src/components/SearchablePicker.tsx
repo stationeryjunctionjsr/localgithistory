@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, FlatList, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme';
+
 
 interface SearchablePickerProps {
   options: string[];
@@ -62,7 +64,7 @@ export default function SearchablePicker({
         >
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} onPress={() => setVisible(false)}>
           <Pressable
-            style={{ maxHeight: '75%', minHeight: '45%', borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: '#fff' }}
+            style={{ maxHeight: '75%', minHeight: '45%', borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: colors.surface }}
             onPress={(e) => e.stopPropagation()}
           >
             <View className="border-b border-slate-100 px-5 pb-3 pt-5">

@@ -219,11 +219,11 @@ export default function ValetDashboard() {
             onValueChange={(val) => toggleDutyMutation.mutate(val)} 
             disabled={toggleDutyMutation.isPending}
             trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-            thumbColor={isOnDuty ? '#059669' : '#9CA3AF'}
+            thumbColor={isOnDuty ? colors.success : colors.textMuted}
           />
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={24} color={colors.error} />
         </TouchableOpacity>
       </View>
 
@@ -242,7 +242,7 @@ export default function ValetDashboard() {
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>To Collect</Text>
-            <Text style={[styles.statValue, { color: '#DC2626' }]}>₹{totalToCollect}</Text>
+            <Text style={[styles.statValue, { color: colors.error }]}>₹{totalToCollect}</Text>
           </View>
         </View>
 
@@ -267,13 +267,13 @@ export default function ValetDashboard() {
                   </View>
                   <View style={styles.actionRow}>
                     <TouchableOpacity 
-                      style={[styles.actionBtnRow, { backgroundColor: '#EF4444' }]} 
+                      style={[styles.actionBtnRow, { backgroundColor: colors.error }]} 
                       onPress={() => respondOrderMutation.mutate({ orderId: order._id || order.id, action: 'decline' })}
                     >
                       <Text style={styles.actionBtnText}>Decline</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
-                      style={[styles.actionBtnRow, { backgroundColor: '#10B981' }]} 
+                      style={[styles.actionBtnRow, { backgroundColor: colors.success }]} 
                       onPress={() => respondOrderMutation.mutate({ orderId: order._id || order.id, action: 'accept' })}
                     >
                       <Text style={styles.actionBtnText}>Accept</Text>
@@ -299,13 +299,13 @@ export default function ValetDashboard() {
                   </View>
                   <View style={styles.actionRow}>
                     <TouchableOpacity 
-                      style={[styles.actionBtnRow, { backgroundColor: '#EF4444' }]} 
+                      style={[styles.actionBtnRow, { backgroundColor: colors.error }]} 
                       onPress={() => respondReturnMutation.mutate({ returnId: ret._id || ret.id, action: 'decline' })}
                     >
                       <Text style={styles.actionBtnText}>Decline</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
-                      style={[styles.actionBtnRow, { backgroundColor: '#10B981' }]} 
+                      style={[styles.actionBtnRow, { backgroundColor: colors.success }]} 
                       onPress={() => respondReturnMutation.mutate({ returnId: ret._id || ret.id, action: 'accept' })}
                     >
                       <Text style={styles.actionBtnText}>Accept</Text>
@@ -330,12 +330,12 @@ export default function ValetDashboard() {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator size="large" color="#1a4d33" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
         ) : (
           <>
             {filteredOrders.length === 0 ? (
               <View style={styles.emptyState}>
-                <Ionicons name="cube-outline" size={48} color="#9CA3AF" />
+                <Ionicons name="cube-outline" size={48} color={colors.textMuted} />
                 <Text style={styles.emptyStateText}>No orders found.</Text>
               </View>
             ) : (
@@ -365,7 +365,7 @@ export default function ValetDashboard() {
                     </View>
                     
                     <TouchableOpacity onPress={() => openInMaps(addrStr)} style={styles.mapBtn}>
-                      <Ionicons name="map-outline" size={14} color="#1a4d33" />
+                      <Ionicons name="map-outline" size={14} color={colors.primary} />
                       <Text style={styles.mapBtnText}>Open in Maps</Text>
                     </TouchableOpacity>
 
@@ -391,7 +391,7 @@ export default function ValetDashboard() {
                         disabled={markDeliveredMutation.isPending}
                       >
                         {markDeliveredMutation.isPending ? (
-                          <ActivityIndicator size="small" color="#fff" />
+                          <ActivityIndicator size="small" color={colors.surface} />
                         ) : (
                           <Text style={styles.actionBtnText}>Mark as Delivered</Text>
                         )}
@@ -426,7 +426,7 @@ export default function ValetDashboard() {
                       </View>
                       
                       <TouchableOpacity onPress={() => openInMaps(addrStr)} style={styles.mapBtn}>
-                        <Ionicons name="map-outline" size={14} color="#1a4d33" />
+                        <Ionicons name="map-outline" size={14} color={colors.primary} />
                         <Text style={styles.mapBtnText}>Open in Maps</Text>
                       </TouchableOpacity>
 
@@ -437,7 +437,7 @@ export default function ValetDashboard() {
                           disabled={markCollectedMutation.isPending}
                         >
                           {markCollectedMutation.isPending ? (
-                            <ActivityIndicator size="small" color="#fff" />
+                            <ActivityIndicator size="small" color={colors.surface} />
                           ) : (
                             <Text style={styles.actionBtnText}>Mark as Collected</Text>
                           )}
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
@@ -503,13 +503,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     flex: 1,
     marginHorizontal: 4,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -535,11 +535,11 @@ const styles = StyleSheet.create({
     borderColor: '#FCD34D',
   },
   pendingCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     marginTop: 12,
-    shadowColor: '#000',
+    shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: '#1a4d33',
+    backgroundColor: colors.primary,
   },
   filterChipText: {
     fontSize: 13,
@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
   filterChipTextActive: {
-    color: '#fff',
+    color: colors.surface,
   },
   emptyState: {
     alignItems: 'center',
@@ -590,11 +590,11 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   orderCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     color: '#D97706',
   },
   statusTextDelivered: {
-    color: '#059669',
+    color: colors.success,
   },
   customerName: {
     fontSize: 16,
@@ -664,7 +664,7 @@ const styles = StyleSheet.create({
   mapBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1a4d33',
+    color: colors.primary,
     marginLeft: 4,
   },
   itemsList: {
@@ -698,16 +698,16 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   amountCod: {
-    color: '#DC2626',
+    color: colors.error,
   },
   actionBtn: {
-    backgroundColor: '#1a4d33',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
   },
   actionBtnText: {
-    color: '#fff',
+    color: colors.surface,
     fontSize: 14,
     fontWeight: '700',
   },

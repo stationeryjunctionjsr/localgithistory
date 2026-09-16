@@ -327,7 +327,7 @@ export default function Cart() {
               position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)',
               borderRadius: borderRadius.md, alignItems: 'center', justifyContent: 'center',
             }}>
-              <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>OUT OF STOCK</Text>
+              <Text style={{ color: colors.surface, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 }}>OUT OF STOCK</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -339,7 +339,7 @@ export default function Cart() {
             </Text>
             {isOOS && (
               <View style={{ backgroundColor: '#FEE2E2', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#DC2626' }}>OUT OF STOCK</Text>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: colors.error }}>OUT OF STOCK</Text>
               </View>
             )}
           </View>
@@ -553,7 +553,7 @@ export default function Cart() {
                   >
                     <View style={styles.wishlistLinkContent}>
                       <View style={styles.wishlistIconContainer}>
-                        <Ionicons name="heart" size={20} color="#EF4444" />
+                        <Ionicons name="heart" size={20} color={colors.error} />
                       </View>
                       <View>
                         <Text style={styles.wishlistLinkTitle}>Your Wishlist</Text>
@@ -587,7 +587,7 @@ export default function Cart() {
                 {wishlist.length > 0 && (
                   <View style={styles.upsellSection}>
                     <View style={styles.upsellHeader}>
-                      <Ionicons name="heart-outline" size={18} color="#EF4444" />
+                      <Ionicons name="heart-outline" size={18} color={colors.error} />
                       <Text style={styles.upsellTitle}>From Your Wishlist</Text>
                     </View>
                     <FlatList
@@ -642,8 +642,8 @@ export default function Cart() {
                 )}
                 {totalSavings > 0 && (
                   <View style={styles.summaryRow}>
-                    <Text style={[styles.summaryLabel, { color: '#059669' }]}>Discount</Text>
-                    <Text style={[styles.summaryValue, { color: '#059669' }]}>-₹{totalSavings.toLocaleString()}</Text>
+                    <Text style={[styles.summaryLabel, { color: colors.success }]}>Discount</Text>
+                    <Text style={[styles.summaryValue, { color: colors.success }]}>-₹{totalSavings.toLocaleString()}</Text>
                   </View>
                 )}
                 <View style={styles.summaryRow}>
@@ -666,8 +666,8 @@ export default function Cart() {
                   backgroundColor: '#FEF2F2', borderColor: '#FECACA',
                   borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 10,
                 }}>
-                  <Ionicons name="alert-circle-outline" size={16} color="#DC2626" style={{ marginRight: 6 }} />
-                  <Text style={{ fontSize: 12, color: '#DC2626', fontWeight: '600', flex: 1 }}>
+                  <Ionicons name="alert-circle-outline" size={16} color={colors.error} style={{ marginRight: 6 }} />
+                  <Text style={{ fontSize: 12, color: colors.error, fontWeight: '600', flex: 1 }}>
                     Some items are out of stock. Please remove them before checkout.
                   </Text>
                 </View>
@@ -688,7 +688,7 @@ export default function Cart() {
                 }}
                 activeOpacity={hasOOSItems ? 1 : 0.9}
               >
-                <View style={[styles.checkoutGradient, duesInfo?.hasOverdueBills && { backgroundColor: '#EF4444' }]}>
+                <View style={[styles.checkoutGradient, duesInfo?.hasOverdueBills && { backgroundColor: colors.error }]}>
                   <Text style={styles.checkoutButtonText}>
                     {duesInfo?.hasOverdueBills ? 'Clear Dues to Checkout' : 'Proceed to Checkout'}
                   </Text>
@@ -712,7 +712,7 @@ export default function Cart() {
             </View>
             <ScrollView style={styles.modalScroll}>
               <View style={styles.duesWarningBox}>
-                <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                <Ionicons name="alert-circle" size={20} color={colors.error} />
                 <Text style={styles.duesWarningText}>
                   You have overdue bills. Please clear a minimum of ₹{duesInfo?.minimumAmountToUnblock?.toLocaleString()} to proceed to checkout.
                 </Text>
@@ -1145,7 +1145,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 13,
-    color: '#DC2626',
+    color: colors.error,
     fontWeight: '500',
   },
   modalSubtitle: {
@@ -1180,7 +1180,7 @@ const styles = StyleSheet.create({
   billOverdueBadge: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#DC2626',
+    color: colors.error,
     backgroundColor: '#FEE2E2',
     paddingHorizontal: 6,
     paddingVertical: 2,

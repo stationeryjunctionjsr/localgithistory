@@ -41,11 +41,11 @@ const InputField = ({
 }) => (
   <View className="mb-4">
     <View className="flex-row items-center rounded-xl bg-neutral-100 px-4 py-3.5">
-      <Ionicons name={icon as any} size={18} color="#9CA3AF" />
+      <Ionicons name={icon as any} size={18} color={colors.textMuted} />
       <TextInput
         className="ml-3 flex-1 text-neutral-900"
         placeholder={placeholder}
-        placeholderTextColor="#9CA3AF"
+        placeholderTextColor={colors.textMuted}
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={secureTextEntry && !isVisible}
@@ -57,7 +57,7 @@ const InputField = ({
           <Ionicons
             name={isVisible ? 'eye-off-outline' : 'eye-outline'}
             size={18}
-            color="#9CA3AF"
+            color={colors.textMuted}
           />
         </TouchableOpacity>
       )}
@@ -196,7 +196,7 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.surface }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -251,7 +251,7 @@ export default function Login() {
                   activeOpacity={0.8}
                 >
                   {loading ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.surface} />
                   ) : (
                     <Text className="font-semibold text-white">Sign In</Text>
                   )}
@@ -295,7 +295,7 @@ export default function Login() {
                       <TextInput
                         className="flex-1 text-neutral-900"
                         placeholder="OTP"
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor={colors.textMuted}
                         keyboardType="number-pad"
                         value={forgot.otp}
                         onChangeText={(v) => setForgot({ ...forgot, otp: v })}
@@ -309,9 +309,9 @@ export default function Login() {
                     activeOpacity={0.8}
                   >
                     {sendingOTP || verifyingOTP ? (
-                      <ActivityIndicator color="#fff" size="small" />
+                      <ActivityIndicator color={colors.surface} size="small" />
                     ) : otpVerified ? (
-                      <Ionicons name="checkmark" size={18} color="#fff" />
+                      <Ionicons name="checkmark" size={18} color={colors.surface} />
                     ) : (
                       <Text className="text-sm font-medium text-white">
                         {otpSent ? 'Verify' : 'Send'}
@@ -329,7 +329,7 @@ export default function Login() {
                   >
                     <Text
                       style={{
-                        color: canResend ? colors.textPrimary : '#9CA3AF',
+                        color: canResend ? colors.textPrimary : colors.textMuted,
                         fontWeight: '500',
                       }}
                     >
@@ -364,7 +364,7 @@ export default function Login() {
                   activeOpacity={0.8}
                 >
                   {loading ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={colors.surface} />
                   ) : (
                     <Text className="font-semibold text-white">Reset Password</Text>
                   )}

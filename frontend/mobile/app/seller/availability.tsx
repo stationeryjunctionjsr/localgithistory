@@ -256,7 +256,7 @@ export default function SellerAvailability() {
 
           {past.length > 0 && (
             <View style={styles.card}>
-              <Text style={[styles.sectionLabel, { color: '#9ca3af' }]}>Recent History</Text>
+              <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Recent History</Text>
               {past.map(w => {
                 const si = statusInfo(w.status);
                 return (
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, color: '#6b7280', marginTop: 4 },
   bold: { fontWeight: '700', color: '#111827' },
   card: {
-    backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 14,
+    backgroundColor: colors.surface, borderRadius: 14, padding: 16, marginBottom: 14,
     ...shadows.sm,
   },
   sectionLabel: { fontSize: 14, fontWeight: '700', color: '#374151', marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -300,20 +300,20 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 12, fontWeight: '600', color: '#374151', marginBottom: 5 },
   input: {
     borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8,
-    paddingHorizontal: 11, paddingVertical: 9, fontSize: 14, backgroundColor: '#fff',
+    paddingHorizontal: 11, paddingVertical: 9, fontSize: 14, backgroundColor: colors.surface,
   },
   submitBtn: {
-    backgroundColor: '#f59e0b', borderRadius: 10, paddingVertical: 13,
+    backgroundColor: colors.warning, borderRadius: 10, paddingVertical: 13,
     alignItems: 'center', marginTop: 6,
   },
-  btnDisabled: { backgroundColor: '#9ca3af' },
-  submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  btnDisabled: { backgroundColor: colors.textMuted },
+  submitBtnText: { color: colors.surface, fontSize: 15, fontWeight: '700' },
   windowRow: {
     borderRadius: 10, padding: 12, marginBottom: 10,
     flexDirection: 'row', alignItems: 'flex-start',
   },
   windowTime: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  windowArrow: { fontSize: 11, color: '#9ca3af', marginVertical: 1 },
+  windowArrow: { fontSize: 11, color: colors.textMuted, marginVertical: 1 },
   windowReason: { fontSize: 12, color: '#6b7280', marginTop: 4 },
   windowRight: { alignItems: 'flex-end', gap: 8 },
   windowBadge: { fontSize: 12, fontWeight: '700' },
@@ -323,5 +323,5 @@ const styles = StyleSheet.create({
   historyTime: { fontSize: 12, color: '#6b7280' },
   empty: { alignItems: 'center', paddingVertical: 32 },
   emptyText: { fontSize: 15, fontWeight: '600', color: '#374151' },
-  emptySubText: { fontSize: 13, color: '#9ca3af', marginTop: 6 },
+  emptySubText: { fontSize: 13, color: colors.textMuted, marginTop: 6 },
 });

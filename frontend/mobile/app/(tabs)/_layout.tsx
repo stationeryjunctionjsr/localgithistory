@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     borderColor: colors.surface,
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 10,
     fontWeight: '700',
   },

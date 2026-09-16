@@ -411,18 +411,18 @@ function HomeInner() {
           {/* Dynamic Badges */}
           <View style={{ position: 'absolute', bottom: 4, left: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingRight: 4 }}>
             {item.isNew && (
-              <View style={{ backgroundColor: '#3B82F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>NEW</Text>
+              <View style={{ backgroundColor: colors.info, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: colors.surface }}>NEW</Text>
               </View>
             )}
             {item.bestSeller && (
-              <View style={{ backgroundColor: '#F59E0B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>BESTSELLER</Text>
+              <View style={{ backgroundColor: colors.warning, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: colors.surface }}>BESTSELLER</Text>
               </View>
             )}
             {item.previouslyBought && (
               <View style={{ backgroundColor: '#8B5CF6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>BOUGHT BEFORE</Text>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: colors.surface }}>BOUGHT BEFORE</Text>
               </View>
             )}
           </View>
@@ -642,13 +642,13 @@ function HomeInner() {
                     minWidth: 16,
                     height: 16,
                     borderRadius: 8,
-                    backgroundColor: '#dc2626',
+                    backgroundColor: colors.error,
                     alignItems: 'center',
                     justifyContent: 'center',
                     paddingHorizontal: 3,
                   }}
                 >
-                  <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
+                  <Text style={{ color: colors.surface, fontSize: 9, fontWeight: '700' }}>
                     {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
                   </Text>
                 </View>
@@ -663,12 +663,12 @@ function HomeInner() {
           style={styles.locationBar}
           activeOpacity={0.8}
         >
-          <Ionicons name="location" size={14} color="#1a4d33" />
+          <Ionicons name="location" size={14} color={colors.primary} />
           <Text style={styles.locationText} numberOfLines={1}>
             Deliver to: <Text style={styles.locationBold}>{pincode || 'Select Pincode'}</Text>
             {city ? ` (${city})` : ''}
           </Text>
-          <Ionicons name="chevron-down" size={12} color="#1a4d33" />
+          <Ionicons name="chevron-down" size={12} color={colors.primary} />
         </TouchableOpacity>
 
         {/* Expandable Search Bar */}
@@ -1189,12 +1189,12 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 12,
-    color: '#1a4d33',
+    color: colors.primary,
     maxWidth: SCREEN_WIDTH - 80,
   },
   locationBold: {
     fontWeight: '700',
-    color: '#1a4d33',
+    color: colors.primary,
   },
   menuButton: {
     width: 40,
@@ -1764,7 +1764,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryButtonText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: '600',
     fontSize: 14,
   },

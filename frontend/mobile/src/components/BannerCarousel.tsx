@@ -80,7 +80,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({
       <View style={[styles.container, style, { paddingHorizontal: horizontalPadding }]}>
         <View style={[styles.bannerItem, { width: SCREEN_WIDTH - horizontalPadding * 2, height: 220 }]}>
           <LinearGradient
-            colors={['#1f2937', '#111827', '#000000']}
+            colors={['#1f2937', '#111827', colors.textPrimary]}
             style={StyleSheet.absoluteFillObject}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   fallbackTitle: {
-    color: '#ffffff',
+    color: colors.surface,
     fontSize: 26,
     fontWeight: 'bold',
     marginBottom: 2,
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   fallbackSubtitle: {
-    color: '#9ca3af',
+    color: colors.textMuted,
     fontSize: 12,
     textAlign: 'center',
     marginBottom: 16,
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   fallbackButtonPrimaryText: {
-    color: '#ffffff',
+    color: colors.surface,
     fontSize: 12,
     fontWeight: 'bold',
     letterSpacing: 1,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   fallbackButtonSecondaryText: {
-    color: '#ffffff',
+    color: colors.surface,
     fontSize: 12,
     fontWeight: 'bold',
     letterSpacing: 1,

@@ -8,7 +8,7 @@ export default function SellerLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: { backgroundColor: '#4f46e5' }, // Distinct color for seller
-        headerTintColor: '#fff',
+        headerTintColor: colors.surface,
         tabBarActiveTintColor: '#4f46e5',
         tabBarInactiveTintColor: colors.neutral[500],
         tabBarStyle: { paddingBottom: 5, height: 60 },

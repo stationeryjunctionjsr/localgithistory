@@ -39,10 +39,10 @@ interface CategoryTag {
 }
 
 const categoryColors = [
-  { bg: '#FEE2E2', accent: '#EF4444' },
-  { bg: '#FEF3C7', accent: '#F59E0B' },
-  { bg: '#D1FAE5', accent: '#10B981' },
-  { bg: '#DBEAFE', accent: '#3B82F6' },
+  { bg: '#FEE2E2', accent: colors.error },
+  { bg: '#FEF3C7', accent: colors.warning },
+  { bg: '#D1FAE5', accent: colors.success },
+  { bg: '#DBEAFE', accent: colors.info },
   { bg: '#E9D5FF', accent: '#A855F7' },
   { bg: '#FCE7F3', accent: '#EC4899' },
   { bg: '#F0FDFA', accent: '#14B8A6' },
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   retryText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: '600',
     fontSize: 15,
   },

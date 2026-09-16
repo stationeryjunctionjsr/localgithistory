@@ -237,7 +237,7 @@ export default function BusinessFavouritesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.surface} />
         </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.headerTitle}>Business Favourites</Text>
@@ -248,7 +248,7 @@ export default function BusinessFavouritesScreen() {
           ) : null}
         </View>
         <TouchableOpacity onPress={openFilters} style={styles.filterButton}>
-          <Ionicons name="options-outline" size={22} color="#FFFFFF" />
+          <Ionicons name="options-outline" size={22} color={colors.surface} />
           {hasActiveFilters && <View style={styles.activeFilterDot} />}
         </TouchableOpacity>
       </View>
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    backgroundColor: '#0f3322',
+    backgroundColor: colors.brand.primaryDark,
   },
   backButton: {
     padding: 4,
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   cityBadge: {
     backgroundColor: 'rgba(255,255,255,0.15)',
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   cityBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   filterButton: {
     padding: 6,
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   subtitleContainer: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: '#1a4d33',
+    backgroundColor: colors.primary,
   },
   subtitleText: {
     fontSize: 13,
@@ -527,11 +527,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
-    backgroundColor: '#1a4d33',
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.full,
   },
   clearFiltersBtnText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontWeight: '600',
     fontSize: 14,
   },
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
   discountText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   outOfStockOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
   outOfStockText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   brandText: {
     fontSize: 10,
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     height: '80%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     overflow: 'hidden',
@@ -660,10 +660,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   activeChip: {
-    borderColor: '#1a4d33',
+    borderColor: colors.primary,
     backgroundColor: '#E6F4EA',
   },
   chipText: {
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   activeChipText: {
-    color: '#1a4d33',
+    color: colors.primary,
     fontWeight: '600',
   },
   availBtn: {
@@ -681,11 +681,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   activeAvailBtn: {
-    borderColor: '#1a4d33',
-    backgroundColor: '#1a4d33',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
   availBtnText: {
     fontSize: 12,
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   activeAvailBtnText: {
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   priceInputRow: {
     flexDirection: 'row',
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   clearBtn: {
     flex: 1,
@@ -739,13 +739,13 @@ const styles = StyleSheet.create({
     flex: 2,
     height: 48,
     borderRadius: borderRadius.md,
-    backgroundColor: '#1a4d33',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   applyBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.surface,
   },
 });

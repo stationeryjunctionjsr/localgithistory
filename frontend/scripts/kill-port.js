@@ -33,7 +33,7 @@ try {
       // lsof returns exit code 1 if no processes are found
     }
   }
-} catch (e: any) { console.warn("Background task failed", e); }
+} catch (e) { console.warn("Background task failed", e); }
 console.log('[Port-Killer] Port 3000 is clean and ready.');
 
 // Clean the .next build directory to prevent development and production config cache conflicts

@@ -125,7 +125,7 @@ export const PincodeModal: React.FC = () => {
           {/* Icon and Header */}
           <View style={styles.header}>
             <View style={styles.iconCircle}>
-              <Ionicons name="location-sharp" size={32} color="#1a4d33" />
+              <Ionicons name="location-sharp" size={32} color={colors.primary} />
             </View>
             <Text style={styles.title}>
               {isMandatory ? 'Select Delivery Location' : 'Change Delivery Location'}
@@ -145,7 +145,7 @@ export const PincodeModal: React.FC = () => {
                 value={enteredPin}
                 onChangeText={handleChangeText}
                 placeholder="e.g. 831001"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textMuted}
                 keyboardType="number-pad"
                 maxLength={6}
                 autoFocus={true}
@@ -158,7 +158,7 @@ export const PincodeModal: React.FC = () => {
                     setLocalError(null);
                   }}
                 >
-                  <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                  <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -167,7 +167,7 @@ export const PincodeModal: React.FC = () => {
           {/* Error Message */}
           {(localError || error) && (
             <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={18} color="#DC2626" style={styles.errorIcon} />
+              <Ionicons name="alert-circle" size={18} color={colors.error} style={styles.errorIcon} />
               <Text style={styles.errorText}>{localError || error}</Text>
             </View>
           )}
@@ -175,7 +175,7 @@ export const PincodeModal: React.FC = () => {
           {/* Success Info Card */}
           {successInfo && (
             <View style={styles.successContainer}>
-              <Ionicons name="checkmark-circle" size={20} color="#059669" style={styles.successIcon} />
+              <Ionicons name="checkmark-circle" size={20} color={colors.success} style={styles.successIcon} />
               <View style={styles.successTextWrapper}>
                 <Text style={styles.successTitle}>
                   Serviceable in {successInfo.city || 'your location'} ({successInfo.pincode})
@@ -201,7 +201,7 @@ export const PincodeModal: React.FC = () => {
           >
             {isLoading ? (
               <View style={styles.loadingRow}>
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={colors.surface} size="small" />
                 <Text style={styles.submitButtonText}>Verifying Location...</Text>
               </View>
             ) : (
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 4,
-    backgroundColor: '#1a4d33',
+    backgroundColor: colors.primary,
   },
   closeButton: {
     position: 'absolute',
@@ -365,11 +365,11 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     height: 48,
-    backgroundColor: '#1a4d33',
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#1a4d33',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 15,
     fontWeight: '700',
   },

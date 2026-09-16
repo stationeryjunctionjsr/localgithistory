@@ -28,6 +28,8 @@ import { PincodeProvider } from '../src/context/PincodeContext';
 import { PincodeModal } from '../src/components/PincodeModal';
 import { LanguageProvider } from '../src/context/LanguageContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { colors } from '../src/theme';
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,7 +67,7 @@ async function registerForPushNotifications() {
       name: 'General',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#1a4d33',
+      lightColor: colors.primary,
     });
   }
 
@@ -140,9 +142,9 @@ const eb = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '700', color: '#111827', textAlign: 'center' },
   message: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 20 },
   devBox: { marginTop: 8, padding: 12, backgroundColor: '#FFF1F2', borderRadius: 10, borderWidth: 1, borderColor: '#FECACA', width: '100%' },
-  devText: { fontSize: 12, color: '#DC2626', fontFamily: 'monospace' },
+  devText: { fontSize: 12, color: colors.error, fontFamily: 'monospace' },
   button: { marginTop: 16, backgroundColor: '#2563EB', paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12, minWidth: 160, alignItems: 'center' },
-  buttonText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
+  buttonText: { color: colors.surface, fontSize: 15, fontWeight: '600' },
 });
 // ─────────────────────────────────────────────────────────────────────────────
 

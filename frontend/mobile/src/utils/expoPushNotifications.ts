@@ -2,6 +2,8 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import api from '../api/client';
+import { colors } from '../theme';
+
 
 // Configure how notifications are displayed when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -46,7 +48,7 @@ export async function registerExpoPushToken(): Promise<void> {
         name: 'Default',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#1a4d33',
+        lightColor: colors.primary,
         sound: 'default',
       });
     }

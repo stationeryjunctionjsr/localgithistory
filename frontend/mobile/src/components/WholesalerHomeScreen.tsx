@@ -162,7 +162,7 @@ export default function WholesalerHomeScreen() {
   // ─── Section: Header ──────────────────────────────────────────────────────
   const renderHeader = () => (
     <LinearGradient
-      colors={['#0f3322', '#1a4d33', '#2d7a52']}
+      colors={[colors.brand.primaryDark, colors.primary, colors.brand.primaryLight]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.header, { paddingTop: insets.top + 12 }]}
@@ -179,13 +179,13 @@ export default function WholesalerHomeScreen() {
             style={styles.headerIconBtn}
             onPress={() => router.push('/orders')}
           >
-            <Ionicons name="receipt-outline" size={22} color="#fff" />
+            <Ionicons name="receipt-outline" size={22} color={colors.surface} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerIconBtn}
             onPress={() => router.push('/wishlist')}
           >
-            <Ionicons name="heart-outline" size={22} color="#fff" />
+            <Ionicons name="heart-outline" size={22} color={colors.surface} />
           </TouchableOpacity>
         </View>
       </View>
@@ -211,11 +211,11 @@ export default function WholesalerHomeScreen() {
           }}
           activeOpacity={0.8}
         >
-          <Ionicons name="location-outline" size={12} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }} numberOfLines={1}>
+          <Ionicons name="location-outline" size={12} color={colors.surface} />
+          <Text style={{ color: colors.surface, fontSize: 11, fontWeight: '600' }} numberOfLines={1}>
             Deliver to: {pincode || 'Select Pincode'}{city ? ` (${city})` : ''}
           </Text>
-          <Ionicons name="chevron-down" size={10} color="#fff" />
+          <Ionicons name="chevron-down" size={10} color={colors.surface} />
         </TouchableOpacity>
       </View>
     </LinearGradient>
@@ -227,13 +227,13 @@ export default function WholesalerHomeScreen() {
       icon: 'storefront-outline' as const,
       label: 'Browse\nProducts',
       onPress: () => router.push('/products'),
-      color: '#1a4d33',
+      color: colors.primary,
     },
     {
       icon: 'pricetags-outline' as const,
       label: 'My\nSchemes',
       onPress: () => router.push('/schemes'),
-      color: '#D4AF37',
+      color: colors.brand.accent,
     },
     {
       icon: 'receipt-outline' as const,
@@ -431,18 +431,18 @@ export default function WholesalerHomeScreen() {
           {/* Dynamic Badges */}
           <View style={{ position: 'absolute', bottom: 4, left: 4, flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingRight: 4 }}>
             {item.isNew && (
-              <View style={{ backgroundColor: '#3B82F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>NEW</Text>
+              <View style={{ backgroundColor: colors.info, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: colors.surface }}>NEW</Text>
               </View>
             )}
             {item.bestSeller && (
-              <View style={{ backgroundColor: '#F59E0B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>BESTSELLER</Text>
+              <View style={{ backgroundColor: colors.warning, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: colors.surface }}>BESTSELLER</Text>
               </View>
             )}
             {item.previouslyBought && (
               <View style={{ backgroundColor: '#8B5CF6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff' }}>BOUGHT BEFORE</Text>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: colors.surface }}>BOUGHT BEFORE</Text>
               </View>
             )}
           </View>
@@ -712,14 +712,14 @@ export default function WholesalerHomeScreen() {
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={['#1a4d33', '#2d7a52']}
+              colors={[colors.primary, colors.brand.primaryLight]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.ctaGradient}
             >
-              <Ionicons name="storefront-outline" size={20} color="#fff" />
+              <Ionicons name="storefront-outline" size={20} color={colors.surface} />
               <Text style={styles.ctaText}>Browse All Products</Text>
-              <Ionicons name="arrow-forward" size={18} color="#fff" />
+              <Ionicons name="arrow-forward" size={18} color={colors.surface} />
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
   headerCompany: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.surface,
     maxWidth: SCREEN_WIDTH * 0.55,
   },
   headerActions: {
@@ -906,7 +906,7 @@ const styles = StyleSheet.create({
   schemeBadgeText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#fff',
+    color: colors.surface,
     lineHeight: 18,
   },
   schemeBadgeOff: {
@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
   collectionName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: colors.surface,
     padding: spacing.sm,
     lineHeight: 18,
   },
@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#fff',
+    color: colors.surface,
     flex: 1,
     textAlign: 'center',
   },

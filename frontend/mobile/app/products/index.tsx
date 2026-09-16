@@ -108,9 +108,9 @@ const AddButton = ({
         disabled={busyId === item._id}
       >
         {busyId === item._id ? (
-          <ActivityIndicator size="small" color="#000" />
+          <ActivityIndicator size="small" color={colors.textPrimary} />
         ) : (
-          <Ionicons name="add" size={24} color="#000" />
+          <Ionicons name="add" size={24} color={colors.textPrimary} />
         )}
       </TouchableOpacity>
     </ReAnimated.View>
@@ -556,7 +556,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
             <Image source={{ uri: imgUrl }} className="h-full w-full" resizeMode="cover" />
           ) : (
             <View className="h-full w-full items-center justify-center">
-              <Ionicons name="image-outline" size={32} color="#9CA3AF" />
+              <Ionicons name="image-outline" size={32} color={colors.textMuted} />
             </View>
           )}
 
@@ -677,7 +677,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
               value={search}
               onChangeText={setSearch}
               className="ml-3 flex-1 font-medium text-gray-900"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch('')}>
@@ -738,7 +738,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
                       ? 'Lowest Price'
                       : 'Highest Price'}
               </Text>
-              <Ionicons name="chevron-down" size={16} color="#000" />
+              <Ionicons name="chevron-down" size={16} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -796,7 +796,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
               onPress={() => router.back()}
               className="h-10 w-10 items-center justify-center rounded-full bg-white/50 shadow-sm backdrop-blur-md"
             >
-              <Ionicons name="arrow-back" size={24} color="#000" />
+              <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
 
             {/* Fixed Center Title (Fades in on scroll) */}
@@ -812,7 +812,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
               onPress={() => setShowFilterModal(true)}
               className="h-10 w-10 items-center justify-center rounded-full bg-white/50 shadow-sm backdrop-blur-md"
             >
-              <Ionicons name="options-outline" size={20} color="#000" />
+              <Ionicons name="options-outline" size={20} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -855,7 +855,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
           ) : isError ? (
             <View className="flex-1 items-center justify-center px-10 py-20">
               <View className="mb-6 h-20 w-20 items-center justify-center rounded-full bg-red-50">
-                <Feather name="wifi-off" size={32} color="#EF4444" />
+                <Feather name="wifi-off" size={32} color={colors.error} />
               </View>
               <Text className="mb-2 text-center text-xl font-bold text-gray-900">
                 Could not load products
@@ -873,7 +873,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
           ) : (
             <View className="flex-1 items-center justify-center px-10 py-20">
               <View className="mb-6 h-20 w-20 items-center justify-center rounded-full bg-gray-50">
-                <Feather name="search" size={32} color="#9CA3AF" />
+                <Feather name="search" size={32} color={colors.textMuted} />
               </View>
               <Text className="mb-2 text-center text-xl font-bold text-gray-900">
                 No products found
@@ -908,7 +908,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
           onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}
           activeOpacity={0.8}
         >
-          <Ionicons name="arrow-up" size={24} color="#fff" />
+          <Ionicons name="arrow-up" size={24} color={colors.surface} />
         </TouchableOpacity>
       )}
 
@@ -921,7 +921,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
               onPress={() => setShowFilterModal(false)}
               className="h-8 w-8 items-center justify-center rounded-full bg-gray-100"
             >
-              <Ionicons name="close" size={20} color="#000" />
+              <Ionicons name="close" size={20} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
 
@@ -945,7 +945,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
                   selectedStyle={{ backgroundColor: colors.primary }}
                   unselectedStyle={{ backgroundColor: '#E5E7EB' }}
                   markerStyle={{
-                    backgroundColor: '#ffffff',
+                    backgroundColor: colors.surface,
                     height: 24,
                     width: 24,
                     borderWidth: 2,
@@ -1125,7 +1125,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
             <View className="mb-6 flex-row items-center justify-between">
               <Text className="text-lg font-bold text-gray-900">Sort By</Text>
               <TouchableOpacity onPress={() => setShowSortModal(false)}>
-                <Ionicons name="close" size={24} color="#000" />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             {[
@@ -1147,7 +1147,7 @@ export default function ProductsList(props: ProductsListProps = {}) {
                 >
                   {opt.label}
                 </Text>
-                {sort === opt.value && <Ionicons name="checkmark" size={20} color="#000" />}
+                {sort === opt.value && <Ionicons name="checkmark" size={20} color={colors.textPrimary} />}
               </TouchableOpacity>
             ))}
           </View>

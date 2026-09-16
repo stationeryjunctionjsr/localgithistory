@@ -518,7 +518,7 @@ export default function OrderDetail() {
               </TouchableOpacity>
               <TouchableOpacity onPress={handleReviewSubmit} style={styles.applyBtn} disabled={submittingReview}>
                 {submittingReview ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={colors.surface} />
                 ) : (
                   <Text style={styles.applyBtnText}>Submit Review</Text>
                 )}
@@ -678,7 +678,7 @@ export default function OrderDetail() {
               </TouchableOpacity>
               <TouchableOpacity onPress={handleReturnSubmit} style={[styles.applyBtn, { backgroundColor: colors.error }]} disabled={submittingReturn}>
                 {submittingReturn ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={colors.surface} />
                 ) : (
                   <Text style={styles.applyBtnText}>Submit Request</Text>
                 )}
@@ -766,7 +766,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     height: '65%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     overflow: 'hidden',
@@ -821,7 +821,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   activeChip: {
     borderColor: colors.primary,
@@ -853,7 +853,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   clearBtn: {
     flex: 1,
@@ -883,7 +883,7 @@ const styles = StyleSheet.create({
     color: colors.textOnPrimary,
   },
   secondaryBtn: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.primary,
     paddingVertical: spacing.sm,
@@ -924,7 +924,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 6,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   qtyBtn: {
     paddingHorizontal: 8,
@@ -950,7 +950,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textPrimary,
     marginTop: 8,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   chargeBox: {
     flexDirection: 'row',
@@ -997,7 +997,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   activeAvailBtn: {
     borderColor: colors.primary,
@@ -1009,7 +1009,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   activeAvailBtnText: {
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   upiDetailsBox: {
     backgroundColor: '#F8FAFC',
@@ -1029,7 +1029,7 @@ const styles = StyleSheet.create({
   qrCodeImage: {
     width: 140,
     height: 140,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 6,
   },
   upiIdText: {
@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
   },
   uploadBtnText: {
     fontSize: 12,

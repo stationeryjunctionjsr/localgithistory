@@ -202,7 +202,7 @@ export default function Profile() {
                   subtitle="Track return and refund requests"
                   onPress={() => router.push('/returns')}
                   iconBg="#FEE2E2"
-                  iconColor="#EF4444"
+                  iconColor={colors.error}
                 />
               </>
             )}
@@ -722,7 +722,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: 12,
     borderWidth: 1,

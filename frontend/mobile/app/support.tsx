@@ -503,9 +503,9 @@ export default function Support() {
                               disabled={submittingReply || !replyText.trim()}
                             >
                               {submittingReply ? (
-                                <ActivityIndicator size="small" color="#fff" />
+                                <ActivityIndicator size="small" color={colors.surface} />
                               ) : (
-                                <Ionicons name="send" size={18} color="#fff" />
+                                <Ionicons name="send" size={18} color={colors.surface} />
                               )}
                             </TouchableOpacity>
                           </View>
@@ -610,7 +610,7 @@ export default function Support() {
                         style={[styles.socialIconBtn, { backgroundColor: '#ECFDF5' }]}
                         onPress={() => Linking.openURL(`https://wa.me/${c.socialMedia?.whatsapp}`)}
                       >
-                        <Ionicons name="logo-whatsapp" size={20} color="#059669" />
+                        <Ionicons name="logo-whatsapp" size={20} color={colors.success} />
                       </TouchableOpacity>
                     ) : null}
                     {c.socialMedia?.youtube ? (
@@ -618,7 +618,7 @@ export default function Support() {
                         style={[styles.socialIconBtn, { backgroundColor: '#FEF2F2' }]}
                         onPress={() => Linking.openURL(c.socialMedia?.youtube || '')}
                       >
-                        <Ionicons name="logo-youtube" size={20} color="#DC2626" />
+                        <Ionicons name="logo-youtube" size={20} color={colors.error} />
                       </TouchableOpacity>
                     ) : null}
                     {c.socialMedia?.linkedin ? (
@@ -643,11 +643,11 @@ export default function Support() {
 const getStatusColor = (status: string = '') => {
   switch ((status || '').toLowerCase()) {
     case 'open':
-      return '#007AFF';
+      return colors.info;
     case 'in_progress':
-      return '#FF9500';
+      return colors.warning;
     case 'resolved':
-      return '#34C759';
+      return colors.success;
     case 'closed':
       return '#8E8E93';
     default:
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#475569',
+    color: colors.textSecondary,
   },
   socialContainer: {
     marginTop: spacing.md,
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.textPrimary,
     shadowOpacity: 0.05,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },

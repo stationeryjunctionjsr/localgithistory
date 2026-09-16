@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import Constants from 'expo-constants';
 import api from '../api/client';
+import { colors } from '../theme';
+
 
 const DEFAULT_MESSAGE = [
   'The application is currently undergoing a scheduled update and services will be temporarily unavailable during this time.',
@@ -72,7 +74,7 @@ export default function MaintenanceGate() {
           ))}
           <TouchableOpacity style={styles.button} onPress={handleCheckAgain} disabled={checking}>
             {checking ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.surface} />
             ) : (
               <Text style={styles.buttonText}>Refresh</Text>
             )}
@@ -91,7 +93,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 16,
   },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 24, width: '100%', maxWidth: 440 },
+  card: { backgroundColor: colors.surface, borderRadius: 14, padding: 24, width: '100%', maxWidth: 440 },
   title: { fontSize: 20, fontWeight: '700', marginBottom: 14, textAlign: 'center' },
   body: { fontSize: 15, color: '#4b5563', lineHeight: 22, marginBottom: 12, textAlign: 'center' },
   button: {
@@ -103,5 +105,5 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  buttonText: { color: '#fff', fontWeight: '700' },
+  buttonText: { color: colors.surface, fontWeight: '700' },
 });

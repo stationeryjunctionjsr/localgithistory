@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
 import api from '../../src/api/client';
 import { shadows } from '../../src/theme';
+import { colors } from '../../src/theme';
+
 
 export default function SellerDiscounts() {
   const [coupons, setCoupons] = useState<any[]>([]);
@@ -59,7 +61,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   list: { padding: 16 },
   card: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
+    backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 12,
     ...shadows.sm,
   },
   header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
@@ -70,5 +72,5 @@ const styles = StyleSheet.create({
   note: { fontSize: 12, color: '#6B7280' },
   empty: { alignItems: 'center', paddingTop: 60 },
   emptyText: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  emptySubText: { fontSize: 13, color: '#9CA3AF', marginTop: 8 },
+  emptySubText: { fontSize: 13, color: colors.textMuted, marginTop: 8 },
 });

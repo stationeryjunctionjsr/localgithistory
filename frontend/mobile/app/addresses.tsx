@@ -212,7 +212,7 @@ export default function Addresses() {
             <Ionicons name="pencil-outline" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => deleteAddress(index)} style={styles.actionBtn}>
-            <Ionicons name="trash-outline" size={18} color="#DC2626" />
+            <Ionicons name="trash-outline" size={18} color={colors.error} />
           </TouchableOpacity>
         </View>
       </View>
@@ -276,7 +276,7 @@ export default function Addresses() {
             Add an address to speed up checkout.
           </Text>
           <TouchableOpacity style={styles.addAddressBtn} onPress={openAdd}>
-            <Ionicons name="add-circle-outline" size={18} color="#fff" />
+            <Ionicons name="add-circle-outline" size={18} color={colors.surface} />
             <Text style={styles.addAddressBtnText}>Add Address</Text>
           </TouchableOpacity>
         </View>
@@ -363,7 +363,7 @@ export default function Addresses() {
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color={colors.surface} size="small" />
               ) : (
                 <Text style={styles.saveBtnText}>{editIndex !== null ? 'Save Changes' : 'Add Address'}</Text>
               )}
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary,
     paddingVertical: 12, paddingHorizontal: 24, borderRadius: 24, gap: 8,
   },
-  addAddressBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  addAddressBtnText: { color: colors.surface, fontWeight: '700', fontSize: 15 },
   listContent: { padding: spacing.md },
   card: {
     backgroundColor: colors.surface, borderRadius: 12, padding: spacing.md,
@@ -436,5 +436,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 15,
     alignItems: 'center', marginTop: spacing.lg,
   },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  saveBtnText: { color: colors.surface, fontWeight: '700', fontSize: 16 },
 });

@@ -232,7 +232,7 @@ export default function Register() {
               className="mb-4 h-20 w-20 items-center justify-center rounded-2xl"
               style={[shadows.lg, { backgroundColor: colors.primary }]}
             >
-              <Ionicons name="person-add" size={40} color="#fff" />
+              <Ionicons name="person-add" size={40} color={colors.surface} />
             </View>
             <Text className="text-2xl font-bold text-slate-800">Create Account</Text>
             <Text className="mt-1 text-slate-500">Join us and start shopping</Text>
@@ -290,9 +290,9 @@ export default function Register() {
                   disabled={sendingOTP || verifyingOTP || otpVerified}
                 >
                   {sendingOTP || verifyingOTP ? (
-                    <ActivityIndicator color="#fff" size="small" />
+                    <ActivityIndicator color={colors.surface} size="small" />
                   ) : otpVerified ? (
-                    <Ionicons name="checkmark" size={20} color="#fff" />
+                    <Ionicons name="checkmark" size={20} color={colors.surface} />
                   ) : (
                     <Text className="text-sm font-semibold text-white">
                       {otpSent ? 'Verify' : 'Send'}
@@ -352,7 +352,7 @@ export default function Register() {
               disabled={loading || !otpVerified}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.surface} />
               ) : (
                 <Text className="text-base font-bold text-white">Create Account</Text>
               )}

@@ -376,7 +376,7 @@ export default function EditProfile() {
           disabled={!isChanged || saving}
         >
           {saving ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={colors.surface} />
           ) : (
             <Text style={[styles.saveButtonText, !isChanged && styles.saveButtonTextDisabled]}>Save</Text>
           )}
@@ -469,7 +469,7 @@ export default function EditProfile() {
                       disabled={verifyingEmail || verificationCode.length !== 6}
                     >
                       {verifyingEmail ? (
-                        <ActivityIndicator size="small" color="#fff" />
+                        <ActivityIndicator size="small" color={colors.surface} />
                       ) : (
                         <Text style={styles.otpSubmitButtonText}>Submit</Text>
                       )}
@@ -584,7 +584,7 @@ export default function EditProfile() {
                   disabled={changingPassword}
                 >
                   {changingPassword ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color={colors.surface} />
                   ) : (
                     <Text style={styles.changePasswordButtonText}>Update Password</Text>
                   )}
@@ -595,7 +595,7 @@ export default function EditProfile() {
 
           {/* Danger Zone */}
           <View style={[styles.section, shadows.sm, { borderColor: '#fee2e2', borderWidth: 1 }]}>
-            <Text style={[styles.sectionTitle, { color: '#dc2626' }]}>Danger Zone</Text>
+            <Text style={[styles.sectionTitle, { color: colors.error }]}>Danger Zone</Text>
             
             <View style={styles.dangerItem}>
               <Text style={styles.dangerTitle}>Deactivate Account</Text>
@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveButtonDisabled: { backgroundColor: colors.neutral[200] },
-  saveButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  saveButtonText: { color: colors.surface, fontWeight: '600', fontSize: 14 },
   saveButtonTextDisabled: { color: colors.textMuted },
   scrollContent: { padding: 16 },
   section: {
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[200],
   },
   verifyButtonText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: '700',
     fontSize: 13,
   },
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[200],
   },
   otpSubmitButtonText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: '700',
     fontSize: 13,
   },
@@ -824,7 +824,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   changePasswordButtonText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: '600',
     fontSize: 15,
   },
@@ -844,28 +844,28 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   deactivateButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#dc2626',
+    borderColor: colors.error,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deactivateButtonText: {
-    color: '#dc2626',
+    color: colors.error,
     fontWeight: '600',
     fontSize: 14,
   },
   deleteButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: colors.error,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deleteButtonText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: '600',
     fontSize: 14,
   },

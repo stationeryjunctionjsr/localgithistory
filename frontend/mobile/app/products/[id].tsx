@@ -74,7 +74,7 @@ const AnimatedDot = ({ active }: { active: boolean }) => {
   const animatedStyle = useAnimatedStyle(() => {
     return {
       width: withTiming(active ? 24 : 6, { duration: 300 }),
-      backgroundColor: withTiming(active ? '#ffffff' : 'rgba(255, 255, 255, 0.5)', {
+      backgroundColor: withTiming(active ? colors.surface : 'rgba(255, 255, 255, 0.5)', {
         duration: 300,
       }),
     };
@@ -381,9 +381,9 @@ export default function ProductDetail() {
   // Stock messaging
   const getStockMessage = () => {
     if (stockCount <= 0)
-      return { text: 'Out of Stock', color: '#DC2626', bgColor: '#FEE2E2', dotColor: '#EF4444' };
+      return { text: 'Out of Stock', color: colors.error, bgColor: '#FEE2E2', dotColor: colors.error };
     if (stockCount === 1)
-      return { text: 'Last one!', color: '#DC2626', bgColor: '#FEE2E2', dotColor: '#EF4444' };
+      return { text: 'Last one!', color: colors.error, bgColor: '#FEE2E2', dotColor: colors.error };
     if (stockCount <= 4)
       return {
         text: `Only ${stockCount} left!`,
@@ -392,14 +392,14 @@ export default function ProductDetail() {
         dotColor: '#F97316',
       };
     if (stockCount <= 10)
-      return { text: 'Low stock', color: '#D97706', bgColor: '#FEF3C7', dotColor: '#F59E0B' };
+      return { text: 'Low stock', color: '#D97706', bgColor: '#FEF3C7', dotColor: colors.warning };
     return null;
   };
   const stockMessage = product ? getStockMessage() : null;
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <ProductDetailSkeleton />
       </View>
     );
@@ -449,7 +449,7 @@ export default function ProductDetail() {
             <Ionicons
               name={addedToWishlist ? 'heart' : 'heart-outline'}
               size={22}
-              color={addedToWishlist ? '#EF4444' : '#111827'}
+              color={addedToWishlist ? colors.error : '#111827'}
             />
           </TouchableOpacity>
         </View>
@@ -614,7 +614,7 @@ export default function ProductDetail() {
                             className="mr-3 rounded-xl border px-5 py-2.5"
                             style={isSelected
                               ? { borderColor: colors.primary, backgroundColor: colors.primary }
-                              : { borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' }
+                              : { borderColor: '#E5E7EB', backgroundColor: colors.surface }
                             }
                           >
                             <Text
@@ -644,7 +644,7 @@ export default function ProductDetail() {
           {productBundles.length > 0 && (
             <View style={{ marginBottom: 32 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                <Ionicons name="gift-outline" size={18} color="#1a4d33" />
+                <Ionicons name="gift-outline" size={18} color={colors.primary} />
                 <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: '700', color: '#111827' }}>
                   Available in Bundle Deals
                 </Text>
@@ -685,8 +685,8 @@ export default function ProductDetail() {
                         {bundle.name}
                       </Text>
                       {bundle.savingsPercent > 0 && (
-                        <View style={{ backgroundColor: '#059669', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
-                          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{bundle.savingsPercent}% OFF</Text>
+                        <View style={{ backgroundColor: colors.success, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
+                          <Text style={{ color: colors.surface, fontSize: 11, fontWeight: '700' }}>{bundle.savingsPercent}% OFF</Text>
                         </View>
                       )}
                     </View>
@@ -695,7 +695,7 @@ export default function ProductDetail() {
                     ) : null}
                     {/* Included Items List - matches web implementation */}
                     <View style={{ marginBottom: 12, borderTopWidth: 1, borderTopColor: '#D1FAE5', paddingTop: 8 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, marginBottom: 6 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5, marginBottom: 6 }}>
                         INCLUDED ITEMS
                       </Text>
                       {bundle.items?.map((bItem: any, idx: number) => (
@@ -717,7 +717,7 @@ export default function ProductDetail() {
                         </Text>
                       )}
                       {bundle.savings > 0 && (
-                        <Text style={{ marginLeft: 8, fontSize: 12, color: '#059669', fontWeight: '600' }}>
+                        <Text style={{ marginLeft: 8, fontSize: 12, color: colors.success, fontWeight: '600' }}>
                           Save ₹{Math.round(bundle.savings).toLocaleString()}
                         </Text>
                       )}
@@ -774,7 +774,7 @@ export default function ProductDetail() {
                           onPress={() => addBundleToCart(bundle._id, bundle.name)}
                           disabled={addingBundle || !bundle.isAvailable}
                           style={{
-                            backgroundColor: (addingBundle || !bundle.isAvailable) ? '#9CA3AF' : '#111827',
+                            backgroundColor: (addingBundle || !bundle.isAvailable) ? colors.textMuted : '#111827',
                             borderRadius: 12,
                             paddingVertical: 10,
                             alignItems: 'center',
@@ -828,7 +828,7 @@ export default function ProductDetail() {
                       >
                         <View className="flex-row items-center gap-2">
                           {isActive ? (
-                            <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                            <Ionicons name="checkmark-circle" size={16} color={colors.success} />
                           ) : (
                             <View className="h-1.5 w-1.5 rounded-full bg-gray-300" style={{ marginRight: 6 }} />
                           )}
@@ -936,7 +936,7 @@ export default function ProductDetail() {
       <View
         className="absolute bottom-0 left-0 right-0 flex-row items-center justify-between border-t border-gray-100 bg-white px-6 pb-8 pt-4"
         style={{
-          shadowColor: '#000',
+          shadowColor: colors.textPrimary,
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.05,
           shadowRadius: 8,

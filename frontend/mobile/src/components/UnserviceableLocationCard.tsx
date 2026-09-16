@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePincode } from '../context/PincodeContext';
+import { colors } from '../theme';
+
 
 export default function UnserviceableLocationCard() {
   const { pincode, city, state, openModal } = usePincode();
@@ -30,7 +32,7 @@ export default function UnserviceableLocationCard() {
         onPress={() => openModal(false)}
         activeOpacity={0.8}
       >
-        <Ionicons name="navigate-outline" size={18} color="#ffffff" style={styles.buttonIcon} />
+        <Ionicons name="navigate-outline" size={18} color={colors.surface} style={styles.buttonIcon} />
         <Text style={styles.actionButtonText}>Check Another Pincode</Text>
       </TouchableOpacity>
 
@@ -85,11 +87,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a4d33',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 14,
-    shadowColor: '#000',
+    shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   actionButtonText: {
-    color: '#ffffff',
+    color: colors.surface,
     fontSize: 15,
     fontWeight: '700',
   },
