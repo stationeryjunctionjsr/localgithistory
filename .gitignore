@@ -142,3 +142,9 @@ backend/seed_*.py
 /backend/start_db.py
 /backend/whitelist_current_ip.py
 /fix.py
+
+# Patch scripts and diagnostic outputs
+/patch_*.py
+/failures_log.txt
+/flake8_output.txt
+/pyflakes_*.txt
