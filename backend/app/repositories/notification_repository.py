@@ -15,29 +15,33 @@ class NotificationRepository:
         """Get current timestamp in ISO format with IST timezone"""
         return datetime.now(IST).isoformat()
 
-    async def findAll(self, filters: Optional[Dict] = None) -> List[Dict]:
-        filters = filters or {}
+    async def findAll(self, filters: Any = None) -> List[Dict]:
+        if filters is None:
+            from app.models.daos import NotificationFilter
+            filters = NotificationFilter()
 
         # Build DB query to offload exact filtering
         db_query = {}
-        if filters.get("userId"):
-            db_query["userId"] = filters["userId"]
-        if filters.get("isRead") is not None:
-            db_query["isRead"] = filters["isRead"]
-        if filters.get("type"):
-            db_query["type"] = filters["type"]
+        if filters.userId:
+            db_query["userId"] = filters.userId
+        if filters.isRead is not None:
+            db_query["isRead"] = filters.isRead
+        if filters.isAcknowledged is not None:
+            db_query["isAcknowledged"] = filters.isAcknowledged
+        if filters.type:
+            db_query["type"] = filters.type
 
         notifications = await self.storage.findAll(db_query)
 
-        if filters.get("startDate"):
-            start = datetime.fromisoformat(filters["startDate"].replace("Z", "+00:00"))
+        if filters.startDate:
+            start = datetime.fromisoformat(filters.startDate.replace("Z", "+00:00"))
             notifications = [
                 n
                 for n in notifications
                 if n.createdAt and datetime.fromisoformat(n.createdAt.replace("Z", "+00:00")) >= start
             ]
-        if filters.get("endDate"):
-            end = datetime.fromisoformat(filters["endDate"].replace("Z", "+00:00"))
+        if filters.endDate:
+            end = datetime.fromisoformat(filters.endDate.replace("Z", "+00:00"))
             end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
             notifications = [
                 n for n in notifications if n.createdAt and datetime.fromisoformat(n.createdAt.replace("Z", "+00:00")) <= end
@@ -69,15 +73,15 @@ class NotificationRepository:
 
     async def markAllAsRead(self) -> int:
         """Mark all unread notifications as read and acknowledged"""
-        from app.models.daos import NotificationInternalUpdate
+        from app.models.daos import NotificationInternalUpdate, NotificationFilter
         update_model = NotificationInternalUpdate(isRead=True, isAcknowledged=True, updatedAt=self._get_timestamp())
-        unread_notifs = await self.storage.findAll({"isRead": False})
+        unread_notifs = await self.storage.findAll(NotificationFilter(isRead=False))
         count1 = 0
         for n in unread_notifs:
             await self.storage.update(n.id, update_model)
             count1 += 1
             
-        unack_notifs = await self.storage.findAll({"isAcknowledged": False})
+        unack_notifs = await self.storage.findAll(NotificationFilter(isAcknowledged=False))
         count2 = 0
         for n in unack_notifs:
             if n.id not in [u.id for u in unread_notifs]:

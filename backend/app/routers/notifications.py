@@ -40,18 +40,19 @@ async def get_notifications(
 ):
     """Get all notifications for user"""
     try:
-        filters = {}
+        from app.models.daos import NotificationFilter
+        filters = NotificationFilter()
         if current_user.role != "super_admin":
-            filters["userId"] = current_user.id or current_user.id
+            filters.userId = current_user.id or current_user.id
 
         if isRead is not None:
-            filters["isRead"] = isRead
+            filters.isRead = isRead
         if type:
-            filters["type"] = type
+            filters.type = type
         if startDate:
-            filters["startDate"] = startDate
+            filters.startDate = startDate
         if endDate:
-            filters["endDate"] = endDate
+            filters.endDate = endDate
 
         notifications = await notification_repository.findAll(filters)
         return notifications
@@ -64,9 +65,10 @@ async def get_notifications(
 async def get_unread_count(current_user: User = Depends(get_current_user)):
     """Get count of unread notifications for user"""
     try:
-        filters = {"isRead": False}
+        from app.models.daos import NotificationFilter
+        filters = NotificationFilter(isRead=False)
         if current_user.role != "super_admin":
-            filters["userId"] = current_user.id or current_user.id
+            filters.userId = current_user.id or current_user.id
             
         notifications = await notification_repository.findAll(filters)
         return {"count": len(notifications)}
@@ -80,10 +82,10 @@ async def mark_all_read(current_user: User = Depends(get_current_user)):
     """Mark all notifications as read and acknowledged"""
     try:
         user_id = current_user.id or current_user.id
-        from app.models.daos import NotificationInternalUpdate
+        from app.models.daos import NotificationInternalUpdate, NotificationFilter
         update_model = NotificationInternalUpdate(isRead=True, isAcknowledged=True)
-        unread = await notification_repository.findAll({"isRead": False, "userId": user_id})
-        unack = await notification_repository.findAll({"isAcknowledged": False, "userId": user_id})
+        unread = await notification_repository.findAll(NotificationFilter(isRead=False, userId=user_id))
+        unack = await notification_repository.findAll(NotificationFilter(isAcknowledged=False, userId=user_id))
         
         count = 0
         seen = set()

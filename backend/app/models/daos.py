@@ -536,3 +536,11 @@ class NotificationInternalUpdate(BaseModel):
     isRead: Optional[bool] = None
     isAcknowledged: Optional[bool] = None
     updatedAt: Optional[str] = None
+
+class NotificationFilter(BaseModel):
+    userId: Optional[str] = None
+    isRead: Optional[bool] = None
+    isAcknowledged: Optional[bool] = None
+    type: Optional[str] = None
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
