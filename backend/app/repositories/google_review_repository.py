@@ -1,4 +1,5 @@
 from typing import Any
+from app.models.daos_flat import Google_reviewsInternal, Google_reviewsInternalCreate, Google_reviewsInternalUpdate
 import os
 import re
 from datetime import datetime, timezone
@@ -20,14 +21,14 @@ class GoogleReviewRepository:
         self.api_key = os.getenv("GOOGLE_MAPS_API_KEY")
         self.place_id = os.getenv("GOOGLE_PLACE_ID", "ChIJ8_K_I_L-1zkR6_J_I_L-1zk")
 
-    async def get_latest_rating(self) -> Dict:
+    async def get_latest_rating(self) -> Google_reviewsInternal:
         data = await self.storage.findAll()
         if data:
             return data[0]
 
-        return {"rating": 0, "reviewCount": "0", "lastUpdated": ""}
+        return Google_reviewsInternal(rating=0.0, reviewCount="0", lastUpdated="", method="")
 
-    async def fetch_via_api(self) -> Dict:
+    async def fetch_via_api(self) -> Any:
         """Fetch rating and review count using official Google Places API (New)"""
         if not self.api_key:
             return None
@@ -41,11 +42,11 @@ class GoogleReviewRepository:
                 response = await client.get(url, headers=headers)
                 if response.status_code == 200:
                     data = response.json()
-                    rating = data.rating
-                    count = data.userRatingCount
+                    rating = data.get('rating')
+                    count = data.get('userRatingCount')
 
                     if rating is not None and count is not None:
-                        return {"rating": float(rating), "reviewCount": str(count)}
+                        return Google_reviewsInternalCreate(rating=float(rating), reviewCount=str(count), method="official_api")
 
                 # If New API fails, try Legacy API as a backup
                 legacy_url = f"https://maps.googleapis.com/maps/api/place/details/json?place_id={self.place_id}&fields=rating,user_ratings_total&key={self.api_key}"
@@ -54,10 +55,9 @@ class GoogleReviewRepository:
                     l_data = legacy_resp.json()
                     if (l_data["status"] if "status" in l_data else None) == "OK":
                         res = l_data["result"] if "result" in l_data else {}
-                        return {
-                            "rating": float(res["rating"] if "rating" in res else 5.0),
-                            "reviewCount": str(res["user_ratings_total"] if "user_ratings_total" in res else "421"),
-                        }
+                        rating_val = res.get("rating", 5.0)
+                        count_val = res.get("user_ratings_total", "421")
+                        return Google_reviewsInternalCreate(rating=float(rating_val), reviewCount=str(count_val), method="legacy_api")
 
                 logger.warning("Places API Error (New/Legacy): %s | %s", response.text, legacy_resp.text)
                 return None
@@ -65,15 +65,16 @@ class GoogleReviewRepository:
             logger.error("Google API call failed: %s", str(e), exc_info=True)
             return None
 
-    async def fetch_and_update(self) -> Dict:
+    async def fetch_and_update(self) -> Any:
         """Attempt to fetch from Google (API or Scrape) and update storage"""
 
         # 1. Try Official API first
         api_data = await self.fetch_via_api()
         if api_data:
-            new_data = {**api_data, "lastUpdated": datetime.now(timezone.utc).isoformat(), "method": "official_api"}
-            await self._update_storage(new_data)
-            return new_data
+            api_data.lastUpdated = datetime.now(timezone.utc).isoformat()
+            if api_data.method is None: api_data.method = "official_api"
+            await self._update_storage(api_data)
+            return api_data
 
         # 2. Fallback to Scraping with MUCH stricter patterns
         headers = {
@@ -125,12 +126,12 @@ class GoogleReviewRepository:
                             break
 
                 if scraped_rating and scraped_count:
-                    new_data = {
-                        "rating": float(scraped_rating),
-                        "reviewCount": str(scraped_count),
-                        "lastUpdated": datetime.now(timezone.utc).isoformat(),
-                        "method": "scraping",
-                    }
+                    new_data = Google_reviewsInternalCreate(
+                        rating=float(scraped_rating),
+                        reviewCount=str(scraped_count),
+                        lastUpdated=datetime.now(timezone.utc).isoformat(),
+                        method="scraping"
+                    )
                     await self._update_storage(new_data)
                     return new_data
                 else:
@@ -142,11 +143,17 @@ class GoogleReviewRepository:
             logger.error("Error fetching Google reviews: %s", str(e), exc_info=True)
             raise e
 
-    async def _update_storage(self, new_data: Any):
+    async def _update_storage(self, new_data: Google_reviewsInternalCreate):
         existing = await self.storage.findAll()
         if existing:
+            update_data = Google_reviewsInternalUpdate(
+                rating=new_data.rating,
+                reviewCount=new_data.reviewCount,
+                lastUpdated=new_data.lastUpdated,
+                method=new_data.method
+            )
             for doc in existing:
-                await self.storage.update(doc.id, new_data)
+                await self.storage.update(doc.id, update_data)
         else:
             await self.storage.create(new_data)
 

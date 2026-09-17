@@ -32,7 +32,7 @@ class MySQLReturnSettingsDAO:
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
         }
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Google_reviewsInternal]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -51,7 +51,7 @@ class MySQLReturnSettingsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -59,7 +59,7 @@ class MySQLReturnSettingsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -479,7 +479,7 @@ class MySQLPushNotificationsDAO:
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
         }
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Google_reviewsInternal]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -528,7 +528,7 @@ class MySQLPushNotificationsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -536,7 +536,7 @@ class MySQLPushNotificationsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -705,7 +705,7 @@ class MySQLCoachMarksDAO:
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
         }
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Google_reviewsInternal]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -739,7 +739,7 @@ class MySQLCoachMarksDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -747,7 +747,7 @@ class MySQLCoachMarksDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1008,21 +1008,19 @@ class MySQLGoogle_reviewsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> Dict:
-        return {
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "rating": row.rating,
-            "reviewCount": row.review_count,
-            "lastUpdated": row.last_updated,
-            "method": row.method,
+    def __map_to_schema(self, row) -> Google_reviewsInternal:
+        return Google_reviewsInternal(
+            id=str(row.id),
+            externalId=row.external_id,
+            rating=row.rating,
+            reviewCount=row.review_count,
+            lastUpdated=row.last_updated,
+            method=row.method,
+            createdAt=row.created_at.isoformat() if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Google_reviewsInternal]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -1050,7 +1048,7 @@ class MySQLGoogle_reviewsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1058,7 +1056,7 @@ class MySQLGoogle_reviewsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1070,7 +1068,7 @@ class MySQLGoogle_reviewsDAO:
             ).fetchone()
         return self.__map_to_schema(row) if row else None
 
-    async def create(self, data: Google_reviewsInternalCreate) -> Dict:
+    async def create(self, data: Google_reviewsInternalCreate) -> Google_reviewsInternal:
 
         if isinstance(data, dict):
             data = Google_reviewsInternalCreate(**data)
@@ -1109,14 +1107,20 @@ class MySQLGoogle_reviewsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Google_reviewsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: Google_reviewsInternalUpdate) -> Optional[Google_reviewsInternal]:
 
         if isinstance(data, dict):
             data = Google_reviewsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = Google_reviewsInternalUpdate(**{**existing.__dict__, **data.__dict__})
+        kwargs = {}
+        for k in existing.model_fields.keys():
+            if hasattr(data, k) and getattr(data, k) is not None:
+                kwargs[k] = getattr(data, k)
+            else:
+                kwargs[k] = getattr(existing, k)
+        merged = Google_reviewsInternalUpdate(**kwargs)
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -1343,7 +1347,7 @@ class MySQLProductNotificationsDAO:
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
         }
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Google_reviewsInternal]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -1374,7 +1378,7 @@ class MySQLProductNotificationsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1382,7 +1386,7 @@ class MySQLProductNotificationsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -2747,7 +2751,7 @@ class MySQLValetPayoutSettingsDAO:
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
         }
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Google_reviewsInternal]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -2769,7 +2773,7 @@ class MySQLValetPayoutSettingsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2777,7 +2781,7 @@ class MySQLValetPayoutSettingsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
