@@ -296,3 +296,102 @@ class SupportTicketInternalUpdate(BaseModel):
     responses: Optional[List['TicketResponseItem']] = None
 
 from app.models.schemas import TicketResponseItem
+
+class ActivityMetaInternal(BaseModel):
+    key: str
+    value: str
+
+class ActivityInternalCreate(BaseModel):
+    userId: Optional[str] = None
+    sessionId: Optional[str] = None
+    action: str
+    comment: Optional[str] = None
+    isGuest: Optional[bool] = None
+    userAgent: Optional[str] = None
+    os: Optional[str] = None
+    osVersion: Optional[str] = None
+    deviceType: Optional[str] = None
+    meta: Optional[List[ActivityMetaInternal]] = None
+
+class ActivityInternalUpdate(BaseModel):
+    userId: Optional[str] = None
+    isGuest: Optional[bool] = None
+    comment: Optional[str] = None
+
+class ActivityInternal(BaseModel):
+    id: str = Field(alias="_id")
+    userId: Optional[str] = None
+    sessionId: Optional[str] = None
+    action: str
+    comment: Optional[str] = None
+    isGuest: Optional[bool] = None
+    userAgent: Optional[str] = None
+    os: Optional[str] = None
+    osVersion: Optional[str] = None
+    deviceType: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+    meta: Optional[List[ActivityMetaInternal]] = None
+
+class ReturnRequestItemInternal(BaseModel):
+    productId: str
+    quantity: int
+    reason: Optional[str] = None
+
+class ReturnRequestValetDeclineInternal(BaseModel):
+    valetId: str
+    reason: Optional[str] = None
+
+class ReturnRequestInternal(BaseModel):
+    id: str = Field(alias="_id")
+    returnId: Optional[str] = None
+    orderId: Optional[str] = None
+    userId: Optional[str] = None
+    paymentMethod: Optional[str] = None
+    upiPaymentScreenshot: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None
+    valetId: Optional[str] = None
+    sellerId: Optional[str] = None
+    deliverySlotId: Optional[str] = None
+    deliverySlotConfigId: Optional[str] = None
+    deliverySlotDate: Optional[str] = None
+    pendingValetId: Optional[str] = None
+    valetAssignedAt: Optional[str] = None
+    valetCascadeCount: Optional[int] = None
+    deliveryCharge: Optional[float] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+    items: Optional[List[ReturnRequestItemInternal]] = None
+    valetDeclineHistory: Optional[List[ReturnRequestValetDeclineInternal]] = None
+    notes: Optional[str] = None
+
+class ReturnRequestInternalCreate(BaseModel):
+    returnId: Optional[str] = None
+    orderId: Optional[str] = None
+    userId: Optional[str] = None
+    paymentMethod: Optional[str] = None
+    upiPaymentScreenshot: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None
+    valetId: Optional[str] = None
+    sellerId: Optional[str] = None
+    deliverySlotId: Optional[str] = None
+    deliverySlotConfigId: Optional[str] = None
+    deliverySlotDate: Optional[str] = None
+    pendingValetId: Optional[str] = None
+    valetAssignedAt: Optional[str] = None
+    valetCascadeCount: Optional[int] = None
+    deliveryCharge: Optional[float] = None
+    items: Optional[List[ReturnRequestItemInternal]] = None
+    valetDeclineHistory: Optional[List[ReturnRequestValetDeclineInternal]] = None
+    notes: Optional[str] = None
+
+class ReturnRequestInternalUpdate(BaseModel):
+    status: Optional[str] = None
+    valetId: Optional[str] = None
+    pendingValetId: Optional[str] = None
+    valetAssignedAt: Optional[str] = None
+    valetCascadeCount: Optional[int] = None
+    valetDeclineHistory: Optional[List[ReturnRequestValetDeclineInternal]] = None
+    notes: Optional[str] = None

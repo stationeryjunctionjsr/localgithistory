@@ -82,12 +82,12 @@ def verify_refresh_token(token: str) -> 'User':
 
     try:
         payload = jwt.decode(token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
-        # Use .get() for safe key access and proper equality checks.
+        # Use [] if  in  else None for safe key access and proper equality checks.
         # The original ternary pattern had Python operator-precedence bugs that made
         # all type checks evaluate incorrectly, rejecting every valid refresh token.
-        if payload.get("type") != "refresh":
+        if payload["type"] if "type" in payload else None != "refresh":
             raise credentials_exception
-        if not payload.get("userId") or not payload.get("sessionId") or not payload.get("refreshId"):
+        if not payload["userId"] if "userId" in payload else None or not payload["sessionId"] if "sessionId" in payload else None or not payload["refreshId"] if "refreshId" in payload else None:
             raise credentials_exception
         return payload
     except JWTError:

@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from app.services.email_service import email_service
 
+from app.models.daos_flat import ReturnRequestInternalUpdate, ReturnRequestInternal
 from app.models.schemas import ReturnRequestCreate, ReturnRequestResponse, ReturnRequestStatus, ReturnRequestUpdate, ReturnEligibilityResponse, ReturnEligibilityItem, ReturnRequest
 from app.repositories.category_repository import category_repository
 from app.repositories.delivery_charge_repository import delivery_charge_repository
@@ -22,110 +23,24 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-async def populate_return_request(request: Any) -> Dict:
-    req_model = ReturnRequest.model_validate(request) if isinstance(request, dict) else request
-    user = await user_repository.findById(req_model.userId) if req_model.userId else None
+async def populate_return_request(request: ReturnRequestInternal) -> Dict:
+    user = await user_repository.findById(request.userId) if request.userId else None
     valet = None
-    if req_model.valetId:
-        valet = await user_repository.findById(req_model.valetId)
+    if request.valetId:
+        valet = await user_repository.findById(request.valetId)
 
     populated_items = []
-    items_list = req_model.items or []
+    items_list = request.items or []
     for item in items_list:
-        pid = None
-        if isinstance(item, dict):
-            pid = item["product_id"] if "product_id" in item else (item["productId"] if "productId" in item else None)
-        else:
-            try:
-                pid = item.product_id
-            except AttributeError:
-                try:
-                    pid = item.productId
-                except AttributeError:
-                    pass
-
+        pid = item.productId
         product = await product_repository.findById(pid) if pid else None
 
-        if isinstance(item, dict):
-            item_dict = item.copy()
-        else:
-            item_dict = {}
-            for f in item.model_fields_set:
-                match f:
-                    case "productId": item_dict[f] = item.productId
-                    case "product_id": item_dict[f] = item.product_id
-                    case "quantity": item_dict[f] = item.quantity
-                    case "sellAsCase": item_dict[f] = item.sellAsCase
-                    case "price": item_dict[f] = item.price
-                    case "mrp": item_dict[f] = item.mrp
-                    case "name": item_dict[f] = item.name
-                    case "image": item_dict[f] = item.image
-                    case "status": item_dict[f] = item.status
-                    case "reason": item_dict[f] = item.reason
+        item_dict = item.model_dump()
+        prod_dict = product.model_dump() if product else {"_id": pid, "name": "Product not found"}
+        item_dict["product"] = prod_dict
+        populated_items.append(item_dict)
 
-        if isinstance(product, dict):
-            prod_dict = product.copy()
-        elif product:
-            prod_dict = {}
-            for f in product.model_fields_set:
-                match f:
-                    case "id" | "_id": prod_dict["_id"] = product.id
-                    case "product_id" | "productId": prod_dict["productId"] = product.product_id
-                    case "product_id_formatted" | "productIdFormatted": prod_dict["productIdFormatted"] = product.product_id_formatted
-                    case "name": prod_dict["name"] = product.name
-                    case "description": prod_dict["description"] = product.description
-                    case "sku": prod_dict["sku"] = product.sku
-                    case "category": prod_dict["category"] = product.category
-                    case "sub_category" | "subCategory": prod_dict["subCategory"] = product.sub_category
-                    case "brand": prod_dict["brand"] = product.brand
-                    case "mrp": prod_dict["mrp"] = product.mrp
-                    case "mrp_per_case" | "mrpPerCase": prod_dict["mrpPerCase"] = product.mrp_per_case
-                    case "quantity_per_case" | "quantityPerCase": prod_dict["quantityPerCase"] = product.quantity_per_case
-                    case "stock": prod_dict["stock"] = product.stock
-                    case "rating": prod_dict["rating"] = product.rating
-                    case "reviews": prod_dict["reviews"] = product.reviews
-                    case "images": prod_dict["images"] = product.images
-                    case "videos": prod_dict["videos"] = product.videos
-                    case "is_active" | "isActive": prod_dict["isActive"] = product.is_active
-                    case "is_exclusive" | "isExclusive": prod_dict["isExclusive"] = product.is_exclusive
-                    case "collection": prod_dict["collection"] = product.collection
-                    case "tags": prod_dict["tags"] = product.tags
-                    case "variant_attributes" | "variantAttributes": prod_dict["variantAttributes"] = product.variant_attributes
-                    case "sellers": prod_dict["sellers"] = product.sellers
-                    case "variants": prod_dict["variants"] = product.variants
-                    case "details": prod_dict["details"] = product.details
-                    case "created_at" | "createdAt": prod_dict["createdAt"] = product.created_at
-                    case "updated_at" | "updatedAt": prod_dict["updatedAt"] = product.updated_at
-        else:
-            prod_dict = {"_id": pid, "name": "Product not found"}
-
-        populated_items.append({**item_dict, "product": prod_dict})
-
-    if isinstance(request, dict):
-        base_dict = request.copy()
-    else:
-        base_dict = {}
-        for f in request.model_fields_set:
-            match f:
-                case "id" | "_id": base_dict["_id"] = request.id
-                case "orderId": base_dict["orderId"] = request.orderId
-                case "userId": base_dict["userId"] = request.userId
-                case "valetId": base_dict["valetId"] = request.valetId
-                case "pendingValetId": base_dict["pendingValetId"] = request.pendingValetId
-                case "status": base_dict["status"] = request.status
-                case "items": base_dict["items"] = request.items
-                case "paymentMethod": base_dict["paymentMethod"] = request.paymentMethod
-                case "upiPaymentScreenshot": base_dict["upiPaymentScreenshot"] = request.upiPaymentScreenshot
-                case "notes": base_dict["notes"] = request.notes
-                case "deliveryCharge": base_dict["deliveryCharge"] = request.deliveryCharge
-                case "createdAt": base_dict["createdAt"] = request.createdAt
-                case "updatedAt": base_dict["updatedAt"] = request.updatedAt
-                case "sellerId": base_dict["sellerId"] = request.sellerId
-                case "deliverySlotId": base_dict["deliverySlotId"] = request.deliverySlotId
-                case "deliverySlotDate": base_dict["deliverySlotDate"] = request.deliverySlotDate
-                case "valetAssignedAt": base_dict["valetAssignedAt"] = request.valetAssignedAt
-                case "valetCascadeCount": base_dict["valetCascadeCount"] = request.valetCascadeCount
-                case "valetDeclineHistory": base_dict["valetDeclineHistory"] = request.valetDeclineHistory
+    base_dict = request.model_dump(by_alias=True)
     return {
         **base_dict,
         "user": {
@@ -290,7 +205,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
         raise HTTPException(status_code=403, detail="Only retail customers can create return requests")
 
     eligibility = await check_return_eligibility(request_data.orderId, current_user)
-    elig_model = ReturnEligibilityResponse.model_validate(eligibility) if isinstance(eligibility, dict) else eligibility
+    elig_model = eligibility
 
     eligibility_reason = elig_model.reason
     if eligibility_reason:
@@ -342,7 +257,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
 
         super_admin = await user_repository.findOne({"role": "super_admin"})
         if super_admin:
-            created_model = ReturnRequest.model_validate(created) if isinstance(created, dict) else created
+            created_model = created
             created_ret_id = str(created_model.id or "")
             import uuid
             from app.models.daos import NotificationInternalCreate
@@ -384,16 +299,16 @@ async def auto_assign_return(request_id: str, current_user: User = Depends(requi
     valet_id = str(candidate["_id"])
     now_iso = datetime.utcnow().isoformat() + "Z"
 
+    from app.models.daos_flat import ReturnRequestInternalUpdate
     updated = await return_request_repository.update(
         request_id,
-        {
-            "status": ReturnRequestStatus.PENDING_VALET.value,
-            "pendingValetId": valet_id,
-            "valetId": None,
-            "valetAssignedAt": now_iso,
-            "valetDeclineHistory": [],
-            "valetCascadeCount": 0,
-        },
+        ReturnRequestInternalUpdate(
+            status=ReturnRequestStatus.PENDING_VALET.value,
+            pendingValetId=valet_id,
+            valetAssignedAt=now_iso,
+            valetCascadeCount=(req.valetCascadeCount or 0) + 1,
+            valetDeclineHistory=[],
+        ),
     )
 
     return await populate_return_request(updated)
@@ -416,7 +331,7 @@ async def assign_valet(
         raise HTTPException(status_code=400, detail="Valid Valet ID is required")
 
     updated = await return_request_repository.update(
-        request_id, {"valetId": valet_data.valetId, "status": ReturnRequestStatus.ASSIGNED.value}
+        request_id, ReturnRequestInternalUpdate(valetId=valet_data.valetId, status=ReturnRequestStatus.ASSIGNED.value)
     )
 
     return await populate_return_request(updated)
@@ -435,7 +350,7 @@ async def valet_collect(request_id: str, current_user: User = Depends(require_su
     if req.status != ReturnRequestStatus.ASSIGNED.value:
         raise HTTPException(status_code=400, detail="Return request is not in ASSIGNED state")
 
-    updated = await return_request_repository.update(request_id, {"status": ReturnRequestStatus.COLLECTED.value})
+    updated = await return_request_repository.update(request_id, ReturnRequestInternalUpdate(status=ReturnRequestStatus.COLLECTED.value))
 
     return await populate_return_request(updated)
 
@@ -452,7 +367,7 @@ async def complete_return(
     if req.status not in [ReturnRequestStatus.COLLECTED.value, ReturnRequestStatus.ASSIGNED.value]:
         raise HTTPException(status_code=400, detail="Return request must be collected first")
 
-    updated = await return_request_repository.update(request_id, {"status": ReturnRequestStatus.RETURNED.value})
+    updated = await return_request_repository.update(request_id, ReturnRequestInternalUpdate(status=ReturnRequestStatus.RETURNED.value))
 
     # Optionally: Restock items
     for item in (req.items or []):
@@ -476,8 +391,7 @@ async def complete_return(
             )
 
     populated_req = await populate_return_request(updated)
-    req_model = ReturnRequest.model_validate(populated_req) if isinstance(populated_req, dict) else populated_req
-    user_info = req_model.user
+    user_info = populated_req.user
     email = user_info.email if user_info else None
     if email:
         background_tasks.add_task(email_service.send_order_returned_email, email, populated_req)
@@ -495,7 +409,7 @@ async def reject_return(
         raise HTTPException(status_code=404, detail="Return request not found")
 
     updated = await return_request_repository.update(
-        request_id, {"status": ReturnRequestStatus.REJECTED.value, "notes": update_data.notes or req.notes}
+        request_id, ReturnRequestInternalUpdate(status=ReturnRequestStatus.REJECTED.value, notes=update_data.notes or req.notes)
     )
 
     return await populate_return_request(updated)
@@ -528,7 +442,7 @@ async def valet_return_response(
     if not ret:
         raise HTTPException(status_code=404, detail="Return request not found")
 
-    ret_model = ReturnRequest.model_validate(ret) if isinstance(ret, dict) else ret
+    
 
     if current_user.role != "super_admin":
         if current_user.role != "valet":
@@ -548,40 +462,28 @@ async def valet_return_response(
     if response_data.accept:
         updated_ret = await return_request_repository.update(
             return_id,
-            {
-                "status": "assigned",
-                "valetId": str(current_user.id),
-                "pendingValetId": None,
-                "valetAssignedAt": now_iso,
-            },
+            ReturnRequestInternalUpdate(
+                status="assigned",
+                valetId=str(current_user.id),
+                pendingValetId=None,
+                valetAssignedAt=now_iso,
+            ),
         )
         return await populate_return_request(updated_ret)
     else:
         # Declined -> Cascade
-        raw_history = ret_model.valetDeclineHistory
+        from app.models.daos_flat import ReturnRequestValetDeclineInternal
+        raw_history = ret.valetDeclineHistory
         history = list(raw_history or [])
         valet_id_str = str(current_user.id)
-        if not any(
-            isinstance(d, dict) and (d["valetId"] == valet_id_str if "valetId" in d else False)
-            for d in history
-        ):
-            history.append({"valetId": valet_id_str, "reason": response_data.declineReason})
+        if not any(d.valetId == valet_id_str for d in history):
+            history.append(ReturnRequestValetDeclineInternal(valetId=valet_id_str, reason=response_data.declineReason))
 
         await return_request_repository.update(
-            return_id, {"valetDeclineHistory": history, "pendingValetId": None}
+            return_id, ReturnRequestInternalUpdate(valetDeclineHistory=history, pendingValetId=None)
         )
-        if isinstance(ret, dict):
-            ret["valetDeclineHistory"] = history
-            ret["pendingValetId"] = None
-        else:
-            try:
-                ret.valetDeclineHistory = history
-            except AttributeError:
-                pass
-            try:
-                ret.pendingValetId = None
-            except AttributeError:
-                pass
+        ret.valetDeclineHistory = history
+        ret.pendingValetId = None
         
         from app.jobs.valet_timeout_job import _cascade_or_revert_return
         await _cascade_or_revert_return(ret)

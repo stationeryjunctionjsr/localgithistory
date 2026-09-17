@@ -1,3 +1,5 @@
+from app.models.daos import NotificationInternal
+from app.models.daos_flat import ActivityInternal, ReturnRequestInternal
 from app.models.schemas import SearchTagResponse, CollectionResponse, SchemeResponse, DeliveryChargeResponse, DefaultDeliveryChargeResponse
 """
 Configs for FlatRelationalDAO: parent-only tables with fixed columns + JSON columns.
@@ -14,12 +16,15 @@ def _dao(
     table: str,
     scalar: Dict[str, str],
     bool_keys: Optional[Set[str]] = None,
+    schema_cls=None,
+    clob: Optional[Dict[str, str]] = None,
 ) -> FlatRelationalDAO:
     return FlatRelationalDAO(
         table_name=table,
         scalar_map=scalar,
-        clob_map={},
+        clob_map=clob or {},
         bool_api_keys=bool_keys or frozenset(),
+        schema_cls=schema_cls,
     )
 
 
@@ -65,6 +70,7 @@ FLAT_RELATIONAL_DAOS = {
             "ip": "ip",
         },
         bool_keys=frozenset({"isGuest"}),
+        schema_cls=ActivityInternal
     ),
     "notifications": _dao(
         "sj_notifications",
@@ -77,6 +83,7 @@ FLAT_RELATIONAL_DAOS = {
             "isAcknowledged": "is_acknowledged",
         },
         bool_keys=frozenset({"isRead", "isAcknowledged"}),
+        schema_cls=NotificationInternal
     ),
     "returnRequests": _dao(
         "sj_return_requests",
@@ -98,6 +105,7 @@ FLAT_RELATIONAL_DAOS = {
             "valetCascadeCount": "valet_cascade_count",
             "deliveryCharge": "delivery_charge",
         },
+        schema_cls=ReturnRequestInternal
     ),
     "returnSettings": _dao(
         "sj_return_settings",

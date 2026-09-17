@@ -72,71 +72,32 @@ class ReturnRequestRepository:
 
     async def findAll(self, query: Optional[Dict] = None) -> List[ReturnRequestInternal]:
         requests = await self.storage.findAll(query)
-        parsed_requests = []
-        for r in requests:
-            if isinstance(r, dict):
-                parsed_requests.append(ReturnRequestInternal.model_validate(r))
-            else:
-                parsed_requests.append(ReturnRequestInternal.model_validate(r, from_attributes=True))
-                
         if not query:
-            parsed_requests.sort(key=lambda x: x.createdAt or "", reverse=True)
-        return parsed_requests
+            requests.sort(key=lambda x: x.createdAt or "", reverse=True)
+        return requests
 
     async def findById(self, id: str) -> Optional[ReturnRequestInternal]:
-        data = await self.storage.findById(id)
-        if data:
-            if isinstance(data, dict):
-                return ReturnRequestInternal.model_validate(data)
-            return ReturnRequestInternal.model_validate(data, from_attributes=True)
-        return None
+        return await self.storage.findById(id)
 
     async def findByOrderId(self, order_id: str) -> List[ReturnRequestInternal]:
         return await self.findAll({"orderId": order_id})
 
-    async def create(self, data: Any) -> ReturnRequestInternal:
-        if isinstance(data, dict):
-            model = ReturnRequestInternalCreate.model_validate(data)
-        else:
-            model = ReturnRequestInternalCreate.model_validate(data, from_attributes=True)
-            
+    async def create(self, data: ReturnRequestInternalCreate) -> ReturnRequestInternal:
         return_id = await self.generateReturnId()
-        model.id = return_id
-        model.returnId = return_id
-        if model.status is None:
-            model.status = "pending"
-        if model.valetCascadeCount is None:
-            model.valetCascadeCount = 0
-        if model.valetDeclineHistory is None:
-            model.valetDeclineHistory = []
-        if model.deliveryCharge is None:
-            model.deliveryCharge = 0
-        
-        now_iso = datetime.utcnow().isoformat()
-        if model.createdAt is None:
-            model.createdAt = now_iso
-        if model.updatedAt is None:
-            model.updatedAt = now_iso
+        data.returnId = return_id
+        if data.status is None:
+            data.status = "pending"
+        if data.valetCascadeCount is None:
+            data.valetCascadeCount = 0
+        if data.valetDeclineHistory is None:
+            data.valetDeclineHistory = []
+        if data.deliveryCharge is None:
+            data.deliveryCharge = 0
 
-        created_data = await self.storage.create(model)
-        
-        if isinstance(created_data, dict):
-            return ReturnRequestInternal.model_validate(created_data)
-        return ReturnRequestInternal.model_validate(created_data, from_attributes=True)
+        return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: Any) -> ReturnRequestInternal:
-        if isinstance(update_data, dict):
-            model = ReturnRequestInternalUpdate.model_validate(update_data)
-        else:
-            model = ReturnRequestInternalUpdate.model_validate(update_data, from_attributes=True)
-            
-        model.updatedAt = datetime.utcnow().isoformat()
-        
-        updated_data = await self.storage.update(id, model)
-        
-        if isinstance(updated_data, dict):
-            return ReturnRequestInternal.model_validate(updated_data)
-        return ReturnRequestInternal.model_validate(updated_data, from_attributes=True)
+    async def update(self, id: str, update_data: ReturnRequestInternalUpdate) -> ReturnRequestInternal:
+        return await self.storage.update(id, update_data)
 
     async def delete(self, id: str) -> Dict:
         return await self.storage.delete(id)

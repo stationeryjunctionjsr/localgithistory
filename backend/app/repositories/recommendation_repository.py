@@ -965,18 +965,19 @@ class RecommendationRepository:
                 created = self._parse_created_at(doc)
                 if created and created < cutoff:
                     continue
-                meta = doc.meta if doc.meta is not None else {}
-                pid = meta["productId"] if "productId" in meta else None
+                meta_list = doc.meta if doc.meta is not None else []
+                pid = None
+                for m in meta_list:
+                    if m.key == "productId":
+                        pid = m.value
+                        break
                 if pid and pid in pid_set:
                     scores[pid] = (scores[pid] if pid in scores else 0) + weight
 
         return scores
 
     def _parse_created_at(self, doc) -> Optional[datetime]:
-        if isinstance(doc, dict):
-            raw = doc.get("createdAt")
-        else:
-            raw = doc.createdAt
+        raw = doc.createdAt
             
         if not raw:
             return None

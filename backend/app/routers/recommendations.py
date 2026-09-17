@@ -286,11 +286,15 @@ async def get_recommendation_metrics(days: int = 30, current_user: User = Depend
         try:
             activities = await storage.findAll({"action": action})
             for doc in activities:
-                created = doc.created_at or ""
+                created = doc.createdAt or ""
                 if created < cutoff:
                     continue
-                meta_obj = doc.meta
-                slot = meta_obj.slot or "unknown"
+                meta_list = doc.meta or []
+                slot = "unknown"
+                for m in meta_list:
+                    if m.key == "slot":
+                        slot = m.value
+                        break
                 
                 if slot not in by_slot:
                     by_slot[slot] = {"section_view": 0, "product_view": 0, "add_to_cart": 0}

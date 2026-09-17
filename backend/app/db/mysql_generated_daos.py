@@ -239,7 +239,7 @@ TABLES_CONFIG = {
 
     "sj_activities": {
         "api_name": "activities",
-        "child_tables": {"meta": ("sj_activity_meta", ["meta_key", "meta_value"], ["key", "value"], False, True)},
+        "child_tables": {"meta": ("sj_activity_meta", ["meta_key", "meta_value"], ["key", "value"], False, False)},
     },
     "sj_notifications": {
         "api_name": "notifications",
