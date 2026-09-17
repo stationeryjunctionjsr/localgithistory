@@ -1,290 +1,303 @@
-"""
-MySQL DAO for sj_collections.
-"""
-
+from typing import Optional, Dict, List, Any
+from datetime import datetime, timezone
 import secrets
-from typing import Dict, List, Optional, Any
+import json
 from sqlalchemy import text
-
 from app.config.database import get_async_session_factory
-from app.config.settings import settings
-from app.db.db_utils import now_utc
-from app.models.schemas import CollectionResponse
+from app.models.daos_flat import CollectionInternal
+from app.models.daos_flat import CollectionInternalCreate, CollectionInternalUpdate
+
+def now_utc():
+    return datetime.now(timezone.utc)
 
 class MySQLCollectionsDAO:
+    def __init__(self):
+        self.table_name = "sj_collections"
+    
     @property
     def TABLE(self):
+        from app.config.settings import settings
         suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_collections{suffix}"
-        
-    @property
-    def PRODUCTS_TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_collection_products{suffix}"
+        return f"{self.table_name}{suffix}"
 
     def _factory(self):
         return get_async_session_factory()
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[CollectionResponse]:
-        factory = self._factory()
-        if not factory:
-            return []
-            
-        async with factory() as session:
-            result = await session.execute(
-                text(
-                    f"""
-                    SELECT id, external_id, name, description, slug, is_active, banner_image, thumbnail_image, display_order, created_at, updated_at
-                    FROM {self.TABLE}
-                    """
-                )
-            )
-            rows = result.fetchall()
-            
-            prod_result = await session.execute(
-                text(f"SELECT collection_id, product_id FROM {self.PRODUCTS_TABLE}")
-            )
-            prod_rows = prod_result.fetchall()
-            
-        prod_map = {}
-        for pr in prod_rows:
-            cid = str(pr.collection_id)
-            if cid not in prod_map:
-                prod_map[cid] = []
-            prod_map[cid].append(str(pr.product_id))
-            
-        docs = []
-        for r in rows:
-            c_id = str(r.id)
-            p_ids = (prod_map[c_id] if c_id in prod_map else [])
-            docs.append(CollectionResponse(**{
-                "_id": c_id,
-                "name": r.name,
-                "description": r.description,
-                "slug": r.slug,
-                "isActive": bool(r.is_active) if r.is_active is not None else True,
-                "bannerImage": r.banner_image,
-                "thumbnailImage": r.thumbnail_image,
-                "displayOrder": r.display_order,
-                "productIds": p_ids,
-                "createdAt": r.created_at.isoformat() if r.created_at else None,
-                "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-            }))
-            
-        if not query:
-            return docs
-            
-        filtered: List[CollectionResponse] = []
-        for d in docs:
-            match = True
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    if str(d.id) != str(v):
-                        match = False
-                        break
-                elif k == "name" and d.name != v:
-                    match = False
-                    break
-                elif k == "slug" and d.slug != v:
-                    match = False
-                    break
-                elif k == "isActive" and d.isActive != v:
-                    match = False
-                    break
-                elif k == "displayOrder" and d.displayOrder != v:
-                    match = False
-                    break
-            if match:
-                filtered.append(d)
-        return filtered
-
-    async def findOne(self, query: Dict) -> Optional[CollectionResponse]:
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
-
-    async def findById(self, id: str) -> Optional[CollectionResponse]:
-        factory = self._factory()
-        if not factory:
-            return None
-        cid = int(id) if str(id).isdigit() else None
         
-        async with factory() as session:
-            result = await session.execute(
-                text(
-                    f"""
-                    SELECT id, external_id, name, description, slug, is_active, banner_image, thumbnail_image, display_order, created_at, updated_at
-                    FROM {self.TABLE} WHERE id = :id
-                    """
-                ),
-                {"id": cid},
-            )
+    async def findById(self, id: str) -> Optional[Any]:
+        return await self.findOne({"_id": id})
+
+    async def findOne(self, query=None, **kwargs) -> Optional[Any]:
+        if query:
+            kwargs.update(query)
+        if not kwargs:
+            return None
+        
+        async with self._factory()() as session:
+            conditions = []
+            params = {}
+            
+            query_map = {'name': 'name', 'description': 'description', 'imageUrl': 'image_url', 'isActive': 'is_active', 'displayOrder': 'display_order'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            for k, v in kwargs.items():
+                db_col = query_map.get(k, k)
+                conditions.append(f"{db_col} = :{k}")
+                params[k] = v
+                
+            where_clause = " AND ".join(conditions)
+            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+            result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
                 
-            prod_result = await session.execute(
-                text(f"SELECT product_id FROM {self.PRODUCTS_TABLE} WHERE collection_id = :cid"),
-                {"cid": cid}
-            )
-            prod_rows = prod_result.fetchall()
-            p_ids = [str(pr.product_id) for pr in prod_rows]
+            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
-        return CollectionResponse(**{
-            "_id": str(row.id),
-            "name": row.name,
-            "description": row.description,
-            "slug": row.slug,
-            "isActive": bool(row.is_active) if row.is_active is not None else True,
-            "bannerImage": row.banner_image,
-            "thumbnailImage": row.thumbnail_image,
-            "displayOrder": row.display_order,
-            "productIds": p_ids,
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        })
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
+        query = query or {}
+        async with self._factory()() as session:
+            sql = f"SELECT * FROM {self.TABLE}"
+            params = {}
+            
+            query_map = {'name': 'name', 'description': 'description', 'imageUrl': 'image_url', 'isActive': 'is_active', 'displayOrder': 'display_order'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            if query:
+                conditions = []
+                for k, v in query.items():
+                    db_col = query_map.get(k, k)
+                    conditions.append(f"{db_col} = :{k}")
+                    params[k] = v
+                if conditions:
+                    sql += " WHERE " + " AND ".join(conditions)
+                    
+            q = text(sql)
+            result = await session.execute(q, params)
+            rows = result.fetchall()
+            
+            if not rows:
+                return []
+                
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
+            
+            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: Any) -> CollectionResponse:
+    async def create(self, data: Any) -> Any:
         factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
         now = now_utc()
         external_id = secrets.token_hex(16)
         
+        cols = ["external_id", "created_at", "updated_at"]
+        params = {"eid": external_id, "c": now, "u": now}
+
+        if hasattr(data, "name") and getattr(data, "name") is not None:
+            cols.append("name")
+            params["s_name"] = getattr(data, "name")
+
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            cols.append("description")
+            params["s_description"] = getattr(data, "description")
+
+        if hasattr(data, "imageUrl") and getattr(data, "imageUrl") is not None:
+            cols.append("image_url")
+            params["s_imageUrl"] = getattr(data, "imageUrl")
+
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+            cols.append("is_active")
+            params["s_isActive"] = getattr(data, "isActive")
+
+        if hasattr(data, "displayOrder") and getattr(data, "displayOrder") is not None:
+            cols.append("display_order")
+            params["s_displayOrder"] = getattr(data, "displayOrder")
+
+        col_sql = ", ".join(cols)
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'imageUrl', 'isActive', 'displayOrder'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        
         async with factory() as session:
-            await session.execute(
-                text(
-                    f"""
-                    INSERT INTO {self.TABLE} (
-                        external_id, name, description, slug, is_active, banner_image, thumbnail_image, display_order, created_at, updated_at
-                    ) VALUES (
-                        :external_id, :name, :description, :slug, :is_active, :banner_image, :thumbnail_image, :display_order, :created_at, :updated_at
-                    )
-                    """
-                ),
-                {
-                    "external_id": external_id,
-                    "name": data.name,
-                    "description": data.description,
-                    "slug": data.slug,
-                    "is_active": 1 if data.isActive else 0,
-                    "banner_image": data.bannerImage,
-                    "thumbnail_image": data.thumbnailImage,
-                    "display_order": data.displayOrder,
-                    "created_at": now,
-                    "updated_at": now,
-                }
-            )
+            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = (
+                await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
+                )
+            ).scalar()
+            await self._replace_children(session, new_id, data)
             await session.commit()
             
-            r = await session.execute(
-                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
-                {"eid": external_id},
-            )
-            new_id = r.scalar()
-            
-            productIds = data.productIds
-            if productIds:
-                for pid in productIds:
-                    await session.execute(
-                        text(f"INSERT INTO {self.PRODUCTS_TABLE} (collection_id, product_id) VALUES (:cid, :pid)"),
-                        {"cid": new_id, "pid": pid}
-                    )
-                await session.commit()
-                
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Any) -> Optional[CollectionResponse]:
-        existing = await self.findById(id)
-        if not existing:
-            return None
-            
+    async def update(self, id: str, data: Any) -> Any:
         factory = self._factory()
-        if not factory:
-            return None
-        now = now_utc()
-        cid = int(id) if str(id).isdigit() else None
-        
-        upd_name = update_data.name if update_data.name is not None else existing.name
-        upd_description = update_data.description if update_data.description is not None else existing.description
-        upd_slug = update_data.slug if update_data.slug is not None else existing.slug
-        upd_isActive = update_data.isActive if update_data.isActive is not None else existing.isActive
-        upd_bannerImage = update_data.bannerImage if update_data.bannerImage is not None else existing.bannerImage
-        upd_thumbnailImage = update_data.thumbnailImage if update_data.thumbnailImage is not None else existing.thumbnailImage
-        upd_displayOrder = update_data.displayOrder if update_data.displayOrder is not None else existing.displayOrder
-        
-        async with factory() as session:
-            await session.execute(
-                text(
-                    f"""
-                    UPDATE {self.TABLE} SET
-                        name = :name,
-                        description = :description,
-                        slug = :slug,
-                        is_active = :is_active,
-                        banner_image = :banner_image,
-                        thumbnail_image = :thumbnail_image,
-                        display_order = :display_order,
-                        updated_at = :updated_at
-                    WHERE id = :id
-                    """
-                ),
-                {
-                    "id": cid,
-                    "name": upd_name,
-                    "description": upd_description,
-                    "slug": upd_slug,
-                    "is_active": 1 if upd_isActive else 0,
-                    "banner_image": upd_bannerImage,
-                    "thumbnail_image": upd_thumbnailImage,
-                    "display_order": upd_displayOrder,
-                    "updated_at": now,
-                }
-            )
-            
-            if update_data.productIds is not None:
-                await session.execute(
-                    text(f"DELETE FROM {self.PRODUCTS_TABLE} WHERE collection_id = :cid"),
-                    {"cid": cid}
-                )
-                for pid in update_data.productIds:
-                    await session.execute(
-                        text(f"INSERT INTO {self.PRODUCTS_TABLE} (collection_id, product_id) VALUES (:cid, :pid)"),
-                        {"cid": cid, "pid": pid}
-                    )
-                    
-            await session.commit()
-            
+        updates = ["updated_at = :u"]
+        params = {"id": id, "u": now_utc()}
+
+        if hasattr(data, "name") and getattr(data, "name") is not None:
+            updates.append("name = :s_name")
+            params["s_name"] = getattr(data, "name")
+
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            updates.append("description = :s_description")
+            params["s_description"] = getattr(data, "description")
+
+        if hasattr(data, "imageUrl") and getattr(data, "imageUrl") is not None:
+            updates.append("image_url = :s_imageUrl")
+            params["s_imageUrl"] = getattr(data, "imageUrl")
+
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+            updates.append("is_active = :s_isActive")
+            params["s_isActive"] = getattr(data, "isActive")
+
+        if hasattr(data, "displayOrder") and getattr(data, "displayOrder") is not None:
+            updates.append("display_order = :s_displayOrder")
+            params["s_displayOrder"] = getattr(data, "displayOrder")
+
+        if len(updates) > 1:
+            upd_sql = ", ".join(updates)
+            async with factory() as session:
+                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+        else:
+            async with factory() as session:
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+                
         return await self.findById(id)
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
         if not factory:
             return False
-        cid = int(id) if str(id).isdigit() else None
+        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
-            await session.execute(
-                text(f"DELETE FROM {self.PRODUCTS_TABLE} WHERE collection_id = :cid"),
-                {"cid": cid}
-            )
+
+            await session.execute(text(f"DELETE FROM sj_collection_pages WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_collection_segments WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_collection_rules WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_collection_products WHERE parent_id = :id"), {"id": pk})
+
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": cid},
+                {"id": pk},
             )
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Dict:
+    async def deleteMany(self, query: Dict) -> Any:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d.id):
+            # Depending on schema format, id might be _id or id
+            d_id = getattr(d, "_id", getattr(d, "id", None))
+            if d_id and await self.delete(d_id):
                 deleted += 1
         return {"deletedCount": deleted}
 
-    async def count(self, query: Optional[Dict] = None) -> int:
-        docs = await self.findAll(query)
-        return len(docs)
+    def _map_to_schema(self, r, children: Dict) -> Any:
+        rm = r._mapping
+        out = {
+            "_id": str(rm["id"]), 
+            "externalId": rm["external_id"]
+        }
+        
+        created_at = rm["created_at"]
+        if created_at:
+            out["createdAt"] = created_at.isoformat()
+            
+        updated_at = rm["updated_at"]
+        if updated_at:
+            out["updatedAt"] = updated_at.isoformat()
 
-    find_all = findAll
-    find_by_id = findById
-    find_one = findOne
+        out["name"] = rm["name"]
+        out["description"] = rm["description"]
+        out["imageUrl"] = rm["image_url"]
+        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
+        out["displayOrder"] = rm["display_order"]
+        for k, v in children.items():
+            out[k] = v
+            
+        return CollectionInternal(**out)
+
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
+        c_map = {rid: {} for rid in ids}
+        if not ids:
+            return c_map
+            
+        id_list = ",".join(map(str, ids))
+
+        q_visiblePages = text(f"SELECT parent_id, page FROM sj_collection_pages WHERE parent_id IN ({id_list})")
+        res_visiblePages = await session.execute(q_visiblePages)
+        rows_visiblePages = res_visiblePages.fetchall()
+
+        for r in rows_visiblePages:
+            if "visiblePages" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["visiblePages"] = []
+            c_map[r.parent_id]["visiblePages"].append(r[1])
+
+        q_userSegments = text(f"SELECT parent_id, segment FROM sj_collection_segments WHERE parent_id IN ({id_list})")
+        res_userSegments = await session.execute(q_userSegments)
+        rows_userSegments = res_userSegments.fetchall()
+
+        for r in rows_userSegments:
+            if "userSegments" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["userSegments"] = []
+            c_map[r.parent_id]["userSegments"].append(r[1])
+
+        q_visibilityRules = text(f"SELECT parent_id, rule FROM sj_collection_rules WHERE parent_id IN ({id_list})")
+        res_visibilityRules = await session.execute(q_visibilityRules)
+        rows_visibilityRules = res_visibilityRules.fetchall()
+
+        for r in rows_visibilityRules:
+            if "visibilityRules" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["visibilityRules"] = []
+            c_map[r.parent_id]["visibilityRules"].append(r[1])
+
+        q_productIds = text(f"SELECT parent_id, product_id FROM sj_collection_products WHERE parent_id IN ({id_list})")
+        res_productIds = await session.execute(q_productIds)
+        rows_productIds = res_productIds.fetchall()
+
+        for r in rows_productIds:
+            if "productIds" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["productIds"] = []
+            c_map[r.parent_id]["productIds"].append(r[1])
+
+        return c_map
+
+    async def _replace_children(self, session, row_id: int, data: Any):
+
+        if hasattr(data, "visiblePages") and getattr(data, "visiblePages") is not None:
+            await session.execute(text(f"DELETE FROM sj_collection_pages WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "visiblePages") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_collection_pages (parent_id, page) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, "userSegments") and getattr(data, "userSegments") is not None:
+            await session.execute(text(f"DELETE FROM sj_collection_segments WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "userSegments") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_collection_segments (parent_id, segment) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, "visibilityRules") and getattr(data, "visibilityRules") is not None:
+            await session.execute(text(f"DELETE FROM sj_collection_rules WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "visibilityRules") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_collection_rules (parent_id, rule) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, "productIds") and getattr(data, "productIds") is not None:
+            await session.execute(text(f"DELETE FROM sj_collection_products WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "productIds") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_collection_products (parent_id, product_id) VALUES (:id, :v)"), {"id": row_id, "v": item})

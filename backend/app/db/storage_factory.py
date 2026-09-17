@@ -19,6 +19,25 @@ from app.db.mysql_referral_settings_dao import MySQLReferralSettingsDAO
 from app.db.mysql_saved_for_later_dao import MySQLSavedForLaterDAO
 from app.db.mysql_session_dao import MySQLSessionDAO
 from app.db.mysql_tracking_dao import MySQLTrackingDAO
+from app.db.mysql_coupons_dao import MySQLCouponsDAO
+from app.db.mysql_activities_dao import MySQLActivitiesDAO
+from app.db.mysql_notifications_dao import MySQLNotificationsDAO
+from app.db.mysql_returnRequests_dao import MySQLReturnRequestsDAO
+from app.db.mysql_returnSettings_dao import MySQLReturnSettingsDAO
+from app.db.mysql_schemes_dao import MySQLSchemesDAO
+from app.db.mysql_contacts_dao import MySQLContactsDAO
+from app.db.mysql_supportTickets_dao import MySQLSupportTicketsDAO
+from app.db.mysql_orderFeedback_dao import MySQLOrderFeedbackDAO
+from app.db.mysql_promoStrips_dao import MySQLPromoStripsDAO
+from app.db.mysql_pushNotifications_dao import MySQLPushNotificationsDAO
+from app.db.mysql_deviceSubscriptions_dao import MySQLDeviceSubscriptionsDAO
+from app.db.mysql_collections_dao import MySQLCollectionsDAO
+from app.db.mysql_searchTags_dao import MySQLSearchTagsDAO
+from app.db.mysql_coachMarks_dao import MySQLCoachMarksDAO
+from app.db.mysql_categoryTags_dao import MySQLCategoryTagsDAO
+from app.db.mysql_deliveryCharges_dao import MySQLDeliveryChargesDAO
+from app.db.mysql_deliveryChargeDefaults_dao import MySQLDeliveryChargeDefaultsDAO
+from app.db.mysql_deliveryZones_dao import MySQLDeliveryZonesDAO
 from app.db.mysql_flat_daos import FLAT_DAOS
 
 from app.db.mysql_user_dao import MySQLUserDAO
@@ -69,6 +88,26 @@ _MYSQL_DAO_COLLECTIONS = {
     "events": MySQLEventsDAO,
 
     "deliverySlots": MySQLDeliveryslotsDAO,
+    "coupons": MySQLCouponsDAO,
+    "activities": MySQLActivitiesDAO,
+    "notifications": MySQLNotificationsDAO,
+    "returnRequests": MySQLReturnRequestsDAO,
+    "returnSettings": MySQLReturnSettingsDAO,
+    "schemes": MySQLSchemesDAO,
+    "contacts": MySQLContactsDAO,
+    "supportTickets": MySQLSupportTicketsDAO,
+    "orderFeedback": MySQLOrderFeedbackDAO,
+    "promoStrips": MySQLPromoStripsDAO,
+    "pushNotifications": MySQLPushNotificationsDAO,
+    "deviceSubscriptions": MySQLDeviceSubscriptionsDAO,
+    "collections": MySQLCollectionsDAO,
+    "searchTags": MySQLSearchTagsDAO,
+    "coachMarks": MySQLCoachMarksDAO,
+    "categoryTags": MySQLCategoryTagsDAO,
+    "deliveryCharges": MySQLDeliveryChargesDAO,
+    "deliveryChargeDefaults": MySQLDeliveryChargeDefaultsDAO,
+    "deliveryZones": MySQLDeliveryZonesDAO,
+
 }
 
 

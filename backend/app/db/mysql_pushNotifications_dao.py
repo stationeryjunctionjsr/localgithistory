@@ -4,15 +4,15 @@ import secrets
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import NotificationInternal
-from app.models.daos_flat import NotificationInternalCreate, NotificationInternalUpdate
+from app.models.daos_flat import PushNotificationsInternal
+from app.models.daos_flat import PushNotificationsInternalCreate, PushNotificationsInternalUpdate
 
 def now_utc():
     return datetime.now(timezone.utc)
 
-class MySQLNotificationsDAO:
+class MySQLPushNotificationsDAO:
     def __init__(self):
-        self.table_name = "sj_notifications"
+        self.table_name = "sj_push_notifications"
     
     @property
     def TABLE(self):
@@ -36,7 +36,7 @@ class MySQLNotificationsDAO:
             conditions = []
             params = {}
             
-            query_map = {'userId': 'user_id', 'type': 'type', 'title': 'title', 'message': 'message', 'isRead': 'is_read', 'isAcknowledged': 'is_acknowledged'}
+            query_map = {'title': 'title', 'message': 'message', 'link': 'link', 'image': 'image', 'status': 'status', 'scheduledFor': 'scheduled_for', 'deliveredCount': 'delivered_count', 'readCount': 'read_count', 'userSegment': 'user_segment', 'userBehavior': 'user_behavior', 'createdBy': 'created_by'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -52,7 +52,7 @@ class MySQLNotificationsDAO:
             if not row:
                 return None
                 
-            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            children_map = await self._fetch_children(session, [int(row.id)]) if False else {}
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
     async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
@@ -61,7 +61,7 @@ class MySQLNotificationsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'userId': 'user_id', 'type': 'type', 'title': 'title', 'message': 'message', 'isRead': 'is_read', 'isAcknowledged': 'is_acknowledged'}
+            query_map = {'title': 'title', 'message': 'message', 'link': 'link', 'image': 'image', 'status': 'status', 'scheduledFor': 'scheduled_for', 'deliveredCount': 'delivered_count', 'readCount': 'read_count', 'userSegment': 'user_segment', 'userBehavior': 'user_behavior', 'createdBy': 'created_by'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -81,7 +81,7 @@ class MySQLNotificationsDAO:
             if not rows:
                 return []
                 
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if False else {}
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
@@ -93,14 +93,6 @@ class MySQLNotificationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
-            cols.append("user_id")
-            params["s_userId"] = getattr(data, "userId")
-
-        if hasattr(data, "type") and getattr(data, "type") is not None:
-            cols.append("type")
-            params["s_type"] = getattr(data, "type")
-
         if hasattr(data, "title") and getattr(data, "title") is not None:
             cols.append("title")
             params["s_title"] = getattr(data, "title")
@@ -109,16 +101,44 @@ class MySQLNotificationsDAO:
             cols.append("message")
             params["s_message"] = getattr(data, "message")
 
-        if hasattr(data, "isRead") and getattr(data, "isRead") is not None:
-            cols.append("is_read")
-            params["s_isRead"] = getattr(data, "isRead")
+        if hasattr(data, "link") and getattr(data, "link") is not None:
+            cols.append("link")
+            params["s_link"] = getattr(data, "link")
 
-        if hasattr(data, "isAcknowledged") and getattr(data, "isAcknowledged") is not None:
-            cols.append("is_acknowledged")
-            params["s_isAcknowledged"] = getattr(data, "isAcknowledged")
+        if hasattr(data, "image") and getattr(data, "image") is not None:
+            cols.append("image")
+            params["s_image"] = getattr(data, "image")
+
+        if hasattr(data, "status") and getattr(data, "status") is not None:
+            cols.append("status")
+            params["s_status"] = getattr(data, "status")
+
+        if hasattr(data, "scheduledFor") and getattr(data, "scheduledFor") is not None:
+            cols.append("scheduled_for")
+            params["s_scheduledFor"] = getattr(data, "scheduledFor")
+
+        if hasattr(data, "deliveredCount") and getattr(data, "deliveredCount") is not None:
+            cols.append("delivered_count")
+            params["s_deliveredCount"] = getattr(data, "deliveredCount")
+
+        if hasattr(data, "readCount") and getattr(data, "readCount") is not None:
+            cols.append("read_count")
+            params["s_readCount"] = getattr(data, "readCount")
+
+        if hasattr(data, "userSegment") and getattr(data, "userSegment") is not None:
+            cols.append("user_segment")
+            params["s_userSegment"] = getattr(data, "userSegment")
+
+        if hasattr(data, "userBehavior") and getattr(data, "userBehavior") is not None:
+            cols.append("user_behavior")
+            params["s_userBehavior"] = getattr(data, "userBehavior")
+
+        if hasattr(data, "createdBy") and getattr(data, "createdBy") is not None:
+            cols.append("created_by")
+            params["s_createdBy"] = getattr(data, "createdBy")
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['userId', 'type', 'title', 'message', 'isRead', 'isAcknowledged'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['title', 'message', 'link', 'image', 'status', 'scheduledFor', 'deliveredCount', 'readCount', 'userSegment', 'userBehavior', 'createdBy'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -137,14 +157,6 @@ class MySQLNotificationsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
-            updates.append("user_id = :s_userId")
-            params["s_userId"] = getattr(data, "userId")
-
-        if hasattr(data, "type") and getattr(data, "type") is not None:
-            updates.append("type = :s_type")
-            params["s_type"] = getattr(data, "type")
-
         if hasattr(data, "title") and getattr(data, "title") is not None:
             updates.append("title = :s_title")
             params["s_title"] = getattr(data, "title")
@@ -153,13 +165,41 @@ class MySQLNotificationsDAO:
             updates.append("message = :s_message")
             params["s_message"] = getattr(data, "message")
 
-        if hasattr(data, "isRead") and getattr(data, "isRead") is not None:
-            updates.append("is_read = :s_isRead")
-            params["s_isRead"] = getattr(data, "isRead")
+        if hasattr(data, "link") and getattr(data, "link") is not None:
+            updates.append("link = :s_link")
+            params["s_link"] = getattr(data, "link")
 
-        if hasattr(data, "isAcknowledged") and getattr(data, "isAcknowledged") is not None:
-            updates.append("is_acknowledged = :s_isAcknowledged")
-            params["s_isAcknowledged"] = getattr(data, "isAcknowledged")
+        if hasattr(data, "image") and getattr(data, "image") is not None:
+            updates.append("image = :s_image")
+            params["s_image"] = getattr(data, "image")
+
+        if hasattr(data, "status") and getattr(data, "status") is not None:
+            updates.append("status = :s_status")
+            params["s_status"] = getattr(data, "status")
+
+        if hasattr(data, "scheduledFor") and getattr(data, "scheduledFor") is not None:
+            updates.append("scheduled_for = :s_scheduledFor")
+            params["s_scheduledFor"] = getattr(data, "scheduledFor")
+
+        if hasattr(data, "deliveredCount") and getattr(data, "deliveredCount") is not None:
+            updates.append("delivered_count = :s_deliveredCount")
+            params["s_deliveredCount"] = getattr(data, "deliveredCount")
+
+        if hasattr(data, "readCount") and getattr(data, "readCount") is not None:
+            updates.append("read_count = :s_readCount")
+            params["s_readCount"] = getattr(data, "readCount")
+
+        if hasattr(data, "userSegment") and getattr(data, "userSegment") is not None:
+            updates.append("user_segment = :s_userSegment")
+            params["s_userSegment"] = getattr(data, "userSegment")
+
+        if hasattr(data, "userBehavior") and getattr(data, "userBehavior") is not None:
+            updates.append("user_behavior = :s_userBehavior")
+            params["s_userBehavior"] = getattr(data, "userBehavior")
+
+        if hasattr(data, "createdBy") and getattr(data, "createdBy") is not None:
+            updates.append("created_by = :s_createdBy")
+            params["s_createdBy"] = getattr(data, "createdBy")
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -180,8 +220,6 @@ class MySQLNotificationsDAO:
             return False
         pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
-
-            await session.execute(text(f"DELETE FROM sj_notification_data WHERE parent_id = :id"), {"id": pk})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -215,41 +253,24 @@ class MySQLNotificationsDAO:
         if updated_at:
             out["updatedAt"] = updated_at.isoformat()
 
-        out["userId"] = rm["user_id"]
-        out["type"] = rm["type"]
         out["title"] = rm["title"]
         out["message"] = rm["message"]
-        out["isRead"] = bool(rm["is_read"]) if rm["is_read"] is not None else None
-        out["isAcknowledged"] = bool(rm["is_acknowledged"]) if rm["is_acknowledged"] is not None else None
+        out["link"] = rm["link"]
+        out["image"] = rm["image"]
+        out["status"] = rm["status"]
+        out["scheduledFor"] = rm["scheduled_for"]
+        out["deliveredCount"] = rm["delivered_count"]
+        out["readCount"] = rm["read_count"]
+        out["userSegment"] = rm["user_segment"]
+        out["userBehavior"] = rm["user_behavior"]
+        out["createdBy"] = rm["created_by"]
         for k, v in children.items():
             out[k] = v
             
-        return NotificationInternal(**out)
+        return PushNotificationsInternal(**out)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
-        if not ids:
-            return c_map
-            
-        id_list = ",".join(map(str, ids))
-
-        q_data = text(f"SELECT parent_id, data_key, data_value FROM sj_notification_data WHERE parent_id IN ({id_list})")
-        res_data = await session.execute(q_data)
-        rows_data = res_data.fetchall()
-
-        for r in rows_data:
-            if "data" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["data"] = {}
-            c_map[r.parent_id]["data"][r[1]] = r[2]
-
-        return c_map
-
+        return {}
+        
     async def _replace_children(self, session, row_id: int, data: Any):
-
-        if hasattr(data, "data") and getattr(data, "data") is not None:
-            await session.execute(text(f"DELETE FROM sj_notification_data WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "data") or []
-
-            if child_list:
-                for k, v in child_list.items():
-                    await session.execute(text(f"INSERT INTO sj_notification_data (parent_id, data_key, data_value) VALUES (:id, :k, :v)"), {"id": row_id, "k": k, "v": v})
+        pass

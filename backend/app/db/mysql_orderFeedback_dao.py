@@ -4,15 +4,15 @@ import secrets
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import DeliveryChargeDefaultInternal
-from app.models.daos_flat import DeliveryChargeDefaultInternalCreate, DeliveryChargeDefaultInternalUpdate
+from app.models.daos_flat import OrderFeedbackInternal
+from app.models.daos_flat import OrderFeedbackInternalCreate, OrderFeedbackInternalUpdate
 
 def now_utc():
     return datetime.now(timezone.utc)
 
-class MySQLDeliveryChargeDefaultsDAO:
+class MySQLOrderFeedbackDAO:
     def __init__(self):
-        self.table_name = "sj_delivery_charge_defaults"
+        self.table_name = "sj_order_feedback"
     
     @property
     def TABLE(self):
@@ -36,7 +36,7 @@ class MySQLDeliveryChargeDefaultsDAO:
             conditions = []
             params = {}
             
-            query_map = {'applicableToWholesaler': 'applicable_to_wholesaler', 'applicableToRetailer': 'applicable_to_retailer', 'isActive': 'is_active'}
+            query_map = {'orderId': 'order_id', 'userId': 'user_id', 'rating': 'rating', 'comment': 'comments', 'deliveryRating': 'delivery_rating', 'deliveryComment': 'delivery_comment', 'feedbackType': 'feedback_type'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -52,7 +52,7 @@ class MySQLDeliveryChargeDefaultsDAO:
             if not row:
                 return None
                 
-            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            children_map = await self._fetch_children(session, [int(row.id)]) if False else {}
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
     async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
@@ -61,7 +61,7 @@ class MySQLDeliveryChargeDefaultsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'applicableToWholesaler': 'applicable_to_wholesaler', 'applicableToRetailer': 'applicable_to_retailer', 'isActive': 'is_active'}
+            query_map = {'orderId': 'order_id', 'userId': 'user_id', 'rating': 'rating', 'comment': 'comments', 'deliveryRating': 'delivery_rating', 'deliveryComment': 'delivery_comment', 'feedbackType': 'feedback_type'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -81,7 +81,7 @@ class MySQLDeliveryChargeDefaultsDAO:
             if not rows:
                 return []
                 
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if False else {}
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
@@ -93,20 +93,36 @@ class MySQLDeliveryChargeDefaultsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "applicableToWholesaler") and getattr(data, "applicableToWholesaler") is not None:
-            cols.append("applicable_to_wholesaler")
-            params["s_applicableToWholesaler"] = getattr(data, "applicableToWholesaler")
+        if hasattr(data, "orderId") and getattr(data, "orderId") is not None:
+            cols.append("order_id")
+            params["s_orderId"] = getattr(data, "orderId")
 
-        if hasattr(data, "applicableToRetailer") and getattr(data, "applicableToRetailer") is not None:
-            cols.append("applicable_to_retailer")
-            params["s_applicableToRetailer"] = getattr(data, "applicableToRetailer")
+        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+            cols.append("user_id")
+            params["s_userId"] = getattr(data, "userId")
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
-            cols.append("is_active")
-            params["s_isActive"] = getattr(data, "isActive")
+        if hasattr(data, "rating") and getattr(data, "rating") is not None:
+            cols.append("rating")
+            params["s_rating"] = getattr(data, "rating")
+
+        if hasattr(data, "comment") and getattr(data, "comment") is not None:
+            cols.append("comments")
+            params["s_comment"] = getattr(data, "comment")
+
+        if hasattr(data, "deliveryRating") and getattr(data, "deliveryRating") is not None:
+            cols.append("delivery_rating")
+            params["s_deliveryRating"] = getattr(data, "deliveryRating")
+
+        if hasattr(data, "deliveryComment") and getattr(data, "deliveryComment") is not None:
+            cols.append("delivery_comment")
+            params["s_deliveryComment"] = getattr(data, "deliveryComment")
+
+        if hasattr(data, "feedbackType") and getattr(data, "feedbackType") is not None:
+            cols.append("feedback_type")
+            params["s_feedbackType"] = getattr(data, "feedbackType")
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['applicableToWholesaler', 'applicableToRetailer', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['orderId', 'userId', 'rating', 'comment', 'deliveryRating', 'deliveryComment', 'feedbackType'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -125,17 +141,33 @@ class MySQLDeliveryChargeDefaultsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "applicableToWholesaler") and getattr(data, "applicableToWholesaler") is not None:
-            updates.append("applicable_to_wholesaler = :s_applicableToWholesaler")
-            params["s_applicableToWholesaler"] = getattr(data, "applicableToWholesaler")
+        if hasattr(data, "orderId") and getattr(data, "orderId") is not None:
+            updates.append("order_id = :s_orderId")
+            params["s_orderId"] = getattr(data, "orderId")
 
-        if hasattr(data, "applicableToRetailer") and getattr(data, "applicableToRetailer") is not None:
-            updates.append("applicable_to_retailer = :s_applicableToRetailer")
-            params["s_applicableToRetailer"] = getattr(data, "applicableToRetailer")
+        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+            updates.append("user_id = :s_userId")
+            params["s_userId"] = getattr(data, "userId")
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
-            updates.append("is_active = :s_isActive")
-            params["s_isActive"] = getattr(data, "isActive")
+        if hasattr(data, "rating") and getattr(data, "rating") is not None:
+            updates.append("rating = :s_rating")
+            params["s_rating"] = getattr(data, "rating")
+
+        if hasattr(data, "comment") and getattr(data, "comment") is not None:
+            updates.append("comments = :s_comment")
+            params["s_comment"] = getattr(data, "comment")
+
+        if hasattr(data, "deliveryRating") and getattr(data, "deliveryRating") is not None:
+            updates.append("delivery_rating = :s_deliveryRating")
+            params["s_deliveryRating"] = getattr(data, "deliveryRating")
+
+        if hasattr(data, "deliveryComment") and getattr(data, "deliveryComment") is not None:
+            updates.append("delivery_comment = :s_deliveryComment")
+            params["s_deliveryComment"] = getattr(data, "deliveryComment")
+
+        if hasattr(data, "feedbackType") and getattr(data, "feedbackType") is not None:
+            updates.append("feedback_type = :s_feedbackType")
+            params["s_feedbackType"] = getattr(data, "feedbackType")
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -156,8 +188,6 @@ class MySQLDeliveryChargeDefaultsDAO:
             return False
         pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
-
-            await session.execute(text(f"DELETE FROM sj_delivery_charge_def_tiers WHERE parent_id = :id"), {"id": pk})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -191,48 +221,20 @@ class MySQLDeliveryChargeDefaultsDAO:
         if updated_at:
             out["updatedAt"] = updated_at.isoformat()
 
-        out["applicableToWholesaler"] = bool(rm["applicable_to_wholesaler"]) if rm["applicable_to_wholesaler"] is not None else None
-        out["applicableToRetailer"] = bool(rm["applicable_to_retailer"]) if rm["applicable_to_retailer"] is not None else None
-        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
+        out["orderId"] = rm["order_id"]
+        out["userId"] = rm["user_id"]
+        out["rating"] = rm["rating"]
+        out["comment"] = rm["comments"]
+        out["deliveryRating"] = rm["delivery_rating"]
+        out["deliveryComment"] = rm["delivery_comment"]
+        out["feedbackType"] = rm["feedback_type"]
         for k, v in children.items():
             out[k] = v
             
-        return DeliveryChargeDefaultInternal(**out)
+        return OrderFeedbackInternal(**out)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
-        if not ids:
-            return c_map
-            
-        id_list = ",".join(map(str, ids))
-
-        q_tiers = text(f"SELECT parent_id, min_order_value, max_order_value, charge FROM sj_delivery_charge_def_tiers WHERE parent_id IN ({id_list})")
-        res_tiers = await session.execute(q_tiers)
-        rows_tiers = res_tiers.fetchall()
-
-        for r in rows_tiers:
-            if "tiers" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["tiers"] = []
-            obj = {}
-
-            obj["min"] = r[1]
-            obj["max"] = r[2]
-            obj["charge"] = r[3]
-            c_map[r.parent_id]["tiers"].append(obj)
-
-        return c_map
-
+        return {}
+        
     async def _replace_children(self, session, row_id: int, data: Any):
-
-        if hasattr(data, "tiers") and getattr(data, "tiers") is not None:
-            await session.execute(text(f"DELETE FROM sj_delivery_charge_def_tiers WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "tiers") or []
-
-            if child_list:
-                for item in child_list:
-                    p = {"id": row_id}
-
-                    p["v0"] = getattr(item, "min", None)
-                    p["v1"] = getattr(item, "max", None)
-                    p["v2"] = getattr(item, "charge", None)
-                    await session.execute(text(f"INSERT INTO sj_delivery_charge_def_tiers (parent_id, min_order_value, max_order_value, charge) VALUES (:id, :v0, :v1, :v2)"), p)
+        pass

@@ -1,176 +1,255 @@
-from typing import List, Optional, Any, Dict
-import aiomysql
+from typing import Optional, Dict, List, Any
+from datetime import datetime, timezone
+import secrets
+import json
+from sqlalchemy import text
+from app.config.database import get_async_session_factory
+from app.models.daos_flat import DeliveryZoneInternal
+from app.models.daos_flat import DeliveryZoneInternalCreate, DeliveryZoneInternalUpdate
 
-# Note: Adjust the import below to match your actual models/schemas location
-from app.models.delivery_zones import DeliveryZoneResponse
+def now_utc():
+    return datetime.now(timezone.utc)
 
-class MySQLDeliveryzonesDAO:
-    def __init__(self, pool: aiomysql.Pool):
-        self.pool = pool
+class MySQLDeliveryZonesDAO:
+    def __init__(self):
+        self.table_name = "sj_delivery_zones"
+    
+    @property
+    def TABLE(self):
+        from app.config.settings import settings
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
+        return f"{self.table_name}{suffix}"
 
-    async def create(self, data) -> str:
-        query = """
-            INSERT INTO sj_delivery_zones (
-                name, description, default_capacity, urgent_delivery_available, customer_type, is_active
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s
-            )
-        """
-        async with self.pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                await cursor.execute(query, (
-                    data.name,
-                    data.description,
-                    data.defaultCapacity,
-                    data.urgentDeliveryAvailable,
-                    data.customerType,
-                    data.isActive
-                ))
-                delivery_zone_id = cursor.lastrowid
-                
-                if data.pincodes is not None:
-                    pincodes_query = "INSERT INTO sj_delivery_zone_pincodes (delivery_zone_id, pincode) VALUES (%s, %s)"
-                    pincodes_data = [(delivery_zone_id, p) for p in data.pincodes]
-                    if pincodes_data:
-                        await cursor.executemany(pincodes_query, pincodes_data)
-                    
-                await conn.commit()
-                return str(delivery_zone_id)
-                
-    async def update(self, id: str, data) -> bool:
-        query = """
-            UPDATE sj_delivery_zones SET
-                name = %s,
-                description = %s,
-                default_capacity = %s,
-                urgent_delivery_available = %s,
-                customer_type = %s,
-                is_active = %s
-            WHERE id = %s
-        """
-        async with self.pool.acquire() as conn:
-            async with conn.cursor() as cursor:
-                await cursor.execute(query, (
-                    data.name,
-                    data.description,
-                    data.defaultCapacity,
-                    data.urgentDeliveryAvailable,
-                    data.customerType,
-                    data.isActive,
-                    id
-                ))
-                
-                # Delete existing pincodes
-                await cursor.execute("DELETE FROM sj_delivery_zone_pincodes WHERE delivery_zone_id = %s", (id,))
-                
-                # Insert new pincodes
-                if data.pincodes is not None:
-                    pincodes_query = "INSERT INTO sj_delivery_zone_pincodes (delivery_zone_id, pincode) VALUES (%s, %s)"
-                    pincodes_data = [(id, p) for p in data.pincodes]
-                    if pincodes_data:
-                        await cursor.executemany(pincodes_query, pincodes_data)
-                    
-                await conn.commit()
-                return True
+    def _factory(self):
+        return get_async_session_factory()
+        
+    async def findById(self, id: str) -> Optional[Any]:
+        return await self.findOne({"_id": id})
 
-    async def _fetch_pincodes(self, cursor, delivery_zone_id: str) -> List[str]:
-        await cursor.execute("SELECT pincode FROM sj_delivery_zone_pincodes WHERE delivery_zone_id = %s", (delivery_zone_id,))
-        rows = await cursor.fetchall()
-        return [row[0] for row in rows] if rows else []
-
-    async def findById(self, id: str):
-        query = """
-            SELECT id, name, description, default_capacity, urgent_delivery_available, customer_type, is_active
-            FROM sj_delivery_zones
-            WHERE id = %s
-        """
-        async with self.pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cursor:
-                await cursor.execute(query, (id,))
-                row = await cursor.fetchone()
-                if not row:
-                    return None
-                    
-                pincodes = await self._fetch_pincodes(cursor, row['id'])
-                
-                return DeliveryZoneResponse(
-                    id=str(row['id']),
-                    name=row['name'],
-                    description=row['description'],
-                    defaultCapacity=row['default_capacity'],
-                    urgentDeliveryAvailable=bool(row['urgent_delivery_available']),
-                    customerType=row['customer_type'],
-                    isActive=bool(row['is_active']),
-                    pincodes=pincodes
-                )
-
-    async def findOne(self, filters: dict):
-        where_clauses = []
-        params = []
-        for k, v in filters.items():
-            if k == 'name':
-                where_clauses.append("name = %s")
-            elif k == 'customerType':
-                where_clauses.append("customer_type = %s")
-            elif k == 'isActive':
-                where_clauses.append("is_active = %s")
-            elif k == 'urgentDeliveryAvailable':
-                where_clauses.append("urgent_delivery_available = %s")
-            elif k == 'defaultCapacity':
-                where_clauses.append("default_capacity = %s")
-            else:
-                where_clauses.append(f"{k} = %s")
-            params.append(v)
+    async def findOne(self, query=None, **kwargs) -> Optional[Any]:
+        if query:
+            kwargs.update(query)
+        if not kwargs:
+            return None
+        
+        async with self._factory()() as session:
+            conditions = []
+            params = {}
             
-        where_str = " AND ".join(where_clauses) if where_clauses else "1=1"
-        query = f"""
-            SELECT id, name, description, default_capacity, urgent_delivery_available, customer_type, is_active
-            FROM sj_delivery_zones
-            WHERE {where_str}
-            LIMIT 1
-        """
-        async with self.pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cursor:
-                await cursor.execute(query, tuple(params))
-                row = await cursor.fetchone()
-                if not row:
-                    return None
+            query_map = {'name': 'name', 'description': 'description', 'defaultCapacity': 'default_capacity', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'customerType': 'customer_type', 'isActive': 'is_active'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            for k, v in kwargs.items():
+                db_col = query_map.get(k, k)
+                conditions.append(f"{db_col} = :{k}")
+                params[k] = v
+                
+            where_clause = " AND ".join(conditions)
+            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+            result = await session.execute(q, params)
+            row = result.fetchone()
+            if not row:
+                return None
+                
+            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
+        query = query or {}
+        async with self._factory()() as session:
+            sql = f"SELECT * FROM {self.TABLE}"
+            params = {}
+            
+            query_map = {'name': 'name', 'description': 'description', 'defaultCapacity': 'default_capacity', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'customerType': 'customer_type', 'isActive': 'is_active'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            if query:
+                conditions = []
+                for k, v in query.items():
+                    db_col = query_map.get(k, k)
+                    conditions.append(f"{db_col} = :{k}")
+                    params[k] = v
+                if conditions:
+                    sql += " WHERE " + " AND ".join(conditions)
                     
-                pincodes = await self._fetch_pincodes(cursor, row['id'])
+            q = text(sql)
+            result = await session.execute(q, params)
+            rows = result.fetchall()
+            
+            if not rows:
+                return []
                 
-                return DeliveryZoneResponse(
-                    id=str(row['id']),
-                    name=row['name'],
-                    description=row['description'],
-                    defaultCapacity=row['default_capacity'],
-                    urgentDeliveryAvailable=bool(row['urgent_delivery_available']),
-                    customerType=row['customer_type'],
-                    isActive=bool(row['is_active']),
-                    pincodes=pincodes
-                )
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
+            
+            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def findAll(self, skip: int = 0, limit: int = 100):
-        query = """
-            SELECT id, name, description, default_capacity, urgent_delivery_available, customer_type, is_active
-            FROM sj_delivery_zones
-            LIMIT %s OFFSET %s
-        """
-        async with self.pool.acquire() as conn:
-            async with conn.cursor(aiomysql.DictCursor) as cursor:
-                await cursor.execute(query, (limit, skip))
-                rows = await cursor.fetchall()
+    async def create(self, data: Any) -> Any:
+        factory = self._factory()
+        now = now_utc()
+        external_id = secrets.token_hex(16)
+        
+        cols = ["external_id", "created_at", "updated_at"]
+        params = {"eid": external_id, "c": now, "u": now}
+
+        if hasattr(data, "name") and getattr(data, "name") is not None:
+            cols.append("name")
+            params["s_name"] = getattr(data, "name")
+
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            cols.append("description")
+            params["s_description"] = getattr(data, "description")
+
+        if hasattr(data, "defaultCapacity") and getattr(data, "defaultCapacity") is not None:
+            cols.append("default_capacity")
+            params["s_defaultCapacity"] = getattr(data, "defaultCapacity")
+
+        if hasattr(data, "urgentDeliveryAvailable") and getattr(data, "urgentDeliveryAvailable") is not None:
+            cols.append("urgent_delivery_available")
+            params["s_urgentDeliveryAvailable"] = getattr(data, "urgentDeliveryAvailable")
+
+        if hasattr(data, "customerType") and getattr(data, "customerType") is not None:
+            cols.append("customer_type")
+            params["s_customerType"] = getattr(data, "customerType")
+
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+            cols.append("is_active")
+            params["s_isActive"] = getattr(data, "isActive")
+
+        col_sql = ", ".join(cols)
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'defaultCapacity', 'urgentDeliveryAvailable', 'customerType', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        
+        async with factory() as session:
+            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = (
+                await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
+                )
+            ).scalar()
+            await self._replace_children(session, new_id, data)
+            await session.commit()
+            
+        return await self.findById(str(new_id))
+
+    async def update(self, id: str, data: Any) -> Any:
+        factory = self._factory()
+        updates = ["updated_at = :u"]
+        params = {"id": id, "u": now_utc()}
+
+        if hasattr(data, "name") and getattr(data, "name") is not None:
+            updates.append("name = :s_name")
+            params["s_name"] = getattr(data, "name")
+
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            updates.append("description = :s_description")
+            params["s_description"] = getattr(data, "description")
+
+        if hasattr(data, "defaultCapacity") and getattr(data, "defaultCapacity") is not None:
+            updates.append("default_capacity = :s_defaultCapacity")
+            params["s_defaultCapacity"] = getattr(data, "defaultCapacity")
+
+        if hasattr(data, "urgentDeliveryAvailable") and getattr(data, "urgentDeliveryAvailable") is not None:
+            updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
+            params["s_urgentDeliveryAvailable"] = getattr(data, "urgentDeliveryAvailable")
+
+        if hasattr(data, "customerType") and getattr(data, "customerType") is not None:
+            updates.append("customer_type = :s_customerType")
+            params["s_customerType"] = getattr(data, "customerType")
+
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+            updates.append("is_active = :s_isActive")
+            params["s_isActive"] = getattr(data, "isActive")
+
+        if len(updates) > 1:
+            upd_sql = ", ".join(updates)
+            async with factory() as session:
+                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+        else:
+            async with factory() as session:
+                await self._replace_children(session, int(id), data)
+                await session.commit()
                 
-                result = []
-                for row in rows:
-                    pincodes = await self._fetch_pincodes(cursor, row['id'])
-                    result.append(DeliveryZoneResponse(
-                        id=str(row['id']),
-                        name=row['name'],
-                        description=row['description'],
-                        defaultCapacity=row['default_capacity'],
-                        urgentDeliveryAvailable=bool(row['urgent_delivery_available']),
-                        customerType=row['customer_type'],
-                        isActive=bool(row['is_active']),
-                        pincodes=pincodes
-                    ))
-                return result
+        return await self.findById(id)
+
+    async def delete(self, id: str) -> bool:
+        factory = self._factory()
+        if not factory:
+            return False
+        pk = int(id) if str(id).isdigit() else None
+        async with factory() as session:
+
+            await session.execute(text(f"DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": pk})
+
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                {"id": pk},
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    async def deleteMany(self, query: Dict) -> Any:
+        docs = await self.findAll(query)
+        deleted = 0
+        for d in docs:
+            # Depending on schema format, id might be _id or id
+            d_id = getattr(d, "_id", getattr(d, "id", None))
+            if d_id and await self.delete(d_id):
+                deleted += 1
+        return {"deletedCount": deleted}
+
+    def _map_to_schema(self, r, children: Dict) -> Any:
+        rm = r._mapping
+        out = {
+            "_id": str(rm["id"]), 
+            "externalId": rm["external_id"]
+        }
+        
+        created_at = rm["created_at"]
+        if created_at:
+            out["createdAt"] = created_at.isoformat()
+            
+        updated_at = rm["updated_at"]
+        if updated_at:
+            out["updatedAt"] = updated_at.isoformat()
+
+        out["name"] = rm["name"]
+        out["description"] = rm["description"]
+        out["defaultCapacity"] = rm["default_capacity"]
+        out["urgentDeliveryAvailable"] = bool(rm["urgent_delivery_available"]) if rm["urgent_delivery_available"] is not None else None
+        out["customerType"] = rm["customer_type"]
+        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
+        for k, v in children.items():
+            out[k] = v
+            
+        return DeliveryZoneInternal(**out)
+
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
+        c_map = {rid: {} for rid in ids}
+        if not ids:
+            return c_map
+            
+        id_list = ",".join(map(str, ids))
+
+        q_pincodes = text(f"SELECT parent_id, pincode FROM sj_delivery_zone_pincodes WHERE parent_id IN ({id_list})")
+        res_pincodes = await session.execute(q_pincodes)
+        rows_pincodes = res_pincodes.fetchall()
+
+        for r in rows_pincodes:
+            if "pincodes" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["pincodes"] = []
+            c_map[r.parent_id]["pincodes"].append(r[1])
+
+        return c_map
+
+    async def _replace_children(self, session, row_id: int, data: Any):
+
+        if hasattr(data, "pincodes") and getattr(data, "pincodes") is not None:
+            await session.execute(text(f"DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "pincodes") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_delivery_zone_pincodes (parent_id, pincode) VALUES (:id, :v)"), {"id": row_id, "v": item})

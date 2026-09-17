@@ -4,15 +4,15 @@ import secrets
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import DeliverySlotConfigInternal
-from app.models.daos_flat import DeliverySlotConfigInternalCreate, DeliverySlotConfigInternalUpdate
+from app.models.daos_flat import CategoryTagInternal
+from app.models.daos_flat import CategoryTagInternalCreate, CategoryTagInternalUpdate
 
 def now_utc():
     return datetime.now(timezone.utc)
 
-class MySQLDeliverySlotsDAO:
+class MySQLCategoryTagsDAO:
     def __init__(self):
-        self.table_name = "sj_delivery_slots"
+        self.table_name = "sj_category_tags"
     
     @property
     def TABLE(self):
@@ -36,8 +36,7 @@ class MySQLDeliverySlotsDAO:
             conditions = []
             params = {}
             
-            # Map query keys to db cols
-            query_map = {'segment': 'segment', 'date': 'date', 'zoneId': 'zone_id', 'isActive': 'is_active'}
+            query_map = {'name': 'name', 'description': 'description', 'isActive': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -53,7 +52,7 @@ class MySQLDeliverySlotsDAO:
             if not row:
                 return None
                 
-            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            children_map = await self._fetch_children(session, [int(row.id)]) if False else {}
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
     async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
@@ -62,7 +61,7 @@ class MySQLDeliverySlotsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'segment': 'segment', 'date': 'date', 'zoneId': 'zone_id', 'isActive': 'is_active'}
+            query_map = {'name': 'name', 'description': 'description', 'isActive': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -82,7 +81,7 @@ class MySQLDeliverySlotsDAO:
             if not rows:
                 return []
                 
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if False else {}
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
@@ -94,24 +93,20 @@ class MySQLDeliverySlotsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.segment is not None:
-            cols.append("segment")
-            params["s_segment"] = data.segment
+        if hasattr(data, "name") and getattr(data, "name") is not None:
+            cols.append("name")
+            params["s_name"] = getattr(data, "name")
 
-        if data.date is not None:
-            cols.append("date")
-            params["s_date"] = data.date
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            cols.append("description")
+            params["s_description"] = getattr(data, "description")
 
-        if data.zoneId is not None:
-            cols.append("zone_id")
-            params["s_zoneId"] = data.zoneId
-
-        if data.isActive is not None:
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
             cols.append("is_active")
-            params["s_isActive"] = data.isActive
+            params["s_isActive"] = getattr(data, "isActive")
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['segment', 'date', 'zoneId', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -130,21 +125,17 @@ class MySQLDeliverySlotsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.segment is not None:
-            updates.append("segment = :s_segment")
-            params["s_segment"] = data.segment
+        if hasattr(data, "name") and getattr(data, "name") is not None:
+            updates.append("name = :s_name")
+            params["s_name"] = getattr(data, "name")
 
-        if data.date is not None:
-            updates.append("date = :s_date")
-            params["s_date"] = data.date
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            updates.append("description = :s_description")
+            params["s_description"] = getattr(data, "description")
 
-        if data.zoneId is not None:
-            updates.append("zone_id = :s_zoneId")
-            params["s_zoneId"] = data.zoneId
-
-        if data.isActive is not None:
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_isActive"] = getattr(data, "isActive")
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -158,6 +149,30 @@ class MySQLDeliverySlotsDAO:
                 await session.commit()
                 
         return await self.findById(id)
+
+    async def delete(self, id: str) -> bool:
+        factory = self._factory()
+        if not factory:
+            return False
+        pk = int(id) if str(id).isdigit() else None
+        async with factory() as session:
+
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                {"id": pk},
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    async def deleteMany(self, query: Dict) -> Any:
+        docs = await self.findAll(query)
+        deleted = 0
+        for d in docs:
+            # Depending on schema format, id might be _id or id
+            d_id = getattr(d, "_id", getattr(d, "id", None))
+            if d_id and await self.delete(d_id):
+                deleted += 1
+        return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
         rm = r._mapping
@@ -174,57 +189,16 @@ class MySQLDeliverySlotsDAO:
         if updated_at:
             out["updatedAt"] = updated_at.isoformat()
 
-        out["segment"] = rm["segment"]
-        out["date"] = rm["date"]
-        out["zoneId"] = rm["zone_id"]
+        out["name"] = rm["name"]
+        out["description"] = rm["description"]
         out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
         for k, v in children.items():
             out[k] = v
             
-        return DeliverySlotConfigInternal(**out)
+        return CategoryTagInternal(**out)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
-        if not ids:
-            return c_map
-            
-        id_list = ",".join(map(str, ids))
-
-        q_slots = text(f"SELECT parent_id, start_time, end_time, capacity, booked_count, is_full_day, is_urgent, cutoff_hours FROM sj_delivery_slot_times WHERE parent_id IN ({id_list})")
-        res_slots = await session.execute(q_slots)
-        rows_slots = res_slots.fetchall()
-
-        for r in rows_slots:
-            if "slots" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["slots"] = []
-            obj = {}
-
-            obj["startTime"] = r[1]
-            obj["endTime"] = r[2]
-            obj["capacity"] = r[3]
-            obj["bookedCount"] = r[4]
-            obj["isFullDay"] = r[5]
-            obj["isUrgent"] = r[6]
-            obj["cutoffHours"] = r[7]
-            c_map[r.parent_id]["slots"].append(obj)
-
-        return c_map
-
+        return {}
+        
     async def _replace_children(self, session, row_id: int, data: Any):
-
-        if data.slots is not None:
-            await session.execute(text(f"DELETE FROM sj_delivery_slot_times WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.slots or []
-
-            if child_list:
-                for item in child_list:
-                    p = {"id": row_id}
-
-                    p["v0"] = item.startTime
-                    p["v1"] = item.endTime
-                    p["v2"] = item.capacity
-                    p["v3"] = item.bookedCount
-                    p["v4"] = item.isFullDay
-                    p["v5"] = item.isUrgent
-                    p["v6"] = item.cutoffHours
-                    await session.execute(text(f"INSERT INTO sj_delivery_slot_times (parent_id, start_time, end_time, capacity, booked_count, is_full_day, is_urgent, cutoff_hours) VALUES (:id, :v0, :v1, :v2, :v3, :v4, :v5, :v6)"), p)
+        pass

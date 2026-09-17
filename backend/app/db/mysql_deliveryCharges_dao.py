@@ -1,227 +1,346 @@
-import uuid
-from typing import List, Optional, Any
-from app.db.connection import get_db_connection
-from app.schemas.deliveryCharges import (
-    DeliveryChargeCreate,
-    DeliveryChargeUpdate,
-    DeliveryChargeResponse,
-    DeliveryChargeTier
-)
+from typing import Optional, Dict, List, Any
+from datetime import datetime, timezone
+import secrets
+import json
+from sqlalchemy import text
+from app.config.database import get_async_session_factory
+from app.models.daos_flat import DeliveryChargeInternal
+from app.models.daos_flat import DeliveryChargeInternalCreate, DeliveryChargeInternalUpdate
 
-class MySQLDeliverychargesDAO:
+def now_utc():
+    return datetime.now(timezone.utc)
+
+class MySQLDeliveryChargesDAO:
     def __init__(self):
-        pass
+        self.table_name = "sj_delivery_charges"
+    
+    @property
+    def TABLE(self):
+        from app.config.settings import settings
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
+        return f"{self.table_name}{suffix}"
 
-    def create(self, data: DeliveryChargeCreate) -> DeliveryChargeResponse:
-        with get_db_connection() as conn:
-            with conn.cursor(dictionary=True) as cursor:
-                delivery_charge_id = str(uuid.uuid4())
-                
-                apply_default_charge = 1 if data.applyDefaultCharge else 0
-                serviceable_for_customer = 1 if data.serviceableForCustomer else 0
-                serviceable_for_retailer = 1 if data.serviceableForRetailer else 0
-                serviceable_for_wholesaler = 1 if data.serviceableForWholesaler else 0
-                is_active = 1 if data.isActive else 0
-
-                sql = """
-                    INSERT INTO sj_delivery_charges (
-                        id, location_id, pincode, state, city, district, 
-                        apply_default_charge, charge, min_cart_value, 
-                        serviceable_for_customer, serviceable_for_retailer, 
-                        serviceable_for_wholesaler, is_active, description
-                    ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                    )
-                """
-                cursor.execute(sql, (
-                    delivery_charge_id, data.locationId, data.pincode, data.state, 
-                    data.city, data.district, apply_default_charge, data.charge, 
-                    data.minCartValue, serviceable_for_customer, 
-                    serviceable_for_retailer, serviceable_for_wholesaler, 
-                    is_active, data.description
-                ))
-
-                if data.tiers:
-                    for tier in data.tiers:
-                        tier_id = str(uuid.uuid4())
-                        tier_sql = """
-                            INSERT INTO sj_delivery_charge_tiers (
-                                id, delivery_charge_id, min_order_value, max_order_value, charge
-                            ) VALUES (%s, %s, %s, %s, %s)
-                        """
-                        cursor.execute(tier_sql, (
-                            tier_id, delivery_charge_id, tier.min, tier.max, tier.charge
-                        ))
-                
-                conn.commit()
-                return self.findById(delivery_charge_id)
-
-    def update(self, delivery_charge_id: str, data: DeliveryChargeUpdate) -> Optional[DeliveryChargeResponse]:
-        with get_db_connection() as conn:
-            with conn.cursor(dictionary=True) as cursor:
-                update_fields = []
-                params = []
-
-                if data.locationId is not None:
-                    update_fields.append("location_id = %s")
-                    params.append(data.locationId)
-                if data.pincode is not None:
-                    update_fields.append("pincode = %s")
-                    params.append(data.pincode)
-                if data.state is not None:
-                    update_fields.append("state = %s")
-                    params.append(data.state)
-                if data.city is not None:
-                    update_fields.append("city = %s")
-                    params.append(data.city)
-                if data.district is not None:
-                    update_fields.append("district = %s")
-                    params.append(data.district)
-                if data.applyDefaultCharge is not None:
-                    update_fields.append("apply_default_charge = %s")
-                    params.append(1 if data.applyDefaultCharge else 0)
-                if data.charge is not None:
-                    update_fields.append("charge = %s")
-                    params.append(data.charge)
-                if data.minCartValue is not None:
-                    update_fields.append("min_cart_value = %s")
-                    params.append(data.minCartValue)
-                if data.serviceableForCustomer is not None:
-                    update_fields.append("serviceable_for_customer = %s")
-                    params.append(1 if data.serviceableForCustomer else 0)
-                if data.serviceableForRetailer is not None:
-                    update_fields.append("serviceable_for_retailer = %s")
-                    params.append(1 if data.serviceableForRetailer else 0)
-                if data.serviceableForWholesaler is not None:
-                    update_fields.append("serviceable_for_wholesaler = %s")
-                    params.append(1 if data.serviceableForWholesaler else 0)
-                if data.isActive is not None:
-                    update_fields.append("is_active = %s")
-                    params.append(1 if data.isActive else 0)
-                if data.description is not None:
-                    update_fields.append("description = %s")
-                    params.append(data.description)
-
-                if update_fields:
-                    sql = f"UPDATE sj_delivery_charges SET {', '.join(update_fields)} WHERE id = %s"
-                    params.append(delivery_charge_id)
-                    cursor.execute(sql, tuple(params))
-
-                if data.tiers is not None:
-                    cursor.execute("DELETE FROM sj_delivery_charge_tiers WHERE delivery_charge_id = %s", (delivery_charge_id,))
-                    for tier in data.tiers:
-                        tier_id = str(uuid.uuid4())
-                        tier_sql = """
-                            INSERT INTO sj_delivery_charge_tiers (
-                                id, delivery_charge_id, min_order_value, max_order_value, charge
-                            ) VALUES (%s, %s, %s, %s, %s)
-                        """
-                        cursor.execute(tier_sql, (
-                            tier_id, delivery_charge_id, tier.min, tier.max, tier.charge
-                        ))
-                
-                conn.commit()
-                return self.findById(delivery_charge_id)
-
-    def findById(self, delivery_charge_id: str) -> Optional[DeliveryChargeResponse]:
-        with get_db_connection() as conn:
-            with conn.cursor(dictionary=True) as cursor:
-                sql = "SELECT * FROM sj_delivery_charges WHERE id = %s"
-                cursor.execute(sql, (delivery_charge_id,))
-                row = cursor.fetchone()
-                if not row:
-                    return None
-                
-                tier_sql = "SELECT * FROM sj_delivery_charge_tiers WHERE delivery_charge_id = %s"
-                cursor.execute(tier_sql, (delivery_charge_id,))
-                tiers_rows = cursor.fetchall()
-                
-                return self._map_to_response(row, tiers_rows)
-
-    def findOne(self, filters: dict) -> Optional[DeliveryChargeResponse]:
-        with get_db_connection() as conn:
-            with conn.cursor(dictionary=True) as cursor:
-                if not filters:
-                    return None
-                where_clauses = []
-                params = []
-                for k, v in filters.items():
-                    where_clauses.append(f"{k} = %s")
-                    params.append(v)
-                sql = f"SELECT * FROM sj_delivery_charges WHERE {' AND '.join(where_clauses)} LIMIT 1"
-                cursor.execute(sql, tuple(params))
-                row = cursor.fetchone()
-                if not row:
-                    return None
-                
-                tier_sql = "SELECT * FROM sj_delivery_charge_tiers WHERE delivery_charge_id = %s"
-                cursor.execute(tier_sql, (row['id'],))
-                tiers_rows = cursor.fetchall()
-                
-                return self._map_to_response(row, tiers_rows)
-
-    def findAll(self, skip: int = 0, limit: int = 100, filters: dict = None) -> List[DeliveryChargeResponse]:
-        with get_db_connection() as conn:
-            with conn.cursor(dictionary=True) as cursor:
-                where_clauses = []
-                params = []
-                if filters:
-                    for k, v in filters.items():
-                        where_clauses.append(f"{k} = %s")
-                        params.append(v)
-                
-                sql = "SELECT * FROM sj_delivery_charges"
-                if where_clauses:
-                    sql += " WHERE " + " AND ".join(where_clauses)
-                sql += " LIMIT %s OFFSET %s"
-                params.extend([limit, skip])
-                
-                cursor.execute(sql, tuple(params))
-                rows = cursor.fetchall()
-                
-                responses = []
-                for row in rows:
-                    tier_sql = "SELECT * FROM sj_delivery_charge_tiers WHERE delivery_charge_id = %s"
-                    cursor.execute(tier_sql, (row['id'],))
-                    tiers_rows = cursor.fetchall()
-                    responses.append(self._map_to_response(row, tiers_rows))
-                
-                return responses
-
-    def delete(self, delivery_charge_id: str) -> bool:
-        with get_db_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM sj_delivery_charge_tiers WHERE delivery_charge_id = %s", (delivery_charge_id,))
-                cursor.execute("DELETE FROM sj_delivery_charges WHERE id = %s", (delivery_charge_id,))
-                conn.commit()
-                return cursor.rowcount > 0
-
-    def _map_to_response(self, row: dict, tiers_rows: list) -> DeliveryChargeResponse:
-        tiers = []
-        if tiers_rows:
-            for tier in tiers_rows:
-                tiers.append(DeliveryChargeTier(
-                    min=tier['min_order_value'],
-                    max=tier['max_order_value'],
-                    charge=tier['charge']
-                ))
+    def _factory(self):
+        return get_async_session_factory()
         
-        return DeliveryChargeResponse(
-            id=row['id'],
-            locationId=(row['location_id'] if 'location_id' in row else None),
-            pincode=(row['pincode'] if 'pincode' in row else None),
-            state=(row['state'] if 'state' in row else None),
-            city=(row['city'] if 'city' in row else None),
-            district=(row['district'] if 'district' in row else None),
-            applyDefaultCharge=bool((row['apply_default_charge'] if 'apply_default_charge' in row else None)),
-            charge=(row['charge'] if 'charge' in row else None),
-            minCartValue=(row['min_cart_value'] if 'min_cart_value' in row else None),
-            serviceableForCustomer=bool((row['serviceable_for_customer'] if 'serviceable_for_customer' in row else None)),
-            serviceableForRetailer=bool((row['serviceable_for_retailer'] if 'serviceable_for_retailer' in row else None)),
-            serviceableForWholesaler=bool((row['serviceable_for_wholesaler'] if 'serviceable_for_wholesaler' in row else None)),
-            isActive=bool((row['is_active'] if 'is_active' in row else None)),
-            description=(row['description'] if 'description' in row else None),
-            tiers=tiers,
-            createdAt=(row['created_at'] if 'created_at' in row else None),
-            updatedAt=(row['updated_at'] if 'updated_at' in row else None)
-        )
+    async def findById(self, id: str) -> Optional[Any]:
+        return await self.findOne({"_id": id})
+
+    async def findOne(self, query=None, **kwargs) -> Optional[Any]:
+        if query:
+            kwargs.update(query)
+        if not kwargs:
+            return None
+        
+        async with self._factory()() as session:
+            conditions = []
+            params = {}
+            
+            query_map = {'locationId': 'location_id', 'pincode': 'pincode', 'state': 'state', 'city': 'city', 'district': 'district', 'applyDefaultCharge': 'apply_default_charge', 'charge': 'charge', 'minCartValue': 'min_cart_value', 'serviceableForCustomer': 'serviceable_for_customer', 'serviceableForRetailer': 'serviceable_for_retailer', 'serviceableForWholesaler': 'serviceable_for_wholesaler', 'isActive': 'is_active', 'description': 'description', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'urgentDeliveryCharge': 'urgent_delivery_charge'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            for k, v in kwargs.items():
+                db_col = query_map.get(k, k)
+                conditions.append(f"{db_col} = :{k}")
+                params[k] = v
+                
+            where_clause = " AND ".join(conditions)
+            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+            result = await session.execute(q, params)
+            row = result.fetchone()
+            if not row:
+                return None
+                
+            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
+        query = query or {}
+        async with self._factory()() as session:
+            sql = f"SELECT * FROM {self.TABLE}"
+            params = {}
+            
+            query_map = {'locationId': 'location_id', 'pincode': 'pincode', 'state': 'state', 'city': 'city', 'district': 'district', 'applyDefaultCharge': 'apply_default_charge', 'charge': 'charge', 'minCartValue': 'min_cart_value', 'serviceableForCustomer': 'serviceable_for_customer', 'serviceableForRetailer': 'serviceable_for_retailer', 'serviceableForWholesaler': 'serviceable_for_wholesaler', 'isActive': 'is_active', 'description': 'description', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'urgentDeliveryCharge': 'urgent_delivery_charge'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            if query:
+                conditions = []
+                for k, v in query.items():
+                    db_col = query_map.get(k, k)
+                    conditions.append(f"{db_col} = :{k}")
+                    params[k] = v
+                if conditions:
+                    sql += " WHERE " + " AND ".join(conditions)
+                    
+            q = text(sql)
+            result = await session.execute(q, params)
+            rows = result.fetchall()
+            
+            if not rows:
+                return []
+                
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
+            
+            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+
+    async def create(self, data: Any) -> Any:
+        factory = self._factory()
+        now = now_utc()
+        external_id = secrets.token_hex(16)
+        
+        cols = ["external_id", "created_at", "updated_at"]
+        params = {"eid": external_id, "c": now, "u": now}
+
+        if hasattr(data, "locationId") and getattr(data, "locationId") is not None:
+            cols.append("location_id")
+            params["s_locationId"] = getattr(data, "locationId")
+
+        if hasattr(data, "pincode") and getattr(data, "pincode") is not None:
+            cols.append("pincode")
+            params["s_pincode"] = getattr(data, "pincode")
+
+        if hasattr(data, "state") and getattr(data, "state") is not None:
+            cols.append("state")
+            params["s_state"] = getattr(data, "state")
+
+        if hasattr(data, "city") and getattr(data, "city") is not None:
+            cols.append("city")
+            params["s_city"] = getattr(data, "city")
+
+        if hasattr(data, "district") and getattr(data, "district") is not None:
+            cols.append("district")
+            params["s_district"] = getattr(data, "district")
+
+        if hasattr(data, "applyDefaultCharge") and getattr(data, "applyDefaultCharge") is not None:
+            cols.append("apply_default_charge")
+            params["s_applyDefaultCharge"] = getattr(data, "applyDefaultCharge")
+
+        if hasattr(data, "charge") and getattr(data, "charge") is not None:
+            cols.append("charge")
+            params["s_charge"] = getattr(data, "charge")
+
+        if hasattr(data, "minCartValue") and getattr(data, "minCartValue") is not None:
+            cols.append("min_cart_value")
+            params["s_minCartValue"] = getattr(data, "minCartValue")
+
+        if hasattr(data, "serviceableForCustomer") and getattr(data, "serviceableForCustomer") is not None:
+            cols.append("serviceable_for_customer")
+            params["s_serviceableForCustomer"] = getattr(data, "serviceableForCustomer")
+
+        if hasattr(data, "serviceableForRetailer") and getattr(data, "serviceableForRetailer") is not None:
+            cols.append("serviceable_for_retailer")
+            params["s_serviceableForRetailer"] = getattr(data, "serviceableForRetailer")
+
+        if hasattr(data, "serviceableForWholesaler") and getattr(data, "serviceableForWholesaler") is not None:
+            cols.append("serviceable_for_wholesaler")
+            params["s_serviceableForWholesaler"] = getattr(data, "serviceableForWholesaler")
+
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+            cols.append("is_active")
+            params["s_isActive"] = getattr(data, "isActive")
+
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            cols.append("description")
+            params["s_description"] = getattr(data, "description")
+
+        if hasattr(data, "urgentDeliveryAvailable") and getattr(data, "urgentDeliveryAvailable") is not None:
+            cols.append("urgent_delivery_available")
+            params["s_urgentDeliveryAvailable"] = getattr(data, "urgentDeliveryAvailable")
+
+        if hasattr(data, "urgentDeliveryCharge") and getattr(data, "urgentDeliveryCharge") is not None:
+            cols.append("urgent_delivery_charge")
+            params["s_urgentDeliveryCharge"] = getattr(data, "urgentDeliveryCharge")
+
+        col_sql = ", ".join(cols)
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['locationId', 'pincode', 'state', 'city', 'district', 'applyDefaultCharge', 'charge', 'minCartValue', 'serviceableForCustomer', 'serviceableForRetailer', 'serviceableForWholesaler', 'isActive', 'description', 'urgentDeliveryAvailable', 'urgentDeliveryCharge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        
+        async with factory() as session:
+            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = (
+                await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
+                )
+            ).scalar()
+            await self._replace_children(session, new_id, data)
+            await session.commit()
+            
+        return await self.findById(str(new_id))
+
+    async def update(self, id: str, data: Any) -> Any:
+        factory = self._factory()
+        updates = ["updated_at = :u"]
+        params = {"id": id, "u": now_utc()}
+
+        if hasattr(data, "locationId") and getattr(data, "locationId") is not None:
+            updates.append("location_id = :s_locationId")
+            params["s_locationId"] = getattr(data, "locationId")
+
+        if hasattr(data, "pincode") and getattr(data, "pincode") is not None:
+            updates.append("pincode = :s_pincode")
+            params["s_pincode"] = getattr(data, "pincode")
+
+        if hasattr(data, "state") and getattr(data, "state") is not None:
+            updates.append("state = :s_state")
+            params["s_state"] = getattr(data, "state")
+
+        if hasattr(data, "city") and getattr(data, "city") is not None:
+            updates.append("city = :s_city")
+            params["s_city"] = getattr(data, "city")
+
+        if hasattr(data, "district") and getattr(data, "district") is not None:
+            updates.append("district = :s_district")
+            params["s_district"] = getattr(data, "district")
+
+        if hasattr(data, "applyDefaultCharge") and getattr(data, "applyDefaultCharge") is not None:
+            updates.append("apply_default_charge = :s_applyDefaultCharge")
+            params["s_applyDefaultCharge"] = getattr(data, "applyDefaultCharge")
+
+        if hasattr(data, "charge") and getattr(data, "charge") is not None:
+            updates.append("charge = :s_charge")
+            params["s_charge"] = getattr(data, "charge")
+
+        if hasattr(data, "minCartValue") and getattr(data, "minCartValue") is not None:
+            updates.append("min_cart_value = :s_minCartValue")
+            params["s_minCartValue"] = getattr(data, "minCartValue")
+
+        if hasattr(data, "serviceableForCustomer") and getattr(data, "serviceableForCustomer") is not None:
+            updates.append("serviceable_for_customer = :s_serviceableForCustomer")
+            params["s_serviceableForCustomer"] = getattr(data, "serviceableForCustomer")
+
+        if hasattr(data, "serviceableForRetailer") and getattr(data, "serviceableForRetailer") is not None:
+            updates.append("serviceable_for_retailer = :s_serviceableForRetailer")
+            params["s_serviceableForRetailer"] = getattr(data, "serviceableForRetailer")
+
+        if hasattr(data, "serviceableForWholesaler") and getattr(data, "serviceableForWholesaler") is not None:
+            updates.append("serviceable_for_wholesaler = :s_serviceableForWholesaler")
+            params["s_serviceableForWholesaler"] = getattr(data, "serviceableForWholesaler")
+
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+            updates.append("is_active = :s_isActive")
+            params["s_isActive"] = getattr(data, "isActive")
+
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            updates.append("description = :s_description")
+            params["s_description"] = getattr(data, "description")
+
+        if hasattr(data, "urgentDeliveryAvailable") and getattr(data, "urgentDeliveryAvailable") is not None:
+            updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
+            params["s_urgentDeliveryAvailable"] = getattr(data, "urgentDeliveryAvailable")
+
+        if hasattr(data, "urgentDeliveryCharge") and getattr(data, "urgentDeliveryCharge") is not None:
+            updates.append("urgent_delivery_charge = :s_urgentDeliveryCharge")
+            params["s_urgentDeliveryCharge"] = getattr(data, "urgentDeliveryCharge")
+
+        if len(updates) > 1:
+            upd_sql = ", ".join(updates)
+            async with factory() as session:
+                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+        else:
+            async with factory() as session:
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+                
+        return await self.findById(id)
+
+    async def delete(self, id: str) -> bool:
+        factory = self._factory()
+        if not factory:
+            return False
+        pk = int(id) if str(id).isdigit() else None
+        async with factory() as session:
+
+            await session.execute(text(f"DELETE FROM sj_delivery_charge_tiers WHERE parent_id = :id"), {"id": pk})
+
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                {"id": pk},
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    async def deleteMany(self, query: Dict) -> Any:
+        docs = await self.findAll(query)
+        deleted = 0
+        for d in docs:
+            # Depending on schema format, id might be _id or id
+            d_id = getattr(d, "_id", getattr(d, "id", None))
+            if d_id and await self.delete(d_id):
+                deleted += 1
+        return {"deletedCount": deleted}
+
+    def _map_to_schema(self, r, children: Dict) -> Any:
+        rm = r._mapping
+        out = {
+            "_id": str(rm["id"]), 
+            "externalId": rm["external_id"]
+        }
+        
+        created_at = rm["created_at"]
+        if created_at:
+            out["createdAt"] = created_at.isoformat()
+            
+        updated_at = rm["updated_at"]
+        if updated_at:
+            out["updatedAt"] = updated_at.isoformat()
+
+        out["locationId"] = rm["location_id"]
+        out["pincode"] = rm["pincode"]
+        out["state"] = rm["state"]
+        out["city"] = rm["city"]
+        out["district"] = rm["district"]
+        out["applyDefaultCharge"] = bool(rm["apply_default_charge"]) if rm["apply_default_charge"] is not None else None
+        out["charge"] = rm["charge"]
+        out["minCartValue"] = rm["min_cart_value"]
+        out["serviceableForCustomer"] = bool(rm["serviceable_for_customer"]) if rm["serviceable_for_customer"] is not None else None
+        out["serviceableForRetailer"] = bool(rm["serviceable_for_retailer"]) if rm["serviceable_for_retailer"] is not None else None
+        out["serviceableForWholesaler"] = bool(rm["serviceable_for_wholesaler"]) if rm["serviceable_for_wholesaler"] is not None else None
+        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
+        out["description"] = rm["description"]
+        out["urgentDeliveryAvailable"] = bool(rm["urgent_delivery_available"]) if rm["urgent_delivery_available"] is not None else None
+        out["urgentDeliveryCharge"] = rm["urgent_delivery_charge"]
+        for k, v in children.items():
+            out[k] = v
+            
+        return DeliveryChargeInternal(**out)
+
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
+        c_map = {rid: {} for rid in ids}
+        if not ids:
+            return c_map
+            
+        id_list = ",".join(map(str, ids))
+
+        q_tiers = text(f"SELECT parent_id, min_order_value, max_order_value, charge FROM sj_delivery_charge_tiers WHERE parent_id IN ({id_list})")
+        res_tiers = await session.execute(q_tiers)
+        rows_tiers = res_tiers.fetchall()
+
+        for r in rows_tiers:
+            if "tiers" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["tiers"] = []
+            obj = {}
+
+            obj["min"] = r[1]
+            obj["max"] = r[2]
+            obj["charge"] = r[3]
+            c_map[r.parent_id]["tiers"].append(obj)
+
+        return c_map
+
+    async def _replace_children(self, session, row_id: int, data: Any):
+
+        if hasattr(data, "tiers") and getattr(data, "tiers") is not None:
+            await session.execute(text(f"DELETE FROM sj_delivery_charge_tiers WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "tiers") or []
+
+            if child_list:
+                for item in child_list:
+                    p = {"id": row_id}
+
+                    p["v0"] = getattr(item, "min", None)
+                    p["v1"] = getattr(item, "max", None)
+                    p["v2"] = getattr(item, "charge", None)
+                    await session.execute(text(f"INSERT INTO sj_delivery_charge_tiers (parent_id, min_order_value, max_order_value, charge) VALUES (:id, :v0, :v1, :v2)"), p)

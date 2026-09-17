@@ -1,277 +1,332 @@
-import logging
+from typing import Optional, Dict, List, Any
+from datetime import datetime, timezone
 import secrets
-from typing import Dict, List, Optional
-from datetime import datetime
-
+import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.db.db_utils import now_utc
-from app.models.schemas import SearchTagResponse
+from app.models.daos_flat import SearchTagInternal
+from app.models.daos_flat import SearchTagInternalCreate, SearchTagInternalUpdate
 
-logger = logging.getLogger(__name__)
+def now_utc():
+    return datetime.now(timezone.utc)
 
-class MySQLSearchtagsDAO:
-    TABLE = "sj_search_tags"
+class MySQLSearchTagsDAO:
+    def __init__(self):
+        self.table_name = "sj_search_tags"
+    
+    @property
+    def TABLE(self):
+        from app.config.settings import settings
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
+        return f"{self.table_name}{suffix}"
 
     def _factory(self):
         return get_async_session_factory()
+        
+    async def findById(self, id: str) -> Optional[Any]:
+        return await self.findOne({"_id": id})
 
-    def _row_to_obj(self, row, child_map: dict) -> SearchTagResponse:
-        data = {
-            "id": row.tag_id,
-            "_id": str(row.tag_id),
-            "tagId": row.tag_id,
-            "name": row.name,
-            "type": row.type,
-            "isActive": bool(row.is_active) if row.is_active is not None else False,
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+    async def findOne(self, query=None, **kwargs) -> Optional[Any]:
+        if query:
+            kwargs.update(query)
+        if not kwargs:
+            return None
         
-        # Child tables
-        data["categories"] = (child_map["categories"] if "categories" in child_map else [])
-        data["subCategories"] = (child_map["subCategories"] if "subCategories" in child_map else [])
-        data["brands"] = (child_map["brands"] if "brands" in child_map else [])
-        data["collections"] = (child_map["collections"] if "collections" in child_map else [])
-        data["productIds"] = (child_map["productIds"] if "productIds" in child_map else [])
-        data["excludedProductIds"] = (child_map["excludedProductIds"] if "excludedProductIds" in child_map else [])
-        
-        return SearchTagResponse.model_validate(data)
-
-    async def _fetch_children(self, session, tag_ids: List[str]) -> Dict[str, dict]:
-        if not tag_ids:
-            return {}
-        
-        children = {tid: {
-            "categories": [], "subCategories": [], "brands": [], 
-            "collections": [], "productIds": [], "excludedProductIds": []
-        } for tid in tag_ids}
-        
-        params = {"tag_ids": tuple(tag_ids)}
-        
-        cat_rows = (await session.execute(text("SELECT tag_id, category FROM sj_search_tag_categories WHERE tag_id IN :tag_ids"), params)).fetchall()
-        for r in cat_rows: children[str(r.tag_id)]["categories"].append(r.category)
+        async with self._factory()() as session:
+            conditions = []
+            params = {}
             
-        sub_rows = (await session.execute(text("SELECT tag_id, sub_category FROM sj_search_tag_subcats WHERE tag_id IN :tag_ids"), params)).fetchall()
-        for r in sub_rows: children[str(r.tag_id)]["subCategories"].append(r.sub_category)
+            query_map = {'tagId': 'tag_id', 'name': 'name', 'type': 'type', 'isActive': 'is_active'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
             
-        brand_rows = (await session.execute(text("SELECT tag_id, brand FROM sj_search_tag_brands WHERE tag_id IN :tag_ids"), params)).fetchall()
-        for r in brand_rows: children[str(r.tag_id)]["brands"].append(r.brand)
+            for k, v in kwargs.items():
+                db_col = query_map.get(k, k)
+                conditions.append(f"{db_col} = :{k}")
+                params[k] = v
+                
+            where_clause = " AND ".join(conditions)
+            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+            result = await session.execute(q, params)
+            row = result.fetchone()
+            if not row:
+                return None
+                
+            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
-        col_rows = (await session.execute(text("SELECT tag_id, collection FROM sj_search_tag_collections WHERE tag_id IN :tag_ids"), params)).fetchall()
-        for r in col_rows: children[str(r.tag_id)]["collections"].append(r.collection)
-            
-        prod_rows = (await session.execute(text("SELECT tag_id, product_id FROM sj_search_tag_products WHERE tag_id IN :tag_ids"), params)).fetchall()
-        for r in prod_rows: children[str(r.tag_id)]["productIds"].append(r.product_id)
-            
-        ex_prod_rows = (await session.execute(text("SELECT tag_id, product_id FROM sj_search_tag_ex_products WHERE tag_id IN :tag_ids"), params)).fetchall()
-        for r in ex_prod_rows: children[str(r.tag_id)]["excludedProductIds"].append(r.product_id)
-            
-        return children
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[SearchTagResponse]:
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
         query = query or {}
-        where_clauses = []
-        params = {}
-        
-        if "isActive" in query:
-            where_clauses.append("is_active = :isActive")
-            params["isActive"] = query["isActive"]
-        if "type" in query:
-            where_clauses.append("type = :type")
-            params["type"] = query["type"]
+        async with self._factory()() as session:
+            sql = f"SELECT * FROM {self.TABLE}"
+            params = {}
             
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        factory = self._factory()
-        async with factory() as session:
-            rows = (await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY tag_id ASC"), params)).fetchall()
+            query_map = {'tagId': 'tag_id', 'name': 'name', 'type': 'type', 'isActive': 'is_active'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            if query:
+                conditions = []
+                for k, v in query.items():
+                    db_col = query_map.get(k, k)
+                    conditions.append(f"{db_col} = :{k}")
+                    params[k] = v
+                if conditions:
+                    sql += " WHERE " + " AND ".join(conditions)
+                    
+            q = text(sql)
+            result = await session.execute(q, params)
+            rows = result.fetchall()
+            
             if not rows:
                 return []
                 
-            tag_ids = [str(r.tag_id) for r in rows]
-            children_map = await self._fetch_children(session, tag_ids)
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
             
-        return [self._row_to_obj(r, children_map[str(r.tag_id)] if str(r.tag_id) in children_map else {}) for r in rows]
+            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[SearchTagResponse]:
-        if "_id" in query:
-            return await self.findById(query["_id"])
-        if "tagId" in query:
-            return await self.findById(query["tagId"])
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
-
-    async def findById(self, id: str) -> Optional[SearchTagResponse]:
+    async def create(self, data: Any) -> Any:
         factory = self._factory()
-        async with factory() as session:
-            row = (await session.execute(text(f"SELECT * FROM {self.TABLE} WHERE tag_id = :id"), {"id": id})).fetchone()
-            if not row:
-                return None
-            children_map = await self._fetch_children(session, [str(row.tag_id)])
-            
-        return self._row_to_obj(row, children_map[str(row.tag_id)] if str(row.tag_id) in children_map else {})
-
-    async def create(self, data) -> SearchTagResponse:
-        try:
-            tag_id = data.tagId
-            if not tag_id:
-                tag_id = secrets.token_hex(12)
-        except AttributeError:
-            tag_id = secrets.token_hex(12)
-            
-        created_at = now_utc()
+        now = now_utc()
+        external_id = secrets.token_hex(16)
         
-        factory = self._factory()
-        async with factory() as session:
-            await session.execute(
-                text(
-                    f"INSERT INTO {self.TABLE} (tag_id, name, type, is_active, created_at, updated_at) "
-                    "VALUES (:tag_id, :name, :type, :is_active, :created_at, :updated_at)"
-                ),
-                {
-                    "tag_id": tag_id,
-                    "name": data.name,
-                    "type": data.type,
-                    "is_active": data.isActive,
-                    "created_at": created_at,
-                    "updated_at": created_at
-                }
-            )
-            
-            try:
-                if data.categories is not None:
-                    for item in data.categories:
-                        await session.execute(text("INSERT INTO sj_search_tag_categories (tag_id, category) VALUES (:tag_id, :item)"), {"tag_id": tag_id, "item": item})
-            except AttributeError: pass
-                
-            try:
-                if data.subCategories is not None:
-                    for item in data.subCategories:
-                        await session.execute(text("INSERT INTO sj_search_tag_subcats (tag_id, sub_category) VALUES (:tag_id, :item)"), {"tag_id": tag_id, "item": item})
-            except AttributeError: pass
-            
-            try:
-                if data.brands is not None:
-                    for item in data.brands:
-                        await session.execute(text("INSERT INTO sj_search_tag_brands (tag_id, brand) VALUES (:tag_id, :item)"), {"tag_id": tag_id, "item": item})
-            except AttributeError: pass
-            
-            try:
-                if data.collections is not None:
-                    for item in data.collections:
-                        await session.execute(text("INSERT INTO sj_search_tag_collections (tag_id, collection) VALUES (:tag_id, :item)"), {"tag_id": tag_id, "item": item})
-            except AttributeError: pass
-            
-            try:
-                if data.productIds is not None:
-                    for item in data.productIds:
-                        await session.execute(text("INSERT INTO sj_search_tag_products (tag_id, product_id) VALUES (:tag_id, :item)"), {"tag_id": tag_id, "item": item})
-            except AttributeError: pass
-            
-            try:
-                if data.excludedProductIds is not None:
-                    for item in data.excludedProductIds:
-                        await session.execute(text("INSERT INTO sj_search_tag_ex_products (tag_id, product_id) VALUES (:tag_id, :item)"), {"tag_id": tag_id, "item": item})
-            except AttributeError: pass
-            
-            await session.commit()
-            
-        return await self.findById(tag_id)
+        cols = ["external_id", "created_at", "updated_at"]
+        params = {"eid": external_id, "c": now, "u": now}
 
-    async def update(self, id: str, data) -> Optional[SearchTagResponse]:
-        factory = self._factory()
-        updated_at = now_utc()
+        if hasattr(data, "tagId") and getattr(data, "tagId") is not None:
+            cols.append("tag_id")
+            params["s_tagId"] = getattr(data, "tagId")
+
+        if hasattr(data, "name") and getattr(data, "name") is not None:
+            cols.append("name")
+            params["s_name"] = getattr(data, "name")
+
+        if hasattr(data, "type") and getattr(data, "type") is not None:
+            cols.append("type")
+            params["s_type"] = getattr(data, "type")
+
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+            cols.append("is_active")
+            params["s_isActive"] = getattr(data, "isActive")
+
+        col_sql = ", ".join(cols)
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['tagId', 'name', 'type', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
-            row = (await session.execute(text(f"SELECT tag_id FROM {self.TABLE} WHERE tag_id = :id"), {"id": id})).fetchone()
-            if not row:
-                return None
-                
-            updates = []
-            params = {"id": id, "updated_at": updated_at}
-            
-            try:
-                if data.name is not None:
-                    updates.append("name = :name")
-                    params["name"] = data.name
-            except AttributeError: pass
-            
-            try:
-                if data.type is not None:
-                    updates.append("type = :type")
-                    params["type"] = data.type
-            except AttributeError: pass
-            
-            try:
-                if data.isActive is not None:
-                    updates.append("is_active = :is_active")
-                    params["is_active"] = data.isActive
-            except AttributeError: pass
-            
-            if updates:
-                updates.append("updated_at = :updated_at")
-                set_clause = ", ".join(updates)
+            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = (
                 await session.execute(
-                    text(f"UPDATE {self.TABLE} SET {set_clause} WHERE tag_id = :id"),
-                    params
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
                 )
-                
-            try:
-                if data.categories is not None:
-                    await session.execute(text("DELETE FROM sj_search_tag_categories WHERE tag_id = :id"), {"id": id})
-                    for item in data.categories:
-                        await session.execute(text("INSERT INTO sj_search_tag_categories (tag_id, category) VALUES (:id, :item)"), {"id": id, "item": item})
-            except AttributeError: pass
-            
-            try:
-                if data.subCategories is not None:
-                    await session.execute(text("DELETE FROM sj_search_tag_subcats WHERE tag_id = :id"), {"id": id})
-                    for item in data.subCategories:
-                        await session.execute(text("INSERT INTO sj_search_tag_subcats (tag_id, sub_category) VALUES (:id, :item)"), {"id": id, "item": item})
-            except AttributeError: pass
-            
-            try:
-                if data.brands is not None:
-                    await session.execute(text("DELETE FROM sj_search_tag_brands WHERE tag_id = :id"), {"id": id})
-                    for item in data.brands:
-                        await session.execute(text("INSERT INTO sj_search_tag_brands (tag_id, brand) VALUES (:id, :item)"), {"id": id, "item": item})
-            except AttributeError: pass
-            
-            try:
-                if data.collections is not None:
-                    await session.execute(text("DELETE FROM sj_search_tag_collections WHERE tag_id = :id"), {"id": id})
-                    for item in data.collections:
-                        await session.execute(text("INSERT INTO sj_search_tag_collections (tag_id, collection) VALUES (:id, :item)"), {"id": id, "item": item})
-            except AttributeError: pass
-            
-            try:
-                if data.productIds is not None:
-                    await session.execute(text("DELETE FROM sj_search_tag_products WHERE tag_id = :id"), {"id": id})
-                    for item in data.productIds:
-                        await session.execute(text("INSERT INTO sj_search_tag_products (tag_id, product_id) VALUES (:id, :item)"), {"id": id, "item": item})
-            except AttributeError: pass
-            
-            try:
-                if data.excludedProductIds is not None:
-                    await session.execute(text("DELETE FROM sj_search_tag_ex_products WHERE tag_id = :id"), {"id": id})
-                    for item in data.excludedProductIds:
-                        await session.execute(text("INSERT INTO sj_search_tag_ex_products (tag_id, product_id) VALUES (:id, :item)"), {"id": id, "item": item})
-            except AttributeError: pass
-            
+            ).scalar()
+            await self._replace_children(session, new_id, data)
             await session.commit()
             
+        return await self.findById(str(new_id))
+
+    async def update(self, id: str, data: Any) -> Any:
+        factory = self._factory()
+        updates = ["updated_at = :u"]
+        params = {"id": id, "u": now_utc()}
+
+        if hasattr(data, "tagId") and getattr(data, "tagId") is not None:
+            updates.append("tag_id = :s_tagId")
+            params["s_tagId"] = getattr(data, "tagId")
+
+        if hasattr(data, "name") and getattr(data, "name") is not None:
+            updates.append("name = :s_name")
+            params["s_name"] = getattr(data, "name")
+
+        if hasattr(data, "type") and getattr(data, "type") is not None:
+            updates.append("type = :s_type")
+            params["s_type"] = getattr(data, "type")
+
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+            updates.append("is_active = :s_isActive")
+            params["s_isActive"] = getattr(data, "isActive")
+
+        if len(updates) > 1:
+            upd_sql = ", ".join(updates)
+            async with factory() as session:
+                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+        else:
+            async with factory() as session:
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+                
         return await self.findById(id)
-        
+
     async def delete(self, id: str) -> bool:
         factory = self._factory()
+        if not factory:
+            return False
+        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
-            await session.execute(text("DELETE FROM sj_search_tag_categories WHERE tag_id = :id"), {"id": id})
-            await session.execute(text("DELETE FROM sj_search_tag_subcats WHERE tag_id = :id"), {"id": id})
-            await session.execute(text("DELETE FROM sj_search_tag_brands WHERE tag_id = :id"), {"id": id})
-            await session.execute(text("DELETE FROM sj_search_tag_collections WHERE tag_id = :id"), {"id": id})
-            await session.execute(text("DELETE FROM sj_search_tag_products WHERE tag_id = :id"), {"id": id})
-            await session.execute(text("DELETE FROM sj_search_tag_ex_products WHERE tag_id = :id"), {"id": id})
-            
-            res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE tag_id = :id"), {"id": id})
+
+            await session.execute(text(f"DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_search_tag_subcats WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_search_tag_brands WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_search_tag_collections WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_search_tag_products WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_search_tag_ex_products WHERE parent_id = :id"), {"id": pk})
+
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                {"id": pk},
+            )
             await session.commit()
-            return res.rowcount > 0
+            return result.rowcount > 0
+
+    async def deleteMany(self, query: Dict) -> Any:
+        docs = await self.findAll(query)
+        deleted = 0
+        for d in docs:
+            # Depending on schema format, id might be _id or id
+            d_id = getattr(d, "_id", getattr(d, "id", None))
+            if d_id and await self.delete(d_id):
+                deleted += 1
+        return {"deletedCount": deleted}
+
+    def _map_to_schema(self, r, children: Dict) -> Any:
+        rm = r._mapping
+        out = {
+            "_id": str(rm["id"]), 
+            "externalId": rm["external_id"]
+        }
+        
+        created_at = rm["created_at"]
+        if created_at:
+            out["createdAt"] = created_at.isoformat()
+            
+        updated_at = rm["updated_at"]
+        if updated_at:
+            out["updatedAt"] = updated_at.isoformat()
+
+        out["tagId"] = rm["tag_id"]
+        out["name"] = rm["name"]
+        out["type"] = rm["type"]
+        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
+        for k, v in children.items():
+            out[k] = v
+            
+        return SearchTagInternal(**out)
+
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
+        c_map = {rid: {} for rid in ids}
+        if not ids:
+            return c_map
+            
+        id_list = ",".join(map(str, ids))
+
+        q_categories = text(f"SELECT parent_id, category FROM sj_search_tag_categories WHERE parent_id IN ({id_list})")
+        res_categories = await session.execute(q_categories)
+        rows_categories = res_categories.fetchall()
+
+        for r in rows_categories:
+            if "categories" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["categories"] = []
+            c_map[r.parent_id]["categories"].append(r[1])
+
+        q_subCategories = text(f"SELECT parent_id, sub_category FROM sj_search_tag_subcats WHERE parent_id IN ({id_list})")
+        res_subCategories = await session.execute(q_subCategories)
+        rows_subCategories = res_subCategories.fetchall()
+
+        for r in rows_subCategories:
+            if "subCategories" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["subCategories"] = []
+            c_map[r.parent_id]["subCategories"].append(r[1])
+
+        q_brands = text(f"SELECT parent_id, brand FROM sj_search_tag_brands WHERE parent_id IN ({id_list})")
+        res_brands = await session.execute(q_brands)
+        rows_brands = res_brands.fetchall()
+
+        for r in rows_brands:
+            if "brands" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["brands"] = []
+            c_map[r.parent_id]["brands"].append(r[1])
+
+        q_collections = text(f"SELECT parent_id, collection FROM sj_search_tag_collections WHERE parent_id IN ({id_list})")
+        res_collections = await session.execute(q_collections)
+        rows_collections = res_collections.fetchall()
+
+        for r in rows_collections:
+            if "collections" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["collections"] = []
+            c_map[r.parent_id]["collections"].append(r[1])
+
+        q_productIds = text(f"SELECT parent_id, product_id FROM sj_search_tag_products WHERE parent_id IN ({id_list})")
+        res_productIds = await session.execute(q_productIds)
+        rows_productIds = res_productIds.fetchall()
+
+        for r in rows_productIds:
+            if "productIds" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["productIds"] = []
+            c_map[r.parent_id]["productIds"].append(r[1])
+
+        q_excludedProductIds = text(f"SELECT parent_id, product_id FROM sj_search_tag_ex_products WHERE parent_id IN ({id_list})")
+        res_excludedProductIds = await session.execute(q_excludedProductIds)
+        rows_excludedProductIds = res_excludedProductIds.fetchall()
+
+        for r in rows_excludedProductIds:
+            if "excludedProductIds" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["excludedProductIds"] = []
+            c_map[r.parent_id]["excludedProductIds"].append(r[1])
+
+        return c_map
+
+    async def _replace_children(self, session, row_id: int, data: Any):
+
+        if hasattr(data, "categories") and getattr(data, "categories") is not None:
+            await session.execute(text(f"DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "categories") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_search_tag_categories (parent_id, category) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, "subCategories") and getattr(data, "subCategories") is not None:
+            await session.execute(text(f"DELETE FROM sj_search_tag_subcats WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "subCategories") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_search_tag_subcats (parent_id, sub_category) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, "brands") and getattr(data, "brands") is not None:
+            await session.execute(text(f"DELETE FROM sj_search_tag_brands WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "brands") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_search_tag_brands (parent_id, brand) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, "collections") and getattr(data, "collections") is not None:
+            await session.execute(text(f"DELETE FROM sj_search_tag_collections WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "collections") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_search_tag_collections (parent_id, collection) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, "productIds") and getattr(data, "productIds") is not None:
+            await session.execute(text(f"DELETE FROM sj_search_tag_products WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "productIds") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_search_tag_products (parent_id, product_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, "excludedProductIds") and getattr(data, "excludedProductIds") is not None:
+            await session.execute(text(f"DELETE FROM sj_search_tag_ex_products WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "excludedProductIds") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_search_tag_ex_products (parent_id, product_id) VALUES (:id, :v)"), {"id": row_id, "v": item})

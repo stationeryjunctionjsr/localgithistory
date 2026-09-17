@@ -1,193 +1,256 @@
-import uuid
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, List, Any
 from datetime import datetime, timezone
-
+import secrets
+import json
 from sqlalchemy import text
-
 from app.config.database import get_async_session_factory
-from app.models.schemas import ContactCreate, ContactUpdate, ContactResponse
+from app.models.daos_flat import ContactInternal
+from app.models.daos_flat import ContactInternalCreate, ContactInternalUpdate
 
+def now_utc():
+    return datetime.now(timezone.utc)
 
 class MySQLContactsDAO:
-    """
-    MySQL DAO for sj_contacts.
-    Standalone class using raw SQL statements without dictionary fallbacks.
-    """
+    def __init__(self):
+        self.table_name = "sj_contacts"
+    
+    @property
+    def TABLE(self):
+        from app.config.settings import settings
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
+        return f"{self.table_name}{suffix}"
 
-    def _now(self) -> datetime:
-        return datetime.now(timezone.utc)
-
-    async def create(self, data: ContactCreate) -> ContactResponse:
-        SessionLocal = get_async_session_factory()
-        new_id = str(uuid.uuid4())
-        now = self._now()
-        async with SessionLocal() as session:
-            await session.execute(
-                text("""
-                    INSERT INTO sj_contacts (
-                        id, name, email, phone, subject, message, status, user_id, created_at, updated_at
-                    ) VALUES (
-                        :id, :name, :email, :phone, :subject, :message, :status, :userId, :created_at, :updated_at
-                    )
-                """),
-                {
-                    "id": new_id,
-                    "name": data.name,
-                    "email": data.email,
-                    "phone": data.phone,
-                    "subject": data.subject,
-                    "message": data.message,
-                    "status": data.status,
-                    "userId": data.userId,
-                    "created_at": now,
-                    "updated_at": now
-                }
-            )
-            await session.commit()
-        return await self.findById(new_id)
-
-    async def update(self, id: str, data: ContactUpdate) -> Optional[ContactResponse]:
-        SessionLocal = get_async_session_factory()
-        now = self._now()
+    def _factory(self):
+        return get_async_session_factory()
         
-        updates = []
-        params = {"id": id, "updated_at": now}
-        
-        if data.name is not None:
-            updates.append("name = :name")
-            params["name"] = data.name
-            
-        if data.email is not None:
-            updates.append("email = :email")
-            params["email"] = data.email
-            
-        if data.phone is not None:
-            updates.append("phone = :phone")
-            params["phone"] = data.phone
-            
-        if data.subject is not None:
-            updates.append("subject = :subject")
-            params["subject"] = data.subject
-            
-        if data.message is not None:
-            updates.append("message = :message")
-            params["message"] = data.message
-            
-        if data.status is not None:
-            updates.append("status = :status")
-            params["status"] = data.status
-            
-        if data.userId is not None:
-            updates.append("user_id = :userId")
-            params["userId"] = data.userId
-            
-        if not updates:
-            return await self.findById(id)
-            
-        updates.append("updated_at = :updated_at")
-        set_clause = ", ".join(updates)
-        
-        async with SessionLocal() as session:
-            await session.execute(
-                text(f"UPDATE sj_contacts SET {set_clause} WHERE id = :id"),
-                params
-            )
-            await session.commit()
-            
-        return await self.findById(id)
+    async def findById(self, id: str) -> Optional[Any]:
+        return await self.findOne({"_id": id})
 
-    async def findById(self, id: str) -> Optional[ContactResponse]:
-        SessionLocal = get_async_session_factory()
-        async with SessionLocal() as session:
-            result = await session.execute(
-                text("""
-                    SELECT 
-                        id, name, email, phone, subject, message, status, user_id, created_at, updated_at
-                    FROM sj_contacts 
-                    WHERE id = :id
-                """),
-                {"id": id}
-            )
+    async def findOne(self, query=None, **kwargs) -> Optional[Any]:
+        if query:
+            kwargs.update(query)
+        if not kwargs:
+            return None
+        
+        async with self._factory()() as session:
+            conditions = []
+            params = {}
+            
+            query_map = {'email': 'email', 'description': 'description', 'isActive': 'is_active', 'displayOrder': 'display_order'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            for k, v in kwargs.items():
+                db_col = query_map.get(k, k)
+                conditions.append(f"{db_col} = :{k}")
+                params[k] = v
+                
+            where_clause = " AND ".join(conditions)
+            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+            result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
                 
-            return ContactResponse(
-                id=row.id,
-                name=row.name,
-                email=row.email,
-                phone=row.phone,
-                subject=row.subject,
-                message=row.message,
-                status=row.status,
-                userId=row.user_id,
-                createdAt=row.created_at.isoformat() if row.created_at else None,
-                updatedAt=row.updated_at.isoformat() if row.updated_at else None
-            )
-
-    async def findOne(self, query: Dict[str, Any]) -> Optional[ContactResponse]:
-        docs = await self.findAll(query, limit=1)
-        return docs[0] if docs else None
-
-    async def findAll(self, query: Optional[Dict[str, Any]] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[ContactResponse]:
-        SessionLocal = get_async_session_factory()
-        
-        where_clauses = []
-        params = {}
-        
-        if query:
-            if "name" in query:
-                where_clauses.append("name = :name")
-                params["name"] = query["name"]
-            if "email" in query:
-                where_clauses.append("email = :email")
-                params["email"] = query["email"]
-            if "phone" in query:
-                where_clauses.append("phone = :phone")
-                params["phone"] = query["phone"]
-            if "status" in query:
-                where_clauses.append("status = :status")
-                params["status"] = query["status"]
-            if "userId" in query:
-                where_clauses.append("user_id = :userId")
-                params["userId"] = query["userId"]
-
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-        
-        limit_sql = ""
-        if limit is not None:
-            limit_sql = f" LIMIT {limit}"
-            if skip is not None:
-                limit_sql = f" LIMIT {limit} OFFSET {skip}"
-                
-        sql = f"SELECT id, name, email, phone, subject, message, status, user_id, created_at, updated_at FROM sj_contacts WHERE {where_sql} ORDER BY created_at DESC{limit_sql}"
-        
-        async with SessionLocal() as session:
-            result = await session.execute(text(sql), params)
+            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
+        query = query or {}
+        async with self._factory()() as session:
+            sql = f"SELECT * FROM {self.TABLE}"
+            params = {}
+            
+            query_map = {'email': 'email', 'description': 'description', 'isActive': 'is_active', 'displayOrder': 'display_order'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            if query:
+                conditions = []
+                for k, v in query.items():
+                    db_col = query_map.get(k, k)
+                    conditions.append(f"{db_col} = :{k}")
+                    params[k] = v
+                if conditions:
+                    sql += " WHERE " + " AND ".join(conditions)
+                    
+            q = text(sql)
+            result = await session.execute(q, params)
             rows = result.fetchall()
             
-            responses = []
-            for row in rows:
-                responses.append(ContactResponse(
-                    id=row.id,
-                    name=row.name,
-                    email=row.email,
-                    phone=row.phone,
-                    subject=row.subject,
-                    message=row.message,
-                    status=row.status,
-                    userId=row.user_id,
-                    createdAt=row.created_at.isoformat() if row.created_at else None,
-                    updatedAt=row.updated_at.isoformat() if row.updated_at else None
-                ))
-            return responses
+            if not rows:
+                return []
+                
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
+            
+            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+
+    async def create(self, data: Any) -> Any:
+        factory = self._factory()
+        now = now_utc()
+        external_id = secrets.token_hex(16)
+        
+        cols = ["external_id", "created_at", "updated_at"]
+        params = {"eid": external_id, "c": now, "u": now}
+
+        if hasattr(data, "email") and getattr(data, "email") is not None:
+            cols.append("email")
+            params["s_email"] = getattr(data, "email")
+
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            cols.append("description")
+            params["s_description"] = getattr(data, "description")
+
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+            cols.append("is_active")
+            params["s_isActive"] = getattr(data, "isActive")
+
+        if hasattr(data, "displayOrder") and getattr(data, "displayOrder") is not None:
+            cols.append("display_order")
+            params["s_displayOrder"] = getattr(data, "displayOrder")
+
+        col_sql = ", ".join(cols)
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['email', 'description', 'isActive', 'displayOrder'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        
+        async with factory() as session:
+            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = (
+                await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
+                )
+            ).scalar()
+            await self._replace_children(session, new_id, data)
+            await session.commit()
+            
+        return await self.findById(str(new_id))
+
+    async def update(self, id: str, data: Any) -> Any:
+        factory = self._factory()
+        updates = ["updated_at = :u"]
+        params = {"id": id, "u": now_utc()}
+
+        if hasattr(data, "email") and getattr(data, "email") is not None:
+            updates.append("email = :s_email")
+            params["s_email"] = getattr(data, "email")
+
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            updates.append("description = :s_description")
+            params["s_description"] = getattr(data, "description")
+
+        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+            updates.append("is_active = :s_isActive")
+            params["s_isActive"] = getattr(data, "isActive")
+
+        if hasattr(data, "displayOrder") and getattr(data, "displayOrder") is not None:
+            updates.append("display_order = :s_displayOrder")
+            params["s_displayOrder"] = getattr(data, "displayOrder")
+
+        if len(updates) > 1:
+            upd_sql = ", ".join(updates)
+            async with factory() as session:
+                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+        else:
+            async with factory() as session:
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+                
+        return await self.findById(id)
 
     async def delete(self, id: str) -> bool:
-        SessionLocal = get_async_session_factory()
-        async with SessionLocal() as session:
+        factory = self._factory()
+        if not factory:
+            return False
+        pk = int(id) if str(id).isdigit() else None
+        async with factory() as session:
+
+            await session.execute(text(f"DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": pk})
+
             result = await session.execute(
-                text("DELETE FROM sj_contacts WHERE id = :id"),
-                {"id": id}
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                {"id": pk},
             )
             await session.commit()
             return result.rowcount > 0
+
+    async def deleteMany(self, query: Dict) -> Any:
+        docs = await self.findAll(query)
+        deleted = 0
+        for d in docs:
+            # Depending on schema format, id might be _id or id
+            d_id = getattr(d, "_id", getattr(d, "id", None))
+            if d_id and await self.delete(d_id):
+                deleted += 1
+        return {"deletedCount": deleted}
+
+    def _map_to_schema(self, r, children: Dict) -> Any:
+        rm = r._mapping
+        out = {
+            "_id": str(rm["id"]), 
+            "externalId": rm["external_id"]
+        }
+        
+        created_at = rm["created_at"]
+        if created_at:
+            out["createdAt"] = created_at.isoformat()
+            
+        updated_at = rm["updated_at"]
+        if updated_at:
+            out["updatedAt"] = updated_at.isoformat()
+
+        out["email"] = rm["email"]
+        out["description"] = rm["description"]
+        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
+        out["displayOrder"] = rm["display_order"]
+        for k, v in children.items():
+            out[k] = v
+            
+        return ContactInternal(**out)
+
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
+        c_map = {rid: {} for rid in ids}
+        if not ids:
+            return c_map
+            
+        id_list = ",".join(map(str, ids))
+
+        q_addresses = text(f"SELECT parent_id, address FROM sj_contact_addresses WHERE parent_id IN ({id_list})")
+        res_addresses = await session.execute(q_addresses)
+        rows_addresses = res_addresses.fetchall()
+
+        for r in rows_addresses:
+            if "addresses" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["addresses"] = []
+            c_map[r.parent_id]["addresses"].append(r[1])
+
+        q_phoneNumbers = text(f"SELECT parent_id, phone FROM sj_contact_phones WHERE parent_id IN ({id_list})")
+        res_phoneNumbers = await session.execute(q_phoneNumbers)
+        rows_phoneNumbers = res_phoneNumbers.fetchall()
+
+        for r in rows_phoneNumbers:
+            if "phoneNumbers" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["phoneNumbers"] = []
+            c_map[r.parent_id]["phoneNumbers"].append(r[1])
+
+        return c_map
+
+    async def _replace_children(self, session, row_id: int, data: Any):
+
+        if hasattr(data, "addresses") and getattr(data, "addresses") is not None:
+            await session.execute(text(f"DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "addresses") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_contact_addresses (parent_id, address) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, "phoneNumbers") and getattr(data, "phoneNumbers") is not None:
+            await session.execute(text(f"DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "phoneNumbers") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_contact_phones (parent_id, phone) VALUES (:id, :v)"), {"id": row_id, "v": item})

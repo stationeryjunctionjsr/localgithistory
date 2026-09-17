@@ -1,524 +1,354 @@
-"""
-MySQL DAO for sj_support_tickets.
-"""
-from typing import Dict, Any, List, Optional
-from app.models.schemas import SupportTicketResponse
+from typing import Optional, Dict, List, Any
+from datetime import datetime, timezone
+import secrets
+import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.config.settings import settings
-from app.db.db_utils import now_utc
-import logging
+from app.models.daos_flat import SupportTicketInternal
+from app.models.daos_flat import SupportTicketInternalCreate, SupportTicketInternalUpdate
 
-logger = logging.getLogger(__name__)
+def now_utc():
+    return datetime.now(timezone.utc)
 
-class MySQLSupportticketsDAO:
+class MySQLSupportTicketsDAO:
+    def __init__(self):
+        self.table_name = "sj_support_tickets"
+    
     @property
     def TABLE(self):
+        from app.config.settings import settings
         suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_support_tickets{suffix}"
-
-    @property
-    def RESPONSES_TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_support_ticket_responses{suffix}"
+        return f"{self.table_name}{suffix}"
 
     def _factory(self):
         return get_async_session_factory()
-
-    def _row_to_model(self, r, responses_rows) -> SupportTicketResponse:
-        responses_list = []
-        i = 0
-        while i < len(responses_rows):
-            resp = responses_rows[i]
-            try:
-                ticket_id_val = r.id
-            except AttributeError:
-                ticket_id_val = None
-                
-            try:
-                resp_ticket_id = resp.ticket_id
-            except AttributeError:
-                resp_ticket_id = None
-                
-            if resp_ticket_id == ticket_id_val:
-                try:
-                    r_uid = resp.user_id
-                except AttributeError:
-                    r_uid = None
-                try:
-                    r_msg = resp.message
-                except AttributeError:
-                    r_msg = None
-                try:
-                    r_time = resp.timestamp.isoformat() if resp.timestamp else None
-                except AttributeError:
-                    r_time = None
-                    
-                responses_list.append({
-                    "userId": r_uid,
-                    "message": r_msg,
-                    "timestamp": r_time
-                })
-            i += 1
         
-        try:
-            r_user_id = r.user_id
-        except AttributeError:
-            r_user_id = None
-            
-        try:
-            r_assigned_to = r.assigned_to
-        except AttributeError:
-            r_assigned_to = None
-            
-        try:
-            r_subject = r.subject
-        except AttributeError:
-            r_subject = ""
-            
-        try:
-            r_message = r.message
-        except AttributeError:
-            r_message = ""
-            
-        try:
-            r_status = r.status
-        except AttributeError:
-            r_status = ""
-            
-        try:
-            r_priority = r.priority
-        except AttributeError:
-            r_priority = ""
-            
-        try:
-            r_resolved_at = r.resolved_at.isoformat() if r.resolved_at else None
-        except AttributeError:
-            r_resolved_at = None
-            
-        try:
-            r_created_at = r.created_at.isoformat() if r.created_at else ""
-        except AttributeError:
-            r_created_at = ""
-            
-        try:
-            r_updated_at = r.updated_at.isoformat() if r.updated_at else ""
-        except AttributeError:
-            r_updated_at = ""
+    async def findById(self, id: str) -> Optional[Any]:
+        return await self.findOne({"_id": id})
 
-        try:
-            r_ticket_number = r.ticket_number
-        except AttributeError:
-            r_ticket_number = ""
-
-        try:
-            r_name = r.name
-        except AttributeError:
-            r_name = ""
-
-        try:
-            r_email = r.email
-        except AttributeError:
-            r_email = ""
-
-        try:
-            r_phone = r.phone
-        except AttributeError:
-            r_phone = ""
-
-        try:
-            r_id = r.id
-        except AttributeError:
-            r_id = None
-
-        user_dict = {"_id": r_user_id} if r_user_id else {}
-        assigned_to_dict = {"_id": r_assigned_to} if r_assigned_to else None
-        
-        data_dict = {
-            "_id": str(r_id),
-            "id": str(r_id),
-            "userId": r_user_id,
-            "subject": r_subject,
-            "message": r_message,
-            "status": r_status,
-            "priority": r_priority,
-            "assignedTo": assigned_to_dict,
-            "resolvedAt": r_resolved_at,
-            "createdAt": r_created_at,
-            "updatedAt": r_updated_at,
-            "ticketNumber": r_ticket_number or "",
-            "user": user_dict,
-            "name": r_name or "",
-            "email": r_email or "",
-            "phone": r_phone or "",
-            "description": r_message or "",
-            "responses": responses_list
-        }
-        return SupportTicketResponse.model_validate(data_dict)
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[SupportTicketResponse]:
-        factory = self._factory()
-        if not factory:
-            return []
-        async with factory() as session:
-            result = await session.execute(
-                text(
-                    f"SELECT id, user_id, subject, message, status, priority, assigned_to, resolved_at, created_at, updated_at, ticket_number, name, email, phone FROM {self.TABLE}"
-                )
-            )
-            rows = result.fetchall()
-            
-            responses_result = await session.execute(
-                text(f"SELECT ticket_id, user_id, message, timestamp FROM {self.RESPONSES_TABLE}")
-            )
-            responses_rows = responses_result.fetchall()
-            
-        docs = [self._row_to_model(r, responses_rows) for r in rows]
-        
-        if not query:
-            return docs
-            
-        filtered: List[SupportTicketResponse] = []
-        i = 0
-        while i < len(docs):
-            d = docs[i]
-            match = True
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    try:
-                        d_id = d.id
-                    except AttributeError:
-                        d_id = None
-                    if str(d_id) != str(v):
-                        match = False
-                        break
-                else:
-                    try:
-                        val = eval(f"d.{k}")
-                    except (AttributeError, SyntaxError, NameError):
-                        val = None
-                    if val != v:
-                        match = False
-                        break
-            if match:
-                filtered.append(d)
-            i += 1
-        return filtered
-
-    async def findOne(self, query: Dict) -> Optional[SupportTicketResponse]:
-        docs = await self.findAll(query)
-        return docs[0] if docs else None
-
-    async def findById(self, id: str) -> Optional[SupportTicketResponse]:
-        factory = self._factory()
-        if not factory:
+    async def findOne(self, query=None, **kwargs) -> Optional[Any]:
+        if query:
+            kwargs.update(query)
+        if not kwargs:
             return None
-        fid = int(id) if str(id).isdigit() else None
-        async with factory() as session:
-            result = await session.execute(
-                text(
-                    f"SELECT id, user_id, subject, message, status, priority, assigned_to, resolved_at, created_at, updated_at, ticket_number, name, email, phone FROM {self.TABLE} WHERE id = :id"
-                ),
-                {"id": fid},
-            )
+        
+        async with self._factory()() as session:
+            conditions = []
+            params = {}
+            
+            query_map = {'ticketNumber': 'ticket_number', 'user': 'user_id', 'name': 'name', 'email': 'email', 'phone': 'phone', 'company': 'company', 'subject': 'subject', 'description': 'description', 'category': 'category', 'priority': 'priority', 'status': 'status', 'assignedTo': 'assigned_to', 'resolvedAt': 'resolved_at', 'closedAt': 'closed_at'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            for k, v in kwargs.items():
+                db_col = query_map.get(k, k)
+                conditions.append(f"{db_col} = :{k}")
+                params[k] = v
+                
+            where_clause = " AND ".join(conditions)
+            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+            result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-            
-            responses_result = await session.execute(
-                text(f"SELECT ticket_id, user_id, message, timestamp FROM {self.RESPONSES_TABLE} WHERE ticket_id = :id"),
-                {"id": fid}
-            )
-            responses_rows = responses_result.fetchall()
-            
-        return self._row_to_model(row, responses_rows)
-
-    async def create(self, data: Any) -> SupportTicketResponse:
-        factory = self._factory()
-        if not factory:
-            raise RuntimeError("MySQL not configured")
-        now = now_utc()
-        
-        try:
-            user_id = data.userId
-        except AttributeError:
-            user_id = None
-            
-        try:
-            subject = data.subject
-        except AttributeError:
-            subject = None
-            
-        try:
-            message = data.message
-        except AttributeError:
-            message = None
-            
-        try:
-            status = data.status
-        except AttributeError:
-            status = "open"
-            
-        try:
-            priority = data.priority
-        except AttributeError:
-            priority = "medium"
-            
-        try:
-            assigned_to = data.assignedTo
-        except AttributeError:
-            assigned_to = None
-            
-        try:
-            resolved_at = data.resolvedAt
-        except AttributeError:
-            resolved_at = None
-
-        ticket_number = f"TICK-{int(now.timestamp())}"
-        
-        try:
-            name = data.name
-        except AttributeError:
-            name = ""
-            
-        try:
-            email = data.email
-        except AttributeError:
-            email = ""
-            
-        try:
-            phone = data.phone
-        except AttributeError:
-            phone = ""
-            
-        async with factory() as session:
-            result = await session.execute(
-                text(
-                    f'''
-                    INSERT INTO {self.TABLE} 
-                    (user_id, subject, message, status, priority, assigned_to, resolved_at, created_at, updated_at, ticket_number, name, email, phone)
-                    VALUES (:user_id, :subject, :message, :status, :priority, :assigned_to, :resolved_at, :created_at, :updated_at, :ticket_number, :name, :email, :phone)
-                    '''
-                ),
-                {
-                    "user_id": user_id,
-                    "subject": subject,
-                    "message": message,
-                    "status": status,
-                    "priority": priority,
-                    "assigned_to": assigned_to,
-                    "resolved_at": resolved_at,
-                    "created_at": now,
-                    "updated_at": now,
-                    "ticket_number": ticket_number,
-                    "name": name,
-                    "email": email,
-                    "phone": phone
-                },
-            )
-            new_id = result.lastrowid
-            
-            try:
-                data_responses = data.responses
-            except AttributeError:
-                data_responses = None
                 
-            if data_responses:
-                i = 0
-                while i < len(data_responses):
-                    resp = data_responses[i]
-                    try:
-                        r_user_id = resp.userId
-                    except AttributeError:
-                        r_user_id = None
-                    try:
-                        r_message = resp.message
-                    except AttributeError:
-                        r_message = None
-                    try:
-                        r_timestamp = resp.timestamp
-                    except AttributeError:
-                        r_timestamp = now
-                        
-                    await session.execute(
-                        text(
-                            f'''
-                            INSERT INTO {self.RESPONSES_TABLE} (ticket_id, user_id, message, timestamp)
-                            VALUES (:ticket_id, :user_id, :message, :timestamp)
-                            '''
-                        ),
-                        {
-                            "ticket_id": new_id,
-                            "user_id": r_user_id,
-                            "message": r_message,
-                            "timestamp": r_timestamp
-                        }
-                    )
-                    i += 1
+            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
+        query = query or {}
+        async with self._factory()() as session:
+            sql = f"SELECT * FROM {self.TABLE}"
+            params = {}
+            
+            query_map = {'ticketNumber': 'ticket_number', 'user': 'user_id', 'name': 'name', 'email': 'email', 'phone': 'phone', 'company': 'company', 'subject': 'subject', 'description': 'description', 'category': 'category', 'priority': 'priority', 'status': 'status', 'assignedTo': 'assigned_to', 'resolvedAt': 'resolved_at', 'closedAt': 'closed_at'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            if query:
+                conditions = []
+                for k, v in query.items():
+                    db_col = query_map.get(k, k)
+                    conditions.append(f"{db_col} = :{k}")
+                    params[k] = v
+                if conditions:
+                    sql += " WHERE " + " AND ".join(conditions)
+                    
+            q = text(sql)
+            result = await session.execute(q, params)
+            rows = result.fetchall()
+            
+            if not rows:
+                return []
+                
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
+            
+            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+
+    async def create(self, data: Any) -> Any:
+        factory = self._factory()
+        now = now_utc()
+        external_id = secrets.token_hex(16)
+        
+        cols = ["external_id", "created_at", "updated_at"]
+        params = {"eid": external_id, "c": now, "u": now}
+
+        if hasattr(data, "ticketNumber") and getattr(data, "ticketNumber") is not None:
+            cols.append("ticket_number")
+            params["s_ticketNumber"] = getattr(data, "ticketNumber")
+
+        if hasattr(data, "user") and getattr(data, "user") is not None:
+            cols.append("user_id")
+            params["s_user"] = getattr(data, "user")
+
+        if hasattr(data, "name") and getattr(data, "name") is not None:
+            cols.append("name")
+            params["s_name"] = getattr(data, "name")
+
+        if hasattr(data, "email") and getattr(data, "email") is not None:
+            cols.append("email")
+            params["s_email"] = getattr(data, "email")
+
+        if hasattr(data, "phone") and getattr(data, "phone") is not None:
+            cols.append("phone")
+            params["s_phone"] = getattr(data, "phone")
+
+        if hasattr(data, "company") and getattr(data, "company") is not None:
+            cols.append("company")
+            params["s_company"] = getattr(data, "company")
+
+        if hasattr(data, "subject") and getattr(data, "subject") is not None:
+            cols.append("subject")
+            params["s_subject"] = getattr(data, "subject")
+
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            cols.append("description")
+            params["s_description"] = getattr(data, "description")
+
+        if hasattr(data, "category") and getattr(data, "category") is not None:
+            cols.append("category")
+            params["s_category"] = getattr(data, "category")
+
+        if hasattr(data, "priority") and getattr(data, "priority") is not None:
+            cols.append("priority")
+            params["s_priority"] = getattr(data, "priority")
+
+        if hasattr(data, "status") and getattr(data, "status") is not None:
+            cols.append("status")
+            params["s_status"] = getattr(data, "status")
+
+        if hasattr(data, "assignedTo") and getattr(data, "assignedTo") is not None:
+            cols.append("assigned_to")
+            params["s_assignedTo"] = getattr(data, "assignedTo")
+
+        if hasattr(data, "resolvedAt") and getattr(data, "resolvedAt") is not None:
+            cols.append("resolved_at")
+            params["s_resolvedAt"] = getattr(data, "resolvedAt")
+
+        if hasattr(data, "closedAt") and getattr(data, "closedAt") is not None:
+            cols.append("closed_at")
+            params["s_closedAt"] = getattr(data, "closedAt")
+
+        col_sql = ", ".join(cols)
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['ticketNumber', 'user', 'name', 'email', 'phone', 'company', 'subject', 'description', 'category', 'priority', 'status', 'assignedTo', 'resolvedAt', 'closedAt'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        
+        async with factory() as session:
+            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = (
+                await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
+                )
+            ).scalar()
+            await self._replace_children(session, new_id, data)
             await session.commit()
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Any) -> Optional[SupportTicketResponse]:
+    async def update(self, id: str, data: Any) -> Any:
         factory = self._factory()
-        if not factory:
-            return None
-        now = now_utc()
-        fid = int(id) if str(id).isdigit() else None
-        
-        existing = await self.findById(id)
-        if not existing:
-            return None
-            
-        try:
-            user_id = update_data.userId
-        except AttributeError:
-            try:
-                user_id = existing.userId
-            except AttributeError:
-                user_id = None
+        updates = ["updated_at = :u"]
+        params = {"id": id, "u": now_utc()}
+
+        if hasattr(data, "ticketNumber") and getattr(data, "ticketNumber") is not None:
+            updates.append("ticket_number = :s_ticketNumber")
+            params["s_ticketNumber"] = getattr(data, "ticketNumber")
+
+        if hasattr(data, "user") and getattr(data, "user") is not None:
+            updates.append("user_id = :s_user")
+            params["s_user"] = getattr(data, "user")
+
+        if hasattr(data, "name") and getattr(data, "name") is not None:
+            updates.append("name = :s_name")
+            params["s_name"] = getattr(data, "name")
+
+        if hasattr(data, "email") and getattr(data, "email") is not None:
+            updates.append("email = :s_email")
+            params["s_email"] = getattr(data, "email")
+
+        if hasattr(data, "phone") and getattr(data, "phone") is not None:
+            updates.append("phone = :s_phone")
+            params["s_phone"] = getattr(data, "phone")
+
+        if hasattr(data, "company") and getattr(data, "company") is not None:
+            updates.append("company = :s_company")
+            params["s_company"] = getattr(data, "company")
+
+        if hasattr(data, "subject") and getattr(data, "subject") is not None:
+            updates.append("subject = :s_subject")
+            params["s_subject"] = getattr(data, "subject")
+
+        if hasattr(data, "description") and getattr(data, "description") is not None:
+            updates.append("description = :s_description")
+            params["s_description"] = getattr(data, "description")
+
+        if hasattr(data, "category") and getattr(data, "category") is not None:
+            updates.append("category = :s_category")
+            params["s_category"] = getattr(data, "category")
+
+        if hasattr(data, "priority") and getattr(data, "priority") is not None:
+            updates.append("priority = :s_priority")
+            params["s_priority"] = getattr(data, "priority")
+
+        if hasattr(data, "status") and getattr(data, "status") is not None:
+            updates.append("status = :s_status")
+            params["s_status"] = getattr(data, "status")
+
+        if hasattr(data, "assignedTo") and getattr(data, "assignedTo") is not None:
+            updates.append("assigned_to = :s_assignedTo")
+            params["s_assignedTo"] = getattr(data, "assignedTo")
+
+        if hasattr(data, "resolvedAt") and getattr(data, "resolvedAt") is not None:
+            updates.append("resolved_at = :s_resolvedAt")
+            params["s_resolvedAt"] = getattr(data, "resolvedAt")
+
+        if hasattr(data, "closedAt") and getattr(data, "closedAt") is not None:
+            updates.append("closed_at = :s_closedAt")
+            params["s_closedAt"] = getattr(data, "closedAt")
+
+        if len(updates) > 1:
+            upd_sql = ", ".join(updates)
+            async with factory() as session:
+                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+        else:
+            async with factory() as session:
+                await self._replace_children(session, int(id), data)
+                await session.commit()
                 
-        try:
-            subject = update_data.subject
-        except AttributeError:
-            try:
-                subject = existing.subject
-            except AttributeError:
-                subject = None
-                
-        try:
-            message = update_data.message
-        except AttributeError:
-            try:
-                message = existing.message
-            except AttributeError:
-                message = None
-                
-        try:
-            status = update_data.status
-        except AttributeError:
-            try:
-                status = existing.status
-            except AttributeError:
-                status = None
-                
-        try:
-            priority = update_data.priority
-        except AttributeError:
-            try:
-                priority = existing.priority
-            except AttributeError:
-                priority = None
-                
-        try:
-            assigned_to = update_data.assignedTo
-        except AttributeError:
-            try:
-                assigned_to = existing.assignedTo
-            except AttributeError:
-                assigned_to = None
-                
-        try:
-            resolved_at = update_data.resolvedAt
-        except AttributeError:
-            try:
-                resolved_at = existing.resolvedAt
-            except AttributeError:
-                resolved_at = None
-                
-        async with factory() as session:
-            await session.execute(
-                text(
-                    f'''
-                    UPDATE {self.TABLE} SET
-                        user_id = :user_id,
-                        subject = :subject,
-                        message = :message,
-                        status = :status,
-                        priority = :priority,
-                        assigned_to = :assigned_to,
-                        resolved_at = :resolved_at,
-                        updated_at = :updated_at
-                    WHERE id = :id
-                    '''
-                ),
-                {
-                    "id": fid,
-                    "user_id": user_id,
-                    "subject": subject,
-                    "message": message,
-                    "status": status,
-                    "priority": priority,
-                    "assigned_to": assigned_to,
-                    "resolved_at": resolved_at,
-                    "updated_at": now,
-                },
-            )
-            
-            try:
-                update_responses = update_data.responses
-            except AttributeError:
-                update_responses = None
-                
-            if update_responses is not None:
-                await session.execute(
-                    text(f"DELETE FROM {self.RESPONSES_TABLE} WHERE ticket_id = :id"),
-                    {"id": fid}
-                )
-                i = 0
-                while i < len(update_responses):
-                    resp = update_responses[i]
-                    try:
-                        r_user_id = resp.userId
-                    except AttributeError:
-                        r_user_id = None
-                    try:
-                        r_message = resp.message
-                    except AttributeError:
-                        r_message = None
-                    try:
-                        r_timestamp = resp.timestamp
-                    except AttributeError:
-                        r_timestamp = now
-                        
-                    await session.execute(
-                        text(
-                            f'''
-                            INSERT INTO {self.RESPONSES_TABLE} (ticket_id, user_id, message, timestamp)
-                            VALUES (:ticket_id, :user_id, :message, :timestamp)
-                            '''
-                        ),
-                        {
-                            "ticket_id": fid,
-                            "user_id": r_user_id,
-                            "message": r_message,
-                            "timestamp": r_timestamp
-                        }
-                    )
-                    i += 1
-            
-            await session.commit()
-            
         return await self.findById(id)
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
         if not factory:
             return False
-        fid = int(id) if str(id).isdigit() else None
+        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
-            await session.execute(
-                text(f"DELETE FROM {self.RESPONSES_TABLE} WHERE ticket_id = :id"),
-                {"id": fid},
-            )
+
+            await session.execute(text(f"DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": pk})
+
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": fid},
+                {"id": pk},
             )
             await session.commit()
             return result.rowcount > 0
+
+    async def deleteMany(self, query: Dict) -> Any:
+        docs = await self.findAll(query)
+        deleted = 0
+        for d in docs:
+            # Depending on schema format, id might be _id or id
+            d_id = getattr(d, "_id", getattr(d, "id", None))
+            if d_id and await self.delete(d_id):
+                deleted += 1
+        return {"deletedCount": deleted}
+
+    def _map_to_schema(self, r, children: Dict) -> Any:
+        rm = r._mapping
+        out = {
+            "_id": str(rm["id"]), 
+            "externalId": rm["external_id"]
+        }
+        
+        created_at = rm["created_at"]
+        if created_at:
+            out["createdAt"] = created_at.isoformat()
             
-    find_all = findAll
-    find_by_id = findById
-    find_one = findOne
+        updated_at = rm["updated_at"]
+        if updated_at:
+            out["updatedAt"] = updated_at.isoformat()
+
+        out["ticketNumber"] = rm["ticket_number"]
+        out["user"] = rm["user_id"]
+        out["name"] = rm["name"]
+        out["email"] = rm["email"]
+        out["phone"] = rm["phone"]
+        out["company"] = rm["company"]
+        out["subject"] = rm["subject"]
+        out["description"] = rm["description"]
+        out["category"] = rm["category"]
+        out["priority"] = rm["priority"]
+        out["status"] = rm["status"]
+        out["assignedTo"] = rm["assigned_to"]
+        out["resolvedAt"] = rm["resolved_at"]
+        out["closedAt"] = rm["closed_at"]
+        for k, v in children.items():
+            out[k] = v
+            
+        return SupportTicketInternal(**out)
+
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
+        c_map = {rid: {} for rid in ids}
+        if not ids:
+            return c_map
+            
+        id_list = ",".join(map(str, ids))
+
+        q_attachments = text(f"SELECT parent_id, url FROM sj_ticket_attachments WHERE parent_id IN ({id_list})")
+        res_attachments = await session.execute(q_attachments)
+        rows_attachments = res_attachments.fetchall()
+
+        for r in rows_attachments:
+            if "attachments" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["attachments"] = []
+            c_map[r.parent_id]["attachments"].append(r[1])
+
+        q_responses = text(f"SELECT parent_id, admin_id, message FROM sj_ticket_responses WHERE parent_id IN ({id_list})")
+        res_responses = await session.execute(q_responses)
+        rows_responses = res_responses.fetchall()
+
+        for r in rows_responses:
+            if "responses" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["responses"] = []
+            obj = {}
+
+            obj["user"] = r[1]
+            obj["message"] = r[2]
+            c_map[r.parent_id]["responses"].append(obj)
+
+        return c_map
+
+    async def _replace_children(self, session, row_id: int, data: Any):
+
+        if hasattr(data, "attachments") and getattr(data, "attachments") is not None:
+            await session.execute(text(f"DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "attachments") or []
+
+            if child_list:
+                for item in child_list:
+                    await session.execute(text(f"INSERT INTO sj_ticket_attachments (parent_id, url) VALUES (:id, :v)"), {"id": row_id, "v": item})
+
+        if hasattr(data, "responses") and getattr(data, "responses") is not None:
+            await session.execute(text(f"DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "responses") or []
+
+            if child_list:
+                for item in child_list:
+                    p = {"id": row_id}
+
+                    p["v0"] = getattr(item, "user", None)
+                    p["v1"] = getattr(item, "message", None)
+                    await session.execute(text(f"INSERT INTO sj_ticket_responses (parent_id, admin_id, message) VALUES (:id, :v0, :v1)"), p)

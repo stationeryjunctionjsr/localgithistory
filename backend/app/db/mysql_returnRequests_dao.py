@@ -1,215 +1,382 @@
-import pymysql.cursors
-from typing import List, Optional, Any
-from pydantic import BaseModel
+from typing import Optional, Dict, List, Any
+from datetime import datetime, timezone
+import secrets
+import json
+from sqlalchemy import text
+from app.config.database import get_async_session_factory
+from app.models.daos_flat import ReturnRequestInternal
+from app.models.daos_flat import ReturnRequestInternalCreate, ReturnRequestInternalUpdate
 
-class ReturnRequestItemResponse(BaseModel):
-    productId: str
-    quantity: int
-    condition: str
+def now_utc():
+    return datetime.now(timezone.utc)
 
-class ReturnRequestResponse(BaseModel):
-    id: str
-    orderId: str
-    userId: str
-    reason: str
-    comments: Optional[str] = None
-    status: str
-    adminComments: Optional[str] = None
-    refundAmount: Optional[float] = None
-    isRestocked: bool
-    items: List[ReturnRequestItemResponse] = []
-    images: List[str] = []
+class MySQLReturnRequestsDAO:
+    def __init__(self):
+        self.table_name = "sj_return_requests"
+    
+    @property
+    def TABLE(self):
+        from app.config.settings import settings
+        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
+        return f"{self.table_name}{suffix}"
 
-class MySQLReturnrequestsDAO:
-    def __init__(self, connection):
-        self.connection = connection
+    def _factory(self):
+        return get_async_session_factory()
+        
+    async def findById(self, id: str) -> Optional[Any]:
+        return await self.findOne({"_id": id})
 
-    def create(self, data: Any) -> ReturnRequestResponse:
-        with self.connection.cursor() as cursor:
-            sql = """
-            INSERT INTO sj_return_requests 
-            (id, order_id, user_id, reason, comments, status, admin_comments, refund_amount, is_restocked)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """
-            cursor.execute(sql, (
-                data.id,
-                data.orderId,
-                data.userId,
-                data.reason,
-                data.comments,
-                data.status,
-                data.adminComments,
-                data.refundAmount,
-                1 if data.isRestocked else 0
-            ))
-
-            if data.items:
-                item_sql = """
-                INSERT INTO sj_return_request_items (return_request_id, product_id, quantity, `condition`)
-                VALUES (%s, %s, %s, %s)
-                """
-                for item in data.items:
-                    cursor.execute(item_sql, (
-                        data.id,
-                        item.productId,
-                        item.quantity,
-                        item.condition
-                    ))
-
-            if data.images:
-                image_sql = """
-                INSERT INTO sj_return_request_images (return_request_id, image_url)
-                VALUES (%s, %s)
-                """
-                for image in data.images:
-                    cursor.execute(image_sql, (
-                        data.id,
-                        image
-                    ))
-
-            self.connection.commit()
-            return self.findById(data.id)
-
-    def update(self, id: str, data: Any) -> Optional[ReturnRequestResponse]:
-        with self.connection.cursor() as cursor:
-            fields = []
-            values = []
-
-            if data.orderId is not None:
-                fields.append("order_id = %s")
-                values.append(data.orderId)
-            if data.userId is not None:
-                fields.append("user_id = %s")
-                values.append(data.userId)
-            if data.reason is not None:
-                fields.append("reason = %s")
-                values.append(data.reason)
-            if data.comments is not None:
-                fields.append("comments = %s")
-                values.append(data.comments)
-            if data.status is not None:
-                fields.append("status = %s")
-                values.append(data.status)
-            if data.adminComments is not None:
-                fields.append("admin_comments = %s")
-                values.append(data.adminComments)
-            if data.refundAmount is not None:
-                fields.append("refund_amount = %s")
-                values.append(data.refundAmount)
-            if data.isRestocked is not None:
-                fields.append("is_restocked = %s")
-                values.append(1 if data.isRestocked else 0)
-
-            if fields:
-                sql = f"UPDATE sj_return_requests SET {', '.join(fields)} WHERE id = %s"
-                values.append(id)
-                cursor.execute(sql, tuple(values))
-
-            if data.items is not None:
-                cursor.execute("DELETE FROM sj_return_request_items WHERE return_request_id = %s", (id,))
-                item_sql = """
-                INSERT INTO sj_return_request_items (return_request_id, product_id, quantity, `condition`)
-                VALUES (%s, %s, %s, %s)
-                """
-                for item in data.items:
-                    cursor.execute(item_sql, (
-                        id,
-                        item.productId,
-                        item.quantity,
-                        item.condition
-                    ))
-
-            if data.images is not None:
-                cursor.execute("DELETE FROM sj_return_request_images WHERE return_request_id = %s", (id,))
-                image_sql = """
-                INSERT INTO sj_return_request_images (return_request_id, image_url)
-                VALUES (%s, %s)
-                """
-                for image in data.images:
-                    cursor.execute(image_sql, (
-                        id,
-                        image
-                    ))
-
-            self.connection.commit()
-            return self.findById(id)
-
-    def delete(self, id: str) -> bool:
-        with self.connection.cursor() as cursor:
-            cursor.execute("DELETE FROM sj_return_request_images WHERE return_request_id = %s", (id,))
-            cursor.execute("DELETE FROM sj_return_request_items WHERE return_request_id = %s", (id,))
-            cursor.execute("DELETE FROM sj_return_requests WHERE id = %s", (id,))
-            self.connection.commit()
-            return cursor.rowcount > 0
-
-    def findById(self, id: str) -> Optional[ReturnRequestResponse]:
-        with self.connection.cursor(pymysql.cursors.DictCursor) as cursor:
-            sql = "SELECT * FROM sj_return_requests WHERE id = %s"
-            cursor.execute(sql, (id,))
-            row = cursor.fetchone()
+    async def findOne(self, query=None, **kwargs) -> Optional[Any]:
+        if query:
+            kwargs.update(query)
+        if not kwargs:
+            return None
+        
+        async with self._factory()() as session:
+            conditions = []
+            params = {}
+            
+            query_map = {'returnId': 'return_id', 'orderId': 'order_id', 'userId': 'user_id', 'paymentMethod': 'payment_method', 'upiPaymentScreenshot': 'upi_payment_screenshot', 'notes': 'notes', 'status': 'status', 'valetId': 'valet_id', 'sellerId': 'seller_id', 'deliverySlotId': 'delivery_slot_id', 'deliverySlotConfigId': 'delivery_slot_config_id', 'deliverySlotDate': 'delivery_slot_date', 'pendingValetId': 'pending_valet_id', 'valetAssignedAt': 'valet_assigned_at', 'valetCascadeCount': 'valet_cascade_count', 'deliveryCharge': 'delivery_charge'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            for k, v in kwargs.items():
+                db_col = query_map.get(k, k)
+                conditions.append(f"{db_col} = :{k}")
+                params[k] = v
+                
+            where_clause = " AND ".join(conditions)
+            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+            result = await session.execute(q, params)
+            row = result.fetchone()
             if not row:
                 return None
-            return self._map_row(cursor, row)
+                
+            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
+        query = query or {}
+        async with self._factory()() as session:
+            sql = f"SELECT * FROM {self.TABLE}"
+            params = {}
+            
+            query_map = {'returnId': 'return_id', 'orderId': 'order_id', 'userId': 'user_id', 'paymentMethod': 'payment_method', 'upiPaymentScreenshot': 'upi_payment_screenshot', 'notes': 'notes', 'status': 'status', 'valetId': 'valet_id', 'sellerId': 'seller_id', 'deliverySlotId': 'delivery_slot_id', 'deliverySlotConfigId': 'delivery_slot_config_id', 'deliverySlotDate': 'delivery_slot_date', 'pendingValetId': 'pending_valet_id', 'valetAssignedAt': 'valet_assigned_at', 'valetCascadeCount': 'valet_cascade_count', 'deliveryCharge': 'delivery_charge'}
+            query_map["_id"] = "id"
+            query_map["externalId"] = "external_id"
+            
+            if query:
+                conditions = []
+                for k, v in query.items():
+                    db_col = query_map.get(k, k)
+                    conditions.append(f"{db_col} = :{k}")
+                    params[k] = v
+                if conditions:
+                    sql += " WHERE " + " AND ".join(conditions)
+                    
+            q = text(sql)
+            result = await session.execute(q, params)
+            rows = result.fetchall()
+            
+            if not rows:
+                return []
+                
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
+            
+            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    def findOne(self, filters: dict) -> Optional[ReturnRequestResponse]:
-        with self.connection.cursor(pymysql.cursors.DictCursor) as cursor:
-            if not filters:
-                return None
-            where_clauses = []
-            values = []
-            for k, v in filters.items():
-                where_clauses.append(f"{k} = %s")
-                values.append(v)
-            sql = f"SELECT * FROM sj_return_requests WHERE {' AND '.join(where_clauses)} LIMIT 1"
-            cursor.execute(sql, tuple(values))
-            row = cursor.fetchone()
-            if not row:
-                return None
-            return self._map_row(cursor, row)
+    async def create(self, data: Any) -> Any:
+        factory = self._factory()
+        now = now_utc()
+        external_id = secrets.token_hex(16)
+        
+        cols = ["external_id", "created_at", "updated_at"]
+        params = {"eid": external_id, "c": now, "u": now}
 
-    def findAll(self, filters: dict = None) -> List[ReturnRequestResponse]:
-        with self.connection.cursor(pymysql.cursors.DictCursor) as cursor:
-            sql = "SELECT * FROM sj_return_requests"
-            values = []
-            if filters:
-                where_clauses = []
-                for k, v in filters.items():
-                    where_clauses.append(f"{k} = %s")
-                    values.append(v)
-                sql += f" WHERE {' AND '.join(where_clauses)}"
-            cursor.execute(sql, tuple(values))
-            rows = cursor.fetchall()
-            return [self._map_row(cursor, row) for row in rows]
+        if hasattr(data, "returnId") and getattr(data, "returnId") is not None:
+            cols.append("return_id")
+            params["s_returnId"] = getattr(data, "returnId")
 
-    def _map_row(self, cursor, row: dict) -> ReturnRequestResponse:
-        req_id = row['id']
+        if hasattr(data, "orderId") and getattr(data, "orderId") is not None:
+            cols.append("order_id")
+            params["s_orderId"] = getattr(data, "orderId")
 
-        # items
-        cursor.execute("SELECT product_id, quantity, `condition` FROM sj_return_request_items WHERE return_request_id = %s", (req_id,))
-        items_rows = cursor.fetchall()
-        items = [
-            ReturnRequestItemResponse(
-                productId=item['product_id'],
-                quantity=item['quantity'],
-                condition=item['condition']
-            ) for item in items_rows
-        ]
+        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+            cols.append("user_id")
+            params["s_userId"] = getattr(data, "userId")
 
-        # images
-        cursor.execute("SELECT image_url FROM sj_return_request_images WHERE return_request_id = %s", (req_id,))
-        images_rows = cursor.fetchall()
-        images = [img['image_url'] for img in images_rows]
+        if hasattr(data, "paymentMethod") and getattr(data, "paymentMethod") is not None:
+            cols.append("payment_method")
+            params["s_paymentMethod"] = getattr(data, "paymentMethod")
 
-        return ReturnRequestResponse(
-            id=row['id'],
-            orderId=row['order_id'],
-            userId=row['user_id'],
-            reason=row['reason'],
-            comments=(row['comments'] if 'comments' in row else None),
-            status=row['status'],
-            adminComments=(row['admin_comments'] if 'admin_comments' in row else None),
-            refundAmount=(row['refund_amount'] if 'refund_amount' in row else None),
-            isRestocked=bool(row['is_restocked']),
-            items=items,
-            images=images
-        )
+        if hasattr(data, "upiPaymentScreenshot") and getattr(data, "upiPaymentScreenshot") is not None:
+            cols.append("upi_payment_screenshot")
+            params["s_upiPaymentScreenshot"] = getattr(data, "upiPaymentScreenshot")
+
+        if hasattr(data, "notes") and getattr(data, "notes") is not None:
+            cols.append("notes")
+            params["s_notes"] = getattr(data, "notes")
+
+        if hasattr(data, "status") and getattr(data, "status") is not None:
+            cols.append("status")
+            params["s_status"] = getattr(data, "status")
+
+        if hasattr(data, "valetId") and getattr(data, "valetId") is not None:
+            cols.append("valet_id")
+            params["s_valetId"] = getattr(data, "valetId")
+
+        if hasattr(data, "sellerId") and getattr(data, "sellerId") is not None:
+            cols.append("seller_id")
+            params["s_sellerId"] = getattr(data, "sellerId")
+
+        if hasattr(data, "deliverySlotId") and getattr(data, "deliverySlotId") is not None:
+            cols.append("delivery_slot_id")
+            params["s_deliverySlotId"] = getattr(data, "deliverySlotId")
+
+        if hasattr(data, "deliverySlotConfigId") and getattr(data, "deliverySlotConfigId") is not None:
+            cols.append("delivery_slot_config_id")
+            params["s_deliverySlotConfigId"] = getattr(data, "deliverySlotConfigId")
+
+        if hasattr(data, "deliverySlotDate") and getattr(data, "deliverySlotDate") is not None:
+            cols.append("delivery_slot_date")
+            params["s_deliverySlotDate"] = getattr(data, "deliverySlotDate")
+
+        if hasattr(data, "pendingValetId") and getattr(data, "pendingValetId") is not None:
+            cols.append("pending_valet_id")
+            params["s_pendingValetId"] = getattr(data, "pendingValetId")
+
+        if hasattr(data, "valetAssignedAt") and getattr(data, "valetAssignedAt") is not None:
+            cols.append("valet_assigned_at")
+            params["s_valetAssignedAt"] = getattr(data, "valetAssignedAt")
+
+        if hasattr(data, "valetCascadeCount") and getattr(data, "valetCascadeCount") is not None:
+            cols.append("valet_cascade_count")
+            params["s_valetCascadeCount"] = getattr(data, "valetCascadeCount")
+
+        if hasattr(data, "deliveryCharge") and getattr(data, "deliveryCharge") is not None:
+            cols.append("delivery_charge")
+            params["s_deliveryCharge"] = getattr(data, "deliveryCharge")
+
+        col_sql = ", ".join(cols)
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['returnId', 'orderId', 'userId', 'paymentMethod', 'upiPaymentScreenshot', 'notes', 'status', 'valetId', 'sellerId', 'deliverySlotId', 'deliverySlotConfigId', 'deliverySlotDate', 'pendingValetId', 'valetAssignedAt', 'valetCascadeCount', 'deliveryCharge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        
+        async with factory() as session:
+            await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
+            new_id = (
+                await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
+                )
+            ).scalar()
+            await self._replace_children(session, new_id, data)
+            await session.commit()
+            
+        return await self.findById(str(new_id))
+
+    async def update(self, id: str, data: Any) -> Any:
+        factory = self._factory()
+        updates = ["updated_at = :u"]
+        params = {"id": id, "u": now_utc()}
+
+        if hasattr(data, "returnId") and getattr(data, "returnId") is not None:
+            updates.append("return_id = :s_returnId")
+            params["s_returnId"] = getattr(data, "returnId")
+
+        if hasattr(data, "orderId") and getattr(data, "orderId") is not None:
+            updates.append("order_id = :s_orderId")
+            params["s_orderId"] = getattr(data, "orderId")
+
+        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+            updates.append("user_id = :s_userId")
+            params["s_userId"] = getattr(data, "userId")
+
+        if hasattr(data, "paymentMethod") and getattr(data, "paymentMethod") is not None:
+            updates.append("payment_method = :s_paymentMethod")
+            params["s_paymentMethod"] = getattr(data, "paymentMethod")
+
+        if hasattr(data, "upiPaymentScreenshot") and getattr(data, "upiPaymentScreenshot") is not None:
+            updates.append("upi_payment_screenshot = :s_upiPaymentScreenshot")
+            params["s_upiPaymentScreenshot"] = getattr(data, "upiPaymentScreenshot")
+
+        if hasattr(data, "notes") and getattr(data, "notes") is not None:
+            updates.append("notes = :s_notes")
+            params["s_notes"] = getattr(data, "notes")
+
+        if hasattr(data, "status") and getattr(data, "status") is not None:
+            updates.append("status = :s_status")
+            params["s_status"] = getattr(data, "status")
+
+        if hasattr(data, "valetId") and getattr(data, "valetId") is not None:
+            updates.append("valet_id = :s_valetId")
+            params["s_valetId"] = getattr(data, "valetId")
+
+        if hasattr(data, "sellerId") and getattr(data, "sellerId") is not None:
+            updates.append("seller_id = :s_sellerId")
+            params["s_sellerId"] = getattr(data, "sellerId")
+
+        if hasattr(data, "deliverySlotId") and getattr(data, "deliverySlotId") is not None:
+            updates.append("delivery_slot_id = :s_deliverySlotId")
+            params["s_deliverySlotId"] = getattr(data, "deliverySlotId")
+
+        if hasattr(data, "deliverySlotConfigId") and getattr(data, "deliverySlotConfigId") is not None:
+            updates.append("delivery_slot_config_id = :s_deliverySlotConfigId")
+            params["s_deliverySlotConfigId"] = getattr(data, "deliverySlotConfigId")
+
+        if hasattr(data, "deliverySlotDate") and getattr(data, "deliverySlotDate") is not None:
+            updates.append("delivery_slot_date = :s_deliverySlotDate")
+            params["s_deliverySlotDate"] = getattr(data, "deliverySlotDate")
+
+        if hasattr(data, "pendingValetId") and getattr(data, "pendingValetId") is not None:
+            updates.append("pending_valet_id = :s_pendingValetId")
+            params["s_pendingValetId"] = getattr(data, "pendingValetId")
+
+        if hasattr(data, "valetAssignedAt") and getattr(data, "valetAssignedAt") is not None:
+            updates.append("valet_assigned_at = :s_valetAssignedAt")
+            params["s_valetAssignedAt"] = getattr(data, "valetAssignedAt")
+
+        if hasattr(data, "valetCascadeCount") and getattr(data, "valetCascadeCount") is not None:
+            updates.append("valet_cascade_count = :s_valetCascadeCount")
+            params["s_valetCascadeCount"] = getattr(data, "valetCascadeCount")
+
+        if hasattr(data, "deliveryCharge") and getattr(data, "deliveryCharge") is not None:
+            updates.append("delivery_charge = :s_deliveryCharge")
+            params["s_deliveryCharge"] = getattr(data, "deliveryCharge")
+
+        if len(updates) > 1:
+            upd_sql = ", ".join(updates)
+            async with factory() as session:
+                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+        else:
+            async with factory() as session:
+                await self._replace_children(session, int(id), data)
+                await session.commit()
+                
+        return await self.findById(id)
+
+    async def delete(self, id: str) -> bool:
+        factory = self._factory()
+        if not factory:
+            return False
+        pk = int(id) if str(id).isdigit() else None
+        async with factory() as session:
+
+            await session.execute(text(f"DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": pk})
+
+            await session.execute(text(f"DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": pk})
+
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
+                {"id": pk},
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    async def deleteMany(self, query: Dict) -> Any:
+        docs = await self.findAll(query)
+        deleted = 0
+        for d in docs:
+            # Depending on schema format, id might be _id or id
+            d_id = getattr(d, "_id", getattr(d, "id", None))
+            if d_id and await self.delete(d_id):
+                deleted += 1
+        return {"deletedCount": deleted}
+
+    def _map_to_schema(self, r, children: Dict) -> Any:
+        rm = r._mapping
+        out = {
+            "_id": str(rm["id"]), 
+            "externalId": rm["external_id"]
+        }
+        
+        created_at = rm["created_at"]
+        if created_at:
+            out["createdAt"] = created_at.isoformat()
+            
+        updated_at = rm["updated_at"]
+        if updated_at:
+            out["updatedAt"] = updated_at.isoformat()
+
+        out["returnId"] = rm["return_id"]
+        out["orderId"] = rm["order_id"]
+        out["userId"] = rm["user_id"]
+        out["paymentMethod"] = rm["payment_method"]
+        out["upiPaymentScreenshot"] = rm["upi_payment_screenshot"]
+        out["notes"] = rm["notes"]
+        out["status"] = rm["status"]
+        out["valetId"] = rm["valet_id"]
+        out["sellerId"] = rm["seller_id"]
+        out["deliverySlotId"] = rm["delivery_slot_id"]
+        out["deliverySlotConfigId"] = rm["delivery_slot_config_id"]
+        out["deliverySlotDate"] = rm["delivery_slot_date"]
+        out["pendingValetId"] = rm["pending_valet_id"]
+        out["valetAssignedAt"] = rm["valet_assigned_at"]
+        out["valetCascadeCount"] = rm["valet_cascade_count"]
+        out["deliveryCharge"] = rm["delivery_charge"]
+        for k, v in children.items():
+            out[k] = v
+            
+        return ReturnRequestInternal(**out)
+
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
+        c_map = {rid: {} for rid in ids}
+        if not ids:
+            return c_map
+            
+        id_list = ",".join(map(str, ids))
+
+        q_items = text(f"SELECT parent_id, product_id, quantity, reason FROM sj_return_request_items WHERE parent_id IN ({id_list})")
+        res_items = await session.execute(q_items)
+        rows_items = res_items.fetchall()
+
+        for r in rows_items:
+            if "items" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["items"] = []
+            obj = {}
+
+            obj["productId"] = r[1]
+            obj["quantity"] = r[2]
+            obj["reason"] = r[3]
+            c_map[r.parent_id]["items"].append(obj)
+
+        q_valetDeclineHistory = text(f"SELECT parent_id, valet_id, reason FROM sj_return_valet_declines WHERE parent_id IN ({id_list})")
+        res_valetDeclineHistory = await session.execute(q_valetDeclineHistory)
+        rows_valetDeclineHistory = res_valetDeclineHistory.fetchall()
+
+        for r in rows_valetDeclineHistory:
+            if "valetDeclineHistory" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["valetDeclineHistory"] = []
+            obj = {}
+
+            obj["valetId"] = r[1]
+            obj["reason"] = r[2]
+            c_map[r.parent_id]["valetDeclineHistory"].append(obj)
+
+        return c_map
+
+    async def _replace_children(self, session, row_id: int, data: Any):
+
+        if hasattr(data, "items") and getattr(data, "items") is not None:
+            await session.execute(text(f"DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "items") or []
+
+            if child_list:
+                for item in child_list:
+                    p = {"id": row_id}
+
+                    p["v0"] = getattr(item, "productId", None)
+                    p["v1"] = getattr(item, "quantity", None)
+                    p["v2"] = getattr(item, "reason", None)
+                    await session.execute(text(f"INSERT INTO sj_return_request_items (parent_id, product_id, quantity, reason) VALUES (:id, :v0, :v1, :v2)"), p)
+
+        if hasattr(data, "valetDeclineHistory") and getattr(data, "valetDeclineHistory") is not None:
+            await session.execute(text(f"DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": row_id})
+            child_list = getattr(data, "valetDeclineHistory") or []
+
+            if child_list:
+                for item in child_list:
+                    p = {"id": row_id}
+
+                    p["v0"] = getattr(item, "valetId", None)
+                    p["v1"] = getattr(item, "reason", None)
+                    await session.execute(text(f"INSERT INTO sj_return_valet_declines (parent_id, valet_id, reason) VALUES (:id, :v0, :v1)"), p)
