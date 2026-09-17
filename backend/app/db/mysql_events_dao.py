@@ -24,7 +24,7 @@ class EventResponse(BaseModel):
     id: str
     externalId: str
     eventType: Optional[str] = None
-    payload: Optional[Dict[str, str]] = None
+    payload: Optional[List[EventPayloadItem]] = None
     createdAt: Optional[datetime] = None
     updatedAt: Optional[datetime] = None
 
@@ -68,9 +68,9 @@ class MySQLEventsDAO:
                 )
             ).fetchall()
             
-        payload_map = {pid: {} for pid in ids}
+        payload_map = {pid: [] for pid in ids}
         for cr in child_rows:
-            payload_map[cr.parent_id][cr.payload_key] = cr.payload_value
+            payload_map[cr.parent_id].append(EventPayloadItem(key=cr.payload_key, value=cr.payload_value))
             
         result = []
         for r in rows:
@@ -78,7 +78,7 @@ class MySQLEventsDAO:
                 id=str(r.id),
                 externalId=r.external_id,
                 eventType=r.event_type,
-                payload=(payload_map[r.id] if r.id in payload_map else {}),
+                payload=(payload_map[r.id] if r.id in payload_map else []),
                 createdAt=r.created_at,
                 updatedAt=r.updated_at
             ))

@@ -44,15 +44,20 @@ async def run_events_sync_job_async():
             existing_keys.add((t.type, t.sessionId, t.timestamp))
 
         migrated_count = 0
-        for e_dict in events:
-            # Parse the incoming dictionary into our Pydantic model
-            e = RawEvent.model_validate(e_dict)
+        for e in events:
+            event_type = e.eventType
+            session_id = None
+            user_id = None
+            timestamp = e.createdAt.isoformat() if e.createdAt else None
+            payload_dict = {}
+            for item in (e.payload or []):
+                if item.key == 'sessionId': session_id = item.value
+                elif item.key == 'userId': user_id = item.value
+                elif item.key == 'timestamp': timestamp = item.value
+                else: payload_dict[item.key] = item.value
             
-            event_type = e.type
-            session_id = e.sessionId
-            user_id = e.userId
-            timestamp = e.timestamp
-            payload = e.payload
+            # Use RawEventPayload constructor explicitly
+            payload = RawEventPayload(**payload_dict)
 
             # Translate event_type to tracking type
             tracking_type = None
