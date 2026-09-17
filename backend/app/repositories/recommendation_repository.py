@@ -139,17 +139,18 @@ def get_recommendation_config() -> Dict:
     return _load_config()
 
 
-def _parse_order_date(order: Any) -> Optional[datetime]:
+def _parse_order_date(raw_date: Any) -> Optional[datetime]:
     """Helper to safely parse order creation date for time-decay weighting."""
-    if isinstance(order, dict):
-        raw = order.get("createdAt")
-    else:
-        raw = getattr(order, "createdAt", None)
-        
-    if not raw:
+    if not raw_date:
         return None
+        
+    if isinstance(raw_date, datetime):
+        if raw_date.tzinfo is None:
+            return raw_date.replace(tzinfo=timezone.utc)
+        return raw_date
+
     try:
-        dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        dt = datetime.fromisoformat(str(raw_date).replace("Z", "+00:00"))
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt
@@ -359,7 +360,7 @@ class RecommendationRepository:
         })
         converted_sales_count: Dict[str, int] = {}
         for order in orders:
-            order_dt = _parse_order_date(order)
+            order_dt = _parse_order_date(order.created_at)
             if not order_dt:
                 continue
             if order.status == "cancelled":
@@ -712,7 +713,7 @@ class RecommendationRepository:
             pid = p.id
             if not pid or pid in user_ordered:
                 continue
-            created = _parse_order_date({"createdAt": p.created_at}) if p.created_at else None
+            created = _parse_order_date(p.created_at) if p.created_at else None
             if created and created >= cutoff:
                 candidates.append((pid, created))
         candidates.sort(key=lambda x: x[1] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
