@@ -1,3 +1,4 @@
+import uuid
 from app.models.schemas import UserSnippet, ValetSnippet, UserInternalUpdate
 import logging
 from app.models.schemas import UserSnippet, ValetSnippet, PopulatedOrderResponse, PopulatedOrderItemResponse
@@ -1596,13 +1597,16 @@ async def create_order(
                 try:
                     super_admin = await user_repository.findOne({"role": "super_admin"})
                     if super_admin:
+                        import uuid
+                        from app.models.daos import NotificationInternalCreate
                         await notification_repository.create(
-                            {
-                                "userId": super_admin.id,
-                                "type": "low_stock",
-                                "title": "Low Stock Alert",
-                                "message": f'Product "{product.sku}" - "{product.name}" has {new_stock} pieces left',
-                                "data": {
+                            NotificationInternalCreate(
+                                id=str(uuid.uuid4()),
+                                userId=super_admin.id,
+                                type="low_stock",
+                                title="Low Stock Alert",
+                                message=f'Product "{product.sku}" - "{product.name}" has {new_stock} pieces left',
+                                metadata={
                                     "productId": product.id,
                                     "sku": product.sku,
                                     "productName": product.name,
@@ -1610,7 +1614,7 @@ async def create_order(
                                     "category": product.category,
                                     "threshold": threshold if threshold is not None else None,
                                 },
-                            }
+                            )
                         )
                 except Exception as e:
                     logger.error(

@@ -1,3 +1,4 @@
+import uuid
 import logging
 from app.models.user import User
 from app.models.schemas import MessageResponse
@@ -351,13 +352,16 @@ async def submit_credit_settlement(
                     else Payment.model_validate(updated_payment)
                 )
                 payment_id = p_model.payment_id or p_model.id
+                import uuid
+                from app.models.daos import NotificationInternalCreate
                 await notification_repository.create(
-                    {
-                        "userId": super_admin.id,
-                        "type": "new_payment",
-                        "title": "New Payment Received",
-                        "message": f'New payment "{payment_id}" worth ₹{settlement_data.amount:.2f} received',
-                        "data": {
+                    NotificationInternalCreate(
+                        id=str(uuid.uuid4()),
+                        userId=super_admin.id,
+                        type="new_payment",
+                        title="New Payment Received",
+                        message=f'New payment "{payment_id}" worth ₹{settlement_data.amount:.2f} received',
+                        metadata={
                             "paymentId": p_model.id,
                             "paymentIdFormatted": payment_id,
                             "orderId": p_model.order_id,
@@ -365,7 +369,7 @@ async def submit_credit_settlement(
                             "paymentMethod": "upi",
                             "createdAt": datetime.now(timezone.utc).isoformat() + "Z",
                         },
-                    }
+                    )
                 )
         except Exception as e:
             logger.error("Error creating payment notification: %s", str(e), exc_info=True)

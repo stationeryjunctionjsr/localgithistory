@@ -20,69 +20,68 @@ class NotificationRepository:
 
         # Build DB query to offload exact filtering
         db_query = {}
-        if filters["userId"] if "userId" in filters else None:
+        if filters.get("userId"):
             db_query["userId"] = filters["userId"]
-        if (filters["isRead"] if "isRead" in filters else None) is not None:
+        if filters.get("isRead") is not None:
             db_query["isRead"] = filters["isRead"]
-        if filters["type"] if "type" in filters else None:
+        if filters.get("type"):
             db_query["type"] = filters["type"]
 
         notifications = await self.storage.findAll(db_query)
 
-        if filters["startDate"] if "startDate" in filters else None:
+        if filters.get("startDate"):
             start = datetime.fromisoformat(filters["startDate"].replace("Z", "+00:00"))
             notifications = [
                 n
                 for n in notifications
-                if datetime.fromisoformat((n["createdAt"] if "createdAt" in n else "").replace("Z", "+00:00")) >= start
+                if n.createdAt and datetime.fromisoformat(n.createdAt.replace("Z", "+00:00")) >= start
             ]
-        if filters["endDate"] if "endDate" in filters else None:
+        if filters.get("endDate"):
             end = datetime.fromisoformat(filters["endDate"].replace("Z", "+00:00"))
             end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
             notifications = [
-                n for n in notifications if datetime.fromisoformat((n["createdAt"] if "createdAt" in n else "").replace("Z", "+00:00")) <= end
+                n for n in notifications if n.createdAt and datetime.fromisoformat(n.createdAt.replace("Z", "+00:00")) <= end
             ]
 
-        return sorted(notifications, key=lambda x: x["createdAt"] if "createdAt" in x else "", reverse=True)
+        return sorted(notifications, key=lambda x: x.createdAt or "", reverse=True)
 
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.storage.findById(id)
 
     async def create(self, notification_data: Any) -> Dict:
-        notification = {
-            "_id": self._generate_id(),
-            **notification_data,
-            "isRead": False,
-            "isAcknowledged": False,
-            "createdAt": self._get_timestamp(),
-            "updatedAt": self._get_timestamp(),
-        }
-        return await self.storage.create(notification)
+        if notification_data.createdAt is None:
+            notification_data.createdAt = self._get_timestamp()
+        if notification_data.updatedAt is None:
+            notification_data.updatedAt = self._get_timestamp()
+        return await self.storage.create(notification_data)
 
     async def update(self, id: str, update_data: Any) -> Dict:
-        updates = {**update_data, "updatedAt": self._get_timestamp()}
-        return await self.storage.update(id, updates)
+        update_data.updatedAt = self._get_timestamp()
+        return await self.storage.update(id, update_data)
 
     async def acknowledge(self, id: str) -> Dict:
-        return await self.update(id, {"isAcknowledged": True})
+        from app.models.daos import NotificationInternalUpdate
+        return await self.update(id, NotificationInternalUpdate(isAcknowledged=True))
 
     async def markAsRead(self, id: str) -> Dict:
-        return await self.update(id, {"isRead": True})
+        from app.models.daos import NotificationInternalUpdate
+        return await self.update(id, NotificationInternalUpdate(isRead=True))
 
     async def markAllAsRead(self) -> int:
         """Mark all unread notifications as read and acknowledged"""
-        update_data = {"isRead": True, "isAcknowledged": True, "updatedAt": self._get_timestamp()}
+        from app.models.daos import NotificationInternalUpdate
+        update_model = NotificationInternalUpdate(isRead=True, isAcknowledged=True, updatedAt=self._get_timestamp())
         unread_notifs = await self.storage.findAll({"isRead": False})
         count1 = 0
         for n in unread_notifs:
-            await self.storage.update(n["_id"] if isinstance(n, dict) else n.id, update_data)
+            await self.storage.update(n.id, update_model)
             count1 += 1
             
         unack_notifs = await self.storage.findAll({"isAcknowledged": False})
         count2 = 0
         for n in unack_notifs:
-            if n["_id"] if isinstance(n, dict) else n.id not in [u["_id"] if isinstance(u, dict) else u.id for u in unread_notifs]:
-                await self.storage.update(n["_id"] if isinstance(n, dict) else n.id, update_data)
+            if n.id not in [u.id for u in unread_notifs]:
+                await self.storage.update(n.id, update_model)
                 count2 += 1
                 
         return count1 + count2

@@ -80,16 +80,17 @@ async def mark_all_read(current_user: User = Depends(get_current_user)):
     """Mark all notifications as read and acknowledged"""
     try:
         user_id = current_user.id or current_user.id
-        update_data = {"isRead": True, "isAcknowledged": True}
+        from app.models.daos import NotificationInternalUpdate
+        update_model = NotificationInternalUpdate(isRead=True, isAcknowledged=True)
         unread = await notification_repository.findAll({"isRead": False, "userId": user_id})
         unack = await notification_repository.findAll({"isAcknowledged": False, "userId": user_id})
         
         count = 0
         seen = set()
         for n in unread + unack:
-            if n["_id"] not in seen:
-                await notification_repository.update(n["_id"], update_data)
-                seen.add(n["_id"])
+            if n.id not in seen:
+                await notification_repository.update(n.id, update_model)
+                seen.add(n.id)
                 count += 1
                 
         return {"message": f"{count} notifications marked as read", "count": count}
@@ -105,7 +106,7 @@ async def _get_and_verify_notification(notification_id: str, current_user: dict)
         
     if current_user.role != "super_admin":
         user_id = current_user.id or current_user.id
-        if notification.user_id != user_id:
+        if notification.userId != user_id:
             raise HTTPException(status_code=403, detail="Not authorized to access this notification")
             
     return notification

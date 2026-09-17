@@ -519,3 +519,20 @@ class CustomerSegmentInternalUpdate(BaseModel):
     isActive: Optional[bool] = None
     updatedAt: Optional[str] = None
     lastRefreshedAt: Optional[str] = None
+
+class NotificationInternalCreate(BaseModel):
+    id: str = Field(alias="_id")
+    userId: str
+    type: str
+    title: str
+    message: str
+    metadata: Optional[Any] = None
+    isRead: bool = False
+    isAcknowledged: bool = False
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class NotificationInternalUpdate(BaseModel):
+    isRead: Optional[bool] = None
+    isAcknowledged: Optional[bool] = None
+    updatedAt: Optional[str] = None

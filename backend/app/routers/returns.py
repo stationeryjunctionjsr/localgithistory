@@ -1,3 +1,4 @@
+import uuid
 from app.models.user import User
 from collections import defaultdict
 from typing import Dict, Any, List
@@ -343,17 +344,20 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
         if super_admin:
             created_model = ReturnRequest.model_validate(created) if isinstance(created, dict) else created
             created_ret_id = str(created_model.id or "")
+            import uuid
+            from app.models.daos import NotificationInternalCreate
             await notification_repository.create(
-                {
-                    "userId": super_admin.id,
-                    "type": "new_return",
-                    "title": "New Return Request",
-                    "message": f"New return request for order {request_data.orderId}",
-                    "data": {
+                NotificationInternalCreate(
+                    id=str(uuid.uuid4()),
+                    userId=super_admin.id,
+                    type="new_return",
+                    title="New Return Request",
+                    message=f"New return request for order {request_data.orderId}",
+                    metadata={
                         "returnId": created_ret_id,
                         "orderId": request_data.orderId,
-                    },
-                }
+                    }
+                )
             )
     except Exception as e:
         logger.error("Error notifying admin for return of order %s: %s", request_data.orderId, str(e), exc_info=True)
