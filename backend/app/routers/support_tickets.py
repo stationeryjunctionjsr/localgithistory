@@ -21,6 +21,7 @@ class PriorityUpdate(BaseModel):
     priority: str
 
 
+from app.models.daos_flat import SupportTicketInternalCreate, SupportTicketInternalUpdate
 from app.models.schemas import UserSnippet, TicketResponseItem
 
 
@@ -144,20 +145,20 @@ async def get_support_ticket(ticket_id: str, current_user: User = Depends(get_cu
 async def create_support_ticket(
     ticket_data: SupportTicketCreate, current_user: Optional[User] = Depends(get_optional_user)
 ):
-    ticket = await support_ticket_repository.create(
-        {
-            "user": current_user.id if current_user else None,
-            "name": ticket_data.name,
-            "email": ticket_data.email,
-            "phone": ticket_data.phone,
-            "company": ticket_data.company,
-            "subject": ticket_data.subject,
-            "description": ticket_data.description,
-            "category": ticket_data.category or "general",
-            "priority": ticket_data.priority or "medium",
-            "attachments": ticket_data.attachments or [],
-        }
+    internal_data = SupportTicketInternalCreate(
+        ticketNumber="",
+        user=current_user.id if current_user else None,
+        name=ticket_data.name,
+        email=ticket_data.email,
+        phone=ticket_data.phone,
+        company=ticket_data.company,
+        subject=ticket_data.subject,
+        description=ticket_data.description,
+        category=ticket_data.category or "general",
+        priority=ticket_data.priority or "medium",
+        attachments=ticket_data.attachments or [],
     )
+    ticket = await support_ticket_repository.create(internal_data)
 
     populated_ticket = await populate_ticket(ticket)
     return populated_ticket
@@ -171,7 +172,7 @@ async def update_ticket_status(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    update_data = {"status": status_data.status}
+    update_data = SupportTicketInternalUpdate(status=status_data.status)
     if status_data.assignedTo:
         update_data.assignedTo = status_data.assignedTo
 
@@ -214,7 +215,8 @@ async def add_ticket_response(
 async def update_ticket_priority(
     ticket_id: str, priority_data: PriorityUpdate, current_user: User = Depends(require_super_admin)
 ):
-    ticket = await support_ticket_repository.update(ticket_id, {"priority": priority_data.priority})
+    update_data = SupportTicketInternalUpdate(priority=priority_data.priority)
+    ticket = await support_ticket_repository.update(ticket_id, update_data)
 
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")

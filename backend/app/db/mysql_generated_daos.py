@@ -279,7 +279,7 @@ TABLES_CONFIG = {
         "api_name": "supportTickets",
         "child_tables": {
             "attachments": ("sj_ticket_attachments", ["url"], [""], True, False),
-            "responses": ("sj_ticket_responses", ["admin_id", "message"], ["adminId", "message"], False, False),
+            "responses": ("sj_ticket_responses", ["admin_id", "message"], ["user", "message"], False, False),
         },
     },
     "sj_device_subscriptions": {

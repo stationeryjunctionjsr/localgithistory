@@ -348,7 +348,7 @@ class ValetPayoutSettingsInternalUpdate(BaseModel):
     returnPickupChargePerOrder: Optional[float] = None
 
 class SupportTicketInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     ticketNumber: str
     user: Optional[str] = None
     name: Optional[str] = None
@@ -360,19 +360,21 @@ class SupportTicketInternalCreate(BaseModel):
     category: Optional[str] = "general"
     priority: Optional[str] = "medium"
     status: Optional[str] = "open"
-    attachments: Optional[List[str]] = []
+    attachments: Optional[List[str]] = None
     assignedTo: Optional[str] = None
-    responses: Optional[List['TicketResponseItem']] = []
+    responses: Optional[List[dict]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: Optional[str] = None
 
 class SupportTicketInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    assignedTo: Optional[str] = None
     status: Optional[str] = None
+    priority: Optional[str] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
-    responses: Optional[List['TicketResponseItem']] = None
+    responses: Optional[List[dict]] = None
 
 from app.models.schemas import TicketResponseItem
 

@@ -1,4 +1,5 @@
 from app.models.daos import NotificationInternal
+from app.models.schemas import SupportTicketInternal
 from app.models.daos_flat import ContactInternal, SchemeInternal, ReturnSettingsInternal, ActivityInternal, ReturnRequestInternal
 from app.models.schemas import SearchTagResponse, CollectionResponse, SchemeResponse, DeliveryChargeResponse, DefaultDeliveryChargeResponse
 """
@@ -157,6 +158,7 @@ FLAT_RELATIONAL_DAOS = {
             "resolvedAt": "resolved_at",
             "closedAt": "closed_at",
         },
+        schema_cls=SupportTicketInternal
     ),
     "orderFeedback": _dao(
         "sj_order_feedback",
