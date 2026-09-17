@@ -3,6 +3,7 @@ from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.models.daos_flat import SearchTagInternalCreate, SearchTagInternalUpdate
 from app.models.schemas import SearchTagCreate, SearchTagUpdate, SearchTagResponse
 from app.repositories.search_tag_repository import search_tag_repository
 from app.utils.auth import require_super_admin
@@ -22,7 +23,8 @@ async def get_all_tags():
 @router.post("", response_model=SearchTagResponse)
 @router.post("/", response_model=SearchTagResponse)
 async def create_tag(tag: SearchTagCreate, admin: User = Depends(require_super_admin)):
-    return await search_tag_repository.create(tag)
+    internal_data = SearchTagInternalCreate(**tag.model_dump())
+    return await search_tag_repository.create(internal_data)
 
 
 @router.put("/{id}", response_model=SearchTagResponse)
@@ -40,7 +42,8 @@ async def update_tag(id: str, tag_update: SearchTagUpdate, admin: User = Depends
         logger.info("Search tag resolved by tagId fallback, internal id=%s", id)
 
     logger.info("Search tag found for update id=%s", id)
-    return await search_tag_repository.update(id, tag_update)
+    internal_update = SearchTagInternalUpdate(**tag_update.model_dump(exclude_unset=True))
+    return await search_tag_repository.update(id, internal_update)
 
 
 @router.delete("/{id}", response_model=MessageResponse)

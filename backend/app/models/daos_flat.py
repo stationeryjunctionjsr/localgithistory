@@ -198,6 +198,48 @@ class CollectionInternalUpdate(BaseModel):
     visibilityRules: Optional[List[str]] = None
     productIds: Optional[List[str]] = None
 
+class SearchTagInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    tagId: Optional[str] = None
+    name: Optional[str] = None
+    type: Optional[str] = None
+    isActive: Optional[bool] = None
+    categories: Optional[List[str]] = None
+    subCategories: Optional[List[str]] = None
+    brands: Optional[List[str]] = None
+    collections: Optional[List[str]] = None
+    productIds: Optional[List[str]] = None
+    excludedProductIds: Optional[List[str]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class SearchTagInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    tagId: Optional[str] = None
+    name: Optional[str] = None
+    type: Optional[str] = None
+    isActive: Optional[bool] = None
+    categories: Optional[List[str]] = None
+    subCategories: Optional[List[str]] = None
+    brands: Optional[List[str]] = None
+    collections: Optional[List[str]] = None
+    productIds: Optional[List[str]] = None
+    excludedProductIds: Optional[List[str]] = None
+
+class SearchTagInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    tagId: Optional[str] = None
+    name: Optional[str] = None
+    type: Optional[str] = None
+    isActive: Optional[bool] = None
+    categories: Optional[List[str]] = None
+    subCategories: Optional[List[str]] = None
+    brands: Optional[List[str]] = None
+    collections: Optional[List[str]] = None
+    productIds: Optional[List[str]] = None
+    excludedProductIds: Optional[List[str]] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None
