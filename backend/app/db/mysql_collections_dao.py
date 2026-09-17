@@ -93,25 +93,25 @@ class MySQLCollectionsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "name") and getattr(data, "name") is not None:
+        if data.name is not None:
             cols.append("name")
-            params["s_name"] = getattr(data, "name")
+            params["s_name"] = data.name
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             cols.append("description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "imageUrl") and getattr(data, "imageUrl") is not None:
+        if data.imageUrl is not None:
             cols.append("image_url")
-            params["s_imageUrl"] = getattr(data, "imageUrl")
+            params["s_imageUrl"] = data.imageUrl
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             cols.append("is_active")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
-        if hasattr(data, "displayOrder") and getattr(data, "displayOrder") is not None:
+        if data.displayOrder is not None:
             cols.append("display_order")
-            params["s_displayOrder"] = getattr(data, "displayOrder")
+            params["s_displayOrder"] = data.displayOrder
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'imageUrl', 'isActive', 'displayOrder'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -133,25 +133,25 @@ class MySQLCollectionsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "name") and getattr(data, "name") is not None:
+        if data.name is not None:
             updates.append("name = :s_name")
-            params["s_name"] = getattr(data, "name")
+            params["s_name"] = data.name
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             updates.append("description = :s_description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "imageUrl") and getattr(data, "imageUrl") is not None:
+        if data.imageUrl is not None:
             updates.append("image_url = :s_imageUrl")
-            params["s_imageUrl"] = getattr(data, "imageUrl")
+            params["s_imageUrl"] = data.imageUrl
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
-        if hasattr(data, "displayOrder") and getattr(data, "displayOrder") is not None:
+        if data.displayOrder is not None:
             updates.append("display_order = :s_displayOrder")
-            params["s_displayOrder"] = getattr(data, "displayOrder")
+            params["s_displayOrder"] = data.displayOrder
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -270,33 +270,33 @@ class MySQLCollectionsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "visiblePages") and getattr(data, "visiblePages") is not None:
+        if data.visiblePages is not None:
             await session.execute(text(f"DELETE FROM sj_collection_pages WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "visiblePages") or []
+            child_list = data.visiblePages or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_collection_pages (parent_id, page) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "userSegments") and getattr(data, "userSegments") is not None:
+        if data.userSegments is not None:
             await session.execute(text(f"DELETE FROM sj_collection_segments WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "userSegments") or []
+            child_list = data.userSegments or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_collection_segments (parent_id, segment) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "visibilityRules") and getattr(data, "visibilityRules") is not None:
+        if data.visibilityRules is not None:
             await session.execute(text(f"DELETE FROM sj_collection_rules WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "visibilityRules") or []
+            child_list = data.visibilityRules or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_collection_rules (parent_id, rule) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "productIds") and getattr(data, "productIds") is not None:
+        if data.productIds is not None:
             await session.execute(text(f"DELETE FROM sj_collection_products WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "productIds") or []
+            child_list = data.productIds or []
 
             if child_list:
                 for item in child_list:

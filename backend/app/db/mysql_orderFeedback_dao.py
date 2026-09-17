@@ -93,33 +93,33 @@ class MySQLOrderFeedbackDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "orderId") and getattr(data, "orderId") is not None:
+        if data.orderId is not None:
             cols.append("order_id")
-            params["s_orderId"] = getattr(data, "orderId")
+            params["s_orderId"] = data.orderId
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+        if data.userId is not None:
             cols.append("user_id")
-            params["s_userId"] = getattr(data, "userId")
+            params["s_userId"] = data.userId
 
-        if hasattr(data, "rating") and getattr(data, "rating") is not None:
+        if data.rating is not None:
             cols.append("rating")
-            params["s_rating"] = getattr(data, "rating")
+            params["s_rating"] = data.rating
 
-        if hasattr(data, "comment") and getattr(data, "comment") is not None:
+        if data.comment is not None:
             cols.append("comments")
-            params["s_comment"] = getattr(data, "comment")
+            params["s_comment"] = data.comment
 
-        if hasattr(data, "deliveryRating") and getattr(data, "deliveryRating") is not None:
+        if data.deliveryRating is not None:
             cols.append("delivery_rating")
-            params["s_deliveryRating"] = getattr(data, "deliveryRating")
+            params["s_deliveryRating"] = data.deliveryRating
 
-        if hasattr(data, "deliveryComment") and getattr(data, "deliveryComment") is not None:
+        if data.deliveryComment is not None:
             cols.append("delivery_comment")
-            params["s_deliveryComment"] = getattr(data, "deliveryComment")
+            params["s_deliveryComment"] = data.deliveryComment
 
-        if hasattr(data, "feedbackType") and getattr(data, "feedbackType") is not None:
+        if data.feedbackType is not None:
             cols.append("feedback_type")
-            params["s_feedbackType"] = getattr(data, "feedbackType")
+            params["s_feedbackType"] = data.feedbackType
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['orderId', 'userId', 'rating', 'comment', 'deliveryRating', 'deliveryComment', 'feedbackType'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -141,33 +141,33 @@ class MySQLOrderFeedbackDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "orderId") and getattr(data, "orderId") is not None:
+        if data.orderId is not None:
             updates.append("order_id = :s_orderId")
-            params["s_orderId"] = getattr(data, "orderId")
+            params["s_orderId"] = data.orderId
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+        if data.userId is not None:
             updates.append("user_id = :s_userId")
-            params["s_userId"] = getattr(data, "userId")
+            params["s_userId"] = data.userId
 
-        if hasattr(data, "rating") and getattr(data, "rating") is not None:
+        if data.rating is not None:
             updates.append("rating = :s_rating")
-            params["s_rating"] = getattr(data, "rating")
+            params["s_rating"] = data.rating
 
-        if hasattr(data, "comment") and getattr(data, "comment") is not None:
+        if data.comment is not None:
             updates.append("comments = :s_comment")
-            params["s_comment"] = getattr(data, "comment")
+            params["s_comment"] = data.comment
 
-        if hasattr(data, "deliveryRating") and getattr(data, "deliveryRating") is not None:
+        if data.deliveryRating is not None:
             updates.append("delivery_rating = :s_deliveryRating")
-            params["s_deliveryRating"] = getattr(data, "deliveryRating")
+            params["s_deliveryRating"] = data.deliveryRating
 
-        if hasattr(data, "deliveryComment") and getattr(data, "deliveryComment") is not None:
+        if data.deliveryComment is not None:
             updates.append("delivery_comment = :s_deliveryComment")
-            params["s_deliveryComment"] = getattr(data, "deliveryComment")
+            params["s_deliveryComment"] = data.deliveryComment
 
-        if hasattr(data, "feedbackType") and getattr(data, "feedbackType") is not None:
+        if data.feedbackType is not None:
             updates.append("feedback_type = :s_feedbackType")
-            params["s_feedbackType"] = getattr(data, "feedbackType")
+            params["s_feedbackType"] = data.feedbackType
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)

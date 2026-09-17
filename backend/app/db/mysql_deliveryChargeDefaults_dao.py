@@ -93,17 +93,17 @@ class MySQLDeliveryChargeDefaultsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "applicableToWholesaler") and getattr(data, "applicableToWholesaler") is not None:
+        if data.applicableToWholesaler is not None:
             cols.append("applicable_to_wholesaler")
-            params["s_applicableToWholesaler"] = getattr(data, "applicableToWholesaler")
+            params["s_applicableToWholesaler"] = data.applicableToWholesaler
 
-        if hasattr(data, "applicableToRetailer") and getattr(data, "applicableToRetailer") is not None:
+        if data.applicableToRetailer is not None:
             cols.append("applicable_to_retailer")
-            params["s_applicableToRetailer"] = getattr(data, "applicableToRetailer")
+            params["s_applicableToRetailer"] = data.applicableToRetailer
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             cols.append("is_active")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['applicableToWholesaler', 'applicableToRetailer', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -125,17 +125,17 @@ class MySQLDeliveryChargeDefaultsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "applicableToWholesaler") and getattr(data, "applicableToWholesaler") is not None:
+        if data.applicableToWholesaler is not None:
             updates.append("applicable_to_wholesaler = :s_applicableToWholesaler")
-            params["s_applicableToWholesaler"] = getattr(data, "applicableToWholesaler")
+            params["s_applicableToWholesaler"] = data.applicableToWholesaler
 
-        if hasattr(data, "applicableToRetailer") and getattr(data, "applicableToRetailer") is not None:
+        if data.applicableToRetailer is not None:
             updates.append("applicable_to_retailer = :s_applicableToRetailer")
-            params["s_applicableToRetailer"] = getattr(data, "applicableToRetailer")
+            params["s_applicableToRetailer"] = data.applicableToRetailer
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -224,15 +224,15 @@ class MySQLDeliveryChargeDefaultsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "tiers") and getattr(data, "tiers") is not None:
+        if data.tiers is not None:
             await session.execute(text(f"DELETE FROM sj_delivery_charge_def_tiers WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "tiers") or []
+            child_list = data.tiers or []
 
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
 
-                    p["v0"] = getattr(item, "min", None)
-                    p["v1"] = getattr(item, "max", None)
-                    p["v2"] = getattr(item, "charge", None)
+                    p["v0"] = item.min
+                    p["v1"] = item.max
+                    p["v2"] = item.charge
                     await session.execute(text(f"INSERT INTO sj_delivery_charge_def_tiers (parent_id, min_order_value, max_order_value, charge) VALUES (:id, :v0, :v1, :v2)"), p)

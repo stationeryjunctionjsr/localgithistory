@@ -93,65 +93,65 @@ class MySQLCouponsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "code") and getattr(data, "code") is not None:
+        if data.code is not None:
             cols.append("code")
-            params["s_code"] = getattr(data, "code")
+            params["s_code"] = data.code
 
-        if hasattr(data, "discountType") and getattr(data, "discountType") is not None:
+        if data.discountType is not None:
             cols.append("discount_type")
-            params["s_discountType"] = getattr(data, "discountType")
+            params["s_discountType"] = data.discountType
 
-        if hasattr(data, "discountValue") and getattr(data, "discountValue") is not None:
+        if data.discountValue is not None:
             cols.append("discount_value")
-            params["s_discountValue"] = getattr(data, "discountValue")
+            params["s_discountValue"] = data.discountValue
 
-        if hasattr(data, "minOrderValue") and getattr(data, "minOrderValue") is not None:
+        if data.minOrderValue is not None:
             cols.append("min_order_value")
-            params["s_minOrderValue"] = getattr(data, "minOrderValue")
+            params["s_minOrderValue"] = data.minOrderValue
 
-        if hasattr(data, "maxUses") and getattr(data, "maxUses") is not None:
+        if data.maxUses is not None:
             cols.append("max_uses")
-            params["s_maxUses"] = getattr(data, "maxUses")
+            params["s_maxUses"] = data.maxUses
 
-        if hasattr(data, "usedCount") and getattr(data, "usedCount") is not None:
+        if data.usedCount is not None:
             cols.append("used_count")
-            params["s_usedCount"] = getattr(data, "usedCount")
+            params["s_usedCount"] = data.usedCount
 
-        if hasattr(data, "validFrom") and getattr(data, "validFrom") is not None:
+        if data.validFrom is not None:
             cols.append("start_date")
-            params["s_validFrom"] = getattr(data, "validFrom")
+            params["s_validFrom"] = data.validFrom
 
-        if hasattr(data, "validUntil") and getattr(data, "validUntil") is not None:
+        if data.validUntil is not None:
             cols.append("end_date")
-            params["s_validUntil"] = getattr(data, "validUntil")
+            params["s_validUntil"] = data.validUntil
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             cols.append("is_active")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
-        if hasattr(data, "typeOfDiscount") and getattr(data, "typeOfDiscount") is not None:
+        if data.typeOfDiscount is not None:
             cols.append("type_of_discount")
-            params["s_typeOfDiscount"] = getattr(data, "typeOfDiscount")
+            params["s_typeOfDiscount"] = data.typeOfDiscount
 
-        if hasattr(data, "method") and getattr(data, "method") is not None:
+        if data.method is not None:
             cols.append("method")
-            params["s_method"] = getattr(data, "method")
+            params["s_method"] = data.method
 
-        if hasattr(data, "minRequirementType") and getattr(data, "minRequirementType") is not None:
+        if data.minRequirementType is not None:
             cols.append("min_requirement_type")
-            params["s_minRequirementType"] = getattr(data, "minRequirementType")
+            params["s_minRequirementType"] = data.minRequirementType
 
-        if hasattr(data, "minQuantityOfEligibleItems") and getattr(data, "minQuantityOfEligibleItems") is not None:
+        if data.minQuantityOfEligibleItems is not None:
             cols.append("min_quantity_of_eligible_items")
-            params["s_minQuantityOfEligibleItems"] = getattr(data, "minQuantityOfEligibleItems")
+            params["s_minQuantityOfEligibleItems"] = data.minQuantityOfEligibleItems
 
-        if hasattr(data, "maxDiscountAmount") and getattr(data, "maxDiscountAmount") is not None:
+        if data.maxDiscountAmount is not None:
             cols.append("max_discount_amount")
-            params["s_maxDiscountAmount"] = getattr(data, "maxDiscountAmount")
+            params["s_maxDiscountAmount"] = data.maxDiscountAmount
 
-        if hasattr(data, "appliesToType") and getattr(data, "appliesToType") is not None:
+        if data.appliesToType is not None:
             cols.append("applies_to_type")
-            params["s_appliesToType"] = getattr(data, "appliesToType")
+            params["s_appliesToType"] = data.appliesToType
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['code', 'discountType', 'discountValue', 'minOrderValue', 'maxUses', 'usedCount', 'validFrom', 'validUntil', 'isActive', 'typeOfDiscount', 'method', 'minRequirementType', 'minQuantityOfEligibleItems', 'maxDiscountAmount', 'appliesToType'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -173,65 +173,65 @@ class MySQLCouponsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "code") and getattr(data, "code") is not None:
+        if data.code is not None:
             updates.append("code = :s_code")
-            params["s_code"] = getattr(data, "code")
+            params["s_code"] = data.code
 
-        if hasattr(data, "discountType") and getattr(data, "discountType") is not None:
+        if data.discountType is not None:
             updates.append("discount_type = :s_discountType")
-            params["s_discountType"] = getattr(data, "discountType")
+            params["s_discountType"] = data.discountType
 
-        if hasattr(data, "discountValue") and getattr(data, "discountValue") is not None:
+        if data.discountValue is not None:
             updates.append("discount_value = :s_discountValue")
-            params["s_discountValue"] = getattr(data, "discountValue")
+            params["s_discountValue"] = data.discountValue
 
-        if hasattr(data, "minOrderValue") and getattr(data, "minOrderValue") is not None:
+        if data.minOrderValue is not None:
             updates.append("min_order_value = :s_minOrderValue")
-            params["s_minOrderValue"] = getattr(data, "minOrderValue")
+            params["s_minOrderValue"] = data.minOrderValue
 
-        if hasattr(data, "maxUses") and getattr(data, "maxUses") is not None:
+        if data.maxUses is not None:
             updates.append("max_uses = :s_maxUses")
-            params["s_maxUses"] = getattr(data, "maxUses")
+            params["s_maxUses"] = data.maxUses
 
-        if hasattr(data, "usedCount") and getattr(data, "usedCount") is not None:
+        if data.usedCount is not None:
             updates.append("used_count = :s_usedCount")
-            params["s_usedCount"] = getattr(data, "usedCount")
+            params["s_usedCount"] = data.usedCount
 
-        if hasattr(data, "validFrom") and getattr(data, "validFrom") is not None:
+        if data.validFrom is not None:
             updates.append("start_date = :s_validFrom")
-            params["s_validFrom"] = getattr(data, "validFrom")
+            params["s_validFrom"] = data.validFrom
 
-        if hasattr(data, "validUntil") and getattr(data, "validUntil") is not None:
+        if data.validUntil is not None:
             updates.append("end_date = :s_validUntil")
-            params["s_validUntil"] = getattr(data, "validUntil")
+            params["s_validUntil"] = data.validUntil
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
-        if hasattr(data, "typeOfDiscount") and getattr(data, "typeOfDiscount") is not None:
+        if data.typeOfDiscount is not None:
             updates.append("type_of_discount = :s_typeOfDiscount")
-            params["s_typeOfDiscount"] = getattr(data, "typeOfDiscount")
+            params["s_typeOfDiscount"] = data.typeOfDiscount
 
-        if hasattr(data, "method") and getattr(data, "method") is not None:
+        if data.method is not None:
             updates.append("method = :s_method")
-            params["s_method"] = getattr(data, "method")
+            params["s_method"] = data.method
 
-        if hasattr(data, "minRequirementType") and getattr(data, "minRequirementType") is not None:
+        if data.minRequirementType is not None:
             updates.append("min_requirement_type = :s_minRequirementType")
-            params["s_minRequirementType"] = getattr(data, "minRequirementType")
+            params["s_minRequirementType"] = data.minRequirementType
 
-        if hasattr(data, "minQuantityOfEligibleItems") and getattr(data, "minQuantityOfEligibleItems") is not None:
+        if data.minQuantityOfEligibleItems is not None:
             updates.append("min_quantity_of_eligible_items = :s_minQuantityOfEligibleItems")
-            params["s_minQuantityOfEligibleItems"] = getattr(data, "minQuantityOfEligibleItems")
+            params["s_minQuantityOfEligibleItems"] = data.minQuantityOfEligibleItems
 
-        if hasattr(data, "maxDiscountAmount") and getattr(data, "maxDiscountAmount") is not None:
+        if data.maxDiscountAmount is not None:
             updates.append("max_discount_amount = :s_maxDiscountAmount")
-            params["s_maxDiscountAmount"] = getattr(data, "maxDiscountAmount")
+            params["s_maxDiscountAmount"] = data.maxDiscountAmount
 
-        if hasattr(data, "appliesToType") and getattr(data, "appliesToType") is not None:
+        if data.appliesToType is not None:
             updates.append("applies_to_type = :s_appliesToType")
-            params["s_appliesToType"] = getattr(data, "appliesToType")
+            params["s_appliesToType"] = data.appliesToType
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -386,53 +386,53 @@ class MySQLCouponsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "quantityTiers") and getattr(data, "quantityTiers") is not None:
+        if data.quantityTiers is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_quantity_tiers WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "quantityTiers") or []
+            child_list = data.quantityTiers or []
 
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
 
-                    p["v0"] = getattr(item, "minQuantity", None)
-                    p["v1"] = getattr(item, "discountValue", None)
+                    p["v0"] = item.minQuantity
+                    p["v1"] = item.discountValue
                     await session.execute(text(f"INSERT INTO sj_coupon_quantity_tiers (parent_id, min_qty, discount_value) VALUES (:id, :v0, :v1)"), p)
 
-        if hasattr(data, "applicableRoles") and getattr(data, "applicableRoles") is not None:
+        if data.applicableRoles is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_roles WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "applicableRoles") or []
+            child_list = data.applicableRoles or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_coupon_roles (parent_id, role) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "applicableUserIds") and getattr(data, "applicableUserIds") is not None:
+        if data.applicableUserIds is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_users WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "applicableUserIds") or []
+            child_list = data.applicableUserIds or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_coupon_users (parent_id, user_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "applicableCategories") and getattr(data, "applicableCategories") is not None:
+        if data.applicableCategories is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_categories WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "applicableCategories") or []
+            child_list = data.applicableCategories or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_coupon_categories (parent_id, category) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "appliesToValueIds") and getattr(data, "appliesToValueIds") is not None:
+        if data.appliesToValueIds is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_applies_to_values WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "appliesToValueIds") or []
+            child_list = data.appliesToValueIds or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_coupon_applies_to_values (parent_id, value_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "excludedProductIds") and getattr(data, "excludedProductIds") is not None:
+        if data.excludedProductIds is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_excluded_products WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "excludedProductIds") or []
+            child_list = data.excludedProductIds or []
 
             if child_list:
                 for item in child_list:

@@ -93,41 +93,41 @@ class MySQLSchemesDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "name") and getattr(data, "name") is not None:
+        if data.name is not None:
             cols.append("name")
-            params["s_name"] = getattr(data, "name")
+            params["s_name"] = data.name
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             cols.append("description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "discountType") and getattr(data, "discountType") is not None:
+        if data.discountType is not None:
             cols.append("discount_type")
-            params["s_discountType"] = getattr(data, "discountType")
+            params["s_discountType"] = data.discountType
 
-        if hasattr(data, "discountValue") and getattr(data, "discountValue") is not None:
+        if data.discountValue is not None:
             cols.append("discount_value")
-            params["s_discountValue"] = getattr(data, "discountValue")
+            params["s_discountValue"] = data.discountValue
 
-        if hasattr(data, "minOrderValue") and getattr(data, "minOrderValue") is not None:
+        if data.minOrderValue is not None:
             cols.append("min_order_value")
-            params["s_minOrderValue"] = getattr(data, "minOrderValue")
+            params["s_minOrderValue"] = data.minOrderValue
 
-        if hasattr(data, "validFrom") and getattr(data, "validFrom") is not None:
+        if data.validFrom is not None:
             cols.append("valid_from")
-            params["s_validFrom"] = getattr(data, "validFrom")
+            params["s_validFrom"] = data.validFrom
 
-        if hasattr(data, "validUntil") and getattr(data, "validUntil") is not None:
+        if data.validUntil is not None:
             cols.append("valid_until")
-            params["s_validUntil"] = getattr(data, "validUntil")
+            params["s_validUntil"] = data.validUntil
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             cols.append("is_active")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
-        if hasattr(data, "code") and getattr(data, "code") is not None:
+        if data.code is not None:
             cols.append("code")
-            params["s_code"] = getattr(data, "code")
+            params["s_code"] = data.code
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'discountType', 'discountValue', 'minOrderValue', 'validFrom', 'validUntil', 'isActive', 'code'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -149,41 +149,41 @@ class MySQLSchemesDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "name") and getattr(data, "name") is not None:
+        if data.name is not None:
             updates.append("name = :s_name")
-            params["s_name"] = getattr(data, "name")
+            params["s_name"] = data.name
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             updates.append("description = :s_description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "discountType") and getattr(data, "discountType") is not None:
+        if data.discountType is not None:
             updates.append("discount_type = :s_discountType")
-            params["s_discountType"] = getattr(data, "discountType")
+            params["s_discountType"] = data.discountType
 
-        if hasattr(data, "discountValue") and getattr(data, "discountValue") is not None:
+        if data.discountValue is not None:
             updates.append("discount_value = :s_discountValue")
-            params["s_discountValue"] = getattr(data, "discountValue")
+            params["s_discountValue"] = data.discountValue
 
-        if hasattr(data, "minOrderValue") and getattr(data, "minOrderValue") is not None:
+        if data.minOrderValue is not None:
             updates.append("min_order_value = :s_minOrderValue")
-            params["s_minOrderValue"] = getattr(data, "minOrderValue")
+            params["s_minOrderValue"] = data.minOrderValue
 
-        if hasattr(data, "validFrom") and getattr(data, "validFrom") is not None:
+        if data.validFrom is not None:
             updates.append("valid_from = :s_validFrom")
-            params["s_validFrom"] = getattr(data, "validFrom")
+            params["s_validFrom"] = data.validFrom
 
-        if hasattr(data, "validUntil") and getattr(data, "validUntil") is not None:
+        if data.validUntil is not None:
             updates.append("valid_until = :s_validUntil")
-            params["s_validUntil"] = getattr(data, "validUntil")
+            params["s_validUntil"] = data.validUntil
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
-        if hasattr(data, "code") and getattr(data, "code") is not None:
+        if data.code is not None:
             updates.append("code = :s_code")
-            params["s_code"] = getattr(data, "code")
+            params["s_code"] = data.code
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -273,9 +273,9 @@ class MySQLSchemesDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "applicableRoles") and getattr(data, "applicableRoles") is not None:
+        if data.applicableRoles is not None:
             await session.execute(text(f"DELETE FROM sj_scheme_roles WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "applicableRoles") or []
+            child_list = data.applicableRoles or []
 
             if child_list:
                 for item in child_list:

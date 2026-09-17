@@ -93,69 +93,69 @@ class MySQLReturnRequestsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "returnId") and getattr(data, "returnId") is not None:
+        if data.returnId is not None:
             cols.append("return_id")
-            params["s_returnId"] = getattr(data, "returnId")
+            params["s_returnId"] = data.returnId
 
-        if hasattr(data, "orderId") and getattr(data, "orderId") is not None:
+        if data.orderId is not None:
             cols.append("order_id")
-            params["s_orderId"] = getattr(data, "orderId")
+            params["s_orderId"] = data.orderId
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+        if data.userId is not None:
             cols.append("user_id")
-            params["s_userId"] = getattr(data, "userId")
+            params["s_userId"] = data.userId
 
-        if hasattr(data, "paymentMethod") and getattr(data, "paymentMethod") is not None:
+        if data.paymentMethod is not None:
             cols.append("payment_method")
-            params["s_paymentMethod"] = getattr(data, "paymentMethod")
+            params["s_paymentMethod"] = data.paymentMethod
 
-        if hasattr(data, "upiPaymentScreenshot") and getattr(data, "upiPaymentScreenshot") is not None:
+        if data.upiPaymentScreenshot is not None:
             cols.append("upi_payment_screenshot")
-            params["s_upiPaymentScreenshot"] = getattr(data, "upiPaymentScreenshot")
+            params["s_upiPaymentScreenshot"] = data.upiPaymentScreenshot
 
-        if hasattr(data, "notes") and getattr(data, "notes") is not None:
+        if data.notes is not None:
             cols.append("notes")
-            params["s_notes"] = getattr(data, "notes")
+            params["s_notes"] = data.notes
 
-        if hasattr(data, "status") and getattr(data, "status") is not None:
+        if data.status is not None:
             cols.append("status")
-            params["s_status"] = getattr(data, "status")
+            params["s_status"] = data.status
 
-        if hasattr(data, "valetId") and getattr(data, "valetId") is not None:
+        if data.valetId is not None:
             cols.append("valet_id")
-            params["s_valetId"] = getattr(data, "valetId")
+            params["s_valetId"] = data.valetId
 
-        if hasattr(data, "sellerId") and getattr(data, "sellerId") is not None:
+        if data.sellerId is not None:
             cols.append("seller_id")
-            params["s_sellerId"] = getattr(data, "sellerId")
+            params["s_sellerId"] = data.sellerId
 
-        if hasattr(data, "deliverySlotId") and getattr(data, "deliverySlotId") is not None:
+        if data.deliverySlotId is not None:
             cols.append("delivery_slot_id")
-            params["s_deliverySlotId"] = getattr(data, "deliverySlotId")
+            params["s_deliverySlotId"] = data.deliverySlotId
 
-        if hasattr(data, "deliverySlotConfigId") and getattr(data, "deliverySlotConfigId") is not None:
+        if data.deliverySlotConfigId is not None:
             cols.append("delivery_slot_config_id")
-            params["s_deliverySlotConfigId"] = getattr(data, "deliverySlotConfigId")
+            params["s_deliverySlotConfigId"] = data.deliverySlotConfigId
 
-        if hasattr(data, "deliverySlotDate") and getattr(data, "deliverySlotDate") is not None:
+        if data.deliverySlotDate is not None:
             cols.append("delivery_slot_date")
-            params["s_deliverySlotDate"] = getattr(data, "deliverySlotDate")
+            params["s_deliverySlotDate"] = data.deliverySlotDate
 
-        if hasattr(data, "pendingValetId") and getattr(data, "pendingValetId") is not None:
+        if data.pendingValetId is not None:
             cols.append("pending_valet_id")
-            params["s_pendingValetId"] = getattr(data, "pendingValetId")
+            params["s_pendingValetId"] = data.pendingValetId
 
-        if hasattr(data, "valetAssignedAt") and getattr(data, "valetAssignedAt") is not None:
+        if data.valetAssignedAt is not None:
             cols.append("valet_assigned_at")
-            params["s_valetAssignedAt"] = getattr(data, "valetAssignedAt")
+            params["s_valetAssignedAt"] = data.valetAssignedAt
 
-        if hasattr(data, "valetCascadeCount") and getattr(data, "valetCascadeCount") is not None:
+        if data.valetCascadeCount is not None:
             cols.append("valet_cascade_count")
-            params["s_valetCascadeCount"] = getattr(data, "valetCascadeCount")
+            params["s_valetCascadeCount"] = data.valetCascadeCount
 
-        if hasattr(data, "deliveryCharge") and getattr(data, "deliveryCharge") is not None:
+        if data.deliveryCharge is not None:
             cols.append("delivery_charge")
-            params["s_deliveryCharge"] = getattr(data, "deliveryCharge")
+            params["s_deliveryCharge"] = data.deliveryCharge
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['returnId', 'orderId', 'userId', 'paymentMethod', 'upiPaymentScreenshot', 'notes', 'status', 'valetId', 'sellerId', 'deliverySlotId', 'deliverySlotConfigId', 'deliverySlotDate', 'pendingValetId', 'valetAssignedAt', 'valetCascadeCount', 'deliveryCharge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -177,69 +177,69 @@ class MySQLReturnRequestsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "returnId") and getattr(data, "returnId") is not None:
+        if data.returnId is not None:
             updates.append("return_id = :s_returnId")
-            params["s_returnId"] = getattr(data, "returnId")
+            params["s_returnId"] = data.returnId
 
-        if hasattr(data, "orderId") and getattr(data, "orderId") is not None:
+        if data.orderId is not None:
             updates.append("order_id = :s_orderId")
-            params["s_orderId"] = getattr(data, "orderId")
+            params["s_orderId"] = data.orderId
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+        if data.userId is not None:
             updates.append("user_id = :s_userId")
-            params["s_userId"] = getattr(data, "userId")
+            params["s_userId"] = data.userId
 
-        if hasattr(data, "paymentMethod") and getattr(data, "paymentMethod") is not None:
+        if data.paymentMethod is not None:
             updates.append("payment_method = :s_paymentMethod")
-            params["s_paymentMethod"] = getattr(data, "paymentMethod")
+            params["s_paymentMethod"] = data.paymentMethod
 
-        if hasattr(data, "upiPaymentScreenshot") and getattr(data, "upiPaymentScreenshot") is not None:
+        if data.upiPaymentScreenshot is not None:
             updates.append("upi_payment_screenshot = :s_upiPaymentScreenshot")
-            params["s_upiPaymentScreenshot"] = getattr(data, "upiPaymentScreenshot")
+            params["s_upiPaymentScreenshot"] = data.upiPaymentScreenshot
 
-        if hasattr(data, "notes") and getattr(data, "notes") is not None:
+        if data.notes is not None:
             updates.append("notes = :s_notes")
-            params["s_notes"] = getattr(data, "notes")
+            params["s_notes"] = data.notes
 
-        if hasattr(data, "status") and getattr(data, "status") is not None:
+        if data.status is not None:
             updates.append("status = :s_status")
-            params["s_status"] = getattr(data, "status")
+            params["s_status"] = data.status
 
-        if hasattr(data, "valetId") and getattr(data, "valetId") is not None:
+        if data.valetId is not None:
             updates.append("valet_id = :s_valetId")
-            params["s_valetId"] = getattr(data, "valetId")
+            params["s_valetId"] = data.valetId
 
-        if hasattr(data, "sellerId") and getattr(data, "sellerId") is not None:
+        if data.sellerId is not None:
             updates.append("seller_id = :s_sellerId")
-            params["s_sellerId"] = getattr(data, "sellerId")
+            params["s_sellerId"] = data.sellerId
 
-        if hasattr(data, "deliverySlotId") and getattr(data, "deliverySlotId") is not None:
+        if data.deliverySlotId is not None:
             updates.append("delivery_slot_id = :s_deliverySlotId")
-            params["s_deliverySlotId"] = getattr(data, "deliverySlotId")
+            params["s_deliverySlotId"] = data.deliverySlotId
 
-        if hasattr(data, "deliverySlotConfigId") and getattr(data, "deliverySlotConfigId") is not None:
+        if data.deliverySlotConfigId is not None:
             updates.append("delivery_slot_config_id = :s_deliverySlotConfigId")
-            params["s_deliverySlotConfigId"] = getattr(data, "deliverySlotConfigId")
+            params["s_deliverySlotConfigId"] = data.deliverySlotConfigId
 
-        if hasattr(data, "deliverySlotDate") and getattr(data, "deliverySlotDate") is not None:
+        if data.deliverySlotDate is not None:
             updates.append("delivery_slot_date = :s_deliverySlotDate")
-            params["s_deliverySlotDate"] = getattr(data, "deliverySlotDate")
+            params["s_deliverySlotDate"] = data.deliverySlotDate
 
-        if hasattr(data, "pendingValetId") and getattr(data, "pendingValetId") is not None:
+        if data.pendingValetId is not None:
             updates.append("pending_valet_id = :s_pendingValetId")
-            params["s_pendingValetId"] = getattr(data, "pendingValetId")
+            params["s_pendingValetId"] = data.pendingValetId
 
-        if hasattr(data, "valetAssignedAt") and getattr(data, "valetAssignedAt") is not None:
+        if data.valetAssignedAt is not None:
             updates.append("valet_assigned_at = :s_valetAssignedAt")
-            params["s_valetAssignedAt"] = getattr(data, "valetAssignedAt")
+            params["s_valetAssignedAt"] = data.valetAssignedAt
 
-        if hasattr(data, "valetCascadeCount") and getattr(data, "valetCascadeCount") is not None:
+        if data.valetCascadeCount is not None:
             updates.append("valet_cascade_count = :s_valetCascadeCount")
-            params["s_valetCascadeCount"] = getattr(data, "valetCascadeCount")
+            params["s_valetCascadeCount"] = data.valetCascadeCount
 
-        if hasattr(data, "deliveryCharge") and getattr(data, "deliveryCharge") is not None:
+        if data.deliveryCharge is not None:
             updates.append("delivery_charge = :s_deliveryCharge")
-            params["s_deliveryCharge"] = getattr(data, "deliveryCharge")
+            params["s_deliveryCharge"] = data.deliveryCharge
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -356,27 +356,27 @@ class MySQLReturnRequestsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "items") and getattr(data, "items") is not None:
+        if data.items is not None:
             await session.execute(text(f"DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "items") or []
+            child_list = data.items or []
 
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
 
-                    p["v0"] = getattr(item, "productId", None)
-                    p["v1"] = getattr(item, "quantity", None)
-                    p["v2"] = getattr(item, "reason", None)
+                    p["v0"] = item.productId
+                    p["v1"] = item.quantity
+                    p["v2"] = item.reason
                     await session.execute(text(f"INSERT INTO sj_return_request_items (parent_id, product_id, quantity, reason) VALUES (:id, :v0, :v1, :v2)"), p)
 
-        if hasattr(data, "valetDeclineHistory") and getattr(data, "valetDeclineHistory") is not None:
+        if data.valetDeclineHistory is not None:
             await session.execute(text(f"DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "valetDeclineHistory") or []
+            child_list = data.valetDeclineHistory or []
 
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
 
-                    p["v0"] = getattr(item, "valetId", None)
-                    p["v1"] = getattr(item, "reason", None)
+                    p["v0"] = item.valetId
+                    p["v1"] = item.reason
                     await session.execute(text(f"INSERT INTO sj_return_valet_declines (parent_id, valet_id, reason) VALUES (:id, :v0, :v1)"), p)

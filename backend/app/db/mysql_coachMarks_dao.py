@@ -93,29 +93,29 @@ class MySQLCoachMarksDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "anchorId") and getattr(data, "anchorId") is not None:
+        if data.anchorId is not None:
             cols.append("anchor_id")
-            params["s_anchorId"] = getattr(data, "anchorId")
+            params["s_anchorId"] = data.anchorId
 
-        if hasattr(data, "title") and getattr(data, "title") is not None:
+        if data.title is not None:
             cols.append("title")
-            params["s_title"] = getattr(data, "title")
+            params["s_title"] = data.title
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             cols.append("description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "screenName") and getattr(data, "screenName") is not None:
+        if data.screenName is not None:
             cols.append("screen_name")
-            params["s_screenName"] = getattr(data, "screenName")
+            params["s_screenName"] = data.screenName
 
-        if hasattr(data, "sequenceOrder") and getattr(data, "sequenceOrder") is not None:
+        if data.sequenceOrder is not None:
             cols.append("sequence_order")
-            params["s_sequenceOrder"] = getattr(data, "sequenceOrder")
+            params["s_sequenceOrder"] = data.sequenceOrder
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             cols.append("is_active")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['anchorId', 'title', 'description', 'screenName', 'sequenceOrder', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -137,29 +137,29 @@ class MySQLCoachMarksDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "anchorId") and getattr(data, "anchorId") is not None:
+        if data.anchorId is not None:
             updates.append("anchor_id = :s_anchorId")
-            params["s_anchorId"] = getattr(data, "anchorId")
+            params["s_anchorId"] = data.anchorId
 
-        if hasattr(data, "title") and getattr(data, "title") is not None:
+        if data.title is not None:
             updates.append("title = :s_title")
-            params["s_title"] = getattr(data, "title")
+            params["s_title"] = data.title
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             updates.append("description = :s_description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "screenName") and getattr(data, "screenName") is not None:
+        if data.screenName is not None:
             updates.append("screen_name = :s_screenName")
-            params["s_screenName"] = getattr(data, "screenName")
+            params["s_screenName"] = data.screenName
 
-        if hasattr(data, "sequenceOrder") and getattr(data, "sequenceOrder") is not None:
+        if data.sequenceOrder is not None:
             updates.append("sequence_order = :s_sequenceOrder")
-            params["s_sequenceOrder"] = getattr(data, "sequenceOrder")
+            params["s_sequenceOrder"] = data.sequenceOrder
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)

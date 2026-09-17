@@ -93,61 +93,61 @@ class MySQLSupportTicketsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "ticketNumber") and getattr(data, "ticketNumber") is not None:
+        if data.ticketNumber is not None:
             cols.append("ticket_number")
-            params["s_ticketNumber"] = getattr(data, "ticketNumber")
+            params["s_ticketNumber"] = data.ticketNumber
 
-        if hasattr(data, "user") and getattr(data, "user") is not None:
+        if data.user is not None:
             cols.append("user_id")
-            params["s_user"] = getattr(data, "user")
+            params["s_user"] = data.user
 
-        if hasattr(data, "name") and getattr(data, "name") is not None:
+        if data.name is not None:
             cols.append("name")
-            params["s_name"] = getattr(data, "name")
+            params["s_name"] = data.name
 
-        if hasattr(data, "email") and getattr(data, "email") is not None:
+        if data.email is not None:
             cols.append("email")
-            params["s_email"] = getattr(data, "email")
+            params["s_email"] = data.email
 
-        if hasattr(data, "phone") and getattr(data, "phone") is not None:
+        if data.phone is not None:
             cols.append("phone")
-            params["s_phone"] = getattr(data, "phone")
+            params["s_phone"] = data.phone
 
-        if hasattr(data, "company") and getattr(data, "company") is not None:
+        if data.company is not None:
             cols.append("company")
-            params["s_company"] = getattr(data, "company")
+            params["s_company"] = data.company
 
-        if hasattr(data, "subject") and getattr(data, "subject") is not None:
+        if data.subject is not None:
             cols.append("subject")
-            params["s_subject"] = getattr(data, "subject")
+            params["s_subject"] = data.subject
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             cols.append("description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "category") and getattr(data, "category") is not None:
+        if data.category is not None:
             cols.append("category")
-            params["s_category"] = getattr(data, "category")
+            params["s_category"] = data.category
 
-        if hasattr(data, "priority") and getattr(data, "priority") is not None:
+        if data.priority is not None:
             cols.append("priority")
-            params["s_priority"] = getattr(data, "priority")
+            params["s_priority"] = data.priority
 
-        if hasattr(data, "status") and getattr(data, "status") is not None:
+        if data.status is not None:
             cols.append("status")
-            params["s_status"] = getattr(data, "status")
+            params["s_status"] = data.status
 
-        if hasattr(data, "assignedTo") and getattr(data, "assignedTo") is not None:
+        if data.assignedTo is not None:
             cols.append("assigned_to")
-            params["s_assignedTo"] = getattr(data, "assignedTo")
+            params["s_assignedTo"] = data.assignedTo
 
-        if hasattr(data, "resolvedAt") and getattr(data, "resolvedAt") is not None:
+        if data.resolvedAt is not None:
             cols.append("resolved_at")
-            params["s_resolvedAt"] = getattr(data, "resolvedAt")
+            params["s_resolvedAt"] = data.resolvedAt
 
-        if hasattr(data, "closedAt") and getattr(data, "closedAt") is not None:
+        if data.closedAt is not None:
             cols.append("closed_at")
-            params["s_closedAt"] = getattr(data, "closedAt")
+            params["s_closedAt"] = data.closedAt
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['ticketNumber', 'user', 'name', 'email', 'phone', 'company', 'subject', 'description', 'category', 'priority', 'status', 'assignedTo', 'resolvedAt', 'closedAt'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -169,61 +169,61 @@ class MySQLSupportTicketsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "ticketNumber") and getattr(data, "ticketNumber") is not None:
+        if data.ticketNumber is not None:
             updates.append("ticket_number = :s_ticketNumber")
-            params["s_ticketNumber"] = getattr(data, "ticketNumber")
+            params["s_ticketNumber"] = data.ticketNumber
 
-        if hasattr(data, "user") and getattr(data, "user") is not None:
+        if data.user is not None:
             updates.append("user_id = :s_user")
-            params["s_user"] = getattr(data, "user")
+            params["s_user"] = data.user
 
-        if hasattr(data, "name") and getattr(data, "name") is not None:
+        if data.name is not None:
             updates.append("name = :s_name")
-            params["s_name"] = getattr(data, "name")
+            params["s_name"] = data.name
 
-        if hasattr(data, "email") and getattr(data, "email") is not None:
+        if data.email is not None:
             updates.append("email = :s_email")
-            params["s_email"] = getattr(data, "email")
+            params["s_email"] = data.email
 
-        if hasattr(data, "phone") and getattr(data, "phone") is not None:
+        if data.phone is not None:
             updates.append("phone = :s_phone")
-            params["s_phone"] = getattr(data, "phone")
+            params["s_phone"] = data.phone
 
-        if hasattr(data, "company") and getattr(data, "company") is not None:
+        if data.company is not None:
             updates.append("company = :s_company")
-            params["s_company"] = getattr(data, "company")
+            params["s_company"] = data.company
 
-        if hasattr(data, "subject") and getattr(data, "subject") is not None:
+        if data.subject is not None:
             updates.append("subject = :s_subject")
-            params["s_subject"] = getattr(data, "subject")
+            params["s_subject"] = data.subject
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             updates.append("description = :s_description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "category") and getattr(data, "category") is not None:
+        if data.category is not None:
             updates.append("category = :s_category")
-            params["s_category"] = getattr(data, "category")
+            params["s_category"] = data.category
 
-        if hasattr(data, "priority") and getattr(data, "priority") is not None:
+        if data.priority is not None:
             updates.append("priority = :s_priority")
-            params["s_priority"] = getattr(data, "priority")
+            params["s_priority"] = data.priority
 
-        if hasattr(data, "status") and getattr(data, "status") is not None:
+        if data.status is not None:
             updates.append("status = :s_status")
-            params["s_status"] = getattr(data, "status")
+            params["s_status"] = data.status
 
-        if hasattr(data, "assignedTo") and getattr(data, "assignedTo") is not None:
+        if data.assignedTo is not None:
             updates.append("assigned_to = :s_assignedTo")
-            params["s_assignedTo"] = getattr(data, "assignedTo")
+            params["s_assignedTo"] = data.assignedTo
 
-        if hasattr(data, "resolvedAt") and getattr(data, "resolvedAt") is not None:
+        if data.resolvedAt is not None:
             updates.append("resolved_at = :s_resolvedAt")
-            params["s_resolvedAt"] = getattr(data, "resolvedAt")
+            params["s_resolvedAt"] = data.resolvedAt
 
-        if hasattr(data, "closedAt") and getattr(data, "closedAt") is not None:
+        if data.closedAt is not None:
             updates.append("closed_at = :s_closedAt")
-            params["s_closedAt"] = getattr(data, "closedAt")
+            params["s_closedAt"] = data.closedAt
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -333,22 +333,22 @@ class MySQLSupportTicketsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "attachments") and getattr(data, "attachments") is not None:
+        if data.attachments is not None:
             await session.execute(text(f"DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "attachments") or []
+            child_list = data.attachments or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_ticket_attachments (parent_id, url) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "responses") and getattr(data, "responses") is not None:
+        if data.responses is not None:
             await session.execute(text(f"DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "responses") or []
+            child_list = data.responses or []
 
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
 
-                    p["v0"] = getattr(item, "user", None)
-                    p["v1"] = getattr(item, "message", None)
+                    p["v0"] = item.user
+                    p["v1"] = item.message
                     await session.execute(text(f"INSERT INTO sj_ticket_responses (parent_id, admin_id, message) VALUES (:id, :v0, :v1)"), p)

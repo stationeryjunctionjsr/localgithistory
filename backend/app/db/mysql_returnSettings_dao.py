@@ -93,9 +93,9 @@ class MySQLReturnSettingsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "returnDays") and getattr(data, "returnDays") is not None:
+        if data.returnDays is not None:
             cols.append("return_days")
-            params["s_returnDays"] = getattr(data, "returnDays")
+            params["s_returnDays"] = data.returnDays
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['returnDays'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -117,9 +117,9 @@ class MySQLReturnSettingsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "returnDays") and getattr(data, "returnDays") is not None:
+        if data.returnDays is not None:
             updates.append("return_days = :s_returnDays")
-            params["s_returnDays"] = getattr(data, "returnDays")
+            params["s_returnDays"] = data.returnDays
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)

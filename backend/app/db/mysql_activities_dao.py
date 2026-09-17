@@ -93,57 +93,57 @@ class MySQLActivitiesDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+        if data.userId is not None:
             cols.append("user_id")
-            params["s_userId"] = getattr(data, "userId")
+            params["s_userId"] = data.userId
 
-        if hasattr(data, "sessionId") and getattr(data, "sessionId") is not None:
+        if data.sessionId is not None:
             cols.append("session_id")
-            params["s_sessionId"] = getattr(data, "sessionId")
+            params["s_sessionId"] = data.sessionId
 
-        if hasattr(data, "action") and getattr(data, "action") is not None:
+        if data.action is not None:
             cols.append("action")
-            params["s_action"] = getattr(data, "action")
+            params["s_action"] = data.action
 
-        if hasattr(data, "comment") and getattr(data, "comment") is not None:
+        if data.comment is not None:
             cols.append("comments")
-            params["s_comment"] = getattr(data, "comment")
+            params["s_comment"] = data.comment
 
-        if hasattr(data, "isGuest") and getattr(data, "isGuest") is not None:
+        if data.isGuest is not None:
             cols.append("is_guest")
-            params["s_isGuest"] = getattr(data, "isGuest")
+            params["s_isGuest"] = data.isGuest
 
-        if hasattr(data, "userAgent") and getattr(data, "userAgent") is not None:
+        if data.userAgent is not None:
             cols.append("user_agent")
-            params["s_userAgent"] = getattr(data, "userAgent")
+            params["s_userAgent"] = data.userAgent
 
-        if hasattr(data, "os") and getattr(data, "os") is not None:
+        if data.os is not None:
             cols.append("os")
-            params["s_os"] = getattr(data, "os")
+            params["s_os"] = data.os
 
-        if hasattr(data, "osVersion") and getattr(data, "osVersion") is not None:
+        if data.osVersion is not None:
             cols.append("os_version")
-            params["s_osVersion"] = getattr(data, "osVersion")
+            params["s_osVersion"] = data.osVersion
 
-        if hasattr(data, "deviceType") and getattr(data, "deviceType") is not None:
+        if data.deviceType is not None:
             cols.append("device_type")
-            params["s_deviceType"] = getattr(data, "deviceType")
+            params["s_deviceType"] = data.deviceType
 
-        if hasattr(data, "appVersion") and getattr(data, "appVersion") is not None:
+        if data.appVersion is not None:
             cols.append("app_version")
-            params["s_appVersion"] = getattr(data, "appVersion")
+            params["s_appVersion"] = data.appVersion
 
-        if hasattr(data, "deviceModel") and getattr(data, "deviceModel") is not None:
+        if data.deviceModel is not None:
             cols.append("device_model")
-            params["s_deviceModel"] = getattr(data, "deviceModel")
+            params["s_deviceModel"] = data.deviceModel
 
-        if hasattr(data, "locale") and getattr(data, "locale") is not None:
+        if data.locale is not None:
             cols.append("locale")
-            params["s_locale"] = getattr(data, "locale")
+            params["s_locale"] = data.locale
 
-        if hasattr(data, "ip") and getattr(data, "ip") is not None:
+        if data.ip is not None:
             cols.append("ip")
-            params["s_ip"] = getattr(data, "ip")
+            params["s_ip"] = data.ip
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['userId', 'sessionId', 'action', 'comment', 'isGuest', 'userAgent', 'os', 'osVersion', 'deviceType', 'appVersion', 'deviceModel', 'locale', 'ip'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -165,57 +165,57 @@ class MySQLActivitiesDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+        if data.userId is not None:
             updates.append("user_id = :s_userId")
-            params["s_userId"] = getattr(data, "userId")
+            params["s_userId"] = data.userId
 
-        if hasattr(data, "sessionId") and getattr(data, "sessionId") is not None:
+        if data.sessionId is not None:
             updates.append("session_id = :s_sessionId")
-            params["s_sessionId"] = getattr(data, "sessionId")
+            params["s_sessionId"] = data.sessionId
 
-        if hasattr(data, "action") and getattr(data, "action") is not None:
+        if data.action is not None:
             updates.append("action = :s_action")
-            params["s_action"] = getattr(data, "action")
+            params["s_action"] = data.action
 
-        if hasattr(data, "comment") and getattr(data, "comment") is not None:
+        if data.comment is not None:
             updates.append("comments = :s_comment")
-            params["s_comment"] = getattr(data, "comment")
+            params["s_comment"] = data.comment
 
-        if hasattr(data, "isGuest") and getattr(data, "isGuest") is not None:
+        if data.isGuest is not None:
             updates.append("is_guest = :s_isGuest")
-            params["s_isGuest"] = getattr(data, "isGuest")
+            params["s_isGuest"] = data.isGuest
 
-        if hasattr(data, "userAgent") and getattr(data, "userAgent") is not None:
+        if data.userAgent is not None:
             updates.append("user_agent = :s_userAgent")
-            params["s_userAgent"] = getattr(data, "userAgent")
+            params["s_userAgent"] = data.userAgent
 
-        if hasattr(data, "os") and getattr(data, "os") is not None:
+        if data.os is not None:
             updates.append("os = :s_os")
-            params["s_os"] = getattr(data, "os")
+            params["s_os"] = data.os
 
-        if hasattr(data, "osVersion") and getattr(data, "osVersion") is not None:
+        if data.osVersion is not None:
             updates.append("os_version = :s_osVersion")
-            params["s_osVersion"] = getattr(data, "osVersion")
+            params["s_osVersion"] = data.osVersion
 
-        if hasattr(data, "deviceType") and getattr(data, "deviceType") is not None:
+        if data.deviceType is not None:
             updates.append("device_type = :s_deviceType")
-            params["s_deviceType"] = getattr(data, "deviceType")
+            params["s_deviceType"] = data.deviceType
 
-        if hasattr(data, "appVersion") and getattr(data, "appVersion") is not None:
+        if data.appVersion is not None:
             updates.append("app_version = :s_appVersion")
-            params["s_appVersion"] = getattr(data, "appVersion")
+            params["s_appVersion"] = data.appVersion
 
-        if hasattr(data, "deviceModel") and getattr(data, "deviceModel") is not None:
+        if data.deviceModel is not None:
             updates.append("device_model = :s_deviceModel")
-            params["s_deviceModel"] = getattr(data, "deviceModel")
+            params["s_deviceModel"] = data.deviceModel
 
-        if hasattr(data, "locale") and getattr(data, "locale") is not None:
+        if data.locale is not None:
             updates.append("locale = :s_locale")
-            params["s_locale"] = getattr(data, "locale")
+            params["s_locale"] = data.locale
 
-        if hasattr(data, "ip") and getattr(data, "ip") is not None:
+        if data.ip is not None:
             updates.append("ip = :s_ip")
-            params["s_ip"] = getattr(data, "ip")
+            params["s_ip"] = data.ip
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -313,14 +313,14 @@ class MySQLActivitiesDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "meta") and getattr(data, "meta") is not None:
+        if data.meta is not None:
             await session.execute(text(f"DELETE FROM sj_activity_meta WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "meta") or []
+            child_list = data.meta or []
 
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
 
-                    p["v0"] = getattr(item, "key", None)
-                    p["v1"] = getattr(item, "value", None)
+                    p["v0"] = item.key
+                    p["v1"] = item.value
                     await session.execute(text(f"INSERT INTO sj_activity_meta (parent_id, meta_key, meta_value) VALUES (:id, :v0, :v1)"), p)

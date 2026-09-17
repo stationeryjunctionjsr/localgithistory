@@ -93,17 +93,17 @@ class MySQLDeviceSubscriptionsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+        if data.userId is not None:
             cols.append("user_id")
-            params["s_userId"] = getattr(data, "userId")
+            params["s_userId"] = data.userId
 
-        if hasattr(data, "endpoint") and getattr(data, "endpoint") is not None:
+        if data.endpoint is not None:
             cols.append("endpoint")
-            params["s_endpoint"] = getattr(data, "endpoint")
+            params["s_endpoint"] = data.endpoint
 
-        if hasattr(data, "expoToken") and getattr(data, "expoToken") is not None:
+        if data.expoToken is not None:
             cols.append("expo_token")
-            params["s_expoToken"] = getattr(data, "expoToken")
+            params["s_expoToken"] = data.expoToken
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['userId', 'endpoint', 'expoToken'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -125,17 +125,17 @@ class MySQLDeviceSubscriptionsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+        if data.userId is not None:
             updates.append("user_id = :s_userId")
-            params["s_userId"] = getattr(data, "userId")
+            params["s_userId"] = data.userId
 
-        if hasattr(data, "endpoint") and getattr(data, "endpoint") is not None:
+        if data.endpoint is not None:
             updates.append("endpoint = :s_endpoint")
-            params["s_endpoint"] = getattr(data, "endpoint")
+            params["s_endpoint"] = data.endpoint
 
-        if hasattr(data, "expoToken") and getattr(data, "expoToken") is not None:
+        if data.expoToken is not None:
             updates.append("expo_token = :s_expoToken")
-            params["s_expoToken"] = getattr(data, "expoToken")
+            params["s_expoToken"] = data.expoToken
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -234,21 +234,21 @@ class MySQLDeviceSubscriptionsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "keys") and getattr(data, "keys") is not None:
+        if data.keys is not None:
             await session.execute(text(f"DELETE FROM sj_device_keys WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "keys") or []
+            child_list = data.keys or []
 
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
 
-                    p["v0"] = getattr(item, "key", None)
-                    p["v1"] = getattr(item, "value", None)
+                    p["v0"] = item.key
+                    p["v1"] = item.value
                     await session.execute(text(f"INSERT INTO sj_device_keys (parent_id, key_name, key_value) VALUES (:id, :v0, :v1)"), p)
 
-        if hasattr(data, "subscription") and getattr(data, "subscription") is not None:
+        if data.subscription is not None:
             await session.execute(text(f"DELETE FROM sj_device_sub_data WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "subscription") or []
+            child_list = data.subscription or []
 
             if child_list:
                 for k, v in child_list.items():

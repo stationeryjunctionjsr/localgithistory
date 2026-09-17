@@ -93,29 +93,29 @@ class MySQLNotificationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+        if data.userId is not None:
             cols.append("user_id")
-            params["s_userId"] = getattr(data, "userId")
+            params["s_userId"] = data.userId
 
-        if hasattr(data, "type") and getattr(data, "type") is not None:
+        if data.type is not None:
             cols.append("type")
-            params["s_type"] = getattr(data, "type")
+            params["s_type"] = data.type
 
-        if hasattr(data, "title") and getattr(data, "title") is not None:
+        if data.title is not None:
             cols.append("title")
-            params["s_title"] = getattr(data, "title")
+            params["s_title"] = data.title
 
-        if hasattr(data, "message") and getattr(data, "message") is not None:
+        if data.message is not None:
             cols.append("message")
-            params["s_message"] = getattr(data, "message")
+            params["s_message"] = data.message
 
-        if hasattr(data, "isRead") and getattr(data, "isRead") is not None:
+        if data.isRead is not None:
             cols.append("is_read")
-            params["s_isRead"] = getattr(data, "isRead")
+            params["s_isRead"] = data.isRead
 
-        if hasattr(data, "isAcknowledged") and getattr(data, "isAcknowledged") is not None:
+        if data.isAcknowledged is not None:
             cols.append("is_acknowledged")
-            params["s_isAcknowledged"] = getattr(data, "isAcknowledged")
+            params["s_isAcknowledged"] = data.isAcknowledged
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['userId', 'type', 'title', 'message', 'isRead', 'isAcknowledged'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -137,29 +137,29 @@ class MySQLNotificationsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "userId") and getattr(data, "userId") is not None:
+        if data.userId is not None:
             updates.append("user_id = :s_userId")
-            params["s_userId"] = getattr(data, "userId")
+            params["s_userId"] = data.userId
 
-        if hasattr(data, "type") and getattr(data, "type") is not None:
+        if data.type is not None:
             updates.append("type = :s_type")
-            params["s_type"] = getattr(data, "type")
+            params["s_type"] = data.type
 
-        if hasattr(data, "title") and getattr(data, "title") is not None:
+        if data.title is not None:
             updates.append("title = :s_title")
-            params["s_title"] = getattr(data, "title")
+            params["s_title"] = data.title
 
-        if hasattr(data, "message") and getattr(data, "message") is not None:
+        if data.message is not None:
             updates.append("message = :s_message")
-            params["s_message"] = getattr(data, "message")
+            params["s_message"] = data.message
 
-        if hasattr(data, "isRead") and getattr(data, "isRead") is not None:
+        if data.isRead is not None:
             updates.append("is_read = :s_isRead")
-            params["s_isRead"] = getattr(data, "isRead")
+            params["s_isRead"] = data.isRead
 
-        if hasattr(data, "isAcknowledged") and getattr(data, "isAcknowledged") is not None:
+        if data.isAcknowledged is not None:
             updates.append("is_acknowledged = :s_isAcknowledged")
-            params["s_isAcknowledged"] = getattr(data, "isAcknowledged")
+            params["s_isAcknowledged"] = data.isAcknowledged
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -246,9 +246,9 @@ class MySQLNotificationsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "data") and getattr(data, "data") is not None:
+        if data.data is not None:
             await session.execute(text(f"DELETE FROM sj_notification_data WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "data") or []
+            child_list = data.data or []
 
             if child_list:
                 for k, v in child_list.items():

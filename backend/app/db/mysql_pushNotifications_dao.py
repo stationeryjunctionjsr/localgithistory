@@ -93,49 +93,49 @@ class MySQLPushNotificationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "title") and getattr(data, "title") is not None:
+        if data.title is not None:
             cols.append("title")
-            params["s_title"] = getattr(data, "title")
+            params["s_title"] = data.title
 
-        if hasattr(data, "message") and getattr(data, "message") is not None:
+        if data.message is not None:
             cols.append("message")
-            params["s_message"] = getattr(data, "message")
+            params["s_message"] = data.message
 
-        if hasattr(data, "link") and getattr(data, "link") is not None:
+        if data.link is not None:
             cols.append("link")
-            params["s_link"] = getattr(data, "link")
+            params["s_link"] = data.link
 
-        if hasattr(data, "image") and getattr(data, "image") is not None:
+        if data.image is not None:
             cols.append("image")
-            params["s_image"] = getattr(data, "image")
+            params["s_image"] = data.image
 
-        if hasattr(data, "status") and getattr(data, "status") is not None:
+        if data.status is not None:
             cols.append("status")
-            params["s_status"] = getattr(data, "status")
+            params["s_status"] = data.status
 
-        if hasattr(data, "scheduledFor") and getattr(data, "scheduledFor") is not None:
+        if data.scheduledFor is not None:
             cols.append("scheduled_for")
-            params["s_scheduledFor"] = getattr(data, "scheduledFor")
+            params["s_scheduledFor"] = data.scheduledFor
 
-        if hasattr(data, "deliveredCount") and getattr(data, "deliveredCount") is not None:
+        if data.deliveredCount is not None:
             cols.append("delivered_count")
-            params["s_deliveredCount"] = getattr(data, "deliveredCount")
+            params["s_deliveredCount"] = data.deliveredCount
 
-        if hasattr(data, "readCount") and getattr(data, "readCount") is not None:
+        if data.readCount is not None:
             cols.append("read_count")
-            params["s_readCount"] = getattr(data, "readCount")
+            params["s_readCount"] = data.readCount
 
-        if hasattr(data, "userSegment") and getattr(data, "userSegment") is not None:
+        if data.userSegment is not None:
             cols.append("user_segment")
-            params["s_userSegment"] = getattr(data, "userSegment")
+            params["s_userSegment"] = data.userSegment
 
-        if hasattr(data, "userBehavior") and getattr(data, "userBehavior") is not None:
+        if data.userBehavior is not None:
             cols.append("user_behavior")
-            params["s_userBehavior"] = getattr(data, "userBehavior")
+            params["s_userBehavior"] = data.userBehavior
 
-        if hasattr(data, "createdBy") and getattr(data, "createdBy") is not None:
+        if data.createdBy is not None:
             cols.append("created_by")
-            params["s_createdBy"] = getattr(data, "createdBy")
+            params["s_createdBy"] = data.createdBy
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['title', 'message', 'link', 'image', 'status', 'scheduledFor', 'deliveredCount', 'readCount', 'userSegment', 'userBehavior', 'createdBy'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -157,49 +157,49 @@ class MySQLPushNotificationsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "title") and getattr(data, "title") is not None:
+        if data.title is not None:
             updates.append("title = :s_title")
-            params["s_title"] = getattr(data, "title")
+            params["s_title"] = data.title
 
-        if hasattr(data, "message") and getattr(data, "message") is not None:
+        if data.message is not None:
             updates.append("message = :s_message")
-            params["s_message"] = getattr(data, "message")
+            params["s_message"] = data.message
 
-        if hasattr(data, "link") and getattr(data, "link") is not None:
+        if data.link is not None:
             updates.append("link = :s_link")
-            params["s_link"] = getattr(data, "link")
+            params["s_link"] = data.link
 
-        if hasattr(data, "image") and getattr(data, "image") is not None:
+        if data.image is not None:
             updates.append("image = :s_image")
-            params["s_image"] = getattr(data, "image")
+            params["s_image"] = data.image
 
-        if hasattr(data, "status") and getattr(data, "status") is not None:
+        if data.status is not None:
             updates.append("status = :s_status")
-            params["s_status"] = getattr(data, "status")
+            params["s_status"] = data.status
 
-        if hasattr(data, "scheduledFor") and getattr(data, "scheduledFor") is not None:
+        if data.scheduledFor is not None:
             updates.append("scheduled_for = :s_scheduledFor")
-            params["s_scheduledFor"] = getattr(data, "scheduledFor")
+            params["s_scheduledFor"] = data.scheduledFor
 
-        if hasattr(data, "deliveredCount") and getattr(data, "deliveredCount") is not None:
+        if data.deliveredCount is not None:
             updates.append("delivered_count = :s_deliveredCount")
-            params["s_deliveredCount"] = getattr(data, "deliveredCount")
+            params["s_deliveredCount"] = data.deliveredCount
 
-        if hasattr(data, "readCount") and getattr(data, "readCount") is not None:
+        if data.readCount is not None:
             updates.append("read_count = :s_readCount")
-            params["s_readCount"] = getattr(data, "readCount")
+            params["s_readCount"] = data.readCount
 
-        if hasattr(data, "userSegment") and getattr(data, "userSegment") is not None:
+        if data.userSegment is not None:
             updates.append("user_segment = :s_userSegment")
-            params["s_userSegment"] = getattr(data, "userSegment")
+            params["s_userSegment"] = data.userSegment
 
-        if hasattr(data, "userBehavior") and getattr(data, "userBehavior") is not None:
+        if data.userBehavior is not None:
             updates.append("user_behavior = :s_userBehavior")
-            params["s_userBehavior"] = getattr(data, "userBehavior")
+            params["s_userBehavior"] = data.userBehavior
 
-        if hasattr(data, "createdBy") and getattr(data, "createdBy") is not None:
+        if data.createdBy is not None:
             updates.append("created_by = :s_createdBy")
-            params["s_createdBy"] = getattr(data, "createdBy")
+            params["s_createdBy"] = data.createdBy
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)

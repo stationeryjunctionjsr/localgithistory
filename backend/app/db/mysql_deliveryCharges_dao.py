@@ -93,65 +93,65 @@ class MySQLDeliveryChargesDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "locationId") and getattr(data, "locationId") is not None:
+        if data.locationId is not None:
             cols.append("location_id")
-            params["s_locationId"] = getattr(data, "locationId")
+            params["s_locationId"] = data.locationId
 
-        if hasattr(data, "pincode") and getattr(data, "pincode") is not None:
+        if data.pincode is not None:
             cols.append("pincode")
-            params["s_pincode"] = getattr(data, "pincode")
+            params["s_pincode"] = data.pincode
 
-        if hasattr(data, "state") and getattr(data, "state") is not None:
+        if data.state is not None:
             cols.append("state")
-            params["s_state"] = getattr(data, "state")
+            params["s_state"] = data.state
 
-        if hasattr(data, "city") and getattr(data, "city") is not None:
+        if data.city is not None:
             cols.append("city")
-            params["s_city"] = getattr(data, "city")
+            params["s_city"] = data.city
 
-        if hasattr(data, "district") and getattr(data, "district") is not None:
+        if data.district is not None:
             cols.append("district")
-            params["s_district"] = getattr(data, "district")
+            params["s_district"] = data.district
 
-        if hasattr(data, "applyDefaultCharge") and getattr(data, "applyDefaultCharge") is not None:
+        if data.applyDefaultCharge is not None:
             cols.append("apply_default_charge")
-            params["s_applyDefaultCharge"] = getattr(data, "applyDefaultCharge")
+            params["s_applyDefaultCharge"] = data.applyDefaultCharge
 
-        if hasattr(data, "charge") and getattr(data, "charge") is not None:
+        if data.charge is not None:
             cols.append("charge")
-            params["s_charge"] = getattr(data, "charge")
+            params["s_charge"] = data.charge
 
-        if hasattr(data, "minCartValue") and getattr(data, "minCartValue") is not None:
+        if data.minCartValue is not None:
             cols.append("min_cart_value")
-            params["s_minCartValue"] = getattr(data, "minCartValue")
+            params["s_minCartValue"] = data.minCartValue
 
-        if hasattr(data, "serviceableForCustomer") and getattr(data, "serviceableForCustomer") is not None:
+        if data.serviceableForCustomer is not None:
             cols.append("serviceable_for_customer")
-            params["s_serviceableForCustomer"] = getattr(data, "serviceableForCustomer")
+            params["s_serviceableForCustomer"] = data.serviceableForCustomer
 
-        if hasattr(data, "serviceableForRetailer") and getattr(data, "serviceableForRetailer") is not None:
+        if data.serviceableForRetailer is not None:
             cols.append("serviceable_for_retailer")
-            params["s_serviceableForRetailer"] = getattr(data, "serviceableForRetailer")
+            params["s_serviceableForRetailer"] = data.serviceableForRetailer
 
-        if hasattr(data, "serviceableForWholesaler") and getattr(data, "serviceableForWholesaler") is not None:
+        if data.serviceableForWholesaler is not None:
             cols.append("serviceable_for_wholesaler")
-            params["s_serviceableForWholesaler"] = getattr(data, "serviceableForWholesaler")
+            params["s_serviceableForWholesaler"] = data.serviceableForWholesaler
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             cols.append("is_active")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             cols.append("description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "urgentDeliveryAvailable") and getattr(data, "urgentDeliveryAvailable") is not None:
+        if data.urgentDeliveryAvailable is not None:
             cols.append("urgent_delivery_available")
-            params["s_urgentDeliveryAvailable"] = getattr(data, "urgentDeliveryAvailable")
+            params["s_urgentDeliveryAvailable"] = data.urgentDeliveryAvailable
 
-        if hasattr(data, "urgentDeliveryCharge") and getattr(data, "urgentDeliveryCharge") is not None:
+        if data.urgentDeliveryCharge is not None:
             cols.append("urgent_delivery_charge")
-            params["s_urgentDeliveryCharge"] = getattr(data, "urgentDeliveryCharge")
+            params["s_urgentDeliveryCharge"] = data.urgentDeliveryCharge
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['locationId', 'pincode', 'state', 'city', 'district', 'applyDefaultCharge', 'charge', 'minCartValue', 'serviceableForCustomer', 'serviceableForRetailer', 'serviceableForWholesaler', 'isActive', 'description', 'urgentDeliveryAvailable', 'urgentDeliveryCharge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -173,65 +173,65 @@ class MySQLDeliveryChargesDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "locationId") and getattr(data, "locationId") is not None:
+        if data.locationId is not None:
             updates.append("location_id = :s_locationId")
-            params["s_locationId"] = getattr(data, "locationId")
+            params["s_locationId"] = data.locationId
 
-        if hasattr(data, "pincode") and getattr(data, "pincode") is not None:
+        if data.pincode is not None:
             updates.append("pincode = :s_pincode")
-            params["s_pincode"] = getattr(data, "pincode")
+            params["s_pincode"] = data.pincode
 
-        if hasattr(data, "state") and getattr(data, "state") is not None:
+        if data.state is not None:
             updates.append("state = :s_state")
-            params["s_state"] = getattr(data, "state")
+            params["s_state"] = data.state
 
-        if hasattr(data, "city") and getattr(data, "city") is not None:
+        if data.city is not None:
             updates.append("city = :s_city")
-            params["s_city"] = getattr(data, "city")
+            params["s_city"] = data.city
 
-        if hasattr(data, "district") and getattr(data, "district") is not None:
+        if data.district is not None:
             updates.append("district = :s_district")
-            params["s_district"] = getattr(data, "district")
+            params["s_district"] = data.district
 
-        if hasattr(data, "applyDefaultCharge") and getattr(data, "applyDefaultCharge") is not None:
+        if data.applyDefaultCharge is not None:
             updates.append("apply_default_charge = :s_applyDefaultCharge")
-            params["s_applyDefaultCharge"] = getattr(data, "applyDefaultCharge")
+            params["s_applyDefaultCharge"] = data.applyDefaultCharge
 
-        if hasattr(data, "charge") and getattr(data, "charge") is not None:
+        if data.charge is not None:
             updates.append("charge = :s_charge")
-            params["s_charge"] = getattr(data, "charge")
+            params["s_charge"] = data.charge
 
-        if hasattr(data, "minCartValue") and getattr(data, "minCartValue") is not None:
+        if data.minCartValue is not None:
             updates.append("min_cart_value = :s_minCartValue")
-            params["s_minCartValue"] = getattr(data, "minCartValue")
+            params["s_minCartValue"] = data.minCartValue
 
-        if hasattr(data, "serviceableForCustomer") and getattr(data, "serviceableForCustomer") is not None:
+        if data.serviceableForCustomer is not None:
             updates.append("serviceable_for_customer = :s_serviceableForCustomer")
-            params["s_serviceableForCustomer"] = getattr(data, "serviceableForCustomer")
+            params["s_serviceableForCustomer"] = data.serviceableForCustomer
 
-        if hasattr(data, "serviceableForRetailer") and getattr(data, "serviceableForRetailer") is not None:
+        if data.serviceableForRetailer is not None:
             updates.append("serviceable_for_retailer = :s_serviceableForRetailer")
-            params["s_serviceableForRetailer"] = getattr(data, "serviceableForRetailer")
+            params["s_serviceableForRetailer"] = data.serviceableForRetailer
 
-        if hasattr(data, "serviceableForWholesaler") and getattr(data, "serviceableForWholesaler") is not None:
+        if data.serviceableForWholesaler is not None:
             updates.append("serviceable_for_wholesaler = :s_serviceableForWholesaler")
-            params["s_serviceableForWholesaler"] = getattr(data, "serviceableForWholesaler")
+            params["s_serviceableForWholesaler"] = data.serviceableForWholesaler
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             updates.append("description = :s_description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "urgentDeliveryAvailable") and getattr(data, "urgentDeliveryAvailable") is not None:
+        if data.urgentDeliveryAvailable is not None:
             updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
-            params["s_urgentDeliveryAvailable"] = getattr(data, "urgentDeliveryAvailable")
+            params["s_urgentDeliveryAvailable"] = data.urgentDeliveryAvailable
 
-        if hasattr(data, "urgentDeliveryCharge") and getattr(data, "urgentDeliveryCharge") is not None:
+        if data.urgentDeliveryCharge is not None:
             updates.append("urgent_delivery_charge = :s_urgentDeliveryCharge")
-            params["s_urgentDeliveryCharge"] = getattr(data, "urgentDeliveryCharge")
+            params["s_urgentDeliveryCharge"] = data.urgentDeliveryCharge
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -332,15 +332,15 @@ class MySQLDeliveryChargesDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "tiers") and getattr(data, "tiers") is not None:
+        if data.tiers is not None:
             await session.execute(text(f"DELETE FROM sj_delivery_charge_tiers WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "tiers") or []
+            child_list = data.tiers or []
 
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
 
-                    p["v0"] = getattr(item, "min", None)
-                    p["v1"] = getattr(item, "max", None)
-                    p["v2"] = getattr(item, "charge", None)
+                    p["v0"] = item.min
+                    p["v1"] = item.max
+                    p["v2"] = item.charge
                     await session.execute(text(f"INSERT INTO sj_delivery_charge_tiers (parent_id, min_order_value, max_order_value, charge) VALUES (:id, :v0, :v1, :v2)"), p)

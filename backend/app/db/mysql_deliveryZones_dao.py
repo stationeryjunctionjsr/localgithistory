@@ -93,29 +93,29 @@ class MySQLDeliveryZonesDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "name") and getattr(data, "name") is not None:
+        if data.name is not None:
             cols.append("name")
-            params["s_name"] = getattr(data, "name")
+            params["s_name"] = data.name
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             cols.append("description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "defaultCapacity") and getattr(data, "defaultCapacity") is not None:
+        if data.defaultCapacity is not None:
             cols.append("default_capacity")
-            params["s_defaultCapacity"] = getattr(data, "defaultCapacity")
+            params["s_defaultCapacity"] = data.defaultCapacity
 
-        if hasattr(data, "urgentDeliveryAvailable") and getattr(data, "urgentDeliveryAvailable") is not None:
+        if data.urgentDeliveryAvailable is not None:
             cols.append("urgent_delivery_available")
-            params["s_urgentDeliveryAvailable"] = getattr(data, "urgentDeliveryAvailable")
+            params["s_urgentDeliveryAvailable"] = data.urgentDeliveryAvailable
 
-        if hasattr(data, "customerType") and getattr(data, "customerType") is not None:
+        if data.customerType is not None:
             cols.append("customer_type")
-            params["s_customerType"] = getattr(data, "customerType")
+            params["s_customerType"] = data.customerType
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             cols.append("is_active")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'defaultCapacity', 'urgentDeliveryAvailable', 'customerType', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -137,29 +137,29 @@ class MySQLDeliveryZonesDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "name") and getattr(data, "name") is not None:
+        if data.name is not None:
             updates.append("name = :s_name")
-            params["s_name"] = getattr(data, "name")
+            params["s_name"] = data.name
 
-        if hasattr(data, "description") and getattr(data, "description") is not None:
+        if data.description is not None:
             updates.append("description = :s_description")
-            params["s_description"] = getattr(data, "description")
+            params["s_description"] = data.description
 
-        if hasattr(data, "defaultCapacity") and getattr(data, "defaultCapacity") is not None:
+        if data.defaultCapacity is not None:
             updates.append("default_capacity = :s_defaultCapacity")
-            params["s_defaultCapacity"] = getattr(data, "defaultCapacity")
+            params["s_defaultCapacity"] = data.defaultCapacity
 
-        if hasattr(data, "urgentDeliveryAvailable") and getattr(data, "urgentDeliveryAvailable") is not None:
+        if data.urgentDeliveryAvailable is not None:
             updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
-            params["s_urgentDeliveryAvailable"] = getattr(data, "urgentDeliveryAvailable")
+            params["s_urgentDeliveryAvailable"] = data.urgentDeliveryAvailable
 
-        if hasattr(data, "customerType") and getattr(data, "customerType") is not None:
+        if data.customerType is not None:
             updates.append("customer_type = :s_customerType")
-            params["s_customerType"] = getattr(data, "customerType")
+            params["s_customerType"] = data.customerType
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -246,9 +246,9 @@ class MySQLDeliveryZonesDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "pincodes") and getattr(data, "pincodes") is not None:
+        if data.pincodes is not None:
             await session.execute(text(f"DELETE FROM sj_delivery_zone_pincodes WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "pincodes") or []
+            child_list = data.pincodes or []
 
             if child_list:
                 for item in child_list:

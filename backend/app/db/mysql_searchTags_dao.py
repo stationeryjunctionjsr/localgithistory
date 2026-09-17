@@ -93,21 +93,21 @@ class MySQLSearchTagsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if hasattr(data, "tagId") and getattr(data, "tagId") is not None:
+        if data.tagId is not None:
             cols.append("tag_id")
-            params["s_tagId"] = getattr(data, "tagId")
+            params["s_tagId"] = data.tagId
 
-        if hasattr(data, "name") and getattr(data, "name") is not None:
+        if data.name is not None:
             cols.append("name")
-            params["s_name"] = getattr(data, "name")
+            params["s_name"] = data.name
 
-        if hasattr(data, "type") and getattr(data, "type") is not None:
+        if data.type is not None:
             cols.append("type")
-            params["s_type"] = getattr(data, "type")
+            params["s_type"] = data.type
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             cols.append("is_active")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['tagId', 'name', 'type', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -129,21 +129,21 @@ class MySQLSearchTagsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if hasattr(data, "tagId") and getattr(data, "tagId") is not None:
+        if data.tagId is not None:
             updates.append("tag_id = :s_tagId")
-            params["s_tagId"] = getattr(data, "tagId")
+            params["s_tagId"] = data.tagId
 
-        if hasattr(data, "name") and getattr(data, "name") is not None:
+        if data.name is not None:
             updates.append("name = :s_name")
-            params["s_name"] = getattr(data, "name")
+            params["s_name"] = data.name
 
-        if hasattr(data, "type") and getattr(data, "type") is not None:
+        if data.type is not None:
             updates.append("type = :s_type")
-            params["s_type"] = getattr(data, "type")
+            params["s_type"] = data.type
 
-        if hasattr(data, "isActive") and getattr(data, "isActive") is not None:
+        if data.isActive is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = getattr(data, "isActive")
+            params["s_isActive"] = data.isActive
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -283,49 +283,49 @@ class MySQLSearchTagsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if hasattr(data, "categories") and getattr(data, "categories") is not None:
+        if data.categories is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "categories") or []
+            child_list = data.categories or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_categories (parent_id, category) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "subCategories") and getattr(data, "subCategories") is not None:
+        if data.subCategories is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_subcats WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "subCategories") or []
+            child_list = data.subCategories or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_subcats (parent_id, sub_category) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "brands") and getattr(data, "brands") is not None:
+        if data.brands is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_brands WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "brands") or []
+            child_list = data.brands or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_brands (parent_id, brand) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "collections") and getattr(data, "collections") is not None:
+        if data.collections is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_collections WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "collections") or []
+            child_list = data.collections or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_collections (parent_id, collection) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "productIds") and getattr(data, "productIds") is not None:
+        if data.productIds is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_products WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "productIds") or []
+            child_list = data.productIds or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_products (parent_id, product_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if hasattr(data, "excludedProductIds") and getattr(data, "excludedProductIds") is not None:
+        if data.excludedProductIds is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_ex_products WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "excludedProductIds") or []
+            child_list = data.excludedProductIds or []
 
             if child_list:
                 for item in child_list:
