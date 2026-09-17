@@ -107,12 +107,12 @@ class MySQLFlatBaseDAO:
                 cls = None
         return cls(**out) if cls else out
 
-    def _doc_to_params(self, data: Dict, now: datetime) -> Any:
+    def _doc_to_params(self, data: Any, now: datetime) -> Any:
         params = {"created_at": now, "updated_at": now}
         if self.has_external_id:
             params["external_id"] = secrets.token_hex(16)
         for api_key, col in self.scalar_map.items():
-            val = data[api_key] if api_key in data else None
+            val = getattr(data, api_key, None) if not isinstance(data, dict) else data.get(api_key)
             if val is None:
                 params[col] = None
                 continue
@@ -190,7 +190,7 @@ class MySQLFlatBaseDAO:
             row = result.fetchone()
         return self.__map_to_schema(row) if row else None
 
-    async def create(self, data: Dict) -> Any:
+    async def create(self, data: Any) -> Any:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")

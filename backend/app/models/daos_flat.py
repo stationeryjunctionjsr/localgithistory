@@ -444,6 +444,28 @@ class DeliverySlotConfigInternalCreate(BaseModel):
     isActive: Optional[bool] = None
     slots: Optional[List[DeliverySlotInternal]] = None
 
+class CustomerSegmentInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    externalId: Optional[str] = None
+    type: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    isActive: Optional[bool] = None
+    isSystem: Optional[bool] = None
+    filters: Optional[CustomerSegmentFilters] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class CustomerSegmentInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    type: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    isActive: Optional[bool] = None
+    isSystem: Optional[bool] = None
+    filters: Optional[CustomerSegmentFilters] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None
@@ -535,6 +557,17 @@ class CategoryTagsInternalUpdate(BaseModel):
     description: Optional[str] = None
     isActive: Optional[bool] = None
     name: Optional[str] = None
+
+class Google_reviewsInternal(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    id: Optional[str] = Field(None, alias="_id")
+    externalId: Optional[str] = None
+    lastUpdated: Optional[str] = None
+    method: Optional[str] = None
+    rating: Optional[float] = None
+    reviewCount: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
 
 class Google_reviewsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')

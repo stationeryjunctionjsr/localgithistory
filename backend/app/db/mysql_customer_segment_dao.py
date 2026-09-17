@@ -5,9 +5,11 @@ from sqlalchemy import text
 
 from app.config.database import get_async_session_factory
 from app.db.mysql_flat_base_dao import MySQLFlatBaseDAO
+from app.models.daos_flat import CustomerSegmentInternal, CustomerSegmentInternalCreate
 
 
 class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
+    pydantic_model = CustomerSegmentInternal
     def __init__(self):
         super().__init__(
             table_name="sj_customer_segments",
@@ -39,15 +41,11 @@ class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
             doc['externalId'] = r.external_id
         return doc
 
-    def _flatten_filters(self, data: Dict) -> Dict:
-        # Move keys from 'filters' directly into data so they get mapped by scalar_map
-        if "filters" in data and isinstance(data.filters, dict):
-            for k, v in data.filters.items():
-                data[k] = v
-            del data.filters
+    def _flatten_filters(self, data: Any) -> Any:
+        # Pydantic models already flatten the filters from the router before passing here
         return data
 
-    def _unflatten_filters(self, data: Dict) -> Dict:
+    def _unflatten_filters(self, data: Any) -> Any:
         # Move them back into 'filters' for the frontend
         filter_keys = [
             "minAverageOrderValue",
@@ -64,10 +62,14 @@ class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
         ]
         filters = {}
         for k in filter_keys:
-            if k in data and data[k] is not None:
-                filters[k] = data.pop(k)
+            if (isinstance(data, dict) and data.get(k) is not None) or (not isinstance(data, dict) and getattr(data, k, None) is not None):
+                filters[k] = data.pop(k) if isinstance(data, dict) else getattr(data, k)
+                if not isinstance(data, dict): setattr(data, k, None)
         if filters:
-            data.filters = filters
+            if not isinstance(data, dict):
+                setattr(data, 'filters', filters)
+            else:
+                data['filters'] = filters
         return data
 
     async def _fetch_user_ids(self, segment_id: str) -> List[str]:
@@ -107,7 +109,7 @@ class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
             self._unflatten_filters(doc)
         return docs
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: Any) -> Any:
         data = self._flatten_filters(data)
         user_ids = data.pop("userIds", [])
         created = await super().create(data)
@@ -117,7 +119,7 @@ class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
             created = self._unflatten_filters(created)
         return created
 
-    async def update(self, id: str, data: Dict) -> Dict:
+    async def update(self, id: str, data: Any) -> Any:
         data = self._flatten_filters(data)
         user_ids = None
         if "userIds" in data:

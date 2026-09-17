@@ -338,8 +338,8 @@ TABLES_CONFIG = {
         "child_tables": {
             "slots": (
                 "sj_delivery_slot_times",
-                ["start_time", "end_time", "capacity"],
-                ["startTime", "endTime", "capacity"],
+                ["start_time", "end_time", "capacity", "booked_count", "is_full_day", "is_urgent", "cutoff_hours"],
+                ["startTime", "endTime", "capacity", "bookedCount", "isFullDay", "isUrgent", "cutoffHours"],
                 False,
                 False,
             ),

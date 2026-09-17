@@ -85,7 +85,12 @@ async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin:
         raise HTTPException(status_code=404, detail="Segment not found")
 
     from app.models.daos import CustomerSegmentInternalUpdate
-    update_model = CustomerSegmentInternalUpdate(**segment.model_dump(exclude_unset=True))
+    # Avoid model_dump dictionary creation per strict Pydantic model rules
+    kwargs = {}
+    if segment.name is not None: kwargs['name'] = segment.name
+    if segment.userIds is not None: kwargs['userIds'] = segment.userIds
+    if segment.filters is not None: kwargs['filters'] = segment.filters
+    update_model = CustomerSegmentInternalUpdate(**kwargs)
     updated = await customer_segments_repository.update(segment_id, update_model)
     return updated
 
@@ -249,13 +254,14 @@ async def seed_system_segments():
                 user_ids = await run_segment_filter(criteria)
 
                 from app.models.daos import CustomerSegmentInternalCreate
+                from app.models.customer_segment import CustomerSegmentFilters
                 await customer_segments_repository.create(
                     CustomerSegmentInternalCreate(
                         id=full_id,
                         name=behavior_name,
                         type=seg_type,
                         userIds=user_ids,
-                        filters={"behavior": behavior_id},
+                        filters=CustomerSegmentFilters(behavior=behavior_id),
                         isActive=True,
                         isSystem=True,
                     )
@@ -277,12 +283,26 @@ async def refresh_segment(segment_id: str, admin: User = Depends(require_super_a
     if not segment:
         raise HTTPException(status_code=404, detail="Segment not found")
 
-    filters = (segment.filters or {})
+    filters = segment.filters
     if not filters:
-        return {"status": "success", "message": "No filters to re-apply", "userIds": (segment.user_ids or [])}
+        # Avoid dictionary indexing and use Pydantic attribute
+        user_ids = getattr(segment, 'userIds', []) or []
+        return {"status": "success", "message": "No filters to re-apply", "userIds": user_ids}
 
     role = "customer" if segment.type == "retail" else "wholesaler"
-    criteria = FilterCriteria(role=role, **filters)
+    criteria = FilterCriteria(
+        role=role,
+        minAverageOrderValue=filters.minAverageOrderValue,
+        maxAverageOrderValue=filters.maxAverageOrderValue,
+        startDate=filters.startDate,
+        endDate=filters.endDate,
+        minOrderFrequency=filters.minOrderFrequency,
+        maxOrderFrequency=filters.maxOrderFrequency,
+        state=filters.state,
+        district=filters.district,
+        appUser=filters.appUser,
+        behavior=filters.behavior
+    )
 
     user_ids = await run_segment_filter(criteria)
 
