@@ -1,6 +1,6 @@
 from app.models.daos import NotificationInternal
 from app.models.schemas import SupportTicketInternal
-from app.models.daos_flat import CategoryTagInternal, CoachMarkInternal, SearchTagInternal, CollectionInternal, DeviceSubscriptionInternal, PushNotificationsInternal, PromoStripsInternal, OrderFeedbackInternal, ContactInternal, SchemeInternal, ReturnSettingsInternal, ActivityInternal, ReturnRequestInternal
+from app.models.daos_flat import DeliveryChargeDefaultInternal, DeliveryChargeInternal, CategoryTagInternal, CoachMarkInternal, SearchTagInternal, CollectionInternal, DeviceSubscriptionInternal, PushNotificationsInternal, PromoStripsInternal, OrderFeedbackInternal, ContactInternal, SchemeInternal, ReturnSettingsInternal, ActivityInternal, ReturnRequestInternal
 from app.models.schemas import SearchTagResponse, CollectionResponse, SchemeResponse, DeliveryChargeResponse, DefaultDeliveryChargeResponse
 """
 Configs for FlatRelationalDAO: parent-only tables with fixed columns + JSON columns.
@@ -259,6 +259,8 @@ FLAT_RELATIONAL_DAOS = {
             "serviceableForWholesaler": "serviceable_for_wholesaler",
             "isActive": "is_active",
             "description": "description",
+            "urgentDeliveryAvailable": "urgent_delivery_available",
+            "urgentDeliveryCharge": "urgent_delivery_charge",
         },
         bool_keys=frozenset(
             {
@@ -267,8 +269,10 @@ FLAT_RELATIONAL_DAOS = {
                 "serviceableForRetailer",
                 "serviceableForWholesaler",
                 "isActive",
+                "urgentDeliveryAvailable",
             }
         ),
+        schema_cls=DeliveryChargeInternal
     ),
     "deliveryChargeDefaults": _dao(
         "sj_delivery_charge_defaults",
@@ -278,6 +282,7 @@ FLAT_RELATIONAL_DAOS = {
             "isActive": "is_active",
         },
         bool_keys=frozenset({"applicableToWholesaler", "applicableToRetailer", "isActive"}),
+        schema_cls=DeliveryChargeDefaultInternal
     ),
     "deliveryZones": _dao(
         "sj_delivery_zones",

@@ -291,6 +291,96 @@ class CategoryTagInternalUpdate(BaseModel):
     description: Optional[str] = None
     isActive: Optional[bool] = None
 
+class DeliveryChargeTierInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    min: Optional[float] = None
+    max: Optional[float] = None
+    charge: Optional[float] = None
+
+class DeliveryChargeInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    locationId: Optional[int] = None
+    pincode: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    applyDefaultCharge: Optional[bool] = None
+    charge: Optional[float] = None
+    minCartValue: Optional[float] = None
+    serviceableForCustomer: Optional[bool] = None
+    serviceableForRetailer: Optional[bool] = None
+    serviceableForWholesaler: Optional[bool] = None
+    isActive: Optional[bool] = None
+    description: Optional[str] = None
+    urgentDeliveryAvailable: Optional[bool] = None
+    urgentDeliveryCharge: Optional[float] = None
+    tiers: Optional[List[DeliveryChargeTierInternal]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class DeliveryChargeInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    locationId: Optional[int] = None
+    pincode: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    applyDefaultCharge: Optional[bool] = None
+    charge: Optional[float] = None
+    minCartValue: Optional[float] = None
+    serviceableForCustomer: Optional[bool] = None
+    serviceableForRetailer: Optional[bool] = None
+    serviceableForWholesaler: Optional[bool] = None
+    isActive: Optional[bool] = None
+    description: Optional[str] = None
+    urgentDeliveryAvailable: Optional[bool] = None
+    urgentDeliveryCharge: Optional[float] = None
+    tiers: Optional[List[DeliveryChargeTierInternal]] = None
+
+class DeliveryChargeInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    locationId: Optional[int] = None
+    pincode: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    applyDefaultCharge: Optional[bool] = None
+    charge: Optional[float] = None
+    minCartValue: Optional[float] = None
+    serviceableForCustomer: Optional[bool] = None
+    serviceableForRetailer: Optional[bool] = None
+    serviceableForWholesaler: Optional[bool] = None
+    isActive: Optional[bool] = None
+    description: Optional[str] = None
+    urgentDeliveryAvailable: Optional[bool] = None
+    urgentDeliveryCharge: Optional[float] = None
+    tiers: Optional[List[DeliveryChargeTierInternal]] = None
+
+class DeliveryChargeDefaultInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    applicableToWholesaler: Optional[bool] = None
+    applicableToRetailer: Optional[bool] = None
+    isActive: Optional[bool] = None
+    tiers: Optional[List[DeliveryChargeTierInternal]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class DeliveryChargeDefaultInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    applicableToWholesaler: Optional[bool] = None
+    applicableToRetailer: Optional[bool] = None
+    isActive: Optional[bool] = None
+    tiers: Optional[List[DeliveryChargeTierInternal]] = None
+
+class DeliveryChargeDefaultInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    applicableToWholesaler: Optional[bool] = None
+    applicableToRetailer: Optional[bool] = None
+    isActive: Optional[bool] = None
+    tiers: Optional[List[DeliveryChargeTierInternal]] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None
