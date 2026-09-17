@@ -17,6 +17,45 @@ class ReturnSettingsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     returnDays: Optional[int] = None
 
+class SchemeInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    description: Optional[str] = None
+    discountType: Optional[str] = None
+    discountValue: Optional[float] = None
+    minOrderValue: Optional[float] = None
+    validFrom: Optional[str] = None
+    validUntil: Optional[str] = None
+    isActive: Optional[bool] = None
+    code: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class SchemeInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: Optional[str] = None
+    description: Optional[str] = None
+    discountType: Optional[str] = None
+    discountValue: Optional[float] = None
+    minOrderValue: Optional[float] = None
+    validFrom: Optional[str] = None
+    validUntil: Optional[str] = None
+    isActive: Optional[bool] = None
+    code: Optional[str] = None
+
+class SchemeInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: Optional[str] = None
+    description: Optional[str] = None
+    discountType: Optional[str] = None
+    discountValue: Optional[float] = None
+    minOrderValue: Optional[float] = None
+    validFrom: Optional[str] = None
+    validUntil: Optional[str] = None
+    isActive: Optional[bool] = None
+    code: Optional[str] = None
+
 class OrderFeedbackInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     comment: Optional[str] = None

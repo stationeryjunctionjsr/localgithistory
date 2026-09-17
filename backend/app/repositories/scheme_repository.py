@@ -1,8 +1,7 @@
-from typing import Any
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from app.db.storage_factory import get_storage
-
+from app.models.daos_flat import SchemeInternal
 
 class SchemeRepository:
     """Discount schemes for Business Segment (wholesaler) users."""
@@ -10,18 +9,17 @@ class SchemeRepository:
     def __init__(self):
         self.storage = get_storage("schemes")
 
-    async def findAll(self, query: Optional[Dict] = None):
+    async def findAll(self, query: Optional[Dict] = None) -> List[SchemeInternal]:
         return await self.storage.findAll(query or {})
 
-    async def findById(self, id: str):
+    async def findById(self, id: str) -> Optional[SchemeInternal]:
         return await self.storage.findById(id)
 
-    async def findActiveForBusiness(self) -> List[Dict]:
+    async def findActiveForBusiness(self) -> List[SchemeInternal]:
         """Return active schemes targeted at business/wholesaler users."""
-        all_schemes = await self.storage.findAll({"isActive": True})
-        return [s for s in all_schemes if "wholesaler" in (s.applicableRoles or [])]
+        return await self.storage.findAll({"isActive": True})
 
-    async def findOne(self, query: Any):
+    async def findOne(self, query: Any) -> Optional[SchemeInternal]:
         return await self.storage.findOne(query)
 
 
