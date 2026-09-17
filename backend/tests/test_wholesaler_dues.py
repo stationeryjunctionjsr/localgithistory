@@ -1,6 +1,7 @@
 import pytest
 import uuid
 from datetime import datetime, timezone, timedelta
+from app.models.schemas import UserCreate
 from app.repositories.user_repository import user_repository
 from app.repositories.payment_repository import payment_repository
 from app.repositories.order_repository import order_repository
@@ -11,16 +12,16 @@ from httpx import AsyncClient
 async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
     # 1. Create a Wholesaler User
     email = f"wholesaler_{uuid.uuid4().hex[:8]}@test.com"
-    user_data = {
-        "name": "Test Wholesaler",
-        "email": email,
-        "password": "password123",
-        "role": "wholesaler",
-        "paymentTerms": "30",
-        "creditLimit": 10000.0,
-        "creditUsed": 0.0,
-        "approvalStatus": "approved",
-    }
+    user_data = UserCreate(
+        name="Test Wholesaler",
+        email=email,
+        password="password123",
+        role="wholesaler",
+        paymentTerms="30",
+        creditLimit=10000.0,
+        creditUsed=0.0,
+        approvalStatus="approved",
+    )
     user = await user_repository.create(user_data)
 
     # Login

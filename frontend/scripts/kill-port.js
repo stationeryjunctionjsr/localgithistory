@@ -8,16 +8,27 @@ try {
   
   if (process.platform === 'win32') {
     // Windows: Use netstat to find PID and taskkill to terminate it
-    const stdout = execSync(`netstat -ano | findstr :${port}`).toString();
-    const lines = stdout.split('\n').filter(line => line.includes('LISTENING'));
-    
-    for (const line of lines) {
-      const parts = line.trim().split(/\s+/);
-      const pid = parts[parts.length - 1];
-      if (pid && pid !== '0') {
-        console.log(`[Port-Killer] Found stale process PID ${pid} occupying port ${port}. Terminating...`);
-        execSync(`taskkill /F /PID ${pid}`);
+    try {
+      const stdout = execSync(`netstat -ano | findstr :${port}`).toString();
+      const lines = stdout.split('\n').filter(line => line.includes('LISTENING'));
+      
+      const pidsToKill = new Set();
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        const pid = parts[parts.length - 1];
+        if (pid && pid !== '0') {
+          pidsToKill.add(pid);
+        }
       }
+      
+      for (const pid of pidsToKill) {
+        console.log(`[Port-Killer] Found stale process PID ${pid} occupying port ${port}. Terminating...`);
+        try {
+          execSync(`taskkill /F /PID ${pid} 2>nul`);
+        } catch (_) {}
+      }
+    } catch (_) {
+      // findstr returns exit code 1 if no processes are found
     }
   } else {
     // UNIX (Mac/Linux): Use lsof and kill

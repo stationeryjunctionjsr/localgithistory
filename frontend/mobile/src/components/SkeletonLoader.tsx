@@ -2,6 +2,13 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+/** Palette used by skeleton screens. Defined locally to avoid an undefined reference
+ *  that caused TypeScript compilation to fail (colors was never imported or declared). */
+const colors = {
+  background: '#F5F5F5',
+  surface: '#FFFFFF',
+};
+
 interface SkeletonProps {
   width?: any;
   height?: number;

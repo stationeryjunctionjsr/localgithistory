@@ -2138,6 +2138,13 @@ async def update_order_status(
                     }
                 )
     elif status_data.status == "cancelled":
+        # Guard: prevent re-cancelling a terminal order which would double-restore stock/credit.
+        _TERMINAL_STATUSES = {"cancelled", "declined", "delivered", "returned", "failed"}
+        if order.status in _TERMINAL_STATUSES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot cancel an order that is already in '{order.status}' state",
+            )
         # For cancelled orders, restore stock and refund credit if credit payment
         if order.payment_method == "credit":
             user = await user_repository.findById(order.user)
@@ -2923,17 +2930,22 @@ class SettleCreditRequest(BaseModel):
 async def settle_credit(
     order_id: str, settle_data: SettleCreditRequest, current_user: User = Depends(get_current_user)
 ):
-    """Settle credit for an order (wholesaler only)"""
+    """Submit a credit settlement for an order (wholesaler only).
+
+    The payment entry is created as unverified.  creditUsed is NOT reduced here —
+    it will only be reduced when a super-admin marks the entry as verified.
+    This prevents wholesalers from restoring credit with fake/absent payment proofs.
+    """
 
     order = await order_repository.findById(order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Check access
+    # Check access — order must belong to the requesting user
     if order.user != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Check if order payment method is credit
+    # Only credit orders can be settled this way
     if order.payment_method != "credit":
         raise HTTPException(status_code=400, detail="This order is not a credit order")
 
@@ -2941,40 +2953,46 @@ async def settle_credit(
     if user.role != "wholesaler":
         raise HTTPException(status_code=403, detail="Only business customers can settle credit")
 
+    # Reject zero or negative settlement amounts
+    settle_amount = float(settle_data.amount)
+    if settle_amount <= 0:
+        raise HTTPException(status_code=400, detail="Settlement amount must be greater than zero")
+
     # Find payment record
     payments = await payment_repository.findByOrderId(order_id)
     if not payments or len(payments) == 0:
         raise HTTPException(status_code=404, detail="Payment record not found")
     payment = payments[0]
 
-    settle_amount = float(settle_data.amount)
     if payment.amount_paid is None:
         raise ValueError("Cannot calculate remaining amount: amount_paid is None")
-    remaining_amount = (payment.amount_remaining if payment.amount_remaining is not None else payment.total_amount - payment.amount_paid)
+    remaining_amount = (
+        payment.amount_remaining
+        if payment.amount_remaining is not None
+        else payment.total_amount - payment.amount_paid
+    )
 
     if settle_amount > remaining_amount:
-        raise HTTPException(status_code=400, detail=f"Amount cannot exceed remaining amount: ₹{remaining_amount:.2f}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Amount cannot exceed remaining amount: ₹{remaining_amount:.2f}",
+        )
 
-    # Add payment entry
+    # Add payment entry as UNVERIFIED.
+    # creditUsed is NOT reduced here — it will only be reduced when an admin
+    # verifies this entry.  This is the critical security fix: previously the
+    # credit balance was reduced immediately on an unverified submission.
     payment_image = settle_data.paymentImage or settle_data.upiPaymentScreenshot
     await payment_repository.addPaymentEntry(
         payment.id, {"amount": settle_amount, "image": payment_image, "verified": False}
     )
 
-    # Update user credit
-    if user.credit_used is None:
-        raise ValueError("Cannot calculate credit usage: credit_used is None")
-    new_credit_used = max(0, user.credit_used - settle_amount)
-    await user_repository.update(current_user.id, UserInternalUpdate(creditUsed=new_credit_used))
-
-    # Update payment record
     updated_payment = await payment_repository.findById(payment.id)
 
-    # If fully paid, update order payment status
-    if (updated_payment.amount_remaining if updated_payment.amount_remaining is not None else 0) <= 0:
-        await order_repository.update(order_id, OrderInternalUpdate(**{"paymentStatus": "paid"}))
-
-    return {"message": "Credit settled successfully", "payment": updated_payment, "remainingCredit": new_credit_used}
+    return {
+        "message": "Settlement submitted successfully. Your credit balance will be updated once the payment is verified by our team.",
+        "payment": updated_payment,
+    }
 
 
 @router.post("/{order_id}/generate-invoice", response_model=GenerateInvoiceResponse)
@@ -3047,7 +3065,14 @@ async def download_invoice(order_id: str, current_user: User = Depends(get_curre
     if not order.invoice_path:
         raise HTTPException(status_code=404, detail="Invoice not generated yet")
 
-    file_path = Path(DATA_DIR).parent / order.invoicePath.lstrip("/")
+    invoice_path_str = order.invoice_path
+    if invoice_path_str.startswith("/uploads/"):
+        # Legacy path: was stored as /uploads/{env}/invoices/filename.pdf
+        # Resolve relative to the backend root (parent of DATA_DIR's parent)
+        file_path = Path(DATA_DIR).parent / invoice_path_str.lstrip("/")
+    else:
+        # New private path: stored as invoices/{env}/filename.pdf
+        file_path = Path(DATA_DIR) / invoice_path_str
 
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Invoice file not found")
@@ -3071,7 +3096,7 @@ async def get_seller_orders(
     seller_id = str(current_user.id)
     query: dict = {}
     if status:
-        query.status = status
+        query["status"] = status  # was query.status = status (dict has no .status attribute)
     skip = (page - 1) * limit
     sub_orders = await sub_order_repository.findBySeller(seller_id, query, skip=skip, limit=limit)
     total = await sub_order_repository.count({"sellerId": seller_id, **query})
@@ -3114,7 +3139,7 @@ async def update_seller_order_status(
     if str(sub_order.seller_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Access denied.")
 
-    allowed_statuses = ["pending", "confirmed", "processing", "shipped", "out_for_delivery", "cancelled"]
+    allowed_statuses = ["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered", "cancelled"]
     if status_data.status not in allowed_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Allowed: {', '.join(allowed_statuses)}")
 
@@ -3169,7 +3194,7 @@ async def get_all_sub_orders(
         else:
             query["sellerId"] = sellerId
     if status:
-        query.status = status
+        query["status"] = status  # was query.status = status (dict has no .status attribute)
     if commissionStatus:
         query["commissionStatus"] = commissionStatus
     if startDate:

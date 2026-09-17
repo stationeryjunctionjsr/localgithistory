@@ -1,8 +1,10 @@
 import pytest
 from httpx import AsyncClient
 from app.main import app
-from app.utils.auth import require_super_admin
+from app.models.schemas import UserCreate
+from app.repositories.user_repository import user_repository
 from app.repositories.referral_repository import referral_repository
+from app.utils.auth import require_super_admin
 
 
 @pytest.fixture(autouse=True)
@@ -114,13 +116,12 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
 
     # 3. Create another user to get a referral code
     import uuid
-
-    referrer_data = {
-        "name": "Referrer User",
-        "email": f"referrer_{uuid.uuid4().hex[:8]}@test.com",
-        "password": "password123",
-        "role": "customer",
-    }
+    referrer_data = UserCreate(
+        name="Referrer User",
+        email=f"referrer_{uuid.uuid4().hex[:8]}@test.com",
+        password="password123",
+        role="customer",
+    )
     referrer = await user_repository.create(referrer_data)
     ref_code = referrer.get("referralCode")
     assert ref_code is not None

@@ -254,6 +254,9 @@ class UserBase(BaseModel):
     effectiveRole: Optional[str] = Field(default=None, validation_alias=AliasChoices("effectiveRole", "effective_role"))
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
+    # Device / verification metadata — populated at registration time, None for admin-created users.
+    deviceId: Optional[str] = None
+    msg91Token: Optional[str] = None
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -505,7 +508,7 @@ class BannerBase(BaseModel):
     description: Optional[str] = None
     imageUrl: str
     displayOrder: Optional[int] = None
-    startDate: str
+    startDate: Optional[str] = None
     endDate: Optional[str] = None
     isActive: bool = True
     isPublished: bool = False
@@ -1582,6 +1585,10 @@ class UserInternalCreate(BaseModel):
     assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
     referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
     isEmailVerified: bool = False
+    # Device / verification metadata captured at registration time.
+    # otp is intentionally excluded — it is verified and deleted before create() is called.
+    deviceId: Optional[str] = None
+    msg91Token: Optional[str] = None
 
 class UserInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')

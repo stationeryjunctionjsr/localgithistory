@@ -8,6 +8,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.models.schemas import UserCreate
 from app.repositories.user_repository import user_repository
 from app.repositories.product_repository import product_repository
 
@@ -37,14 +38,14 @@ async def seed_data():
                 password = secrets.token_urlsafe(12)
                 print(f"[*] TEST_ADMIN_PASSWORD not set. Generated secure random password: {password}")
 
-            user_data = {
-                "name": "Super Admin",
-                "email": email,
-                "password": password,
-                "role": "super_admin",
-                "isActive": True,
-                "approvalStatus": "approved",
-            }
+            user_data = UserCreate(
+                name="Super Admin",
+                email=email,
+                password=password,
+                role="super_admin",
+                isActive=True,
+                approvalStatus="approved",
+            )
             await user_repository.create(user_data)
             print("   ✓ Super Admin created successfully")
             print(f"   Email: {email}")

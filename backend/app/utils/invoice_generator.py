@@ -320,8 +320,9 @@ async def generate_invoice_pdf(order: Dict, payment: Dict, seller_info: Dict) ->
 
 async def save_invoice_pdf(pdf_buffer: BytesIO, order_id: str) -> str:
     """
-    Save invoice PDF to file system
-    Returns: File path relative to uploads directory
+    Save invoice PDF to the private data directory (not the public uploads mount).
+    Returns an opaque path that is served only through the authenticated
+    GET /api/orders/{id}/invoice endpoint.
     """
     from app.utils.file_storage import DATA_DIR
     from app.config.settings import settings
@@ -334,7 +335,8 @@ async def save_invoice_pdf(pdf_buffer: BytesIO, order_id: str) -> str:
     else:
         env_folder = "SJ_LOCAL"
 
-    invoices_dir = Path(DATA_DIR).parent / "uploads" / env_folder / "invoices"
+    # Store in DATA_DIR (private), NOT in uploads/ (public static mount).
+    invoices_dir = Path(DATA_DIR) / "invoices" / env_folder
     invoices_dir.mkdir(parents=True, exist_ok=True)
 
     filename = f"invoice-{order_id}-{int(datetime.now(timezone.utc).timestamp() * 1000)}.pdf"
@@ -343,4 +345,6 @@ async def save_invoice_pdf(pdf_buffer: BytesIO, order_id: str) -> str:
     with open(file_path, "wb") as f:
         f.write(pdf_buffer.getvalue())
 
-    return f"/uploads/{env_folder}/invoices/{filename}"
+    # Return an internal path that is resolved by the download endpoint,
+    # not a /uploads/ URL that would expose the file publicly.
+    return f"invoices/{env_folder}/{filename}"

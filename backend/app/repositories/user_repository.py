@@ -53,11 +53,7 @@ class UserRepository:
                 return user
         return None
 
-    async def create(self, user_data: Any):
-        if isinstance(user_data, dict):
-            if "role" in user_data and hasattr(user_data["role"], "value"):
-                user_data["role"] = user_data["role"].value
-            user_data = UserCreate(**user_data)
+    async def create(self, user_data: UserCreate):
         # Check if user with email already exists (only if email is provided)
         email = user_data.email
         if email:
@@ -120,6 +116,8 @@ class UserRepository:
             assignedSalesperson=user_data.assignedSalesperson,
             referralCode=referral_code,
             isEmailVerified=(user_data.isEmailVerified if user_data.isEmailVerified is not None else False),
+            deviceId=user_data.deviceId,
+            msg91Token=user_data.msg91Token,
         )
 
         if user_model.address and user_model.address not in user_model.savedAddresses:

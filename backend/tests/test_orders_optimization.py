@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from app.models.schemas import UserCreate
 from app.repositories.order_repository import order_repository
 from app.repositories.product_repository import product_repository
 from app.repositories.user_repository import user_repository
@@ -49,7 +50,7 @@ async def cleanup_orders():
 async def test_orders_optimization_logic():
     # 1. Create a test user, product, and payment
     user = await user_repository.create(
-        {"name": "TEST_ORDER_OPT_User", "email": "opt_user@test.com", "password": "Password123", "role": "customer"}
+        UserCreate(name="TEST_ORDER_OPT_User", email="opt_user@test.com", password="Password123", role="customer")
     )
 
     product = await product_repository.create(
@@ -106,7 +107,7 @@ async def test_orders_optimization_logic():
 async def test_orders_pagination_and_counting_logic():
     # 1. Create a test user and product
     user = await user_repository.create(
-        {"name": "TEST_ORDER_OPT_User", "email": "opt_user@test.com", "password": "Password123", "role": "customer"}
+        UserCreate(name="TEST_ORDER_OPT_User", email="opt_user@test.com", password="Password123", role="customer")
     )
 
     product = await product_repository.create(

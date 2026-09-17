@@ -370,12 +370,14 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
 async def update_delivery_charge(
     charge_id: str, charge_data: DeliveryChargeUpdate, current_user: User = Depends(require_super_admin)
 ):
-    update_dict = charge_data
+    # charge_data is a Pydantic model. The previous code assigned it to update_dict
+    # and then checked isinstance(update_dict, dict) which was always False, so
+    # urgentDeliveryAvailable was never cleared when serviceableForCustomer was False.
+    # Fix: check the attribute directly on the Pydantic model.
     if charge_data.serviceableForCustomer is False:
-        if isinstance(update_dict, dict):
-            update_dict["urgentDeliveryAvailable"] = False
-        
-    charge = await delivery_charge_repository.update(charge_id, update_dict)
+        charge_data.urgentDeliveryAvailable = False
+
+    charge = await delivery_charge_repository.update(charge_id, charge_data)
     if not charge:
         raise HTTPException(status_code=404, detail="Delivery charge not found")
     return charge

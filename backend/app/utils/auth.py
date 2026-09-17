@@ -82,9 +82,12 @@ def verify_refresh_token(token: str) -> 'User':
 
     try:
         payload = jwt.decode(token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
-        if payload["type"] if "type" in payload else None != "refresh":
+        # Use .get() for safe key access and proper equality checks.
+        # The original ternary pattern had Python operator-precedence bugs that made
+        # all type checks evaluate incorrectly, rejecting every valid refresh token.
+        if payload.get("type") != "refresh":
             raise credentials_exception
-        if not payload["userId"] if "userId" in payload else None or not payload["sessionId"] if "sessionId" in payload else None or not payload["refreshId"] if "refreshId" in payload else None:
+        if not payload.get("userId") or not payload.get("sessionId") or not payload.get("refreshId"):
             raise credentials_exception
         return payload
     except JWTError:
@@ -260,7 +263,17 @@ async def require_super_admin_or_valet(current_user: 'User' = Depends(get_curren
 
 
 def is_seller_admin(user: 'User') -> bool:
-    return user.role == "seller_admin"
+    """Returns True for seller_admin role, seller role, or users with the isSellerAdmin flag.
+
+    Consistent with require_super_admin_or_seller which accepts all seller roles.
+    Previously only checked role == "seller_admin", causing sellers to bypass ownership
+    filters on some routes while being blocked by others.
+    """
+    if user.role in ("seller_admin", "seller"):
+        return True
+    if getattr(user, "isSellerAdmin", None):
+        return True
+    return False
 
 
 def require_seller_admin(user: 'User' = Depends(get_current_user)) -> 'User':

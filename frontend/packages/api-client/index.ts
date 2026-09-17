@@ -260,6 +260,10 @@ const webAdapter: ApiAdapter = {
   },
 };
 
-const api = createApiClient(webAdapter);
+// Default to 30 s so requests don't hang indefinitely during backend outages.
+// The mobile client applies its own timeout at instantiation time.
+const DEFAULT_WEB_TIMEOUT_MS = 30_000;
+
+const api = createApiClient(webAdapter, { timeout: DEFAULT_WEB_TIMEOUT_MS });
 
 export default api;

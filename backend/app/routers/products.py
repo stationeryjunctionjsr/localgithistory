@@ -695,22 +695,18 @@ async def get_public_products(
 
     if skinny:
         for p in products:
-            p.displayImage = p.display_image or (p.images[0] if p.images else None)
-            p.pop("description", None)
-            p.pop("variants", None)
-            p.pop("videos", None)
-            p.pop("images", None)
-            p.pop("applicableDiscounts", None)
-            p.pop("variations", None)
-            p.pop("variantAttributes", None)
+            p.displayImage = p.displayImage or (p.images[0] if p.images else None)
+            p.description = None
+            p.variants = []
+            p.videos = []
+            p.images = []
+            p.applicableDiscounts = None
+            p.variant_attributes = []
 
     products_with_pricing = []
     for product in products:
-        # Ensure tags and variations arrays exist
-        if "tags" not in product or product.tags is None:
+        if product.tags is None:
             product.tags = []
-        if "variations" not in product or product.variations is None:
-            product.variations = []
 
         products_with_pricing.append(product)
 
@@ -1114,16 +1110,43 @@ async def upload_videos(
     files: List[UploadFile] = File(...),
     current_user: User = Depends(require_super_admin)
 ):
-    from app.utils.oci_storage import upload_file_to_oci
-    import uuid
+    # Import from the correct module path: app.services.oci_storage (not app.utils.oci_storage)
+    import asyncio
+    from app.services.oci_storage import build_key, key_to_media_path, upload_object, use_oci_storage
+
+    ALLOWED_VIDEO_MIME = {"video/mp4", "video/quicktime", "video/x-msvideo", "video/webm", "video/x-matroska"}
+    MAX_VIDEO_SIZE = 100 * 1024 * 1024  # 100 MB
+
     urls = []
     for file in files:
-        ext = file.filename.split('.')[-1] if '.' in file.filename else 'mp4'
-        obj_name = f"videos/{uuid.uuid4()}.{ext}"
         content = await file.read()
-        url = await upload_file_to_oci(content, obj_name, file.content_type)
-        if url:
-            urls.append(url)
+        if len(content) > MAX_VIDEO_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File '{file.filename}' exceeds the 100 MB size limit",
+            )
+        mime = file.content_type or "video/mp4"
+        if mime not in ALLOWED_VIDEO_MIME:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported video type '{mime}'. Allowed: {', '.join(sorted(ALLOWED_VIDEO_MIME))}",
+            )
+        ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "mp4"
+        safe_filename = f"video-{__import__('uuid').uuid4().hex}.{ext}"
+        if use_oci_storage():
+            key = build_key("videos", safe_filename)
+            await asyncio.to_thread(upload_object, key, content, mime)
+            urls.append(key_to_media_path(key))
+        else:
+            # Local fallback
+            from pathlib import Path
+            from app.config.settings import settings
+            env = settings.environment.lower()
+            env_folder = "SJ_PROD" if env == "production" else ("SJ_UAT" if env == "uat" else "SJ_LOCAL")
+            upload_dir = Path(__file__).resolve().parents[2] / "uploads" / env_folder / "videos"
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            (upload_dir / safe_filename).write_bytes(content)
+            urls.append(f"/uploads/{env_folder}/videos/{safe_filename}")
     return {"urls": urls}
 
 

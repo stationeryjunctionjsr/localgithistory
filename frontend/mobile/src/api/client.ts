@@ -158,7 +158,13 @@ if (__DEV__) {
       'Mobile API base URL is not configured for production. Set EXPO_PUBLIC_API_URL to the deployed backend URL.'
     );
   }
-  api.defaults.baseURL = normalizeApiBaseUrl(configuredApiUrl);
+  const prodBaseUrl = normalizeApiBaseUrl(configuredApiUrl);
+  if (!prodBaseUrl.startsWith('https://')) {
+    throw new Error(
+      `Production API URL must use HTTPS. Got: ${prodBaseUrl}. Set EXPO_PUBLIC_API_URL to an https:// URL.`
+    );
+  }
+  api.defaults.baseURL = prodBaseUrl;
 }
 
 /**

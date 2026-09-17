@@ -117,11 +117,16 @@ class BannerRepository:
             end_date = banner.endDate
 
             def parse_iso(dt_str):
+                if isinstance(dt_str, datetime):
+                    if dt_str.tzinfo is not None:
+                        from datetime import timezone
+                        return dt_str.astimezone(timezone.utc).replace(tzinfo=None)
+                    return dt_str
                 if not dt_str or not str(dt_str).strip():
                     return None
                 try:
                     # Handle Z suffix for UTC
-                    if dt_str.endswith("Z"):
+                    if isinstance(dt_str, str) and dt_str.endswith("Z"):
                         dt_str = dt_str[:-1] + "+00:00"
                     dt = datetime.fromisoformat(dt_str)
                     # If aware, convert to naive UTC for consistent comparison

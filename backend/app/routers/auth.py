@@ -250,13 +250,11 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
         if not normalized_phone or len(normalized_phone) != 10:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a valid 10-digit phone number")
 
-        # Always create as customer
-        user_dict = user_data
-        user_dict["role"] = "customer"
-        user_dict["approvalStatus"] = "approved"
-        user_dict["phone"] = normalized_phone
-        user_dict.pop("otp", None)
-        user_dict.pop("deviceId", None)
+        # Set registration defaults directly on the Pydantic model.
+        # user_repository.create() accepts Any — it handles both Pydantic models and dicts.
+        user_data.role = "customer"
+        user_data.approvalStatus = "approved"
+        user_data.phone = normalized_phone
 
         # Check if user already exists as guest
         user = await user_repository.findByPhone(normalized_phone)
@@ -300,7 +298,7 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
                     detail=err_msg,
                 )
 
-        user = await user_repository.create(user_dict)
+        user = await user_repository.create(user_data)
 
         # Only delete the OTP after the user is successfully created in the DB
         if not user_data.msg91Token:

@@ -34,7 +34,13 @@ export function middleware(request: NextRequest) {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://verify.msg91.com https://pass.hostnsoft.com`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `font-src 'self' https://fonts.gstatic.com`,
-    `img-src 'self' data: blob: https:`,
+    // img-src is scoped to known domains only.
+    // - objectstorage: OCI bucket — Hyderabad region (ap-hyderabad-1)
+    // - lh3.googleusercontent.com: Google Maps / Reviews avatars
+    // - www.gstatic.com: Google static assets used by Maps embed
+    // data: and blob: are needed for canvas exports and client-side image processing.
+    // Avoid `https:` (any HTTPS source) as it defeats the purpose of CSP for images.
+    `img-src 'self' data: blob: https://objectstorage.ap-hyderabad-1.oraclecloud.com https://lh3.googleusercontent.com https://www.gstatic.com`,
     `connect-src 'self' https://www.google-analytics.com https://www.clarity.ms https://control.msg91.com https://verify.msg91.com https://pass.hostnsoft.com ${apiUrl}`.trim(),
     `frame-src 'self' https://www.google.com https://www.googletagmanager.com https://verify.msg91.com https://pass.hostnsoft.com`,
     `object-src 'none'`,

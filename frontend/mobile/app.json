@@ -25,7 +25,6 @@
       }
     },
     "android": {
-      "usesCleartextTraffic": true
     },
     "plugins": [
       "expo-router",

@@ -115,17 +115,17 @@ async def _resolve_zone_config(pincode: str, date: str, segment: str) -> Optiona
     
     zone_data = await get_zone_for_pincode(pincode)
     zone_id = zone_data.id or (zone_data["_id"] if isinstance(zone_data, dict) and "_id" in zone_data else zone_data["id"] if isinstance(zone_data, dict) and "id" in zone_data else None) if zone_data else None
-    logger.error(f"_resolve_zone_config: pincode={pincode} date={date} segment={segment} zone_data={zone_data} zone_id={zone_id}")
+    logger.debug(f"_resolve_zone_config: pincode={pincode} date={date} segment={segment} zone_id={zone_id}")
 
     if zone_id:
         configs = await storage.findAll({"date": date, "segment": segment, "zoneId": str(zone_id), "isActive": True})
-        logger.error(f"_resolve_zone_config: found configs for zone_id: {configs}")
+        logger.debug(f"_resolve_zone_config: found {len(configs)} configs for zone_id={zone_id}")
         if configs:
             doc = configs[0]
             return doc if isinstance(doc, DeliverySlotConfigModel) else DeliverySlotConfigModel.model_validate(doc)
 
     default_configs = await storage.findAll({"date": date, "segment": segment, "zoneId": DEFAULT_ZONE_ID, "isActive": True})
-    logger.error(f"_resolve_zone_config: found default configs: {default_configs}")
+    logger.debug(f"_resolve_zone_config: found {len(default_configs)} default configs")
     if default_configs:
         doc = default_configs[0]
         return doc if isinstance(doc, DeliverySlotConfigModel) else DeliverySlotConfigModel.model_validate(doc)
@@ -170,14 +170,14 @@ async def get_available_slots(
     now_ist = (utc_now + ist_offset).replace(tzinfo=None)  # naive IST for comparison with strptime results
 
     config = await _resolve_zone_config(pincode, date, segment)
-    logger.error(f"get_available_slots: config={config}")
+    logger.debug(f"get_available_slots: config found={config is not None}")
     if not config:
         return []
 
     matched_slots = []
     slots = config["slots"] if isinstance(config, dict) and "slots" in config else (getattr(config, "slots", []) if not isinstance(config, dict) else [])
     for slot in slots:
-        logger.error(f"get_available_slots: slot={slot}")
+        logger.debug(f"get_available_slots: evaluating slot id={_g(slot, 'id')}")
         if not (_g(slot, "isActive") if _g(slot, "isActive") is not None else True):
             continue
 
@@ -200,7 +200,7 @@ async def get_available_slots(
                     anchor_ist = _dt.datetime.strptime(f"{date} {anchor_time_str}", "%Y-%m-%d %H:%M")
                     cutoff_ist = anchor_ist - _dt.timedelta(hours=cutoff_hours)
                     if now_ist >= cutoff_ist:
-                        logger.error(f"get_available_slots: cutoff failed")
+                        logger.debug(f"get_available_slots: slot skipped — cutoff passed")
                         continue
                 except ValueError:
                     pass
@@ -209,7 +209,7 @@ async def get_available_slots(
             cap = int(_g(slot, "capacity")) if _g(slot, "capacity") is not None else config.zoneDefaultCapacity
             booked = int(_g(slot, "bookedCount") or 0)
             if cap is not None and booked >= cap:
-                logger.error(f"get_available_slots: capacity failed")
+                logger.debug(f"get_available_slots: slot skipped — at capacity")
                 continue
 
         end_time_str = _g(slot, "endTime") or ""
@@ -217,13 +217,13 @@ async def get_available_slots(
             try:
                 end_ist = _dt.datetime.strptime(f"{date} {end_time_str}", "%Y-%m-%d %H:%M")
                 if now_ist >= end_ist:
-                    logger.error(f"get_available_slots: 24h failed")
+                    logger.debug(f"get_available_slots: slot skipped — end time passed")
                     continue
             except ValueError:
                 pass
 
-        logger.error(f"get_available_slots: matched slot={slot}")
-        slot_id = _g(slot, "id") or f"{_g(slot, "startTime")}-{_g(slot, "endTime")}"
+        logger.debug(f"get_available_slots: slot matched")
+        slot_id = _g(slot, "id") or f"{_g(slot, 'startTime')}-{_g(slot, 'endTime')}"
         config_id_val = _g(config, "id") or ""
         matched_slots.append({
             "configId": str(config_id_val),
@@ -234,7 +234,7 @@ async def get_available_slots(
             "isFullDay": is_full_day,
         })
 
-    logger.error(f"get_available_slots: returning {matched_slots}")
+    logger.debug(f"get_available_slots: returning {len(matched_slots)} slots")
     return matched_slots
 
 
@@ -315,11 +315,18 @@ async def get_dates_with_slots(
 
 
 @router.post("/{config_id}/book-slot", response_model=BookSlotResponse)
-async def book_slot(config_id: str, slot_id: str = Query(...)):
+async def book_slot(
+    config_id: str,
+    slot_id: str = Query(...),
+    current_user: User = Depends(require_super_admin),
+):
     """
-    Internal endpoint — atomically increments bookedCount for a specific slot.
-    Called after a successful order creation. No auth guard needed since it's
-    called server-side from the orders router.
+    Super-admin-only endpoint for manual slot booking adjustments.
+
+    NOTE: Order creation does NOT call this endpoint — it uses a direct atomic
+    SQL UPDATE (WHERE booked_count < capacity) inside orders.py for race-safety.
+    This HTTP route is only for administrative corrections and is now protected
+    to prevent unauthenticated actors from inflating bookedCount.
     """
     config = await storage.findById(config_id)
     if not config:
@@ -329,7 +336,7 @@ async def book_slot(config_id: str, slot_id: str = Query(...)):
     updated = False
     booked_slot: Optional[SlotBase] = None
     for slot in cfg.slots:
-        current_slot_id = _g(slot, "id") or f"{_g(slot, "startTime")}-{_g(slot, "endTime")}"
+        current_slot_id = _g(slot, "id") or f"{_g(slot, 'startTime')}-{_g(slot, 'endTime')}"
         if current_slot_id == slot_id:
             cap = int(_g(slot, "capacity")) if _g(slot, "capacity") is not None else cfg.zoneDefaultCapacity
             booked = int(_g(slot, "bookedCount") or 0)

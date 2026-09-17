@@ -4,6 +4,7 @@ import uuid
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from app.models.schemas import UserCreate
 from app.repositories.user_repository import user_repository
 from app.repositories.product_repository import product_repository
 from app.repositories.category_repository import category_repository
@@ -20,11 +21,11 @@ async def test_full_e2e_flow():
     import random
     test_pincode = f"{random.randint(100000, 999999)}"
 
-    await user_repository.create({"name": "Admin", "email": admin_email, "password": "pass", "role": "super_admin"})
-    await user_repository.create({"name": "Seller", "email": seller_email, "password": "pass", "role": "seller"})
-    await user_repository.create({"name": "Valet", "email": valet_email, "password": "pass", "role": "valet", "isOnDuty": True})
-    await user_repository.create({"name": "Valet2", "email": valet2_email, "password": "pass", "role": "valet", "isOnDuty": True})
-    await user_repository.create({"name": "Customer", "email": customer_email, "password": "pass", "role": "customer", "addresses": [{"pincode": test_pincode, "isDefault": True}]})
+    await user_repository.create(UserCreate(name="Admin", email=admin_email, password="pass", role="super_admin"))
+    await user_repository.create(UserCreate(name="Seller", email=seller_email, password="pass", role="seller"))
+    await user_repository.create(UserCreate(name="Valet", email=valet_email, password="pass", role="valet", isOnDuty=True))
+    await user_repository.create(UserCreate(name="Valet2", email=valet2_email, password="pass", role="valet", isOnDuty=True))
+    await user_repository.create(UserCreate(name="Customer", email=customer_email, password="pass", role="customer"))
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # Login

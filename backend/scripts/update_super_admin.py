@@ -8,6 +8,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.models.schemas import UserCreate
 from app.repositories.user_repository import user_repository
 
 
@@ -57,14 +58,14 @@ async def update_or_create_super_admin():
             print("Creating New Super Admin")
             print("=" * 60)
 
-            user_data = {
-                "name": name,
-                "email": email,
-                "password": password,
-                "role": "super_admin",
-                "isActive": True,
-                "approvalStatus": "approved",
-            }
+            user_data = UserCreate(
+                name=name,
+                email=email,
+                password=password,
+                role="super_admin",
+                isActive=True,
+                approvalStatus="approved",
+            )
 
             user = await user_repository.create(user_data)
 
