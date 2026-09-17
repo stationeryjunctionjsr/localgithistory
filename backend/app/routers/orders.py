@@ -2264,7 +2264,7 @@ async def update_order_status(
     # Recompute overall fulfillment status based on sub-orders
     _f_status = await _compute_fulfillment_status(sub_ids)
     if _f_status and _f_status != updated_order.status:
-        updated_order = await order_repository.update(order_id, {"status": _f_status})
+        updated_order = await order_repository.update(order_id, OrderInternalUpdate(status=_f_status))
         sub_ids = updated_order.subOrderIds if updated_order.subOrderIds else []
 
     # Send status change email notification
@@ -3217,7 +3217,7 @@ async def update_seller_order_status(
         if parent and parent.subOrderIds:
             _f_status = await _compute_fulfillment_status(parent.subOrderIds)
             if _f_status:
-                await order_repository.update(parent_id, {"status": _f_status})
+                await order_repository.update(parent_id, OrderInternalUpdate(status=_f_status))
 
     return updated
 

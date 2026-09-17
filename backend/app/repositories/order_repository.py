@@ -65,13 +65,6 @@ class OrderRepository:
         return await self.storage.findById(id)
 
     async def create(self, order_data: Any):
-        if isinstance(order_data, dict):
-            order_data.setdefault("tax", 0.0)
-            order_data.setdefault("shipping", 0.0)
-            order_data.setdefault("discount", 0.0)
-            order_data.setdefault("createdAt", datetime.now(timezone.utc).isoformat())
-            order_data.setdefault("items", [])
-            order_data = OrderInternalCreate(**order_data)
         if not order_data.createdAt:
             order_data.createdAt = datetime.now(timezone.utc).isoformat()
             
@@ -109,8 +102,6 @@ class OrderRepository:
         if update_data.status == "cancelled" and update_data.cancelledAt is None:
             update_data.cancelledAt = datetime.now(timezone.utc).isoformat()
 
-        if isinstance(update_data, dict):
-            return await self.storage.update(id, update_data)
         fields = {}
         for f in update_data.model_fields_set:
             if f == "status": fields[f] = update_data.status
@@ -129,6 +120,10 @@ class OrderRepository:
             elif f == "pendingValetId": fields[f] = update_data.pendingValetId
             elif f == "valetAssignedAt": fields[f] = update_data.valetAssignedAt
             elif f == "cancelledBy": fields[f] = update_data.cancelledBy
+            elif f == "invoicePath": fields[f] = update_data.invoicePath
+            elif f == "invoiceGeneratedAt": fields[f] = update_data.invoiceGeneratedAt
+            elif f == "valetDeclineHistory": fields[f] = update_data.valetDeclineHistory
+            elif f == "valetDeclinedAt": fields[f] = update_data.valetDeclinedAt
         return await self.storage.update(id, fields)
 
     async def delete(self, id: str):
