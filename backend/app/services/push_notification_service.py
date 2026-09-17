@@ -32,7 +32,7 @@ class PushNotificationService:
         self.vapid_email = os.getenv("VAPID_EMAIL", "mailto:your-email@example.com")
         self.expo_push_url = "https://exp.host/--/api/v2/push/send"
 
-    def _send_expo_push(self, expo_tokens: list, notification: Dict) -> int:
+    def _send_expo_push(self, expo_tokens: list, notification: Any) -> int:
         """Send push notifications to Expo mobile devices in batches of 100."""
         if not expo_tokens or not HTTP_AVAILABLE:
             return 0
@@ -40,15 +40,15 @@ class PushNotificationService:
         messages = [
             {
                 "to": token,
-                "title": (notification["title"] if "title" in notification else ""),
-                "body": (notification["message"] if "message" in notification else ""),
+                "title": notification.title or "",
+                "body": notification.message or "",
                 "data": {
-                    "url": (notification["link"] if "link" in notification else None) or "/",
-                    "notificationId": (notification["_id"] if "_id" in notification else None),
+                    "url": notification.link or "/",
+                    "notificationId": notification.id,
                 },
                 "sound": "default",
                 "channelId": "default",
-                **({"image": notification["image"]} if (notification["image"] if "image" in notification else None) else {}),
+                **({"image": notification.image} if notification.image else {}),
             }
             for token in expo_tokens
         ]
@@ -201,19 +201,19 @@ class PushNotificationService:
                             await push_notification_repository.removeDeviceSubscription((device["_id"] if "_id" in device else None))
 
             # --- 4b. Expo Push (native mobile) devices ---
-            expo_tokens = [(d["expoToken"] if "expoToken" in d else None) for d in targeted_devices if (d["expoToken"] if "expoToken" in d else None)]
+            expo_tokens = [d.get("expoToken") for d in targeted_devices if d.get("expoToken")]
             delivered_count += self._send_expo_push(expo_tokens, notification)
 
             # Update stats and persist targeted user list for strict ownership validation
             update_data = {"deliveredCount": delivered_count, "targetedUserIds": list(targeted_user_ids)}
-            await push_notification_repository.updateStats((notification["_id"] if "_id" in notification else None), update_data)
+            await push_notification_repository.updateStats(notification.id, update_data)
 
             return {"deliveredCount": delivered_count, "totalDevices": len(targeted_devices)}
         except Exception as e:
             logger.error("Error in sending targeted push: %s", str(e), exc_info=True)
             raise
 
-    async def send_to_user(self, user_id: str, notification: Dict):
+    async def send_to_user(self, user_id: str, notification: Any):
         """Send push notification to a specific user's devices"""
         try:
             devices = await push_notification_repository.getDeviceSubscriptionsByUser(user_id)
@@ -221,32 +221,32 @@ class PushNotificationService:
 
             # --- Web Push (browser/PWA) devices ---
             if WEB_PUSH_AVAILABLE:
-                web_devices = [d for d in devices if (d["endpoint"] if "endpoint" in d else None) and (d["keys"] if "keys" in d else None)]
+                web_devices = [d for d in devices if d.get("endpoint") and d.get("keys")]
                 for device in web_devices:
                     try:
                         payload = {
-                            "title": (notification["title"] if "title" in notification else ""),
-                            "body": (notification["message"] if "message" in notification else ""),
-                            "icon": (notification["image"] if "image" in notification else None) or "/logo192.png",
+                            "title": notification.title or "",
+                            "body": notification.message or "",
+                            "icon": notification.image or "/logo192.png",
                             "badge": "/logo192.png",
-                            "image": (notification["image"] if "image" in notification else None) or None,
-                            "data": {"url": (notification["link"] if "link" in notification else None) or "/", "notificationId": (notification["_id"] if "_id" in notification else None)},
-                            "tag": (notification["_id"] if "_id" in notification else ""),
+                            "image": notification.image or None,
+                            "data": {"url": notification.link or "/", "notificationId": notification.id},
+                            "tag": notification.id or "",
                         }
                         pywebpush.webpush(
-                            subscription_info={"endpoint": (device["endpoint"] if "endpoint" in device else None), "keys": (device["keys"] if "keys" in device else {})},
+                            subscription_info={"endpoint": device.get("endpoint"), "keys": device.get("keys", {})},
                             data=json.dumps(payload),
                             vapid_private_key=self.vapid_private_key,
                             vapid_claims={"sub": self.vapid_email},
                         )
                         delivered_count += 1
                     except Exception as e:
-                        logger.error("Failed to send to web device %s: %s", (device["_id"] if "_id" in device else None), str(e))
+                        logger.error("Failed to send to web device %s: %s", device.get("_id"), str(e))
                         if "410" in str(e) or "404" in str(e):
-                            await push_notification_repository.removeDeviceSubscription((device["_id"] if "_id" in device else None))
+                            await push_notification_repository.removeDeviceSubscription(device.get("_id"))
 
             # --- Expo Push (native mobile) devices ---
-            expo_tokens = [(d["expoToken"] if "expoToken" in d else None) for d in devices if (d["expoToken"] if "expoToken" in d else None)]
+            expo_tokens = [d.get("expoToken") for d in devices if d.get("expoToken")]
             delivered_count += self._send_expo_push(expo_tokens, notification)
 
             return {"deliveredCount": delivered_count, "totalDevices": len(devices)}
@@ -257,22 +257,22 @@ class PushNotificationService:
     async def is_user_targeted(
         self,
         user_id: str,
-        notification: Dict,
-        user: Optional[Dict] = None,
-        user_orders: Optional[List[Dict]] = None,
+        notification: Any,
+        user: Optional[Any] = None,
+        user_orders: Optional[List[Any]] = None,
         reference_date: Optional[datetime] = None,
     ) -> bool:
         """Check if a specific user satisfies the targeting criteria of a notification."""
-        target_segment = (notification["userSegment"] if "userSegment" in notification else "all")
-        target_behavior = (notification["userBehavior"] if "userBehavior" in notification else "none")
+        target_segment = notification.userSegment or "all"
+        target_behavior = notification.userBehavior or "none"
 
         if not reference_date:
-            reference_date_str = (notification["scheduledFor"] if "scheduledFor" in notification else None)
+            reference_date_str = notification.scheduledFor
             if reference_date_str:
                 reference_date = datetime.fromisoformat(reference_date_str.replace("Z", "+00:00"))
             else:
                 reference_date = datetime.fromisoformat(
-                    (notification["createdAt"] if "createdAt" in notification else datetime.now().isoformat()).replace("Z", "+00:00")
+                    (notification.createdAt or datetime.now().isoformat()).replace("Z", "+00:00")
                 )
 
         if not user:
@@ -305,13 +305,13 @@ class PushNotificationService:
                         user_orders = []
                         for order in all_orders:
                             try:
-                                o_date = datetime.fromisoformat((order["createdAt"] if "createdAt" in order else None).replace("Z", "+00:00"))
+                                o_date = datetime.fromisoformat(order.createdAt.replace("Z", "+00:00"))
                                 if o_date <= reference_date:
                                     user_orders.append(order)
                             except Exception as exc:
                                 logger.warning(
                                     "Failed to parse createdAt for order %s of user %s: %s",
-                                    (order["_id"] if "_id" in order else None),
+                                    order.id,
                                     user_id,
                                     exc,
                                 )
@@ -331,7 +331,7 @@ class PushNotificationService:
                             o
                             for o in user_orders
                             if three_months_ago
-                            <= datetime.fromisoformat((o["createdAt"] if "createdAt" in o else None).replace("Z", "+00:00"))
+                            <= datetime.fromisoformat(o.createdAt.replace("Z", "+00:00"))
                             <= reference_date
                         ]
                         if len(recent_orders) >= 12:
@@ -343,7 +343,7 @@ class PushNotificationService:
                             o
                             for o in user_orders
                             if three_months_ago
-                            <= datetime.fromisoformat((o["createdAt"] if "createdAt" in o else None).replace("Z", "+00:00"))
+                            <= datetime.fromisoformat(o.createdAt.replace("Z", "+00:00"))
                             <= reference_date
                         ]
                         if 3 < len(recent_orders) <= 9:

@@ -285,7 +285,7 @@ TABLES_CONFIG = {
     "sj_device_subscriptions": {
         "api_name": "deviceSubscriptions",
         "child_tables": {
-            "keys": ("sj_device_keys", ["key_name", "key_value"], ["key", "value"], False, True),
+            "keys": ("sj_device_keys", ["key_name", "key_value"], ["key", "value"], False, False),
             "subscription": ("sj_device_sub_data", ["sub_key", "sub_val"], ["key", "value"], False, True),
         },
     },

@@ -1,5 +1,6 @@
 from app.models.user import User
 from typing import Dict, Any, List
+from app.models.daos_flat import PushNotificationsInternalCreate, PushNotificationsInternalUpdate
 from app.models.schemas import MessageResponse, PushNotificationResponse, PushAnalyticsResponse, VapidKeyResponse, PushSubscription
 from pathlib import Path
 from typing import Optional
@@ -330,7 +331,7 @@ async def register_device(
                 # Not authenticated or invalid token — continue as guest
                 logger.warning("Optional device registration auth token verification failed: %s", str(e))
 
-        sub_payload = request.subscription if has_web_subscription else None
+        sub_payload = request.subscription.model_dump() if has_web_subscription and request.subscription else None
         await push_notification_repository.registerDevice(
             userId, sub_payload, expoToken=request.expoToken
         )
@@ -361,7 +362,7 @@ async def mark_notification_read(
         user_id = str(current_user.id or current_user.id)
 
         # Strict Ownership/Membership Validation
-        targeted_ids = notification.targeted_user_ids
+        targeted_ids = notification.targetedUserIds
         if targeted_ids is not None:
             # High-performance O(1) check for new notifications
             if user_id not in [str(tid) for tid in targeted_ids]:

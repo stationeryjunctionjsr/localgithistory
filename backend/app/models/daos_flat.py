@@ -130,6 +130,35 @@ class PromoStripsInternal(BaseModel):
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
+class DeviceKeyInternal(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    key: str
+    value: str
+
+class DeviceSubscriptionInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    userId: Optional[str] = None
+    endpoint: Optional[str] = None
+    expoToken: Optional[str] = None
+    keys: Optional[List[DeviceKeyInternal]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class DeviceSubscriptionInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    userId: Optional[str] = None
+    endpoint: Optional[str] = None
+    expoToken: Optional[str] = None
+    keys: Optional[List[DeviceKeyInternal]] = None
+
+class DeviceSubscriptionInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    userId: Optional[str] = None
+    endpoint: Optional[str] = None
+    expoToken: Optional[str] = None
+    keys: Optional[List[DeviceKeyInternal]] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None
@@ -139,6 +168,25 @@ class PromoStripsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None
     text: Optional[str] = None
+
+class PushNotificationsInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    title: Optional[str] = None
+    message: Optional[str] = None
+    link: Optional[str] = None
+    image: Optional[str] = None
+    status: Optional[str] = None
+    scheduledFor: Optional[str] = None
+    deliveredCount: Optional[int] = None
+    readCount: Optional[int] = None
+    userSegment: Optional[str] = None
+    userBehavior: Optional[str] = None
+    createdBy: Optional[str] = None
+    targetedUserIds: Optional[List[str]] = None
+    readByUserIds: Optional[List[str]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
 
 class PushNotificationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -151,6 +199,11 @@ class PushNotificationsInternalCreate(BaseModel):
     scheduledFor: Optional[str] = None
     status: Optional[str] = None
     title: Optional[str] = None
+    userSegment: Optional[str] = None
+    userBehavior: Optional[str] = None
+
+    userSegment: Optional[str] = None
+    userBehavior: Optional[str] = None
     userBehavior: Optional[str] = None
     userSegment: Optional[str] = None
 
