@@ -1269,40 +1269,36 @@ class MySQLStockReservationsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        existing_dict = existing if isinstance(existing, dict) else existing.__dict__
-        data_dict = data if isinstance(data, dict) else getattr(data, '__dict__', {})
-        merged = {**existing_dict, **data_dict}
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
         
-        product_id = merged.get("productId") or merged.get("product_id")
+        product_id = data.productId if data.productId is not None else existing.product_id
         if product_id is not None:
             updates.append("product_id = :productId")
             params["productId"] = product_id
             
-        user_id = merged.get("userId") or merged.get("user_id")
+        user_id = data.userId if data.userId is not None else existing.user_id
         if user_id is not None:
             updates.append("user_id = :userId")
             params["userId"] = user_id
             
-        quantity = merged.get("quantity")
+        quantity = data.quantity if data.quantity is not None else existing.quantity
         if quantity is not None:
             updates.append("quantity = :quantity")
             params["quantity"] = quantity
             
-        status = merged.get("status")
+        status = data.status if data.status is not None else existing.status
         if status is not None:
             updates.append("status = :status")
             params["status"] = status
             
-        expires_at = merged.get("expiresAt") or merged.get("expires_at")
+        expires_at = data.expiresAt if data.expiresAt is not None else existing.expires_at
         if expires_at is not None:
             updates.append("expires_at = :expiresAt")
             params["expiresAt"] = expires_at
-
         if not updates:
             return existing
 
