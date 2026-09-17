@@ -240,6 +240,36 @@ class SearchTagInternalUpdate(BaseModel):
     productIds: Optional[List[str]] = None
     excludedProductIds: Optional[List[str]] = None
 
+class CoachMarkInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    anchorId: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    screenName: Optional[str] = None
+    sequenceOrder: Optional[int] = None
+    isActive: Optional[bool] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class CoachMarkInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    anchorId: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    screenName: Optional[str] = None
+    sequenceOrder: Optional[int] = None
+    isActive: Optional[bool] = None
+
+class CoachMarkInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    anchorId: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    screenName: Optional[str] = None
+    sequenceOrder: Optional[int] = None
+    isActive: Optional[bool] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None

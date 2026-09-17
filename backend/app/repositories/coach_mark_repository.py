@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
+from app.models.daos_flat import CoachMarkInternal, CoachMarkInternalCreate, CoachMarkInternalUpdate
 
 
 class CoachMarkRepository:
@@ -12,33 +13,28 @@ class CoachMarkRepository:
     def _get_timestamp(self) -> str:
         return datetime.now(timezone.utc).isoformat()
 
-    async def findAll(self) -> List[Dict]:
+    async def findAll(self) -> List[CoachMarkInternal]:
         return await self.storage.findAll()
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[CoachMarkInternal]:
         return await self.storage.findById(id)
 
-    async def findByAnchorId(self, anchor_id: str) -> Optional[Dict]:
+    async def findByAnchorId(self, anchor_id: str) -> Optional[CoachMarkInternal]:
         marks = await self.storage.findAll()
         for mark in marks:
-            if "anchorId" in mark and mark["anchorId"] == anchor_id:
+            if mark.anchorId == anchor_id:
                 return mark
         return None
 
-    async def create(self, data: Any) -> Dict:
-        mark = {
-            **data,
-            "isActive": (data.isActive if data.isActive is not None else True),
-            "createdAt": self._get_timestamp(),
-            "updatedAt": self._get_timestamp(),
-        }
-        return await self.storage.create(mark)
+    async def create(self, data: CoachMarkInternalCreate) -> CoachMarkInternal:
+        if data.isActive is None:
+            data.isActive = True
+        return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: Any) -> Dict:
-        updates = {**update_data, "updatedAt": self._get_timestamp()}
-        return await self.storage.update(id, updates)
+    async def update(self, id: str, update_data: CoachMarkInternalUpdate) -> CoachMarkInternal:
+        return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> Dict:
+    async def delete(self, id: str) -> bool:
         return await self.storage.delete(id)
 
 

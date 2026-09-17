@@ -4,6 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.models.daos_flat import CoachMarkInternalCreate, CoachMarkInternalUpdate
 from app.models.schemas import CoachMarkCreate, CoachMarkResponse, CoachMarkUpdate
 from app.repositories.coach_mark_repository import coach_mark_repository
 from app.utils.auth import require_super_admin
@@ -31,7 +32,8 @@ async def get_coach_mark(id: str):
 @router.post("", response_model=CoachMarkResponse)
 @router.post("/", response_model=CoachMarkResponse)
 async def create_coach_mark(mark: CoachMarkCreate, current_user: User = Depends(require_super_admin)):
-    return await coach_mark_repository.create(mark)
+    internal_data = CoachMarkInternalCreate(**mark.model_dump())
+    return await coach_mark_repository.create(internal_data)
 
 
 @router.put("/{id}", response_model=CoachMarkResponse)
@@ -39,7 +41,8 @@ async def update_coach_mark(id: str, mark_update: CoachMarkUpdate, current_user:
     mark = await coach_mark_repository.findById(id)
     if not mark:
         raise HTTPException(status_code=404, detail="Coach mark not found")
-    return await coach_mark_repository.update(id, mark_update)
+    internal_update = CoachMarkInternalUpdate(**mark_update.model_dump(exclude_unset=True))
+    return await coach_mark_repository.update(id, internal_update)
 
 
 @router.delete("/{id}", response_model=MessageResponse)
