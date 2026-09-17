@@ -270,6 +270,27 @@ class CoachMarkInternalUpdate(BaseModel):
     sequenceOrder: Optional[int] = None
     isActive: Optional[bool] = None
 
+class CategoryTagInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    description: Optional[str] = None
+    isActive: Optional[bool] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class CategoryTagInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: Optional[str] = None
+    description: Optional[str] = None
+    isActive: Optional[bool] = None
+
+class CategoryTagInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: Optional[str] = None
+    description: Optional[str] = None
+    isActive: Optional[bool] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None

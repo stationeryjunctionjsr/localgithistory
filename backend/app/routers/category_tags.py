@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app.models.daos_flat import CategoryTagInternalCreate, CategoryTagInternalUpdate
 from app.repositories.category_tag_repository import category_tag_repository
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache
@@ -65,8 +66,7 @@ async def create_category_tag(tag: CategoryTagBase, current_user: dict = Depends
         if existing_tag:
             raise HTTPException(status_code=400, detail="Category tag with this name already exists")
 
-        tag_data = {"name": tag.name.strip(), "description": tag.description, "isActive": tag.isActive}
-
+        tag_data = CategoryTagInternalCreate(name=tag.name.strip(), description=tag.description, isActive=tag.isActive)
         new_tag = await category_tag_repository.create(tag_data)
         cache.invalidate(get_active_category_tags)
         try:
@@ -95,22 +95,26 @@ async def update_category_tag(
         if not tag:
             raise HTTPException(status_code=404, detail="Category tag not found")
 
-        update_data = {}
+        update_data = CategoryTagInternalUpdate()
+        has_updates = False
         if tag_update.name is not None:
             # Check if tag with same name already exists (excluding current tag)
             existing_tag = await category_tag_repository.findByName(tag_update.name)
             existing_id = existing_tag.id if existing_tag else None
             if existing_tag and str(existing_id) != str(tag_id):
                 raise HTTPException(status_code=400, detail="Category tag with this name already exists")
-            update_data["name"] = tag_update.name.strip()
+            update_data.name = tag_update.name.strip()
+            has_updates = True
 
         if tag_update.description is not None:
-            update_data["description"] = tag_update.description
+            update_data.description = tag_update.description
+            has_updates = True
 
         if tag_update.isActive is not None:
-            update_data["isActive"] = tag_update.isActive
+            update_data.isActive = tag_update.isActive
+            has_updates = True
 
-        if not update_data:
+        if not has_updates:
             raise HTTPException(status_code=400, detail="No fields to update")
 
         updated_tag = await category_tag_repository.update(tag_id, update_data)
