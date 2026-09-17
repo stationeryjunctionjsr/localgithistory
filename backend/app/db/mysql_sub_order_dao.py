@@ -72,7 +72,7 @@ class MySQLSubOrderDAO:
     def _get_session_factory(self):
         return get_async_session_factory()
 
-    def _map_to_schema(self, row, items_rows=None) -> Dict:
+    def _map_to_schema(self, row, items_rows=None) -> 'SubOrder':
         """Construct the NoSQL-style dictionary from flattened SQL columns."""
         doc = {
             "_id": str(row.id),
@@ -177,7 +177,8 @@ class MySQLSubOrderDAO:
 
         doc["createdAt"] = row.created_at.isoformat() if row.created_at else _now_iso()
         doc["updatedAt"] = row.updated_at.isoformat() if row.updated_at else _now_iso()
-        return doc
+        from app.models.sub_order import SubOrder
+        return SubOrder(**doc)
 
     def _build_where(self, query: Dict):
         where_clauses = []
@@ -210,7 +211,7 @@ class MySQLSubOrderDAO:
                 pass  # Ignoring unmapped query fields
         return where_clauses, params
 
-    async def findAll(self, query: Optional[Dict] = None, skip: int = 0, limit: int = 0) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None, skip: int = 0, limit: int = 0) -> List['SubOrder']:
         factory = self._get_session_factory()
         if not factory:
             return []
@@ -235,17 +236,17 @@ class MySQLSubOrderDAO:
 
             return [SubOrder.model_validate(self._map_to_schema(r, items_rows) ) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: dict) -> Optional['SubOrder']:
         docs = await self.findAll(query, limit=1)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional['SubOrder']:
         return await self.findOne({"_id": id})
 
-    async def findByParentOrder(self, parent_order_id: str) -> List[Dict]:
+    async def findByParentOrder(self, parent_order_id: str) -> List['SubOrder']:
         return await self.findAll({"parentOrderId": parent_order_id})
 
-    async def findBySeller(self, seller_id: str, query: Dict = None, skip: int = 0, limit: int = 0) -> List[Dict]:
+    async def findBySeller(self, seller_id: str, query: Dict = None, skip: int = 0, limit: int = 0) -> List['SubOrder']:
         q = {**(query or {})}
         q["sellerId"] = seller_id
         return await self.findAll(q, skip=skip, limit=limit)
@@ -260,16 +261,16 @@ class MySQLSubOrderDAO:
             result = await session.execute(text(f"SELECT COUNT(*) FROM {self.table_name}{where_sql}"), params)
             return result.scalar() or 0
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: 'SubOrderInternalCreate') -> 'SubOrder':
         factory = self._get_session_factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = datetime.now(timezone.utc)
 
-        slot = data.deliverySlot or {}
-        c_info = data.couponInfo or {}
-        s_addr = data.shippingAddress or {}
-        b_addr = data.billingAddress or {}
+        slot = data.deliverySlot
+        c_info = data.couponInfo
+        s_addr = data.shippingAddress
+        b_addr = data.billingAddress
 
         params = {
             "external_id": secrets.token_hex(16),
@@ -290,26 +291,26 @@ class MySQLSubOrderDAO:
             "payment_method": data.paymentMethod,
             "payment_status": (data.paymentStatus if data.paymentStatus is not None else "pending"),
             "is_urgent_delivery": 1 if data.isUrgentDelivery else 0,
-            "delivery_slot_config_id": slot["configId"] if "configId" in slot else None,
-            "delivery_slot_id": slot["slotId"] if "slotId" in slot else None,
-            "delivery_slot_date": slot["date"] if "date" in slot else None,
+            "delivery_slot_config_id": getattr(slot, 'configId', None) if slot else None,
+            "delivery_slot_id": slot.slotId if slot else None,
+            "delivery_slot_date": slot.date if slot else None,
             "notes": data.notes,
             "coupon_code": data.couponCode,
-            "coupon_info_type": c_info.discountType,
-            "coupon_info_value": _safe_float(c_info.discountValue),
+            "coupon_info_type": c_info.discountType if c_info else None,
+            "coupon_info_value": _safe_float(c_info.discountValue) if c_info else None,
             "commission_status": (data.commissionStatus if data.commissionStatus is not None else "unrealized"),
-            "shipping_name": s_addr.name,
-            "shipping_phone": s_addr.phone,
-            "shipping_line1": s_addr.line1,
-            "shipping_city": s_addr.city,
-            "shipping_state": s_addr.state,
-            "shipping_pincode": s_addr.pincode,
-            "billing_name": b_addr.name,
-            "billing_phone": b_addr.phone,
-            "billing_line1": b_addr.line1,
-            "billing_city": b_addr.city,
-            "billing_state": b_addr.state,
-            "billing_pincode": b_addr.pincode,
+            "shipping_name": s_addr.name if s_addr else None,
+            "shipping_phone": s_addr.phone if s_addr else None,
+            "shipping_line1": s_addr.line1 if s_addr else None,
+            "shipping_city": s_addr.city if s_addr else None,
+            "shipping_state": s_addr.state if s_addr else None,
+            "shipping_pincode": s_addr.pincode if s_addr else None,
+            "billing_name": b_addr.name if b_addr else None,
+            "billing_phone": b_addr.phone if b_addr else None,
+            "billing_line1": b_addr.line1 if b_addr else None,
+            "billing_city": b_addr.city if b_addr else None,
+            "billing_state": b_addr.state if b_addr else None,
+            "billing_pincode": b_addr.pincode if b_addr else None,
             # Valet pickup tracking
             "pickup_status": (data.pickupStatus if data.pickupStatus is not None else "pending_pickup"),
             "assigned_valet": data.assignedValet,
@@ -366,13 +367,9 @@ class MySQLSubOrderDAO:
 
             await session.commit()
 
-        created = {**data}
-        created["_id"] = str(new_id)
-        created["createdAt"] = now.isoformat()
-        created["updatedAt"] = now.isoformat()
-        return created
+        return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: 'SubOrderInternalUpdate') -> Optional['SubOrder']:
         factory = self._get_session_factory()
         if not factory:
             return None
@@ -380,24 +377,36 @@ class MySQLSubOrderDAO:
         set_clauses = ["updated_at = :updated_at"]
         params: Dict = {"updated_at": now, "row_id": int(id) if str(id).isdigit() else id}
 
-        for doc_field, col in self._COLUMN_MAP.items():
-            if doc_field in data:
-                set_clauses.append(f"{col} = :{col}")
-                params[col] = data[doc_field]
-
-        # Handle special dates
-        if "deliveredAt" in data:
+        if data.status is not None:
+            set_clauses.append("status = :status")
+            params["status"] = data.status
+        if data.shippedAt is not None:
+            set_clauses.append("dispatched_at = :dispatched_at")
+            params["dispatched_at"] = data.shippedAt
+        if data.deliveredAt is not None:
             set_clauses.append("delivered_at = :delivered_at")
             params["delivered_at"] = data.deliveredAt
-        if "dispatchedAt" in data:
-            set_clauses.append("dispatched_at = :dispatched_at")
-            params["dispatched_at"] = data.dispatchedAt
-        if "cancelledAt" in data:
+        if data.cancelledAt is not None:
             set_clauses.append("cancelled_at = :cancelled_at")
             params["cancelled_at"] = data.cancelledAt
-        if "pickedUpAt" in data:
+        if data.pickupStatus is not None:
+            set_clauses.append("pickup_status = :pickup_status")
+            params["pickup_status"] = data.pickupStatus
+        if data.pickedUpAt is not None:
             set_clauses.append("picked_up_at = :picked_up_at")
             params["picked_up_at"] = data.pickedUpAt
+        if data.commissionPct is not None:
+            set_clauses.append("commission_pct = :commission_pct")
+            params["commission_pct"] = data.commissionPct
+        if data.commissionAmount is not None:
+            set_clauses.append("commission_amount = :commission_amount")
+            params["commission_amount"] = data.commissionAmount
+        if data.commissionStatus is not None:
+            set_clauses.append("commission_status = :commission_status")
+            params["commission_status"] = data.commissionStatus
+        if data.assignedValet is not None:
+            set_clauses.append("assigned_valet = :assigned_valet")
+            params["assigned_valet"] = data.assignedValet
 
         if len(set_clauses) > 1:
             sql = text(f"UPDATE {self.table_name} SET {', '.join(set_clauses)} WHERE id = :row_id")
