@@ -65,10 +65,16 @@ async def get_segment(segment_id: str, admin: User = Depends(require_super_admin
 @router.post("", response_model=CustomerSegmentResponse)
 @router.post("/", response_model=CustomerSegmentResponse)
 async def create_segment(segment: CustomerSegmentCreate, admin: User = Depends(require_super_admin)):
-    data = segment
-    data._id = str(uuid.uuid4())
-    data.isActive = True
-    created = await customer_segments_repository.create(data)
+    from app.models.daos import CustomerSegmentInternalCreate
+    create_model = CustomerSegmentInternalCreate(
+        id=str(uuid.uuid4()),
+        name=segment.name,
+        type=segment.type,
+        userIds=segment.userIds,
+        filters=segment.filters,
+        isActive=True
+    )
+    created = await customer_segments_repository.create(create_model)
     return created
 
 
@@ -78,14 +84,9 @@ async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin:
     if not existing:
         raise HTTPException(status_code=404, detail="Segment not found")
 
-    update_data = {k: v for k, v in segment.items()}
-    # Support direct toggle of isActive if passed in extra data
-    # Note: request.json() is async and needs the actual request object injected in the route
-    # For now, we'll rely on the schema or a more explicit approach.
-    # The current line was referencing an undefined global 'Request'.
-    # Since we use CustomerSegmentUpdate model, if isActive is not in it, we might need to handle it.
-    # Let's add isActive to CustomerSegmentUpdate.
-    updated = await customer_segments_repository.update(segment_id, update_data)
+    from app.models.daos import CustomerSegmentInternalUpdate
+    update_model = CustomerSegmentInternalUpdate(**segment.model_dump(exclude_unset=True))
+    updated = await customer_segments_repository.update(segment_id, update_model)
     return updated
 
 
@@ -247,16 +248,17 @@ async def seed_system_segments():
                 criteria = FilterCriteria(role=role, behavior=behavior_id)
                 user_ids = await run_segment_filter(criteria)
 
+                from app.models.daos import CustomerSegmentInternalCreate
                 await customer_segments_repository.create(
-                    {
-                        "_id": full_id,
-                        "name": behavior_name,
-                        "type": seg_type,
-                        "userIds": user_ids,
-                        "filters": {"behavior": behavior_id},
-                        "isActive": True,
-                        "isSystem": True,
-                    }
+                    CustomerSegmentInternalCreate(
+                        id=full_id,
+                        name=behavior_name,
+                        type=seg_type,
+                        userIds=user_ids,
+                        filters={"behavior": behavior_id},
+                        isActive=True,
+                        isSystem=True,
+                    )
                 )
             # Yield the event loop between iterations so incoming requests
             # aren't starved of DB pool connections.
@@ -286,8 +288,9 @@ async def refresh_segment(segment_id: str, admin: User = Depends(require_super_a
 
     from datetime import datetime, timezone
 
+    from app.models.daos import CustomerSegmentInternalUpdate
     await customer_segments_repository.update(
-        segment_id, {"userIds": user_ids, "lastRefreshedAt": datetime.now(timezone.utc).isoformat()}
+        segment_id, CustomerSegmentInternalUpdate(userIds=user_ids, lastRefreshedAt=datetime.now(timezone.utc).isoformat())
     )
 
     return {"status": "success", "count": len(user_ids), "userIds": user_ids}

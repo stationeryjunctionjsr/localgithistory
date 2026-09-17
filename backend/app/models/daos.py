@@ -275,6 +275,7 @@ class ProductInternalCreate(BaseModel):
     brandId: Optional[str] = None
     images: List[str] = []
     isActive: bool = True
+    isSystem: bool = False
     sellerId: Optional[str] = None
     sku: Optional[str] = None
     category: Optional[str] = None
@@ -343,6 +344,7 @@ class CategoryInternalCreate(BaseModel):
     description: Optional[str] = None
     parentId: Optional[str] = None
     isActive: bool = True
+    isSystem: bool = False
     images: Optional[list] = []
     subCategories: Optional[list] = []
     minimumQuantity: Optional[int] = 1
@@ -376,6 +378,7 @@ class BrandInternalCreate(BaseModel):
     name: str
     description: Optional[str] = None
     isActive: bool = True
+    isSystem: bool = False
     logoUrl: Optional[str] = None
     showInMobileHomepage: Optional[bool] = False
 
@@ -406,6 +409,7 @@ class BundleInternalCreate(BaseModel):
     salesCount: Optional[int] = 0
     price: float
     isActive: bool = True
+    isSystem: bool = False
 
 class BundleInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -495,3 +499,23 @@ class ReturnRequestInternal(BaseModel):
     updatedAt: Optional[str] = None
 
 from app.models.schemas import TicketResponseItem, ProductSellerEntry, VariantOption, ReturnItemSchema, ValetDeclineHistoryEntry
+
+class CustomerSegmentInternalCreate(BaseModel):
+    id: str = Field(alias="_id")
+    name: str
+    type: str
+    userIds: List[str]
+    filters: Optional[Any] = None
+    isActive: bool = True
+    isSystem: bool = False
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+    lastRefreshedAt: Optional[str] = None
+
+class CustomerSegmentInternalUpdate(BaseModel):
+    name: Optional[str] = None
+    userIds: Optional[List[str]] = None
+    filters: Optional[Any] = None
+    isActive: Optional[bool] = None
+    updatedAt: Optional[str] = None
+    lastRefreshedAt: Optional[str] = None

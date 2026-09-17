@@ -22,13 +22,10 @@ class CustomerSegmentsRepository:
 
     async def create(self, data: Any) -> Dict:
         now = datetime.datetime.now(timezone.utc).isoformat()
-        if (not data.id):
-            if isinstance(data, dict):
-                data["_id"] = str(uuid.uuid4())
-            else:
-                data.id = str(uuid.uuid4())
-        data.createdAt = (data.createdAt if data.createdAt is not None else now)
-        data.updatedAt = (data.updatedAt if data.updatedAt is not None else now)
+        if data.createdAt is None:
+            data.createdAt = now
+        if data.updatedAt is None:
+            data.updatedAt = now
         return await self.storage.create(data)
 
     async def update(self, segment_id: str, data: Any) -> Optional[Dict]:
