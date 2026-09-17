@@ -102,11 +102,7 @@ async def create_coupon(
     current_user: User = Depends(require_super_admin),
 ):
     try:
-        kwargs = {}
-        for f in CouponCreateInternal.model_fields.keys():
-            if hasattr(coupon_data, f):
-                kwargs[f] = getattr(coupon_data, f)
-        payload = CouponCreateInternal(**kwargs)
+        payload = CouponCreateInternal.model_validate(coupon_data, from_attributes=True)
         payload.resolution = resolution
         payload.force = force
         coupon = await coupon_repository.create(payload)

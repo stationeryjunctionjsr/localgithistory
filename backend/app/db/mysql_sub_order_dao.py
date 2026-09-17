@@ -291,7 +291,7 @@ class MySQLSubOrderDAO:
             "payment_method": data.paymentMethod,
             "payment_status": (data.paymentStatus if data.paymentStatus is not None else "pending"),
             "is_urgent_delivery": 1 if data.isUrgentDelivery else 0,
-            "delivery_slot_config_id": getattr(slot, 'configId', None) if slot else None,
+            "delivery_slot_config_id": slot.configId if slot else None,
             "delivery_slot_id": slot.slotId if slot else None,
             "delivery_slot_date": slot.date if slot else None,
             "notes": data.notes,

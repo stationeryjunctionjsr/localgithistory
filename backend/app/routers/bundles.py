@@ -133,7 +133,7 @@ async def _enrich_bundle(bundle) -> Dict:
         None,
     )
     
-    # Since we can't use model_dump(), we map it manually
+    # Since we avoid dynamic dumps, we map it manually
     bundle_dict = {
         "id": bundle.id,
         "name": bundle.name,

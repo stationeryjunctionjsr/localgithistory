@@ -430,7 +430,7 @@ class CouponRepository:
         all_coupons = await self.storage.findAll({})
         max_num = 0
         for doc in all_coupons:
-            did = (getattr(doc, "displayId", None) if getattr(doc, "displayId", None) is not None else "")
+            did = (doc.displayId if doc.displayId is not None else "")
             if did.startswith(prefix):
                 try:
                     num = int(did[len(prefix) :])
@@ -458,7 +458,7 @@ class CouponRepository:
             maxDiscountAmount=float(coupon_data.maxDiscountAmount) if coupon_data.maxDiscountAmount else None,
             validFrom=(coupon_data.validFrom if coupon_data.validFrom is not None else datetime.now(timezone.utc).isoformat()),
             validUntil=coupon_data.validUntil,
-            maxUses=int(coupon_data.usageLimit) if getattr(coupon_data, "usageLimit", None) else None,
+            maxUses=int(coupon_data.usageLimit) if coupon_data.usageLimit else None,
             usedCount=0,
             isActive=(coupon_data.isActive if coupon_data.isActive is not None else True),
             applicableRoles=(coupon_data.applicableRoles if coupon_data.applicableRoles is not None else ["customer"]),
@@ -507,36 +507,53 @@ class CouponRepository:
         return res
 
     async def update(self, id: str, update_data: Any):
-        if getattr(update_data, "code", None):
+        from app.models.daos_flat import CouponInternalUpdate, CouponQuantityTierInternal
+        from app.models.schemas import CouponUpdate
+        
+        # Coerce to CouponUpdate to avoid getattr/hasattr dynamic checking
+        if not isinstance(update_data, CouponUpdate):
+            update_data = CouponUpdate.model_validate(update_data)
+            
+        if update_data.code:
             existing = await self.findByCode(update_data.code)
             if existing and existing.id != id:
                 raise ValueError("Discount code already in use")
             update_data.code = update_data.code.upper()
-        if getattr(update_data, "method", None) == "automatic":
+            
+        if update_data.method == "automatic":
             update_data.code = None
         
-        # Build Internal DAO update object
-        from app.models.daos_flat import CouponInternalUpdate, CouponQuantityTierInternal
+        internal_update = CouponInternalUpdate()
         
-        kwargs = {}
-        for f in CouponInternalUpdate.model_fields.keys():
-            if f == "quantityTiers":
-                qt = getattr(update_data, "quantityTiers", None)
-                if qt is not None:
-                    kwargs["quantityTiers"] = [CouponQuantityTierInternal(minQuantity=int(t.quantity), discountValue=float(t.discount)) for t in qt]
-            elif f == "minOrderValue":
-                if hasattr(update_data, "minPurchaseAmount") and getattr(update_data, "minPurchaseAmount", None) is not None:
-                    kwargs["minOrderValue"] = float(update_data.minPurchaseAmount)
-            elif f == "maxUses":
-                if hasattr(update_data, "usageLimit") and getattr(update_data, "usageLimit", None) is not None:
-                    kwargs["maxUses"] = int(update_data.usageLimit)
-            else:
-                if hasattr(update_data, f):
-                    v = getattr(update_data, f)
-                    if v is not None:
-                        kwargs[f] = v
-
-        internal_update = CouponInternalUpdate(**kwargs)
+        # Map fields explicitly
+        if 'typeOfDiscount' in update_data.model_fields_set: internal_update.typeOfDiscount = update_data.typeOfDiscount
+        if 'code' in update_data.model_fields_set: internal_update.code = update_data.code
+        if 'method' in update_data.model_fields_set: internal_update.method = update_data.method
+        if 'discountType' in update_data.model_fields_set: internal_update.discountType = update_data.discountType
+        if 'discountValue' in update_data.model_fields_set: internal_update.discountValue = update_data.discountValue
+        
+        if 'quantityTiers' in update_data.model_fields_set and update_data.quantityTiers is not None:
+            internal_update.quantityTiers = [CouponQuantityTierInternal(minQuantity=int(t.quantity), discountValue=float(t.discount)) for t in update_data.quantityTiers]
+            
+        if 'minPurchaseAmount' in update_data.model_fields_set and update_data.minPurchaseAmount is not None:
+            internal_update.minOrderValue = float(update_data.minPurchaseAmount)
+            
+        if 'usageLimit' in update_data.model_fields_set and update_data.usageLimit is not None:
+            internal_update.maxUses = int(update_data.usageLimit)
+            
+        if 'minRequirementType' in update_data.model_fields_set: internal_update.minRequirementType = update_data.minRequirementType
+        if 'minQuantityOfEligibleItems' in update_data.model_fields_set: internal_update.minQuantityOfEligibleItems = update_data.minQuantityOfEligibleItems
+        if 'maxDiscountAmount' in update_data.model_fields_set: internal_update.maxDiscountAmount = update_data.maxDiscountAmount
+        if 'validFrom' in update_data.model_fields_set: internal_update.validFrom = update_data.validFrom
+        if 'validUntil' in update_data.model_fields_set: internal_update.validUntil = update_data.validUntil
+        if 'isActive' in update_data.model_fields_set: internal_update.isActive = update_data.isActive
+        if 'combinations' in update_data.model_fields_set: internal_update.combinations = update_data.combinations
+        if 'appliesTo' in update_data.model_fields_set: internal_update.appliesTo = update_data.appliesTo
+        if 'eligibleCategories' in update_data.model_fields_set: internal_update.eligibleCategories = update_data.eligibleCategories
+        if 'eligibleSubCategories' in update_data.model_fields_set: internal_update.eligibleSubCategories = update_data.eligibleSubCategories
+        if 'eligibleProducts' in update_data.model_fields_set: internal_update.eligibleProducts = update_data.eligibleProducts
+        if 'eligibleSegments' in update_data.model_fields_set: internal_update.eligibleSegments = update_data.eligibleSegments
+        if 'brands' in update_data.model_fields_set: internal_update.brands = update_data.brands
 
         res = await self.storage.update(id, internal_update)
         self.invalidate_cache()
@@ -1114,7 +1131,7 @@ class CouponRepository:
                 overlaps.append(
                     {
                         "couponId": str(c.id),
-                        "displayId": getattr(c, "displayId", None),
+                        "displayId": c.displayId,
                         "overlappingProductIds": list(intersection),
                     }
                 )

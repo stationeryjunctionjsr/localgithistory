@@ -286,7 +286,7 @@ async def refresh_segment(segment_id: str, admin: User = Depends(require_super_a
     filters = segment.filters
     if not filters:
         # Avoid dictionary indexing and use Pydantic attribute
-        user_ids = getattr(segment, 'userIds', []) or []
+        user_ids = (segment.userIds if segment.userIds is not None else []) or []
         return {"status": "success", "message": "No filters to re-apply", "userIds": user_ids}
 
     role = "customer" if segment.type == "retail" else "wholesaler"

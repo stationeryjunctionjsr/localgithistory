@@ -47,29 +47,27 @@ class MySQLCustomerSegmentDAO(MySQLFlatBaseDAO):
 
     def _unflatten_filters(self, data: Any) -> Any:
         # Move them back into 'filters' for the frontend
-        filter_keys = [
-            "minAverageOrderValue",
-            "maxAverageOrderValue",
-            "startDate",
-            "endDate",
-            "minOrderFrequency",
-            "maxOrderFrequency",
-            "state",
-            "district",
-            "appUser",
-            "behavior",
-            "role",
-        ]
         filters = {}
-        for k in filter_keys:
-            if (isinstance(data, dict) and data.get(k) is not None) or (not isinstance(data, dict) and getattr(data, k, None) is not None):
-                filters[k] = data.pop(k) if isinstance(data, dict) else getattr(data, k)
-                if not isinstance(data, dict): setattr(data, k, None)
-        if filters:
-            if not isinstance(data, dict):
-                setattr(data, 'filters', filters)
-            else:
+        if isinstance(data, dict):
+            for k in ["minAverageOrderValue", "maxAverageOrderValue", "startDate", "endDate", "minOrderFrequency", "maxOrderFrequency", "state", "district", "appUser", "behavior", "role"]:
+                if data.get(k) is not None:
+                    filters[k] = data.pop(k)
+            if filters:
                 data['filters'] = filters
+        else:
+            if data.minAverageOrderValue is not None: filters['minAverageOrderValue'] = data.minAverageOrderValue; data.minAverageOrderValue = None
+            if data.maxAverageOrderValue is not None: filters['maxAverageOrderValue'] = data.maxAverageOrderValue; data.maxAverageOrderValue = None
+            if data.startDate is not None: filters['startDate'] = data.startDate; data.startDate = None
+            if data.endDate is not None: filters['endDate'] = data.endDate; data.endDate = None
+            if data.minOrderFrequency is not None: filters['minOrderFrequency'] = data.minOrderFrequency; data.minOrderFrequency = None
+            if data.maxOrderFrequency is not None: filters['maxOrderFrequency'] = data.maxOrderFrequency; data.maxOrderFrequency = None
+            if data.state is not None: filters['state'] = data.state; data.state = None
+            if data.district is not None: filters['district'] = data.district; data.district = None
+            if data.appUser is not None: filters['appUser'] = data.appUser; data.appUser = None
+            if data.behavior is not None: filters['behavior'] = data.behavior; data.behavior = None
+            if data.role is not None: filters['role'] = data.role; data.role = None
+            if filters:
+                data.filters = filters
         return data
 
     async def _fetch_user_ids(self, segment_id: str) -> List[str]:

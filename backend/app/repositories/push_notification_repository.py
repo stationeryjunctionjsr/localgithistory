@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
@@ -108,7 +109,7 @@ class PushNotificationRepository:
         if expoToken:
             matches = await self.device_storage.findAll({"expoToken": expoToken})
             existing_device = matches[0] if matches else None
-        elif subscription and getattr(subscription, 'endpoint', None):
+        elif subscription and subscription.endpoint:
             matches = await self.device_storage.findAll({"endpoint": subscription.endpoint})
             existing_device = matches[0] if matches else None
         else:
@@ -119,8 +120,8 @@ class PushNotificationRepository:
             update = DeviceSubscriptionInternalUpdate(userId=userId, expoToken=expoToken)
             if subscription:
                 update.endpoint = subscription.endpoint
-                update.keys = getattr(subscription, 'keys', {})
-                update.subscription = subscription.model_dump()
+                update.keys = (subscription.keys if subscription.keys is not None else {})
+                update.subscription = json.loads(subscription.model_dump_json())
             return await self.device_storage.update(existing_device.id, update)
         else:
             # Create new device
@@ -128,8 +129,8 @@ class PushNotificationRepository:
                 userId=userId,
                 expoToken=expoToken,
                 endpoint=subscription.endpoint if subscription else None,
-                keys=getattr(subscription, 'keys', {}) if subscription else {},
-                subscription=subscription.model_dump() if subscription else {}
+                keys=(subscription.keys if subscription.keys is not None else {}) if subscription else {},
+                subscription=json.loads(subscription.model_dump_json()) if subscription else {}
             )
             return await self.device_storage.create(create)
 

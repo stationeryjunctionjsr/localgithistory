@@ -277,7 +277,7 @@ class MySQLReturnRequestsDAO:
         deleted = 0
         for d in docs:
             # Depending on schema format, id might be _id or id
-            d_id = getattr(d, "_id", getattr(d, "id", None))
+            d_id = d.id
             if d_id and await self.delete(d_id):
                 deleted += 1
         return {"deletedCount": deleted}
