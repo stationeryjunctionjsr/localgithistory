@@ -544,3 +544,15 @@ class NotificationFilter(BaseModel):
     type: Optional[str] = None
     startDate: Optional[str] = None
     endDate: Optional[str] = None
+
+class NotificationInternal(BaseModel):
+    id: str = Field(alias="_id")
+    userId: str
+    type: str
+    title: str
+    message: str
+    isRead: bool
+    isAcknowledged: bool
+    metadata: Optional[Any] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None

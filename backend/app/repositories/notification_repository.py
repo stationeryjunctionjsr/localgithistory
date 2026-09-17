@@ -15,7 +15,7 @@ class NotificationRepository:
         """Get current timestamp in ISO format with IST timezone"""
         return datetime.now(IST).isoformat()
 
-    async def findAll(self, filters: Any = None) -> List[Dict]:
+    async def findAll(self, filters: Any = None) -> List[NotificationInternal]:
         if filters is None:
             from app.models.daos import NotificationFilter
             filters = NotificationFilter()
@@ -47,27 +47,32 @@ class NotificationRepository:
                 n for n in notifications if n.createdAt and datetime.fromisoformat(n.createdAt.replace("Z", "+00:00")) <= end
             ]
 
-        return sorted(notifications, key=lambda x: x.createdAt or "", reverse=True)
+        sorted_notifs = sorted(notifications, key=lambda x: x.createdAt or "", reverse=True)
+        return [NotificationInternal(**n) if isinstance(n, dict) else NotificationInternal.model_validate(n, from_attributes=True) for n in sorted_notifs]
 
-    async def findById(self, id: str) -> Optional[Dict]:
-        return await self.storage.findById(id)
+    async def findById(self, id: str) -> Optional[NotificationInternal]:
+        result = await self.storage.findById(id)
+        if not result: return None
+        return NotificationInternal(**result) if isinstance(result, dict) else NotificationInternal.model_validate(result, from_attributes=True)
 
-    async def create(self, notification_data: Any) -> Dict:
+    async def create(self, notification_data: Any) -> NotificationInternal:
         if notification_data.createdAt is None:
             notification_data.createdAt = self._get_timestamp()
         if notification_data.updatedAt is None:
             notification_data.updatedAt = self._get_timestamp()
-        return await self.storage.create(notification_data)
+        result = await self.storage.create(notification_data)
+        return NotificationInternal(**result) if isinstance(result, dict) else NotificationInternal.model_validate(result, from_attributes=True)
 
-    async def update(self, id: str, update_data: Any) -> Dict:
+    async def update(self, id: str, update_data: Any) -> NotificationInternal:
         update_data.updatedAt = self._get_timestamp()
-        return await self.storage.update(id, update_data)
+        result = await self.storage.update(id, update_data)
+        return NotificationInternal(**result) if isinstance(result, dict) else NotificationInternal.model_validate(result, from_attributes=True)
 
-    async def acknowledge(self, id: str) -> Dict:
+    async def acknowledge(self, id: str) -> NotificationInternal:
         from app.models.daos import NotificationInternalUpdate
         return await self.update(id, NotificationInternalUpdate(isAcknowledged=True))
 
-    async def markAsRead(self, id: str) -> Dict:
+    async def markAsRead(self, id: str) -> NotificationInternal:
         from app.models.daos import NotificationInternalUpdate
         return await self.update(id, NotificationInternalUpdate(isRead=True))
 
