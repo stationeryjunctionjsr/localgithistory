@@ -2,7 +2,6 @@ import logging
 from app.models.user import User
 from app.models.category import Category
 from app.models.schemas import MessageResponse
-from typing import List, Dict, Any
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -105,11 +104,11 @@ async def _get_available_categories_cached(pincode: Optional[str], effective_rol
     }
 
 
-@router.get("/available", response_model=Any)
+@router.get("/available", response_model=List[Category])
 async def get_available_categories(
     pincode: Optional[str] = None, 
     role: Optional[str] = "customer",
-    current_user: Optional[Any] = Depends(get_optional_user)
+    current_user: Optional[User] = Depends(get_optional_user)
 ):
     """
     Returns the category names and subcategories that have at least one product

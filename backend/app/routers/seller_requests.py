@@ -1,10 +1,10 @@
 from app.models.user import User
-from typing import List, Optional, Any
+from typing import List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, ConfigDict
 
-from app.models.schemas import SellerRequestCreate, SellerRequestResponseCreate, SellerRequestResponse
+from app.models.schemas import SellerRequestCreate, SellerRequestResponseCreate, SellerRequestResponse, UserSnippet
 from app.repositories.seller_request_repository import seller_request_repository
 from app.repositories.user_repository import user_repository
 from app.utils.auth import get_current_user, require_super_admin
@@ -17,7 +17,7 @@ class StatusUpdate(BaseModel):
 
 
 class SellerRequestResponseItem(BaseModel):
-    user: Optional[Any] = None
+    user: Optional[Union[str, UserSnippet]] = None
     message: Optional[str] = None
     attachments: Optional[List[str]] = None
     isAdminResponse: Optional[bool] = None

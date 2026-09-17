@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List, Any
 from pydantic import Field
 from pydantic import BaseModel
-from app.models.schemas import VariantOption, ProductSellerEntry
+from app.models.schemas import VariantOption, ProductSellerEntry, ProductDetails
 
 class Product(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -32,7 +32,7 @@ class Product(BaseModel):
     variant_attributes: List[str] = Field(default=[], alias="variantAttributes")
     sellers: List[ProductSellerEntry] = []
     variants: List[VariantOption] = []
-    details: Optional[Dict[str, str]] = {}
+    details: Optional[ProductDetails] = None
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
     searchTags: Optional[List[str]] = None

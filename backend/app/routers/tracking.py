@@ -1,6 +1,6 @@
 from app.models.user import User
-from typing import Dict, Any, List, Optional
-from app.models.schemas import MessageResponse, TrackBeaconRequest, TrackNotifyPincodeRequest
+from typing import List, Optional
+from app.models.schemas import MessageResponse, TrackBeaconRequest, TrackNotifyPincodeRequest, ItemSnippet
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Body, Depends, Query, Request
@@ -112,7 +112,7 @@ class CartAbandonmentResponse(BaseModel):
     userId: Optional[str] = None
     sessionId: Optional[str] = None
     timestamp: Optional[str] = None
-    cartItems: List[Any] = []
+    cartItems: List[ItemSnippet] = []
     cartValue: Optional[float] = 0.0
     
     model_config = ConfigDict(extra='forbid', populate_by_name=True)

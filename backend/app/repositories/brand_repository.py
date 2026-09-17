@@ -39,6 +39,8 @@ class BrandRepository:
                     case "name": fields["name"] = data.name
                     case "description": fields["description"] = data.description
                     case "isActive": fields["isActive"] = data.isActive
+                    case "logoUrl": fields["logoUrl"] = data.logoUrl
+                    case "showInMobileHomepage": fields["showInMobileHomepage"] = data.showInMobileHomepage
             internal_data = BrandInternalCreate(**fields)
         else:
             internal_data = data
@@ -55,6 +57,8 @@ class BrandRepository:
                     case "name": fields["name"] = data.name
                     case "description": fields["description"] = data.description
                     case "isActive": fields["isActive"] = data.isActive
+                    case "logoUrl": fields["logoUrl"] = data.logoUrl
+                    case "showInMobileHomepage": fields["showInMobileHomepage"] = data.showInMobileHomepage
             internal_data = BrandInternalUpdate(**fields)
         else:
             internal_data = data

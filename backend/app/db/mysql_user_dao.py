@@ -260,26 +260,9 @@ class MySQLUserDAO:
         role = update_data.role if update_data.role is not None else existing.role
         phone = update_data.phone if update_data.phone is not None else existing.phone
         company_name = update_data.companyName if update_data.companyName is not None else existing.company_name
-        gst_number = update_data.gstNumber if update_data.gstNumber is not None else existing.gst_number
-        is_deactivated = update_data.isDeactivated if update_data.isDeactivated is not None else existing.is_deactivated
-        credit_limit = update_data.creditLimit if update_data.creditLimit is not None else existing.credit_limit
-        credit_used = update_data.creditUsed if update_data.creditUsed is not None else existing.credit_used
-        payment_terms = update_data.paymentTerms if update_data.paymentTerms is not None else existing.payment_terms
-        assigned_salesperson = update_data.assignedSalesperson if update_data.assignedSalesperson is not None else existing.assigned_salesperson
-        is_email_verified = update_data.isEmailVerified if update_data.isEmailVerified is not None else existing.is_email_verified
-        referral_code = update_data.referralCode if update_data.referralCode is not None else existing.referral_code
-        is_seller_admin = update_data.isSellerAdmin if update_data.isSellerAdmin is not None else existing.is_seller_admin
-        is_on_duty = update_data.isOnDuty if update_data.isOnDuty is not None else existing.is_on_duty
-        commission_override_pct = update_data.commissionOverridePct if update_data.commissionOverridePct is not None else existing.commission_override_pct
-        upi_id = update_data.upiId if update_data.upiId is not None else existing.upi_id
-        qr_code_url = update_data.qrCodeUrl if update_data.qrCodeUrl is not None else existing.qr_code_url
-        name = update_data.name if update_data.name is not None else existing.name
-        email = update_data.email if update_data.email is not None else existing.email
-        password_hash = update_data.password if update_data.password is not None else existing.password
-        role = update_data.role if update_data.role is not None else existing.role
-        phone = update_data.phone if update_data.phone is not None else existing.phone
-        company_name = update_data.companyName if update_data.companyName is not None else existing.company_name
-        gst_number = update_data.gstNumber if update_data.gstNumber is not None else existing.gst_number
+        is_active = update_data.isActive if update_data.isActive is not None else existing.isActive
+        approval_status = update_data.approvalStatus if update_data.approvalStatus is not None else existing.approvalStatus
+        gst_number = update_data.gstin if update_data.gstin is not None else None
         is_deactivated = update_data.isDeactivated if update_data.isDeactivated is not None else existing.is_deactivated
         credit_limit = update_data.creditLimit if update_data.creditLimit is not None else existing.credit_limit
         credit_used = update_data.creditUsed if update_data.creditUsed is not None else existing.credit_used
@@ -296,34 +279,35 @@ class MySQLUserDAO:
             await session.execute(text('''
                 UPDATE sj_users SET
                     name = :name, email = :email, password_hash = :password_hash, role = :role, phone = :phone,
-                    company_name = :company_name, is_active = :is_active, approval_status = :approval_status,
+                    company_name = :company_name, gst_number = :gst_number, is_active = :is_active, approval_status = :approval_status,
                     is_deactivated = :is_deactivated, credit_limit = :credit_limit, credit_used = :credit_used,
                     payment_terms = :payment_terms, assigned_salesperson = :assigned_salesperson,
                     is_email_verified = :is_email_verified, referral_code = :referral_code, is_seller_admin = :is_seller_admin,
                     is_on_duty = :is_on_duty, commission_override_pct = :commission_override_pct, upi_id = :upi_id, qr_code_url = :qr_code_url, updated_at = :updated_at
                 WHERE id = :id
             '''), {
-                'id': int(id) if str(id).isdigit() else None, 
-                'name': name, 
-                'email': email, 
-                'password_hash': password_hash, 
-                'role': role, 
-                'phone': phone or None, 
-                'company_name': company_name, 
-                'is_active': 1 if (is_active if is_active is not None else True) else 0, 
-                'approval_status': approval_status, 
-                'is_deactivated': 1 if is_deactivated else 0, 
-                'credit_limit': credit_limit if credit_limit is not None else 0, 
-                'credit_used': credit_used if credit_used is not None else 0, 
-                'payment_terms': str(payment_terms) if payment_terms is not None else None, 
-                'assigned_salesperson': assigned_salesperson, 
-                'is_email_verified': 1 if is_email_verified else 0, 
-                'referral_code': referral_code, 
-                'is_seller_admin': 1 if is_seller_admin else 0, 
-                'is_on_duty': 1 if is_on_duty else 0, 
-                'commission_override_pct': commission_override_pct, 
-                'upi_id': upi_id, 
-                'qr_code_url': qr_code_url, 
+                'id': int(id) if str(id).isdigit() else None,
+                'name': name,
+                'email': email,
+                'password_hash': password_hash,
+                'role': role,
+                'phone': phone or None,
+                'company_name': company_name,
+                'gst_number': gst_number,
+                'is_active': 1 if (is_active if is_active is not None else True) else 0,
+                'approval_status': approval_status,
+                'is_deactivated': 1 if is_deactivated else 0,
+                'credit_limit': credit_limit if credit_limit is not None else 0,
+                'credit_used': credit_used if credit_used is not None else 0,
+                'payment_terms': str(payment_terms) if payment_terms is not None else None,
+                'assigned_salesperson': assigned_salesperson,
+                'is_email_verified': 1 if is_email_verified else 0,
+                'referral_code': referral_code,
+                'is_seller_admin': 1 if is_seller_admin else 0,
+                'is_on_duty': 1 if is_on_duty else 0,
+                'commission_override_pct': commission_override_pct,
+                'upi_id': upi_id,
+                'qr_code_url': qr_code_url,
                 'updated_at': now
             })
             

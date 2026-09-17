@@ -34,7 +34,7 @@ class SlotBase(BaseModel):
 
 class DeliverySlotConfigModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: Optional[Any] = Field(None, alias="_id")
+    id: Optional[str] = Field(None, alias="_id")
     segment: Optional[str] = None
     date: Optional[str] = None
     zoneId: Optional[str] = None
@@ -45,7 +45,7 @@ class DeliverySlotConfigModel(BaseModel):
 
 class DeliverySlotConfigResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: Optional[Any] = Field(None, alias="_id")
+    id: Optional[str] = Field(None, alias="_id")
     segment: str
     date: str
     zoneId: str

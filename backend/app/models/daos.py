@@ -376,6 +376,8 @@ class BrandInternalCreate(BaseModel):
     name: str
     description: Optional[str] = None
     isActive: bool = True
+    logoUrl: Optional[str] = None
+    showInMobileHomepage: Optional[bool] = False
 
 class BrandInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -384,6 +386,9 @@ class BrandInternalUpdate(BaseModel):
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
     updatedAt: Optional[str] = None
+    slug: Optional[str] = None
+    logoUrl: Optional[str] = None
+    showInMobileHomepage: Optional[bool] = None
 
 
 class BundleItemInternal(BaseModel):

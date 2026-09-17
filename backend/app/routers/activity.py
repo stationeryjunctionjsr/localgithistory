@@ -1,7 +1,6 @@
 from app.models.user import User
-from typing import Dict, Any, List
+from typing import List, Optional
 from app.models.schemas import MessageResponse, ActivityLogResponse, PromoteGuestResponse
-from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -27,11 +26,32 @@ async def optional_user(request: Request):
         return None
 
 
+class ActivityMeta(BaseModel):
+    """Free-form but strictly-typed activity metadata payload from clients."""
+    productId: Optional[str] = None
+    productName: Optional[str] = None
+    categoryId: Optional[str] = None
+    categoryName: Optional[str] = None
+    searchQuery: Optional[str] = None
+    pageUrl: Optional[str] = None
+    referrer: Optional[str] = None
+    sessionId: Optional[str] = None
+    orderId: Optional[str] = None
+    couponCode: Optional[str] = None
+    filterType: Optional[str] = None
+    filterValue: Optional[str] = None
+    sortBy: Optional[str] = None
+    value: Optional[float] = None
+    quantity: Optional[int] = None
+    source: Optional[str] = None
+    extra: Optional[str] = None
+
+
 class LogActivityBody(BaseModel):
     type: Optional[str] = None
     action: Optional[str] = None
-    detail: Optional[Any] = None
-    meta: Optional[Any] = None
+    detail: Optional[ActivityMeta] = None
+    meta: Optional[ActivityMeta] = None
     sessionId: Optional[str] = None
 
 
@@ -47,7 +67,7 @@ async def log_activity(
     current_user: User = Depends(optional_user),
 ):
     action = body.action or body.type
-    meta = body.meta or body.detail or {}
+    meta: ActivityMeta = body.meta or body.detail or ActivityMeta()
     sid = body.sessionId or ((request.headers["x-session-id"] if "x-session-id" in request.headers else None) if request else None)
     if not sid:
         raise HTTPException(status_code=400, detail="sessionId is required")

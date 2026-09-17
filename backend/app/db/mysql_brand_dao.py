@@ -101,15 +101,16 @@ class MySQLBrandDAO:
             await session.execute(
                 text(
                     """
-                    INSERT INTO sj_brands (external_id, name, slug, image_url, is_active, created_at, updated_at)
-                    VALUES (:external_id, :name, :slug, :image_url, :is_active, :created_at, :updated_at)
+                    INSERT INTO sj_brands (external_id, name, slug, image_url, show_in_mobile_homepage, is_active, created_at, updated_at)
+                    VALUES (:external_id, :name, :slug, :image_url, :show_in_mobile_homepage, :is_active, :created_at, :updated_at)
                     """
                 ),
                 {
                     "external_id": external_id,
                     "name": data.name,
                     "slug": data.name.lower().replace(" ", "-") if data.name else "",
-                    "image_url": data.logoUrl or data.imageUrl,
+                    "image_url": data.logoUrl,
+                    "show_in_mobile_homepage": 1 if data.showInMobileHomepage else 0,
                     "is_active": 1 if (data.isActive if data.isActive is not None else True) else 0,
                     "created_at": now,
                     "updated_at": now,
@@ -145,6 +146,7 @@ class MySQLBrandDAO:
                         name = :name,
                         slug = :slug,
                         image_url = :image_url,
+                        show_in_mobile_homepage = :show_in_mobile_homepage,
                         is_active = :is_active,
                         updated_at = :updated_at
                     WHERE id = :id
@@ -153,8 +155,9 @@ class MySQLBrandDAO:
                 {
                     "id": bid,
                     "name": merged.name,
-                    "slug": merged.slug,
-                    "image_url": merged.logoUrl or merged.imageUrl,
+                    "slug": merged.slug if merged.slug else (merged.name.lower().replace(" ", "-") if merged.name else ""),
+                    "image_url": merged.logoUrl,
+                    "show_in_mobile_homepage": 1 if merged.showInMobileHomepage else 0,
                     "is_active": 1 if (merged.isActive if merged.isActive is not None else True) else 0,
                     "updated_at": now,
                 },

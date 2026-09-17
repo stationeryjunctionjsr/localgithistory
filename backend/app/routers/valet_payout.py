@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
@@ -31,11 +31,11 @@ def _storage():
 
 class ValetPayoutSettingsModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: Optional[Any] = Field(None, alias="_id")
+    id: Optional[str] = Field(None, alias="_id")
     deliveryChargePerOrder: float = Field(0.0, alias="delivery_charge_per_order")
     returnPickupChargePerOrder: float = Field(0.0, alias="return_pickup_charge_per_order")
-    createdAt: Optional[Any] = Field(None, alias="created_at")
-    updatedAt: Optional[Any] = Field(None, alias="updated_at")
+    createdAt: Optional[datetime] = Field(None, alias="created_at")
+    updatedAt: Optional[datetime] = Field(None, alias="updated_at")
 
     @property
     def delivery_charge_per_order(self) -> float:
@@ -46,7 +46,7 @@ class ValetPayoutSettingsModel(BaseModel):
         return self.returnPickupChargePerOrder
 
     @property
-    def updated_at(self) -> Optional[Any]:
+    def updated_at(self) -> Optional[datetime]:
         return self.updatedAt
 
 

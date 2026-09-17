@@ -51,4 +51,4 @@ class Tracking(BaseModel):
 
 
 from app.models.schemas import ItemSnippet
-TrackingEvent.model_rebuild()
+Tracking.model_rebuild()

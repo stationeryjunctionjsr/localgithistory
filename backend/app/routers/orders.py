@@ -130,9 +130,12 @@ class OrderCreateRequest(BaseModel):
     sellerDeliveryOptions: Optional[List[SellerDeliveryOption]] = None
 
 
+from app.models.schemas import VariantAttributes, CouponResponse
+
+
 class CalculatedOrderItem(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    product: Any
+    product: Optional[str] = None
     sellerId: Optional[str] = None
     productName: Optional[str] = None
     quantity: int = 1
@@ -153,8 +156,8 @@ class CalculatedOrderItem(BaseModel):
     taxableValue: float = 0.0
     cgst: float = 0.0
     sgst: float = 0.0
-    variantAttributes: Optional[Any] = None
-    variant_attributes: Optional[Any] = None
+    variantAttributes: Optional[VariantAttributes] = None
+    variant_attributes: Optional[VariantAttributes] = None
 
 
 class OrderStatusUpdate(BaseModel):
@@ -203,14 +206,21 @@ class CouponDetailModel(BaseModel):
         return self.typeOfDiscount
 
 
+class ItemDiscountEntry(BaseModel):
+    """Maps a cart item index to its coupon discount amount."""
+    model_config = ConfigDict(extra="forbid")
+    itemIndex: int
+    discountAmount: float
+
+
 class CouponValidationResult(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     valid: bool = False
     message: Optional[str] = None
-    coupon: Optional[Any] = None
+    coupon: Optional[CouponDetailModel] = None
     discount: float = 0.0
     eligibleItemIndices: Optional[List[int]] = None
-    itemDiscounts: Optional[Dict[Any, Any]] = None
+    itemDiscounts: Optional[List[ItemDiscountEntry]] = None
     bxgyItemIndices: Optional[List[int]] = None
 
 

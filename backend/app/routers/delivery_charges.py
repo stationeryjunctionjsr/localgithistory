@@ -23,7 +23,7 @@ class LocationChargeResponse(BaseModel):
     charge: float = 0.0
     minCartValue: float = 0.0
     source: str = ""
-    deliveryCharge: Optional[Any] = None
+    deliveryCharge: Optional[float] = None
     isApplicableToRole: bool = True
     appliedTier: Optional[DeliveryChargeTier] = None
     urgentDeliveryAvailable: bool = False
@@ -47,7 +47,7 @@ class ServiceabilityResponse(BaseModel):
     sellerCount: int = 0
     serviceableSellers: List[ServiceableSeller] = []
     slotBookingAvailable: bool = False
-    availableDates: List[Any] = []
+    availableDates: List[str] = []
     urgentDeliveryAvailable: bool = False
 
 class UploadCsvResponse(BaseModel):
