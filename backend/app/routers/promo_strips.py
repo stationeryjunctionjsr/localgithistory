@@ -1,5 +1,6 @@
 from app.models.user import User
 from typing import Dict, Any, List
+from app.models.daos_flat import PromoStripsInternalCreate, PromoStripsInternalUpdate
 from app.models.schemas import MessageResponse, PromoStripResponse
 from typing import Optional
 
@@ -35,14 +36,15 @@ async def get_promo_strips():
 async def get_active_promo_strips():
     """Public endpoint to get only active promo strips"""
     strips = await promo_strip_repository.findAll()
-    return [s for s in strips if (s.is_active if s.is_active is not None else True)]
+    return [s for s in strips if (s.isActive if s.isActive is not None else True)]
 
 
 @router.post("", response_model=PromoStripResponse)
 @router.post("/", response_model=PromoStripResponse)
 async def create_promo_strip(data: PromoStripCreate, user: User = Depends(require_super_admin)):
     """Admin endpoint to create a promo strip"""
-    res = await promo_strip_repository.create(data)
+    internal_data = PromoStripsInternalCreate(**data.model_dump(exclude_unset=True))
+    res = await promo_strip_repository.create(internal_data)
     cache.invalidate(get_active_promo_strips)
     return res
 
@@ -54,7 +56,8 @@ async def toggle_promo_strip(id: str, user: User = Depends(require_super_admin))
     if not strip:
         raise HTTPException(status_code=404, detail="Promo strip not found")
 
-    res = await promo_strip_repository.update(id, {"isActive": not (strip.is_active if strip.is_active is not None else True)})
+    update_data = PromoStripsInternalUpdate(isActive=not (strip.isActive if strip.isActive is not None else True))
+    res = await promo_strip_repository.update(id, update_data)
     cache.invalidate(get_active_promo_strips)
     return res
 
@@ -66,7 +69,7 @@ async def update_promo_strip(id: str, data: PromoStripUpdate, user: User = Depen
     if not strip:
         raise HTTPException(status_code=404, detail="Promo strip not found")
 
-    update_data = {k: v for k, v in data.items() if v is not None}
+    update_data = PromoStripsInternalUpdate(**data.model_dump(exclude_unset=True))
     res = await promo_strip_repository.update(id, update_data)
     cache.invalidate(get_active_promo_strips)
     return res

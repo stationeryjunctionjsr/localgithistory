@@ -1,6 +1,6 @@
 from app.models.daos import NotificationInternal
 from app.models.schemas import SupportTicketInternal
-from app.models.daos_flat import OrderFeedbackInternal, ContactInternal, SchemeInternal, ReturnSettingsInternal, ActivityInternal, ReturnRequestInternal
+from app.models.daos_flat import PromoStripsInternal, OrderFeedbackInternal, ContactInternal, SchemeInternal, ReturnSettingsInternal, ActivityInternal, ReturnRequestInternal
 from app.models.schemas import SearchTagResponse, CollectionResponse, SchemeResponse, DeliveryChargeResponse, DefaultDeliveryChargeResponse
 """
 Configs for FlatRelationalDAO: parent-only tables with fixed columns + JSON columns.
@@ -177,6 +177,7 @@ FLAT_RELATIONAL_DAOS = {
         "sj_promo_strips",
         {"text": "text", "isActive": "is_active"},
         bool_keys=frozenset({"isActive"}),
+        schema_cls=PromoStripsInternal
     ),
     "pushNotifications": _dao(
         "sj_push_notifications",

@@ -122,6 +122,14 @@ class OrderFeedbackInternalUpdate(BaseModel):
     rating: Optional[int] = None
     userId: Optional[str] = None
 
+class PromoStripsInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    isActive: Optional[bool] = None
+    text: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None
