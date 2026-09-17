@@ -124,20 +124,19 @@ class UserRepository:
             user_model.savedAddresses.append(user_model.address)
 
         created_dict = await self.storage.create(user_model)
-        from app.models.schemas import UserResponse
-        return UserResponse.model_validate(created_dict) if isinstance(created_dict, dict) else created_dict
+        return created_dict
 
     async def update(self, id: str, update_data: Any):
         # Don't allow updating email to an existing one
-        email_val = update_data.get("email") if isinstance(update_data, dict) else update_data.email
+        email_val = update_data.email
         if email_val is not None:
             existing = await self.findByEmail(email_val)
             if existing and existing.id != id:
                 raise ValueError("Email already in use")
-            email_val = email_val.lower()
+            update_data.email = email_val.lower()
 
         # Don't allow updating phone to an existing one
-        phone_val = update_data.get("phone") if isinstance(update_data, dict) else update_data.phone
+        phone_val = update_data.phone
         if phone_val is not None:
             existing_phone = await self.findByPhone(phone_val)
             if existing_phone and existing_phone.id != id:
@@ -145,8 +144,7 @@ class UserRepository:
 
         # Hash password if provided
         if update_data.password is not None:
-            if isinstance(update_data, dict): update_data["password"] = get_password_hash(update_data["password"])
-            else: update_data.password = get_password_hash(update_data.password)
+            update_data.password = get_password_hash(update_data.password)
 
         return await self.storage.update(id, update_data)
 
