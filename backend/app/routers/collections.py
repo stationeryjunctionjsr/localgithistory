@@ -19,22 +19,22 @@ router = APIRouter()
 
 def _format_collection_response(collection):
     import json
-    from app.models.schemas import VisibilityRuleSnippet
+    from app.models.schemas import VisibilityRuleSnippet, CollectionResponse
     
     parsed_rules = []
     if collection.visibilityRules:
         for r_str in collection.visibilityRules:
             if isinstance(r_str, str):
                 try:
-                    parsed_rules.append(VisibilityRuleSnippet(**json.loads(r_str)))
+                    parsed_rules.append(VisibilityRuleSnippet.model_validate(json.loads(r_str)))
                 except Exception:
                     pass
             else:
-                parsed_rules.append(VisibilityRuleSnippet(**r_str))
+                parsed_rules.append(VisibilityRuleSnippet.model_validate(r_str))
                 
-    response_dict = collection.model_dump(by_alias=True)
-    response_dict["visibilityRules"] = parsed_rules
-    return response_dict
+    response = CollectionResponse.model_validate(collection, from_attributes=True)
+    response.visibilityRules = parsed_rules
+    return response
 
 @router.get("/public", response_model=List[CollectionResponse])
 @cache.ttl_cache(ttl=300.0)
@@ -112,7 +112,14 @@ def _invalidate_collection_caches():
 @router.post("/", response_model=CollectionResponse, status_code=status.HTTP_201_CREATED)
 async def create_collection(data: CollectionCreate, current_user: User = Depends(require_super_admin)):
     internal_data = CollectionInternalCreate(
-        **data.model_dump(exclude={'visibilityRules'})
+        name=data.name,
+        description=data.description,
+        imageUrl=data.imageUrl,
+        isActive=data.isActive,
+        displayOrder=data.displayOrder,
+        visiblePages=data.visiblePages,
+        userSegments=data.userSegments,
+        productIds=data.productIds
     )
     if data.visibilityRules:
         internal_data.visibilityRules = [r.model_dump_json() for r in data.visibilityRules]
@@ -126,9 +133,15 @@ async def create_collection(data: CollectionCreate, current_user: User = Depends
 async def update_collection(
     collection_id: str, data: CollectionUpdate, current_user: User = Depends(require_super_admin)
 ):
-    internal_update = CollectionInternalUpdate(
-        **data.model_dump(exclude_unset=True, exclude={'visibilityRules'})
-    )
+    internal_update = CollectionInternalUpdate()
+    if 'name' in data.model_fields_set: internal_update.name = data.name
+    if 'description' in data.model_fields_set: internal_update.description = data.description
+    if 'imageUrl' in data.model_fields_set: internal_update.imageUrl = data.imageUrl
+    if 'isActive' in data.model_fields_set: internal_update.isActive = data.isActive
+    if 'displayOrder' in data.model_fields_set: internal_update.displayOrder = data.displayOrder
+    if 'visiblePages' in data.model_fields_set: internal_update.visiblePages = data.visiblePages
+    if 'userSegments' in data.model_fields_set: internal_update.userSegments = data.userSegments
+    if 'productIds' in data.model_fields_set: internal_update.productIds = data.productIds
     if data.visibilityRules is not None:
         internal_update.visibilityRules = [r.model_dump_json() for r in data.visibilityRules]
 

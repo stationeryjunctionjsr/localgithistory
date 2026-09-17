@@ -298,7 +298,7 @@ async def create_delivery_charge(charge_data: DeliveryChargeCreate, current_user
             status_code=409, detail=f"Pincode {charge_data.pincode} already has a delivery charge configured"
         )
 
-    internal_create = DeliveryChargeInternalCreate(**charge_data.model_dump())
+    internal_create = DeliveryChargeInternalCreate.model_validate(charge_data, from_attributes=True)
     charge = await delivery_charge_repository.create(internal_create)
     return charge
 
@@ -307,7 +307,7 @@ async def create_delivery_charge(charge_data: DeliveryChargeCreate, current_user
 async def set_default_delivery_charge(
     default_data: DefaultDeliveryChargeCreate, current_user: User = Depends(require_super_admin)
 ):
-    internal_default = DeliveryChargeDefaultInternalCreate(**default_data.model_dump())
+    internal_default = DeliveryChargeDefaultInternalCreate.model_validate(default_data, from_attributes=True)
     default_charge = await delivery_charge_repository.setDefaultCharge(internal_default)
     return default_charge
 
@@ -379,7 +379,7 @@ async def update_delivery_charge(
     if charge_data.serviceableForCustomer is False:
         charge_data.urgentDeliveryAvailable = False
 
-    internal_update = DeliveryChargeInternalUpdate(**charge_data.model_dump(exclude_unset=True))
+    internal_update = DeliveryChargeInternalUpdate.model_validate(charge_data, from_attributes=True)
     charge = await delivery_charge_repository.update(charge_id, internal_update)
     if not charge:
         raise HTTPException(status_code=404, detail="Delivery charge not found")

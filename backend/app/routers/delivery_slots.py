@@ -387,7 +387,7 @@ async def create_delivery_slot_config(
             segment=config.segment,
             date=config.date,
             zoneId=zone_id,
-            slots=[DeliverySlotInternal(**s.model_dump()) for s in slots_with_capacity],
+            slots=[DeliverySlotInternal.model_validate(s, from_attributes=True) for s in slots_with_capacity],
             isActive=config.isActive
         )
 
@@ -408,7 +408,7 @@ async def create_delivery_slot_config(
 async def update_delivery_slot_config(
     config_id: str, config: DeliverySlotConfigBase, current_user: User = Depends(require_super_admin)
 ):
-    internal_update = DeliverySlotConfigInternalUpdate(**config.model_dump(exclude_unset=True))
+    internal_update = DeliverySlotConfigInternalUpdate.model_validate(config, from_attributes=True)
     updated = await storage.update(config_id, internal_update)
     if not updated:
         raise HTTPException(status_code=404, detail="Configuration not found")

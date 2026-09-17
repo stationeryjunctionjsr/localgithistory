@@ -145,7 +145,7 @@ async def create_zone(
                 detail=f"These pincodes are already assigned to another zone: {', '.join(conflicts)}",
             )
     storage = get_storage("deliveryZones")
-    internal_create = DeliveryZoneInternalCreate(**zone.model_dump())
+    internal_create = DeliveryZoneInternalCreate.model_validate(zone, from_attributes=True)
     result = await storage.create(internal_create)
     # New zone means a new zone_id — full cache clear is cheapest
     from app.repositories.zone_seller_cache import invalidate_zone_cache
@@ -184,7 +184,7 @@ async def update_zone(
                 detail=f"These pincodes are already assigned to another zone: {', '.join(conflicts)}",
             )
 
-    internal_update = DeliveryZoneInternalUpdate(**zone.model_dump(exclude_unset=True))
+    internal_update = DeliveryZoneInternalUpdate.model_validate(zone, from_attributes=True)
     updated_zone = await storage.update(zone_id, internal_update)
     if not updated_zone:
         raise HTTPException(status_code=404, detail="Zone not found")

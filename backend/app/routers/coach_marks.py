@@ -32,7 +32,7 @@ async def get_coach_mark(id: str):
 @router.post("", response_model=CoachMarkResponse)
 @router.post("/", response_model=CoachMarkResponse)
 async def create_coach_mark(mark: CoachMarkCreate, current_user: User = Depends(require_super_admin)):
-    internal_data = CoachMarkInternalCreate(**mark.model_dump())
+    internal_data = CoachMarkInternalCreate.model_validate(mark, from_attributes=True)
     return await coach_mark_repository.create(internal_data)
 
 
@@ -41,7 +41,7 @@ async def update_coach_mark(id: str, mark_update: CoachMarkUpdate, current_user:
     mark = await coach_mark_repository.findById(id)
     if not mark:
         raise HTTPException(status_code=404, detail="Coach mark not found")
-    internal_update = CoachMarkInternalUpdate(**mark_update.model_dump(exclude_unset=True))
+    internal_update = CoachMarkInternalUpdate.model_validate(mark_update, from_attributes=True)
     return await coach_mark_repository.update(id, internal_update)
 
 

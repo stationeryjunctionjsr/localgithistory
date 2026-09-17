@@ -43,7 +43,7 @@ async def get_active_promo_strips():
 @router.post("/", response_model=PromoStripResponse)
 async def create_promo_strip(data: PromoStripCreate, user: User = Depends(require_super_admin)):
     """Admin endpoint to create a promo strip"""
-    internal_data = PromoStripsInternalCreate(**data.model_dump(exclude_unset=True))
+    internal_data = PromoStripsInternalCreate.model_validate(data, from_attributes=True)
     res = await promo_strip_repository.create(internal_data)
     cache.invalidate(get_active_promo_strips)
     return res
@@ -69,7 +69,7 @@ async def update_promo_strip(id: str, data: PromoStripUpdate, user: User = Depen
     if not strip:
         raise HTTPException(status_code=404, detail="Promo strip not found")
 
-    update_data = PromoStripsInternalUpdate(**data.model_dump(exclude_unset=True))
+    update_data = PromoStripsInternalUpdate.model_validate(data, from_attributes=True)
     res = await promo_strip_repository.update(id, update_data)
     cache.invalidate(get_active_promo_strips)
     return res

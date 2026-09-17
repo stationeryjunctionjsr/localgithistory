@@ -23,7 +23,7 @@ async def get_all_tags():
 @router.post("", response_model=SearchTagResponse)
 @router.post("/", response_model=SearchTagResponse)
 async def create_tag(tag: SearchTagCreate, admin: User = Depends(require_super_admin)):
-    internal_data = SearchTagInternalCreate(**tag.model_dump())
+    internal_data = SearchTagInternalCreate.model_validate(tag, from_attributes=True)
     return await search_tag_repository.create(internal_data)
 
 
@@ -42,7 +42,7 @@ async def update_tag(id: str, tag_update: SearchTagUpdate, admin: User = Depends
         logger.info("Search tag resolved by tagId fallback, internal id=%s", id)
 
     logger.info("Search tag found for update id=%s", id)
-    internal_update = SearchTagInternalUpdate(**tag_update.model_dump(exclude_unset=True))
+    internal_update = SearchTagInternalUpdate.model_validate(tag_update, from_attributes=True)
     return await search_tag_repository.update(id, internal_update)
 
 

@@ -100,42 +100,38 @@ class PushNotificationRepository:
         return None
 
     async def registerDevice(
-        self, userId: Optional[str], subscription: Optional[Dict], expoToken: Optional[str] = None
+        self, userId: Optional[str], subscription: Optional['PushSubscription'], expoToken: Optional[str] = None
     ):
         """Register a device for push notifications (web subscription or Expo push token)"""
-        # Look up only the matching device — no full table scan
+        from app.models.daos_flat import DeviceSubscriptionInternalUpdate, DeviceSubscriptionInternalCreate
+        # Look up only the matching device
         if expoToken:
             matches = await self.device_storage.findAll({"expoToken": expoToken})
             existing_device = matches[0] if matches else None
-        elif subscription and ('endpoint' in subscription and subscription['endpoint']):
-            matches = await self.device_storage.findAll({"endpoint": subscription['endpoint']})
+        elif subscription and getattr(subscription, 'endpoint', None):
+            matches = await self.device_storage.findAll({"endpoint": subscription.endpoint})
             existing_device = matches[0] if matches else None
         else:
             existing_device = None
 
         if existing_device:
             # Update existing device
-            existing_device["userId"] = userId
+            update = DeviceSubscriptionInternalUpdate(userId=userId, expoToken=expoToken)
             if subscription:
-                existing_device["subscription"] = subscription
-                existing_device["endpoint"] = subscription['endpoint'] if 'endpoint' in subscription else None
-                existing_device["keys"] = subscription['keys'] if 'keys' in subscription else {}
-            if expoToken is not None:
-                existing_device["expoToken"] = expoToken
-            existing_device["updatedAt"] = datetime.now(timezone.utc).isoformat()
-            return await self.device_storage.update(existing_device["_id"], existing_device)
+                update.endpoint = subscription.endpoint
+                update.keys = getattr(subscription, 'keys', {})
+                update.subscription = subscription.model_dump()
+            return await self.device_storage.update(existing_device.id, update)
         else:
             # Create new device
-            device = {
-                "userId": userId,
-                "endpoint": (subscription['endpoint'] if 'endpoint' in subscription else None) if subscription else None,
-                "keys": (subscription['keys'] if 'keys' in subscription else {}) if subscription else {},
-                "subscription": subscription or {},
-                "expoToken": expoToken,
-                "createdAt": datetime.now(timezone.utc).isoformat(),
-                "updatedAt": datetime.now(timezone.utc).isoformat(),
-            }
-            return await self.device_storage.create(device)
+            create = DeviceSubscriptionInternalCreate(
+                userId=userId,
+                expoToken=expoToken,
+                endpoint=subscription.endpoint if subscription else None,
+                keys=getattr(subscription, 'keys', {}) if subscription else {},
+                subscription=subscription.model_dump() if subscription else {}
+            )
+            return await self.device_storage.create(create)
 
     async def getAllDeviceSubscriptions(self) -> List[Dict]:
         """Get all device subscriptions"""

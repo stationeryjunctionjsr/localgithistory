@@ -23,37 +23,49 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-async def populate_return_request(request: ReturnRequestInternal) -> Dict:
+async def populate_return_request(request: ReturnRequestInternal) -> ReturnRequestResponse:
     user = await user_repository.findById(request.userId) if request.userId else None
     valet = None
     if request.valetId:
         valet = await user_repository.findById(request.valetId)
 
+    from app.models.schemas import ItemSnippet, ProductSnippet, UserSnippet, ValetSnippet
     populated_items = []
     items_list = request.items or []
     for item in items_list:
         pid = item.productId
         product = await product_repository.findById(pid) if pid else None
+        
+        prod_snippet = None
+        if product:
+            prod_snippet = ProductSnippet(
+                id=product.id,
+                name=product.name,
+                image=product.image,
+                price=product.price,
+                stock=product.stock,
+                type=product.type
+            )
+        else:
+            prod_snippet = ProductSnippet(id=pid or "", name="Product not found")
+            
+        populated_items.append(ItemSnippet(
+            product=prod_snippet,
+            qty=item.qty or 0,
+            price=item.price or 0.0,
+            returnReason=item.returnReason or "",
+            images=item.images or []
+        ))
 
-        item_dict = item.model_dump()
-        prod_dict = product.model_dump() if product else {"_id": pid, "name": "Product not found"}
-        item_dict["product"] = prod_dict
-        populated_items.append(item_dict)
-
-    base_dict = request.model_dump(by_alias=True)
-    return {
-        **base_dict,
-        "user": {
-            "_id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "phone": user.phone,
-        }
-        if user
-        else None,
-        "valet": {"_id": valet.id, "name": valet.name} if valet else None,
-        "items": populated_items,
-    }
+    response = ReturnRequestResponse.model_validate(request, from_attributes=True)
+    response.items = populated_items
+    
+    if user:
+        response.user = UserSnippet(id=user.id, name=user.name, email=user.email, phone=user.phone)
+    if valet:
+        response.valet = ValetSnippet(id=valet.id, name=valet.name)
+        
+    return response
 
 
 @router.get("/my-returns", response_model=List[ReturnRequestResponse])
