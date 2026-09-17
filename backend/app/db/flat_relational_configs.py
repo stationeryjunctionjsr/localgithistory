@@ -1,5 +1,5 @@
 from app.models.daos import NotificationInternal
-from app.models.daos_flat import ActivityInternal, ReturnRequestInternal
+from app.models.daos_flat import ReturnSettingsInternal, ActivityInternal, ReturnRequestInternal
 from app.models.schemas import SearchTagResponse, CollectionResponse, SchemeResponse, DeliveryChargeResponse, DefaultDeliveryChargeResponse
 """
 Configs for FlatRelationalDAO: parent-only tables with fixed columns + JSON columns.
@@ -110,6 +110,7 @@ FLAT_RELATIONAL_DAOS = {
     "returnSettings": _dao(
         "sj_return_settings",
         {"returnDays": "return_days"},
+        schema_cls=ReturnSettingsInternal
     ),
     "schemes": _dao(
         "sj_schemes",

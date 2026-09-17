@@ -2,6 +2,13 @@ from pydantic import BaseModel, ConfigDict
 from typing import Any, Optional, Dict, List
 from datetime import datetime
 
+class ReturnSettingsInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    returnDays: Optional[int] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
 class ReturnSettingsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     returnDays: Optional[int] = None

@@ -21,7 +21,8 @@ async def get_return_settings():
 @router.put("/", response_model=ReturnSettingsResponse)
 async def update_return_settings(settings_update: ReturnSettingsUpdate, admin=Depends(require_super_admin)):
     """Update global return settings (Super Admin only)"""
-    update_data = {}
+    from app.models.daos_flat import ReturnSettingsInternalUpdate
+    update_data = ReturnSettingsInternalUpdate()
     if settings_update.returnDays is not None:
         update_data.returnDays = settings_update.returnDays
 
