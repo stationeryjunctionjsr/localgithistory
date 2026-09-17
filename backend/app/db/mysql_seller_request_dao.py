@@ -210,22 +210,7 @@ class MySQLSellerRequestDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-            
-        existing_dict = {**existing}
-        update_dict = {}
-        for field in update_data.model_fields_set:
-            if field == "user": update_dict["user"] = update_data.user
-            elif field == "subject": update_dict["subject"] = update_data.subject
-            elif field == "description": update_dict["description"] = update_data.description
-            elif field == "category": update_dict["category"] = update_data.category
-            elif field == "priority": update_dict["priority"] = update_data.priority
-            elif field == "status": update_dict["status"] = update_data.status
-            elif field == "resolvedAt": update_dict["resolvedAt"] = update_data.resolvedAt
-            elif field == "closedAt": update_dict["closedAt"] = update_data.closedAt
-            elif field == "comments": update_dict["comments"] = update_data.comments
-        merged_dict = {**existing_dict, **update_dict}
-        from app.models.daos import SellerRequestInternalUpdate
-        merged = SellerRequestInternalUpdate(**merged_dict)
+
         now = now_utc()
         factory = self._factory()
 
@@ -238,29 +223,56 @@ class MySQLSellerRequestDAO:
                 logging.warning("Background task failed", exc_info=e)
                 return None
 
+        updates = ["updated_at = :updated_at"]
+        params = {"id": int(id) if str(id).isdigit() else None, "updated_at": now}
+
+        if update_data.user is not None:
+            updates.append("user_id = :user_id")
+            params["user_id"] = update_data.user
+        if update_data.subject is not None:
+            updates.append("subject = :subject")
+            params["subject"] = update_data.subject
+        if update_data.description is not None:
+            updates.append("description = :description")
+            params["description"] = update_data.description
+        if update_data.category is not None:
+            updates.append("category = :category")
+            params["category"] = update_data.category
+        if update_data.priority is not None:
+            updates.append("priority = :priority")
+            params["priority"] = update_data.priority
+        if update_data.status is not None:
+            updates.append("status = :status")
+            params["status"] = update_data.status
+        if update_data.resolvedAt is not None:
+            updates.append("resolved_at = :resolved_at")
+            params["resolved_at"] = to_dt(update_data.resolvedAt)
+        if update_data.closedAt is not None:
+            updates.append("closed_at = :closed_at")
+            params["closed_at"] = to_dt(update_data.closedAt)
+            
+        set_sql = ", ".join(updates)
+
         async with factory() as session:
             await session.execute(
-                text(f"""
-                    UPDATE {self.TABLE} SET
-                        user_id = :user_id, subject = :subject, description = :description, category = :category,
-                        priority = :priority, status = :status, resolved_at = :resolved_at, closed_at = :closed_at,
-                        updated_at = :updated_at
-                    WHERE id = :id
-                """),
-                {
-                    "id": int(id) if str(id).isdigit() else None,
-                    "user_id": merged.user,
-                    "subject": (merged.subject if merged.subject is not None else ""),
-                    "description": (merged.description if merged.description is not None else ""),
-                    "category": (merged.category if merged.category is not None else "general"),
-                    "priority": (merged.priority if merged.priority is not None else "medium"),
-                    "status": (merged.status if merged.status is not None else "open"),
-                    "resolved_at": to_dt(merged.resolvedAt),
-                    "closed_at": to_dt(merged.closedAt),
-                    "updated_at": now,
-                },
+                text(f"UPDATE {self.TABLE} SET {set_sql} WHERE id = :id"),
+                params,
             )
-            await self._replace_children(session, int(id) if str(id).isdigit() else None, merged)
+            if update_data.comments is not None:
+                await session.execute(
+                    text(f"DELETE FROM {self.CHILD_TABLE} WHERE parent_id = :id"),
+                    {"id": params["id"]},
+                )
+                for comment in update_data.comments:
+                    await session.execute(
+                        text(f"INSERT INTO {self.CHILD_TABLE} (parent_id, user_id, message, created_at) VALUES (:parent_id, :user_id, :message, :created_at)"),
+                        {
+                            "parent_id": params["id"],
+                            "user_id": comment.user,
+                            "message": comment.message,
+                            "created_at": to_dt(comment.createdAt) or now,
+                        },
+                    )
             await session.commit()
         return await self.findById(id)
 
