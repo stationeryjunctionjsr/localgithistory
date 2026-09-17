@@ -17,7 +17,7 @@ import type { NextRequest } from 'next/server';
  *   1. Update layout.tsx to read x-nonce and pass it to all <Script> tags
  *   2. Remove 'unsafe-inline' from script-src below
  *   3. Test GTM / Clarity / MSG91 still load correctly
- *   4. Evaluate removing 'unsafe-eval' (may break Next.js Turbopack — test first)
+ *   4. 'unsafe-eval' has been removed from script-src (was needed for Turbopack in dev)
  */
 
 export function middleware(request: NextRequest) {
@@ -30,8 +30,9 @@ export function middleware(request: NextRequest) {
     // automatically. The explicit domain list is a fallback for older browsers only.
     // 'unsafe-inline' has been removed — all scripts in layout.tsx, ConsentBasedTracking,
     // and MSG91Initializer now carry the per-request nonce.
-    // TODO: evaluate removing 'unsafe-eval' — may break Next.js Turbopack, test in production first.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://verify.msg91.com https://pass.hostnsoft.com`,
+    // 'unsafe-eval' has been removed; if Next.js Turbopack or a third-party script breaks,
+    // re-enable with a comment explaining why and file a ticket to remove it.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://verify.msg91.com https://pass.hostnsoft.com`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
     `font-src 'self' https://fonts.gstatic.com`,
     // img-src is scoped to known domains only.

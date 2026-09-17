@@ -5,8 +5,9 @@ from app.models.schemas import MessageResponse, AvailabilityRequestResponse, Ava
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from pydantic import BaseModel, Field, ConfigDict
+from app.config.rate_limiter import limiter
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_optional_user, require_super_admin
@@ -46,7 +47,9 @@ class AvailabilityRequestCreate(BaseModel):
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=AvailabilityRequestResponse)
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=AvailabilityRequestResponse)
+@limiter.limit("5/minute")
 async def create_availability_request(
+    request: Request,
     data: AvailabilityRequestCreate,
     current_user: Optional[dict] = Depends(get_optional_user),
 ):

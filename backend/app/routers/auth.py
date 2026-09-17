@@ -81,24 +81,14 @@ async def check_phone(data: CheckPhoneRequest, request: Request):
     identifier = data.phone.strip()
     is_email = "@" in identifier
 
-    user = None
-    if is_email:
-        normalized_email = identifier.lower()
-        if not re.match(r"[^@]+@[^@]+\.[^@]+", normalized_email):
-            raise HTTPException(status_code=400, detail="Enter a valid email address")
-        user = await user_repository.findByEmail(normalized_email)
-    else:
-        normalized_phone = normalize_phone(identifier)
-        if not normalized_phone or len(normalized_phone) != 10:
-            raise HTTPException(status_code=400, detail="Enter a valid 10-digit phone number or email")
-        user = await user_repository.findByPhone(normalized_phone)
-
-    exists = bool(user and user.password)
+    # Prevent account enumeration by always returning a generic success response
     import hashlib
     import asyncio
 
+    # Simulate delay to prevent timing attacks even though we return generic response
     await asyncio.sleep(0.05 + (int(hashlib.sha256(identifier.encode()).hexdigest()[:4], 16) % 50) / 1000)
-    return {"exists": exists}
+    
+    return {"status": "success", "message": "If the account exists, you can proceed."}
 
 
 @router.post("/send-otp", response_model=MessageResponse)

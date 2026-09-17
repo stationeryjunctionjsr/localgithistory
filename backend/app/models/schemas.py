@@ -616,6 +616,8 @@ class RegisterRequest(BaseModel):
     msg91Token: Optional[str] = None  # Token from MSG91 Widget/SDK
     otp: Optional[str] = None
     deviceId: Optional[str] = None
+    approvalStatus: Optional[str] = None
+
 
 
 class AuthResponse(BaseModel):
@@ -820,6 +822,8 @@ class DeliveryChargeUpdate(BaseModel):
     serviceableForWholesaler: Optional[bool] = None
     isActive: Optional[bool] = None
     description: Optional[str] = None
+    urgentDeliveryAvailable: Optional[bool] = None
+    urgentDeliveryCharge: Optional[float] = None
 
 
 class DeliveryChargeResponse(DeliveryChargeBase):

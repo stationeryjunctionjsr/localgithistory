@@ -431,6 +431,33 @@ app.include_router(availability_requests.router, prefix="/api/availability-reque
 _session_last_touch = {}
 
 
+@app.middleware("http")
+async def uploads_auth_middleware(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/uploads/"):
+        if "/invoices/" in path or "/payments/" in path:
+            from app.utils.cookies import get_token_from_request
+            from app.utils.auth import verify_token
+            
+            token = get_token_from_request(request)
+            if not token:
+                return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+            
+            try:
+                user = await verify_token(token)
+                if not user:
+                    return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+                    
+                from app.utils.media_auth import verify_media_ownership
+                is_owner = await verify_media_ownership(path, user)
+                if not is_owner:
+                    return JSONResponse(status_code=403, content={"detail": "Access denied"})
+            except Exception as e:
+                logger.error(f"Error checking media ownership: {e}")
+                return JSONResponse(status_code=403, content={"detail": "Access denied"})
+                
+    return await call_next(request)
+
 # Middleware to update session activity and device info
 @app.middleware("http")
 async def touch_session_middleware(request: Request, call_next):

@@ -391,6 +391,8 @@ async def get_orders(
         query["user"] = str(current_user.id)
     elif current_user.role == "valet":
         query["assignedValet"] = str(current_user.id)
+    elif current_user.role == "seller":
+        query["subOrders.sellerId"] = str(current_user.id)
     # Super admin sees all orders; optionally filter by assignedValet
     elif current_user.role == "super_admin" and assignedValet:
         query["assignedValet"] = assignedValet
@@ -436,6 +438,10 @@ async def get_order(order_id: str, current_user: User = Depends(get_current_user
     elif current_user.role == "valet":
         if order.assigned_valet != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user.role == "seller":
+        is_seller = any(str(sub.seller_id) == str(current_user.id) for sub in (order.sub_orders or []))
+        if not is_seller:
+            raise HTTPException(status_code=403, detail="Access denied")
 
     populated_order = await populate_order(order)
     return populated_order
@@ -449,11 +455,20 @@ async def create_order(
     order_data: OrderCreateRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
 ):
     order_zone_id = None
     # User must be logged in to place an order
     if not current_user:
         raise HTTPException(status_code=401, detail="Please log in to place an order")
+
+    # Check for existing order with the same idempotency key for this user
+    if idempotency_key:
+        existing_orders = await order_repository.findAll({"user": current_user.id, "idempotencyKey": idempotency_key})
+        if existing_orders:
+            # Return the existing order to prevent duplicate creation
+            populated_existing = await populate_order(existing_orders[0])
+            return populated_existing
 
     # Valets cannot place orders
     if current_user.role == "valet":
@@ -1405,6 +1420,7 @@ async def create_order(
             if applied_referral_code
             else (order_data.notes or ""),
             "printedBill": order_data.printedBill,
+            "idempotencyKey": idempotency_key,
         })
     )
 

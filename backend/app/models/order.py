@@ -46,6 +46,7 @@ class Order(BaseModel):
     turnaround_hours: Optional[float] = Field(default=None, alias="turnaroundHours")
     items: List['OrderItem'] = []
     sub_orders: Optional[List['SubOrder']] = Field(default=None, alias="subOrders")
+    idempotency_key: Optional[str] = Field(default=None, alias="idempotencyKey")
     valet_decline_history: List[ValetDeclineHistoryEntry] = Field(default=[], alias="valetDeclineHistory")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
@@ -88,6 +89,7 @@ class OrderInternalCreate(BaseModel):
     cancelledAt: Optional[str] = None
     cancelledBy: Optional[str] = None
     createdAt: Optional[str] = None
+    idempotencyKey: Optional[str] = None
 
 class OrderInternalUpdate(BaseModel, extra='forbid'):
     status: Optional[str] = None
@@ -107,6 +109,11 @@ class OrderInternalUpdate(BaseModel, extra='forbid'):
     pendingValetId: Optional[str] = None
     valetAssignedAt: Optional[str] = None
     cancelledBy: Optional[str] = None
+    hasSubOrders: Optional[bool] = None
+    subOrderIds: Optional[List[str]] = None
+    trackingId: Optional[str] = None
+    courierPartner: Optional[str] = None
+    trackingUpdatedAt: Optional[str] = None
 
 from app.models.sub_order import SubOrder
 Order.model_rebuild()

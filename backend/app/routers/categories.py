@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from app.repositories.category_repository import CategoryRepository
-from app.utils.auth import require_super_admin
+from app.utils.auth import require_super_admin, get_optional_user
 from app.utils.cache import cache
 from app.utils.logger import logger
 
@@ -43,15 +43,9 @@ class CategoryUpdate(BaseModel):
     isReturnable: Optional[bool] = None
 
 
-@router.get("/available", response_model=List[Category])
 @cache.ttl_cache(ttl=300.0)
-async def get_available_categories(pincode: Optional[str] = None, role: Optional[str] = "customer"):
-    """
-    Returns the category names and subcategories that have at least one product
-    available for the given pincode (based on zone -> seller mapping).
-    Returns null if no pincode is provided or if the pincode is not in any zone (fail-open).
-    """
-    if role == "wholesaler":
+async def _get_available_categories_cached(pincode: Optional[str], effective_role: str):
+    if effective_role == "wholesaler":
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
         sa_id = await get_super_admin_seller_id()
         if sa_id:
@@ -109,6 +103,24 @@ async def get_available_categories(pincode: Optional[str] = None, role: Optional
         "brandNames": list(result["brandNames"]),
         "collectionNames": list(result["collectionNames"]),
     }
+
+
+@router.get("/available", response_model=Any)
+async def get_available_categories(
+    pincode: Optional[str] = None, 
+    role: Optional[str] = "customer",
+    current_user: Optional[Any] = Depends(get_optional_user)
+):
+    """
+    Returns the category names and subcategories that have at least one product
+    available for the given pincode (based on zone -> seller mapping).
+    Returns null if no pincode is provided or if the pincode is not in any zone (fail-open).
+    """
+    effective_role = role or "customer"
+    if current_user and current_user.role:
+        effective_role = current_user.role
+        
+    return await _get_available_categories_cached(pincode, effective_role)
 
 
 

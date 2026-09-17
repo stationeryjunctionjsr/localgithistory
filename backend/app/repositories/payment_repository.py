@@ -262,6 +262,10 @@ class PaymentRepository:
 
         internal_entries = [_to_internal_entry(e) for e in entries]
 
+        verified_paid = sum(float(e.amount or 0) for e in internal_entries if e.verified)
+        total_amount = float(payment.total_amount or 0.0)
+        amount_remaining = max(0.0, total_amount - verified_paid)
+
         update_payload = PaymentInternalUpdate(
             orderId=payment.order_id,
             userId=payment.user_id,
@@ -269,9 +273,9 @@ class PaymentRepository:
             customerName=payment.customer_name,
             orderDate=payment.order_date.isoformat() if payment.order_date else None,
             paymentMethod=payment.payment_method,
-            amountPaid=payment.amount_paid,
-            amountRemaining=payment.amount_remaining,
-            totalAmount=payment.total_amount,
+            amountPaid=verified_paid,
+            amountRemaining=amount_remaining,
+            totalAmount=total_amount,
             paymentId=payment.payment_id,
             paymentEntries=internal_entries
         )

@@ -62,9 +62,15 @@ async def get_media_url(
     if not any(key.startswith(p) for p in _ALLOWED_ENV_PREFIXES):
         raise HTTPException(status_code=400, detail="Invalid object key")
 
-    # Require authentication for sensitive documents.
-    if _is_sensitive_key(key) and current_user is None:
-        raise HTTPException(status_code=401, detail="Authentication required")
+    # Require authentication and ownership for sensitive documents.
+    if _is_sensitive_key(key):
+        if current_user is None:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        from app.utils.media_auth import verify_media_ownership
+        is_owner = await verify_media_ownership(key, current_user)
+        if not is_owner:
+            raise HTTPException(status_code=403, detail="Access denied")
 
     try:
         import asyncio
