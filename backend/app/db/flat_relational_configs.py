@@ -1,6 +1,6 @@
 from app.models.daos import NotificationInternal
 from app.models.schemas import SupportTicketInternal
-from app.models.daos_flat import DeliverySlotConfigInternal, DeliveryZoneInternal, DeliveryChargeDefaultInternal, DeliveryChargeInternal, CategoryTagInternal, CoachMarkInternal, SearchTagInternal, CollectionInternal, DeviceSubscriptionInternal, PushNotificationsInternal, PromoStripsInternal, OrderFeedbackInternal, ContactInternal, SchemeInternal, ReturnSettingsInternal, ActivityInternal, ReturnRequestInternal
+from app.models.daos_flat import CouponInternal, DeliverySlotConfigInternal, DeliveryZoneInternal, DeliveryChargeDefaultInternal, DeliveryChargeInternal, CategoryTagInternal, CoachMarkInternal, SearchTagInternal, CollectionInternal, DeviceSubscriptionInternal, PushNotificationsInternal, PromoStripsInternal, OrderFeedbackInternal, ContactInternal, SchemeInternal, ReturnSettingsInternal, ActivityInternal, ReturnRequestInternal
 from app.models.schemas import SearchTagResponse, CollectionResponse, SchemeResponse, DeliveryChargeResponse, DefaultDeliveryChargeResponse
 """
 Configs for FlatRelationalDAO: parent-only tables with fixed columns + JSON columns.
