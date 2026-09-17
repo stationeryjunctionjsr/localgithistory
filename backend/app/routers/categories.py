@@ -311,18 +311,19 @@ async def create_category(category: CategoryBase, current_user: User = Depends(r
             if (cat.name or "").strip().lower() == name_lower:
                 raise HTTPException(status_code=400, detail="Category with this name already exists")
 
-        category_data = {
-            "name": category.name.strip(),
-            "description": category.description or "",
-            "images": category.images or [],
-            "subCategories": category.subCategories or [],
-            "minimumQuantity": category.minimumQuantity or 0,
-            "categoryTag": category.categoryTag or "",
-            "isActive": category.isActive,
-            "showInMobileHomepage": category.showInMobileHomepage,
-            "gst": category.gst,
-            "isReturnable": category.isReturnable,
-        }
+        from app.models.daos import CategoryInternalCreate
+        category_data = CategoryInternalCreate(
+            name=category.name.strip(),
+            description=category.description or "",
+            images=category.images or [],
+            subCategories=category.subCategories or [],
+            minimumQuantity=category.minimumQuantity or 0,
+            categoryTag=category.categoryTag or "",
+            isActive=category.isActive,
+            showInMobileHomepage=category.showInMobileHomepage,
+            gst=category.gst,
+            isReturnable=category.isReturnable,
+        )
 
         new_category = await category_repository.create(category_data)
         _invalidate_category_caches()
