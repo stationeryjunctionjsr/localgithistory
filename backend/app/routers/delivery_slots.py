@@ -5,10 +5,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 
-def _g(s, p):
-    if isinstance(s, dict):
-        return s[p] if p in s else None
-    return getattr(s, p, None)
+
 from app.db.storage_factory import get_storage
 from app.utils.auth import require_super_admin
 
@@ -177,25 +174,25 @@ async def get_available_slots(
     matched_slots = []
     slots = config.slots
     for slot in slots:
-        logger.debug(f"get_available_slots: evaluating slot id={_g(slot, 'id')}")
-        if not (_g(slot, "isActive") if _g(slot, "isActive") is not None else True):
+        logger.debug(f"get_available_slots: evaluating slot id={slot.id}")
+        if not (slot.isActive if slot.isActive is not None else True):
             continue
 
-        is_full_day = bool(_g(slot, "isFullDay"))
-        is_urgent = bool(_g(slot, "isUrgent"))
+        is_full_day = bool(slot.isFullDay)
+        is_urgent = bool(slot.isUrgent)
 
         if not is_full_day:
             if is_urgent:
                 cutoff_hours = (
-                    _g(slot, "urgentCutoffHours")
-                    if _g(slot, "urgentCutoffHours") is not None
-                    else _g(slot, "cutoffHours")
+                    slot.urgentCutoffHours
+                    if slot.urgentCutoffHours is not None
+                    else slot.cutoffHours
                 )
             else:
-                cutoff_hours = _g(slot, "cutoffHours")
+                cutoff_hours = slot.cutoffHours
 
             if cutoff_hours is not None:
-                anchor_time_str = (_g(slot, "endTime") or "") if is_urgent else (_g(slot, "startTime") or "")
+                anchor_time_str = (slot.endTime or "") if is_urgent else (slot.startTime or "")
                 try:
                     anchor_ist = _dt.datetime.strptime(f"{date} {anchor_time_str}", "%Y-%m-%d %H:%M")
                     cutoff_ist = anchor_ist - _dt.timedelta(hours=cutoff_hours)
@@ -206,13 +203,13 @@ async def get_available_slots(
                     pass
 
         if not is_full_day:
-            cap = int(_g(slot, "capacity")) if _g(slot, "capacity") is not None else config.zoneDefaultCapacity
-            booked = int(_g(slot, "bookedCount") or 0)
+            cap = int(slot.capacity) if slot.capacity is not None else config.zoneDefaultCapacity
+            booked = int(slot.bookedCount or 0)
             if cap is not None and booked >= cap:
                 logger.debug(f"get_available_slots: slot skipped — at capacity")
                 continue
 
-        end_time_str = _g(slot, "endTime") or ""
+        end_time_str = slot.endTime or ""
         if end_time_str:
             try:
                 end_ist = _dt.datetime.strptime(f"{date} {end_time_str}", "%Y-%m-%d %H:%M")
@@ -223,13 +220,13 @@ async def get_available_slots(
                 pass
 
         logger.debug(f"get_available_slots: slot matched")
-        slot_id = _g(slot, "id") or f"{_g(slot, 'startTime')}-{_g(slot, 'endTime')}"
-        config_id_val = _g(config, "id") or ""
+        slot_id = slot.id or f"{slot.startTime}-{slot.endTime}"
+        config_id_val = config.id or ""
         matched_slots.append({
             "configId": str(config_id_val),
             "slotId": slot_id,
-            "startTime": _g(slot, "startTime"),
-            "endTime": _g(slot, "endTime"),
+            "startTime": slot.startTime,
+            "endTime": slot.endTime,
             "isUrgent": is_urgent,
             "isFullDay": is_full_day,
         })
@@ -267,17 +264,17 @@ async def get_dates_with_slots(
         has_valid_slot = False
         slots = config.slots
         for slot in slots:
-            if not (_g(slot, "isActive") if _g(slot, "isActive") is not None else True):
+            if not (slot.isActive if slot.isActive is not None else True):
                 continue
 
-            is_full_day = bool(_g(slot, "isFullDay"))
-            is_urgent = bool(_g(slot, "isUrgent"))
+            is_full_day = bool(slot.isFullDay)
+            is_urgent = bool(slot.isUrgent)
 
             # Cutoff check
             if not is_full_day:
-                cutoff_hours = _g(slot, "urgentCutoffHours") if is_urgent and _g(slot, "urgentCutoffHours") is not None else _g(slot, "cutoffHours")
+                cutoff_hours = slot.urgentCutoffHours if is_urgent and slot.urgentCutoffHours is not None else slot.cutoffHours
                 if cutoff_hours is not None:
-                    anchor_time_str = (_g(slot, "endTime") or "") if is_urgent else (_g(slot, "startTime") or "")
+                    anchor_time_str = (slot.endTime or "") if is_urgent else (slot.startTime or "")
                     try:
                         anchor_ist = _dt.datetime.strptime(f"{check_date} {anchor_time_str}", "%Y-%m-%d %H:%M")
                         if now_ist >= (anchor_ist - _dt.timedelta(hours=cutoff_hours)):
@@ -286,7 +283,7 @@ async def get_dates_with_slots(
                         pass
 
             # 24-hour rule
-            end_time_str = _g(slot, "endTime") or ""
+            end_time_str = slot.endTime or ""
             try:
                 slot_end_ist = _dt.datetime.strptime(f"{check_date} {end_time_str}", "%Y-%m-%d %H:%M")
                 if slot_end_ist > (now_ist + _dt.timedelta(hours=24)):
@@ -296,8 +293,8 @@ async def get_dates_with_slots(
 
             # Capacity check with zone fallback
             if not is_full_day:
-                cap = int(_g(slot, "capacity")) if _g(slot, "capacity") is not None else config.zoneDefaultCapacity
-                booked = int(_g(slot, "bookedCount") or 0)
+                cap = int(slot.capacity) if slot.capacity is not None else config.zoneDefaultCapacity
+                booked = int(slot.bookedCount or 0)
                 if cap is not None and (cap - booked) <= 0:
                     continue
 
@@ -336,10 +333,10 @@ async def book_slot(
     updated = False
     booked_slot: Optional[SlotBase] = None
     for slot in cfg.slots:
-        current_slot_id = _g(slot, "id") or f"{_g(slot, 'startTime')}-{_g(slot, 'endTime')}"
+        current_slot_id = slot.id or f"{slot.startTime}-{slot.endTime}"
         if current_slot_id == slot_id:
-            cap = int(_g(slot, "capacity")) if _g(slot, "capacity") is not None else cfg.zoneDefaultCapacity
-            booked = int(_g(slot, "bookedCount") or 0)
+            cap = int(slot.capacity) if slot.capacity is not None else cfg.zoneDefaultCapacity
+            booked = int(slot.bookedCount or 0)
             if cap is not None and booked >= cap:
                 raise HTTPException(status_code=409, detail="Slot is fully booked")
             slot.bookedCount = booked + 1
@@ -381,7 +378,7 @@ async def create_delivery_slot_config(
         slots_with_capacity = []
         slots = config.slots
         for slot in slots:
-            cap_val = _g(slot, "capacity")
+            cap_val = slot.capacity
             if cap_val is None or cap_val == 0:
                 slot.capacity = zone_default_capacity
             slots_with_capacity.append(slot)

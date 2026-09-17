@@ -98,7 +98,13 @@ class MySQLFlatBaseDAO:
             out["createdAt"] = r.created_at.isoformat()
         if "updated_at" in r._mapping and r.updated_at:
             out["updatedAt"] = r.updated_at.isoformat()
-        cls = getattr(self, "schema_cls", getattr(self, "pydantic_model", None))
+        try:
+            cls = self.schema_cls
+        except AttributeError:
+            try:
+                cls = self.pydantic_model
+            except AttributeError:
+                cls = None
         return cls(**out) if cls else out
 
     def _doc_to_params(self, data: Dict, now: datetime) -> Any:
@@ -219,31 +225,44 @@ class MySQLFlatBaseDAO:
             raise RuntimeError("Could not obtain new row id after insert")
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Any]:
+    async def update(self, id: str, update_data: Any) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        existing_dict = existing
-        if isinstance(update_data, dict):
-            update_dict = update_data
-        else:
-            update_dict = {k: getattr(update_data, k) for k in getattr(update_data, "model_fields_set", getattr(update_data, "__dict__", {}))}
-        merged = {**existing_dict, **update_dict}
         factory = self._factory()
         if not factory:
             return None
         now = now_utc()
-        params = self._doc_to_params(merged, now)
-        params["id"] = int(id) if str(id).isdigit() else None
-        params["updated_at"] = now
-
-        bind_params = {"id": params["id"]}
-        set_parts = []
-        for k in params:
-            if k not in ("id", "external_id", "created_at"):
-                p = _param(k)
-                set_parts.append(f"{_q(k)} = :{p}")
-                bind_params[p] = params[k]
+        
+        bind_params = {"id": int(id) if str(id).isdigit() else None, "updated_at": now}
+        set_parts = ["updated_at = :updated_at"]
+        
+        if isinstance(update_data, dict):
+            params = self._doc_to_params(update_data, now)
+            for k in params:
+                if k not in ("id", "external_id", "created_at"):
+                    p = _param(k)
+                    set_parts.append(f"{_q(k)} = :{p}")
+                    bind_params[p] = params[k]
+        else:
+            for k, v in update_data:
+                if k in update_data.model_fields_set:
+                    if k in self.scalar_map:
+                        col = self.scalar_map[k]
+                        if col not in ("id", "external_id", "created_at"):
+                            p = _param(col)
+                            set_parts.append(f"{_q(col)} = :{p}")
+                            bind_params[p] = 1 if (k in self.bool_api_keys and v) else 0 if (k in self.bool_api_keys) else v
+                    try:
+                        clob_map = self.clob_map
+                        if k in clob_map:
+                            col = clob_map[k]
+                            if col not in ("id", "external_id", "created_at"):
+                                p = _param(col)
+                                set_parts.append(f"{_q(col)} = :{p}")
+                                bind_params[p] = v
+                    except AttributeError:
+                        pass
 
         async with factory() as session:
             await session.execute(
