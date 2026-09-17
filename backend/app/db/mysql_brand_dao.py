@@ -128,39 +128,46 @@ class MySQLBrandDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        from app.models.daos import BrandInternalUpdate
-        existing_dict = existing.__dict__
-        update_dict = update_data.__dict__
-        merged_dict = {**existing_dict, **update_dict}
-        merged = BrandInternalUpdate(**merged_dict)
+
         factory = self._factory()
         if not factory:
             return None
         now = now_utc()
         bid = int(id) if str(id).isdigit() else None
+        
+        updates = ["updated_at = :updated_at"]
+        params = {"id": bid, "updated_at": now}
+
+        if update_data.name is not None:
+            updates.append("name = :name")
+            params["name"] = update_data.name
+            
+            if update_data.slug is None:
+                updates.append("slug = :slug")
+                params["slug"] = update_data.name.lower().replace(" ", "-")
+
+        if update_data.slug is not None:
+            updates.append("slug = :slug")
+            params["slug"] = update_data.slug
+            
+        if update_data.logoUrl is not None:
+            updates.append("image_url = :image_url")
+            params["image_url"] = update_data.logoUrl
+            
+        if update_data.showInMobileHomepage is not None:
+            updates.append("show_in_mobile_homepage = :show_in_mobile_homepage")
+            params["show_in_mobile_homepage"] = 1 if update_data.showInMobileHomepage else 0
+            
+        if update_data.isActive is not None:
+            updates.append("is_active = :is_active")
+            params["is_active"] = 1 if update_data.isActive else 0
+
+        set_sql = ", ".join(updates)
+
         async with factory() as session:
             await session.execute(
-                text(
-                    """
-                    UPDATE sj_brands SET
-                        name = :name,
-                        slug = :slug,
-                        image_url = :image_url,
-                        show_in_mobile_homepage = :show_in_mobile_homepage,
-                        is_active = :is_active,
-                        updated_at = :updated_at
-                    WHERE id = :id
-                    """
-                ),
-                {
-                    "id": bid,
-                    "name": merged.name,
-                    "slug": merged.slug if merged.slug else (merged.name.lower().replace(" ", "-") if merged.name else ""),
-                    "image_url": merged.logoUrl,
-                    "show_in_mobile_homepage": 1 if merged.showInMobileHomepage else 0,
-                    "is_active": 1 if (merged.isActive if merged.isActive is not None else True) else 0,
-                    "updated_at": now,
-                },
+                text(f"UPDATE sj_brands SET {set_sql} WHERE id = :id"),
+                params,
             )
             await session.commit()
         return await self.findById(id)
