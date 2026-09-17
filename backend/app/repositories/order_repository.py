@@ -79,40 +79,40 @@ class OrderRepository:
         return await self.storage.create(order_data)
 
     async def update(self, id: str, update_data: Any):
-        if update_data.status == "out_for_delivery" and getattr(update_data, "shippedAt", None) is None:
+        if update_data.status == "out_for_delivery" and update_data.shippedAt is None:
             update_data.shippedAt = datetime.now(timezone.utc).isoformat()
 
         if update_data.status == "delivered":
-            if getattr(update_data, "deliveredAt", None) is None:
+            if update_data.deliveredAt is None:
                 update_data.deliveredAt = datetime.now(timezone.utc).isoformat()
             order = await self.findById(id)
             if order and order.paymentMethod == "cod":
-                if getattr(update_data, "paymentStatus", None) is None:
+                if update_data.paymentStatus is None:
                     update_data.paymentStatus = "paid"
-                if getattr(update_data, "codPaymentReceived", None) is None:
+                if update_data.codPaymentReceived is None:
                     update_data.codPaymentReceived = True
-                if getattr(update_data, "codPaymentReceivedAt", None) is None:
+                if update_data.codPaymentReceivedAt is None:
                     update_data.codPaymentReceivedAt = datetime.now(timezone.utc).isoformat()
             try:
                 created_at_str = order.createdAt if order else None
                 if created_at_str and update_data.deliveredAt:
                     created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
-                    delivered_at = datetime.fromisoformat((update_data.get("deliveredAt") if isinstance(update_data, dict) else getattr(update_data, "deliveredAt")).replace("Z", "+00:00"))
+                    delivered_at = datetime.fromisoformat(update_data.deliveredAt.replace("Z", "+00:00"))
                     hours = (delivered_at - created_at).total_seconds() / 3600.0
                     update_data.turnaroundHours = round(hours, 2)
             except Exception as e:
                 logging.warning("Background task failed", exc_info=e)
 
-        if update_data.status == "shipped" and getattr(update_data, "shippedAt", None) is None:
+        if update_data.status == "shipped" and update_data.shippedAt is None:
             update_data.shippedAt = datetime.now(timezone.utc).isoformat()
 
-        if update_data.status == "cancelled" and getattr(update_data, "cancelledAt", None) is None:
+        if update_data.status == "cancelled" and update_data.cancelledAt is None:
             update_data.cancelledAt = datetime.now(timezone.utc).isoformat()
 
         if isinstance(update_data, dict):
             return await self.storage.update(id, update_data)
         fields = {}
-        for f in getattr(update_data, "model_fields_set", []):
+        for f in update_data.model_fields_set:
             if f == "status": fields[f] = update_data.status
             elif f == "shippedAt": fields[f] = update_data.shippedAt
             elif f == "deliveredAt": fields[f] = update_data.deliveredAt

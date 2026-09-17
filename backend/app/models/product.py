@@ -32,7 +32,7 @@ class Product(BaseModel):
     variant_attributes: List[str] = Field(default=[], alias="variantAttributes")
     sellers: List[ProductSellerEntry] = []
     variants: List[VariantOption] = []
-    details: Any = {}
+    details: Optional[Dict[str, str]] = {}
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
     searchTags: Optional[List[str]] = None
@@ -44,8 +44,17 @@ class Product(BaseModel):
     price: Optional[float] = None
     defaultDiscountPercentage: Optional[float] = None
     discountPercentage: Optional[float] = None
-    applicableDiscounts: Optional[List[Any]] = None
-    quantityTiers: Optional[List[Any]] = None
+    applicableDiscounts: Optional[List['ApplicableDiscountSnippet']] = None
+    quantityTiers: Optional[List['QuantityTier']] = None
     quantityItemType: Optional[str] = None
     displayImage: Optional[str] = None
 
+
+class ApplicableDiscountSnippet(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    type: Optional[str] = None
+    code: Optional[str] = None
+    description: Optional[str] = None
+
+from app.models.schemas import QuantityTier
+Product.model_rebuild()

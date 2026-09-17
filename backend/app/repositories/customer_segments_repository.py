@@ -22,7 +22,7 @@ class CustomerSegmentsRepository:
 
     async def create(self, data: Any) -> Dict:
         now = datetime.datetime.now(timezone.utc).isoformat()
-        if ("_id" not in data if isinstance(data, dict) else not getattr(data, "id", None)):
+        if (not data.id):
             if isinstance(data, dict):
                 data["_id"] = str(uuid.uuid4())
             else:

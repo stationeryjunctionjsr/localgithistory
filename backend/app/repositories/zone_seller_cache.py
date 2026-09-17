@@ -156,7 +156,7 @@ async def get_zone_for_pincode(pincode: str) -> Optional[dict]:
     try:
         zones = await _fetch_all_zones()
         for zone in zones:
-            if pincode in (zone.get("pincodes", []) if isinstance(zone, dict) else (getattr(zone, "pincodes", []) or [])):
+            if pincode in (zone.pincodes or []):
                 return zone
         return None
     except Exception as exc:

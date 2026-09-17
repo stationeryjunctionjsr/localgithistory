@@ -57,19 +57,19 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
     async def findById(self, id: str) -> Optional[Dict]:
         doc = await super().findById(id)
         if doc:
-            doc.items = await self._fetch_products(doc.external_id if getattr(doc, "external_id", None) is not None else doc.id)
+            doc.items = await self._fetch_products(doc.external_id if doc.external_id is not None else doc.id)
         return doc
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         doc = await super().findOne(query)
         if doc:
-            doc.items = await self._fetch_products(doc.external_id if getattr(doc, "external_id", None) is not None else doc.id)
+            doc.items = await self._fetch_products(doc.external_id if doc.external_id is not None else doc.id)
         return doc
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         docs = await super().findAll(query)
         for doc in docs:
-            doc.items = await self._fetch_products(doc.external_id if getattr(doc, "external_id", None) is not None else doc.id)
+            doc.items = await self._fetch_products(doc.external_id if doc.external_id is not None else doc.id)
         return docs
 
     async def create(self, data: 'BundleInternalCreate, BundleItemInternal') -> Dict:
@@ -103,8 +103,8 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
             except AttributeError: pass
             
         doc = await super().create(data_dict)
-        await self._save_products((doc.external_id if getattr(doc, "external_id", None) is not None else doc.id), items)
-        doc.items = await self._fetch_products(doc.external_id if getattr(doc, "external_id", None) is not None else doc.id)
+        await self._save_products((doc.external_id if doc.external_id is not None else doc.id), items)
+        doc.items = await self._fetch_products(doc.external_id if doc.external_id is not None else doc.id)
         return doc
 
     async def update(self, id: str, update_data: 'BundleInternalUpdate') -> Optional[Dict]:
@@ -140,6 +140,6 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
         doc = await super().update(id, update_dict)
         if doc:
             if items is not None:
-                await self._save_products((doc.external_id if getattr(doc, "external_id", None) is not None else doc.id), items)
-            doc.items = await self._fetch_products(doc.external_id if getattr(doc, "external_id", None) is not None else doc.id)
+                await self._save_products((doc.external_id if doc.external_id is not None else doc.id), items)
+            doc.items = await self._fetch_products(doc.external_id if doc.external_id is not None else doc.id)
         return doc

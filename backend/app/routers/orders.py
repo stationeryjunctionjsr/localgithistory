@@ -48,7 +48,8 @@ router = APIRouter()
 def _resolve_product_seller_id(product: Product, serviceable_seller_ids: list[str] = None) -> str:
     if product.sellers:
         return product.sellers[0].id
-    return getattr(product, "seller_id", None)
+    # Product has no seller_id field — sellers list is the sole source
+    return None
 
 
 # Helper function to create order notification
@@ -257,21 +258,23 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
     for order in orders:
         if order.user:
             user_ids.add(str(order.user))
-        
-        # We access properties directly based on the Order model fields
-        v = order.assignedValet if hasattr(order, "assignedValet") else (order.assigned_valet if hasattr(order, "assigned_valet") else None)
-        if v:
-            valet_ids.add(str(v))
-            
+
+        # Order.assigned_valet is the snake_case Pydantic field (alias: assignedValet)
+        if order.assigned_valet:
+            valet_ids.add(str(order.assigned_valet))
+
         if order.id:
             order_ids.add(str(order.id))
-            
+
         for item in order.items if order.items else []:
+            # ItemSnippet.product holds the product ID reference
             if item.product:
                 pid = str(item.product)
-                if pid: product_ids.add(pid)
-            elif hasattr(item, "product_id") and item.product_id:
-                product_ids.add(str(item.product_id))
+                if pid:
+                    product_ids.add(pid)
+            elif item.productId:
+                # Fallback: productId field on ItemSnippet
+                product_ids.add(str(item.productId))
 
     # 2. Fetch all required users, valets, products, and payments in parallel
     users_task = get_storage("users").findAll({"allowed_ids": list(user_ids.union(valet_ids))}) if user_ids.union(valet_ids) else None
@@ -283,50 +286,59 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
     products_list = await products_task if products_task else []
     payments_list = await payments_task if payments_task else []
 
-    # 3. Build lookup maps
-    users_map = {str(u.id): u for u in users_list if getattr(u, "id", None)}
-    products_map = {str(p.id): p for p in products_list if getattr(p, "id", None)}
-    payments_map = {}
+    # 3. Build lookup maps — u.id and p.id are declared Pydantic fields
+    users_map = {str(u.id): u for u in users_list if u.id}
+    products_map = {str(p.id): p for p in products_list if p.id}
+    payments_map: dict = {}
     for p in payments_list:
-        oid = str(getattr(p, "orderId", getattr(p, "order_id", None)))
-        if oid not in payments_map:
-            payments_map[oid] = []
-        payments_map[oid].append(p)
+        # Payment.order_id is the declared Pydantic field (alias: orderId)
+        oid = str(p.order_id) if p.order_id else None
+        if oid:
+            if oid not in payments_map:
+                payments_map[oid] = []
+            payments_map[oid].append(p)
 
     # 4. Construct fully populated responses
     populated = []
     for order in orders:
         o_user = str(order.user) if order.user else None
         user = users_map[o_user] if o_user and o_user in users_map else None
-        
-        o_valet = str(order.assignedValet if hasattr(order, "assignedValet") else (order.assigned_valet if hasattr(order, "assigned_valet") else None))
+
+        # assigned_valet is the snake_case Pydantic field on Order
+        o_valet = str(order.assigned_valet) if order.assigned_valet else None
         valet = users_map[o_valet] if o_valet and o_valet in users_map else None
-        
+
         o_id = str(order.id) if order.id else None
         payment_entries = payments_map[o_id] if o_id and o_id in payments_map else []
-        
+
         o_items = order.items if order.items else []
         populated_items = []
-        
+
         for i_dict in o_items:
-            # i_dict is a Pydantic OrderItem
-            pid = str(i_dict.product) if i_dict.product else (str(i_dict.product_id) if hasattr(i_dict, "product_id") else None)
+            # i_dict is a Pydantic ItemSnippet (OrderItem)
+            # .product holds the product ID reference; .productId is the alternate field
+            pid = str(i_dict.product) if i_dict.product else (str(i_dict.productId) if i_dict.productId else None)
             product = products_map[pid] if pid and pid in products_map else None
-            
+
+            # stockStatus, taxRate, taxAmount are not stored in sj_order_items (DB has
+            # only product_id, quantity, price) — they are None until the DB schema
+            # is extended and ItemSnippet gains those columns.
             p_item = PopulatedOrderItemResponse(
                 product=product,
                 quantity=i_dict.quantity,
                 price=i_dict.price,
-                stockStatus=i_dict.stockStatus if hasattr(i_dict, "stockStatus") else None,
-                taxRate=i_dict.taxRate if hasattr(i_dict, "taxRate") else None,
-                taxAmount=i_dict.taxAmount if hasattr(i_dict, "taxAmount") else None
+                stockStatus=None,
+                taxRate=None,
+                taxAmount=None,
             )
             populated_items.append(p_item)
-            
+
         from app.models.order import Order
         order_resp = Order.model_validate(order, from_attributes=True)
         order_resp.items = populated_items
-        
+
+        # couponCode, zoneId, adminNotes, valetNotes are not yet stored in sj_orders
+        # (no DB columns) — declared on PopulatedOrderResponse as Optional[str] = None
         pop_order = PopulatedOrderResponse(
             id=order_resp.id,
             user=UserSnippet.model_validate(user, from_attributes=True) if user else None,
@@ -338,16 +350,16 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
             totalAmount=order_resp.total,
             deliveryFee=order_resp.shipping,
             discount=order_resp.discount,
-            couponCode=getattr(order_resp, "couponCode", None),
+            couponCode=None,
             paymentMethod=order_resp.payment_method,
             paymentStatus=order_resp.payment_status,
             address=order_resp.shipping_address,
             createdAt=order_resp.created_at,
             updatedAt=order_resp.updated_at,
-            zoneId=getattr(order_resp, "zoneId", None),
+            zoneId=None,
             orderNotes=order_resp.notes,
-            adminNotes=getattr(order_resp, "adminNotes", None),
-            valetNotes=getattr(order_resp, "valetNotes", None)
+            adminNotes=None,
+            valetNotes=None,
         )
         populated.append(pop_order)
 
@@ -923,7 +935,9 @@ async def create_order(
                 taxableValue=round(taxable_value, 2),
                 cgst=round(cgst, 2),
                 sgst=round(sgst, 2),
-                variantAttributes=getattr(item, "variantAttributes", getattr(item, "variant_attributes", None)),
+                # variantAttributes is not stored on ItemSnippet / sj_order_items
+                # (DB only has product_id, quantity, price). Pass None until extended.
+                variantAttributes=None,
             )
         )
 
@@ -1495,13 +1509,15 @@ async def create_order(
                             (
                                 i
                                 for i in bundle_items_in_order
-                                if str((i.product or "")) == spec_pid or str(getattr(i, "product_id", getattr(i, "productId", ""))) == spec_pid
+                                # ItemSnippet has .product and .productId (camelCase), not product_id
+                                if str((i.product or "")) == spec_pid or str(i.productId or "") == spec_pid
                             ),
                             bundle_items_in_order[0],
                         )
                         copies = max(1, (ref_item.quantity if ref_item.quantity is not None else spec_qty) // spec_qty)
-                    sales_c = getattr(bundle, "salesCount", getattr(bundle, "sales_count", 0))
-                    new_sales = (sales_c if sales_c is not None else 0) + copies
+                    # Bundle.salesCount is a declared Pydantic field
+                    sales_c = bundle.salesCount if bundle.salesCount is not None else 0
+                    new_sales = sales_c + copies
                     await bundle_repository.update(b_id, {"salesCount": new_sales})
         except Exception as e:
             logger.error("Failed to increment bundle salesCount: %s", str(e), exc_info=True)

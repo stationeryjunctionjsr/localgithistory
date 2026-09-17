@@ -555,7 +555,7 @@ async def request_email_verification(request: Request, current_user: User = Depe
 
     response_data = {"message": "Verification code sent to your email."}
     if os.getenv("ENVIRONMENT") == "development" or os.getenv("TESTING") == "true":
-        otp_val = payload["otp"] if "otp" in payload else None if isinstance(payload, dict) else getattr(payload, "otp", None)
+        otp_val = payload.otp
         response_data["code"] = otp_val
 
     return response_data

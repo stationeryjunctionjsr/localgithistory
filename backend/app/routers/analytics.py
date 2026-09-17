@@ -236,10 +236,28 @@ async def record_event(
 
     payload_items = []
     if event.payload:
-        raw_dict = event.payload.model_dump(exclude_unset=True) if hasattr(event.payload, 'model_dump') else (event.payload.root if hasattr(event.payload, "root") else (event.payload if isinstance(event.payload, dict) else {}))
-        items_to_iter = raw_dict.items()
-        for k, v in items_to_iter:
-            payload_items.append(EventPayloadItem(key=k, value=str(v)))
+        if event.payload.returning is not None:
+            payload_items.append(EventPayloadItem(key="returning", value=str(event.payload.returning)))
+        if event.payload.productId is not None:
+            payload_items.append(EventPayloadItem(key="productId", value=str(event.payload.productId)))
+        if event.payload.productName is not None:
+            payload_items.append(EventPayloadItem(key="productName", value=str(event.payload.productName)))
+        if event.payload.source is not None:
+            payload_items.append(EventPayloadItem(key="source", value=str(event.payload.source)))
+        if event.payload.quantity is not None:
+            payload_items.append(EventPayloadItem(key="quantity", value=str(event.payload.quantity)))
+        if event.payload.query is not None:
+            payload_items.append(EventPayloadItem(key="query", value=str(event.payload.query)))
+        if event.payload.resultsCount is not None:
+            payload_items.append(EventPayloadItem(key="resultsCount", value=str(event.payload.resultsCount)))
+        if event.payload.reason is not None:
+            payload_items.append(EventPayloadItem(key="reason", value=str(event.payload.reason)))
+        if event.payload.testRunId is not None:
+            payload_items.append(EventPayloadItem(key="testRunId", value=str(event.payload.testRunId)))
+        if event.payload.device is not None:
+            payload_items.append(EventPayloadItem(key="device", value=str(event.payload.device)))
+        if event.payload.screen is not None:
+            payload_items.append(EventPayloadItem(key="screen", value=str(event.payload.screen)))
     
     payload_items.append(EventPayloadItem(key="userId", value=str(user_id) if user_id else ""))
     payload_items.append(EventPayloadItem(key="sessionId", value=str(event.sessionId) if event.sessionId else ""))
@@ -262,7 +280,7 @@ async def record_event(
         event_type = event.type
         session_id = event.sessionId
         raw_payload = event.payload
-        payload_obj = raw_payload if hasattr(raw_payload, "productId") else AnalyticsEventPayload(**(raw_payload.model_dump(exclude_unset=True) if hasattr(raw_payload, 'model_dump') else (raw_payload.root if hasattr(raw_payload, "root") else (raw_payload if isinstance(raw_payload, dict) else {}))))
+        payload_obj = raw_payload or AnalyticsEventPayload()
 
         try:
             if event_type == "session_start":

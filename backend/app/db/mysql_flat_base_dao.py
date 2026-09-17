@@ -223,7 +223,7 @@ class MySQLFlatBaseDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        existing_dict = existing if isinstance(existing, dict) else getattr(existing, "__dict__", {})
+        existing_dict = existing
         if isinstance(update_data, dict):
             update_dict = update_data
         else:

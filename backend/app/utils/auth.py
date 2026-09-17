@@ -271,7 +271,7 @@ def is_seller_admin(user: 'User') -> bool:
     """
     if user.role in ("seller_admin", "seller"):
         return True
-    if getattr(user, "isSellerAdmin", None):
+    if user.isSellerAdmin:
         return True
     return False
 

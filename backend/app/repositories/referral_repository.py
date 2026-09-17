@@ -32,17 +32,13 @@ class ReferralRepository:
             await self.storage.create(default_settings)
             return await self.storage.findOne({"_id": "1"}) or default_settings
 
-        doc = {k: v for k, v in settings[0].model_dump().items()} if hasattr(settings[0], "model_dump") else {k: v for k, v in settings[0].items()}
-        if "retail" not in doc:
-            doc.retail = {"segment": "retail", "discountType": "percentage", "discountValue": 0, "isActive": False}
-        if "business" not in doc:
-            doc.business = {
-                "segment": "business",
-                "discountType": "percentage",
-                "discountValue": 0,
-                "isActive": False,
-            }
-        return doc
+        setting = settings[0]
+        from app.models.referral_settings import ReferralSegment
+        if not setting.retail:
+            setting.retail = ReferralSegment(segment="retail", discountType="percentage", discountValue=0, isActive=False)
+        if not setting.business:
+            setting.business = ReferralSegment(segment="business", discountType="percentage", discountValue=0, isActive=False)
+        return setting
 
     async def update_settings(self, update_data: Any) -> Dict:
         settings = await self.get_settings()

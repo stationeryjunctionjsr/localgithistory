@@ -45,7 +45,7 @@ class Order(BaseModel):
     cancelled_by: Optional[str] = Field(default=None, alias="cancelledBy")
     turnaround_hours: Optional[float] = Field(default=None, alias="turnaroundHours")
     items: List['OrderItem'] = []
-    sub_orders: Optional[List[Any]] = Field(default=None, alias="subOrders")
+    sub_orders: Optional[List['SubOrder']] = Field(default=None, alias="subOrders")
     valet_decline_history: List[ValetDeclineHistoryEntry] = Field(default=[], alias="valetDeclineHistory")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
@@ -80,7 +80,7 @@ class OrderInternalCreate(BaseModel):
     valetCascadeCount: Optional[int] = 0
     turnaroundHours: Optional[float] = None
     shippedAt: Optional[str] = None
-    valetDeclineHistory: Optional[List[Any]] = None
+    valetDeclineHistory: Optional[List[ValetDeclineHistoryEntry]] = None
     deliveredAt: Optional[str] = None
     codPaymentReceived: bool = False
     codPaymentReceivedAt: Optional[str] = None
@@ -92,7 +92,7 @@ class OrderInternalCreate(BaseModel):
 class OrderInternalUpdate(BaseModel, extra='forbid'):
     status: Optional[str] = None
     shippedAt: Optional[str] = None
-    valetDeclineHistory: Optional[List[Any]] = None
+    valetDeclineHistory: Optional[List[ValetDeclineHistoryEntry]] = None
     deliveredAt: Optional[str] = None
     paymentStatus: Optional[str] = None
     codPaymentReceived: Optional[bool] = None
@@ -107,4 +107,6 @@ class OrderInternalUpdate(BaseModel, extra='forbid'):
     pendingValetId: Optional[str] = None
     valetAssignedAt: Optional[str] = None
     cancelledBy: Optional[str] = None
+
+from app.models.sub_order import SubOrder
 Order.model_rebuild()

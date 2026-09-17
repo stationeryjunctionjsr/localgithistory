@@ -245,7 +245,7 @@ class CouponRepository:
         applies_to_value_ids: Optional[List[str]],
         excluded_product_ids: Optional[List[str]] = None,
     ) -> bool:
-        pid = str(product.id if product.id is not None else getattr(product, "_id", ""))
+        pid = str(product.id if product.id is not None else product.id)
         
         if excluded_product_ids and pid in [str(x) for x in excluded_product_ids]:
             return False
@@ -294,7 +294,7 @@ class CouponRepository:
         excluded_product_ids: Optional[List[str]] = None,
     ) -> bool:
         """Determines if a bundle is eligible for a discount scheme."""
-        bid = str(bundle.id if bundle.id is not None else getattr(bundle, "_id", ""))
+        bid = str(bundle.id if bundle.id is not None else bundle.id)
         
         if excluded_product_ids and bid in [str(x) for x in excluded_product_ids]:
             return False

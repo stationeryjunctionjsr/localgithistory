@@ -231,10 +231,10 @@ class MySQLOrderFeedbackDAO:
             cols.append("order_id")
             vals.append(":orderId")
             params["orderId"] = data.orderId
-        if data.get("userId") if isinstance(data, dict) else getattr(data, "userId", None) is not None:
+        if data.userId is not None:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.get("userId") if isinstance(data, dict) else getattr(data, "userId", None)
+            params["userId"] = data.userId
         if data.rating is not None:
             cols.append("rating")
             vals.append(":rating")
@@ -575,10 +575,10 @@ class MySQLPushNotificationsDAO:
             cols.append("image")
             vals.append(":image")
             params["image"] = data.image
-        if data.get("status") if isinstance(data, dict) else getattr(data, "status", None) is not None:
+        if data.status is not None:
             cols.append("status")
             vals.append(":status")
-            params["status"] = data.get("status") if isinstance(data, dict) else getattr(data, "status", None)
+            params["status"] = data.status
         if data.scheduledFor is not None:
             cols.append("scheduled_for")
             vals.append(":scheduledFor")
@@ -1226,27 +1226,27 @@ class MySQLStockReservationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.get("productId") if isinstance(data, dict) else getattr(data, "productId", None) is not None:
+        if data.productId is not None:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.get("productId") if isinstance(data, dict) else getattr(data, "productId", None)
-        if data.get("userId") if isinstance(data, dict) else getattr(data, "userId", None) is not None:
+            params["productId"] = data.productId
+        if data.userId is not None:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.get("userId") if isinstance(data, dict) else getattr(data, "userId", None)
-        if data.get("quantity") if isinstance(data, dict) else getattr(data, "quantity", None) is not None:
+            params["userId"] = data.userId
+        if data.quantity is not None:
             cols.append("quantity")
             vals.append(":quantity")
-            params["quantity"] = data.get("quantity") if isinstance(data, dict) else getattr(data, "quantity", None)
-        if data.get("status") if isinstance(data, dict) else getattr(data, "status", None) is not None:
+            params["quantity"] = data.quantity
+        if data.status is not None:
             cols.append("status")
             vals.append(":status")
-            params["status"] = data.get("status") if isinstance(data, dict) else getattr(data, "status", None)
-        if (isinstance(data, dict) and "expiresAt" in data) or hasattr(data, "expiresAt"):
+            params["status"] = data.status
+        if data.expiresAt is not None:
             cols.append("expires_at")
             vals.append(":expiresAt")
             # Convert 'Z' format to datetime object
-            exp = str(data.get("expiresAt") if isinstance(data, dict) else getattr(data, "expiresAt", None))
+            exp = str(data.expiresAt)
             if exp.endswith("Z"):
                 exp = exp[:-1]
                 if not exp.endswith("+00:00") and "+" not in exp[-6:] and "-" not in exp[-6:]:
@@ -1409,14 +1409,14 @@ class MySQLProductNotificationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.get("productId") if isinstance(data, dict) else getattr(data, "productId", None) is not None:
+        if data.productId is not None:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.get("productId") if isinstance(data, dict) else getattr(data, "productId", None)
-        if data.get("userId") if isinstance(data, dict) else getattr(data, "userId", None) is not None:
+            params["productId"] = data.productId
+        if data.userId is not None:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.get("userId") if isinstance(data, dict) else getattr(data, "userId", None)
+            params["userId"] = data.userId
         if data.email is not None:
             cols.append("email")
             vals.append(":email")
@@ -1425,10 +1425,10 @@ class MySQLProductNotificationsDAO:
             cols.append("phone")
             vals.append(":phone")
             params["phone"] = data.phone
-        if data.get("status") if isinstance(data, dict) else getattr(data, "status", None) is not None:
+        if data.status is not None:
             cols.append("status")
             vals.append(":status")
-            params["status"] = data.get("status") if isinstance(data, dict) else getattr(data, "status", None)
+            params["status"] = data.status
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1574,14 +1574,14 @@ class MySQLProductReviewsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.get("productId") if isinstance(data, dict) else getattr(data, "productId", None) is not None:
+        if data.productId is not None:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.get("productId") if isinstance(data, dict) else getattr(data, "productId", None)
-        if data.get("userId") if isinstance(data, dict) else getattr(data, "userId", None) is not None:
+            params["productId"] = data.productId
+        if data.userId is not None:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.get("userId") if isinstance(data, dict) else getattr(data, "userId", None)
+            params["userId"] = data.userId
         if data.rating is not None:
             cols.append("rating")
             vals.append(":rating")
@@ -1590,10 +1590,10 @@ class MySQLProductReviewsDAO:
             cols.append("review_text")
             vals.append(":reviewText")
             params["reviewText"] = data.reviewText
-        if data.get("status") if isinstance(data, dict) else getattr(data, "status", None) is not None:
+        if data.status is not None:
             cols.append("status")
             vals.append(":status")
-            params["status"] = data.get("status") if isinstance(data, dict) else getattr(data, "status", None)
+            params["status"] = data.status
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2332,10 +2332,10 @@ class MySQLAvailabilityRequestsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.get("productId") if isinstance(data, dict) else getattr(data, "productId", None) is not None:
+        if data.productId is not None:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.get("productId") if isinstance(data, dict) else getattr(data, "productId", None)
+            params["productId"] = data.productId
         if data.productName is not None:
             cols.append("product_name")
             vals.append(":productName")

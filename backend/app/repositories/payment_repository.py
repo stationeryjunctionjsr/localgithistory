@@ -222,7 +222,7 @@ class PaymentRepository:
             raise ValueError("Payment not found")
 
         entries = payment.payment_entries or []
-        entry_index = next((i for i, e in enumerate(entries) if (getattr(e, "entry_id", None) == str(entry_id) or getattr(e, "entry_id", None) == entry_id)), None)
+        entry_index = next((i for i, e in enumerate(entries) if (e.entry_id == str(entry_id) or e.entry_id == entry_id)), None)
         if entry_index is None:
             raise ValueError("Payment entry not found")
 

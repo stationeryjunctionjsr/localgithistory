@@ -90,10 +90,13 @@ class AddressSnippet(BaseModel):
 class UserSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     id: Optional[str] = Field(None, alias="_id")
+    userId: Optional[int] = Field(default=None, validation_alias=AliasChoices("userId", "user_id"))
+    userIdFormatted: Optional[str] = Field(default=None, validation_alias=AliasChoices("userIdFormatted", "user_id_formatted"))
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     role: Optional[str] = None
+    companyName: Optional[str] = Field(default=None, validation_alias=AliasChoices("companyName", "company_name"))
 
 class ProductSellerEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -105,8 +108,8 @@ class ProductSellerEntry(BaseModel):
 
 class ItemSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
-    productId: Optional[str] = None
-    product: Optional[Any] = None
+    productId: Optional[str] = Field(default=None, validation_alias=AliasChoices("productId", "product_id"))
+    product: Optional[str] = None
     quantity: Optional[int] = None
     sellAsCase: Optional[bool] = None
     price: Optional[float] = None
@@ -114,6 +117,8 @@ class ItemSnippet(BaseModel):
     name: Optional[str] = None
     image: Optional[str] = None
     status: Optional[str] = None
+    variantAttributes: Optional['VariantAttributes'] = Field(default=None, validation_alias=AliasChoices("variantAttributes", "variant_attributes"))
+
 
 class VariantOption(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -371,14 +376,18 @@ class ClassificationActionResponse(BaseModel):
 
 
 class BundleItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     productId: str
     productName: Optional[str] = None
     quantity: int
     image: Optional[str] = None
     price: Optional[float] = None
     discountPrice: Optional[float] = None
+    product: Optional['Product'] = None
+    lineMrp: Optional[float] = None
 
 class BundleResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     external_id: Optional[str] = None
     id: str = Field(alias="_id")
     name: str
@@ -390,6 +399,13 @@ class BundleResponse(BaseModel):
     items: List[BundleItemResponse] = []
     createdAt: Optional[str] = None
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    
+    # Enriched fields
+    totalMrp: Optional[float] = None
+    savings: Optional[float] = None
+    savingsPercent: Optional[float] = None
+    isAvailable: Optional[bool] = None
+    displayImage: Optional[str] = None
 
 class BundlesListResponse(BaseModel):
     bundles: List[BundleResponse]
@@ -712,6 +728,21 @@ class TicketResponseCreate(BaseModel):
     attachments: Optional[List[str]] = None
 
 
+class TicketResponseItemInternal(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    user: Optional[str] = None
+    message: Optional[str] = None
+    attachments: Optional[List[str]] = None
+    createdAt: Optional[str] = None
+
+class TicketResponseItem(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    user: Optional[UserSnippet] = None
+    message: Optional[str] = None
+    attachments: Optional[List[str]] = None
+    createdAt: Optional[str] = None
+
+
 class SupportTicketInternal(SupportTicketBase):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
     id: str = Field(alias="_id")
@@ -719,7 +750,7 @@ class SupportTicketInternal(SupportTicketBase):
     user: Optional[str] = None
     status: str
     assignedTo: Optional[str] = None
-    responses: Optional[List[Any]] = None
+    responses: Optional[List[TicketResponseItemInternal]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
@@ -733,7 +764,7 @@ class SupportTicketResponse(SupportTicketBase):
     user: Optional[UserSnippet] = None
     status: str
     assignedTo: Optional[UserSnippet] = None
-    responses: Optional[List[Any]] = None
+    responses: Optional[List[TicketResponseItem]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
@@ -1071,7 +1102,7 @@ class ReturnRequest(BaseModel):
     valetId: Optional[str] = None
     pendingValetId: Optional[str] = None
     status: Optional[str] = None
-    items: Optional[List[Any]] = []
+    items: Optional[List[ReturnItemSchema]] = []
     paymentMethod: Optional[str] = None
     upiPaymentScreenshot: Optional[str] = None
     notes: Optional[str] = None
@@ -1083,7 +1114,7 @@ class ReturnRequest(BaseModel):
     deliverySlotDate: Optional[str] = None
     valetAssignedAt: Optional[str] = None
     valetCascadeCount: Optional[int] = 0
-    valetDeclineHistory: Optional[List[Any]] = []
+    valetDeclineHistory: Optional[List[ValetDeclineHistoryEntry]] = []
     user: Optional[UserSnippet] = None
     valet: Optional[ValetSnippet] = None
 
@@ -1640,9 +1671,9 @@ class AnalyticsEventCreate(BaseModel):
     userId: Optional[str] = None
     sessionId: Optional[str] = None
     source: Optional[str] = None
-    filterName: Optional[Any] = None
-    filterValue: Optional[Any] = None
-    category: Optional[Any] = None
+    filterName: Optional[str] = None
+    filterValue: Optional[str] = None
+    category: Optional[str] = None
     payload: Optional[AnalyticsEventPayload] = None
     searchTerm: Optional[str] = None
     resultsCount: Optional[int] = None
@@ -1659,7 +1690,7 @@ class AnalyticsEventCreate(BaseModel):
     reason: Optional[str] = None
     orderId: Optional[str] = None
     orderValue: Optional[float] = None
-    cartItems: Optional[List[Any]] = None
+    cartItems: Optional[List[ItemSnippet]] = None
     model_config = ConfigDict(extra="forbid")
     timestamp: Optional[str] = None
 
@@ -1904,9 +1935,9 @@ class SellerRequestResponse(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     status: Optional[str] = None
-    user: Optional[Any] = None
-    attachments: Optional[List[Any]] = None
-    responses: Optional[List[Any]] = None
+    user: Optional[UserSnippet] = None
+    attachments: Optional[List[str]] = None
+    responses: Optional[List[TicketResponseItem]] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
@@ -1954,53 +1985,85 @@ class SellerProductApprove(BaseModel):
     status: str
     notes: Optional[str] = None
 
-class UserSnippet(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
-    id: Optional[str] = Field(default=None, alias="_id")
-    userId: Optional[int] = Field(default=None, validation_alias=AliasChoices("userId", "user_id"))
-    userIdFormatted: Optional[str] = Field(default=None, validation_alias=AliasChoices("userIdFormatted", "user_id_formatted"))
-    name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    companyName: Optional[str] = None
-
-class ValetSnippet(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
-    id: Optional[str] = Field(default=None, alias="_id")
-    name: Optional[str] = None
-    phone: Optional[str] = None
+# --- Populated-order response models (used by orders router) ---
+# NOTE: UserSnippet and ValetSnippet are the canonical ones defined at the
+# top of this file with extra='forbid'. No duplicates here.
 
 class PaymentSnippet(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
-    entries: List[Any] = []
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    entries: List['PaymentEntry'] = []
 
 
 class PopulatedOrderItemResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
-    product: Optional[Any] = None
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    product: Optional['Product'] = None
     quantity: Optional[int] = None
     price: Optional[float] = None
     stockStatus: Optional[str] = None
     taxRate: Optional[float] = None
     taxAmount: Optional[float] = None
 
+
 class PopulatedOrderResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    """Fully-populated order returned by GET /orders endpoints.
+
+    Every field that orders.py passes into this constructor is declared here.
+    extra='forbid' ensures nothing is silently dropped.
+    """
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+
     id: Optional[str] = Field(default=None, alias="_id")
     orderId: Optional[str] = None
     status: Optional[str] = None
+    orderStatus: Optional[str] = None    # router alias for status
+
     user: Optional[UserSnippet] = None
     assignedValet: Optional[ValetSnippet] = None
     payment: Optional[PaymentSnippet] = None
-    paymentEntries: Optional[List[Any]] = None
-    items: Optional[List[Any]] = None
+    paymentEntries: Optional[List['PaymentEntry']] = None
+    items: Optional[List[PopulatedOrderItemResponse]] = None
+
+    # Financial summary
     subTotal: Optional[float] = None
     shippingCharge: Optional[float] = None
     total: Optional[float] = None
-    createdAt: Optional[Any] = None
-    shippingAddress: Optional[Any] = None
-    billingAddress: Optional[Any] = None
+    totalAmount: Optional[float] = None   # router alias for total
+    deliveryFee: Optional[float] = None   # router alias for shipping
+    discount: Optional[float] = None
+    couponCode: Optional[str] = None      # populated when Order model stores it
+
+    # Payment
+    paymentMethod: Optional[str] = None
     paymentStatus: Optional[str] = None
+
+    # Addresses
+    shippingAddress: Optional[Address] = None
+    billingAddress: Optional[Address] = None
+    address: Optional[Address] = None         # router alias for shippingAddress
+
+    # Notes
     notes: Optional[str] = None
+    orderNotes: Optional[str] = None      # router alias for notes
+    adminNotes: Optional[str] = None      # populated when Order model stores it
+    valetNotes: Optional[str] = None      # populated when Order model stores it
+
+    # Zone
+    zoneId: Optional[str] = None          # populated when Order model stores it
+
+    # Sub-orders
+    sub_orders: Optional[List['SubOrder']] = Field(default=None, alias="subOrders")
+
+    # Timestamps
+    createdAt: Optional[datetime] = None
+    updatedAt: Optional[datetime] = None
 
 UserResponse.model_rebuild()
+
+from app.models.payment import PaymentEntry
+from app.models.product import Product
+from app.models.sub_order import SubOrder
+
+PaymentSnippet.model_rebuild()
+PopulatedOrderItemResponse.model_rebuild()
+PopulatedOrderResponse.model_rebuild()
+BundleItemResponse.model_rebuild()

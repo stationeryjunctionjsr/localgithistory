@@ -976,7 +976,7 @@ class RecommendationRepository:
         if isinstance(doc, dict):
             raw = doc.get("createdAt")
         else:
-            raw = getattr(doc, "createdAt", None)
+            raw = doc.createdAt
             
         if not raw:
             return None

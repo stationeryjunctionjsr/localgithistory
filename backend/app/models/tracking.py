@@ -25,7 +25,7 @@ class Tracking(BaseModel):
     browser: Optional[str] = Field(default=None, alias='browser')
     ipAddress: Optional[str] = Field(default=None, alias='ipAddress')
     pageViews: Optional[int] = Field(default=None, alias='pageViews')
-    cartItems: Optional[List[Any]] = Field(default=None, alias='cartItems')
+    cartItems: Optional[List['ItemSnippet']] = Field(default=None, alias='cartItems')
     orderId: Optional[str] = Field(default=None, alias='orderId')
     orderValue: Optional[float] = Field(default=None, alias='orderValue')
     price: Optional[float] = Field(default=None, alias='price')
@@ -48,3 +48,7 @@ class Tracking(BaseModel):
     c: Optional[str] = Field(default=None, alias='c')
     u: Optional[str] = Field(default=None, alias='u')
     timestamp: Optional[str] = Field(default=None, alias='timestamp')
+
+
+from app.models.schemas import ItemSnippet
+TrackingEvent.model_rebuild()

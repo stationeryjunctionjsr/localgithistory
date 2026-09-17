@@ -985,10 +985,10 @@ class ProductRepository:
             isActive=product_data.isActive if product_data.isActive is not None else True,
             tags=product_data.tags if product_data.tags is not None else [],
             images=product_data.images if product_data.images is not None else [],
-            videos=getattr(product_data, "videos", []),
+            videos=product_data.videos,
             thumbnail=product_data.thumbnail,
-            variants=getattr(product_data, "variants", []),
-            variantAttributes=getattr(product_data, "variantAttributes", []),
+            variants=product_data.variants,
+            variantAttributes=product_data.variantAttributes,
 
             details=product_data.details if product_data.details is not None else {},
         )

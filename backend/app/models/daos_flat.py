@@ -283,7 +283,7 @@ class SupportTicketInternalCreate(BaseModel):
     status: Optional[str] = "open"
     attachments: Optional[List[str]] = []
     assignedTo: Optional[str] = None
-    responses: Optional[List[Any]] = []
+    responses: Optional[List['TicketResponseItem']] = []
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: Optional[str] = None
@@ -293,4 +293,6 @@ class SupportTicketInternalUpdate(BaseModel):
     status: Optional[str] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
-    responses: Optional[List[Any]] = None
+    responses: Optional[List['TicketResponseItem']] = None
+
+from app.models.schemas import TicketResponseItem

@@ -225,7 +225,7 @@ class MySQLUserDAO:
         async with factory() as session:
             next_id = (await session.execute(text(f'SELECT IFNULL(MAX(id), 0) + 1 FROM {self.TABLE}'))).scalar() or 1
             user_id_formatted = f'USER-{next_id}'
-            await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, upi_id, qr_code_url, created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :upi_id, :qr_code_url, :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.companyName, 'is_active': 1 if (data.isActive if data.isActive is not None else True) else 0, 'approval_status': data.approvalStatus if data.approvalStatus is not None else 'approved', 'is_deactivated': 1 if data.isDeactivated else 0, 'credit_limit': data.creditLimit if data.creditLimit is not None else 0, 'credit_used': data.creditUsed if data.creditUsed is not None else 0, 'payment_terms': str(data.paymentTerms if data.paymentTerms is not None else '30'), 'assigned_salesperson': data.assignedSalesperson, 'is_email_verified': 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else 0, 'referral_code': data.referralCode, 'is_seller_admin': 1 if data.isSellerAdmin else 0, 'is_on_duty': 1 if data.isOnDuty else 0, 'commission_override_pct': data.commissionOverridePct, 'upi_id': getattr(data, 'upiId', None), 'qr_code_url': getattr(data, 'qrCodeUrl', None), 'created_at': now, 'updated_at': now})
+            await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, upi_id, qr_code_url, created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :upi_id, :qr_code_url, :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.companyName, 'is_active': 1 if (data.isActive if data.isActive is not None else True) else 0, 'approval_status': data.approvalStatus if data.approvalStatus is not None else 'approved', 'is_deactivated': 1 if data.isDeactivated else 0, 'credit_limit': data.creditLimit if data.creditLimit is not None else 0, 'credit_used': data.creditUsed if data.creditUsed is not None else 0, 'payment_terms': str(data.paymentTerms if data.paymentTerms is not None else '30'), 'assigned_salesperson': data.assignedSalesperson, 'is_email_verified': 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else 0, 'referral_code': data.referralCode, 'is_seller_admin': 1 if data.isSellerAdmin else 0, 'is_on_duty': 1 if data.isOnDuty else 0, 'commission_override_pct': data.commissionOverridePct, 'upi_id': data.upiId, 'qr_code_url': data.qrCodeUrl, 'created_at': now, 'updated_at': now})
             new_id = (await session.execute(text(f'SELECT id FROM {self.TABLE} WHERE external_id = :eid'), {'eid': external_id})).scalar()
             await self._replace_children(session, new_id, data)
             await session.commit()
@@ -254,27 +254,44 @@ class MySQLUserDAO:
         factory = self._factory()
         
         # Manually extract fields from the Pydantic update_data model, falling back to existing dict
-        name = ((update_data.get('name', update_data.get('name')) if isinstance(update_data, dict) else getattr(update_data, 'name', getattr(update_data, 'name', None))) if (update_data.get('name', update_data.get('name')) if isinstance(update_data, dict) else getattr(update_data, 'name', getattr(update_data, 'name', None))) is not None else getattr(existing, 'name', None))
-        email = ((update_data.get('email', update_data.get('email')) if isinstance(update_data, dict) else getattr(update_data, 'email', getattr(update_data, 'email', None))) if (update_data.get('email', update_data.get('email')) if isinstance(update_data, dict) else getattr(update_data, 'email', getattr(update_data, 'email', None))) is not None else getattr(existing, 'email', None))
-        password_hash = ((update_data.get('password', update_data.get('password')) if isinstance(update_data, dict) else getattr(update_data, 'password', getattr(update_data, 'password', None))) if (update_data.get('password', update_data.get('password')) if isinstance(update_data, dict) else getattr(update_data, 'password', getattr(update_data, 'password', None))) is not None else getattr(existing, 'password', None))
-        role = ((update_data.get('role', update_data.get('role')) if isinstance(update_data, dict) else getattr(update_data, 'role', getattr(update_data, 'role', None))) if (update_data.get('role', update_data.get('role')) if isinstance(update_data, dict) else getattr(update_data, 'role', getattr(update_data, 'role', None))) is not None else getattr(existing, 'role', None))
-        phone = ((update_data.get('phone', update_data.get('phone')) if isinstance(update_data, dict) else getattr(update_data, 'phone', getattr(update_data, 'phone', None))) if (update_data.get('phone', update_data.get('phone')) if isinstance(update_data, dict) else getattr(update_data, 'phone', getattr(update_data, 'phone', None))) is not None else getattr(existing, 'phone', None))
-        company_name = ((update_data.get('companyName', update_data.get('company_name')) if isinstance(update_data, dict) else getattr(update_data, 'company_name', getattr(update_data, 'companyName', None))) if (update_data.get('companyName', update_data.get('company_name')) if isinstance(update_data, dict) else getattr(update_data, 'company_name', getattr(update_data, 'companyName', None))) is not None else getattr(existing, 'company_name', None))
-        is_active = ((update_data.get('isActive', update_data.get('is_active')) if isinstance(update_data, dict) else getattr(update_data, 'is_active', getattr(update_data, 'isActive', None))) if (update_data.get('isActive', update_data.get('is_active')) if isinstance(update_data, dict) else getattr(update_data, 'is_active', getattr(update_data, 'isActive', None))) is not None else getattr(existing, 'is_active', None))
-        approval_status = (((update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('approvalStatus', (update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('approval_status')) if isinstance(update_data, dict) else getattr(update_data, 'approval_status', getattr(update_data, 'approvalStatus', None))) if ((update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('approvalStatus', (update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('approval_status')) if isinstance(update_data, dict) else getattr(update_data, 'approval_status', getattr(update_data, 'approvalStatus', None))) is not None else getattr(existing, 'approval_status', None))
-        is_deactivated = ((update_data.get('isDeactivated', update_data.get('is_deactivated')) if isinstance(update_data, dict) else getattr(update_data, 'is_deactivated', getattr(update_data, 'isDeactivated', None))) if (update_data.get('isDeactivated', update_data.get('is_deactivated')) if isinstance(update_data, dict) else getattr(update_data, 'is_deactivated', getattr(update_data, 'isDeactivated', None))) is not None else getattr(existing, 'is_deactivated', None))
-        credit_limit = (((update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('creditLimit', (update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('credit_limit')) if isinstance(update_data, dict) else getattr(update_data, 'credit_limit', getattr(update_data, 'creditLimit', None))) if ((update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('creditLimit', (update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('credit_limit')) if isinstance(update_data, dict) else getattr(update_data, 'credit_limit', getattr(update_data, 'creditLimit', None))) is not None else getattr(existing, 'credit_limit', None))
-        credit_used = (((update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('creditUsed', (update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('credit_used')) if isinstance(update_data, dict) else getattr(update_data, 'credit_used', getattr(update_data, 'creditUsed', None))) if ((update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('creditUsed', (update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('credit_used')) if isinstance(update_data, dict) else getattr(update_data, 'credit_used', getattr(update_data, 'creditUsed', None))) is not None else getattr(existing, 'credit_used', None))
-        payment_terms = (((update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('paymentTerms', (update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('payment_terms')) if isinstance(update_data, dict) else getattr(update_data, 'payment_terms', getattr(update_data, 'paymentTerms', None))) if ((update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('paymentTerms', (update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('payment_terms')) if isinstance(update_data, dict) else getattr(update_data, 'payment_terms', getattr(update_data, 'paymentTerms', None))) is not None else getattr(existing, 'payment_terms', None))
-        assigned_salesperson = (((update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('assignedSalesperson', (update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('assigned_salesperson')) if isinstance(update_data, dict) else getattr(update_data, 'assigned_salesperson', getattr(update_data, 'assignedSalesperson', None))) if ((update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('assignedSalesperson', (update_data.get('get', update_data.get('get')) if isinstance(update_data, dict) else getattr(update_data, 'get', getattr(update_data, 'get', None)))('assigned_salesperson')) if isinstance(update_data, dict) else getattr(update_data, 'assigned_salesperson', getattr(update_data, 'assignedSalesperson', None))) is not None else getattr(existing, 'assigned_salesperson', None))
-        is_email_verified = ((update_data.get('isEmailVerified', update_data.get('is_email_verified')) if isinstance(update_data, dict) else getattr(update_data, 'is_email_verified', getattr(update_data, 'isEmailVerified', None))) if (update_data.get('isEmailVerified', update_data.get('is_email_verified')) if isinstance(update_data, dict) else getattr(update_data, 'is_email_verified', getattr(update_data, 'isEmailVerified', None))) is not None else getattr(existing, 'is_email_verified', None))
-        referral_code = ((update_data.get('referralCode', update_data.get('referral_code')) if isinstance(update_data, dict) else getattr(update_data, 'referral_code', getattr(update_data, 'referralCode', None))) if (update_data.get('referralCode', update_data.get('referral_code')) if isinstance(update_data, dict) else getattr(update_data, 'referral_code', getattr(update_data, 'referralCode', None))) is not None else getattr(existing, 'referral_code', None))
-        is_seller_admin = ((update_data.get('isSellerAdmin', update_data.get('is_seller_admin')) if isinstance(update_data, dict) else getattr(update_data, 'is_seller_admin', getattr(update_data, 'isSellerAdmin', None))) if (update_data.get('isSellerAdmin', update_data.get('is_seller_admin')) if isinstance(update_data, dict) else getattr(update_data, 'is_seller_admin', getattr(update_data, 'isSellerAdmin', None))) is not None else getattr(existing, 'is_seller_admin', None))
-        is_on_duty = ((update_data.get('isOnDuty', update_data.get('is_on_duty')) if isinstance(update_data, dict) else getattr(update_data, 'is_on_duty', getattr(update_data, 'isOnDuty', None))) if (update_data.get('isOnDuty', update_data.get('is_on_duty')) if isinstance(update_data, dict) else getattr(update_data, 'is_on_duty', getattr(update_data, 'isOnDuty', None))) is not None else getattr(existing, 'is_on_duty', None))
-        commission_override_pct = ((update_data.get('commissionOverridePct', update_data.get('commission_override_pct')) if isinstance(update_data, dict) else getattr(update_data, 'commission_override_pct', getattr(update_data, 'commissionOverridePct', None))) if (update_data.get('commissionOverridePct', update_data.get('commission_override_pct')) if isinstance(update_data, dict) else getattr(update_data, 'commission_override_pct', getattr(update_data, 'commissionOverridePct', None))) is not None else getattr(existing, 'commission_override_pct', None))
-        upi_id = ((update_data.get('upiId', update_data.get('upi_id')) if isinstance(update_data, dict) else getattr(update_data, 'upi_id', getattr(update_data, 'upiId', None))) if (update_data.get('upiId', update_data.get('upi_id')) if isinstance(update_data, dict) else getattr(update_data, 'upi_id', getattr(update_data, 'upiId', None))) is not None else getattr(existing, 'upi_id', None))
-        qr_code_url = ((update_data.get('qrCodeUrl', update_data.get('qr_code_url')) if isinstance(update_data, dict) else getattr(update_data, 'qr_code_url', getattr(update_data, 'qrCodeUrl', None))) if (update_data.get('qrCodeUrl', update_data.get('qr_code_url')) if isinstance(update_data, dict) else getattr(update_data, 'qr_code_url', getattr(update_data, 'qrCodeUrl', None))) is not None else getattr(existing, 'qr_code_url', None))
-
+        name = update_data.name if update_data.name is not None else existing.name
+        email = update_data.email if update_data.email is not None else existing.email
+        password_hash = update_data.password if update_data.password is not None else existing.password
+        role = update_data.role if update_data.role is not None else existing.role
+        phone = update_data.phone if update_data.phone is not None else existing.phone
+        company_name = update_data.companyName if update_data.companyName is not None else existing.company_name
+        gst_number = update_data.gstNumber if update_data.gstNumber is not None else existing.gst_number
+        is_deactivated = update_data.isDeactivated if update_data.isDeactivated is not None else existing.is_deactivated
+        credit_limit = update_data.creditLimit if update_data.creditLimit is not None else existing.credit_limit
+        credit_used = update_data.creditUsed if update_data.creditUsed is not None else existing.credit_used
+        payment_terms = update_data.paymentTerms if update_data.paymentTerms is not None else existing.payment_terms
+        assigned_salesperson = update_data.assignedSalesperson if update_data.assignedSalesperson is not None else existing.assigned_salesperson
+        is_email_verified = update_data.isEmailVerified if update_data.isEmailVerified is not None else existing.is_email_verified
+        referral_code = update_data.referralCode if update_data.referralCode is not None else existing.referral_code
+        is_seller_admin = update_data.isSellerAdmin if update_data.isSellerAdmin is not None else existing.is_seller_admin
+        is_on_duty = update_data.isOnDuty if update_data.isOnDuty is not None else existing.is_on_duty
+        commission_override_pct = update_data.commissionOverridePct if update_data.commissionOverridePct is not None else existing.commission_override_pct
+        upi_id = update_data.upiId if update_data.upiId is not None else existing.upi_id
+        qr_code_url = update_data.qrCodeUrl if update_data.qrCodeUrl is not None else existing.qr_code_url
+        name = update_data.name if update_data.name is not None else existing.name
+        email = update_data.email if update_data.email is not None else existing.email
+        password_hash = update_data.password if update_data.password is not None else existing.password
+        role = update_data.role if update_data.role is not None else existing.role
+        phone = update_data.phone if update_data.phone is not None else existing.phone
+        company_name = update_data.companyName if update_data.companyName is not None else existing.company_name
+        gst_number = update_data.gstNumber if update_data.gstNumber is not None else existing.gst_number
+        is_deactivated = update_data.isDeactivated if update_data.isDeactivated is not None else existing.is_deactivated
+        credit_limit = update_data.creditLimit if update_data.creditLimit is not None else existing.credit_limit
+        credit_used = update_data.creditUsed if update_data.creditUsed is not None else existing.credit_used
+        payment_terms = update_data.paymentTerms if update_data.paymentTerms is not None else existing.payment_terms
+        assigned_salesperson = update_data.assignedSalesperson if update_data.assignedSalesperson is not None else existing.assigned_salesperson
+        is_email_verified = update_data.isEmailVerified if update_data.isEmailVerified is not None else existing.is_email_verified
+        referral_code = update_data.referralCode if update_data.referralCode is not None else existing.referral_code
+        is_seller_admin = update_data.isSellerAdmin if update_data.isSellerAdmin is not None else existing.is_seller_admin
+        is_on_duty = update_data.isOnDuty if update_data.isOnDuty is not None else existing.is_on_duty
+        commission_override_pct = update_data.commissionOverridePct if update_data.commissionOverridePct is not None else existing.commission_override_pct
+        upi_id = update_data.upiId if update_data.upiId is not None else existing.upi_id
+        qr_code_url = update_data.qrCodeUrl if update_data.qrCodeUrl is not None else existing.qr_code_url
         async with factory() as session:
             await session.execute(text('''
                 UPDATE sj_users SET
@@ -313,29 +330,21 @@ class MySQLUserDAO:
             child_keys = ['address', 'savedAddresses', 'sellerPermissions', 'serviceAreaZones']
             has_child_updates = False
             for k in child_keys:
-                if isinstance(update_data, dict):
-                    if k in update_data:
-                        has_child_updates = True
-                else:
-                    fields_set = getattr(update_data, 'model_fields_set', getattr(update_data, '__fields_set__', set()))
-                    if k in fields_set:
-                        has_child_updates = True
+                if k in update_data.model_fields_set:
+                    has_child_updates = True
                         
             if has_child_updates:
-                merged_dict = existing.model_dump()
-                if isinstance(update_data, dict):
-                    for k in child_keys:
-                        if k in update_data:
-                            merged_dict[k] = update_data[k]
-                else:
-                    dump = update_data.model_dump(exclude_unset=True)
-                    for k in child_keys:
-                        if k in dump:
-                            merged_dict[k] = dump[k]
+                fields_set = update_data.model_fields_set
+                if "address" in fields_set:
+                    existing.address = update_data.address
+                if "savedAddresses" in fields_set:
+                    existing.savedAddresses = update_data.savedAddresses
+                if "sellerPermissions" in fields_set:
+                    existing.sellerPermissions = update_data.sellerPermissions
+                if "serviceAreaZones" in fields_set:
+                    existing.serviceAreaZones = update_data.serviceAreaZones
                             
-                from app.models.user import User
-                updated_user = User.model_validate(merged_dict)
-                await self._replace_children(session, int(id) if str(id).isdigit() else None, updated_user)
+                await self._replace_children(session, int(id) if str(id).isdigit() else None, existing)
                 
             await session.commit()
         return await self.findById(id)

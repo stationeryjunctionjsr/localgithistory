@@ -127,11 +127,11 @@ class MySQLTrackingDAO:
         await session.execute(text("DELETE FROM sj_tracking_cart_items WHERE tracking_id = :tid"), {"tid": tid})
 
         cart_items = []
-        if hasattr(data, "cartItems") and data.cartItems is not None:
+        if data.cartItems is not None:
             cart_items.extend(data.cartItems)
         
         # Extract from payload if nested, to avoid stringifying array of objects
-        payload = data.payload if hasattr(data, "payload") else {}
+        payload = data.payload
         payload = payload.copy() if payload else {}
         if "cartItems" in payload:
             cart_items.extend(payload.pop("cartItems"))
@@ -142,9 +142,9 @@ class MySQLTrackingDAO:
                 text("INSERT INTO sj_tracking_cart_items (tracking_id, product_id, quantity, price) VALUES (:tid, :pid, :qty, :prc)"),
                 {
                     "tid": tid, 
-                    "pid": str(item_dict.productId if hasattr(item_dict, "productId") else item_dict.product_id if hasattr(item_dict, "product_id") else None), 
-                    "qty": int(item_dict.quantity if hasattr(item_dict, "quantity") else 1),
-                    "prc": float(item_dict.price) if hasattr(item_dict, "price") and item_dict.price is not None else None
+                    "pid": str(item_dict.productId), 
+                    "qty": int(item_dict.quantity or 1),
+                    "prc": float(item_dict.price) if item_dict.price is not None else None
                 }
             )
 
@@ -206,13 +206,13 @@ class MySQLTrackingDAO:
                 params[f"s_{api_key}"] = val
                 extracted_keys.append(api_key)
 
-        payload = data.payload if hasattr(data, "payload") else None
+        payload = data.payload
 
-        add_col("type", "event_type", data.type if hasattr(data, "type") else None)
-        add_col("userId", "user_id", data.userId if hasattr(data, "userId") else None)
-        add_col("sessionId", "session_id", data.sessionId if hasattr(data, "sessionId") else None)
+        add_col("type", "event_type", data.type)
+        add_col("userId", "user_id", data.userId)
+        add_col("sessionId", "session_id", data.sessionId)
         
-        ts = data.timestamp if hasattr(data, "timestamp") else None
+        ts = data.timestamp
         if ts is not None and isinstance(ts, str):
             try:
                 from datetime import datetime
@@ -221,37 +221,37 @@ class MySQLTrackingDAO:
                 pass
         add_col("timestamp", "event_timestamp", ts)
         
-        add_col("searchTerm", "search_term", data.searchTerm if hasattr(data, "searchTerm") else None)
-        add_col("resultsCount", "results_count", data.resultsCount if hasattr(data, "resultsCount") else None)
-        add_col("productId", "product_id", data.productId if hasattr(data, "productId") else None)
-        add_col("productName", "product_name", data.productName if hasattr(data, "productName") else None)
-        add_col("segment", "segment", data.segment if hasattr(data, "segment") else None)
-        add_col("page", "page", data.page if hasattr(data, "page") else None)
-        add_col("reason", "reason", data.reason if hasattr(data, "reason") else None)
-        add_col("cartValue", "cart_value", data.cartValue if hasattr(data, "cartValue") else None)
-        add_col("isReturning", "is_returning", data.isReturning if hasattr(data, "isReturning") else None)
+        add_col("searchTerm", "search_term", data.searchTerm)
+        add_col("resultsCount", "results_count", data.resultsCount)
+        add_col("productId", "product_id", data.productId)
+        add_col("productName", "product_name", data.productName)
+        add_col("segment", "segment", data.segment)
+        add_col("page", "page", data.page)
+        add_col("reason", "reason", data.reason)
+        add_col("cartValue", "cart_value", data.cartValue)
+        add_col("isReturning", "is_returning", data.isReturning)
 
         def get_payload_extra(key):
-            if payload and hasattr(payload, "model_extra") and payload.model_extra and key in payload.model_extra:
+            if payload and payload.model_extra and key in payload.model_extra:
                 return payload.model_extra[key]
             return None
 
         # we use python hasattr instead of getattr to enforce the rule
-        add_col("source", "source", (data.source if hasattr(data, "source") and data.source is not None else get_payload_extra('source')))
+        add_col("source", "source", data.source if data.source is not None else get_payload_extra("source"))
         
-        filter_type = data.filterName if hasattr(data, "filterName") and data.filterName is not None else (data.filterType if hasattr(data, "filterType") and data.filterType is not None else get_payload_extra('filterType'))
+        filter_type = data.filterName if data.filterName is not None else get_payload_extra("filterType")
         add_col("filterType", "filter_type", filter_type)
         
-        add_col("filterValue", "filter_value", data.filterValue if hasattr(data, "filterValue") and data.filterValue is not None else get_payload_extra('filterValue'))
-        add_col("campaign", "campaign", data.campaign if hasattr(data, "campaign") and data.campaign is not None else get_payload_extra('campaign'))
-        add_col("os", "os", data.os if hasattr(data, "os") and data.os is not None else get_payload_extra('os'))
-        add_col("browser", "browser", data.browser if hasattr(data, "browser") and data.browser is not None else get_payload_extra('browser'))
-        add_col("ipAddress", "ip_address", data.ipAddress if hasattr(data, "ipAddress") and data.ipAddress is not None else get_payload_extra('ipAddress'))
-        add_col("pageViews", "page_views", data.pageViews if hasattr(data, "pageViews") and data.pageViews is not None else get_payload_extra('pageViews'))
-        add_col("orderId", "order_id", data.orderId if hasattr(data, "orderId") and data.orderId is not None else get_payload_extra('orderId'))
-        add_col("orderValue", "order_value", data.orderValue if hasattr(data, "orderValue") and data.orderValue is not None else get_payload_extra('orderValue'))
-        add_col("price", "price", data.price if hasattr(data, "price") and data.price is not None else get_payload_extra('price'))
-        add_col("category", "category", data.category if hasattr(data, "category") and data.category is not None else get_payload_extra('category'))
+        add_col("filterValue", "filter_value", data.filterValue if data.filterValue is not None else get_payload_extra("filterValue"))
+        add_col("campaign", "campaign", data.campaign if data.campaign is not None else get_payload_extra("campaign"))
+        add_col("os", "os", data.os if data.os is not None else get_payload_extra("os"))
+        add_col("browser", "browser", data.browser if data.browser is not None else get_payload_extra("browser"))
+        add_col("ipAddress", "ip_address", data.ipAddress if data.ipAddress is not None else get_payload_extra("ipAddress"))
+        add_col("pageViews", "page_views", data.pageViews if data.pageViews is not None else get_payload_extra("pageViews"))
+        add_col("orderId", "order_id", data.orderId if data.orderId is not None else get_payload_extra("orderId"))
+        add_col("orderValue", "order_value", data.orderValue if data.orderValue is not None else get_payload_extra("orderValue"))
+        add_col("price", "price", data.price if data.price is not None else get_payload_extra("price"))
+        add_col("category", "category", data.category if data.category is not None else get_payload_extra("category"))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in extracted_keys])

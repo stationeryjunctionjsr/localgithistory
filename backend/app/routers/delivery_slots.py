@@ -175,7 +175,7 @@ async def get_available_slots(
         return []
 
     matched_slots = []
-    slots = config["slots"] if isinstance(config, dict) and "slots" in config else (getattr(config, "slots", []) if not isinstance(config, dict) else [])
+    slots = config.slots
     for slot in slots:
         logger.debug(f"get_available_slots: evaluating slot id={_g(slot, 'id')}")
         if not (_g(slot, "isActive") if _g(slot, "isActive") is not None else True):
@@ -265,7 +265,7 @@ async def get_dates_with_slots(
             continue
 
         has_valid_slot = False
-        slots = config["slots"] if isinstance(config, dict) and "slots" in config else (getattr(config, "slots", []) if not isinstance(config, dict) else [])
+        slots = config.slots
         for slot in slots:
             if not (_g(slot, "isActive") if _g(slot, "isActive") is not None else True):
                 continue
@@ -379,7 +379,7 @@ async def create_delivery_slot_config(
 
         # Auto-fill slot capacities from zone default if not set
         slots_with_capacity = []
-        slots = config["slots"] if isinstance(config, dict) and "slots" in config else (getattr(config, "slots", []) if not isinstance(config, dict) else [])
+        slots = config.slots
         for slot in slots:
             cap_val = _g(slot, "capacity")
             if cap_val is None or cap_val == 0:

@@ -157,12 +157,12 @@ class SessionInternalCreate(BaseModel):
     id: Optional[str] = None
     user_id: Optional[str] = None
     refresh_token_id: Optional[str] = None
-    last_active_at: Optional[Any] = None
-    revoked_at: Optional[Any] = None
+    last_active_at: Optional[str] = None
+    revoked_at: Optional[str] = None
     revoked_reason: Optional[str] = None
     is_guest: Optional[bool] = None
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 class SessionInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
@@ -182,23 +182,23 @@ class SessionInternalUpdate(BaseModel):
     isGuest: Optional[bool] = None
     comment: Optional[str] = None
     id_: Optional[str] = Field(default=None, alias="_id")
-    createdAt: Optional[Any] = None
-    updatedAt: Optional[Any] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
     external_id: Optional[str] = None
     comments: Optional[str] = None
     eid: Optional[str] = None
-    now: Optional[Any] = None
+    now: Optional[str] = None
     deletedCount: Optional[int] = None
     uid: Optional[str] = None
     id: Optional[str] = None
     user_id: Optional[str] = None
     refresh_token_id: Optional[str] = None
-    last_active_at: Optional[Any] = None
-    revoked_at: Optional[Any] = None
+    last_active_at: Optional[str] = None
+    revoked_at: Optional[str] = None
     revoked_reason: Optional[str] = None
     is_guest: Optional[bool] = None
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class WishlistItemInternal(BaseModel):
@@ -241,8 +241,8 @@ class SellerRequestInternalCreate(BaseModel):
     category: Optional[str] = "general"
     priority: Optional[str] = "medium"
     status: str = "open"
-    attachments: Optional[List[Any]] = None
-    responses: Optional[List[Any]] = None
+    attachments: Optional[List[str]] = None
+    responses: Optional[List['TicketResponseItem']] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: Optional[str] = None
@@ -257,8 +257,8 @@ class SellerRequestInternalUpdate(BaseModel):
     category: Optional[str] = None
     priority: Optional[str] = None
     status: Optional[str] = None
-    attachments: Optional[List[Any]] = None
-    responses: Optional[List[Any]] = None
+    attachments: Optional[List[str]] = None
+    responses: Optional[List['TicketResponseItem']] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: Optional[str] = None
@@ -310,7 +310,7 @@ class ProductInternalCreate(BaseModel):
 
 class ProductInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    sellers: Optional[List[Any]] = None
+    sellers: Optional[List['ProductSellerEntry']] = None
     sku: Optional[str] = None
     category: Optional[str] = None
     subCategory: Optional[str] = None
@@ -323,7 +323,7 @@ class ProductInternalUpdate(BaseModel):
     videos: Optional[List[str]] = None
     tags: Optional[List[str]] = None
     variantAttributes: Optional[List[str]] = None
-    variants: Optional[List[Any]] = None
+    variants: Optional[List['VariantOption']] = None
     details: Optional[ProductDetails] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -417,7 +417,7 @@ class ReturnRequestInternalCreate(BaseModel):
     returnId: Optional[str] = None
     orderId: Optional[str] = None
     userId: Optional[str] = None
-    items: Optional[List[Any]] = []
+    items: Optional[List['ReturnItemSchema']] = []
     paymentMethod: Optional[str] = None
     upiPaymentScreenshot: Optional[str] = None
     notes: Optional[str] = None
@@ -430,7 +430,7 @@ class ReturnRequestInternalCreate(BaseModel):
     pendingValetId: Optional[str] = None
     valetAssignedAt: Optional[str] = None
     valetCascadeCount: Optional[int] = 0
-    valetDeclineHistory: Optional[List[Any]] = []
+    valetDeclineHistory: Optional[List['ValetDeclineHistoryEntry']] = []
     valetAcceptedAt: Optional[str] = None
     valetDeclinedAt: Optional[str] = None
     valetDeclineReason: Optional[str] = None
@@ -442,7 +442,7 @@ class ReturnRequestInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
     orderId: Optional[str] = None
     userId: Optional[str] = None
-    items: Optional[List[Any]] = None
+    items: Optional[List['ReturnItemSchema']] = None
     paymentMethod: Optional[str] = None
     upiPaymentScreenshot: Optional[str] = None
     notes: Optional[str] = None
@@ -455,7 +455,7 @@ class ReturnRequestInternalUpdate(BaseModel):
     pendingValetId: Optional[str] = None
     valetAssignedAt: Optional[str] = None
     valetCascadeCount: Optional[int] = None
-    valetDeclineHistory: Optional[List[Any]] = None
+    valetDeclineHistory: Optional[List['ValetDeclineHistoryEntry']] = None
     valetAcceptedAt: Optional[str] = None
     valetDeclinedAt: Optional[str] = None
     valetDeclineReason: Optional[str] = None
@@ -468,7 +468,7 @@ class ReturnRequestInternal(BaseModel):
     returnId: Optional[str] = None
     orderId: Optional[str] = None
     userId: Optional[str] = None
-    items: Optional[List[Any]] = []
+    items: Optional[List['ReturnItemSchema']] = []
     paymentMethod: Optional[str] = None
     upiPaymentScreenshot: Optional[str] = None
     notes: Optional[str] = None
@@ -481,10 +481,12 @@ class ReturnRequestInternal(BaseModel):
     pendingValetId: Optional[str] = None
     valetAssignedAt: Optional[str] = None
     valetCascadeCount: Optional[int] = 0
-    valetDeclineHistory: Optional[List[Any]] = []
+    valetDeclineHistory: Optional[List['ValetDeclineHistoryEntry']] = []
     valetAcceptedAt: Optional[str] = None
     valetDeclinedAt: Optional[str] = None
     valetDeclineReason: Optional[str] = None
     deliveryCharge: Optional[float] = 0.0
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
+
+from app.models.schemas import TicketResponseItem, ProductSellerEntry, VariantOption, ReturnItemSchema, ValetDeclineHistoryEntry

@@ -21,18 +21,7 @@ class PriorityUpdate(BaseModel):
     priority: str
 
 
-class TicketResponseItem(BaseModel):
-    user: Optional[Any] = None
-    message: Optional[str] = None
-    attachments: Optional[List[str]] = None
-    createdAt: Optional[str] = None
-
-    model_config = ConfigDict(extra="forbid")
-
-
-from app.models.schemas import UserSnippet
-
-
+from app.models.schemas import UserSnippet, TicketResponseItem
 
 
 async def populate_ticket(ticket_data):
