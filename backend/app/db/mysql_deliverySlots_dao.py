@@ -7,20 +7,20 @@ from pydantic import BaseModel, Field, ConfigDict
 from app.db.db_utils import now_utc
 from app.config.settings import settings
 
-class SlotBase(BaseModel):
+class DeliverySlotInternal(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     startTime: Optional[str] = None
     endTime: Optional[str] = None
     capacity: Optional[int] = None
 
-class DeliverySlotResponse(BaseModel):
+class DeliverySlotConfigInternal(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[str] = Field(None, alias="_id")
     segment: Optional[str] = None
     date: Optional[str] = None
     zoneId: Optional[str] = None
     isActive: Optional[bool] = None
-    slots: List[SlotBase] = Field(default_factory=list)
+    slots: List[DeliverySlotInternal] = Field(default_factory=list)
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
@@ -38,8 +38,8 @@ class MySQLDeliveryslotsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_obj(self, r, children: Dict) -> DeliverySlotResponse:
-        return DeliverySlotResponse(
+    def _row_to_obj(self, r, children: Dict) -> DeliverySlotConfigInternal:
+        return DeliverySlotConfigInternal(
             _id=str(r.id),
             segment=r.segment,
             date=r.date,
@@ -50,8 +50,8 @@ class MySQLDeliveryslotsDAO:
             updatedAt=r.updated_at.isoformat() if r.updated_at else None,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List[SlotBase]]:
-        c_map: Dict[int, List[SlotBase]] = {rid: [] for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List[DeliverySlotInternal]]:
+        c_map: Dict[int, List[DeliverySlotInternal]] = {rid: [] for rid in ids}
         if not ids:
             return c_map
         chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
@@ -64,7 +64,7 @@ class MySQLDeliveryslotsDAO:
             )
             for r in res.fetchall():
                 c_map[r.parent_id].append(
-                    SlotBase(
+                    DeliverySlotInternal(
                         id=r.slot_uuid,
                         startTime=r.start_time,
                         endTime=r.end_time,
@@ -96,7 +96,7 @@ class MySQLDeliveryslotsDAO:
                     },
                 )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[DeliverySlotResponse]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[DeliverySlotConfigInternal]:
         factory = self._factory()
         if not factory:
             return []
@@ -130,14 +130,14 @@ class MySQLDeliveryslotsDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [self._row_to_obj(r, c_map) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[DeliverySlotResponse]:
+    async def findOne(self, query: Dict) -> Optional[DeliverySlotConfigInternal]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[DeliverySlotResponse]:
+    async def findById(self, id: str) -> Optional[DeliverySlotConfigInternal]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Any) -> DeliverySlotResponse:
+    async def create(self, data: Any) -> DeliverySlotConfigInternal:
         factory = self._factory()
         now = now_utc()
         async with factory() as session:
@@ -165,7 +165,7 @@ class MySQLDeliveryslotsDAO:
             await session.commit()
             return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> Optional[DeliverySlotResponse]:
+    async def update(self, id: str, data: Any) -> Optional[DeliverySlotConfigInternal]:
         factory = self._factory()
         now = now_utc()
         async with factory() as session:

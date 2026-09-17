@@ -105,7 +105,7 @@ async def mark_availability(
             slot.id
             for config in slot_configs
             for slot in (config.slots or [])
-            if slot.is_active and slot.id
+            if slot.id
         }
         invalid_slots = [s for s in data.slots if s not in all_valid_slot_ids]
         if invalid_slots:

@@ -414,6 +414,36 @@ class DeliveryZoneInternalUpdate(BaseModel):
     isActive: Optional[bool] = None
     pincodes: Optional[List[str]] = None
 
+class DeliverySlotInternal(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    id: Optional[str] = None
+    startTime: Optional[str] = None
+    endTime: Optional[str] = None
+    capacity: Optional[int] = None
+    bookedCount: Optional[int] = 0
+    isFullDay: Optional[bool] = False
+    isUrgent: Optional[bool] = False
+    cutoffHours: Optional[int] = None
+
+class DeliverySlotConfigInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    segment: Optional[str] = None
+    date: Optional[str] = None
+    zoneId: Optional[str] = None
+    isActive: Optional[bool] = None
+    slots: Optional[List[DeliverySlotInternal]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class DeliverySlotConfigInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    segment: Optional[str] = None
+    date: Optional[str] = None
+    zoneId: Optional[str] = None
+    isActive: Optional[bool] = None
+    slots: Optional[List[DeliverySlotInternal]] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None

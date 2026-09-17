@@ -383,18 +383,18 @@ async def create_delivery_slot_config(
                 slot.capacity = zone_default_capacity
             slots_with_capacity.append(slot)
 
-        config_obj = DeliverySlotConfigBase(
+        config_obj = DeliverySlotConfigInternalCreate(
             segment=config.segment,
             date=config.date,
             zoneId=zone_id,
-            slots=slots_with_capacity,
+            slots=[DeliverySlotInternal(**s.model_dump()) for s in slots_with_capacity],
             isActive=config.isActive
         )
 
         # Check for existing config for this date/segment/zone
         existing = await storage.findAll({"date": config.date, "segment": config.segment, "zoneId": zone_id})
         if existing:
-            doc_id = str(existing[0].id or (existing[0]["_id"] if isinstance(existing[0], dict) and "_id" in existing[0] else existing[0]["id"] if isinstance(existing[0], dict) and "id" in existing[0] else existing[0]))
+            doc_id = str(existing[0].id)
             updated = await storage.update(doc_id, config_obj)
             created.append(updated)
         else:
@@ -408,7 +408,8 @@ async def create_delivery_slot_config(
 async def update_delivery_slot_config(
     config_id: str, config: DeliverySlotConfigBase, current_user: User = Depends(require_super_admin)
 ):
-    updated = await storage.update(config_id, config)
+    internal_update = DeliverySlotConfigInternalUpdate(**config.model_dump(exclude_unset=True))
+    updated = await storage.update(config_id, internal_update)
     if not updated:
         raise HTTPException(status_code=404, detail="Configuration not found")
     return updated
