@@ -1,5 +1,5 @@
 from app.models.daos import NotificationInternal
-from app.models.daos_flat import SchemeInternal, ReturnSettingsInternal, ActivityInternal, ReturnRequestInternal
+from app.models.daos_flat import ContactInternal, SchemeInternal, ReturnSettingsInternal, ActivityInternal, ReturnRequestInternal
 from app.models.schemas import SearchTagResponse, CollectionResponse, SchemeResponse, DeliveryChargeResponse, DefaultDeliveryChargeResponse
 """
 Configs for FlatRelationalDAO: parent-only tables with fixed columns + JSON columns.
@@ -137,6 +137,7 @@ FLAT_RELATIONAL_DAOS = {
             "displayOrder": "display_order",
         },
         bool_keys=frozenset({"isActive"}),
+        schema_cls=ContactInternal
     ),
     "supportTickets": _dao(
         "sj_support_tickets",

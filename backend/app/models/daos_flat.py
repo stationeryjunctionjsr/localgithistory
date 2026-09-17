@@ -29,6 +29,7 @@ class SchemeInternal(BaseModel):
     validUntil: Optional[str] = None
     isActive: Optional[bool] = None
     code: Optional[str] = None
+    applicableRoles: Optional[List[str]] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
@@ -43,6 +44,7 @@ class SchemeInternalCreate(BaseModel):
     validUntil: Optional[str] = None
     isActive: Optional[bool] = None
     code: Optional[str] = None
+    applicableRoles: Optional[List[str]] = None
 
 class SchemeInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -55,6 +57,37 @@ class SchemeInternalUpdate(BaseModel):
     validUntil: Optional[str] = None
     isActive: Optional[bool] = None
     code: Optional[str] = None
+    applicableRoles: Optional[List[str]] = None
+
+class ContactInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    email: Optional[str] = None
+    description: Optional[str] = None
+    isActive: Optional[bool] = None
+    displayOrder: Optional[int] = None
+    addresses: Optional[List[str]] = None
+    phoneNumbers: Optional[List[str]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class ContactInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    email: Optional[str] = None
+    description: Optional[str] = None
+    isActive: Optional[bool] = None
+    displayOrder: Optional[int] = None
+    addresses: Optional[List[str]] = None
+    phoneNumbers: Optional[List[str]] = None
+
+class ContactInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    email: Optional[str] = None
+    description: Optional[str] = None
+    isActive: Optional[bool] = None
+    displayOrder: Optional[int] = None
+    addresses: Optional[List[str]] = None
+    phoneNumbers: Optional[List[str]] = None
 
 class OrderFeedbackInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')

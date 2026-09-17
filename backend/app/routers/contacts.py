@@ -4,6 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.models.daos_flat import ContactInternalCreate, ContactInternalUpdate
 from app.models.schemas import ContactCreate, ContactResponse, ContactUpdate
 from app.repositories.contact_repository import contact_repository
 from app.utils.auth import get_current_user, require_super_admin
@@ -43,7 +44,8 @@ async def get_contact(contact_id: str):
 @router.post("", response_model=ContactResponse, status_code=201)
 @router.post("/", response_model=ContactResponse, status_code=201)
 async def create_contact(contact_data: ContactCreate, current_user: User = Depends(require_super_admin)):
-    contact = await contact_repository.create(contact_data)
+    internal_data = ContactInternalCreate(**contact_data.model_dump(exclude_unset=True))
+    contact = await contact_repository.create(internal_data)
     return contact
 
 
@@ -51,7 +53,8 @@ async def create_contact(contact_data: ContactCreate, current_user: User = Depen
 async def update_contact(
     contact_id: str, contact_data: ContactUpdate, current_user: User = Depends(require_super_admin)
 ):
-    contact = await contact_repository.update(contact_id, contact_data)
+    internal_data = ContactInternalUpdate(**contact_data.model_dump(exclude_unset=True))
+    contact = await contact_repository.update(contact_id, internal_data)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     return contact
