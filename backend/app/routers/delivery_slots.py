@@ -371,7 +371,7 @@ async def create_delivery_slot_config(
         if zone_id != DEFAULT_ZONE_ID:
             zone_doc = await zones_storage.findById(zone_id)
             if zone_doc:
-                cap_val = zone_doc.defaultCapacity or zone_doc.default_capacity or (zone_doc["defaultCapacity"] if isinstance(zone_doc, dict) and "defaultCapacity" in zone_doc else zone_doc["default_capacity"] if isinstance(zone_doc, dict) and "default_capacity" in zone_doc else 10)
+                cap_val = getattr(zone_doc, "defaultCapacity", 10)
                 zone_default_capacity = int(cap_val) if cap_val is not None else 10
 
         # Auto-fill slot capacities from zone default if not set

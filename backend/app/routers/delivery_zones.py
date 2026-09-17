@@ -68,8 +68,7 @@ async def _check_pincode_conflicts(
     storage = get_storage("deliveryZones")
     all_zones = await storage.findAll({})
     taken: Dict[str, str] = {}
-    for raw_z in all_zones:
-        z = raw_z if isinstance(raw_z, DeliveryZoneResponse) else DeliveryZoneResponse.model_validate(raw_z)
+    for z in all_zones:
         if exclude_zone_id and str(z.id) == str(exclude_zone_id):
             continue
         for pc in (z.pincodes or []):
@@ -146,7 +145,8 @@ async def create_zone(
                 detail=f"These pincodes are already assigned to another zone: {', '.join(conflicts)}",
             )
     storage = get_storage("deliveryZones")
-    result = await storage.create(zone)
+    internal_create = DeliveryZoneInternalCreate(**zone.model_dump())
+    result = await storage.create(internal_create)
     # New zone means a new zone_id — full cache clear is cheapest
     from app.repositories.zone_seller_cache import invalidate_zone_cache
     invalidate_zone_cache()
@@ -184,7 +184,8 @@ async def update_zone(
                 detail=f"These pincodes are already assigned to another zone: {', '.join(conflicts)}",
             )
 
-    updated_zone = await storage.update(zone_id, zone)
+    internal_update = DeliveryZoneInternalUpdate(**zone.model_dump(exclude_unset=True))
+    updated_zone = await storage.update(zone_id, internal_update)
     if not updated_zone:
         raise HTTPException(status_code=404, detail="Zone not found")
     # Evict this specific zone so fresh sellers are picked up immediately

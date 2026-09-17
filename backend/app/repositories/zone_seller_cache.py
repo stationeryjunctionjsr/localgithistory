@@ -55,7 +55,7 @@ def _is_fresh(expiry: float) -> bool:
 
 
 
-def _cache_zone(zone: dict) -> frozenset:
+def _cache_zone(zone) -> frozenset:
     """Kept for backward compatibility — not used in new flow."""
     seller_ids = frozenset(str(s) for s in (zone.sellerIds or []))
     return seller_ids
@@ -144,7 +144,8 @@ async def get_seller_ids_for_pincode(pincode: str) -> Optional[Set[str]]:
     _, seller_ids = await get_zone_id_and_seller_ids_for_pincode(pincode)
     return seller_ids
 
-async def get_zone_for_pincode(pincode: str) -> Optional[dict]:
+from app.models.daos_flat import DeliveryZoneInternal
+async def get_zone_for_pincode(pincode: str) -> Optional[DeliveryZoneInternal]:
     """
     Return the full zone document for a pincode, or None.
     Useful when callers need zone metadata (name, urgentDeliveryAvailable, etc.)

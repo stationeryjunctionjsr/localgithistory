@@ -381,6 +381,39 @@ class DeliveryChargeDefaultInternalUpdate(BaseModel):
     isActive: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
+class DeliveryZoneInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    description: Optional[str] = None
+    defaultCapacity: Optional[int] = None
+    urgentDeliveryAvailable: Optional[bool] = None
+    customerType: Optional[str] = None
+    isActive: Optional[bool] = None
+    pincodes: Optional[List[str]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class DeliveryZoneInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: Optional[str] = None
+    description: Optional[str] = None
+    defaultCapacity: Optional[int] = None
+    urgentDeliveryAvailable: Optional[bool] = None
+    customerType: Optional[str] = None
+    isActive: Optional[bool] = None
+    pincodes: Optional[List[str]] = None
+
+class DeliveryZoneInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: Optional[str] = None
+    description: Optional[str] = None
+    defaultCapacity: Optional[int] = None
+    urgentDeliveryAvailable: Optional[bool] = None
+    customerType: Optional[str] = None
+    isActive: Optional[bool] = None
+    pincodes: Optional[List[str]] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None
