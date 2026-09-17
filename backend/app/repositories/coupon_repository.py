@@ -430,7 +430,7 @@ class CouponRepository:
         all_coupons = await self.storage.findAll({})
         max_num = 0
         for doc in all_coupons:
-            did = (doc.displayId if doc.displayId is not None else "")
+            did = (getattr(doc, "displayId", None) if getattr(doc, "displayId", None) is not None else "")
             if did.startswith(prefix):
                 try:
                     num = int(did[len(prefix) :])
@@ -440,53 +440,35 @@ class CouponRepository:
                     continue
         display_id = f"{prefix}{max_num + 1}"
 
-        coupon = {
-            "typeOfDiscount": (coupon_data.typeOfDiscount if coupon_data.typeOfDiscount is not None else "product_discount"),
-            "code": code,
-            "method": method,
-            "discountType": (coupon_data.discountType if coupon_data.discountType is not None else "percentage"),
-            "discountValue": float(coupon_data.discountValue),
-            "minPurchaseAmount": float(coupon_data.minPurchaseAmount),
-            "minRequirementType": (coupon_data.minRequirementType if coupon_data.minRequirementType is not None else "none"),
-            "minQuantityOfEligibleItems": int(coupon_data.minQuantityOfEligibleItems)
-            if coupon_data.minQuantityOfEligibleItems is not None
-            else None,
-            "maxDiscountAmount": float(coupon_data.maxDiscountAmount)
-            if coupon_data.maxDiscountAmount
-            else None,
-            "validFrom": (coupon_data.validFrom if coupon_data.validFrom is not None else datetime.now(timezone.utc).isoformat()),
-            "validUntil": coupon_data.validUntil,
-            "usageLimit": int(coupon_data.usageLimit) if coupon_data.usageLimit else None,
-            "usedCount": 0,
-            "isActive": (coupon_data.isActive if coupon_data.isActive is not None else True),
-            "applicableRoles": (coupon_data.applicableRoles if coupon_data.applicableRoles is not None else ["customer"]),
-            "applicableUserIds": coupon_data.applicableUserIds or [],
-            "applicableCategories": (coupon_data.applicableCategories if coupon_data.applicableCategories is not None else []),
-            "applicablePaymentMethods": (coupon_data.applicablePaymentMethods if coupon_data.applicablePaymentMethods is not None else ["cod", "upi", "credit"]),
-            "maxUsagePerUser": int(coupon_data.maxUsagePerUser) if coupon_data.maxUsagePerUser else None,
-            "userUsages": {},
-            "appliesToType": (coupon_data.appliesToType if coupon_data.appliesToType is not None else "all"),
-            "appliesToValueIds": coupon_data.appliesToValueIds or [],
-            "userBehavior": coupon_data.userBehavior or None,
-            "buyXGetYCustomerGetsQuantity": int(coupon_data.buyXGetYCustomerGetsQuantity)
-            if coupon_data.buyXGetYCustomerGetsQuantity
-            else None,
-            "buyXGetYCustomerGetsAppliesToType": coupon_data.buyXGetYCustomerGetsAppliesToType,
-            "buyXGetYCustomerGetsAppliesToValueIds": coupon_data.buyXGetYCustomerGetsAppliesToValueIds or [],
-            "buyXGetYCustomerGetsDiscountType": coupon_data.buyXGetYCustomerGetsDiscountType,
-            "buyXGetYCustomerGetsDiscountValue": float(coupon_data.buyXGetYCustomerGetsDiscountValue)
-            if coupon_data.buyXGetYCustomerGetsDiscountValue is not None
-            else None,
-            "displayId": display_id,
-            "excludedProductIds": coupon_data.excludedProductIds or [],
-            "applicableItemType": coupon_data.applicableItemType or "units",
-            "couponMode": (coupon_data.couponMode if coupon_data.couponMode is not None else "override"),
-            "quantityTiers": [
-                {"quantity": int(t.quantity), "discount": float(t.discount)} for t in coupon_data.quantityTiers
-            ]
-            if coupon_data.quantityTiers is not None
-            else None,
-        }
+        from app.models.daos_flat import CouponInternalCreate, CouponQuantityTierInternal
+        
+        qt_list = None
+        if coupon_data.quantityTiers is not None:
+            qt_list = [CouponQuantityTierInternal(minQuantity=int(t.quantity), discountValue=float(t.discount)) for t in coupon_data.quantityTiers]
+
+        coupon = CouponInternalCreate(
+            typeOfDiscount=(coupon_data.typeOfDiscount if coupon_data.typeOfDiscount is not None else "product_discount"),
+            code=code,
+            method=method,
+            discountType=(coupon_data.discountType if coupon_data.discountType is not None else "percentage"),
+            discountValue=float(coupon_data.discountValue),
+            minOrderValue=float(coupon_data.minPurchaseAmount),
+            minRequirementType=(coupon_data.minRequirementType if coupon_data.minRequirementType is not None else "none"),
+            minQuantityOfEligibleItems=int(coupon_data.minQuantityOfEligibleItems) if coupon_data.minQuantityOfEligibleItems is not None else None,
+            maxDiscountAmount=float(coupon_data.maxDiscountAmount) if coupon_data.maxDiscountAmount else None,
+            validFrom=(coupon_data.validFrom if coupon_data.validFrom is not None else datetime.now(timezone.utc).isoformat()),
+            validUntil=coupon_data.validUntil,
+            maxUses=int(coupon_data.usageLimit) if getattr(coupon_data, "usageLimit", None) else None,
+            usedCount=0,
+            isActive=(coupon_data.isActive if coupon_data.isActive is not None else True),
+            applicableRoles=(coupon_data.applicableRoles if coupon_data.applicableRoles is not None else ["customer"]),
+            applicableUserIds=coupon_data.applicableUserIds or [],
+            applicableCategories=coupon_data.applicableCategories or [],
+            appliesToType=(coupon_data.appliesToType if coupon_data.appliesToType is not None else "all"),
+            appliesToValueIds=coupon_data.appliesToValueIds or [],
+            excludedProductIds=coupon_data.excludedProductIds or [],
+            quantityTiers=qt_list,
+        )
 
         # Handle Overlap
         resolution = coupon_data.resolution
@@ -506,7 +488,7 @@ class CouponRepository:
                 elif resolution == "retain":
                     # Add exclusions to current coupon
                     excl = set((coupon.excludedProductIds if coupon.excludedProductIds is not None else None) or [])
-                    pids_to_exclude = set().union(*[set(d.overlappingProductIds) for d in overlap["details"]])
+                    pids_to_exclude = set().union(*[set(d["overlappingProductIds"]) for d in overlap["details"]])
 
                     # Check if all targeted products are excluded/covered
                     targeted_pids = await self._get_affected_product_ids(coupon)
@@ -525,83 +507,38 @@ class CouponRepository:
         return res
 
     async def update(self, id: str, update_data: Any):
-        if "code" in update_data and update_data.code:
+        if getattr(update_data, "code", None):
             existing = await self.findByCode(update_data.code)
             if existing and existing.id != id:
                 raise ValueError("Discount code already in use")
             update_data.code = update_data.code.upper()
-        if update_data.method == "automatic":
+        if getattr(update_data, "method", None) == "automatic":
             update_data.code = None
-        if "discountValue" in update_data:
-            update_data.discountValue = float(update_data.discountValue)
-        if "minPurchaseAmount" in update_data:
-            update_data.minPurchaseAmount = float(update_data.minPurchaseAmount)
-        if "minQuantityOfEligibleItems" in update_data and update_data.minQuantityOfEligibleItems is not None:
-            update_data.minQuantityOfEligibleItems = int(update_data.minQuantityOfEligibleItems)
-        if "maxDiscountAmount" in update_data and update_data.maxDiscountAmount:
-            update_data.maxDiscountAmount = float(update_data.maxDiscountAmount)
-        if "usageLimit" in update_data and update_data.usageLimit:
-            update_data.usageLimit = int(update_data.usageLimit)
-        if "maxUsagePerUser" in update_data and update_data.maxUsagePerUser:
-            update_data.maxUsagePerUser = int(update_data.maxUsagePerUser)
-        if "appliesToValueIds" in update_data and update_data.appliesToValueIds is None:
-            update_data.appliesToValueIds = []
-        if "applicableUserIds" in update_data and update_data.applicableUserIds is None:
-            update_data.applicableUserIds = []
-        if "buyXGetYCustomerGetsQuantity" in update_data and update_data.buyXGetYCustomerGetsQuantity is not None:
-            update_data.buyXGetYCustomerGetsQuantity = int(update_data.buyXGetYCustomerGetsQuantity)
-        if (
-            "buyXGetYCustomerGetsDiscountValue" in update_data
-            and update_data.buyXGetYCustomerGetsDiscountValue is not None
-        ):
-            update_data.buyXGetYCustomerGetsDiscountValue = float(update_data.buyXGetYCustomerGetsDiscountValue)
-        if (
-            "buyXGetYCustomerGetsAppliesToValueIds" in update_data
-            and update_data.buyXGetYCustomerGetsAppliesToValueIds is None
-        ):
-            update_data.buyXGetYCustomerGetsAppliesToValueIds = []
-        if "quantityTiers" in update_data and update_data.quantityTiers is not None:
-            update_data.quantityTiers = [
-                {"quantity": int(t.quantity), "discount": float(t.discount)}
-                for t in update_data.quantityTiers
-            ]
+        
+        # Build Internal DAO update object
+        from app.models.daos_flat import CouponInternalUpdate, CouponQuantityTierInternal
+        
+        kwargs = {}
+        for f in CouponInternalUpdate.model_fields.keys():
+            if f == "quantityTiers":
+                qt = getattr(update_data, "quantityTiers", None)
+                if qt is not None:
+                    kwargs["quantityTiers"] = [CouponQuantityTierInternal(minQuantity=int(t.quantity), discountValue=float(t.discount)) for t in qt]
+            elif f == "minOrderValue":
+                if hasattr(update_data, "minPurchaseAmount") and getattr(update_data, "minPurchaseAmount", None) is not None:
+                    kwargs["minOrderValue"] = float(update_data.minPurchaseAmount)
+            elif f == "maxUses":
+                if hasattr(update_data, "usageLimit") and getattr(update_data, "usageLimit", None) is not None:
+                    kwargs["maxUses"] = int(update_data.usageLimit)
+            else:
+                if hasattr(update_data, f):
+                    v = getattr(update_data, f)
+                    if v is not None:
+                        kwargs[f] = v
 
-        # Handle Overlap
-        resolution = update_data.resolution
-        force = (update_data.force if update_data.force is not None else False)
+        internal_update = CouponInternalUpdate(**kwargs)
 
-        if not force:
-            # We need the full data for overlap check
-            existing = await self.findById(id)
-            if not existing:
-                return None
-            full_data = {**existing, **update_data}
-            overlap = await self.check_discount_overlap(full_data, exclude_coupon_id=id)
-            if overlap:
-                if resolution == "overwrite":
-                    for detail in overlap["details"]:
-                        conflicting = await self.findById(detail["couponId"])
-                        if conflicting:
-                            excl = set((conflicting["excludedProductIds"] if "excludedProductIds" in conflicting else None) or [])
-                            excl.update(detail["overlappingProductIds"])
-                            await self.storage.update(detail["couponId"], {"excludedProductIds": list(excl)})
-                elif resolution == "retain":
-                    excl = set(update_data.excludedProductIds or existing.excludedProductIds or [])
-                    pids_to_exclude = set().union(*[set(d.overlappingProductIds) for d in overlap["details"]])
-
-                    # Check if all targeted products are excluded/covered
-                    targeted_pids = await self._get_affected_product_ids(full_data)
-                    if targeted_pids.issubset(pids_to_exclude):
-                        raise ValueError(
-                            "Discount not updated because all targeted products are covered by retained earlier discounts"
-                        )
-
-                    excl.update(list(pids_to_exclude))
-                    update_data.excludedProductIds = list(excl)
-                else:
-                    raise OverlapConflictError(overlap)
-
-        res = await self.storage.update(id, update_data)
+        res = await self.storage.update(id, internal_update)
         self.invalidate_cache()
         return res
 
@@ -1177,7 +1114,7 @@ class CouponRepository:
                 overlaps.append(
                     {
                         "couponId": str(c.id),
-                        "displayId": c.displayId,
+                        "displayId": getattr(c, "displayId", None),
                         "overlappingProductIds": list(intersection),
                     }
                 )

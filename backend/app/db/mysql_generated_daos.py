@@ -169,18 +169,22 @@ class DynamicRelationalDAO:
         return await self.findOne({"_id": id})
 
     async def create(self, data: Any) -> Any:
-        data_dict = data if isinstance(data, dict) else data.__dict__
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
         for api_k, db_col in self.scalar_map.items():
-            if api_k in data_dict:
-                cols.append(db_col)
-                params[f"s_{api_k}"] = data_dict[api_k]
+            if isinstance(data, dict):
+                if api_k in data:
+                    cols.append(db_col)
+                    params[f"s_{api_k}"] = data[api_k]
+            else:
+                if hasattr(data, api_k) and getattr(data, api_k) is not None:
+                    cols.append(db_col)
+                    params[f"s_{api_k}"] = getattr(data, api_k)
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k, db in self.scalar_map.items() if k in data_dict])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in self.scalar_map.keys() if f"s_{k}" in params])
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
             new_id = (

@@ -466,6 +466,90 @@ class CustomerSegmentInternalCreate(BaseModel):
     isSystem: Optional[bool] = None
     filters: Optional[CustomerSegmentFilters] = None
 
+class CouponQuantityTierInternal(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    minQuantity: Optional[int] = None
+    discountValue: Optional[float] = None
+
+class CouponInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    externalId: Optional[str] = None
+    code: Optional[str] = None
+    discountType: Optional[str] = None
+    discountValue: Optional[float] = None
+    minOrderValue: Optional[float] = None
+    maxUses: Optional[int] = None
+    usedCount: Optional[int] = None
+    validFrom: Optional[str] = None
+    validUntil: Optional[str] = None
+    isActive: Optional[bool] = None
+    typeOfDiscount: Optional[str] = None
+    method: Optional[str] = None
+    minRequirementType: Optional[str] = None
+    minQuantityOfEligibleItems: Optional[int] = None
+    maxDiscountAmount: Optional[float] = None
+    appliesToType: Optional[str] = None
+    
+    quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
+    applicableRoles: Optional[List[str]] = None
+    applicableUserIds: Optional[List[str]] = None
+    applicableCategories: Optional[List[str]] = None
+    appliesToValueIds: Optional[List[str]] = None
+    excludedProductIds: Optional[List[str]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class CouponInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    code: Optional[str] = None
+    discountType: Optional[str] = None
+    discountValue: Optional[float] = None
+    minOrderValue: Optional[float] = None
+    maxUses: Optional[int] = None
+    usedCount: Optional[int] = None
+    validFrom: Optional[str] = None
+    validUntil: Optional[str] = None
+    isActive: Optional[bool] = None
+    typeOfDiscount: Optional[str] = None
+    method: Optional[str] = None
+    minRequirementType: Optional[str] = None
+    minQuantityOfEligibleItems: Optional[int] = None
+    maxDiscountAmount: Optional[float] = None
+    appliesToType: Optional[str] = None
+    
+    quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
+    applicableRoles: Optional[List[str]] = None
+    applicableUserIds: Optional[List[str]] = None
+    applicableCategories: Optional[List[str]] = None
+    appliesToValueIds: Optional[List[str]] = None
+    excludedProductIds: Optional[List[str]] = None
+
+class CouponInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    code: Optional[str] = None
+    discountType: Optional[str] = None
+    discountValue: Optional[float] = None
+    minOrderValue: Optional[float] = None
+    maxUses: Optional[int] = None
+    usedCount: Optional[int] = None
+    validFrom: Optional[str] = None
+    validUntil: Optional[str] = None
+    isActive: Optional[bool] = None
+    typeOfDiscount: Optional[str] = None
+    method: Optional[str] = None
+    minRequirementType: Optional[str] = None
+    minQuantityOfEligibleItems: Optional[int] = None
+    maxDiscountAmount: Optional[float] = None
+    appliesToType: Optional[str] = None
+    
+    quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
+    applicableRoles: Optional[List[str]] = None
+    applicableUserIds: Optional[List[str]] = None
+    applicableCategories: Optional[List[str]] = None
+    appliesToValueIds: Optional[List[str]] = None
+    excludedProductIds: Optional[List[str]] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None

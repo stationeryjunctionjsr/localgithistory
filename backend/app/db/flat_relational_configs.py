@@ -50,7 +50,8 @@ FLAT_RELATIONAL_DAOS = {
             "maxDiscountAmount": "max_discount_amount",
             "appliesToType": "applies_to_type"
         },
-        {}
+        {},
+        schema_cls=CouponInternal
     ),
 
     "activities": _dao(
