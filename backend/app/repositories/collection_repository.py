@@ -1,49 +1,54 @@
-from typing import Any
-from typing import Dict, Optional
+import json
+from typing import Any, Dict, List, Optional
 
 from app.db.storage_factory import get_storage
+from app.models.daos_flat import CollectionInternal, CollectionInternalCreate, CollectionInternalUpdate
 
 
 class CollectionRepository:
     def __init__(self):
         self.storage = get_storage("collections")
 
-    async def findAll(self, query: Optional[Dict] = None):
+    async def findAll(self, query: Optional[Dict] = None) -> List[CollectionInternal]:
         collections = await self.storage.findAll()
 
         query = query or {}
 
         # Consolidate all filters into one pass for robustness
         filtered = []
-        user_role = query["userRole"] if "userRole" in query else "guest"
-        target_page_type = (query["pageType"] if "pageType" in query else None) or (query["visiblePage"] if "visiblePage" in query else None)
-        target_page_id = query["pageId"] if "pageId" in query else None
+        user_role = query.get("userRole", "guest")
+        target_page_type = query.get("pageType") or query.get("visiblePage")
+        target_page_id = query.get("pageId")
 
         for col in collections:
             # 1. Check isActive
             if "isActive" in query and query["isActive"] is not None:
-                col_active = col["isActive"] if "isActive" in col else None
-                if col_active != query["isActive"]:
+                if col.isActive != query["isActive"]:
                     continue
             else:
-                if not (col["isActive"] if "isActive" in col else True):
+                if not (col.isActive if col.isActive is not None else True):
                     continue
 
             # 2. Check user segments
-            segments = col["userSegments"] if "userSegments" in col else ["all"]
+            segments = col.userSegments if col.userSegments else ["all"]
             if "all" not in segments and user_role not in segments:
                 continue
 
             # 3. Check page visibility (if a target page is requested)
             if target_page_type:
                 # Check legacy visiblePages array
-                is_visible_legacy = target_page_type in (col["visiblePages"] if "visiblePages" in col else [])
+                is_visible_legacy = target_page_type in (col.visiblePages or [])
 
                 # Check new visibilityRules
                 is_visible_rules = False
-                rules = col["visibilityRules"] if "visibilityRules" in col else []
-                for rule in rules:
-                    rule_pg = rule["pageType"] if "pageType" in rule else ""
+                rules = col.visibilityRules or []
+                for rule_str in rules:
+                    try:
+                        rule = json.loads(rule_str) if isinstance(rule_str, str) else rule_str
+                    except:
+                        continue
+
+                    rule_pg = rule.get("pageType", "")
                     if (
                         rule_pg == target_page_type
                         or (target_page_type == "Category" and rule_pg == "all_categories")
@@ -51,7 +56,7 @@ class CollectionRepository:
                         or (target_page_type == "category" and rule_pg == "all_categories")
                         or (target_page_type == "brand" and rule_pg == "all_brands")
                     ):
-                        page_ids = rule["pageIds"] if "pageIds" in rule else []
+                        page_ids = rule.get("pageIds", [])
                         if not page_ids or target_page_id in page_ids:
                             is_visible_rules = True
                             break
@@ -65,32 +70,20 @@ class CollectionRepository:
         collections = filtered
 
         # Sort by displayOrder
-        collections.sort(key=lambda x: x["displayOrder"] if "displayOrder" in x else 0)
+        collections.sort(key=lambda x: x.displayOrder if x.displayOrder is not None else 0)
 
         return collections
 
-    async def findById(self, id: str):
+    async def findById(self, id: str) -> Optional[CollectionInternal]:
         return await self.storage.findById(id)
 
-    async def create(self, collection_data: Any):
-        collection = {
-            "name": collection_data["name"],
-            "description": collection_data["description"] if "description" in collection_data else "",
-            "imageUrl": collection_data["imageUrl"] if "imageUrl" in collection_data else "",
-            "isActive": collection_data["isActive"] if "isActive" in collection_data else True,
-            "displayOrder": collection_data["displayOrder"] if "displayOrder" in collection_data else 0,
-            "visiblePages": collection_data["visiblePages"] if "visiblePages" in collection_data else [],
-            "userSegments": collection_data["userSegments"] if "userSegments" in collection_data else ["all"],
-            "visibilityRules": collection_data["visibilityRules"] if "visibilityRules" in collection_data else [],
-            "productIds": collection_data["productIds"] if "productIds" in collection_data else [],
-        }
+    async def create(self, collection_data: CollectionInternalCreate) -> CollectionInternal:
+        return await self.storage.create(collection_data)
 
-        return await self.storage.create(collection)
-
-    async def update(self, id: str, update_data: Any):
+    async def update(self, id: str, update_data: CollectionInternalUpdate) -> CollectionInternal:
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str):
+    async def delete(self, id: str) -> bool:
         return await self.storage.delete(id)
 
 

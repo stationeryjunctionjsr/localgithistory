@@ -159,6 +159,45 @@ class DeviceSubscriptionInternalUpdate(BaseModel):
     expoToken: Optional[str] = None
     keys: Optional[List[DeviceKeyInternal]] = None
 
+class CollectionInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    name: Optional[str] = None
+    description: Optional[str] = None
+    imageUrl: Optional[str] = None
+    isActive: Optional[bool] = None
+    displayOrder: Optional[int] = None
+    visiblePages: Optional[List[str]] = None
+    userSegments: Optional[List[str]] = None
+    visibilityRules: Optional[List[str]] = None
+    productIds: Optional[List[str]] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
+class CollectionInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: Optional[str] = None
+    description: Optional[str] = None
+    imageUrl: Optional[str] = None
+    isActive: Optional[bool] = None
+    displayOrder: Optional[int] = None
+    visiblePages: Optional[List[str]] = None
+    userSegments: Optional[List[str]] = None
+    visibilityRules: Optional[List[str]] = None
+    productIds: Optional[List[str]] = None
+
+class CollectionInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: Optional[str] = None
+    description: Optional[str] = None
+    imageUrl: Optional[str] = None
+    isActive: Optional[bool] = None
+    displayOrder: Optional[int] = None
+    visiblePages: Optional[List[str]] = None
+    userSegments: Optional[List[str]] = None
+    visibilityRules: Optional[List[str]] = None
+    productIds: Optional[List[str]] = None
+
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     isActive: Optional[bool] = None
