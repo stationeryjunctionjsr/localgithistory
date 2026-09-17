@@ -30,9 +30,7 @@ class BrandRepository:
 
     async def create(self, data: Any) -> Brand:
         from app.models.daos import BrandInternalCreate
-        if isinstance(data, dict):
-            internal_data = BrandInternalCreate.model_validate(data)
-        elif not isinstance(data, BrandInternalCreate):
+        if not isinstance(data, BrandInternalCreate):
             fields = {}
             for f in data.model_fields_set:
                 match f:
@@ -48,9 +46,7 @@ class BrandRepository:
 
     async def update(self, id: str, data: Any) -> Optional[Brand]:
         from app.models.daos import BrandInternalUpdate
-        if isinstance(data, dict):
-            internal_data = BrandInternalUpdate.model_validate(data)
-        elif not isinstance(data, BrandInternalUpdate):
+        if not isinstance(data, BrandInternalUpdate):
             fields = {}
             for f in data.model_fields_set:
                 match f:

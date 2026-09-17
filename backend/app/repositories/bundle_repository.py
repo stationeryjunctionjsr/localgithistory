@@ -83,9 +83,7 @@ class BundleRepository:
     async def create(self, data: Any) -> Any:
         await self.ensure_table_exists()
         from app.models.daos import BundleInternalCreate
-        if isinstance(data, dict):
-            internal_data = BundleInternalCreate.model_validate(data)
-        elif not isinstance(data, BundleInternalCreate):
+        if not isinstance(data, BundleInternalCreate):
             fields = {}
             for f in data.model_fields_set:
                 match f:
@@ -101,9 +99,7 @@ class BundleRepository:
     async def update(self, id: str, update_data: Any) -> Optional[Any]:
         await self.ensure_table_exists()
         from app.models.daos import BundleInternalUpdate
-        if isinstance(update_data, dict):
-            internal_data = BundleInternalUpdate.model_validate(update_data)
-        elif not isinstance(update_data, BundleInternalUpdate):
+        if not isinstance(update_data, BundleInternalUpdate):
             fields = {}
             for f in update_data.model_fields_set:
                 match f:

@@ -12,10 +12,10 @@ class CartRepository:
         return await self.storage.findOne({"user": user_id})
 
     async def create(self, cart_data: Any):
-        if isinstance(cart_data, dict):
-            cart = CartInternalCreate(**cart_data)
-        else:
+        if not isinstance(cart_data, CartInternalCreate):
             cart = CartInternalCreate(user=cart_data.user, items=(cart_data.items if cart_data.items is not None else []))
+        else:
+            cart = cart_data
         return await self.storage.create(cart)
 
     async def update(self, id: str, update_data: Any):
@@ -41,15 +41,9 @@ class CartRepository:
     async def addItem(self, user_id: str, item: Any):
         cart = await self.findByUser(user_id)
         if not cart:
-            # item might be dict from old caller
-            if isinstance(item, dict):
-                item = CartItemInternal(**item)
             return await self.createOrUpdate(user_id, [item])
 
         items = (cart.items if cart.items is not None else [])
-        # item might be dict from old caller
-        if isinstance(item, dict):
-            item = CartItemInternal(**item)
         # Check for existing item with same product, variants, and sellAsCase
         existing_item_index = next(
             (

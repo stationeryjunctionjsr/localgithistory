@@ -1,5 +1,6 @@
 from app.models.user import User
 from app.models.schemas import MessageResponse, BundleResponse, BundlesListResponse
+from app.models.daos import BundleInternalCreate, BundleInternalUpdate, BundleItemInternal
 from typing import Dict, Any, List
 from pydantic import BaseModel
 
@@ -382,14 +383,15 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
             pid = item.productId
             qty = item.quantity if item.quantity is not None else 1
 
-            new_item = {
-                "_id": str(uuid.uuid4()),
-                "product": pid,
-                "quantity": qty,
-                "sellAsCase": False,
-                "bundleId": bundle_id,  # tag so cart UI can group bundle items visually
-                "bundleName": bundle.name,
-            }
+            from app.models.daos import CartItemInternal
+            new_item = CartItemInternal(
+                id=str(uuid.uuid4()),
+                product=pid,
+                quantity=qty,
+                sellAsCase=False,
+                bundleId=bundle_id,
+                bundleName=bundle.name,
+            )
 
             if cart:
                 existing = next(
@@ -402,7 +404,7 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
                         if it.id == existing.id:
                             if qty is None:
                                 raise ValueError("Data Integrity Error: Bundle item missing quantity")
-                            items[i]["quantity"] = existing.quantity + qty
+                            items[i].quantity = existing.quantity + qty
                             break
                     await cart_repository.createOrUpdate(user_id, items)
                 else:
@@ -450,18 +452,18 @@ async def create_bundle(payload: CreateBundleRequest, current_user: User = Depen
 
         await _validate_bundle_items(payload.items)
 
-        bundle_data = {
-            "_id": str(uuid.uuid4()),
-            "name": payload.name.strip(),
-            "description": payload.description,
-            "price": payload.price,
-            "items": [{"productId": i.productId, "quantity": i.quantity} for i in payload.items],
-            "imageUrl": payload.imageUrl,
-            "isActive": payload.isActive,
-            "salesCount": payload.salesCount if payload.salesCount is not None else 0,
-            "searchTags": payload.searchTags or [],
-        }
-        created = await bundle_repository.create(bundle_data)
+        bundle_model = BundleInternalCreate(
+            id=str(uuid.uuid4()),
+            name=payload.name.strip(),
+            description=payload.description,
+            price=payload.price,
+            items=[BundleItemInternal(productId=i.productId, quantity=i.quantity) for i in payload.items],
+            imageUrl=payload.imageUrl,
+            isActive=payload.isActive,
+            salesCount=payload.salesCount if payload.salesCount is not None else 0,
+            searchTags=payload.searchTags or [],
+        )
+        created = await bundle_repository.create(bundle_model)
         return {"message": "Bundle created", "bundle": created}
     except HTTPException:
         raise
@@ -482,28 +484,28 @@ async def update_bundle(
         if not bundle:
             raise HTTPException(status_code=404, detail="Bundle not found")
 
-        updates: Dict = {}
+        update_model = BundleInternalUpdate()
         if payload.name is not None:
-            updates["name"] = payload.name.strip()
+            update_model.name = payload.name.strip()
         if payload.description is not None:
-            updates["description"] = payload.description
+            update_model.description = payload.description
         if payload.price is not None:
             if payload.price <= 0:
                 raise HTTPException(status_code=400, detail="Bundle price must be greater than zero")
-            updates["price"] = payload.price
+            update_model.price = payload.price
         if payload.items is not None:
             await _validate_bundle_items(payload.items)
-            updates["items"] = [{"productId": i.productId, "quantity": i.quantity} for i in payload.items]
+            update_model.items = [BundleItemInternal(productId=i.productId, quantity=i.quantity) for i in payload.items]
         if payload.imageUrl is not None:
-            updates["imageUrl"] = payload.imageUrl
+            update_model.imageUrl = payload.imageUrl
         if payload.isActive is not None:
-            updates["isActive"] = payload.isActive
+            update_model.isActive = payload.isActive
         if payload.salesCount is not None:
-            updates["salesCount"] = payload.salesCount
+            update_model.salesCount = payload.salesCount
         if payload.searchTags is not None:
-            updates["searchTags"] = payload.searchTags
+            update_model.searchTags = payload.searchTags
 
-        updated = await bundle_repository.update(bundle_id, updates)
+        updated = await bundle_repository.update(bundle_id, update_model)
         return {"message": "Bundle updated", "bundle": updated}
     except HTTPException:
         raise

@@ -4,6 +4,7 @@ from app.models.schemas import UserSnippet, ValetSnippet, PopulatedOrderResponse
 from app.db.storage_factory import get_storage
 from app.models.user import User
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
+from app.models.daos import BundleInternalUpdate
 from app.models.sub_order import SubOrder, SubOrderInternalCreate, SubOrderInternalUpdate, SubOrderItem
 from app.models.product import Product
 from pydantic import BaseModel, ConfigDict, Field
@@ -1544,7 +1545,7 @@ async def create_order(
                     # Bundle.salesCount is a declared Pydantic field
                     sales_c = bundle.salesCount if bundle.salesCount is not None else 0
                     new_sales = sales_c + copies
-                    await bundle_repository.update(b_id, {"salesCount": new_sales})
+                    await bundle_repository.update(b_id, BundleInternalUpdate(salesCount=new_sales))
         except Exception as e:
             logger.error("Failed to increment bundle salesCount: %s", str(e), exc_info=True)
 

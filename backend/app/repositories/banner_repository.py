@@ -152,31 +152,26 @@ class BannerRepository:
 
     async def create(self, banner_data: Any):
         # Derive legacy fields for backward compatibility and admin table visibility
-        if isinstance(banner_data, dict):
-            user_segments = banner_data["userSegments"] if "userSegments" in banner_data else ["all"]
-            visibility_rules = banner_data["visibilityRules"] if "visibilityRules" in banner_data else []
-            start_date = banner_data["startDate"] if "startDate" in banner_data else None
-        else:
-            user_segments = (banner_data.userSegments if banner_data.userSegments is not None else ["all"])
-            visibility_rules = (banner_data.visibilityRules if banner_data.visibilityRules is not None else [])
-            start_date = banner_data.startDate
+        user_segments = banner_data.userSegments if banner_data.userSegments is not None else ["all"]
+        visibility_rules = banner_data.visibilityRules if banner_data.visibilityRules is not None else []
+        start_date = banner_data.startDate
 
         target_audience = user_segments[0] if user_segments else "all"
-        position = (visibility_rules[0]["pageType"] if "pageType" in visibility_rules[0] else "homepage") if visibility_rules else "homepage"
+        position = (visibility_rules[0].pageType if visibility_rules[0].pageType else "homepage") if visibility_rules else "homepage"
 
         if not start_date or not str(start_date).strip():
             start_date = datetime.now(timezone.utc).isoformat()
 
         banner_dict = {
-            "title": (banner_data["title"] if "title" in banner_data else "") if isinstance(banner_data, dict) else (banner_data.title if banner_data.title is not None else ""),
-            "description": (banner_data["description"] if "description" in banner_data else "") if isinstance(banner_data, dict) else (banner_data.description if banner_data.description is not None else ""),
-            "imageUrl": banner_data["imageUrl"] if isinstance(banner_data, dict) else (banner_data.imageUrl if banner_data.imageUrl is not None else ""),
-            "linkUrl": (banner_data["linkUrl"] if "linkUrl" in banner_data else "") if isinstance(banner_data, dict) else (banner_data.linkUrl if banner_data.linkUrl is not None else ""),
-            "displayOrder": (banner_data["displayOrder"] if "displayOrder" in banner_data else 0) if isinstance(banner_data, dict) else (banner_data.displayOrder if banner_data.displayOrder is not None else 0),
+            "title": banner_data.title if banner_data.title is not None else "",
+            "description": banner_data.description if banner_data.description is not None else "",
+            "imageUrl": banner_data.imageUrl if banner_data.imageUrl is not None else "",
+            "linkUrl": banner_data.linkUrl if banner_data.linkUrl is not None else "",
+            "displayOrder": banner_data.displayOrder if banner_data.displayOrder is not None else 0,
             "startDate": start_date,
-            "endDate": (banner_data["endDate"] if "endDate" in banner_data else None) if isinstance(banner_data, dict) else banner_data.endDate,
-            "isActive": (banner_data["isActive"] if "isActive" in banner_data else True) if isinstance(banner_data, dict) else (banner_data.isActive if banner_data.isActive is not None else True),
-            "isPublished": (banner_data["isPublished"] if "isPublished" in banner_data else False) if isinstance(banner_data, dict) else (banner_data.isPublished if banner_data.isPublished is not None else False),
+            "endDate": banner_data.endDate,
+            "isActive": banner_data.isActive if banner_data.isActive is not None else True,
+            "isPublished": banner_data.isPublished if banner_data.isPublished is not None else False,
             "targetAudience": target_audience,
             "userSegments": user_segments,
             "visibilityRules": visibility_rules,
@@ -189,24 +184,21 @@ class BannerRepository:
     async def update(self, id: str, update_data: Any):
         # Sync legacy fields if new ones are provided
         update_dict = {}
-        if isinstance(update_data, dict):
-            update_dict = update_data
-        else:
-            for field in update_data.model_fields_set:
-                match field:
-                    case "title": update_dict["title"] = update_data.title
-                    case "description": update_dict["description"] = update_data.description
-                    case "imageUrl": update_dict["imageUrl"] = update_data.imageUrl
-                    case "linkUrl": update_dict["linkUrl"] = update_data.linkUrl
-                    case "displayOrder": update_dict["displayOrder"] = update_data.displayOrder
-                    case "startDate": update_dict["startDate"] = update_data.startDate
-                    case "endDate": update_dict["endDate"] = update_data.endDate
-                    case "isActive": update_dict["isActive"] = update_data.isActive
-                    case "isPublished": update_dict["isPublished"] = update_data.isPublished
-                    case "targetAudience": update_dict["targetAudience"] = update_data.targetAudience
-                    case "userSegments": update_dict["userSegments"] = update_data.userSegments
-                    case "visibilityRules": update_dict["visibilityRules"] = update_data.visibilityRules
-                    case "position": update_dict["position"] = update_data.position
+        for field in update_data.model_fields_set:
+            match field:
+                case "title": update_dict["title"] = update_data.title
+                case "description": update_dict["description"] = update_data.description
+                case "imageUrl": update_dict["imageUrl"] = update_data.imageUrl
+                case "linkUrl": update_dict["linkUrl"] = update_data.linkUrl
+                case "displayOrder": update_dict["displayOrder"] = update_data.displayOrder
+                case "startDate": update_dict["startDate"] = update_data.startDate
+                case "endDate": update_dict["endDate"] = update_data.endDate
+                case "isActive": update_dict["isActive"] = update_data.isActive
+                case "isPublished": update_dict["isPublished"] = update_data.isPublished
+                case "targetAudience": update_dict["targetAudience"] = update_data.targetAudience
+                case "userSegments": update_dict["userSegments"] = update_data.userSegments
+                case "visibilityRules": update_dict["visibilityRules"] = update_data.visibilityRules
+                case "position": update_dict["position"] = update_data.position
         
         if "userSegments" in update_dict:
             segments = update_dict["userSegments"]
@@ -214,7 +206,7 @@ class BannerRepository:
 
         if "visibilityRules" in update_dict:
             rules = update_dict["visibilityRules"]
-            update_dict["position"] = (rules[0]["pageType"] if "pageType" in rules[0] else "homepage") if rules else "homepage"
+            update_dict["position"] = (rules[0].pageType if rules[0].pageType else "homepage") if rules else "homepage"
 
         update_model = BannerInternalUpdate.model_validate(update_dict)
         return await self.storage.update(id, update_model)

@@ -163,13 +163,14 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
 
         import uuid
 
-        new_item = {
-            "_id": str(uuid.uuid4()),
-            "product": item.productId,
-            "quantity": item.quantity,
-            "sellAsCase": sell_as_case,
-            "variantAttributes": item.variantAttributes,
-        }
+        from app.models.daos import CartItemInternal
+        new_item = CartItemInternal(
+            id=str(uuid.uuid4()),
+            product=item.productId,
+            quantity=item.quantity,
+            sellAsCase=sell_as_case,
+            variantAttributes=item.variantAttributes,
+        )
 
         if cart:
             existing_item = next(
@@ -187,7 +188,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
                 items = (cart.items or [])
                 for i, it in enumerate(items):
                     if it.id == existing_item.id:
-                        items[i]["quantity"] = new_quantity
+                        items[i].quantity = new_quantity
                         break
                 await cart_repository.createOrUpdate(current_user.id, items)
             else:
@@ -270,7 +271,7 @@ async def update_cart_item(
         # Apply update
         for i, it in enumerate(items):
             if it.id == item_id:
-                items[i]["quantity"] = quantity
+                items[i].quantity = quantity
                 break
 
         await cart_repository.createOrUpdate(current_user.id, items)
