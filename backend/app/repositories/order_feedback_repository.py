@@ -1,47 +1,48 @@
-from typing import Any
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from app.db.storage_factory import get_storage
-
+from app.models.daos_flat import OrderFeedbackInternal, OrderFeedbackInternalCreate, OrderFeedbackInternalUpdate
 
 class OrderFeedbackRepository:
     def __init__(self):
         self.storage = get_storage("orderFeedback")
 
-    async def findAll(self, query: Optional[Dict] = None):
+    async def findAll(self, query: Optional[Dict] = None) -> List[OrderFeedbackInternal]:
         return await self.storage.findAll(query or {})
 
-    async def findById(self, id: str):
+    async def findById(self, id: str) -> Optional[OrderFeedbackInternal]:
         return await self.storage.findById(id)
 
-    async def findByOrder(self, order_id: str):
+    async def findByOrder(self, order_id: str) -> Optional[OrderFeedbackInternal]:
         return await self.storage.findOne({"orderId": order_id})
 
-    async def findByUser(self, user_id: str):
+    async def findByUser(self, user_id: str) -> List[OrderFeedbackInternal]:
         return await self.storage.findAll({"userId": user_id})
 
-    async def create(self, feedback_data: Any):
-        feedback = {
-            "orderId": feedback_data["orderId"] if "orderId" in feedback_data else None,
-            "userId": feedback_data["userId"],
-            "rating": int(feedback_data["rating"]),  # 1-5
-            "comment": feedback_data["comment"] if "comment" in feedback_data else "",
-            "deliveryRating": int(feedback_data["deliveryRating"]) if "deliveryRating" in feedback_data and feedback_data["deliveryRating"] else None,
-            "deliveryComment": feedback_data["deliveryComment"] if "deliveryComment" in feedback_data else "",
-            "feedbackType": feedback_data["feedbackType"] if "feedbackType" in feedback_data else "order",
-        }
+    async def create(self, feedback_data: OrderFeedbackInternalCreate) -> OrderFeedbackInternal:
+        if feedback_data.rating is not None:
+            feedback_data.rating = int(feedback_data.rating)
+        if feedback_data.deliveryRating is not None:
+            feedback_data.deliveryRating = int(feedback_data.deliveryRating)
+        
+        if feedback_data.comment is None:
+            feedback_data.comment = ""
+        if feedback_data.deliveryComment is None:
+            feedback_data.deliveryComment = ""
+        if feedback_data.feedbackType is None:
+            feedback_data.feedbackType = "order"
 
-        return await self.storage.create(feedback)
+        return await self.storage.create(feedback_data)
 
-    async def update(self, id: str, update_data: Any):
-        if "rating" in update_data:
+    async def update(self, id: str, update_data: OrderFeedbackInternalUpdate) -> OrderFeedbackInternal:
+        if update_data.rating is not None:
             update_data.rating = int(update_data.rating)
-        if "deliveryRating" in update_data and update_data.deliveryRating:
+        if update_data.deliveryRating is not None:
             update_data.deliveryRating = int(update_data.deliveryRating)
 
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str):
+    async def delete(self, id: str) -> bool:
         return await self.storage.delete(id)
 
 

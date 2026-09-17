@@ -89,6 +89,19 @@ class ContactInternalUpdate(BaseModel):
     addresses: Optional[List[str]] = None
     phoneNumbers: Optional[List[str]] = None
 
+class OrderFeedbackInternal(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(None, alias="_id")
+    comment: Optional[str] = None
+    deliveryComment: Optional[str] = None
+    deliveryRating: Optional[int] = None
+    feedbackType: Optional[str] = None
+    orderId: Optional[str] = None
+    rating: Optional[int] = None
+    userId: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+
 class OrderFeedbackInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     comment: Optional[str] = None

@@ -3,6 +3,7 @@ from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.models.daos_flat import OrderFeedbackInternalCreate
 from app.models.schemas import OrderFeedbackCreate, OrderFeedbackResponse, EligibleFeedbackResponse
 from app.repositories.order_feedback_repository import order_feedback_repository
 from app.repositories.order_repository import order_repository
