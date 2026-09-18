@@ -117,7 +117,8 @@ async def send_otp(data: SendOTPRequest, request: Request):
                     status_code=status.HTTP_404_NOT_FOUND, detail="No account found with this phone number."
                 )
 
-        ok, payload = await request_otp_async(normalized_phone, device_key)
+        ok, raw_payload = await request_otp_async(normalized_phone, device_key)
+        payload = OTPResponsePayload(**raw_payload)
         if not ok:
             # Enforce per-user hourly send rate limit (across devices)
             err_msg = payload.message
@@ -166,10 +167,11 @@ async def verify_otp_endpoint(data: VerifyOTPRequest, request: Request):
 
         device_key = (data.deviceId or "default").strip() or "default"
         logger.info(f"[VERIFY-OTP] phone=***{normalized_phone[-4:]} device_key={device_key}")
-        result = await verify_otp_async(normalized_phone, data.otp, device_key=device_key, delete_on_success=False)
+        raw_result = await verify_otp_async(normalized_phone, data.otp, device_key=device_key, delete_on_success=False)
+        result = OTPVerifyResultPayload(**raw_result)
         logger.info(f"[VERIFY-OTP] result={result}")
-        if not result["valid"]:
-            raise HTTPException(status_code=400, detail=result["message"])
+        if not result.valid:
+            raise HTTPException(status_code=400, detail=result.message)
         return {"message": "OTP verified successfully"}
     except HTTPException:
         raise
@@ -242,8 +244,11 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
 
         # Set registration defaults directly on the Pydantic model.
         # user_repository.create() accepts Any — it handles both Pydantic models and dicts.
-        user_data.role = "customer"
-        user_data.approvalStatus = "approved"
+        if user_data.role == "wholesaler":
+            user_data.approvalStatus = "pending"
+        else:
+            user_data.role = "customer"
+            user_data.approvalStatus = "approved"
         user_data.phone = normalized_phone
 
         # Check if user already exists as guest
@@ -276,9 +281,10 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
             logger.info(
                 f"[REGISTER] Verifying OTP in DB: phone=***{normalized_phone[-4:]} device_key={device_key}"
             )
-            otp_result = await verify_otp_async(
+            raw_otp_result = await verify_otp_async(
                 normalized_phone, user_data.otp, device_key=device_key, delete_on_success=False
             )
+            otp_result = OTPVerifyResultPayload(**raw_otp_result)
             otp_valid = otp_result.valid
             logger.info(f"[REGISTER] OTP verify result: valid={otp_valid}")
             if not otp_valid:
@@ -484,6 +490,18 @@ class ForgotPasswordRequest(BaseModel):
     newPassword: str
     otp: str
     deviceId: Optional[str] = None
+
+class OTPResponsePayload(BaseModel):
+    message: str
+    retry_after_seconds: Optional[int] = None
+    otp: Optional[str] = None
+    resend_available_in_seconds: Optional[int] = None
+    sent: Optional[bool] = False
+
+class OTPVerifyResultPayload(BaseModel):
+    valid: bool
+    message: str
+
     msg91Token: Optional[str] = None
 
 
@@ -501,7 +519,8 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):
                 raise HTTPException(status_code=400, detail="Invalid verification token")
         else:
             device_key = (data.deviceId or "default").strip() or "default"
-            otp_result = await verify_otp_async(normalized_phone, data.otp, device_key=device_key)
+            raw_otp_result = await verify_otp_async(normalized_phone, data.otp, device_key=device_key)
+            otp_result = OTPVerifyResultPayload(**raw_otp_result)
             otp_valid = otp_result.valid
             if not otp_valid:
                 err_msg = otp_result.message
