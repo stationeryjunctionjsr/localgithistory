@@ -36,7 +36,7 @@ class MySQLDeliveryChargesDAO:
             conditions = []
             params = {}
             
-            query_map = {'locationId': 'location_id', 'pincode': 'pincode', 'state': 'state', 'city': 'city', 'district': 'district', 'applyDefaultCharge': 'apply_default_charge', 'charge': 'charge', 'minCartValue': 'min_cart_value', 'serviceableForCustomer': 'serviceable_for_customer', 'serviceableForRetailer': 'serviceable_for_retailer', 'serviceableForWholesaler': 'serviceable_for_wholesaler', 'isActive': 'is_active', 'description': 'description', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'urgentDeliveryCharge': 'urgent_delivery_charge'}
+            query_map = {'locationId': 'location_id', 'pincode': 'pincode', 'state': 'state', 'city': 'city', 'district': 'district', 'applyDefaultCharge': 'apply_default_charge', 'charge': 'charge', 'minCartValue': 'min_cart_value', 'serviceableForCustomer': 'serviceable_for_customer', 'serviceableForWholesaler': 'serviceable_for_wholesaler', 'isActive': 'is_active', 'description': 'description', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'urgentDeliveryCharge': 'urgent_delivery_charge'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -61,7 +61,7 @@ class MySQLDeliveryChargesDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'locationId': 'location_id', 'pincode': 'pincode', 'state': 'state', 'city': 'city', 'district': 'district', 'applyDefaultCharge': 'apply_default_charge', 'charge': 'charge', 'minCartValue': 'min_cart_value', 'serviceableForCustomer': 'serviceable_for_customer', 'serviceableForRetailer': 'serviceable_for_retailer', 'serviceableForWholesaler': 'serviceable_for_wholesaler', 'isActive': 'is_active', 'description': 'description', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'urgentDeliveryCharge': 'urgent_delivery_charge'}
+            query_map = {'locationId': 'location_id', 'pincode': 'pincode', 'state': 'state', 'city': 'city', 'district': 'district', 'applyDefaultCharge': 'apply_default_charge', 'charge': 'charge', 'minCartValue': 'min_cart_value', 'serviceableForCustomer': 'serviceable_for_customer', 'serviceableForWholesaler': 'serviceable_for_wholesaler', 'isActive': 'is_active', 'description': 'description', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'urgentDeliveryCharge': 'urgent_delivery_charge'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -129,10 +129,6 @@ class MySQLDeliveryChargesDAO:
             cols.append("serviceable_for_customer")
             params["s_serviceableForCustomer"] = data.serviceableForCustomer
 
-        if data.serviceableForRetailer is not None:
-            cols.append("serviceable_for_retailer")
-            params["s_serviceableForRetailer"] = data.serviceableForRetailer
-
         if data.serviceableForWholesaler is not None:
             cols.append("serviceable_for_wholesaler")
             params["s_serviceableForWholesaler"] = data.serviceableForWholesaler
@@ -154,7 +150,7 @@ class MySQLDeliveryChargesDAO:
             params["s_urgentDeliveryCharge"] = data.urgentDeliveryCharge
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['locationId', 'pincode', 'state', 'city', 'district', 'applyDefaultCharge', 'charge', 'minCartValue', 'serviceableForCustomer', 'serviceableForRetailer', 'serviceableForWholesaler', 'isActive', 'description', 'urgentDeliveryAvailable', 'urgentDeliveryCharge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['locationId', 'pincode', 'state', 'city', 'district', 'applyDefaultCharge', 'charge', 'minCartValue', 'serviceableForCustomer', 'serviceableForWholesaler', 'isActive', 'description', 'urgentDeliveryAvailable', 'urgentDeliveryCharge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -208,10 +204,6 @@ class MySQLDeliveryChargesDAO:
         if data.serviceableForCustomer is not None:
             updates.append("serviceable_for_customer = :s_serviceableForCustomer")
             params["s_serviceableForCustomer"] = data.serviceableForCustomer
-
-        if data.serviceableForRetailer is not None:
-            updates.append("serviceable_for_retailer = :s_serviceableForRetailer")
-            params["s_serviceableForRetailer"] = data.serviceableForRetailer
 
         if data.serviceableForWholesaler is not None:
             updates.append("serviceable_for_wholesaler = :s_serviceableForWholesaler")
@@ -296,7 +288,6 @@ class MySQLDeliveryChargesDAO:
         out["charge"] = rm["charge"]
         out["minCartValue"] = rm["min_cart_value"]
         out["serviceableForCustomer"] = bool(rm["serviceable_for_customer"]) if rm["serviceable_for_customer"] is not None else None
-        out["serviceableForRetailer"] = bool(rm["serviceable_for_retailer"]) if rm["serviceable_for_retailer"] is not None else None
         out["serviceableForWholesaler"] = bool(rm["serviceable_for_wholesaler"]) if rm["serviceable_for_wholesaler"] is not None else None
         out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
         out["description"] = rm["description"]

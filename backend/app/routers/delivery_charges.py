@@ -65,6 +65,7 @@ class CsvDeliveryChargeRow(BaseModel):
     minCartValue: Optional[float] = Field(0.0, alias="min_cart_value")
     isActive: Optional[str] = Field("true", alias="is_active")
     serviceableForCustomer: Optional[str] = Field("true", alias="serviceable_for_customer")
+    serviceableForWholesaler: Optional[str] = Field("false", alias="serviceable_for_wholesaler")
     urgentDeliveryAvailable: Optional[str] = Field("false", alias="urgent_delivery_available")
     urgentDeliveryCharge: Optional[str] = Field(None, alias="urgent_delivery_charge")
 
@@ -330,32 +331,37 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
         try:
             row = CsvDeliveryChargeRow.model_validate(raw_row)
             serviceable_for_customer = (row.serviceableForCustomer if row.serviceableForCustomer is not None else "true").lower() == "true"
+            serviceable_for_wholesaler = (row.serviceableForWholesaler if row.serviceableForWholesaler is not None else "false").lower() == "true"
             urgent_delivery_available = (row.urgentDeliveryAvailable if row.urgentDeliveryAvailable is not None else "false").lower() == "true"
 
             # Based on the retail serviceable yes or no, the urgent delivery values will be set.
             if not serviceable_for_customer:
                 urgent_delivery_available = False
-
-            charge_data = {
-                "pincode": (row.pincode or "").strip() or None,
-                "state": (row.state or "").strip(),
-                "city": (row.city or "").strip(),
-                "district": (row.district or "").strip(),
-                "charge": float((row.charge if row.charge is not None else 0)),
-                "minCartValue": float((row.minCartValue if row.minCartValue is not None else 0)),
-                "isActive": (row.isActive if row.isActive is not None else "true").lower() == "true",
-                "serviceableForCustomer": serviceable_for_customer,
-                "urgentDeliveryAvailable": urgent_delivery_available,
-                "urgentDeliveryCharge": float(row.urgentDeliveryCharge)
-                if (row.urgentDeliveryCharge or "").strip()
-                else None,
-            }
-
-            if not charge_data["state"] or not charge_data["city"] or not charge_data["district"]:
+                
+            state_val = (row.state or "").strip()
+            city_val = (row.city or "").strip()
+            district_val = (row.district or "").strip()
+            
+            if not state_val or not city_val or not district_val:
                 errors.append({"row": raw_row, "error": "Missing required fields: state, city, or district"})
                 continue
 
-            await delivery_charge_repository.create(charge_data)
+            from app.models.daos_flat import DeliveryChargeInternalCreate
+            internal_model = DeliveryChargeInternalCreate(
+                pincode=(row.pincode or "").strip() or None,
+                state=state_val,
+                city=city_val,
+                district=district_val,
+                charge=float(row.charge if row.charge is not None else 0),
+                minCartValue=float(row.minCartValue if row.minCartValue is not None else 0),
+                isActive=(row.isActive if row.isActive is not None else "true").lower() == "true",
+                serviceableForCustomer=serviceable_for_customer,
+                serviceableForWholesaler=serviceable_for_wholesaler,
+                urgentDeliveryAvailable=urgent_delivery_available,
+                urgentDeliveryCharge=float(row.urgentDeliveryCharge) if (row.urgentDeliveryCharge or "").strip() else None
+            )
+
+            await delivery_charge_repository.create(internal_model)
             success_count += 1
         except Exception as e:
             errors.append({"row": raw_row, "error": str(e)})

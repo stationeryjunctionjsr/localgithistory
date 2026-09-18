@@ -256,7 +256,6 @@ FLAT_RELATIONAL_DAOS = {
             "charge": "charge",
             "minCartValue": "min_cart_value",
             "serviceableForCustomer": "serviceable_for_customer",
-            "serviceableForRetailer": "serviceable_for_retailer",
             "serviceableForWholesaler": "serviceable_for_wholesaler",
             "isActive": "is_active",
             "description": "description",
@@ -267,7 +266,6 @@ FLAT_RELATIONAL_DAOS = {
             {
                 "applyDefaultCharge",
                 "serviceableForCustomer",
-                "serviceableForRetailer",
                 "serviceableForWholesaler",
                 "isActive",
                 "urgentDeliveryAvailable",

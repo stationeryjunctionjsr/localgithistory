@@ -348,7 +348,6 @@ class DeliveryChargeInternal(BaseModel):
     charge: Optional[float] = None
     minCartValue: Optional[float] = None
     serviceableForCustomer: Optional[bool] = None
-    serviceableForRetailer: Optional[bool] = None
     serviceableForWholesaler: Optional[bool] = None
     isActive: Optional[bool] = None
     description: Optional[str] = None
@@ -370,7 +369,6 @@ class DeliveryChargeInternalCreate(BaseModel):
     charge: Optional[float] = None
     minCartValue: Optional[float] = None
     serviceableForCustomer: Optional[bool] = None
-    serviceableForRetailer: Optional[bool] = None
     serviceableForWholesaler: Optional[bool] = None
     isActive: Optional[bool] = None
     description: Optional[str] = None
@@ -390,7 +388,6 @@ class DeliveryChargeInternalUpdate(BaseModel):
     charge: Optional[float] = None
     minCartValue: Optional[float] = None
     serviceableForCustomer: Optional[bool] = None
-    serviceableForRetailer: Optional[bool] = None
     serviceableForWholesaler: Optional[bool] = None
     isActive: Optional[bool] = None
     description: Optional[str] = None
