@@ -217,8 +217,8 @@ class MySQLCategoryDAO:
             from app.models.daos import CategoryChildrenData
             dummy_merged = CategoryChildrenData(
                 images=update_data.images if update_data.images is not None else existing.images,
-                subCategories=update_data.subCategories if update_data.subCategories is not None else getattr(existing, 'subCategories', getattr(existing, 'sub_categories', [])),
-                categoryTags=update_data.categoryTags if update_data.categoryTags is not None else getattr(existing, 'categoryTags', getattr(existing, 'category_tags', []))
+                subCategories=update_data.subCategories if update_data.subCategories is not None else existing.sub_categories,
+                categoryTags=update_data.categoryTags if update_data.categoryTags is not None else existing.category_tags
             )
             await self._replace_children(session, cid, dummy_merged)
             await session.commit()
