@@ -36,6 +36,8 @@ class User(BaseModel):
     effective_role: Optional[str] = Field(default=None, alias="effectiveRole")
     allow_delivery_slots: Optional[bool] = Field(default=True, alias="allowDeliverySlots")
     allow_urgent_delivery: Optional[bool] = Field(default=True, alias="allowUrgentDelivery")
+    upi_id: Optional[str] = Field(default=None, alias="upiId")
+    qr_code_url: Optional[str] = Field(default=None, alias="qrCodeUrl")
 
 User.model_rebuild()
 

@@ -1622,6 +1622,8 @@ class UserInternalCreate(BaseModel):
     isEmailVerified: bool = False
     allowDeliverySlots: Optional[bool] = None
     allowUrgentDelivery: Optional[bool] = None
+    upiId: Optional[str] = None
+    qrCodeUrl: Optional[str] = None
     # Device / verification metadata captured at registration time.
     # otp is intentionally excluded — it is verified and deleted before create() is called.
     deviceId: Optional[str] = None
@@ -1653,6 +1655,8 @@ class UserInternalUpdate(BaseModel):
     allowDeliverySlots: Optional[bool] = None
     allowUrgentDelivery: Optional[bool] = None
     commissionOverridePct: Optional[float] = None
+    upiId: Optional[str] = None
+    qrCodeUrl: Optional[str] = None
 
 
 # --- Shared Payload DTOs ---
