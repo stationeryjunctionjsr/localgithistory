@@ -6,6 +6,7 @@ from app.models.daos import CustomerSegmentFilters
 
 class ReturnSettingsInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     returnDays: Optional[int] = None
     createdAt: Optional[str] = None
@@ -13,14 +14,17 @@ class ReturnSettingsInternal(BaseModel):
 
 class ReturnSettingsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     returnDays: Optional[int] = None
 
 class ReturnSettingsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     returnDays: Optional[int] = None
 
 class SchemeInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
@@ -37,6 +41,7 @@ class SchemeInternal(BaseModel):
 
 class SchemeInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
     discountType: Optional[str] = None
@@ -50,6 +55,7 @@ class SchemeInternalCreate(BaseModel):
 
 class SchemeInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
     discountType: Optional[str] = None
@@ -63,6 +69,7 @@ class SchemeInternalUpdate(BaseModel):
 
 class ContactInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     email: Optional[str] = None
     description: Optional[str] = None
@@ -76,6 +83,7 @@ class ContactInternal(BaseModel):
 
 class ContactInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     email: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
@@ -86,6 +94,7 @@ class ContactInternalCreate(BaseModel):
 
 class ContactInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     email: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
@@ -96,6 +105,7 @@ class ContactInternalUpdate(BaseModel):
 
 class OrderFeedbackInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     comment: Optional[str] = None
     deliveryComment: Optional[str] = None
@@ -109,6 +119,7 @@ class OrderFeedbackInternal(BaseModel):
 
 class OrderFeedbackInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     comment: Optional[str] = None
     deliveryComment: Optional[str] = None
     deliveryRating: Optional[int] = None
@@ -119,6 +130,7 @@ class OrderFeedbackInternalCreate(BaseModel):
 
 class OrderFeedbackInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     comment: Optional[str] = None
     deliveryComment: Optional[str] = None
     deliveryRating: Optional[int] = None
@@ -129,6 +141,7 @@ class OrderFeedbackInternalUpdate(BaseModel):
 
 class PromoStripsInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     isActive: Optional[bool] = None
     text: Optional[str] = None
@@ -137,11 +150,13 @@ class PromoStripsInternal(BaseModel):
 
 class DeviceKeyInternal(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     key: str
     value: str
 
 class DeviceSubscriptionInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     userId: Optional[str] = None
     endpoint: Optional[str] = None
@@ -152,6 +167,7 @@ class DeviceSubscriptionInternal(BaseModel):
 
 class DeviceSubscriptionInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     userId: Optional[str] = None
     endpoint: Optional[str] = None
     expoToken: Optional[str] = None
@@ -159,6 +175,7 @@ class DeviceSubscriptionInternalCreate(BaseModel):
 
 class DeviceSubscriptionInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     userId: Optional[str] = None
     endpoint: Optional[str] = None
     expoToken: Optional[str] = None
@@ -166,6 +183,8 @@ class DeviceSubscriptionInternalUpdate(BaseModel):
 
 class CollectionInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
+    externalId: Optional[str] = None
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
@@ -181,6 +200,8 @@ class CollectionInternal(BaseModel):
 
 class CollectionInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
+    externalId: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
@@ -193,6 +214,8 @@ class CollectionInternalCreate(BaseModel):
 
 class CollectionInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
+    externalId: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
@@ -205,6 +228,7 @@ class CollectionInternalUpdate(BaseModel):
 
 class SearchTagInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     tagId: Optional[str] = None
     name: Optional[str] = None
@@ -221,6 +245,7 @@ class SearchTagInternal(BaseModel):
 
 class SearchTagInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     tagId: Optional[str] = None
     name: Optional[str] = None
     type: Optional[str] = None
@@ -234,6 +259,7 @@ class SearchTagInternalCreate(BaseModel):
 
 class SearchTagInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     tagId: Optional[str] = None
     name: Optional[str] = None
     type: Optional[str] = None
@@ -247,6 +273,7 @@ class SearchTagInternalUpdate(BaseModel):
 
 class CoachMarkInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     anchorId: Optional[str] = None
     title: Optional[str] = None
@@ -259,6 +286,7 @@ class CoachMarkInternal(BaseModel):
 
 class CoachMarkInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     anchorId: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
@@ -268,6 +296,7 @@ class CoachMarkInternalCreate(BaseModel):
 
 class CoachMarkInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     anchorId: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
@@ -277,6 +306,7 @@ class CoachMarkInternalUpdate(BaseModel):
 
 class CategoryTagInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
@@ -286,24 +316,28 @@ class CategoryTagInternal(BaseModel):
 
 class CategoryTagInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
 
 class CategoryTagInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
 
 class DeliveryChargeTierInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     min: Optional[float] = None
     max: Optional[float] = None
     charge: Optional[float] = None
 
 class DeliveryChargeInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     locationId: Optional[int] = None
     pincode: Optional[str] = None
@@ -326,6 +360,7 @@ class DeliveryChargeInternal(BaseModel):
 
 class DeliveryChargeInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     locationId: Optional[int] = None
     pincode: Optional[str] = None
     state: Optional[str] = None
@@ -345,6 +380,7 @@ class DeliveryChargeInternalCreate(BaseModel):
 
 class DeliveryChargeInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     locationId: Optional[int] = None
     pincode: Optional[str] = None
     state: Optional[str] = None
@@ -364,6 +400,7 @@ class DeliveryChargeInternalUpdate(BaseModel):
 
 class DeliveryChargeDefaultInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     applicableToWholesaler: Optional[bool] = None
     applicableToRetailer: Optional[bool] = None
@@ -374,6 +411,7 @@ class DeliveryChargeDefaultInternal(BaseModel):
 
 class DeliveryChargeDefaultInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     applicableToWholesaler: Optional[bool] = None
     applicableToRetailer: Optional[bool] = None
     isActive: Optional[bool] = None
@@ -381,6 +419,7 @@ class DeliveryChargeDefaultInternalCreate(BaseModel):
 
 class DeliveryChargeDefaultInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     applicableToWholesaler: Optional[bool] = None
     applicableToRetailer: Optional[bool] = None
     isActive: Optional[bool] = None
@@ -388,6 +427,7 @@ class DeliveryChargeDefaultInternalUpdate(BaseModel):
 
 class DeliveryZoneInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
@@ -401,6 +441,7 @@ class DeliveryZoneInternal(BaseModel):
 
 class DeliveryZoneInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
     defaultCapacity: Optional[int] = None
@@ -411,6 +452,7 @@ class DeliveryZoneInternalCreate(BaseModel):
 
 class DeliveryZoneInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
     defaultCapacity: Optional[int] = None
@@ -421,6 +463,7 @@ class DeliveryZoneInternalUpdate(BaseModel):
 
 class DeliverySlotInternal(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = None
     startTime: Optional[str] = None
     endTime: Optional[str] = None
@@ -432,6 +475,7 @@ class DeliverySlotInternal(BaseModel):
 
 class DeliverySlotConfigInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     segment: Optional[str] = None
     date: Optional[str] = None
@@ -443,6 +487,7 @@ class DeliverySlotConfigInternal(BaseModel):
 
 class DeliverySlotConfigInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     segment: Optional[str] = None
     date: Optional[str] = None
     zoneId: Optional[str] = None
@@ -451,6 +496,7 @@ class DeliverySlotConfigInternalCreate(BaseModel):
 
 class DeliverySlotConfigInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     segment: Optional[str] = None
     date: Optional[str] = None
     zoneId: Optional[str] = None
@@ -460,6 +506,7 @@ class DeliverySlotConfigInternalUpdate(BaseModel):
 
 class CustomerSegmentInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     externalId: Optional[str] = None
     type: Optional[str] = None
@@ -473,6 +520,7 @@ class CustomerSegmentInternal(BaseModel):
 
 class CustomerSegmentInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     type: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -482,6 +530,7 @@ class CustomerSegmentInternalCreate(BaseModel):
 
 class CustomerSegmentInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
@@ -490,11 +539,13 @@ class CustomerSegmentInternalUpdate(BaseModel):
 
 class CouponQuantityTierInternal(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     minQuantity: Optional[int] = None
     discountValue: Optional[float] = None
 
 class CouponInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     externalId: Optional[str] = None
     code: Optional[str] = None
@@ -524,6 +575,7 @@ class CouponInternal(BaseModel):
 
 class CouponInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     code: Optional[str] = None
     discountType: Optional[str] = None
     discountValue: Optional[float] = None
@@ -549,6 +601,7 @@ class CouponInternalCreate(BaseModel):
 
 class CouponInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     code: Optional[str] = None
     discountType: Optional[str] = None
     discountValue: Optional[float] = None
@@ -574,16 +627,19 @@ class CouponInternalUpdate(BaseModel):
 
 class PromoStripsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     isActive: Optional[bool] = None
     text: Optional[str] = None
 
 class PromoStripsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     isActive: Optional[bool] = None
     text: Optional[str] = None
 
 class PushNotificationsInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     title: Optional[str] = None
     message: Optional[str] = None
@@ -603,6 +659,7 @@ class PushNotificationsInternal(BaseModel):
 
 class PushNotificationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     createdBy: Optional[str] = None
     deliveredCount: Optional[int] = None
     image: Optional[str] = None
@@ -622,6 +679,7 @@ class PushNotificationsInternalCreate(BaseModel):
 
 class PushNotificationsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     createdBy: Optional[str] = None
     deliveredCount: Optional[int] = None
     image: Optional[str] = None
@@ -636,6 +694,7 @@ class PushNotificationsInternalUpdate(BaseModel):
 
 class CoachMarksInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     anchorId: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
@@ -645,6 +704,7 @@ class CoachMarksInternalCreate(BaseModel):
 
 class CoachMarksInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     anchorId: Optional[str] = None
     description: Optional[str] = None
     isActive: Optional[bool] = None
@@ -654,18 +714,21 @@ class CoachMarksInternalUpdate(BaseModel):
 
 class CategoryTagsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     description: Optional[str] = None
     isActive: Optional[bool] = None
     name: Optional[str] = None
 
 class CategoryTagsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     description: Optional[str] = None
     isActive: Optional[bool] = None
     name: Optional[str] = None
 
 class Google_reviewsInternal(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     externalId: Optional[str] = None
     lastUpdated: Optional[str] = None
@@ -677,6 +740,7 @@ class Google_reviewsInternal(BaseModel):
 
 class Google_reviewsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     lastUpdated: Optional[str] = None
     method: Optional[str] = None
     rating: Optional[float] = None
@@ -684,6 +748,7 @@ class Google_reviewsInternalCreate(BaseModel):
 
 class Google_reviewsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     lastUpdated: Optional[str] = None
     method: Optional[str] = None
     rating: Optional[float] = None
@@ -691,6 +756,7 @@ class Google_reviewsInternalUpdate(BaseModel):
 
 class StockReservationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     expiresAt: Optional[str] = None
     productId: Optional[str] = None
     quantity: Optional[int] = None
@@ -699,6 +765,7 @@ class StockReservationsInternalCreate(BaseModel):
 
 class StockReservationsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     expiresAt: Optional[str] = None
     productId: Optional[str] = None
     quantity: Optional[int] = None
@@ -707,6 +774,7 @@ class StockReservationsInternalUpdate(BaseModel):
 
 class ProductNotificationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     email: Optional[str] = None
     phone: Optional[str] = None
     productId: Optional[str] = None
@@ -715,6 +783,7 @@ class ProductNotificationsInternalCreate(BaseModel):
 
 class ProductNotificationsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     email: Optional[str] = None
     phone: Optional[str] = None
     productId: Optional[str] = None
@@ -723,6 +792,7 @@ class ProductNotificationsInternalUpdate(BaseModel):
 
 class ProductReviewsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     productId: Optional[str] = None
     rating: Optional[int] = None
     reviewText: Optional[str] = None
@@ -731,6 +801,7 @@ class ProductReviewsInternalCreate(BaseModel):
 
 class ProductReviewsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     productId: Optional[str] = None
     rating: Optional[int] = None
     reviewText: Optional[str] = None
@@ -739,16 +810,19 @@ class ProductReviewsInternalUpdate(BaseModel):
 
 class ClassificationTagsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     isActive: Optional[bool] = None
     name: Optional[str] = None
 
 class ClassificationTagsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     isActive: Optional[bool] = None
     name: Optional[str] = None
 
 class ReviewClassificationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     category: Optional[str] = None
     confidenceScore: Optional[float] = None
     reviewId: Optional[str] = None
@@ -756,6 +830,7 @@ class ReviewClassificationsInternalCreate(BaseModel):
 
 class ReviewClassificationsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     category: Optional[str] = None
     confidenceScore: Optional[float] = None
     reviewId: Optional[str] = None
@@ -763,6 +838,7 @@ class ReviewClassificationsInternalUpdate(BaseModel):
 
 class AboutUsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     content: Optional[str] = None
     isPublished: Optional[bool] = None
     title: Optional[str] = None
@@ -770,6 +846,7 @@ class AboutUsInternalCreate(BaseModel):
 
 class AboutUsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     content: Optional[str] = None
     isPublished: Optional[bool] = None
     title: Optional[str] = None
@@ -777,6 +854,7 @@ class AboutUsInternalUpdate(BaseModel):
 
 class PrivacyPolicyInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     content: Optional[str] = None
     effectiveDate: Optional[str] = None
     isActive: Optional[bool] = None
@@ -784,6 +862,7 @@ class PrivacyPolicyInternalCreate(BaseModel):
 
 class PrivacyPolicyInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     content: Optional[str] = None
     effectiveDate: Optional[str] = None
     isActive: Optional[bool] = None
@@ -791,6 +870,7 @@ class PrivacyPolicyInternalUpdate(BaseModel):
 
 class AvailabilityRequestsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     pincode: Optional[str] = None
     productId: Optional[str] = None
     productName: Optional[str] = None
@@ -799,6 +879,7 @@ class AvailabilityRequestsInternalCreate(BaseModel):
 
 class AvailabilityRequestsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     pincode: Optional[str] = None
     productId: Optional[str] = None
     productName: Optional[str] = None
@@ -807,6 +888,7 @@ class AvailabilityRequestsInternalUpdate(BaseModel):
 
 class PincodeSearchesInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     isServiceable: Optional[bool] = None
     pincode: Optional[str] = None
     query: Optional[str] = None
@@ -814,6 +896,7 @@ class PincodeSearchesInternalCreate(BaseModel):
 
 class PincodeSearchesInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     isServiceable: Optional[bool] = None
     pincode: Optional[str] = None
     query: Optional[str] = None
@@ -821,6 +904,7 @@ class PincodeSearchesInternalUpdate(BaseModel):
 
 class SystemSettingsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     allowSignups: Optional[bool] = None
     defaultCurrency: Optional[str] = None
     maintenanceMode: Optional[bool] = None
@@ -829,6 +913,7 @@ class SystemSettingsInternalCreate(BaseModel):
 
 class SystemSettingsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     allowSignups: Optional[bool] = None
     defaultCurrency: Optional[str] = None
     maintenanceMode: Optional[bool] = None
@@ -837,16 +922,19 @@ class SystemSettingsInternalUpdate(BaseModel):
 
 class ValetPayoutSettingsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     deliveryChargePerOrder: Optional[float] = None
     returnPickupChargePerOrder: Optional[float] = None
 
 class ValetPayoutSettingsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    externalId: Optional[str] = Field(None, alias='externalId')
     deliveryChargePerOrder: Optional[float] = None
     returnPickupChargePerOrder: Optional[float] = None
 
 class SupportTicketInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     ticketNumber: str
     user: Optional[str] = None
     name: Optional[str] = None
@@ -867,6 +955,7 @@ class SupportTicketInternalCreate(BaseModel):
 
 class SupportTicketInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    externalId: Optional[str] = Field(None, alias='externalId')
     assignedTo: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None

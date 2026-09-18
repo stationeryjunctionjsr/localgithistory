@@ -492,7 +492,7 @@ class ForgotPasswordRequest(BaseModel):
     deviceId: Optional[str] = None
 
 class OTPResponsePayload(BaseModel):
-    message: str
+    message: Optional[str] = None
     retry_after_seconds: Optional[int] = None
     otp: Optional[str] = None
     resend_available_in_seconds: Optional[int] = None

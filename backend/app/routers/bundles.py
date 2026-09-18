@@ -2,7 +2,7 @@ from app.models.user import User
 from app.models.schemas import MessageResponse, BundleResponse, BundlesListResponse
 from app.models.daos import BundleInternalCreate, BundleInternalUpdate, BundleItemInternal
 from typing import Dict, Any, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, AliasChoices
 
 
 
@@ -31,7 +31,7 @@ import uuid
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, AliasChoices
 
 from app.repositories.bundle_repository import bundle_repository
 from app.repositories.product_repository import product_repository
@@ -54,7 +54,7 @@ class CreateBundleRequest(BaseModel):
     name: str
     description: Optional[str] = None
     price: float
-    items: List[BundleItemSchema]
+    items: List[BundleItemSchema] = Field(..., validation_alias=AliasChoices("items", "products"))
     imageUrl: Optional[str] = None
     images: Optional[List[str]] = None
     displayImage: Optional[str] = None
@@ -70,7 +70,7 @@ class UpdateBundleRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
-    items: Optional[List[BundleItemSchema]] = None
+    items: Optional[List[BundleItemSchema]] = Field(None, validation_alias=AliasChoices("items", "products"))
     imageUrl: Optional[str] = None
     images: Optional[List[str]] = None
     displayImage: Optional[str] = None
@@ -158,7 +158,7 @@ async def _enrich_bundle(bundle) -> Dict:
     }
 
 
-async def _validate_bundle_items(items: List[BundleItemSchema]):
+async def _validate_bundle_items(items: List[BundleItemSchema] = Field(..., validation_alias=AliasChoices("items", "products"))):
     """Raise 400 if any product doesn't exist or has qty < 1."""
     for item in items:
         if item.quantity < 1:
