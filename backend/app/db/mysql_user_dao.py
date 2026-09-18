@@ -22,8 +22,8 @@ def _map_to_schema(r, children: Dict) -> User:
     is_seller_admin_val = r.is_seller_admin
     is_on_duty_val = r.is_on_duty
     commission_override_val = r.commission_override_pct
-    allow_delivery_slots = getattr(r, 'allow_delivery_slots', True)
-    allow_urgent_delivery = getattr(r, 'allow_urgent_delivery', True)
+    allow_delivery_slots = r.allow_delivery_slots
+    allow_urgent_delivery = r.allow_urgent_delivery
     return User(**{'_id': str(r.id), 'userId': r.id, 'userIdFormatted': r.user_id_formatted or (f'USER-{r.id}' if r.id else None), 'name': r.name, 'email': r.email, 'password': r.password_hash, 'role': r.role, 'phone': r.phone or '', 'companyName': r.company_name, 'address': address, 'savedAddresses': saved_addresses, 'isActive': bool(r.is_active) if r.is_active is not None else True, 'approvalStatus': r.approval_status, 'isDeactivated': bool(r.is_deactivated) if r.is_deactivated is not None else False, 'creditLimit': float(r.credit_limit) if r.credit_limit is not None else 0, 'creditUsed': float(r.credit_used) if r.credit_used is not None else 0, 'paymentTerms': clean_terms(r.payment_terms), 'assignedSalesperson': r.assigned_salesperson, 'isEmailVerified': bool(r.is_email_verified) if r.is_email_verified is not None else False, 'referralCode': r.referral_code, 'isSellerAdmin': bool(is_seller_admin_val) if is_seller_admin_val is not None else False, 'sellerPermissions': seller_permissions, 'serviceAreaZones': children['zones'] if 'zones' in children else [], 'isOnDuty': bool(is_on_duty_val) if is_on_duty_val is not None else False, 'commissionOverridePct': float(commission_override_val) if commission_override_val is not None else None, 'allowDeliverySlots': bool(allow_delivery_slots) if allow_delivery_slots is not None else True, 'allowUrgentDelivery': bool(allow_urgent_delivery) if allow_urgent_delivery is not None else True, 'createdAt': r.created_at, 'updatedAt': r.updated_at})
 
 class MySQLUserDAO:

@@ -2,7 +2,7 @@ import logging
 from app.models.user import User
 from app.models.category import Category
 from app.models.schemas import MessageResponse
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field

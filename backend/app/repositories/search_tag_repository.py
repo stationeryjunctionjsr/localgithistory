@@ -113,3 +113,5 @@ class SearchTagRepository:
 
     async def delete(self, id: str) -> bool:
         return await self.storage.delete(id)
+
+search_tag_repository = SearchTagRepository()

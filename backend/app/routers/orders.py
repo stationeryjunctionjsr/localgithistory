@@ -19,7 +19,7 @@ from typing import Dict, Any
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Header, status
 from pydantic import BaseModel
 
 from app.repositories.cart_repository import cart_repository

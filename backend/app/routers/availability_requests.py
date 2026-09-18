@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from pydantic import BaseModel, Field, ConfigDict
-from app.config.rate_limiter import limiter
+from app.utils.limiter import limiter
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_optional_user, require_super_admin
