@@ -29,7 +29,7 @@ class BannerRepository:
             banner.targetAudience = segments[0] if segments else "all"
 
             if rules and len(rules) > 0:
-                banner.position = rules[0]["pageType"] if "pageType" in rules[0] else "homepage"
+                banner.position = (rules[0].pageType if rules[0].pageType else "homepage")
             
             # 4. Ensure required date fields exist for Pydantic validation
             if not banner.startDate:
@@ -86,9 +86,9 @@ class BannerRepository:
                 # Check new rules
                 if not match and rules:
                     for rule in rules:
-                        rule_pg = str(rule["pageType"] if "pageType" in rule else "").lower()
+                        rule_pg = str(rule.pageType if rule.pageType else "").lower()
                         if rule_pg == target_page_type or (is_home_request and rule_pg in homepage_aliases):
-                            page_ids = rule["pageIds"] if "pageIds" in rule else []
+                            page_ids = rule.pageIds if rule.pageIds else []
                             if not page_ids or target_page_id in page_ids:
                                 match = True
                                 break

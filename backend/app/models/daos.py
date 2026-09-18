@@ -90,8 +90,8 @@ class BannerInternalCreate(BaseModel):
     imageUrl: Optional[str] = None
     linkUrl: Optional[str] = None
     displayOrder: Optional[int] = 0
-    startDate: Optional[str] = None
-    endDate: Optional[str] = None
+    startDate: Optional[datetime] = None
+    endDate: Optional[datetime] = None
     isActive: Optional[bool] = True
     isPublished: Optional[bool] = False
     targetAudience: Optional[str] = None
@@ -107,8 +107,8 @@ class BannerInternalUpdate(BaseModel):
     imageUrl: Optional[str] = None
     linkUrl: Optional[str] = None
     displayOrder: Optional[int] = None
-    startDate: Optional[str] = None
-    endDate: Optional[str] = None
+    startDate: Optional[datetime] = None
+    endDate: Optional[datetime] = None
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
     updatedAt: Optional[str] = None

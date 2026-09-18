@@ -131,8 +131,8 @@ class VariantOption(BaseModel):
 
 class VisibilityRuleSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
-    type: Optional[str] = None
-    value: Optional[str] = None
+    pageType: Optional[str] = None
+    pageIds: Optional[List[str]] = None
 
 class SellerPermissionSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -524,8 +524,8 @@ class BannerBase(BaseModel):
     description: Optional[str] = None
     imageUrl: str
     displayOrder: Optional[int] = None
-    startDate: Optional[str] = None
-    endDate: Optional[str] = None
+    startDate: Optional[datetime] = None
+    endDate: Optional[datetime] = None
     isActive: bool = True
     isPublished: bool = False
     visibilityRules: List[VisibilityRuleSnippet] = []
@@ -544,19 +544,21 @@ class BannerUpdate(BaseModel):
     description: Optional[str] = None
     imageUrl: Optional[str] = None
     displayOrder: Optional[int] = None
-    startDate: Optional[str] = None
-    endDate: Optional[str] = None
+    startDate: Optional[datetime] = None
+    endDate: Optional[datetime] = None
     isActive: Optional[bool] = None
     isPublished: Optional[bool] = None
     visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
     userSegments: Optional[List[str]] = None
     linkUrl: Optional[str] = None
+    position: Optional[str] = None
+    targetAudience: Optional[str] = None
 
 
 class BannerResponse(BannerBase):
     id: str = Field(alias="_id")
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: datetime = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')

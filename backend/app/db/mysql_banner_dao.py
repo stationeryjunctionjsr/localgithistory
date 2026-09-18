@@ -86,7 +86,7 @@ class MySQLBannerDAO:
         for rule in (data.visibilityRules if data.visibilityRules is not None else []):
             await session.execute(
                 text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
-                {"bid": bid, "rule": json.dumps({"type": rule.type, "value": rule.value})},
+                {"bid": bid, "rule": json.dumps(rule.model_dump(exclude_unset=True))},
             )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[BannerResponse]:
