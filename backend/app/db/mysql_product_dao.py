@@ -445,15 +445,23 @@ class MySQLProductDAO:
         for variant in (data.variants if data.variants is not None else []) or []:
             await session.execute(
                 text("INSERT INTO sj_product_variants (product_id, sku, price, price_per_case, stock) VALUES (:pid, :sku, :price, :price_per_case, :stock)"),
-                {"pid": pid, "sku": (variant["sku"] if "sku" in variant else None), "price": (variant["price"] if "price" in variant else None), "price_per_case": (variant["pricePerCase"] if "pricePerCase" in variant else None), "stock": (variant["stock"] if "stock" in variant else 0)}
+                {"pid": pid, "sku": variant.sku, "price": variant.price, "price_per_case": variant.pricePerCase, "stock": variant.stock if variant.stock is not None else 0}
             )
             vid = (await session.execute(text("SELECT LAST_INSERT_ID()"))).scalar()
-            attrs = (variant["attributes"] if "attributes" in variant else None) or {}
-            for k, v in attrs.items():
-                await session.execute(
-                    text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"),
-                    {"vid": vid, "k": str(k), "v": str(v)}
-                )
+            attrs = variant.attributes
+            if attrs is not None:
+                if attrs.size is not None:
+                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "size", "v": str(attrs.size)})
+                if attrs.color is not None:
+                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "color", "v": str(attrs.color)})
+                if attrs.material is not None:
+                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "material", "v": str(attrs.material)})
+                if attrs.style is not None:
+                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "style", "v": str(attrs.style)})
+                if attrs.weight is not None:
+                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "weight", "v": str(attrs.weight)})
+                if attrs.flavor is not None:
+                    await session.execute(text("INSERT INTO sj_product_variant_combo_attrs (variant_id, attr_name, attr_value) VALUES (:vid, :k, :v)"), {"vid": vid, "k": "flavor", "v": str(attrs.flavor)})
 
 
         # Insert images
@@ -478,20 +486,23 @@ class MySQLProductDAO:
                 text("INSERT INTO sj_product_tags (product_id, tag) VALUES (:pid, :tag)"), {"pid": pid, "tag": tag}
             )
 
-        # Insert attributes
-        # for attr in (data.variantAttributes if data.variantAttributes is not None else []) or []:
-        # await session.execute(
-        # text("INSERT INTO sj_product_attributes (product_id, attr_name) VALUES (:pid, :attr)"),
-        # {"pid": pid, "attr": attr},
-        # )
-        # 
-        # Insert details
-        for k, v in (data.details or {}).items():
-            await session.execute(
-                text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"),
-                {"pid": pid, "k": k, "v": str(v)},
-            )
-            
+        # Insert details — ProductDetails is a Pydantic model, iterate known fields explicitly
+        details = data.details
+        if details is not None:
+            if details.material is not None:
+                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "material", "v": str(details.material)})
+            if details.weight is not None:
+                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "weight", "v": str(details.weight)})
+            if details.dimensions is not None:
+                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "dimensions", "v": str(details.dimensions)})
+            if details.manufacturer is not None:
+                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "manufacturer", "v": str(details.manufacturer)})
+            if details.origin is not None:
+                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "origin", "v": str(details.origin)})
+            if details.warranty is not None:
+                await session.execute(text("INSERT INTO sj_product_details (product_id, detail_key, detail_value) VALUES (:pid, :k, :v)"), {"pid": pid, "k": "warranty", "v": str(details.warranty)})
+
+
         # Insert sellers
         await session.execute(text("DELETE FROM sj_product_sellers WHERE product_id = :pid_ext"), {"pid_ext": f"PDT-{pid}"})
         for seller in (data.sellers if data.sellers is not None else []):
@@ -541,10 +552,10 @@ class MySQLProductDAO:
                 text(f"""
                     INSERT INTO {self.TABLE} (
                         external_id, name, description, sku, category, sub_category, brand,
-                        mrp, mrp_per_case, quantity_per_case, stock, is_active, created_at, updated_at
+                        mrp, mrp_per_case, quantity_per_case, stock, is_active, rating, reviews, created_at, updated_at
                     ) VALUES (
                         :external_id, :name, :description, :sku, :category, :sub_category, :brand,
-                        :mrp, :mrp_per_case, :quantity_per_case, :stock, :is_active, :created_at, :updated_at
+                        :mrp, :mrp_per_case, :quantity_per_case, :stock, :is_active, :rating, :reviews, :created_at, :updated_at
                     )
                 """),
                 {
@@ -560,6 +571,8 @@ class MySQLProductDAO:
                     "quantity_per_case": data.quantityPerCase,
                     "stock": data.stock if data.stock is not None else 0,
                     "is_active": 1 if data.isActive else 0,
+                    "rating": data.rating if data.rating is not None else 0.0,
+                    "reviews": data.reviews if data.reviews is not None else 0,
                     "created_at": now,
                     "updated_at": now,
                 },

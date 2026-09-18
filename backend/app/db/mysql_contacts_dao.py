@@ -109,8 +109,20 @@ class MySQLContactsDAO:
             cols.append("display_order")
             params["s_displayOrder"] = data.displayOrder
 
+        if data.socialMedia is not None:
+            cols.append("social_media")
+            import json
+            params["s_socialMedia"] = json.dumps({
+                "instagram": data.socialMedia.instagram,
+                "facebook": data.socialMedia.facebook,
+                "twitter": data.socialMedia.twitter,
+                "whatsapp": data.socialMedia.whatsapp,
+                "youtube": data.socialMedia.youtube,
+                "linkedin": data.socialMedia.linkedin
+            })
+
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['email', 'description', 'isActive', 'displayOrder'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['email', 'description', 'isActive', 'displayOrder', 'socialMedia'] if f"s_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -144,6 +156,18 @@ class MySQLContactsDAO:
         if data.displayOrder is not None:
             updates.append("display_order = :s_displayOrder")
             params["s_displayOrder"] = data.displayOrder
+
+        if data.socialMedia is not None:
+            updates.append("social_media = :s_socialMedia")
+            import json
+            params["s_socialMedia"] = json.dumps({
+                "instagram": data.socialMedia.instagram,
+                "facebook": data.socialMedia.facebook,
+                "twitter": data.socialMedia.twitter,
+                "whatsapp": data.socialMedia.whatsapp,
+                "youtube": data.socialMedia.youtube,
+                "linkedin": data.socialMedia.linkedin
+            })
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -205,6 +229,15 @@ class MySQLContactsDAO:
         out["description"] = rm["description"]
         out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
         out["displayOrder"] = rm["display_order"]
+        if "social_media" in rm and rm["social_media"]:
+            import json
+            try:
+                parsed = json.loads(rm["social_media"])
+                if parsed:
+                    from app.models.schemas import SocialMedia
+                    out["socialMedia"] = SocialMedia(**parsed)
+            except (json.JSONDecodeError, TypeError):
+                pass
         for k, v in children.items():
             out[k] = v
             

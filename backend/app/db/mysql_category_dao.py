@@ -33,6 +33,7 @@ class MySQLCategoryDAO:
             "minimumQuantity": r.minimum_quantity,
             "gst": float(r.gst) if r.gst is not None else None,
             "isReturnable": bool(r.is_returnable) if r.is_returnable is not None else True,
+            "showInMobileHomepage": bool(r.show_in_mobile_homepage) if r.show_in_mobile_homepage is not None else False,
             "images": (children["images"] if "images" in children else []),
             "subCategories": (children["subCategories"] if "subCategories" in children else []),
             "categoryTags": (children["categoryTags"] if "categoryTags" in children else []),
@@ -144,11 +145,11 @@ class MySQLCategoryDAO:
                     f"""
                     INSERT INTO {self.TABLE} (
                         external_id, name, description, is_active, category_tag,
-                        minimum_quantity, gst, is_returnable,
+                        minimum_quantity, gst, is_returnable, show_in_mobile_homepage,
                         created_at, updated_at
                     ) VALUES (
                         :external_id, :name, :description, :is_active, :category_tag,
-                        :minimum_quantity, :gst, :is_returnable,
+                        :minimum_quantity, :gst, :is_returnable, :show_in_mobile_homepage,
                         :created_at, :updated_at
                     )
                     """
@@ -162,6 +163,7 @@ class MySQLCategoryDAO:
                     "minimum_quantity": data.minimumQuantity,
                     "gst": data.gst,
                     "is_returnable": int(bool(data.isReturnable)),
+                    "show_in_mobile_homepage": int(bool(data.showInMobileHomepage)),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -194,6 +196,7 @@ class MySQLCategoryDAO:
                         minimum_quantity = :minimum_quantity,
                         gst = :gst,
                         is_returnable = :is_returnable,
+                        show_in_mobile_homepage = :show_in_mobile_homepage,
                         updated_at = :updated_at
                     WHERE id = :id
                     """
@@ -207,15 +210,16 @@ class MySQLCategoryDAO:
                     "minimum_quantity": update_data.minimumQuantity if update_data.minimumQuantity is not None else existing.minimum_quantity,
                     "gst": update_data.gst if update_data.gst is not None else existing.gst,
                     "is_returnable": int(bool(update_data.isReturnable if update_data.isReturnable is not None else existing.is_returnable)),
+                    "show_in_mobile_homepage": int(bool(update_data.showInMobileHomepage if update_data.showInMobileHomepage is not None else existing.show_in_mobile_homepage)),
                     "updated_at": now,
                 },
             )
-            class DummyMerged:
-                pass
-            dummy_merged = DummyMerged()
-            dummy_merged.images = update_data.images if update_data.images is not None else existing.images
-            dummy_merged.subCategories = update_data.subCategories if update_data.subCategories is not None else existing.sub_categories
-            dummy_merged.categoryTags = update_data.categoryTags if update_data.categoryTags is not None else existing.category_tags
+            from app.models.daos import CategoryChildrenData
+            dummy_merged = CategoryChildrenData(
+                images=update_data.images if update_data.images is not None else existing.images,
+                subCategories=update_data.subCategories if update_data.subCategories is not None else getattr(existing, 'subCategories', getattr(existing, 'sub_categories', [])),
+                categoryTags=update_data.categoryTags if update_data.categoryTags is not None else getattr(existing, 'categoryTags', getattr(existing, 'category_tags', []))
+            )
             await self._replace_children(session, cid, dummy_merged)
             await session.commit()
         return await self.findById(id)

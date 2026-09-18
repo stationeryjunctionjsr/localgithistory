@@ -57,8 +57,16 @@ class CartRepository:
         )
 
         if existing_item_index is not None:
-            items[existing_item_index]["quantity"] += (item.quantity if item.quantity is not None else 0)
-            items[existing_item_index]["price"] = item.price
+            old = items[existing_item_index]
+            items[existing_item_index] = CartItemInternal(
+                product=old.product,
+                quantity=(old.quantity if old.quantity is not None else 0) + (item.quantity if item.quantity is not None else 0),
+                price=item.price,
+                sellAsCase=old.sellAsCase,
+                bundleId=old.bundleId,
+                bundleName=old.bundleName,
+                variantAttributes=old.variantAttributes,
+            )
         else:
             items.append(item)
 

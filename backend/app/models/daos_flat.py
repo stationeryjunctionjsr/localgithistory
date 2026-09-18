@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, Optional, Dict, List
 from datetime import datetime
-from app.models.schemas import TicketResponseItemInternal
+from app.models.schemas import TicketResponseItemInternal, SocialMedia
 from app.models.daos import CustomerSegmentFilters
 
 class ReturnSettingsInternal(BaseModel):
@@ -72,6 +72,7 @@ class ContactInternal(BaseModel):
     phoneNumbers: Optional[List[str]] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
+    socialMedia: Optional[SocialMedia] = None
 
 class ContactInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -81,6 +82,7 @@ class ContactInternalCreate(BaseModel):
     displayOrder: Optional[int] = None
     addresses: Optional[List[str]] = None
     phoneNumbers: Optional[List[str]] = None
+    socialMedia: Optional[SocialMedia] = None
 
 class ContactInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -90,6 +92,7 @@ class ContactInternalUpdate(BaseModel):
     displayOrder: Optional[int] = None
     addresses: Optional[List[str]] = None
     phoneNumbers: Optional[List[str]] = None
+    socialMedia: Optional[SocialMedia] = None
 
 class OrderFeedbackInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')

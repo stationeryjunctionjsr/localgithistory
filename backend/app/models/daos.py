@@ -1,4 +1,4 @@
-﻿from typing import List, Optional, Any
+from typing import List, Optional, Any
 from pydantic import BaseModel, ConfigDict, Field
 from app.models.schemas import (
     VisibilityRuleSnippet, ProductDetails, VariantAttributes,
@@ -92,7 +92,7 @@ class BannerInternalCreate(BaseModel):
     position: Optional[str] = None
 
 class BannerInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid')
     title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
@@ -108,6 +108,10 @@ class BannerInternalUpdate(BaseModel):
     userSegments: Optional[List[str]] = None
     visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
     position: Optional[str] = None
+
+class BannerChildrenData(BaseModel):
+    userSegments: Optional[List[str]] = None
+    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
 
 class SellerPayoutInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -321,6 +325,11 @@ class ProductInternalCreate(BaseModel):
     details: Optional[ProductDetails] = None
     videos: Optional[List[str]] = []
     quantityPerCase: Optional[int] = None
+    rating: Optional[float] = None
+    reviews: Optional[int] = None
+    isExclusive: Optional[bool] = None
+    collection: Optional[str] = None
+    catalogSellerIds: Optional[List[str]] = None
 
 class ProductInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -366,6 +375,11 @@ class CategoryInternalCreate(BaseModel):
     showInMobileHomepage: Optional[bool] = False
     gst: Optional[float] = None
     isReturnable: Optional[bool] = True
+
+class CategoryChildrenData(BaseModel):
+    images: Optional[List[str]] = None
+    subCategories: Optional[List[str]] = None
+    categoryTags: Optional[List[str]] = None
 
 class CategoryInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')

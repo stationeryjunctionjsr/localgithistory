@@ -80,7 +80,7 @@ class MySQLCartDAO:
                 items_result = await session.execute(
                     text(
                         f"""
-                        SELECT cart_id, product_id, quantity, sell_as_case, bundle_id, bundle_name
+                        SELECT cart_id, product_id, quantity, sell_as_case, bundle_id, bundle_name, variant_attributes
                         FROM {self.ITEMS_TABLE}
                         WHERE cart_id IN ({placeholders})
                         ORDER BY id ASC
@@ -89,6 +89,16 @@ class MySQLCartDAO:
                     chunk_params,
                 )
                 for ir in items_result.fetchall():
+                    variant_attrs = None
+                    if ir.variant_attributes:
+                        try:
+                            import json
+                            parsed = json.loads(ir.variant_attributes)
+                            from app.models.schemas import VariantAttributes
+                            if parsed:
+                                variant_attrs = VariantAttributes(**parsed)
+                        except (json.JSONDecodeError, TypeError, ValueError):
+                            pass
                     items_map[ir.cart_id].append(
                         {
                             "product": str(ir.product_id),
@@ -96,6 +106,7 @@ class MySQLCartDAO:
                             "sellAsCase": bool(ir.sell_as_case),
                             "bundleId": str(ir.bundle_id) if ir.bundle_id else None,
                             "bundleName": str(ir.bundle_name) if ir.bundle_name else None,
+                            "variantAttributes": variant_attrs
                         }
                     )
 
@@ -121,12 +132,23 @@ class MySQLCartDAO:
             sell_as_case = 1 if it.sellAsCase else 0
             bundle_id = it.bundleId
             bundle_name = it.bundleName
+            import json
+            var_attrs = None
+            if it.variantAttributes:
+                var_attrs = json.dumps({
+                    "size": it.variantAttributes.size,
+                    "color": it.variantAttributes.color,
+                    "material": it.variantAttributes.material,
+                    "style": it.variantAttributes.style,
+                    "weight": it.variantAttributes.weight,
+                    "flavor": it.variantAttributes.flavor
+                })
 
             await session.execute(
                 text(
                     f"""
-                    INSERT INTO {self.ITEMS_TABLE} (cart_id, product_id, quantity, sell_as_case, bundle_id, bundle_name)
-                    VALUES (:cart_id, :product_id, :quantity, :sell_as_case, :bundle_id, :bundle_name)
+                    INSERT INTO {self.ITEMS_TABLE} (cart_id, product_id, quantity, sell_as_case, bundle_id, bundle_name, variant_attributes)
+                    VALUES (:cart_id, :product_id, :quantity, :sell_as_case, :bundle_id, :bundle_name, :variant_attributes)
                     """
                 ),
                 {
@@ -136,6 +158,7 @@ class MySQLCartDAO:
                     "sell_as_case": sell_as_case,
                     "bundle_id": bundle_id,
                     "bundle_name": bundle_name,
+                    "variant_attributes": var_attrs,
                 },
             )
 

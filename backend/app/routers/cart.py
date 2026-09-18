@@ -189,7 +189,15 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
                 items = (cart.items or [])
                 for i, it in enumerate(items):
                     if it.id == existing_item.id:
-                        items[i].quantity = new_quantity
+                        items[i] = CartItemInternal(
+                            product=it.product,
+                            quantity=new_quantity,
+                            price=it.price,
+                            sellAsCase=it.sellAsCase,
+                            bundleId=it.bundleId,
+                            bundleName=it.bundleName,
+                            variantAttributes=it.variantAttributes,
+                        )
                         break
                 await cart_repository.createOrUpdate(current_user.id, items)
             else:
@@ -272,7 +280,15 @@ async def update_cart_item(
         # Apply update
         for i, it in enumerate(items):
             if it.id == item_id:
-                items[i].quantity = quantity
+                items[i] = CartItemInternal(
+                    product=it.product,
+                    quantity=quantity,
+                    price=it.price,
+                    sellAsCase=it.sellAsCase,
+                    bundleId=it.bundleId,
+                    bundleName=it.bundleName,
+                    variantAttributes=it.variantAttributes,
+                )
                 break
 
         await cart_repository.createOrUpdate(current_user.id, items)

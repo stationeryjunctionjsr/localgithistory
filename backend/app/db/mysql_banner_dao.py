@@ -7,6 +7,7 @@ from app.models.schemas import BannerResponse
 from app.models.daos import BannerInternalCreate, BannerInternalUpdate
 import secrets
 from typing import Dict
+import json
 from app.models.banner import Banner, List, Optional
 
 from sqlalchemy import text
@@ -66,7 +67,10 @@ class MySQLBannerDAO:
                 chunk_params,
             )
             for r in res_vr.fetchall():
-                c_map[r.banner_id]["visibilityRules"].append(r.rule)
+                try:
+                    c_map[r.banner_id]["visibilityRules"].append(json.loads(r.rule))
+                except (json.JSONDecodeError, TypeError):
+                    c_map[r.banner_id]["visibilityRules"].append(r.rule)
         return c_map
 
     async def _replace_children(self, session, bid: int, data: Dict):
@@ -82,7 +86,7 @@ class MySQLBannerDAO:
         for rule in (data.visibilityRules if data.visibilityRules is not None else []):
             await session.execute(
                 text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
-                {"bid": bid, "rule": str(rule)},
+                {"bid": bid, "rule": json.dumps({"type": rule.type, "value": rule.value})},
             )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[BannerResponse]:
@@ -231,12 +235,13 @@ class MySQLBannerDAO:
                     "updated_at": now,
                 },
             )
-            # Need to create a mock object with userSegments and visibilityRules for _replace_children
-            class _UpdateDataWrapper:
-                def __init__(self, obj, existing_obj):
-                    self.userSegments = obj.userSegments if obj.userSegments is not None else (existing_obj.userSegments if existing_obj.userSegments is not None else [])
-                    self.visibilityRules = obj.visibilityRules if obj.visibilityRules is not None else (existing_obj.visibilityRules if existing_obj.visibilityRules is not None else [])
-            await self._replace_children(session, bid, _UpdateDataWrapper(update_data, existing))
+            # Need to pass an object with userSegments and visibilityRules for _replace_children
+            from app.models.daos import BannerChildrenData
+            dummy_merged = BannerChildrenData(
+                userSegments=update_data.userSegments if update_data.userSegments is not None else existing.userSegments,
+                visibilityRules=update_data.visibilityRules if update_data.visibilityRules is not None else existing.visibilityRules
+            )
+            await self._replace_children(session, bid, dummy_merged)
             await session.commit()
         return await self.findById(id)
 

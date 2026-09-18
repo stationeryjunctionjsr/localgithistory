@@ -22,7 +22,9 @@ def _map_to_schema(r, children: Dict) -> User:
     is_seller_admin_val = r.is_seller_admin
     is_on_duty_val = r.is_on_duty
     commission_override_val = r.commission_override_pct
-    return User(**{'_id': str(r.id), 'userId': r.id, 'userIdFormatted': r.user_id_formatted or (f'USER-{r.id}' if r.id else None), 'name': r.name, 'email': r.email, 'password': r.password_hash, 'role': r.role, 'phone': r.phone or '', 'companyName': r.company_name, 'address': address, 'savedAddresses': saved_addresses, 'isActive': bool(r.is_active) if r.is_active is not None else True, 'approvalStatus': r.approval_status, 'isDeactivated': bool(r.is_deactivated) if r.is_deactivated is not None else False, 'creditLimit': float(r.credit_limit) if r.credit_limit is not None else 0, 'creditUsed': float(r.credit_used) if r.credit_used is not None else 0, 'paymentTerms': clean_terms(r.payment_terms), 'assignedSalesperson': r.assigned_salesperson, 'isEmailVerified': bool(r.is_email_verified) if r.is_email_verified is not None else False, 'referralCode': r.referral_code, 'isSellerAdmin': bool(is_seller_admin_val) if is_seller_admin_val is not None else False, 'sellerPermissions': seller_permissions, 'serviceAreaZones': children['zones'] if 'zones' in children else [], 'isOnDuty': bool(is_on_duty_val) if is_on_duty_val is not None else False, 'commissionOverridePct': float(commission_override_val) if commission_override_val is not None else None, 'createdAt': r.created_at, 'updatedAt': r.updated_at})
+    allow_delivery_slots = getattr(r, 'allow_delivery_slots', True)
+    allow_urgent_delivery = getattr(r, 'allow_urgent_delivery', True)
+    return User(**{'_id': str(r.id), 'userId': r.id, 'userIdFormatted': r.user_id_formatted or (f'USER-{r.id}' if r.id else None), 'name': r.name, 'email': r.email, 'password': r.password_hash, 'role': r.role, 'phone': r.phone or '', 'companyName': r.company_name, 'address': address, 'savedAddresses': saved_addresses, 'isActive': bool(r.is_active) if r.is_active is not None else True, 'approvalStatus': r.approval_status, 'isDeactivated': bool(r.is_deactivated) if r.is_deactivated is not None else False, 'creditLimit': float(r.credit_limit) if r.credit_limit is not None else 0, 'creditUsed': float(r.credit_used) if r.credit_used is not None else 0, 'paymentTerms': clean_terms(r.payment_terms), 'assignedSalesperson': r.assigned_salesperson, 'isEmailVerified': bool(r.is_email_verified) if r.is_email_verified is not None else False, 'referralCode': r.referral_code, 'isSellerAdmin': bool(is_seller_admin_val) if is_seller_admin_val is not None else False, 'sellerPermissions': seller_permissions, 'serviceAreaZones': children['zones'] if 'zones' in children else [], 'isOnDuty': bool(is_on_duty_val) if is_on_duty_val is not None else False, 'commissionOverridePct': float(commission_override_val) if commission_override_val is not None else None, 'allowDeliverySlots': bool(allow_delivery_slots) if allow_delivery_slots is not None else True, 'allowUrgentDelivery': bool(allow_urgent_delivery) if allow_urgent_delivery is not None else True, 'createdAt': r.created_at, 'updatedAt': r.updated_at})
 
 class MySQLUserDAO:
 
@@ -129,7 +131,7 @@ class MySQLUserDAO:
             return []
         where_sql, params = self._build_query_conditions(query or {})
         async with factory() as session:
-            query_str = f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC\n            '
+            query_str = f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, allow_delivery_slots, allow_urgent_delivery,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC\n            '
             if limit is not None:
                 query_str += f' LIMIT {int(limit)}'
             if skip is not None:
@@ -210,7 +212,7 @@ class MySQLUserDAO:
         if not factory or not referral_code:
             return None
         async with factory() as session:
-            row = (await session.execute(text(f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE UPPER(referral_code) = :referral_code LIMIT 1\n            '), {'referral_code': referral_code.upper()})).fetchone()
+            row = (await session.execute(text(f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, allow_delivery_slots, allow_urgent_delivery,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE UPPER(referral_code) = :referral_code LIMIT 1\n            '), {'referral_code': referral_code.upper()})).fetchone()
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
@@ -225,7 +227,7 @@ class MySQLUserDAO:
         async with factory() as session:
             next_id = (await session.execute(text(f'SELECT IFNULL(MAX(id), 0) + 1 FROM {self.TABLE}'))).scalar() or 1
             user_id_formatted = f'USER-{next_id}'
-            await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, upi_id, qr_code_url, created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :upi_id, :qr_code_url, :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.companyName, 'is_active': 1 if (data.isActive if data.isActive is not None else True) else 0, 'approval_status': data.approvalStatus if data.approvalStatus is not None else 'approved', 'is_deactivated': 1 if data.isDeactivated else 0, 'credit_limit': data.creditLimit if data.creditLimit is not None else 0, 'credit_used': data.creditUsed if data.creditUsed is not None else 0, 'payment_terms': str(data.paymentTerms if data.paymentTerms is not None else '30'), 'assigned_salesperson': data.assignedSalesperson, 'is_email_verified': 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else 0, 'referral_code': data.referralCode, 'is_seller_admin': 1 if data.isSellerAdmin else 0, 'is_on_duty': 1 if data.isOnDuty else 0, 'commission_override_pct': data.commissionOverridePct, 'upi_id': data.upiId, 'qr_code_url': data.qrCodeUrl, 'created_at': now, 'updated_at': now})
+            await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, allow_delivery_slots, allow_urgent_delivery, created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :allow_delivery_slots, :allow_urgent_delivery, :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.companyName, 'is_active': 1 if (data.isActive if data.isActive is not None else True) else 0, 'approval_status': data.approvalStatus if data.approvalStatus is not None else 'approved', 'is_deactivated': 1 if data.isDeactivated else 0, 'credit_limit': data.creditLimit if data.creditLimit is not None else 0, 'credit_used': data.creditUsed if data.creditUsed is not None else 0, 'payment_terms': str(data.paymentTerms if data.paymentTerms is not None else '30'), 'assigned_salesperson': data.assignedSalesperson, 'is_email_verified': 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else 0, 'referral_code': data.referralCode, 'is_seller_admin': 1 if data.isSellerAdmin else 0, 'is_on_duty': 1 if data.isOnDuty else 0, 'commission_override_pct': data.commissionOverridePct, 'allow_delivery_slots': 1 if (data.allowDeliverySlots if data.allowDeliverySlots is not None else True) else 0, 'allow_urgent_delivery': 1 if (data.allowUrgentDelivery if data.allowUrgentDelivery is not None else True) else 0, 'created_at': now, 'updated_at': now})
             new_id = (await session.execute(text(f'SELECT id FROM {self.TABLE} WHERE external_id = :eid'), {'eid': external_id})).scalar()
             await self._replace_children(session, new_id, data)
             await session.commit()
@@ -273,8 +275,8 @@ class MySQLUserDAO:
         is_seller_admin = update_data.isSellerAdmin if update_data.isSellerAdmin is not None else existing.is_seller_admin
         is_on_duty = update_data.isOnDuty if update_data.isOnDuty is not None else existing.is_on_duty
         commission_override_pct = update_data.commissionOverridePct if update_data.commissionOverridePct is not None else existing.commission_override_pct
-        upi_id = update_data.upiId if update_data.upiId is not None else existing.upi_id
-        qr_code_url = update_data.qrCodeUrl if update_data.qrCodeUrl is not None else existing.qr_code_url
+        allow_delivery_slots = update_data.allowDeliverySlots if update_data.allowDeliverySlots is not None else existing.allow_delivery_slots
+        allow_urgent_delivery = update_data.allowUrgentDelivery if update_data.allowUrgentDelivery is not None else existing.allow_urgent_delivery
         async with factory() as session:
             await session.execute(text('''
                 UPDATE sj_users SET
@@ -283,7 +285,8 @@ class MySQLUserDAO:
                     is_deactivated = :is_deactivated, credit_limit = :credit_limit, credit_used = :credit_used,
                     payment_terms = :payment_terms, assigned_salesperson = :assigned_salesperson,
                     is_email_verified = :is_email_verified, referral_code = :referral_code, is_seller_admin = :is_seller_admin,
-                    is_on_duty = :is_on_duty, commission_override_pct = :commission_override_pct, upi_id = :upi_id, qr_code_url = :qr_code_url, updated_at = :updated_at
+                    is_on_duty = :is_on_duty, commission_override_pct = :commission_override_pct,
+                    allow_delivery_slots = :allow_delivery_slots, allow_urgent_delivery = :allow_urgent_delivery, updated_at = :updated_at
                 WHERE id = :id
             '''), {
                 'id': int(id) if str(id).isdigit() else None,
@@ -306,8 +309,8 @@ class MySQLUserDAO:
                 'is_seller_admin': 1 if is_seller_admin else 0,
                 'is_on_duty': 1 if is_on_duty else 0,
                 'commission_override_pct': commission_override_pct,
-                'upi_id': upi_id,
-                'qr_code_url': qr_code_url,
+                'allow_delivery_slots': 1 if allow_delivery_slots else 0,
+                'allow_urgent_delivery': 1 if allow_urgent_delivery else 0,
                 'updated_at': now
             })
             

@@ -995,6 +995,11 @@ class ProductRepository:
             variantAttributes=product_data.variantAttributes if product_data.variantAttributes is not None else [],
             details=product_data.details if product_data.details is not None else None,
             sellers=product_data.sellers if product_data.sellers is not None else [],
+            rating=product_data.rating if product_data.rating is not None else None,
+            reviews=product_data.reviews if product_data.reviews is not None else None,
+            isExclusive=product_data.isExclusive if product_data.isExclusive is not None else False,
+            collection=product_data.collection if product_data.collection is not None else None,
+            catalogSellerIds=product_data.catalogSellerIds if product_data.catalogSellerIds is not None else [],
         )
 
         if internal_create.variants:

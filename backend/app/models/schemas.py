@@ -1620,6 +1620,8 @@ class UserInternalCreate(BaseModel):
     assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
     referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
     isEmailVerified: bool = False
+    allowDeliverySlots: Optional[bool] = None
+    allowUrgentDelivery: Optional[bool] = None
     # Device / verification metadata captured at registration time.
     # otp is intentionally excluded — it is verified and deleted before create() is called.
     deviceId: Optional[str] = None
@@ -1648,8 +1650,9 @@ class UserInternalUpdate(BaseModel):
     isEmailVerified: Optional[bool] = None
     sellerPermissions: Optional[list] = None
     serviceAreaZones: Optional[List[str]] = None
-    upiId: Optional[str] = None
-    qrCodeUrl: Optional[str] = None
+    allowDeliverySlots: Optional[bool] = None
+    allowUrgentDelivery: Optional[bool] = None
+    commissionOverridePct: Optional[float] = None
 
 
 # --- Shared Payload DTOs ---
