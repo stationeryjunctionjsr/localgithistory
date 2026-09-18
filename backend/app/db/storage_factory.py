@@ -41,8 +41,26 @@ from app.db.mysql_deliveryZones_dao import MySQLDeliveryZonesDAO
 from app.db.mysql_flat_daos import FLAT_DAOS
 
 from app.db.mysql_user_dao import MySQLUserDAO
-from app.db.mysql_generated_daos import GENERATED_DAOS
 from app.db.mysql_wishlist_dao import MySQLWishlistDAO
+from app.db.mysql_coupons_dao import MySQLCouponsDAO
+from app.db.mysql_activities_dao import MySQLActivitiesDAO
+from app.db.mysql_notifications_dao import MySQLNotificationsDAO
+from app.db.mysql_returnRequests_dao import MySQLReturnRequestsDAO
+from app.db.mysql_returnSettings_dao import MySQLReturnSettingsDAO
+from app.db.mysql_schemes_dao import MySQLSchemesDAO
+from app.db.mysql_contacts_dao import MySQLContactsDAO
+from app.db.mysql_supportTickets_dao import MySQLSupportTicketsDAO
+from app.db.mysql_orderFeedback_dao import MySQLOrderFeedbackDAO
+from app.db.mysql_promoStrips_dao import MySQLPromoStripsDAO
+from app.db.mysql_pushNotifications_dao import MySQLPushNotificationsDAO
+from app.db.mysql_deviceSubscriptions_dao import MySQLDeviceSubscriptionsDAO
+from app.db.mysql_collections_dao import MySQLCollectionsDAO
+from app.db.mysql_searchTags_dao import MySQLSearchTagsDAO
+from app.db.mysql_coachMarks_dao import MySQLCoachMarksDAO
+from app.db.mysql_categoryTags_dao import MySQLCategoryTagsDAO
+from app.db.mysql_deliveryCharges_dao import MySQLDeliveryChargesDAO
+from app.db.mysql_deliveryChargeDefaults_dao import MySQLDeliveryChargeDefaultsDAO
+from app.db.mysql_deliveryZones_dao import MySQLDeliveryZonesDAO
 from app.db.mysql_bundle_dao import MySQLBundleDAO
 from app.db.mysql_customer_segment_dao import MySQLCustomerSegmentDAO
 from app.db.mysql_faq_section_dao import MySQLFaqSectionDAO
@@ -118,8 +136,6 @@ def get_storage(collection_name: str) -> Any:
     """
     if collection_name in _MYSQL_DAO_COLLECTIONS:
         return _MYSQL_DAO_COLLECTIONS[collection_name]()
-    if collection_name in GENERATED_DAOS:
-        return GENERATED_DAOS[collection_name]
     if collection_name in FLAT_DAOS:
         return FLAT_DAOS[collection_name]
     return FileStorage(collection_name)

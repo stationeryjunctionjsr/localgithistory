@@ -127,20 +127,30 @@ class MySQLCommissionSettingsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: Any) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+            
+        pct = existing.defaultCommissionPct
+        if update_data.defaultCommissionPct is not None:
+            pct = update_data.defaultCommissionPct
+            
         now = now_utc()
         factory = self._factory()
 
         async with factory() as session:
             await session.execute(
                 text(f"UPDATE {self.TABLE} SET default_commission_pct = :pct, updated_at = :upd WHERE id = :id"),
-                {"id": int(id) if str(id).isdigit() else None, "pct": (merged.defaultCommissionPct if merged.defaultCommissionPct is not None else 5.0), "upd": now},
+                {"id": int(id) if str(id).isdigit() else None, "pct": pct if pct is not None else 5.0, "upd": now},
             )
-            await self._replace_children(session, int(id) if str(id).isdigit() else None, merged)
+            if update_data.categories is not None or update_data.brands is not None or update_data.products is not None:
+                # Merge existing and new child arrays securely without dictionary unpacking
+                merged_data = type("Merged", (object,), {})()
+                merged_data.categories = update_data.categories if update_data.categories is not None else existing.categories
+                merged_data.brands = update_data.brands if update_data.brands is not None else existing.brands
+                merged_data.products = update_data.products if update_data.products is not None else existing.products
+                await self._replace_children(session, int(id) if str(id).isdigit() else None, merged_data)
             await session.commit()
         return await self.findById(id)
 

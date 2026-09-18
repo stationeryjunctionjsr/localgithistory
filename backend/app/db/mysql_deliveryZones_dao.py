@@ -41,7 +41,7 @@ class MySQLDeliveryZonesDAO:
             query_map["externalId"] = "external_id"
             
             for k, v in kwargs.items():
-                db_col = query_map.get(k, k)
+                db_col = query_map[k] if k in query_map else k
                 conditions.append(f"{db_col} = :{k}")
                 params[k] = v
                 
@@ -68,7 +68,7 @@ class MySQLDeliveryZonesDAO:
             if query:
                 conditions = []
                 for k, v in query.items():
-                    db_col = query_map.get(k, k)
+                    db_col = query_map[k] if k in query_map else k
                     conditions.append(f"{db_col} = :{k}")
                     params[k] = v
                 if conditions:
