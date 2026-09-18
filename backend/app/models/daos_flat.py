@@ -1,6 +1,8 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, Optional, Dict, List
 from datetime import datetime
+from app.models.schemas import TicketResponseItemInternal
+from app.models.daos import CustomerSegmentFilters
 
 class ReturnSettingsInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
@@ -444,6 +446,15 @@ class DeliverySlotConfigInternalCreate(BaseModel):
     isActive: Optional[bool] = None
     slots: Optional[List[DeliverySlotInternal]] = None
 
+class DeliverySlotConfigInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    segment: Optional[str] = None
+    date: Optional[str] = None
+    zoneId: Optional[str] = None
+    isActive: Optional[bool] = None
+    slots: Optional[List[DeliverySlotInternal]] = None
+    updatedAt: Optional[str] = None
+
 class CustomerSegmentInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
     id: Optional[str] = Field(None, alias="_id")
@@ -465,6 +476,14 @@ class CustomerSegmentInternalCreate(BaseModel):
     isActive: Optional[bool] = None
     isSystem: Optional[bool] = None
     filters: Optional[CustomerSegmentFilters] = None
+
+class CustomerSegmentInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    name: Optional[str] = None
+    description: Optional[str] = None
+    isActive: Optional[bool] = None
+    filters: Optional[CustomerSegmentFilters] = None
+    updatedAt: Optional[str] = None
 
 class CouponQuantityTierInternal(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -838,7 +857,7 @@ class SupportTicketInternalCreate(BaseModel):
     status: Optional[str] = "open"
     attachments: Optional[List[str]] = None
     assignedTo: Optional[str] = None
-    responses: Optional[List[dict]] = None
+    responses: Optional[List[TicketResponseItemInternal]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: Optional[str] = None
@@ -850,7 +869,7 @@ class SupportTicketInternalUpdate(BaseModel):
     priority: Optional[str] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
-    responses: Optional[List[dict]] = None
+    responses: Optional[List[TicketResponseItemInternal]] = None
 
 from app.models.schemas import TicketResponseItem
 

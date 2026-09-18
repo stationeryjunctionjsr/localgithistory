@@ -1,6 +1,9 @@
-from typing import List, Optional, Dict, Any
+﻿from typing import List, Optional, Any
 from pydantic import BaseModel, ConfigDict, Field
-from app.models.schemas import VisibilityRuleSnippet, ProductDetails
+from app.models.schemas import (
+    VisibilityRuleSnippet, ProductDetails, VariantAttributes,
+    TicketResponseItem, NotificationMetadata, ProductSellerEntry, VariantOption
+)
 from datetime import datetime
 
 class CartItemInternal(BaseModel):
@@ -11,7 +14,7 @@ class CartItemInternal(BaseModel):
     bundleId: Optional[str] = None
     bundleName: Optional[str] = None
     price: Optional[float] = None
-    variantAttributes: Optional[Dict[str, str]] = None
+    variantAttributes: Optional[VariantAttributes] = None
     id_: Optional[str] = Field(default=None, alias="_id")
 
 class CartInternalCreate(BaseModel):
@@ -140,18 +143,28 @@ class ValetAvailabilityInternalUpdate(BaseModel):
     slots: Optional[List[str]] = None
     zones: Optional[List[str]] = None
 
+class DeviceSnippet(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    type: Optional[str] = None
+    os: Optional[str] = None
+    osVersion: Optional[str] = None
+    appVersion: Optional[str] = None
+    brand: Optional[str] = None
+    model: Optional[str] = None
+    fcmToken: Optional[str] = None
+
 class SessionInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     user: Optional[str] = None
     userId: Optional[str] = None
-    deviceInfo: Optional[dict] = None
+    deviceInfo: Optional[DeviceSnippet] = None
     ipAddress: Optional[str] = None
     refreshTokenId: Optional[str] = None
     status: Optional[str] = None
     lastActiveAt: Optional[str] = None
     revokedAt: Optional[str] = None
     revokedReason: Optional[str] = None
-    device: Optional[dict] = None
+    device: Optional[DeviceSnippet] = None
     isGuest: Optional[bool] = None
     comment: Optional[str] = None
     id: Optional[str] = None
@@ -168,7 +181,7 @@ class SessionInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
     user: Optional[str] = None
     userId: Optional[str] = None
-    deviceInfo: Optional[dict] = None
+    deviceInfo: Optional[DeviceSnippet] = None
     ipAddress: Optional[str] = None
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
@@ -178,12 +191,11 @@ class SessionInternalUpdate(BaseModel):
     lastActiveAt: Optional[str] = None
     revokedAt: Optional[str] = None
     revokedReason: Optional[str] = None
-    device: Optional[dict] = None
+    device: Optional[DeviceSnippet] = None
     isGuest: Optional[bool] = None
     comment: Optional[str] = None
     id_: Optional[str] = Field(default=None, alias="_id")
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
     external_id: Optional[str] = None
     comments: Optional[str] = None
     eid: Optional[str] = None
@@ -202,7 +214,11 @@ class SessionInternalUpdate(BaseModel):
 
 
 class WishlistItemInternal(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    id_: Optional[str] = Field(default=None, alias="_id")
     product: str
+    quantity: Optional[int] = 1
+    addedAt: Optional[str] = None
 
 class WishlistInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -288,30 +304,27 @@ class ProductInternalCreate(BaseModel):
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
     minimumQuantity: Optional[int] = 1
-    searchTags: Optional[list] = []
-    attributes: Optional[dict] = {}
+    searchTags: Optional[List[str]] = []
     salesCount: Optional[int] = 0
     viewCount: Optional[int] = 0
     isNewArrival: Optional[bool] = False
     newArrivalUntil: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-    sellers: Optional[list] = []
+    sellers: Optional[List[ProductSellerEntry]] = []
     stock: Optional[int] = 0
     productId: Optional[int] = None
     productIdFormatted: Optional[str] = None
     unit: Optional[str] = "pc"
-    tags: Optional[list] = []
+    tags: Optional[List[str]] = []
     thumbnail: Optional[str] = None
-    variants: Optional[list] = []
-    variantAttributes: Optional[list] = []
-    details: Optional[dict] = {}
-    videos: Optional[list] = []
+    variants: Optional[List[VariantOption]] = []
+    variantAttributes: Optional[List[str]] = []
+    details: Optional[ProductDetails] = None
+    videos: Optional[List[str]] = []
     quantityPerCase: Optional[int] = None
 
 class ProductInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    sellers: Optional[List['ProductSellerEntry']] = None
+    sellers: Optional[List[ProductSellerEntry]] = None
     sku: Optional[str] = None
     category: Optional[str] = None
     subCategory: Optional[str] = None
@@ -324,7 +337,7 @@ class ProductInternalUpdate(BaseModel):
     videos: Optional[List[str]] = None
     tags: Optional[List[str]] = None
     variantAttributes: Optional[List[str]] = None
-    variants: Optional[List['VariantOption']] = None
+    variants: Optional[List[VariantOption]] = None
     details: Optional[ProductDetails] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -345,11 +358,11 @@ class CategoryInternalCreate(BaseModel):
     parentId: Optional[str] = None
     isActive: bool = True
     isSystem: bool = False
-    images: Optional[list] = []
-    subCategories: Optional[list] = []
+    images: Optional[List[str]] = []
+    subCategories: Optional[List[str]] = []
     minimumQuantity: Optional[int] = 1
     categoryTag: Optional[str] = None
-    categoryTags: Optional[list] = []
+    categoryTags: Optional[List[str]] = []
     showInMobileHomepage: Optional[bool] = False
     gst: Optional[float] = None
     isReturnable: Optional[bool] = True
@@ -362,16 +375,15 @@ class CategoryInternalUpdate(BaseModel):
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
     updatedAt: Optional[str] = None
-    images: Optional[list] = None
-    subCategories: Optional[list] = None
+    images: Optional[List[str]] = None
+    subCategories: Optional[List[str]] = None
     minimumQuantity: Optional[int] = 1
     categoryTag: Optional[str] = None
-    categoryTags: Optional[list] = None
+    categoryTags: Optional[List[str]] = None
     showInMobileHomepage: Optional[bool] = None
     gst: Optional[float] = None
     isReturnable: Optional[bool] = None
     createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
 
 class BrandInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -500,12 +512,21 @@ class ReturnRequestInternal(BaseModel):
 
 from app.models.schemas import TicketResponseItem, ProductSellerEntry, VariantOption, ReturnItemSchema, ValetDeclineHistoryEntry
 
+class CustomerSegmentFilters(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    minOrderCount: Optional[int] = None
+    maxOrderCount: Optional[int] = None
+    minOrderValue: Optional[float] = None
+    maxOrderValue: Optional[float] = None
+    city: Optional[str] = None
+    role: Optional[str] = None
+
 class CustomerSegmentInternalCreate(BaseModel):
     id: str = Field(alias="_id")
     name: str
     type: str
     userIds: List[str]
-    filters: Optional[Any] = None
+    filters: Optional[CustomerSegmentFilters] = None
     isActive: bool = True
     isSystem: bool = False
     createdAt: Optional[str] = None
@@ -515,7 +536,7 @@ class CustomerSegmentInternalCreate(BaseModel):
 class CustomerSegmentInternalUpdate(BaseModel):
     name: Optional[str] = None
     userIds: Optional[List[str]] = None
-    filters: Optional[Any] = None
+    filters: Optional[CustomerSegmentFilters] = None
     isActive: Optional[bool] = None
     updatedAt: Optional[str] = None
     lastRefreshedAt: Optional[str] = None
@@ -526,7 +547,7 @@ class NotificationInternalCreate(BaseModel):
     type: str
     title: str
     message: str
-    metadata: Optional[Any] = None
+    metadata: Optional[NotificationMetadata] = None
     isRead: bool = False
     isAcknowledged: bool = False
     createdAt: Optional[str] = None
@@ -553,6 +574,6 @@ class NotificationInternal(BaseModel):
     message: str
     isRead: bool
     isAcknowledged: bool
-    metadata: Optional[Any] = None
+    metadata: Optional[NotificationMetadata] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None

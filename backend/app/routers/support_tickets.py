@@ -172,9 +172,10 @@ async def update_ticket_status(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    update_data = SupportTicketInternalUpdate(status=status_data.status)
-    if status_data.assignedTo:
-        update_data.assignedTo = status_data.assignedTo
+    update_data = SupportTicketInternalUpdate(
+        status=status_data.status,
+        assignedTo=status_data.assignedTo if status_data.assignedTo else None,
+    )
 
     updated_ticket = await support_ticket_repository.update(ticket_id, update_data)
     populated_ticket = await populate_ticket(updated_ticket)

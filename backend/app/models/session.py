@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any
 from pydantic import Field
 from pydantic import BaseModel
+from app.models.daos import DeviceSnippet
 
 class Session(BaseModel):
     id: str = Field(default=None, alias='_id')
@@ -12,7 +13,7 @@ class Session(BaseModel):
     last_active_at: Optional[datetime] = Field(default=None, alias='lastActiveAt')
     revoked_at: Optional[datetime] = Field(default=None, alias='revokedAt')
     revoked_reason: Optional[str] = Field(default=None, alias='revokedReason')
-    device: Optional[dict] = Field(default=None, alias='device')
+    device: Optional[DeviceSnippet] = Field(default=None, alias='device')
     is_guest: bool = Field(default=None, alias='isGuest')
     comment: Optional[str] = Field(default=None, alias='comment')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')

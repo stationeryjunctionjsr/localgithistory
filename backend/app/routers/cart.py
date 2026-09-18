@@ -1,5 +1,6 @@
 from app.models.user import User
 from app.models.schemas import CartResponse, SavedForLaterResponse, MessageResponse
+from app.models.daos import WishlistItemInternal
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -342,7 +343,7 @@ async def save_for_later(request: SaveForLaterRequest, current_user: User = Depe
     try:
         from app.repositories.wishlist_repository import wishlist_repository
 
-        await wishlist_repository.addItem(current_user.id, {"product": request.productId})
+        await wishlist_repository.addItem(current_user.id, WishlistItemInternal(product=request.productId))
         return {"message": "Item saved for later"}
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)

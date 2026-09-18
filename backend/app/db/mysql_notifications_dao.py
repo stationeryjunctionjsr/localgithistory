@@ -4,8 +4,7 @@ import secrets
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import NotificationInternal
-from app.models.daos_flat import NotificationInternalCreate, NotificationInternalUpdate
+from app.models.daos import NotificationInternal, NotificationInternalCreate, NotificationInternalUpdate
 
 def now_utc():
     return datetime.now(timezone.utc)

@@ -57,15 +57,13 @@ class SupportTicketRepository:
         if not ticket:
             raise ValueError("Ticket not found")
 
-        # In flat_relational_configs, we mapped admin_id to user.
-        # We append a dictionary representation to pass it into update.
-        new_resp = {"user": user, "message": message}
+        new_resp = TicketResponseItemInternal(user=user, message=message)
 
-        responses = []
+        responses: list[TicketResponseItemInternal] = []
         if ticket.responses:
             for r in ticket.responses:
-                responses.append({"user": r.user, "message": r.message})
-        
+                responses.append(TicketResponseItemInternal(user=r.user, message=r.message))
+
         responses.append(new_resp)
 
         new_status = ticket.status

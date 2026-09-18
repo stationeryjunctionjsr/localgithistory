@@ -4,7 +4,7 @@ import secrets
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import SupportTicketInternal
+from app.models.schemas import SupportTicketInternal
 from app.models.daos_flat import SupportTicketInternalCreate, SupportTicketInternalUpdate
 
 def now_utc():

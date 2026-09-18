@@ -73,7 +73,7 @@ from app.db.mysql_ad_dao import MySQLAdDAO
 from app.db.mysql_seller_payout_dao import MySQLSellerPayoutDAO
 from app.db.mysql_events_dao import MySQLEventsDAO
 
-from app.db.mysql_deliverySlots_dao import MySQLDeliveryslotsDAO
+from app.db.mysql_deliverySlots_dao import MySQLDeliverySlotsDAO
 from app.utils.file_storage import FileStorage
 
 
@@ -105,7 +105,7 @@ _MYSQL_DAO_COLLECTIONS = {
     "sellerPayouts": MySQLSellerPayoutDAO,
     "events": MySQLEventsDAO,
 
-    "deliverySlots": MySQLDeliveryslotsDAO,
+    "deliverySlots": MySQLDeliverySlotsDAO,
     "coupons": MySQLCouponsDAO,
     "activities": MySQLActivitiesDAO,
     "notifications": MySQLNotificationsDAO,

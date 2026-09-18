@@ -993,7 +993,7 @@ class ProductRepository:
             thumbnail=None,
             variants=product_data.variants if product_data.variants is not None else [],
             variantAttributes=product_data.variantAttributes if product_data.variantAttributes is not None else [],
-            details=product_data.details if product_data.details is not None else {},
+            details=product_data.details if product_data.details is not None else None,
             sellers=product_data.sellers if product_data.sellers is not None else [],
         )
 

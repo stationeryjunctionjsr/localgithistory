@@ -95,7 +95,7 @@ async def get_zone_for_pincode(pincode: str = Query(..., description="6-digit pi
             text("""
                 SELECT z.id, z.name, z.default_capacity, z.urgent_delivery_available, z.customer_type
                 FROM sj_delivery_zones z
-                JOIN sj_delivery_zone_pincodes p ON z.id = p.sj_delivery_zones_id
+                JOIN sj_delivery_zone_pincodes p ON z.id = p.parent_id
                 WHERE p.pincode = :pincode AND z.is_active = 1
                 LIMIT 1
             """),

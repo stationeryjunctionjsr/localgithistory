@@ -1,6 +1,6 @@
 from pydantic import ConfigDict
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any
 from pydantic import Field
 from pydantic import BaseModel
 
@@ -37,7 +37,7 @@ class Tracking(BaseModel):
     updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
     product_ids: List[str] = Field(default=[], alias='product_ids')
     productIds: Optional[List[str]] = Field(default=None, alias='productIds')
-    payload: Optional[Dict] = Field(default=None, alias='payload')
+    payload: Optional['TrackingPayload'] = Field(default=None, alias='payload')
     product_id: Optional[str] = Field(default=None, alias='productId')
     quantity: int = Field(default=0, alias='quantity')
     tid: Optional[str] = Field(default=None, alias='tid')
@@ -51,4 +51,19 @@ class Tracking(BaseModel):
 
 
 from app.models.schemas import ItemSnippet
+
+class TrackingPayload(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    value: Optional[str] = None
+    name: Optional[str] = None
+    query: Optional[str] = None
+    currency: Optional[str] = None
+    amount: Optional[float] = None
+    productId: Optional[str] = None
+    categoryId: Optional[str] = None
+    orderId: Optional[str] = None
+    page: Optional[str] = None
+    label: Optional[str] = None
+
 Tracking.model_rebuild()
+TrackingPayload.model_rebuild()

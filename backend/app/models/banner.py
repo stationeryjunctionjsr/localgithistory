@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any
 from pydantic import Field
 from pydantic import BaseModel
+from app.models.schemas import VisibilityRuleSnippet
 
 class Banner(BaseModel):
     id: str = Field(default=None, alias='_id')
@@ -17,7 +18,7 @@ class Banner(BaseModel):
     target_audience: Optional[str] = Field(default=None, alias='targetAudience')
     position: Optional[str] = Field(default=None, alias='position')
     user_segments: Optional[str] = Field(default=None, alias='userSegments')
-    visibility_rules: Optional[Dict] = Field(default=None, alias='visibilityRules')
+    visibility_rules: Optional[List[VisibilityRuleSnippet]] = Field(default=None, alias='visibilityRules')
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')
     updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
     bid: Optional[str] = Field(default=None, alias='bid')

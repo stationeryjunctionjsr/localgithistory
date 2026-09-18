@@ -1,8 +1,8 @@
 from app.models.user import User
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.models.schemas import MessageResponse
 from app.models.product import Product
-from typing import Optional
+from app.models.daos import WishlistItemInternal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -107,7 +107,7 @@ async def add_to_wishlist(item: WishlistItemRequest, current_user: User = Depend
         role_for_pricing = get_role_for_pricing(current_user)
         min_qty = get_min_quantity_for_role(product, role_for_pricing)
 
-        await wishlist_repository.addItem(current_user.id, {"product": item.productId, "quantity": min_qty})
+        await wishlist_repository.addItem(current_user.id, WishlistItemInternal(product=item.productId, quantity=min_qty))
 
         # Track the addition
         from app.repositories.tracking_repository import tracking_repository
