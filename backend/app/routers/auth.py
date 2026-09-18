@@ -121,7 +121,7 @@ async def send_otp(data: SendOTPRequest, request: Request):
         payload = OTPResponsePayload(**raw_payload)
         if not ok:
             # Enforce per-user hourly send rate limit (across devices)
-            err_msg = payload.message
+            err_msg = payload.message or "Too many requests"
             retry_secs = payload.retry_after_seconds
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
