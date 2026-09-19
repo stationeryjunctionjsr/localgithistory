@@ -100,8 +100,6 @@ class MySQLCustomerSegmentDAO:
     async def create(self, data: CustomerSegmentInternalCreate) -> CustomerSegmentInternal:
         external_id = secrets.token_hex(16)
         
-        # Unpack filters safely
-        filters = data.filters.model_dump() if data.filters else {}
         p = {
             "external_id": external_id,
             "created_at": now_utc(),
@@ -111,17 +109,17 @@ class MySQLCustomerSegmentDAO:
             "description": data.description,
             "is_active": data.isActive,
             "is_system": data.isSystem,
-            "min_avg_order_value": filters.get("minAverageOrderValue"),
-            "max_avg_order_value": filters.get("maxAverageOrderValue"),
-            "start_date": filters.get("startDate"),
-            "end_date": filters.get("endDate"),
-            "min_order_freq": filters.get("minOrderFrequency"),
-            "max_order_freq": filters.get("maxOrderFrequency"),
-            "state": filters.get("state"),
-            "district": filters.get("district"),
-            "app_user": filters.get("appUser"),
-            "behavior": filters.get("behavior"),
-            "role": filters.get("role"),
+            "min_avg_order_value": data.filters.minAverageOrderValue if data.filters else None,
+            "max_avg_order_value": data.filters.maxAverageOrderValue if data.filters else None,
+            "start_date": data.filters.startDate if data.filters else None,
+            "end_date": data.filters.endDate if data.filters else None,
+            "min_order_freq": data.filters.minOrderFrequency if data.filters else None,
+            "max_order_freq": data.filters.maxOrderFrequency if data.filters else None,
+            "state": data.filters.state if data.filters else None,
+            "district": data.filters.district if data.filters else None,
+            "app_user": data.filters.appUser if data.filters else None,
+            "behavior": data.filters.behavior if data.filters else None,
+            "role": data.filters.role if data.filters else None,
         }
         
         cols = ", ".join(p.keys())
@@ -156,18 +154,17 @@ class MySQLCustomerSegmentDAO:
         if data.isSystem is not None: updates.append("is_system = :isSystem"); params["isSystem"] = data.isSystem
         
         if data.filters is not None:
-            filters = data.filters.model_dump(exclude_unset=True)
-            if "minAverageOrderValue" in filters: updates.append("min_avg_order_value = :f1"); params["f1"] = filters["minAverageOrderValue"]
-            if "maxAverageOrderValue" in filters: updates.append("max_avg_order_value = :f2"); params["f2"] = filters["maxAverageOrderValue"]
-            if "startDate" in filters: updates.append("start_date = :f3"); params["f3"] = filters["startDate"]
-            if "endDate" in filters: updates.append("end_date = :f4"); params["f4"] = filters["endDate"]
-            if "minOrderFrequency" in filters: updates.append("min_order_freq = :f5"); params["f5"] = filters["minOrderFrequency"]
-            if "maxOrderFrequency" in filters: updates.append("max_order_freq = :f6"); params["f6"] = filters["maxOrderFrequency"]
-            if "state" in filters: updates.append("state = :f7"); params["f7"] = filters["state"]
-            if "district" in filters: updates.append("district = :f8"); params["f8"] = filters["district"]
-            if "appUser" in filters: updates.append("app_user = :f9"); params["f9"] = filters["appUser"]
-            if "behavior" in filters: updates.append("behavior = :f10"); params["f10"] = filters["behavior"]
-            if "role" in filters: updates.append("role = :f11"); params["f11"] = filters["role"]
+            if data.filters.minAverageOrderValue is not None: updates.append("min_avg_order_value = :f1"); params["f1"] = data.filters.minAverageOrderValue
+            if data.filters.maxAverageOrderValue is not None: updates.append("max_avg_order_value = :f2"); params["f2"] = data.filters.maxAverageOrderValue
+            if data.filters.startDate is not None: updates.append("start_date = :f3"); params["f3"] = data.filters.startDate
+            if data.filters.endDate is not None: updates.append("end_date = :f4"); params["f4"] = data.filters.endDate
+            if data.filters.minOrderFrequency is not None: updates.append("min_order_freq = :f5"); params["f5"] = data.filters.minOrderFrequency
+            if data.filters.maxOrderFrequency is not None: updates.append("max_order_freq = :f6"); params["f6"] = data.filters.maxOrderFrequency
+            if data.filters.state is not None: updates.append("state = :f7"); params["f7"] = data.filters.state
+            if data.filters.district is not None: updates.append("district = :f8"); params["f8"] = data.filters.district
+            if data.filters.appUser is not None: updates.append("app_user = :f9"); params["f9"] = data.filters.appUser
+            if data.filters.behavior is not None: updates.append("behavior = :f10"); params["f10"] = data.filters.behavior
+            if data.filters.role is not None: updates.append("role = :f11"); params["f11"] = data.filters.role
             
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
