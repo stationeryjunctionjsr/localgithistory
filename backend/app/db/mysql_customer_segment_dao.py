@@ -42,8 +42,9 @@ class MySQLCustomerSegmentDAO:
         # move to filters
         filters = {}
         for k in ["minAverageOrderValue", "maxAverageOrderValue", "startDate", "endDate", "minOrderFrequency", "maxOrderFrequency", "state", "district", "appUser", "behavior", "role"]:
-            if out.get(k) is not None:
-                filters[k] = out.pop(k)
+            val = out.pop(k, None)
+            if val is not None:
+                filters[k] = val
         if filters:
             out["filters"] = filters
             

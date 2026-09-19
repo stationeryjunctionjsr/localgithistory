@@ -512,6 +512,7 @@ class CustomerSegmentInternal(BaseModel):
     isActive: Optional[bool] = None
     isSystem: Optional[bool] = None
     filters: Optional[CustomerSegmentFilters] = None
+    userIds: Optional[List[str]] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
