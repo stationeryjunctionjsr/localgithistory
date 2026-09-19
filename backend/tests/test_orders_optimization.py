@@ -1,3 +1,6 @@
+import uuid
+from app.models.order import OrderInternalCreate
+from app.models.daos import PaymentInternalCreate
 import pytest
 from httpx import AsyncClient
 from app.models.schemas import UserCreate
@@ -33,7 +36,7 @@ async def clean_database():
         # Delete test product
         products = await product_repository.findAll()
         for p in products:
-            if getattr(p, "name", None) == "TEST_ORDER_OPT_Product" or getattr(p, "sku", None) == "SKU-OPT-123":
+            if getattr(p, "name", None) == "TEST_ORDER_OPT_Product" or getattr(p, "sku", None) == f"SKU-{uuid.uuid4()}":
                 await product_repository.storage.delete(getattr(p, "id", getattr(p, "_id", None)))
     except Exception:
         pass
@@ -50,33 +53,37 @@ async def cleanup_orders():
 async def test_orders_optimization_logic():
     # 1. Create a test user, product, and payment
     user = await user_repository.create(
-        UserCreate(name="TEST_ORDER_OPT_User", email="opt_user@test.com", password="Password123", role="customer")
+        UserCreate(name="TEST_ORDER_OPT_User", email=f"opt_{uuid.uuid4()}@test.com", password="Password123", role="customer")
     )
 
     product = await product_repository.create(
-        {"name": "TEST_ORDER_OPT_Product", "sku": "SKU-OPT-123", "mrp": 100.0, "category": "Stationery"}
+        {"name": "TEST_ORDER_OPT_Product", "sku": f"SKU-{uuid.uuid4()}", "mrp": 100.0, "category": "Stationery"}
     )
 
     # 2. Create order
-    order = await order_repository.create(
-        {
-            "user": user["_id"],
+    order = await order_repository.create(OrderInternalCreate(**{
+            "user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id),
             "userRole": "customer",
-            "items": [{"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 2, "price": 100.0}],
+            "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 2, "price": 100.0}],
             "subtotal": 200.0,
             "total": 200.0,
+            "tax": 0.0,
+            "shipping": 0.0,
+            "discount": 0.0,
+            "tax": 0.0,
+            "shipping": 0.0,
+            "discount": 0.0,
             "orderType": "b2c",
             "paymentMethod": "cod",
             "shippingAddress": {"zipCode": "110001"},
             "notes": "TEST_ORDER_OPT_Note",
-        }
+        })
     )
 
     # Create associated payment
-    payment = await payment_repository.create(
-        {
-            "orderId": order["_id"],
-            "userId": user["_id"],
+    payment = await payment_repository.create({
+            "orderId": order.id,
+            "userId": user.id,
             "customerName": "TEST_ORDER_OPT_User",
             "paymentMethod": "cod",
             "totalAmount": 200.0,
@@ -85,96 +92,114 @@ async def test_orders_optimization_logic():
     )
 
     # 3. Test populate_orders batch loader
+    print("ORDER BEFORE POPULATE:", repr(order.items[0]))
     populated = await populate_orders([order])
+    print("ORDER AFTER POPULATE:", repr(order.items[0]))
     assert len(populated) == 1
-    assert populated[0]["user"]["name"] == "TEST_ORDER_OPT_User"
-    assert populated[0]["items"][0]["product"]["name"] == "TEST_ORDER_OPT_Product"
-    assert len(populated[0]["paymentEntries"]) == 1
-    assert populated[0]["paymentEntries"][0]["amount"] == 200.0
+    assert populated[0].user.name == "TEST_ORDER_OPT_User"
+    assert populated[0].items[0].product.name == "TEST_ORDER_OPT_Product"
+    assert populated[0].paymentEntries is not None and len(populated[0].paymentEntries) == 1
+    assert populated[0].paymentEntries[0].amount == 200.0
 
     # 4. Test populate_order single wrapper
+    print("CALLING POPULATE ORDER SINGLE")
     single_populated = await populate_order(order)
     assert single_populated is not None
-    assert single_populated["user"]["name"] == "TEST_ORDER_OPT_User"
+    assert single_populated.user.name == "TEST_ORDER_OPT_User"
 
     # 5. Test findByOrderId query offloading
-    found_payments = await payment_repository.findByOrderId(order["_id"])
+    found_payments = await payment_repository.findByOrderId(order.id)
     assert len(found_payments) == 1
-    assert found_payments[0]["_id"] == payment["_id"]
+    assert found_payments[0]["_id"] == payment.id
 
 
 @pytest.mark.asyncio
 async def test_orders_pagination_and_counting_logic():
     # 1. Create a test user and product
     user = await user_repository.create(
-        UserCreate(name="TEST_ORDER_OPT_User", email="opt_user@test.com", password="Password123", role="customer")
+        UserCreate(name="TEST_ORDER_OPT_User", email=f"opt_{uuid.uuid4()}@test.com", password="Password123", role="customer")
     )
 
     product = await product_repository.create(
-        {"name": "TEST_ORDER_OPT_Product", "sku": "SKU-OPT-123", "mrp": 100.0, "category": "Stationery"}
+        {"name": "TEST_ORDER_OPT_Product", "sku": f"SKU-{uuid.uuid4()}", "mrp": 100.0, "category": "Stationery"}
     )
 
     # 2. Create 3 test orders with unique notes and payment methods
-    o1 = await order_repository.create(
-        {
-            "user": user["_id"],
+    o1 = await order_repository.create(OrderInternalCreate(**{
+            "user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id),
             "userRole": "customer",
-            "items": [{"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 1, "price": 100.0}],
+            "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 1, "price": 100.0}],
             "subtotal": 100.0,
             "total": 100.0,
+            "tax": 0.0,
+            "shipping": 0.0,
+            "discount": 0.0,
+            "tax": 0.0,
+            "shipping": 0.0,
+            "discount": 0.0,
             "orderType": "b2c",
             "paymentMethod": "cod",
             "shippingAddress": {"zipCode": "110001"},
             "notes": "TEST_ORDER_OPT_1",
-        }
+        })
     )
-    o2 = await order_repository.create(
-        {
-            "user": user["_id"],
+    o2 = await order_repository.create(OrderInternalCreate(**{
+            "user": getattr(user, "_id", user.id),
             "userRole": "customer",
-            "items": [{"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 1, "price": 100.0}],
-            "subtotal": 100.0,
+            "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 2, "price": 100.0}],
+            "subtotal": 200.0,
             "total": 100.0,
+            "tax": 0.0,
+            "shipping": 0.0,
+            "discount": 0.0,
+            "tax": 0.0,
+            "shipping": 0.0,
+            "discount": 0.0,
             "orderType": "b2c",
             "paymentMethod": "upi",
             "shippingAddress": {"zipCode": "110001"},
             "notes": "TEST_ORDER_OPT_2",
-        }
+        })
     )
-    o3 = await order_repository.create(
-        {
-            "user": user["_id"],
+    o3 = await order_repository.create(OrderInternalCreate(**{
+            "user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id),
             "userRole": "customer",
-            "items": [{"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 1, "price": 100.0}],
+            "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 1, "price": 100.0}],
             "subtotal": 100.0,
             "total": 100.0,
+            "tax": 0.0,
+            "shipping": 0.0,
+            "discount": 0.0,
+            "tax": 0.0,
+            "shipping": 0.0,
+            "discount": 0.0,
             "orderType": "b2c",
             "paymentMethod": "cod",
             "shippingAddress": {"zipCode": "110001"},
             "notes": "TEST_ORDER_OPT_3",
-        }
+        })
     )
 
     # 3. Test count directly
-    total_count = await order_repository.count({"user": user["_id"]})
+    total_count = await order_repository.count({"user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id)})
     assert total_count == 3
 
     # Test count by user helper
-    count_by_user = await order_repository.countByUser(user["_id"])
+    count_by_user = await order_repository.countByUser(user.id)
     assert count_by_user == 3
 
     # Test count with filtering by paymentMethod
-    cod_count = await order_repository.count({"user": user["_id"], "paymentMethod": "cod"})
+    cod_count = await order_repository.count({"user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id), "paymentMethod": "cod"})
     assert cod_count == 2
-    upi_count = await order_repository.count({"user": user["_id"], "paymentMethod": "upi"})
+    upi_count = await order_repository.count({"user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id), "paymentMethod": "upi"})
     assert upi_count == 1
 
     # 4. Test database-level pagination in findAll
     # Page 1: limit 2
-    p1 = await order_repository.findAll({"user": user["_id"]}, skip=0, limit=2)
+    p1 = await order_repository.findAll({"user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id)}, skip=0, limit=2)
     assert len(p1) == 2
     # Page 2: limit 2
-    p2 = await order_repository.findAll({"user": user["_id"]}, skip=2, limit=2)
+    p2 = await order_repository.findAll({"user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id)}, skip=2, limit=2)
     assert len(p2) == 1
 
     # Verify that the order IDs in pagination correspond to the correct order of created_at desc
@@ -182,6 +207,6 @@ async def test_orders_pagination_and_counting_logic():
     ids_p1 = [getattr(o, "id", getattr(o, "_id", None)) for o in p1]
     ids_p2 = [getattr(o, "id", getattr(o, "_id", None)) for o in p2]
 
-    assert o3["_id"] in ids_p1
-    assert o2["_id"] in ids_p1
-    assert o1["_id"] in ids_p2
+    assert o3.id in ids_p1
+    assert o2.id in ids_p1
+    assert o1.id in ids_p2
