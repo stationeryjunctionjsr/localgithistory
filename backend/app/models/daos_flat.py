@@ -524,6 +524,7 @@ class CustomerSegmentInternalCreate(BaseModel):
     isActive: Optional[bool] = None
     isSystem: Optional[bool] = None
     filters: Optional[CustomerSegmentFilters] = None
+    userIds: Optional[List[str]] = None
 
 class CustomerSegmentInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -532,6 +533,7 @@ class CustomerSegmentInternalUpdate(BaseModel):
     description: Optional[str] = None
     isActive: Optional[bool] = None
     filters: Optional[CustomerSegmentFilters] = None
+    userIds: Optional[List[str]] = None
     updatedAt: Optional[str] = None
 
 class CouponQuantityTierInternal(BaseModel):

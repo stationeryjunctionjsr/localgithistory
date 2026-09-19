@@ -101,7 +101,7 @@ class MySQLCustomerSegmentDAO:
         external_id = secrets.token_hex(16)
         
         # Unpack filters safely
-        filters = data.filters or {}
+        filters = data.filters.model_dump() if data.filters else {}
         p = {
             "external_id": external_id,
             "created_at": now_utc(),
@@ -156,7 +156,7 @@ class MySQLCustomerSegmentDAO:
         if data.isSystem is not None: updates.append("is_system = :isSystem"); params["isSystem"] = data.isSystem
         
         if data.filters is not None:
-            filters = data.filters
+            filters = data.filters.model_dump(exclude_unset=True)
             if "minAverageOrderValue" in filters: updates.append("min_avg_order_value = :f1"); params["f1"] = filters["minAverageOrderValue"]
             if "maxAverageOrderValue" in filters: updates.append("max_avg_order_value = :f2"); params["f2"] = filters["maxAverageOrderValue"]
             if "startDate" in filters: updates.append("start_date = :f3"); params["f3"] = filters["startDate"]

@@ -9,7 +9,7 @@ async def test_coupon_override_and_stacking():
     # Pre-test cleanup: delete product/coupons if they already exist
     existing_product = await product_repository.findBySku("SKU-TEST-COUPON-MODE")
     if existing_product:
-        await product_repository.storage.delete(existing_product.id if hasattr(product, "id") else product["_id"])
+        await product_repository.storage.delete(existing_product.id if hasattr(existing_product, "id") else existing_product["_id"])
 
     existing_override = await coupon_repository.findByCode("OVERRIDE10")
     if existing_override:

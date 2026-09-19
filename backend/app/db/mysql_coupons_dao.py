@@ -303,8 +303,10 @@ class MySQLCouponsDAO:
         out["minOrderValue"] = rm["min_order_value"]
         out["maxUses"] = rm["max_uses"]
         out["usedCount"] = rm["used_count"]
-        out["validFrom"] = rm["start_date"]
-        out["validUntil"] = rm["end_date"]
+        start_date = rm["start_date"]
+        out["validFrom"] = start_date.isoformat() if start_date else None
+        end_date = rm["end_date"]
+        out["validUntil"] = end_date.isoformat() if end_date else None
         out["isActive"] = rm["is_active"]
         out["typeOfDiscount"] = rm["type_of_discount"]
         out["method"] = rm["method"]
