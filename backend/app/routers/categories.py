@@ -167,9 +167,10 @@ async def get_tag_categories(tag_name: str):
                 tag = tags[0] if isinstance(tags, list) and tags else ""
 
             if (tag or "").lower() == target_tag:
-                matching_cats.append(
-                    {**cat, "categoryTag": tag or "", "categoryTags": [tag] if tag else [], "gst": (cat.gst if cat.gst is not None else 0)}
-                )
+                cat.category_tag = tag or ""
+                cat.category_tags = [tag] if tag else []
+                cat.gst = (cat.gst if cat.gst is not None else 0)
+                matching_cats.append(cat)
         return matching_cats
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
@@ -188,7 +189,7 @@ async def get_tag_brands(tag_name: str):
         categories = await category_repository.findAll()
         target_tag = tag_name.lower()
         matching_cat_names = [
-            cat["name"]
+            cat.name
             for cat in categories
             if cat.is_active is not False and (cat.category_tag or "").lower() == target_tag
         ]
@@ -248,13 +249,11 @@ async def get_categories(current_user: User = Depends(require_super_admin)):
             if not tag and tags:
                 tag = tags[0] if isinstance(tags, list) and tags else ""
 
-            cat_with_tags = {
-                **cat,
-                "categoryTag": tag or "",
-                "categoryTags": [tag] if tag else [],
-                "gst": (cat.gst if cat.gst is not None else 0),
-            }
-            categories_with_tags.append(cat_with_tags)
+            cat.category_tag = tag or ""
+            cat.category_tags = [tag] if tag else []
+            cat.gst = (cat.gst if cat.gst is not None else 0)
+
+            categories_with_tags.append(cat)
         return categories_with_tags
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)

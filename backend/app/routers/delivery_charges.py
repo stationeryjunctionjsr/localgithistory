@@ -115,10 +115,12 @@ async def get_delivery_charge_by_location(
             gst_amount = round(charge * (gst_percentage / 100), 2)
             total_charge = round(charge + gst_amount, 2)
 
-    result["gstPercentage"] = gst_percentage
-    result["gstAmount"] = gst_amount
-    result["totalCharge"] = total_charge
-
+    # Mutate the typed Pydantic model directly
+    result.gstPercentage = gst_percentage
+    result.gstAmount = gst_amount
+    result.totalCharge = total_charge
+    # deliveryCharge was previously passed the whole object; we now return the flat float
+    
     return result
 
 

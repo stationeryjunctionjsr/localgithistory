@@ -64,10 +64,14 @@ class TestDeliveryChargeRepository:
     # ── A1 ──────────────────────────────────────────────────────────────────
     def test_calculate_tiered_charge_basic(self):
         """Order below first tier max pays first tier charge."""
+        class MockTier:
+            def __init__(self, m, c):
+                self.max = m
+                self.charge = c
         tiers = [
-            {"maxAmount": 500, "charge": 60},
-            {"maxAmount": 1000, "charge": 40},
-            {"maxAmount": "Infinity", "charge": 0},
+            MockTier(500, 60),
+            MockTier(1000, 40),
+            MockTier("Infinity", 0),
         ]
         result = self.repo.calculateTieredCharge(tiers, order_amount=300)
         assert result["charge"] == 60.0
@@ -837,8 +841,13 @@ async def test_check_pincode_conflicts_exclude_own_zone():
 
     with patch("app.routers.delivery_zones.get_storage") as mock_storage_factory:
         mock_storage = MagicMock()
+        class MockZone:
+            def __init__(self, i, n, p):
+                self.id = i
+                self.name = n
+                self.pincodes = p
         mock_storage.findAll = AsyncMock(return_value=[
-            {"_id": "z_own", "name": "Own Zone", "pincodes": ["831001"]},
+            MockZone("z_own", "Own Zone", ["831001"]),
         ])
         mock_storage_factory.return_value = mock_storage
 

@@ -17,15 +17,15 @@ async def cleanup_categories():
 @pytest.mark.asyncio
 async def test_category_optimizations():
     # 1. Create test categories
-    c1 = await category_repository.create(
-        {
-            "name": "TEST_CAT_OPT_Pen",
-            "description": "Category for pens",
-            "categoryTag": "stationery",
-            "isActive": True,
-            "isReturnable": True,
-        }
-    )
+    from app.models.daos import CategoryInternalCreate
+    c1 = await category_repository.create(CategoryInternalCreate(
+            name="TEST_CAT_OPT_Pen",
+            description="Category for pens",
+            categoryTag="stationery",
+            isActive=True,
+            isReturnable=True,
+            gst=0
+    ))
     c2 = await category_repository.create(
         {
             "name": "TEST_CAT_OPT_Paper",

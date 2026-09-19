@@ -125,64 +125,69 @@ class DeliveryChargeRepository:
                 if default_charge and default_charge.isActive:
                     is_applicable = self.isChargeApplicableToRole(default_charge, user_role)
                     if not is_applicable:
-                        return {
-                            "charge": 0,
-                            "minCartValue": 0,
-                            "source": "pincode-default",
-                            "deliveryCharge": default_charge,
-                            "isApplicableToRole": False,
-                            "urgentDeliveryAvailable": urgent_avail,
-                            "urgentDeliveryCharge": urgent_charge,
-                        }
+                        from app.routers.delivery_charges import LocationChargeResponse
+                        return LocationChargeResponse(
+                            charge=0,
+                            minCartValue=0,
+                            source="pincode-default",
+                            deliveryCharge=default_charge.charge if default_charge else None,
+                            isApplicableToRole=False,
+                            urgentDeliveryAvailable=urgent_avail,
+                            urgentDeliveryCharge=urgent_charge,
+                        )
 
                     if default_charge.tiers and len(default_charge.tiers) > 0:
                         tier_charge = self.calculateTieredCharge(default_charge.tiers, order_amount)
-                        return {
-                            "charge": tier_charge["charge"],
-                            "minCartValue": tier_charge["minCartValue"],
-                            "source": "pincode-default-tiered",
-                            "deliveryCharge": default_charge,
-                            "isApplicableToRole": True,
-                            "appliedTier": tier_charge["tier"],
-                            "urgentDeliveryAvailable": urgent_avail,
-                            "urgentDeliveryCharge": urgent_charge,
-                        }
+                        from app.routers.delivery_charges import LocationChargeResponse
+                        return LocationChargeResponse(
+                            charge=tier_charge["charge"],
+                            minCartValue=tier_charge["minCartValue"],
+                            source="pincode-default-tiered",
+                            deliveryCharge=default_charge.charge if default_charge else None,
+                            isApplicableToRole=True,
+                            appliedTier=tier_charge["tier"],
+                            urgentDeliveryAvailable=urgent_avail,
+                            urgentDeliveryCharge=urgent_charge,
+                        )
 
-                    return {
-                        "charge": 0,
-                        "minCartValue": 0,
-                        "source": "pincode-default-no-tiers",
-                        "deliveryCharge": default_charge,
-                        "isApplicableToRole": True,
-                        "urgentDeliveryAvailable": urgent_avail,
-                        "urgentDeliveryCharge": urgent_charge,
-                    }
+                    from app.routers.delivery_charges import LocationChargeResponse
+                    return LocationChargeResponse(
+                        charge=0,
+                        minCartValue=0,
+                        source="pincode-default-no-tiers",
+                        deliveryCharge=default_charge.charge if default_charge else None,
+                        isApplicableToRole=True,
+                        urgentDeliveryAvailable=urgent_avail,
+                        urgentDeliveryCharge=urgent_charge,
+                    )
             else:
                 # urgent_avail = pincode_charge.urgentDeliveryAvailable
                 urgent_avail = False
                 # Use pincode-specific tiers or charge
                 if pincode_charge.tiers and len(pincode_charge.tiers) > 0:
                     tier_charge = self.calculateTieredCharge(pincode_charge.tiers, order_amount)
-                    return {
-                        "charge": tier_charge["charge"],
-                        "minCartValue": tier_charge["minCartValue"],
-                        "source": "pincode-tiered",
-                        "deliveryCharge": pincode_charge,
-                        "isApplicableToRole": True,
-                        "appliedTier": tier_charge["tier"],
-                        "urgentDeliveryAvailable": urgent_avail,
-                        "urgentDeliveryCharge": pincode_charge.urgentDeliveryCharge,
-                    }
+                    from app.routers.delivery_charges import LocationChargeResponse
+                    return LocationChargeResponse(
+                        charge=tier_charge["charge"],
+                        minCartValue=tier_charge["minCartValue"],
+                        source="pincode-tiered",
+                        deliveryCharge=pincode_charge.charge if pincode_charge else None,
+                        isApplicableToRole=True,
+                        appliedTier=tier_charge["tier"],
+                        urgentDeliveryAvailable=urgent_avail,
+                        urgentDeliveryCharge=pincode_charge.urgentDeliveryCharge,
+                    )
                 else:
-                    return {
-                        "charge": pincode_charge.charge,
-                        "minCartValue": pincode_charge.minCartValue,
-                        "source": "pincode",
-                        "deliveryCharge": pincode_charge,
-                        "isApplicableToRole": True,
-                        "urgentDeliveryAvailable": urgent_avail,
-                        "urgentDeliveryCharge": pincode_charge.urgentDeliveryCharge,
-                    }
+                    from app.routers.delivery_charges import LocationChargeResponse
+                    return LocationChargeResponse(
+                        charge=pincode_charge.charge or 0,
+                        minCartValue=pincode_charge.minCartValue or 0,
+                        source="pincode",
+                        deliveryCharge=pincode_charge.charge if pincode_charge else None,
+                        isApplicableToRole=True,
+                        urgentDeliveryAvailable=urgent_avail,
+                        urgentDeliveryCharge=pincode_charge.urgentDeliveryCharge,
+                    )
 
         # Fallback to city-specific charge (for backward compatibility)
         city_charge = await self.findByLocation(state, city, district)
@@ -193,15 +198,16 @@ class DeliveryChargeRepository:
             # urgent_avail = city_charge.urgentDeliveryAvailable
             urgent_avail = False
 
-            return {
-                "charge": city_charge.charge if is_applicable else 0,
-                "minCartValue": city_charge.minCartValue,
-                "source": "city",
-                "deliveryCharge": city_charge,
-                "isApplicableToRole": is_applicable,
-                "urgentDeliveryAvailable": urgent_avail,
-                "urgentDeliveryCharge": city_charge.urgentDeliveryCharge,
-            }
+            from app.routers.delivery_charges import LocationChargeResponse
+            return LocationChargeResponse(
+                charge=city_charge.charge if is_applicable else 0,
+                minCartValue=city_charge.minCartValue or 0,
+                source="city",
+                deliveryCharge=city_charge.charge if city_charge else None,
+                isApplicableToRole=is_applicable,
+                urgentDeliveryAvailable=urgent_avail,
+                urgentDeliveryCharge=city_charge.urgentDeliveryCharge,
+            )
 
         # Use default if available
         default_charge = await self.getDefaultCharge()
@@ -212,29 +218,31 @@ class DeliveryChargeRepository:
             urgent_charge = default_charge.urgentDeliveryCharge
             
             if not is_applicable:
-                return {
-                    "charge": 0,
-                    "minCartValue": 0,
-                    "source": "default",
-                    "deliveryCharge": default_charge,
-                    "isApplicableToRole": False,
-                    "urgentDeliveryAvailable": urgent_avail,
-                    "urgentDeliveryCharge": urgent_charge,
-                }
+                from app.routers.delivery_charges import LocationChargeResponse
+                return LocationChargeResponse(
+                    charge=0,
+                    minCartValue=0,
+                    source="default",
+                    deliveryCharge=default_charge.charge if default_charge else None,
+                    isApplicableToRole=False,
+                    urgentDeliveryAvailable=urgent_avail,
+                    urgentDeliveryCharge=urgent_charge,
+                )
 
             # Default charges are always tiered (no single charge fallback)
             if default_charge.tiers and len(default_charge.tiers) > 0:
                 tier_charge = self.calculateTieredCharge(default_charge.tiers, order_amount)
-                return {
-                    "charge": tier_charge["charge"],
-                    "minCartValue": tier_charge["minCartValue"],
-                    "source": "default-tiered",
-                    "deliveryCharge": default_charge,
-                    "isApplicableToRole": True,
-                    "appliedTier": tier_charge["tier"],
-                    "urgentDeliveryAvailable": urgent_avail,
-                    "urgentDeliveryCharge": urgent_charge,
-                }
+                from app.routers.delivery_charges import LocationChargeResponse
+                return LocationChargeResponse(
+                    charge=tier_charge["charge"],
+                    minCartValue=tier_charge["minCartValue"],
+                    source="default-tiered",
+                    deliveryCharge=default_charge.charge if default_charge else None,
+                    isApplicableToRole=True,
+                    appliedTier=tier_charge["tier"],
+                    urgentDeliveryAvailable=urgent_avail,
+                    urgentDeliveryCharge=urgent_charge,
+                )
 
             # If no tiers configured, no delivery charge
             return {
