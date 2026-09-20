@@ -153,6 +153,42 @@ class MySQLCouponsDAO:
             cols.append("applies_to_type")
             params["s_appliesToType"] = data.appliesToType
 
+if data.displayId is not None:
+            cols.append("display_id")
+            params["s_displayId"] = data.displayId
+
+        if data.buyXGetYCustomerGetsAppliesToValueIds is not None:
+            cols.append("bxgy_applies_to_ids")
+            params["s_bxgy_applies_to_ids"] = json.dumps(data.buyXGetYCustomerGetsAppliesToValueIds)
+
+        if data.buyXGetYCustomerGetsDiscountType is not None:
+            cols.append("bxgy_discount_type")
+            params["s_bxgy_discount_type"] = data.buyXGetYCustomerGetsDiscountType
+
+        if data.buyXGetYCustomerGetsDiscountValue is not None:
+            cols.append("bxgy_discount_value")
+            params["s_bxgy_discount_value"] = data.buyXGetYCustomerGetsDiscountValue
+
+        if data.applicableItemType is not None:
+            cols.append("applicable_item_type")
+            params["s_applicable_item_type"] = data.applicableItemType
+
+        if data.couponMode is not None:
+            cols.append("coupon_mode")
+            params["s_coupon_mode"] = data.couponMode
+
+        if data.maxUsagePerUser is not None:
+            cols.append("max_usage_per_user")
+            params["s_max_usage_per_user"] = data.maxUsagePerUser
+
+        if data.userUsages is not None:
+            cols.append("user_usages")
+            params["s_user_usages"] = json.dumps(data.userUsages)
+
+        if data.userBehavior is not None:
+            cols.append("user_behavior")
+            params["s_user_behavior"] = data.userBehavior
+
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['code', 'discountType', 'discountValue', 'minOrderValue', 'maxUses', 'usedCount', 'validFrom', 'validUntil', 'isActive', 'typeOfDiscount', 'method', 'minRequirementType', 'minQuantityOfEligibleItems', 'maxDiscountAmount', 'appliesToType'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         

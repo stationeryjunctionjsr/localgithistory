@@ -564,6 +564,17 @@ class CouponInternal(BaseModel):
     maxDiscountAmount: Optional[float] = None
     appliesToType: Optional[str] = None
     
+    displayId: Optional[str] = None
+    buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
+    buyXGetYCustomerGetsDiscountType: Optional[str] = None
+    buyXGetYCustomerGetsDiscountValue: Optional[float] = None
+    applicableItemType: Optional[str] = None
+    couponMode: Optional[str] = None
+    maxUsagePerUser: Optional[int] = None
+    userUsages: Optional[Dict[str, int]] = None
+    userBehavior: Optional[str] = None
+
+    
     quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
     applicableRoles: Optional[List[str]] = None
     applicableUserIds: Optional[List[str]] = None
@@ -592,6 +603,17 @@ class CouponInternalCreate(BaseModel):
     maxDiscountAmount: Optional[float] = None
     appliesToType: Optional[str] = None
     
+    displayId: Optional[str] = None
+    buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
+    buyXGetYCustomerGetsDiscountType: Optional[str] = None
+    buyXGetYCustomerGetsDiscountValue: Optional[float] = None
+    applicableItemType: Optional[str] = None
+    couponMode: Optional[str] = None
+    maxUsagePerUser: Optional[int] = None
+    userUsages: Optional[Dict[str, int]] = None
+    userBehavior: Optional[str] = None
+
+    
     quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
     applicableRoles: Optional[List[str]] = None
     applicableUserIds: Optional[List[str]] = None
@@ -617,6 +639,17 @@ class CouponInternalUpdate(BaseModel):
     minQuantityOfEligibleItems: Optional[int] = None
     maxDiscountAmount: Optional[float] = None
     appliesToType: Optional[str] = None
+    
+    displayId: Optional[str] = None
+    buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
+    buyXGetYCustomerGetsDiscountType: Optional[str] = None
+    buyXGetYCustomerGetsDiscountValue: Optional[float] = None
+    applicableItemType: Optional[str] = None
+    couponMode: Optional[str] = None
+    maxUsagePerUser: Optional[int] = None
+    userUsages: Optional[Dict[str, int]] = None
+    userBehavior: Optional[str] = None
+
     
     quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
     applicableRoles: Optional[List[str]] = None

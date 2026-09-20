@@ -465,9 +465,17 @@ class CouponRepository:
             applicableUserIds=coupon_data.applicableUserIds or [],
             applicableCategories=coupon_data.applicableCategories or [],
             appliesToType=(coupon_data.appliesToType if coupon_data.appliesToType is not None else "all"),
-            appliesToValueIds=coupon_data.appliesToValueIds or [],
+appliesToValueIds=coupon_data.appliesToValueIds or [],
             excludedProductIds=coupon_data.excludedProductIds or [],
             quantityTiers=qt_list,
+            displayId=display_id,
+            buyXGetYCustomerGetsAppliesToValueIds=coupon_data.buyXGetYCustomerGetsAppliesToValueIds or [],
+            buyXGetYCustomerGetsDiscountType=coupon_data.buyXGetYCustomerGetsDiscountType,
+            buyXGetYCustomerGetsDiscountValue=float(coupon_data.buyXGetYCustomerGetsDiscountValue) if coupon_data.buyXGetYCustomerGetsDiscountValue is not None else None,
+            applicableItemType=coupon_data.applicableItemType or "units",
+            couponMode=coupon_data.couponMode or "override",
+            maxUsagePerUser=int(coupon_data.maxUsagePerUser) if coupon_data.maxUsagePerUser else None,
+            userBehavior=coupon_data.userBehavior,
         )
 
         # Handle Overlap
@@ -693,7 +701,7 @@ class CouponRepository:
         if now > valid_until:
             return {"valid": False, "message": "Discount has expired"}
 
-        if (coupon.usageLimit if coupon.usageLimit is not None else None) and (coupon.usedCount if coupon.usedCount is not None else 0) >= coupon.usageLimit:
+        if (coupon.maxUses if coupon.maxUses is not None else None) and (coupon.usedCount if coupon.usedCount is not None else 0) >= coupon.maxUses:
             return {"valid": False, "message": "Discount usage limit reached"}
 
         if (coupon.maxUsagePerUser if coupon.maxUsagePerUser is not None else None):
@@ -701,7 +709,7 @@ class CouponRepository:
             if (user_usages[user_id] if user_id in user_usages else 0) >= coupon.maxUsagePerUser:
                 return {
                     "valid": False,
-                    "message": f"You have reached the maximum usage limit ({coupon['maxUsagePerUser']}) for this discount",
+                    "message": f"You have reached the maximum usage limit ({coupon.maxUsagePerUser}) for this discount",
                 }
 
         if user_role not in (coupon.applicableRoles if coupon.applicableRoles is not None else []):
@@ -722,7 +730,7 @@ class CouponRepository:
             if not (matches_selective or matches_behavior):
                 return {"valid": False, "message": "Discount not applicable for your account"}
 
-        applicable_payment_methods = (coupon.applicablePaymentMethods if coupon.applicablePaymentMethods is not None else None)
+        applicable_payment_methods = (getattr(coupon, "applicablePaymentMethods", None))
         if (
             applicable_payment_methods is not None
             and payment_method
@@ -869,7 +877,7 @@ class CouponRepository:
                 valid_until = datetime.fromisoformat(coupon.validUntil.replace("Z", "+00:00"))
                 if now < valid_from or now > valid_until:
                     continue
-                if coupon.usageLimit and (coupon.usedCount if coupon.usedCount is not None else 0) >= coupon.usageLimit:
+                if coupon.maxUses and (coupon.usedCount if coupon.usedCount is not None else 0) >= coupon.maxUses:
                     continue
                 if user_role not in (coupon.applicableRoles if coupon.applicableRoles is not None else []):
                     continue
@@ -887,7 +895,7 @@ class CouponRepository:
                     if not (matches_selective or matches_behavior):
                         continue
                 if payment_method:
-                    applicable_payment_methods = (coupon.applicablePaymentMethods if coupon.applicablePaymentMethods is not None else None)
+                    applicable_payment_methods = (getattr(coupon, "applicablePaymentMethods", None))
                     if applicable_payment_methods is not None and payment_method.lower() not in [
                         m.lower() for m in applicable_payment_methods
                     ]:
