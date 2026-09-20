@@ -12,6 +12,37 @@ export const GA_ID = process.env.NEXT_PUBLIC_GA_ID || '';
 
 // --- Backend Tracking Helpers ---
 
+
+export const getDeviceData = () => {
+  if (typeof window === 'undefined') return {};
+  
+  const ua = navigator.userAgent;
+  let os = 'Unknown';
+  if (ua.indexOf('Win') !== -1) os = 'Windows';
+  else if (ua.indexOf('Mac') !== -1) os = 'MacOS';
+  else if (ua.indexOf('X11') !== -1) os = 'UNIX';
+  else if (ua.indexOf('Linux') !== -1) os = 'Linux';
+  else if (ua.indexOf('Android') !== -1) os = 'Android';
+  else if (ua.indexOf('like Mac') !== -1) os = 'iOS';
+
+  let browser = 'Unknown';
+  if (ua.indexOf('Chrome') !== -1) browser = 'Chrome';
+  else if (ua.indexOf('Safari') !== -1) browser = 'Safari';
+  else if (ua.indexOf('Firefox') !== -1) browser = 'Firefox';
+  else if (ua.indexOf('Edge') !== -1) browser = 'Edge';
+
+  const params = new URLSearchParams(window.location.search);
+  const campaign = params.get('utm_campaign') || undefined;
+  const utmSource = params.get('utm_source') || undefined;
+
+  return {
+    os,
+    browser,
+    campaign,
+    ...(utmSource && { source: utmSource }),
+  };
+};
+
 export const getSessionId = () => {
   if (typeof window !== 'undefined') {
     return (
@@ -28,6 +59,7 @@ export const getSessionId = () => {
 export const trackBackendCartAdd = async (productId: string, quantity: number) => {
   try {
     await api.post('/tracking/cart-add', {
+      ...getDeviceData(),
       productId,
       quantity,
       sessionId: getSessionId(),
@@ -40,6 +72,7 @@ export const trackBackendCartAdd = async (productId: string, quantity: number) =
 export const trackBackendCartRemove = async (productId: string, quantity: number) => {
   try {
     await api.post('/tracking/cart-remove', {
+      ...getDeviceData(),
       productId,
       quantity,
       sessionId: getSessionId(),
@@ -56,6 +89,7 @@ export const trackBackendProductClick = async (
 ) => {
   try {
     await api.post('/tracking/click', {
+      ...getDeviceData(),
       productId,
       productName,
       source,
@@ -69,6 +103,7 @@ export const trackBackendProductClick = async (
 export const trackBackendProductView = async (productId: string, productName: string) => {
   try {
     await api.post('/tracking/view', {
+      ...getDeviceData(),
       productId,
       productName,
       sessionId: getSessionId(),
@@ -81,6 +116,7 @@ export const trackBackendProductView = async (productId: string, productName: st
 export const trackBackendFilterClick = async (filterType: string, filterValue: string) => {
   try {
     await api.post('/tracking/filter-click', {
+      ...getDeviceData(),
       filterType,
       filterValue,
       sessionId: getSessionId(),
@@ -197,6 +233,7 @@ export const trackError = async (error: {
 }) => {
   try {
     await api.post('/tracking/error', {
+      ...getDeviceData(),
       ...error,
       sessionId: getSessionId(),
     });

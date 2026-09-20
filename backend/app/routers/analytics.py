@@ -16,7 +16,7 @@ from app.models.schemas import MessageResponse, AnalyticsEventCreate, AnalyticsE
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Union
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 
 from app.repositories.analytics_repository import analytics_repository
 from app.repositories.tracking_repository import tracking_repository
@@ -224,6 +224,7 @@ class TopUsersReportResponse(BaseModel):
 
 @router.post("/events", response_model=RecordEventResponse)
 async def record_event(
+    request: Request,
     event: AnalyticsEventCreate = Body(..., description="Analytics event payload"),
     user_info: Optional[User] = Depends(get_optional_user),
 ):
@@ -259,9 +260,24 @@ async def record_event(
         if event.payload.screen is not None:
             payload_items.append(EventPayloadItem(key="screen", value=str(event.payload.screen)))
     
+
     payload_items.append(EventPayloadItem(key="userId", value=str(user_id) if user_id else ""))
     payload_items.append(EventPayloadItem(key="sessionId", value=str(event.sessionId) if event.sessionId else ""))
     payload_items.append(EventPayloadItem(key="timestamp", value=str(event.timestamp) if event.timestamp else datetime.now(timezone.utc).isoformat()))
+    if event.os:
+        payload_items.append(EventPayloadItem(key="os", value=str(event.os)))
+    if event.browser:
+        payload_items.append(EventPayloadItem(key="browser", value=str(event.browser)))
+    if event.campaign:
+        payload_items.append(EventPayloadItem(key="campaign", value=str(event.campaign)))
+    if event.ipAddress:
+        payload_items.append(EventPayloadItem(key="ipAddress", value=str(event.ipAddress)))
+    elif request.client and request.client.host:
+        payload_items.append(EventPayloadItem(key="ipAddress", value=str(request.client.host)))
+
+    if getattr(event, "device", None):
+        payload_items.append(EventPayloadItem(key="device", value=str(event.device)))
+
     try:
         if event.page:
             payload_items.append(EventPayloadItem(key="page", value=str(event.page)))

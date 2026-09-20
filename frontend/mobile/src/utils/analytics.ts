@@ -7,6 +7,16 @@ import type { AnalyticsEventType, AnalyticsEvent } from '@sj/api-client';
 // Re-export so existing imports of these types from this file keep working
 export type { AnalyticsEventType, AnalyticsEvent };
 
+
+const getDeviceData = () => {
+  return {
+    os: Device.osName || Platform.OS,
+    browser: 'MobileApp',
+    campaign: undefined, // Campaign attribution usually handled via deep links in mobile
+    source: 'mobile_app',
+  };
+};
+
 const buildDevice = () => {
   return {
     type: 'app',
@@ -22,6 +32,7 @@ export const recordEvent = async (event: AnalyticsEvent) => {
     const payload: AnalyticsEvent = {
       ...event,
       device: event.device || buildDevice(),
+      ...getDeviceData(),
     };
     await api.post('/analytics/events', payload);
   } catch (e: any) { console.warn("Background task failed", e); }
