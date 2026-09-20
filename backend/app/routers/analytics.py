@@ -256,8 +256,6 @@ async def record_event(
             payload_items.append(EventPayloadItem(key="reason", value=str(event.payload.reason)))
         if event.payload.testRunId is not None:
             payload_items.append(EventPayloadItem(key="testRunId", value=str(event.payload.testRunId)))
-        if event.payload.device is not None:
-            payload_items.append(EventPayloadItem(key="device", value=str(event.payload.device)))
         if event.payload.screen is not None:
             payload_items.append(EventPayloadItem(key="screen", value=str(event.payload.screen)))
     
@@ -277,13 +275,23 @@ async def record_event(
         payload_items.append(EventPayloadItem(key="ipAddress", value=str(request.client.host)))
 
 
+
     if getattr(event, "device", None):
         val = event.device
         if isinstance(val, dict):
-            val = json.dumps(val)
+            if val.get("type"):
+                payload_items.append(EventPayloadItem(key="device_type", value=str(val["type"])))
+            if val.get("osVersion"):
+                payload_items.append(EventPayloadItem(key="device_os_version", value=str(val["osVersion"])))
+            if val.get("model"):
+                payload_items.append(EventPayloadItem(key="device_model", value=str(val["model"])))
+            if val.get("appVersion"):
+                payload_items.append(EventPayloadItem(key="device_app_version", value=str(val["appVersion"])))
+            if val.get("browser"):
+                payload_items.append(EventPayloadItem(key="device_browser", value=str(val["browser"])))
         else:
-            val = str(val)
-        payload_items.append(EventPayloadItem(key="device", value=val))
+            payload_items.append(EventPayloadItem(key="device_model", value=str(val)))
+
 
 
     try:
@@ -297,64 +305,109 @@ async def record_event(
         payload=payload_items
     )
 
-    try:
-        stored = await analytics_repository.record_event(event_create)
 
-        # Sync/replicate mobile events to tracking repository
+    try:
         event_type = event.type
         session_id = event.sessionId
         raw_payload = event.payload
         payload_obj = raw_payload or AnalyticsEventPayload()
+        tracking_obj = None
+
+        # Unify OS
+        final_os = event.os
+        final_browser = event.browser
+        final_device_type = None
+        final_device_os_version = None
+        final_device_model = None
+        final_device_app_version = None
+
+        if getattr(event, "device", None) and isinstance(event.device, dict):
+            if not final_os and event.device.get("os"):
+                final_os = event.device.get("os")
+            if not final_browser and event.device.get("browser"):
+                final_browser = event.device.get("browser")
+            
+            final_device_type = event.device.get("type")
+            final_device_os_version = event.device.get("osVersion")
+            final_device_model = event.device.get("model")
+            final_device_app_version = event.device.get("appVersion")
+
+        # Determine IP Address
+        final_ip = event.ipAddress
+        if not final_ip and request.client and request.client.host:
+            final_ip = request.client.host
+
+        final_campaign = event.campaign
+        final_source = event.source
+
+        kwargs = {
+            "os": final_os,
+            "browser": final_browser,
+            "ipAddress": final_ip,
+            "campaign": final_campaign,
+            "source": final_source,
+            "deviceType": final_device_type,
+            "deviceOsVersion": final_device_os_version,
+            "deviceModel": final_device_model,
+            "deviceAppVersion": final_device_app_version
+        }
 
         try:
             if event_type == "session_start":
                 is_returning = bool(payload_obj.returning) if payload_obj.returning is not None else False
-                await tracking_repository.trackSession(user_id, session_id, is_returning)
+                tracking_obj = await tracking_repository.trackSession(user_id, session_id, is_returning, **kwargs)
             elif event_type == "page_view":
                 page = event.page if event.page is not None else "/"
-                await tracking_repository.trackPageView(user_id, page, session_id)
+                tracking_obj = await tracking_repository.trackPageView(user_id, page, session_id, **kwargs)
             elif event_type == "product_view":
                 product_id = payload_obj.productId
                 product_name = payload_obj.productName if payload_obj.productName is not None else "Unknown"
                 if product_id:
-                    await tracking_repository.trackProductView(user_id, product_id, product_name, session_id)
+                    tracking_obj = await tracking_repository.trackProductView(user_id, product_id, product_name, session_id, **kwargs)
             elif event_type == "product_click":
                 product_id = payload_obj.productId
                 product_name = payload_obj.productName if payload_obj.productName is not None else "Unknown"
-                source = payload_obj.source if payload_obj.source is not None else "mobile_app"
+                p_source = payload_obj.source if payload_obj.source is not None else (final_source or "mobile_app")
                 if product_id:
-                    await tracking_repository.trackProductClick(user_id, product_id, product_name, source, session_id)
+                    tracking_obj = await tracking_repository.trackProductClick(user_id, product_id, product_name, session_id, **{**kwargs, "source": p_source})
             elif event_type == "add_to_cart":
                 product_id = payload_obj.productId
                 quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
                 if product_id:
-                    await tracking_repository.trackCartAdd(user_id, product_id, quantity, session_id)
+                    tracking_obj = await tracking_repository.trackCartAdd(user_id, product_id, quantity, session_id, **kwargs)
             elif event_type == "remove_from_cart":
                 product_id = payload_obj.productId
                 quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
                 if product_id:
-                    await tracking_repository.trackCartItemRemove(user_id, product_id, quantity, session_id)
+                    tracking_obj = await tracking_repository.trackCartItemRemove(user_id, product_id, quantity, session_id, **kwargs)
             elif event_type == "search":
                 query = payload_obj.query if payload_obj.query is not None else ""
                 results_count = payload_obj.resultsCount if payload_obj.resultsCount is not None else 0
-                await tracking_repository.trackSearch(user_id, query, results_count, session_id, segment="customer")
+                tracking_obj = await tracking_repository.trackSearch(user_id, query, results_count, session_id, segment="customer", **kwargs)
             elif event_type == "add_to_wishlist":
+
                 product_id = payload_obj.productId
                 if product_id:
-                    await tracking_repository.trackWishlistAdd(user_id, product_id, "Unknown", session_id)
+                    tracking_obj = await tracking_repository.trackWishlistAdd(user_id, product_id, "Unknown", session_id)
             elif event_type == "session_end":
                 reason = payload_obj.reason if payload_obj.reason is not None else "unknown"
                 from app.models.schemas import AnalyticsEventCreate
-                await tracking_repository.create(
+                tracking_obj = await tracking_repository.create(
                     AnalyticsEventCreate(type="session_end", userId=user_id, sessionId=session_id, reason=reason)
                 )
             elif event_type == "begin_checkout":
-                await tracking_repository.trackPageView(user_id, "/checkout/step1", session_id)
+                tracking_obj = await tracking_repository.trackPageView(user_id, "/checkout/step1", session_id)
             elif event_type == "purchase":
-                await tracking_repository.trackPageView(user_id, "/checkout/complete", session_id)
+                tracking_obj = await tracking_repository.trackPageView(user_id, "/checkout/complete", session_id)
         except Exception as sync_err:
-            # Prevent synchronization issues from failing the main request
             logger.error("Failed to sync event to tracking repository: %s", str(sync_err), exc_info=True)
+
+        if tracking_obj:
+            event_create.tracking_id = int(tracking_obj.id)
+            
+        stored = await analytics_repository.record_event(event_create)
+
+
 
         event_id = str(stored.id) if stored else None
         return {"status": "ok", "eventId": event_id}

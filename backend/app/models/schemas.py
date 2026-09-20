@@ -1711,6 +1711,10 @@ class AnalyticsEventCreate(BaseModel):
     ipAddress: Optional[str] = None
     campaign: Optional[str] = None
     device: Optional[Any] = None
+    deviceType: Optional[str] = None
+    deviceOsVersion: Optional[str] = None
+    deviceModel: Optional[str] = None
+    deviceAppVersion: Optional[str] = None
 
 
 class Msg91WebhookPayload(BaseModel):

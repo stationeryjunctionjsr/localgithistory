@@ -1,3 +1,4 @@
+import re
 import secrets
 from typing import Optional, Dict, List, Any
 from datetime import datetime
@@ -15,6 +16,7 @@ class EventPayloadItem(BaseModel):
 class EventCreate(BaseModel):
     eventType: Optional[str] = None
     payload: Optional[List[EventPayloadItem]] = None
+    tracking_id: Optional[int] = None
 
 class EventUpdate(BaseModel):
     eventType: Optional[str] = None
@@ -49,7 +51,7 @@ class MySQLEventsDAO:
         async with factory() as session:
             rows = (
                 await session.execute(
-                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
+                    text(f"SELECT e.*, t.session_id, t.user_id, t.ip_address, t.os, t.browser, t.campaign, t.source, t.device_type, t.device_os_version, t.device_model, t.device_app_version FROM {self.TABLE} e LEFT JOIN sj_tracking t ON e.tracking_id = t.id WHERE {where_sql.replace('event_type', 'e.event_type')} ORDER BY e.id ASC"),
                     params,
                 )
             ).fetchall()
@@ -61,27 +63,32 @@ class MySQLEventsDAO:
             id_placeholders = ", ".join([f":id_{i}" for i in range(len(ids))])
             id_params = {f"id_{i}": pid for i, pid in enumerate(ids)}
             
-            child_rows = (
-                await session.execute(
-                    text(f"SELECT parent_id, payload_key, payload_value FROM sj_event_payload WHERE parent_id IN ({id_placeholders})"),
-                    id_params
-                )
-            ).fetchall()
+            payload_map = {pid: [] for pid in ids}
             
-        payload_map = {pid: [] for pid in ids}
-        for cr in child_rows:
-            payload_map[cr.parent_id].append(EventPayloadItem(key=cr.payload_key, value=cr.payload_value))
-            
+
+        # Unmap flat columns back to payload
+        valid_columns = {
+            "session_id": "sessionId", "user_id": "userId", "ip_address": "ipAddress", 
+            "os": "os", "browser": "browser", "campaign": "campaign", "source": "source",
+            "product_id": "productId", "product_name": "productName", "quantity": "quantity", 
+            "query": "query", "results_count": "resultsCount", "reason": "reason",
+            "page": "page", "screen": "screen", "test_run_id": "testRunId", 
+            "device_type": "device_type", 
+            "device_os_version": "device_os_version", "device_model": "device_model", 
+            "device_app_version": "device_app_version"
+        }
+
         result = []
         for r in rows:
             result.append(EventResponse(
                 id=str(r.id),
                 externalId=r.external_id,
                 eventType=r.event_type,
-                payload=(payload_map[r.id] if r.id in payload_map else []),
+                payload=[EventPayloadItem(key=k_camel, value=str(getattr(r, k_db))) for k_db, k_camel in valid_columns.items() if hasattr(r, k_db) and getattr(r, k_db) is not None],
                 createdAt=r.created_at,
                 updatedAt=r.updated_at
             ))
+
             
         return result
 
@@ -100,7 +107,7 @@ class MySQLEventsDAO:
         async with factory() as session:
             row = (
                 await session.execute(
-                    text(f"SELECT * FROM {self.TABLE} WHERE id = :id"),
+                    text(f"SELECT e.*, t.session_id, t.user_id, t.ip_address, t.os, t.browser, t.campaign, t.source, t.device_type, t.device_os_version, t.device_model, t.device_app_version FROM {self.TABLE} e LEFT JOIN sj_tracking t ON e.tracking_id = t.id WHERE e.id = :id"),
                     {"id": pid}
                 )
             ).fetchone()
@@ -108,16 +115,20 @@ class MySQLEventsDAO:
             if not row:
                 return None
                 
-            child_rows = (
-                await session.execute(
-                    text("SELECT payload_key, payload_value FROM sj_event_payload WHERE parent_id = :id"),
-                    {"id": pid}
-                )
-            ).fetchall()
-            
-        payload_list = []
-        for cr in child_rows:
-            payload_list.append(EventPayloadItem(key=cr.payload_key, value=cr.payload_value))
+
+        # Unmap flat columns back to payload
+        valid_columns = {
+            "session_id": "sessionId", "user_id": "userId", "ip_address": "ipAddress", 
+            "os": "os", "browser": "browser", "campaign": "campaign", "source": "source",
+            "product_id": "productId", "product_name": "productName", "quantity": "quantity", 
+            "query": "query", "results_count": "resultsCount", "reason": "reason",
+            "page": "page", "screen": "screen", "test_run_id": "testRunId", 
+            "device_type": "device_type", 
+            "device_os_version": "device_os_version", "device_model": "device_model", 
+            "device_app_version": "device_app_version"
+        }
+
+        payload_list = [EventPayloadItem(key=k_camel, value=str(getattr(row, k_db))) for k_db, k_camel in valid_columns.items() if hasattr(row, k_db) and getattr(row, k_db) is not None]
             
         return EventResponse(
             id=str(row.id),
@@ -128,19 +139,53 @@ class MySQLEventsDAO:
             updatedAt=row.updated_at
         )
 
+
     async def create(self, data: EventCreate) -> Optional[EventResponse]:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
+
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
         
-        if data.eventType is not None:
+        if getattr(data, "eventType", None) is not None:
             cols.append("event_type")
             vals.append(":eventType")
             params["eventType"] = data.eventType
+            
+        # Map flat payload items if payload exists
+        if data.payload is not None:
+            for item in data.payload:
+
+                # We map keys to columns safely
+                col_name = item.key
+                if col_name == "ipAddress": col_name = "ip_address"
+                elif col_name == "testRunId": col_name = "test_run_id"
+                elif col_name == "productId": col_name = "product_id"
+                elif col_name == "productName": col_name = "product_name"
+                elif col_name == "sessionId": col_name = "session_id"
+                elif col_name == "userId": col_name = "user_id"
+                elif col_name == "resultsCount": col_name = "results_count"
+                
+                valid_columns = {
+                    "product_id", "product_name", "quantity", "query", "results_count", "reason",
+                    "page", "screen", "test_run_id"
+                }
+                
+                # Ensure column is alphanumeric to prevent SQL injection and is a valid column
+                if re.match(r'^[a-zA-Z0-9_]+$', col_name) and col_name in valid_columns:
+                    cols.append(col_name)
+                    vals.append(f":{col_name}")
+                    params[col_name] = item.value
+
+                    
+        # Explicitly map tracking_id if it exists
+        if getattr(data, "tracking_id", None) is not None:
+            cols.append("tracking_id")
+            vals.append(":tracking_id")
+            params["tracking_id"] = data.tracking_id
             
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -151,15 +196,8 @@ class MySQLEventsDAO:
                 params
             )
             new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
-            
-            if data.payload is not None:
-                for item in data.payload:
-                    await session.execute(
-                        text("INSERT INTO sj_event_payload (parent_id, payload_key, payload_value) VALUES (:pid, :k, :v)"),
-                        {"pid": new_id, "k": item.key, "v": item.value}
-                    )
-            
             await session.commit()
+
             
         return await self.findById(str(new_id))
 
@@ -187,16 +225,7 @@ class MySQLEventsDAO:
                 params
             )
             
-            if data.payload is not None:
-                await session.execute(
-                    text("DELETE FROM sj_event_payload WHERE parent_id = :pid"),
-                    {"pid": pid}
-                )
-                for item in data.payload:
-                    await session.execute(
-                        text("INSERT INTO sj_event_payload (parent_id, payload_key, payload_value) VALUES (:pid, :k, :v)"),
-                        {"pid": pid, "k": item.key, "v": item.value}
-                    )
+            
                     
             await session.commit()
             

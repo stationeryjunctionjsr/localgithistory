@@ -204,8 +204,8 @@ async def track_click(
         current_user.id if current_user else None,
         payload.productId,
         payload.productName,
-        payload.source,
-        payload.sessionId,
+        session_id=payload.sessionId,
+        source=payload.source,
     )
     return {"message": "Click tracked"}
 
