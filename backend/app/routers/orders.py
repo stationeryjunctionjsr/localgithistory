@@ -1,3 +1,4 @@
+from app.models.payment import PaymentEntry
 import uuid
 from app.models.schemas import UserSnippet, ValetSnippet, UserInternalUpdate
 import logging
@@ -279,14 +280,22 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
             order_ids.add(str(order.id))
 
         for item in order.items if order.items else []:
-            # ItemSnippet.product holds the product ID reference
-            if item.product:
-                pid = str(item.product)
-                if pid:
+                # ItemSnippet.product holds the product ID reference
+                pid = None
+                if getattr(item, "product", None):
+                    if hasattr(item.product, "id"):
+                        pid = str(item.product.id)
+                    elif hasattr(item.product, "product_id"):
+                        pid = str(item.product.product_id)
+                    elif isinstance(item.product, dict) and "id" in item.product:
+                        pid = str(item.product["id"])
+                    else:
+                        pid = str(item.product)
+                elif getattr(item, "productId", None):
+                    pid = str(item.productId)
+
+                if pid and pid.isdigit():
                     product_ids.add(pid)
-            elif item.productId:
-                # Fallback: productId field on ItemSnippet
-                product_ids.add(str(item.productId))
 
     # 2. Fetch all required users, valets, products, and payments in parallel
     users_task = get_storage("users").findAll({"allowed_ids": list(user_ids.union(valet_ids))}) if user_ids.union(valet_ids) else None
@@ -355,7 +364,7 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
             id=order_resp.id,
             user=UserSnippet.model_validate(user, from_attributes=True) if user else None,
             assignedValet=ValetSnippet.model_validate(valet, from_attributes=True) if valet else None,
-            paymentEntries=payment_entries,
+            paymentEntries=[entry for payment in payment_entries for entry in getattr(payment, "payment_entries", [])] if payment_entries else [],
             items=populated_items,
             sub_orders=order_resp.sub_orders,
             orderStatus=order_resp.status,
@@ -365,7 +374,7 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
             couponCode=None,
             paymentMethod=order_resp.payment_method,
             paymentStatus=order_resp.payment_status,
-            address=order_resp.shipping_address,
+            address=Address.model_validate(order_resp.shipping_address, from_attributes=True) if order_resp.shipping_address else None,
             createdAt=order_resp.created_at,
             updatedAt=order_resp.updated_at,
             zoneId=None,
@@ -891,9 +900,9 @@ async def create_order(
     _pincode_seller_ids = set()
     if _customer_pincode:
         try:
-            from app.routers.delivery_charges import get_serviceable_seller_ids_for_pincode
+            from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
 
-            _, _pincode_seller_ids = await get_serviceable_seller_ids_for_pincode(_customer_pincode, "customer")
+            _pincode_seller_ids = await get_seller_ids_for_pincode(_customer_pincode)
             _pincode_seller_ids = set(_pincode_seller_ids or [])
         except Exception as _pse:
             logger.warning("Could not resolve serviceable sellers for pincode %s: %s", _customer_pincode, _pse)
@@ -937,7 +946,7 @@ async def create_order(
         total_cgst += cgst
         total_sgst += sgst
 
-        effective_price = (item_total_before_coupon / quantity) if quantity else 0
+        effective_price = ((item_total_before_coupon or 0) / quantity) if quantity else 0
 
         order_items.append(
             CalculatedOrderItem(

@@ -1752,6 +1752,8 @@ class OrderItemCreate(BaseModel):
     sellAsCase: Optional[bool] = Field(False, alias="sell_as_case")
     price: Optional[float] = None
     selectedVariation: Optional[VariantAttributes] = None
+    bundleId: Optional[str] = Field(None, alias="bundle_id")
+    bundleName: Optional[str] = Field(None, alias="bundle_name")
 
     @property
     def product_id(self) -> Optional[str]:
@@ -1760,6 +1762,14 @@ class OrderItemCreate(BaseModel):
     @property
     def sell_as_case(self) -> bool:
         return bool(self.sellAsCase)
+
+    @property
+    def bundle_id(self) -> Optional[str]:
+        return self.bundleId
+
+    @property
+    def bundle_name(self) -> Optional[str]:
+        return self.bundleName
 
 
 class SellerDeliveryOption(BaseModel):

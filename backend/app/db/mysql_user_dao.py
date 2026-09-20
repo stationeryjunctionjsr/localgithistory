@@ -264,8 +264,8 @@ class MySQLUserDAO:
         role = update_data.role if update_data.role is not None else existing.role
         phone = update_data.phone if update_data.phone is not None else existing.phone
         company_name = update_data.companyName if update_data.companyName is not None else existing.company_name
-        is_active = update_data.isActive if update_data.isActive is not None else existing.isActive
-        approval_status = update_data.approvalStatus if update_data.approvalStatus is not None else existing.approvalStatus
+        is_active = update_data.isActive if update_data.isActive is not None else existing.is_active
+        approval_status = update_data.approvalStatus if update_data.approvalStatus is not None else existing.approval_status
         gst_number = update_data.gstin if update_data.gstin is not None else None
         is_deactivated = update_data.isDeactivated if update_data.isDeactivated is not None else existing.is_deactivated
         credit_limit = update_data.creditLimit if update_data.creditLimit is not None else existing.credit_limit

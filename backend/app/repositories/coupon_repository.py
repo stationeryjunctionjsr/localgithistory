@@ -337,8 +337,8 @@ class CouponRepository:
                     from app.repositories.customer_segments_repository import customer_segments_repository
 
                     segment = await customer_segments_repository.get_by_id(segment_id)
-                    if segment and "userIds" in segment:
-                        if str(user_id) in [str(x) for x in segment["userIds"]]:
+                    if segment and segment.userIds:
+                        if str(user_id) in [str(x) for x in segment.userIds]:
                             matched_any = True
                             break
                 else:
@@ -430,7 +430,7 @@ class CouponRepository:
         all_coupons = await self.storage.findAll({})
         max_num = 0
         for doc in all_coupons:
-            did = (doc.displayId if doc.displayId is not None else "")
+            did = doc.code if hasattr(doc, "code") and doc.code else ""
             if did.startswith(prefix):
                 try:
                     num = int(did[len(prefix) :])
@@ -1131,7 +1131,7 @@ class CouponRepository:
                 overlaps.append(
                     {
                         "couponId": str(c.id),
-                        "displayId": c.displayId,
+                        "displayId": c.code if hasattr(c, "code") and c.code else "",
                         "overlappingProductIds": list(intersection),
                     }
                 )

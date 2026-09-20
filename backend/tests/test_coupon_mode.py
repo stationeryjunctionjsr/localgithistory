@@ -44,13 +44,14 @@ async def test_coupon_override_and_stacking():
         "appliesToValueIds": [product_id],
         "force": True,
     }
-    auto_coupon = await coupon_repository.create(auto_discount_data)
+    from app.models.schemas import CouponCreateInternal
+    auto_coupon = await coupon_repository.create(CouponCreateInternal(**auto_discount_data))
     print("Created auto coupon:", auto_coupon)
 
     from sqlalchemy import text
     factory = coupon_repository.storage._factory()
     async with factory() as session:
-        result = await session.execute(text(f"SELECT id, extra_data FROM sj_coupons WHERE id={auto_coupon['_id']}"))
+        result = await session.execute(text(f"SELECT id, extra_data FROM sj_coupons WHERE id={auto_coupon.id if hasattr(auto_coupon, "id") else auto_coupon["_id"]}"))
         print("Raw SQL row:", result.fetchone())
 
     # 3. Create an override coupon code (10% off)

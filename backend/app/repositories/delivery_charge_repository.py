@@ -22,9 +22,9 @@ class DeliveryChargeRepository:
         for dc in all_charges:
             if (
                 dc.isActive
-                and dc.state.lower() == (state or "").lower()
-                and dc.city.lower() == (city or "").lower()
-                and dc.district.lower() == (district or "").lower()
+                and (dc.state or "").lower() == (state or "").lower()
+                and (dc.city or "").lower() == (city or "").lower()
+                and (dc.district or "").lower() == (district or "").lower()
                 and not dc.pincode
             ):  # Old location-based charges don't have pincode
                 return dc
