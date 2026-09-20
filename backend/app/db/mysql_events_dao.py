@@ -115,15 +115,15 @@ class MySQLEventsDAO:
                 )
             ).fetchall()
             
-        payload_dict = {}
+        payload_list = []
         for cr in child_rows:
-            payload_dict[cr.payload_key] = cr.payload_value
+            payload_list.append(EventPayloadItem(key=cr.payload_key, value=cr.payload_value))
             
         return EventResponse(
             id=str(row.id),
             externalId=row.external_id,
             eventType=row.event_type,
-            payload=payload_dict,
+            payload=payload_list,
             createdAt=row.created_at,
             updatedAt=row.updated_at
         )

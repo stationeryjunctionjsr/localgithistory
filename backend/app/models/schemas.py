@@ -1704,8 +1704,11 @@ class AnalyticsEventCreate(BaseModel):
     orderId: Optional[str] = None
     orderValue: Optional[float] = None
     cartItems: Optional[List[ItemSnippet]] = None
-    model_config = ConfigDict(extra="forbid")
     timestamp: Optional[str] = None
+    os: Optional[str] = None
+    browser: Optional[str] = None
+    ipAddress: Optional[str] = None
+    campaign: Optional[str] = None
 
 
 class Msg91WebhookPayload(BaseModel):
