@@ -35,10 +35,18 @@ export const getDeviceData = () => {
   const campaign = params.get('utm_campaign') || undefined;
   const utmSource = params.get('utm_source') || undefined;
 
+
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
   return {
     os,
     browser,
     campaign,
+    device: {
+      type: isMobile ? 'mobile' : 'desktop',
+      os: os,
+      browser: browser
+    },
     ...(utmSource && { source: utmSource }),
   };
 };

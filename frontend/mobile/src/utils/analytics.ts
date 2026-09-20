@@ -13,7 +13,6 @@ const getDeviceData = () => {
     os: Device.osName || Platform.OS,
     browser: 'MobileApp',
     campaign: undefined, // Campaign attribution usually handled via deep links in mobile
-    source: 'mobile_app',
   };
 };
 

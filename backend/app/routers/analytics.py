@@ -1,3 +1,4 @@
+import json
 from app.models.analytics_schemas import (
     UserOrderStatsResponse, ItemsByUserTypeResponse, ReturnsReportResponse,
     PaymentMethodsReportResponse, RevenueByCategoryResponse, InventoryAlertResponse,
@@ -275,8 +276,15 @@ async def record_event(
     elif request.client and request.client.host:
         payload_items.append(EventPayloadItem(key="ipAddress", value=str(request.client.host)))
 
+
     if getattr(event, "device", None):
-        payload_items.append(EventPayloadItem(key="device", value=str(event.device)))
+        val = event.device
+        if isinstance(val, dict):
+            val = json.dumps(val)
+        else:
+            val = str(val)
+        payload_items.append(EventPayloadItem(key="device", value=val))
+
 
     try:
         if event.page:
