@@ -783,11 +783,13 @@ class AnalyticsRepository:
         user_map = {u.id: u for u in users}
 
         user_revenue = defaultdict(float)
+        user_orders = defaultdict(int)
         for order in orders:
             uid = order.user
             if not uid:
                 continue
             user_revenue[uid] += order.total
+            user_orders[uid] += 1
 
         result = []
         for uid, revenue in user_revenue.items():
@@ -806,6 +808,7 @@ class AnalyticsRepository:
                     "userEmail": user.email,
                     "role": user.role,
                     "revenue": revenue,
+                    "orderCount": user_orders[uid],
                 }
             )
 

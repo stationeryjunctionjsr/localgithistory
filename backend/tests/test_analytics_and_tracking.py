@@ -1,5 +1,14 @@
 import uuid
 import pytest
+
+def has_test_run_id(payload, session_id):
+    if not payload: return False
+    if isinstance(payload, list):
+        return any(item.key == "testRunId" and item.value == session_id for item in payload)
+    if isinstance(payload, dict):
+        return payload.get("testRunId") == session_id
+    return False
+
 from httpx import AsyncClient
 from datetime import datetime
 
@@ -228,7 +237,7 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
 
     # Verify logging in the events database
     all_event_records = await analytics_repository.event_storage.findAll()
-    event_records = [r for r in all_event_records if r.payload and r.payload.get("testRunId") == session_id]
+    event_records = [r for r in all_event_records if has_test_run_id(r.payload, session_id)]
     assert len(event_records) == len(mobile_events)
 
     # Verify replication/syncing in the tracking database
@@ -331,5 +340,5 @@ async def test_analytics_reports_incorporate_events(client: AsyncClient, admin_a
     await tracking_repository.storage.deleteMany({"sessionId": session_id})
     all_events = await analytics_repository.event_storage.findAll()
     for ev in all_events:
-        if ev.payload and "testRunId" in ev.payload and ev.payload["testRunId"] == session_id:
+        if has_test_run_id(ev.payload, session_id):
             await analytics_repository.event_storage.delete(ev.id)

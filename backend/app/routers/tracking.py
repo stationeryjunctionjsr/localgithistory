@@ -12,6 +12,11 @@ from app.utils.limiter import limiter
 
 router = APIRouter()
 
+def ext_os(p, r): return p.os or "Unknown"
+def ext_br(p, r): return p.browser or r.headers.get("user-agent")
+def ext_ip(p, r): return p.ipAddress or (r.client.host if r.client else None)
+
+
 
 def parse_date(date_str: Optional[str]) -> Optional[datetime]:
     if not date_str:
@@ -24,49 +29,57 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
 
 
 # Tracking request models
-class TrackSearchRequest(BaseModel):
+
+class BaseTrackingRequest(BaseModel):
+    campaign: Optional[str] = None
+    source: Optional[str] = None
+    os: Optional[str] = None
+    browser: Optional[str] = None
+    ipAddress: Optional[str] = None
+
+class TrackSearchRequest(BaseTrackingRequest):
     searchTerm: str
     resultsCount: int = 0
     sessionId: Optional[str] = None
     productIds: Optional[list] = None  # product IDs returned in search (for trending conversion)
 
 
-class TrackViewRequest(BaseModel):
+class TrackViewRequest(BaseTrackingRequest):
     productId: str
     productName: str
     sessionId: Optional[str] = None
 
 
-class TrackClickRequest(BaseModel):
+class TrackClickRequest(BaseTrackingRequest):
     productId: str
     productName: str
     source: str = "unknown"
     sessionId: Optional[str] = None
 
 
-class TrackCartAbandonmentRequest(BaseModel):
+class TrackCartAbandonmentRequest(BaseTrackingRequest):
     cartItems: list = []
     cartValue: float = 0
     sessionId: Optional[str] = None
 
 
-class TrackSessionRequest(BaseModel):
+class TrackSessionRequest(BaseTrackingRequest):
     sessionId: str
     isReturning: bool = False
 
 
-class TrackPageViewRequest(BaseModel):
+class TrackPageViewRequest(BaseTrackingRequest):
     page: str
     sessionId: Optional[str] = None
 
 
-class TrackDropOffRequest(BaseModel):
+class TrackDropOffRequest(BaseTrackingRequest):
     page: str
     reason: str
     sessionId: Optional[str] = None
 
 
-class TrackErrorRequest(BaseModel):
+class TrackErrorRequest(BaseTrackingRequest):
     message: str
     stack: Optional[str] = None
     url: Optional[str] = None
@@ -133,9 +146,18 @@ async def track_beacon(
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     """Accept beacon payloads (e.g. from navigator.sendBeacon on page unload)."""
-    beacon_data = payload
-    beacon_data["type"] = "beacon"
-    beacon_data["userId"] = current_user.id if current_user else None
+    beacon_data = AnalyticsEventCreate(
+        type="beacon",
+        userId=current_user.id if current_user else None,
+        sessionId=payload.sessionId,
+        page=payload.page,
+        timestamp=payload.timestamp,
+        os=ext_os(payload, request),
+        browser=ext_br(payload, request),
+        ipAddress=ext_ip(payload, request),
+        campaign=payload.campaign,
+        source=payload.source
+    )
     await tracking_repository.create(beacon_data)
     return {"message": "Beacon tracked"}
 
@@ -167,8 +189,7 @@ async def track_view(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackProductView(
-        current_user.id if current_user else None, payload.productId, payload.productName, payload.sessionId
-    )
+        current_user.id if current_user else None, payload.productId, payload.productName, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "View tracked"}
 
 
@@ -197,8 +218,7 @@ async def track_cart_abandonment(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartAbandonment(
-        current_user.id if current_user else None, payload.cartItems, payload.cartValue, payload.sessionId
-    )
+        current_user.id if current_user else None, payload.cartItems, payload.cartValue, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Cart abandonment tracked"}
 
 
@@ -210,8 +230,7 @@ async def track_session(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackSession(
-        current_user.id if current_user else None, payload.sessionId, payload.isReturning
-    )
+        current_user.id if current_user else None, payload.sessionId, payload.isReturning, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Session tracked"}
 
 
@@ -223,8 +242,7 @@ async def track_page_view(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackPageView(
-        current_user.id if current_user else None, payload.page, payload.sessionId
-    )
+        current_user.id if current_user else None, payload.page, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Page view tracked"}
 
 
@@ -236,8 +254,7 @@ async def track_drop_off(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackDropOff(
-        current_user.id if current_user else None, payload.page, payload.reason, payload.sessionId
-    )
+        current_user.id if current_user else None, payload.page, payload.reason, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Drop-off tracked"}
 
 
@@ -263,19 +280,19 @@ async def track_frontend_error(
     return {"message": "Frontend error tracked"}
 
 
-class TrackCartItemRemoveRequest(BaseModel):
+class TrackCartItemRemoveRequest(BaseTrackingRequest):
     productId: str
     quantity: int = 1
     sessionId: Optional[str] = None
 
 
-class TrackCartItemAddRequest(BaseModel):
+class TrackCartItemAddRequest(BaseTrackingRequest):
     productId: str
     quantity: int = 1
     sessionId: Optional[str] = None
 
 
-class TrackFilterClickRequest(BaseModel):
+class TrackFilterClickRequest(BaseTrackingRequest):
     filterType: str
     filterValue: str
     sessionId: Optional[str] = None
@@ -289,8 +306,7 @@ async def track_cart_item_remove(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartItemRemove(
-        current_user.id if current_user else None, payload.productId, payload.quantity, payload.sessionId
-    )
+        current_user.id if current_user else None, payload.productId, payload.quantity, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Cart item removal tracked"}
 
 
@@ -302,8 +318,7 @@ async def track_cart_item_add(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartAdd(
-        current_user.id if current_user else None, payload.productId, payload.quantity, payload.sessionId
-    )
+        current_user.id if current_user else None, payload.productId, payload.quantity, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Cart item addition tracked"}
 
 
@@ -315,8 +330,7 @@ async def track_filter_click(
     current_user: Optional[dict] = Depends(get_optional_user),
 ):
     await tracking_repository.trackFilterClick(
-        current_user.id if current_user else None, payload.filterType, payload.filterValue, payload.sessionId
-    )
+        current_user.id if current_user else None, payload.filterType, payload.filterValue, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Filter click tracked"}
 
 
@@ -419,7 +433,7 @@ async def get_drop_off_points(
 ):
     start = parse_date(start_date)
     end = parse_date(end_date)
-    drop_off_points = await tracking_repository.getDropOffPoints(limit, start, end)
+    drop_off_points = await tracking_repository.getDropOffs(limit, start, end)
     return drop_off_points
 
 
@@ -452,19 +466,21 @@ async def get_most_abandoned_products(
 
 
 @router.post("/notify-pincode", response_model=MessageResponse)
-async def track_notify_pincode(data: TrackNotifyPincodeRequest, current_user: Optional[User] = Depends(get_optional_user)):
+async def track_notify_pincode(request: Request, data: TrackNotifyPincodeRequest, current_user: Optional[User] = Depends(get_optional_user)):
     user_id = current_user.id if current_user else None
     user_email = current_user.email if current_user else data.email
     
     # Store the notification request
-    record = {
-        "event": "notify_pincode",
-        "productId": data.productId,
-        "productName": data.productName,
-        "pincode": data.pincode,
-        "userId": user_id,
-        "email": user_email,
-        "createdAt": datetime.now(timezone.utc).isoformat()
-    }
+    record = AnalyticsEventCreate(
+        type="notify_pincode",
+        productId=data.productId,
+        productName=data.productName,
+        userId=user_id,
+        filterName="email",
+        filterValue=user_email,
+        searchTerm=data.pincode,
+        browser=request.headers.get("user-agent"),
+        ipAddress=request.client.host if request.client else None
+    )
     await tracking_repository.create(record)
     return {"message": "Notification registered", "success": True}

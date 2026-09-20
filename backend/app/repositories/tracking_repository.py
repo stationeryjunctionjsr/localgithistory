@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Any
 from app.db.storage_factory import get_storage
 from app.models.schemas import AnalyticsEventCreate
 
+
 class TrackingRepository:
     def __init__(self):
         self.storage = get_storage("tracking")
@@ -16,7 +17,7 @@ class TrackingRepository:
     async def create(self, tracking_data: AnalyticsEventCreate):
         if tracking_data.timestamp is None:
             tracking_data.timestamp = self._get_current_timestamp()
-        
+
         return await self.storage.create(tracking_data)
 
     def _get_current_timestamp(self):
@@ -43,14 +44,14 @@ class TrackingRepository:
         return await self.create(payload)
 
     async def trackProductView(
-        self, user_id: Optional[str], product_id: str, product_name: str, session_id: Optional[str] = None
+        self, user_id: Optional[str], product_id: str, product_name: str, session_id: Optional[str] = None, os=None, browser=None, ipAddress=None, campaign=None, source=None
     ):
         return await self.create(
             AnalyticsEventCreate(
-                type="product_view", 
-                userId=user_id, 
-                productId=product_id, 
-                productName=product_name, 
+                type="product_view", os=os, browser=browser, ipAddress=ipAddress, campaign=campaign, source=source,
+                userId=user_id,
+                productId=product_id,
+                productName=product_name,
                 sessionId=session_id
             )
         )
@@ -63,6 +64,7 @@ class TrackingRepository:
         quantity: int,
         price: float,
         session_id: Optional[str] = None,
+        os=None, browser=None, ipAddress=None, campaign=None, source=None
     ):
         return await self.create(
             AnalyticsEventCreate(
@@ -84,6 +86,7 @@ class TrackingRepository:
         quantity: int,
         price: float,
         session_id: Optional[str] = None,
+        os=None, browser=None, ipAddress=None, campaign=None, source=None
     ):
         return await self.create(
             AnalyticsEventCreate(
@@ -97,67 +100,68 @@ class TrackingRepository:
             )
         )
 
-    async def trackCheckout(self, user_id: Optional[str], cart_value: float, session_id: Optional[str] = None):
+    async def trackCheckout(self, user_id: Optional[str], cart_value: float, session_id: Optional[str] = None, os=None, browser=None, ipAddress=None, campaign=None, source=None):
         return await self.create(
             AnalyticsEventCreate(
-                type="checkout",
+                type="checkout", os=os, browser=browser, ipAddress=ipAddress, campaign=campaign, source=source,
                 userId=user_id,
                 cartValue=cart_value,
                 sessionId=session_id,
             )
         )
 
-    async def trackProductClick(self, user_id, product_id, product_name, source=None, session_id=None):
+    async def trackProductClick(self, user_id, product_id, product_name, source=None, session_id=None, os=None, browser=None, ipAddress=None, campaign=None):
         return await self.create(AnalyticsEventCreate(
-            type="product_click", userId=user_id, productId=product_id, productName=product_name, source=source, sessionId=session_id
+            type="product_click", os=os, browser=browser, ipAddress=ipAddress, campaign=campaign, userId=user_id, productId=product_id, productName=product_name, source=source, sessionId=session_id
         ))
 
-    async def trackCartAdd(self, user_id, product_id, quantity, session_id=None):
-        return await self.trackAddToCart(user_id, product_id, "Unknown", quantity, 0, session_id)
+    async def trackCartAdd(self, user_id, product_id, quantity, session_id=None, os=None, browser=None, ipAddress=None, campaign=None, source=None):
+        return await self.trackAddToCart(user_id, product_id, "Unknown", quantity, 0, session_id, os=os, browser=browser, ipAddress=ipAddress, campaign=campaign, source=source)
 
-    async def trackCartItemRemove(self, user_id, product_id, quantity, session_id=None):
-        return await self.trackRemoveFromCart(user_id, product_id, "Unknown", quantity, 0, session_id)
+    async def trackCartItemRemove(self, user_id, product_id, quantity, session_id=None, os=None, browser=None, ipAddress=None, campaign=None, source=None):
+        return await self.trackRemoveFromCart(user_id, product_id, "Unknown", quantity, 0, session_id, os=os, browser=browser, ipAddress=ipAddress, campaign=campaign, source=source)
 
-    async def trackFilterClick(self, user_id, filter_name, filter_value, session_id=None):
+    async def trackFilterClick(self, user_id, filter_name, filter_value, session_id=None, os=None, browser=None, ipAddress=None, campaign=None, source=None):
         return await self.create(AnalyticsEventCreate(
-            type="filter_click", userId=user_id, sessionId=session_id,
+            type="filter_click", os=os, browser=browser, ipAddress=ipAddress, campaign=campaign, source=source, userId=user_id, sessionId=session_id,
             filterName=filter_name, filterValue=filter_value
         ))
 
-    async def trackWishlistAdd(self, user_id, product_id, product_name, session_id=None):
+    async def trackWishlistAdd(self, user_id, product_id, product_name, session_id=None, os=None, browser=None, ipAddress=None, campaign=None, source=None):
         return await self.create(AnalyticsEventCreate(
-            type="wishlist_add", userId=user_id, sessionId=session_id,
+            type="wishlist_add", os=os, browser=browser, ipAddress=ipAddress, campaign=campaign, source=source, userId=user_id, sessionId=session_id,
             productId=product_id, productName=product_name
         ))
 
-
-    async def trackSession(self, user_id: Optional[str], session_id: str, is_returning: bool):
+    async def trackSession(self, user_id: Optional[str], session_id: str, is_returning: bool, os=None, browser=None, ipAddress=None, campaign=None, source=None):
         return await self.create(
             AnalyticsEventCreate(
-                type="session", userId=user_id, sessionId=session_id, isReturning=is_returning, pageViews=1
+                type="session", os=os, browser=browser, ipAddress=ipAddress, campaign=campaign, source=source, userId=user_id, sessionId=session_id, isReturning=is_returning, pageViews=1
             )
         )
 
-    async def trackPageView(self, user_id: Optional[str], page: str, session_id: Optional[str] = None):
-        return await self.create(AnalyticsEventCreate(type="page_view", userId=user_id, page=page, sessionId=session_id))
+    async def trackPageView(self, user_id: Optional[str], page: str, session_id: Optional[str] = None, os=None, browser=None, ipAddress=None, campaign=None, source=None):
+        return await self.create(AnalyticsEventCreate(type="page_view", os=os, browser=browser, ipAddress=ipAddress, campaign=campaign, source=source, userId=user_id, page=page, sessionId=session_id))
 
-    async def trackDropOff(self, user_id: Optional[str], page: str, reason: str, session_id: Optional[str] = None):
+    async def trackDropOff(self, user_id: Optional[str], page: str, reason: str, session_id: Optional[str] = None, os=None, browser=None, ipAddress=None, campaign=None, source=None):
         return await self.create(
-            AnalyticsEventCreate(type="drop_off", userId=user_id, page=page, reason=reason, sessionId=session_id)
+            AnalyticsEventCreate(type="drop_off", os=os, browser=browser, ipAddress=ipAddress, campaign=campaign,
+                                 source=source, userId=user_id, page=page, reason=reason, sessionId=session_id)
         )
 
     async def trackPurchase(
-        self, user_id: Optional[str], order_id: str, order_value: float, session_id: Optional[str] = None
+        self, user_id: Optional[str], order_id: str, order_value: float, session_id: Optional[str] = None, os=None, browser=None, ipAddress=None, campaign=None, source=None
     ):
         return await self.create(
             AnalyticsEventCreate(
-                type="purchase", userId=user_id, orderId=order_id, orderValue=order_value, sessionId=session_id
+                type="purchase", os=os, browser=browser, ipAddress=ipAddress, campaign=campaign, source=source, userId=user_id, orderId=order_id, orderValue=order_value, sessionId=session_id
             )
         )
 
-    async def trackCartAbandonment(self, user_id: Optional[str], cart_items: List[Any], cart_value: Optional[float], session_id: Optional[str] = None):
+    async def trackCartAbandonment(self, user_id: Optional[str], cart_items: List[Any], cart_value: Optional[float], session_id: Optional[str] = None, os=None, browser=None, ipAddress=None, campaign=None, source=None):
         return await self.create(
-            AnalyticsEventCreate(type="cart_abandonment", userId=user_id, cartItems=cart_items, cartValue=cart_value, sessionId=session_id)
+            AnalyticsEventCreate(type="cart_abandonment", os=os, browser=browser, ipAddress=ipAddress, campaign=campaign,
+                                 source=source, userId=user_id, cartItems=cart_items, cartValue=cart_value, sessionId=session_id)
         )
 
     async def getSessionsCount(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
@@ -190,7 +194,8 @@ class TrackingRepository:
             name = v.productName if v.productName is not None else "Unknown"
             if pid:
                 if pid not in product_counts:
-                    product_counts[pid] = {"productId": pid, "productName": name, "views": 0}
+                    product_counts[pid] = {
+                        "productId": pid, "productName": name, "views": 0}
                 product_counts[pid]["views"] += 1
 
         return sorted(product_counts.values(), key=lambda x: x["views"], reverse=True)[:limit]
@@ -210,7 +215,8 @@ class TrackingRepository:
 
             page = d.page
             if page not in drop_off_counts:
-                drop_off_counts[page] = {"page": page, "count": 0, "reasons": {}}
+                drop_off_counts[page] = {
+                    "page": page, "count": 0, "reasons": {}}
             drop_off_counts[page]["count"] += 1
 
             reason = d.reason if d.reason is not None else None
@@ -256,7 +262,7 @@ class TrackingRepository:
             for item in items:
                 # Zero Data Stripping: Strict dot notation
                 pid = item.product if item.product else item.productId
-                
+
                 if not pid:
                     continue
 
@@ -270,7 +276,7 @@ class TrackingRepository:
 
                 q = item.quantity if item.quantity is not None else 1
                 p = item.price if item.price is not None else 0
-                    
+
                 abandoned_products[pid]["abandonCount"] += 1
                 abandoned_products[pid]["quantityAbandoned"] += q
                 abandoned_products[pid]["valueLost"] += q * p
@@ -284,10 +290,11 @@ class TrackingRepository:
 
         result = []
         for pid, stats in abandoned_products.items():
-            product = product_map[str(pid)] if str(pid) in product_map else None
+            product = product_map[str(pid)] if str(
+                pid) in product_map else None
             product_name = product.name if product else "Unknown"
             product_category = product.category if product else "Uncategorized"
-            
+
             result.append(
                 {
                     "productId": pid,
@@ -328,7 +335,7 @@ class TrackingRepository:
             clear_query["userId"] = user_id
         elif session_id:
             clear_query["sessionId"] = session_id
-            
+
         clear_events = await self.findAll(clear_query)
         last_cleared = ""
         if clear_events:
@@ -336,7 +343,8 @@ class TrackingRepository:
 
         all_searches = await self.findAll(query)
         if last_cleared:
-            all_searches = [s for s in all_searches if (s.timestamp or "") > last_cleared]
+            all_searches = [s for s in all_searches if (
+                s.timestamp or "") > last_cleared]
 
         all_searches.sort(key=lambda x: x.timestamp or "", reverse=True)
 
@@ -394,4 +402,139 @@ class TrackingRepository:
             )
         return out
 
+    async def getMostSearched(
+        self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
+    ):
+        all_tracking = await self.findAll({"type": "search"})
+
+        filtered_tracking = []
+        for track in all_tracking:
+            ts = self._parse_timestamp(track.timestamp)
+            if not ts: continue
+            if start_date and ts < start_date: continue
+            if end_date and ts > end_date: continue
+            filtered_tracking.append(track)
+
+        search_stats = {}
+        for track in filtered_tracking:
+            term = track.searchTerm or ""
+            term = term.lower()
+            if term:
+                if term not in search_stats:
+                    search_stats[term] = {"count": 0, "total_results": 0}
+                search_stats[term]["count"] += 1
+                search_stats[term]["total_results"] += track.resultsCount or 0
+
+        sorted_searches = sorted(search_stats.items(
+        ), key=lambda x: x[1]["count"], reverse=True)[:limit]
+        return [
+            {
+                "term": term,
+                "count": stats["count"],
+                "avgProductsFound": round(stats["total_results"] / stats["count"], 1) if stats["count"] > 0 else 0,
+            }
+            for term, stats in sorted_searches
+        ]
+
+
+    async def getZeroResultSearches(
+        self, limit: int = 50, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
+    ):
+        all_tracking = await self.findAll({"type": "product_search"})
+
+        filtered_tracking = []
+        for track in all_tracking:
+            ts = self._parse_timestamp(track.timestamp)
+            if not ts:
+                continue
+            if start_date and ts < start_date:
+                continue
+            if end_date and ts > end_date:
+                continue
+            filtered_tracking.append(track)
+
+        search_stats = {}
+        for track in filtered_tracking:
+            if (track.resultsCount or 0) == 0:
+                term = (track.searchTerm or "").lower()
+                if term:
+                    if term not in search_stats:
+                        search_stats[term] = {"count": 0}
+                    search_stats[term]["count"] += 1
+
+        return [
+            {
+                "term": term,
+                "count": stats["count"],
+            }
+            for term, stats in sorted(search_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:limit]
+        ]
+
+    async def getMostViewed(
+        self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
+    ):
+        all_tracking = await self.findAll({"type": "product_view"})
+
+        # Filter by date
+        filtered_tracking = []
+        for track in all_tracking:
+            ts = self._parse_timestamp(track.timestamp)
+            if not ts:
+                continue
+            if start_date and ts < start_date:
+                continue
+            if end_date and ts > end_date:
+                continue
+            filtered_tracking.append(track)
+
+        view_counts = {}
+        for track in filtered_tracking:
+            product_id = (track.productIds[0] if track.productIds else None)
+            if product_id:
+                if product_id not in view_counts:
+                    view_counts[product_id] = {
+                        "productId": product_id,
+                        "productName": (track.productName or "Unknown"),
+                        "count": 0,
+                    }
+                view_counts[product_id]["count"] += 1
+
+        return sorted(view_counts.values(), key=lambda x: x["count"], reverse=True)[:limit]
+
+    async def getReturningUsers(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
+        sessions = await self.findAll({"type": "session"})
+        returning_user_ids = set()
+        user_last_seen = {}
+
+        for session in sessions:
+            ts = self._parse_timestamp(session.get("timestamp"))
+            if start_date and ts and ts < start_date:
+                continue
+            if end_date and ts and ts > end_date:
+                continue
+
+            uid = session.get("userId")
+            if session.get("isReturning") and uid:
+                returning_user_ids.add(uid)
+                if ts:
+                    if uid not in user_last_seen or ts > user_last_seen[uid]:
+                        user_last_seen[uid] = ts
+
+        # Get user details
+        from app.db.storage_factory import get_storage
+
+        user_storage = get_storage("users")
+        users = await user_storage.findAll({"_id": {"$in": list(returning_user_ids)}})
+
+        return [
+            {
+                "userId": u.get("_id"),
+                "name": u.get("name", "Unknown"),
+                "email": u.get("email", "Unknown"),
+                "lastSeen": user_last_seen.get(u.get("_id")).isoformat() if user_last_seen.get(u.get("_id")) else None,
+            }
+            for u in users
+        ]
+
+    
 tracking_repository = TrackingRepository()

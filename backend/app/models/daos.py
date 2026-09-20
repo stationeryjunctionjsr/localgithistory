@@ -40,7 +40,7 @@ class PaymentEntryInternal(BaseModel):
     image: Optional[str] = None
     notes: Optional[str] = None
     verified: Optional[bool] = False
-    createdAt: Optional[str] = None
+    createdAt: Optional[Any] = None
 
 class PaymentInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -56,8 +56,8 @@ class PaymentInternalCreate(BaseModel):
     totalAmount: Optional[float] = 0.0
     paymentId: Optional[str] = None
     paymentEntries: Optional[List[PaymentEntryInternal]] = []
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    createdAt: Optional[Any] = None
+    updatedAt: Optional[Any] = None
 
 class PaymentInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -73,8 +73,8 @@ class PaymentInternalUpdate(BaseModel):
     totalAmount: Optional[float] = None
     paymentId: Optional[str] = None
     paymentEntries: Optional[List[PaymentEntryInternal]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    createdAt: Optional[Any] = None
+    updatedAt: Optional[Any] = None
 
 class VisibilityRuleInternal(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -111,7 +111,7 @@ class BannerInternalUpdate(BaseModel):
     endDate: Optional[datetime] = None
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[Any] = None
     isPublished: Optional[bool] = None
     targetAudience: Optional[str] = None
     userSegments: Optional[List[str]] = None
@@ -166,6 +166,11 @@ class DeviceSnippet(BaseModel):
     os: Optional[str] = None
     osVersion: Optional[str] = None
     appVersion: Optional[str] = None
+    userAgent: Optional[str] = None
+    deviceType: Optional[str] = None
+    deviceModel: Optional[str] = None
+    locale: Optional[str] = None
+    ip: Optional[str] = None
     brand: Optional[str] = None
     model: Optional[str] = None
     fcmToken: Optional[str] = None
@@ -192,8 +197,8 @@ class SessionInternalCreate(BaseModel):
     revoked_at: Optional[str] = None
     revoked_reason: Optional[str] = None
     is_guest: Optional[bool] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None
 
 class SessionInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
@@ -204,7 +209,7 @@ class SessionInternalUpdate(BaseModel):
     ipAddress: Optional[str] = None
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[Any] = None
     refreshTokenId: Optional[str] = None
     status: Optional[str] = None
     lastActiveAt: Optional[str] = None
@@ -214,7 +219,7 @@ class SessionInternalUpdate(BaseModel):
     isGuest: Optional[bool] = None
     comment: Optional[str] = None
     id_: Optional[str] = Field(default=None, alias="_id")
-    createdAt: Optional[str] = None
+    createdAt: Optional[Any] = None
     external_id: Optional[str] = None
     comments: Optional[str] = None
     eid: Optional[str] = None
@@ -228,8 +233,8 @@ class SessionInternalUpdate(BaseModel):
     revoked_at: Optional[str] = None
     revoked_reason: Optional[str] = None
     is_guest: Optional[bool] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None
 
 
 class WishlistItemInternal(BaseModel):
@@ -286,7 +291,7 @@ class SellerRequestInternalCreate(BaseModel):
     responses: Optional[List['TicketResponseItem']] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
-    createdAt: Optional[str] = None
+    createdAt: Optional[Any] = None
     businessDetails: Optional[BusinessDetailsInternal] = None
 
 class SellerRequestInternalUpdate(BaseModel):
@@ -303,7 +308,7 @@ class SellerRequestInternalUpdate(BaseModel):
     responses: Optional[List['TicketResponseItem']] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
-    createdAt: Optional[str] = None
+    createdAt: Optional[Any] = None
     businessDetails: Optional[BusinessDetailsInternal] = None
 
 
@@ -328,8 +333,8 @@ class ProductInternalCreate(BaseModel):
     pricePerCase: Optional[float] = None
     itemsPerCase: Optional[int] = None
     isReturnable: Optional[bool] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    createdAt: Optional[Any] = None
+    updatedAt: Optional[Any] = None
     minimumQuantity: Optional[int] = 1
     searchTags: Optional[List[str]] = []
     salesCount: Optional[int] = 0
@@ -381,7 +386,7 @@ class ProductInternalUpdate(BaseModel):
     images: Optional[List[str]] = None
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[Any] = None
     sellerId: Optional[str] = None
 
 class CategoryInternalCreate(BaseModel):
@@ -414,7 +419,7 @@ class CategoryInternalUpdate(BaseModel):
     parentId: Optional[str] = None
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[Any] = None
     images: Optional[List[str]] = None
     subCategories: Optional[List[str]] = None
     minimumQuantity: Optional[int] = 1
@@ -423,7 +428,7 @@ class CategoryInternalUpdate(BaseModel):
     showInMobileHomepage: Optional[bool] = None
     gst: Optional[float] = None
     isReturnable: Optional[bool] = None
-    createdAt: Optional[str] = None
+    createdAt: Optional[Any] = None
 
 class BrandInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -442,7 +447,7 @@ class BrandInternalUpdate(BaseModel):
     description: Optional[str] = None
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[Any] = None
     slug: Optional[str] = None
     logoUrl: Optional[str] = None
     showInMobileHomepage: Optional[bool] = None
@@ -474,7 +479,7 @@ class BundleInternalUpdate(BaseModel):
     price: Optional[float] = None
     isActive: Optional[bool] = None
     salesCount: Optional[int] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[Any] = None
 
 class ReturnRequestInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
@@ -501,8 +506,8 @@ class ReturnRequestInternalCreate(BaseModel):
     valetDeclinedAt: Optional[str] = None
     valetDeclineReason: Optional[str] = None
     deliveryCharge: Optional[float] = 0.0
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    createdAt: Optional[Any] = None
+    updatedAt: Optional[Any] = None
 
 class ReturnRequestInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
@@ -527,7 +532,7 @@ class ReturnRequestInternalUpdate(BaseModel):
     valetDeclinedAt: Optional[str] = None
     valetDeclineReason: Optional[str] = None
     deliveryCharge: Optional[float] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[Any] = None
 
 class ReturnRequestInternal(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -554,8 +559,8 @@ class ReturnRequestInternal(BaseModel):
     valetDeclinedAt: Optional[str] = None
     valetDeclineReason: Optional[str] = None
     deliveryCharge: Optional[float] = 0.0
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    createdAt: Optional[Any] = None
+    updatedAt: Optional[Any] = None
 
 from app.models.schemas import TicketResponseItem, ProductSellerEntry, VariantOption, ReturnItemSchema, ValetDeclineHistoryEntry
 
@@ -576,8 +581,8 @@ class CustomerSegmentInternalCreate(BaseModel):
     filters: Optional[CustomerSegmentFilters] = None
     isActive: bool = True
     isSystem: bool = False
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    createdAt: Optional[Any] = None
+    updatedAt: Optional[Any] = None
     lastRefreshedAt: Optional[str] = None
 
 class CustomerSegmentInternalUpdate(BaseModel):
@@ -585,7 +590,7 @@ class CustomerSegmentInternalUpdate(BaseModel):
     userIds: Optional[List[str]] = None
     filters: Optional[CustomerSegmentFilters] = None
     isActive: Optional[bool] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[Any] = None
     lastRefreshedAt: Optional[str] = None
 
 class NotificationInternalCreate(BaseModel):
@@ -597,13 +602,13 @@ class NotificationInternalCreate(BaseModel):
     metadata: Optional[NotificationMetadata] = None
     isRead: bool = False
     isAcknowledged: bool = False
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    createdAt: Optional[Any] = None
+    updatedAt: Optional[Any] = None
 
 class NotificationInternalUpdate(BaseModel):
     isRead: Optional[bool] = None
     isAcknowledged: Optional[bool] = None
-    updatedAt: Optional[str] = None
+    updatedAt: Optional[Any] = None
 
 class NotificationFilter(BaseModel):
     userId: Optional[str] = None
@@ -622,5 +627,5 @@ class NotificationInternal(BaseModel):
     isRead: bool
     isAcknowledged: bool
     metadata: Optional[NotificationMetadata] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    createdAt: Optional[Any] = None
+    updatedAt: Optional[Any] = None
