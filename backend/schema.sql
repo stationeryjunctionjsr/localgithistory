@@ -487,7 +487,7 @@ CREATE TABLE sj_coupon_user_usages (
   user_id varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
   usage_count int NOT NULL DEFAULT '0',
   PRIMARY KEY (id),
-  KEY ix_coupon_usages_parent (parent_id),
+  UNIQUE KEY uq_coupon_usages_parent_user (parent_id, user_id),
   CONSTRAINT k_coupon_usages_coupon FOREIGN KEY (parent_id) REFERENCES sj_coupons (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

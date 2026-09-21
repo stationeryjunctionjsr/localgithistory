@@ -430,7 +430,7 @@ class MySQLCouponsDAO:
                     p = {"id": row_id}
                     p["v0"] = item.userId
                     p["v1"] = item.usageCount
-                    await session.execute(text(f"INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :v0, :v1)"), p)
+                    await session.execute(text(f"INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :v0, :v1) ON DUPLICATE KEY UPDATE usage_count = :v1"), p)
 
         if data.quantityTiers is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_quantity_tiers WHERE parent_id = :id"), {"id": row_id})

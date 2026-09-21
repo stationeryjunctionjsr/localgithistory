@@ -606,22 +606,12 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 {"id": pk},
             )
             
-            # Upsert user usage
-            res_usage = await session.execute(
-                text("SELECT id FROM sj_coupon_user_usages WHERE parent_id = :id AND user_id = :uid"),
+            # Upsert user usage atomically
+            await session.execute(
+                text("INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :uid, 1) "
+                     "ON DUPLICATE KEY UPDATE usage_count = usage_count + 1"),
                 {"id": pk, "uid": user_id}
             )
-            row = res_usage.fetchone()
-            if row:
-                await session.execute(
-                    text("UPDATE sj_coupon_user_usages SET usage_count = usage_count + 1 WHERE id = :rid"),
-                    {"rid": row[0]}
-                )
-            else:
-                await session.execute(
-                    text("INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :uid, 1)"),
-                    {"id": pk, "uid": user_id}
-                )
             await session.commit()
 
         self.invalidate_cache()
