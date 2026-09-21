@@ -11,6 +11,8 @@ class UserRole(str, Enum):
     WHOLESALER = "wholesaler"
     CUSTOMER = "customer"
     VALET = "valet"
+    SELLER = "seller"
+    SELLER_ADMIN = "seller_admin"
 
 
 class ReturnRequestStatus(str, Enum):
@@ -108,6 +110,7 @@ class ProductSellerEntry(BaseModel):
 
 class ItemSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    id: Optional[str] = Field(default=None, alias="_id")
     productId: Optional[str] = Field(default=None, validation_alias=AliasChoices("productId", "product_id"))
     product: Optional[str] = None
     quantity: Optional[int] = None
@@ -116,7 +119,15 @@ class ItemSnippet(BaseModel):
     mrp: Optional[float] = None
     name: Optional[str] = None
     image: Optional[str] = None
+    images: Optional[list] = None
     status: Optional[str] = None
+    subtotal: Optional[float] = None
+    outOfStock: Optional[bool] = None
+    sku: Optional[str] = None
+    mrpPerCase: Optional[float] = None
+    quantityPerCase: Optional[int] = None
+    bundleId: Optional[str] = Field(default=None, validation_alias=AliasChoices("bundleId", "bundle_id"))
+    bundleName: Optional[str] = Field(default=None, validation_alias=AliasChoices("bundleName", "bundle_name"))
     variantAttributes: Optional['VariantAttributes'] = Field(default=None, validation_alias=AliasChoices("variantAttributes", "variant_attributes"))
 
 
@@ -1511,7 +1522,7 @@ class AdBase(BaseModel):
     utm_source: Optional[str] = None
     utm_medium: Optional[str] = None
     utm_campaign: Optional[str] = None
-    device: Optional[Any] = None
+    device: Optional[Dict[str, str]] = None
     google_conversion_id: Optional[str] = None
     google_conversion_label: Optional[str] = None
     meta_pixel_id: Optional[str] = None
@@ -1710,7 +1721,7 @@ class AnalyticsEventCreate(BaseModel):
     browser: Optional[str] = None
     ipAddress: Optional[str] = None
     campaign: Optional[str] = None
-    device: Optional[Any] = None
+    device: Optional[Dict[str, str]] = None
     deviceType: Optional[str] = None
     deviceOsVersion: Optional[str] = None
     deviceModel: Optional[str] = None

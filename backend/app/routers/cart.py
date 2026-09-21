@@ -81,21 +81,21 @@ async def get_cart(current_user: User = Depends(get_current_user)):
             cart_items.append(
                 {
                     "_id": item.id,
-                    "product": {
-                        "_id": product.id,
-                        "name": product.name,
-                        "sku": product.sku,
-                        "images": product.images,
-                        "mrp": product.mrp,
-                        "mrpPerCase": product.mrp_per_case,
-                        "quantityPerCase": product.quantity_per_case,
-                        "price": price,
-                    },
+                    "productId": product.id,
+                    "name": product.name,
+                    "sku": product.sku,
+                    "images": product.images,
+                    "mrp": product.mrp,
+                    "mrpPerCase": product.mrp_per_case,
+                    "quantityPerCase": product.quantity_per_case,
                     "quantity": quantity,
                     "sellAsCase": sell_as_case,
                     "price": price,
                     "subtotal": subtotal,
                     "outOfStock": is_out_of_stock,
+                    "bundleId": item.bundleId,
+                    "bundleName": item.bundleName,
+                    "variantAttributes": item.variantAttributes,
                 }
             )
 
