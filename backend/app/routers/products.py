@@ -340,10 +340,10 @@ async def export_csv(current_user: User = Depends(require_super_admin)):
         quantity_per_case = p.quantity_per_case if p.quantity_per_case is not None else ""
 
         images_list = (p.images or [])
-        images = ",".join(images_list) if isinstance(images_list, list) else (images_list or "")
+        images = ",".join(images_list) if images_list else ""
 
         videos_list = (p.videos or [])
-        videos = ",".join(videos_list) if isinstance(videos_list, list) else (videos_list or "")
+        videos = ",".join(videos_list) if videos_list else ""
 
         is_active = "true" if (p.is_active if p.is_active is not None else True) else "false"
         product_id = p.product_id_formatted or (
@@ -715,7 +715,7 @@ async def get_public_products(
     # stale content for up to 60s more while a fresh fetch happens in the background.
     response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=60"
 
-    f = ProductFacets(**facets) if isinstance(facets, dict) else (facets if isinstance(facets, ProductFacets) else ProductFacets())
+    f = facets if facets else ProductFacets()
 
     return {
         "products": products_with_pricing,
@@ -871,7 +871,7 @@ async def get_products(
 
         products_with_pricing.append(product)
 
-    f = ProductFacets(**facets) if isinstance(facets, dict) else (facets if isinstance(facets, ProductFacets) else ProductFacets())
+    f = facets if facets else ProductFacets()
 
     return {
         "products": products_with_pricing,

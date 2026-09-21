@@ -50,7 +50,7 @@ async def get_public_banners(
         banners = [b for b in banners if str((b.position or "")).lower() in target_positions]
 
     if targetAudience:
-        banners = [b for b in banners if b.target_audience == targetAudience or b.target_audience == "all"]
+        banners = [b for b in banners if b.targetAudience == targetAudience or b.targetAudience == "all"]
 
     return banners
 

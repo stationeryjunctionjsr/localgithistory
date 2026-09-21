@@ -85,7 +85,7 @@ class UpdateBundleRequest(BaseModel):
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
-async def _enrich_bundle(bundle) -> Dict:
+async def _enrich_bundle(bundle) -> BundleResponse:
     """
     Attach product details to each bundle item and compute:
       - totalMrp  : sum of (item.quantity × product.mrp)
@@ -299,7 +299,7 @@ async def list_bundles_for_product(product_id: str):
             except Exception as e:
                 logger.warning("Could not enrich bundle %s: %s", b.id, e)
         # Sort by salesCount descending
-        enriched.sort(key=lambda x: x.get("salesCount", 0), reverse=True)
+        enriched.sort(key=lambda x: x.salesCount or 0, reverse=True)
         return enriched
     except Exception as e:
         logger.error("Error fetching bundles for product %s: %s", product_id, str(e), exc_info=True)

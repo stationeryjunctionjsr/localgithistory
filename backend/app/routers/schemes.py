@@ -56,7 +56,7 @@ async def get_schemes(current_user: User = Depends(require_wholesaler)):
     return out
 
 
-@router.get("/applicable/{product_id}", response_model=List[dict])
+@router.get("/applicable/{product_id}", response_model=List[SchemeResponse])
 async def get_applicable_schemes(product_id: str, current_user: User = Depends(require_wholesaler)):
     """
     Get all active schemes applicable to a given product.
@@ -110,7 +110,7 @@ async def get_applicable_schemes(product_id: str, current_user: User = Depends(r
     return out
 
 
-@router.get("/applicable/bundle/{bundle_id}", response_model=List[dict])
+@router.get("/applicable/bundle/{bundle_id}", response_model=List[SchemeResponse])
 async def get_applicable_bundle_schemes(bundle_id: str, current_user: User = Depends(require_wholesaler)):
     """
     Get all active schemes applicable to a given bundle.

@@ -35,8 +35,8 @@ async def validate_coupon(
     validation = await coupon_repository.validateCoupon(
         code, user_role, amount, current_user.id, category, None
     )
-    if not validation["valid"]:
-        raise HTTPException(status_code=400, detail=validation["message"])
+    if not validation.valid:
+        raise HTTPException(status_code=400, detail=validation.message)
     return {
         "valid": True,
         "coupon": {
@@ -72,8 +72,8 @@ async def validate_coupon_with_cart(body: CouponValidateCart, current_user: User
         product_repository=product_repository,
         shipping_address=body.shippingAddress,
     )
-    if not validation["valid"]:
-        raise HTTPException(status_code=400, detail=validation["message"])
+    if not validation.valid:
+        raise HTTPException(status_code=400, detail=validation.message)
     return {
         "valid": True,
         "coupon": {

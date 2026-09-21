@@ -86,11 +86,10 @@ async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin:
 
     from app.models.daos import CustomerSegmentInternalUpdate
     # Avoid model_dump dictionary creation per strict Pydantic model rules
-    kwargs = {}
-    if segment.name is not None: kwargs['name'] = segment.name
-    if segment.userIds is not None: kwargs['userIds'] = segment.userIds
-    if segment.filters is not None: kwargs['filters'] = segment.filters
-    update_model = CustomerSegmentInternalUpdate(**kwargs)
+    update_model = CustomerSegmentInternalUpdate()
+    if segment.name is not None: update_model.name = segment.name
+    if segment.userIds is not None: update_model.userIds = segment.userIds
+    if segment.filters is not None: update_model.filters = segment.filters
     updated = await customer_segments_repository.update(segment_id, update_model)
     return updated
 

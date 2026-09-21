@@ -36,15 +36,7 @@ async def populate_ticket(ticket_data):
     # Populate response users
     populated_responses = []
     for response in (ticket.responses or []):
-        user_val = response.user
-        if isinstance(user_val, str):
-            resp_user_id_str = user_val
-        else:
-            try:
-                resp_user_id_str = user_val.id
-            except AttributeError:
-                resp_user_id_str = None
-        
+        resp_user_id_str = response.user
         response_user = await user_repository.findById(resp_user_id_str) if resp_user_id_str else None
         
         # Build Pydantic model natively

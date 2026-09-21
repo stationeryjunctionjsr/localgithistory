@@ -144,7 +144,7 @@ class CouponRepository:
         bx_candidates = [e for e in elements if e["is_bx"]]
         bx_candidates.sort(key=lambda x: x["price"], reverse=True)
         if len(bx_candidates) < x_required:
-            return {"discount": 0.0, "itemDiscounts": {}}
+            return BxGyEvaluationResponse(discount=0.0, itemDiscounts={)}
 
         bx_allocated = bx_candidates[:x_required]
         bx_ids = {id(e) for e in bx_allocated}
@@ -155,7 +155,7 @@ class CouponRepository:
         gy_ids = {id(e) for e in gy_allocated}
 
         if not gy_allocated:
-            return {"discount": 0.0, "itemDiscounts": {}}
+            return BxGyEvaluationResponse(discount=0.0, itemDiscounts={)}
 
         applicable_auto = await self.get_applicable_automatic_product_discounts(user_role, user_id)
         best_auto_per_product = {}
@@ -225,7 +225,7 @@ class CouponRepository:
                     item_discounts[e["idx"]] = (item_discounts[e["idx"]] if e["idx"] in item_discounts else 0.0) + d
                     total_discount += d
 
-        return {"discount": total_discount, "itemDiscounts": item_discounts, "bxgyItemIndices": bxgy_item_indices}
+        return BxGyEvaluationResponse(discount=total_discount, itemDiscounts=item_discounts, "bxgyItemIndices": bxgy_item_indices)
 
     async def findAll(self, query: Optional[Dict] = None):
         return await self.storage.findAll(query or {})
@@ -516,7 +516,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
 
     async def update(self, id: str, update_data: Any):
         from app.models.daos_flat import CouponInternalUpdate, CouponQuantityTierInternal
-        from app.models.schemas import CouponUpdate
+        from app.models.schemas import Coupon, CouponValidationResponse, BxGyEvaluationResponseUpdate
         
         # Coerce to CouponUpdate to avoid getattr/hasattr dynamic checking
         if not isinstance(update_data, CouponUpdate):
@@ -686,34 +686,32 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         coupon = await self.findByCode(code)
 
         if not coupon:
-            return {"valid": False, "message": "Invalid coupon code"}
+            return CouponValidationResponse(valid=False, message="Invalid coupon code")
 
         if not (coupon.isActive if coupon.isActive is not None else True):
-            return {"valid": False, "message": "Discount is not active"}
+            return CouponValidationResponse(valid=False, message="Discount is not active")
 
         now = datetime.now(timezone.utc)
         valid_from = datetime.fromisoformat(coupon.validFrom.replace("Z", "+00:00"))
         valid_until = datetime.fromisoformat(coupon.validUntil.replace("Z", "+00:00"))
 
         if now < valid_from:
-            return {"valid": False, "message": "Discount is not yet valid"}
+            return CouponValidationResponse(valid=False, message="Discount is not yet valid")
 
         if now > valid_until:
-            return {"valid": False, "message": "Discount has expired"}
+            return CouponValidationResponse(valid=False, message="Discount has expired")
 
         if (coupon.maxUses if coupon.maxUses is not None else None) and (coupon.usedCount if coupon.usedCount is not None else 0) >= coupon.maxUses:
-            return {"valid": False, "message": "Discount usage limit reached"}
+            return CouponValidationResponse(valid=False, message="Discount usage limit reached")
 
         if (coupon.maxUsagePerUser if coupon.maxUsagePerUser is not None else None):
             user_usages = (coupon.userUsages if coupon.userUsages is not None else {})
             if (user_usages[user_id] if user_id in user_usages else 0) >= coupon.maxUsagePerUser:
-                return {
-                    "valid": False,
-                    "message": f"You have reached the maximum usage limit ({coupon.maxUsagePerUser}) for this discount",
+                return CouponValidationResponse(valid=False, message=f"You have reached the maximum usage limit ({coupon.maxUsagePerUser)) for this discount",
                 }
 
         if user_role not in (coupon.applicableRoles if coupon.applicableRoles is not None else []):
-            return {"valid": False, "message": "Discount not applicable for your role"}
+            return CouponValidationResponse(valid=False, message="Discount not applicable for your role")
 
         # Selective customers & User behavior segments check
         applicable_user_ids = (coupon.applicableUserIds if coupon.applicableUserIds is not None else None) or []
@@ -728,7 +726,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 else False
             )
             if not (matches_selective or matches_behavior):
-                return {"valid": False, "message": "Discount not applicable for your account"}
+                return CouponValidationResponse(valid=False, message="Discount not applicable for your account")
 
         applicable_payment_methods = coupon.applicablePaymentMethods
         if (
@@ -736,7 +734,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             and payment_method
             and payment_method.lower() not in [m.lower() for m in applicable_payment_methods]
         ):
-            return {"valid": False, "message": f"Discount not applicable for {payment_method.upper()} payment method"}
+            return CouponValidationResponse(valid=False, message=f"Discount not applicable for {payment_method.upper()) payment method"}
 
         if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
             if not shipping_address:
@@ -750,15 +748,13 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             if shipping_address:
                 pincode = (shipping_address["zipCode"] if "zipCode" in shipping_address else None) or (shipping_address["pincode"] if "pincode" in shipping_address else None)
                 if not pincode:
-                    return {"valid": False, "message": "Shipping address must include a pincode for this discount."}
+                    return CouponValidationResponse(valid=False, message="Shipping address must include a pincode for this discount.")
                 allowed_pincodes = (coupon.shippingPincodes if coupon.shippingPincodes is not None else None) or []
                 if allowed_pincodes and str(pincode).strip() not in [str(p).strip() for p in allowed_pincodes]:
-                    return {
-                        "valid": False,
-                        "message": f"This shipping discount is not applicable for pincode {pincode}.",
+                    return CouponValidationResponse(valid=False, message=f"This shipping discount is not applicable for pincode {pincode).",
                     }
             else:
-                return {"valid": False, "message": "A shipping address is required to apply this shipping discount."}
+                return CouponValidationResponse(valid=False, message="A shipping address is required to apply this shipping discount.")
 
         # Resolve purchase amount and eligible quantity from cart items (eligible only) or from argument
         purchase_amount_to_use = purchase_amount
@@ -797,26 +793,19 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         else:
             applicable_categories = (coupon.applicableCategories if coupon.applicableCategories is not None else [])
             if applicable_categories and category and category not in applicable_categories:
-                return {"valid": False, "message": "Discount not applicable for this category"}
+                return CouponValidationResponse(valid=False, message="Discount not applicable for this category")
 
         min_req = (coupon.minRequirementType if coupon.minRequirementType is not None else None) or "none"
         if min_req == "min_amount" and purchase_amount_to_use < (coupon.minPurchaseAmount if coupon.minPurchaseAmount is not None else 0):
-            return {
-                "valid": False,
-                "message": f"Minimum purchase amount of {coupon['minPurchaseAmount']} required (on eligible items)",
+            return CouponValidationResponse(valid=False, message=f"Minimum purchase amount of {coupon['minPurchaseAmount']) required (on eligible items)",
             }
         if min_req == "min_quantity":
             min_qty = (coupon.minQuantityOfEligibleItems if coupon.minQuantityOfEligibleItems is not None else None) or 0
             if eligible_quantity < min_qty:
-                return {
-                    "valid": False,
-                    "message": f"Minimum quantity of {min_qty} eligible items required (you have {eligible_quantity} eligible in cart)",
+                return CouponValidationResponse(valid=False, message=f"Minimum quantity of {min_qty) eligible items required (you have {eligible_quantity} eligible in cart)",
                 }
             if not cart_items and min_qty > 0:
-                return {
-                    "valid": False,
-                    "message": "Minimum quantity requirement cannot be validated without cart items",
-                }
+                return CouponValidationResponse(valid=False, message="Minimum quantity requirement cannot be validated without cart items",)
 
         # Calculate discount on eligible amount only
         discount = 0.0
@@ -1146,7 +1135,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
 
         if overlaps:
             total_overlapping_products = len(set().union(*[set(o["overlappingProductIds"]) for o in overlaps]))
-            return {"totalOverlappingProducts": total_overlapping_products, "details": overlaps}
+            return CouponValidationResponse(valid=True, totalOverlappingProducts=total_overlapping_products, details=overlaps)
         return None
 
     async def get_active_coupons(self) -> List[Any]:

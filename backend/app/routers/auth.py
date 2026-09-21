@@ -294,7 +294,25 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
                     detail=err_msg,
                 )
 
-        user = await user_repository.create(user_data)
+        from app.models.schemas import UserCreate
+        user_create = UserCreate(
+            phone=user_data.phone,
+            password=user_data.password,
+            name=user_data.name,
+            email=user_data.email,
+            role=user_data.role,
+            deviceId=user_data.deviceId,
+            msg91Token=user_data.msg91Token,
+            allowUrgentDelivery=user_data.allowUrgentDelivery,
+            companyName=user_data.companyName,
+            address=user_data.address,
+            approvalStatus=user_data.approvalStatus,
+            creditLimit=user_data.creditLimit,
+            isDeactivated=user_data.isDeactivated,
+            savedAddresses=[],
+            isActive=True
+        )
+        user = await user_repository.create(user_create)
 
         # Only delete the OTP after the user is successfully created in the DB
         if not user_data.msg91Token:

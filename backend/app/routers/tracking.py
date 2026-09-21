@@ -167,7 +167,7 @@ async def track_beacon(
 async def track_search(
     request: Request,
     payload: TrackSearchRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     segment = "wholesaler" if (current_user and current_user.role == "wholesaler") else "customer"
     await tracking_repository.trackSearch(
@@ -186,7 +186,7 @@ async def track_search(
 async def track_view(
     request: Request,
     payload: TrackViewRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackProductView(
         current_user.id if current_user else None, payload.productId, payload.productName, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -198,7 +198,7 @@ async def track_view(
 async def track_click(
     request: Request,
     payload: TrackClickRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackProductClick(
         current_user.id if current_user else None,
@@ -215,7 +215,7 @@ async def track_click(
 async def track_cart_abandonment(
     request: Request,
     payload: TrackCartAbandonmentRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartAbandonment(
         current_user.id if current_user else None, payload.cartItems, payload.cartValue, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -227,7 +227,7 @@ async def track_cart_abandonment(
 async def track_session(
     request: Request,
     payload: TrackSessionRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackSession(
         current_user.id if current_user else None, payload.sessionId, payload.isReturning, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -239,7 +239,7 @@ async def track_session(
 async def track_page_view(
     request: Request,
     payload: TrackPageViewRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackPageView(
         current_user.id if current_user else None, payload.page, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -251,7 +251,7 @@ async def track_page_view(
 async def track_drop_off(
     request: Request,
     payload: TrackDropOffRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackDropOff(
         current_user.id if current_user else None, payload.page, payload.reason, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -263,7 +263,7 @@ async def track_drop_off(
 async def track_frontend_error(
     request: Request,
     payload: TrackErrorRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     from app.utils.logger import logger
 
@@ -303,7 +303,7 @@ class TrackFilterClickRequest(BaseTrackingRequest):
 async def track_cart_item_remove(
     request: Request,
     payload: TrackCartItemRemoveRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartItemRemove(
         current_user.id if current_user else None, payload.productId, payload.quantity, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -315,7 +315,7 @@ async def track_cart_item_remove(
 async def track_cart_item_add(
     request: Request,
     payload: TrackCartItemAddRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartAdd(
         current_user.id if current_user else None, payload.productId, payload.quantity, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -327,7 +327,7 @@ async def track_cart_item_add(
 async def track_filter_click(
     request: Request,
     payload: TrackFilterClickRequest,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackFilterClick(
         current_user.id if current_user else None, payload.filterType, payload.filterValue, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -338,7 +338,7 @@ async def track_filter_click(
 async def get_recent_searches(
     sessionId: Optional[str] = None,
     limit: int = Query(5, ge=1, le=20),
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
     req: Request = None,
 ):
     user_id = current_user.id if current_user else None
@@ -348,7 +348,7 @@ async def get_recent_searches(
 @router.delete("/recent", response_model=MessageResponse)
 async def clear_recent_searches(
     sessionId: Optional[str] = None,
-    current_user: Optional[dict] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user),
     req: Request = None,
 ):
     user_id = current_user.id if current_user else None
@@ -358,7 +358,7 @@ async def clear_recent_searches(
 
 @router.get("/suggestions", response_model=SearchSuggestionsResponse)
 async def get_search_suggestions(
-    limit: int = Query(5, ge=1, le=20), current_user: Optional[dict] = Depends(get_optional_user),
+    limit: int = Query(5, ge=1, le=20), current_user: Optional[User] = Depends(get_optional_user),
     req: Request = None,
 ):
     # Popular terms

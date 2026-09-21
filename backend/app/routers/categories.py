@@ -138,7 +138,7 @@ async def get_public_categories(forHomepage: bool = False):
             tag = cat.category_tag
             tags = (cat.category_tags or [])
             if not tag and tags:
-                tag = tags[0] if isinstance(tags, list) and tags else ""
+                tag = tags[0] if tags else ""
             cat.category_tag = tag or ""
             cat.category_tags = [tag] if tag else []
             cat.gst = cat.gst if cat.gst is not None else 0
@@ -164,7 +164,7 @@ async def get_tag_categories(tag_name: str):
             tag = cat.category_tag
             tags = (cat.category_tags or [])
             if not tag and tags:
-                tag = tags[0] if isinstance(tags, list) and tags else ""
+                tag = tags[0] if tags else ""
 
             if (tag or "").lower() == target_tag:
                 cat.category_tag = tag or ""
@@ -247,7 +247,7 @@ async def get_categories(current_user: User = Depends(require_super_admin)):
             tags = (cat.category_tags or [])
 
             if not tag and tags:
-                tag = tags[0] if isinstance(tags, list) and tags else ""
+                tag = tags[0] if tags else ""
 
             cat.category_tag = tag or ""
             cat.category_tags = [tag] if tag else []
