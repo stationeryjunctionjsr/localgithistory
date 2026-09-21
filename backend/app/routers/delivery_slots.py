@@ -1,6 +1,6 @@
 from app.models.user import User
 from app.models.schemas import MessageResponse
-from app.models.daos_flat import DeliverySlotConfigInternalCreate
+from app.models.daos_flat import DeliverySlotConfigInternalCreate, DeliverySlotInternal
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
