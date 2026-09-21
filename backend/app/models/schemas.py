@@ -249,6 +249,7 @@ class UserBase(BaseModel):
     alternatePhone: Optional[str] = None
     companyName: Optional[str] = None
     gstin: Optional[str] = None
+    gstin: Optional[str] = None
     address: Optional[AddressSnippet] = None
     savedAddresses: List[AddressSnippet] = Field(default=[], description="List of saved addresses for the user")
     referralCode: Optional[str] = Field(default=None, description="Referral code used to sign up")
@@ -302,6 +303,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     alternatePhone: Optional[str] = None
     companyName: Optional[str] = None
+    gstin: Optional[str] = None
     gstin: Optional[str] = None
     address: Optional[AddressSnippet] = None
     savedAddresses: Optional[List[AddressSnippet]] = None
@@ -638,6 +640,7 @@ class RegisterRequest(BaseModel):
     phone: str  # Always mandatory
     role: UserRole = UserRole.CUSTOMER  # Default to customer
     companyName: Optional[str] = None
+    gstin: Optional[str] = None
     address: Optional[AddressSnippet] = None
     msg91Token: Optional[str] = None  # Token from MSG91 Widget/SDK
     otp: Optional[str] = None
@@ -1654,6 +1657,7 @@ class UserInternalCreate(BaseModel):
     role: str
     phone: str = ""
     companyName: str = ""
+    gstin: Optional[str] = None
     address: Optional[Address] = None
     isActive: bool = True
     approvalStatus: str
@@ -1681,6 +1685,7 @@ class UserInternalUpdate(BaseModel):
     role: Optional[str] = None
     phone: Optional[str] = None
     companyName: Optional[str] = None
+    gstin: Optional[str] = None
     address: Optional[Address] = None
     savedAddresses: Optional[List[Address]] = None
     isActive: Optional[bool] = None

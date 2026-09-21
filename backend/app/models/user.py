@@ -14,6 +14,7 @@ class User(BaseModel):
     role: Optional[str] = None
     phone: str = ""
     company_name: Optional[str] = Field(default=None, alias="companyName")
+    gst_number: Optional[str] = Field(default=None, alias="gstin")
     address: Optional['Address'] = None
     saved_addresses: List['Address'] = Field(default=[], alias="savedAddresses")
     is_active: bool = Field(default=True, alias="isActive")
