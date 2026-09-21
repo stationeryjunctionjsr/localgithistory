@@ -18,6 +18,30 @@ class CartItemInternal(BaseModel):
     variantAttributes: Optional[VariantAttributes] = None
     id_: Optional[str] = Field(default=None, alias="_id")
 
+    @property
+    def product_id(self) -> Optional[str]:
+        return self.product
+
+    @property
+    def bundle_id(self) -> Optional[str]:
+        return self.bundleId
+
+    @property
+    def sell_as_case(self) -> Optional[bool]:
+        return self.sellAsCase
+
+    @property
+    def bundle_name(self) -> Optional[str]:
+        return self.bundleName
+
+    @property
+    def selectedVariation(self) -> Optional[VariantAttributes]:
+        return self.variantAttributes
+
+    @property
+    def variant_attributes(self) -> Optional[VariantAttributes]:
+        return self.variantAttributes
+
 class CartInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')

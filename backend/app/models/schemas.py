@@ -1783,6 +1783,14 @@ class OrderItemCreate(BaseModel):
     def bundle_name(self) -> Optional[str]:
         return self.bundleName
 
+    @property
+    def variant_attributes(self) -> Optional[VariantAttributes]:
+        return self.selectedVariation
+
+    @property
+    def variantAttributes(self) -> Optional[VariantAttributes]:
+        return self.selectedVariation
+
 
 class SellerDeliveryOption(BaseModel):
     model_config = ConfigDict(extra="forbid")
