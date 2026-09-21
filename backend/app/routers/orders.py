@@ -281,21 +281,9 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
 
         for item in order.items if order.items else []:
                 # ItemSnippet.product holds the product ID reference
-                pid = None
-                if getattr(item, "product", None):
-                    if hasattr(item.product, "id"):
-                        pid = str(item.product.id)
-                    elif hasattr(item.product, "product_id"):
-                        pid = str(item.product.product_id)
-                    elif isinstance(item.product, dict) and "id" in item.product:
-                        pid = str(item.product["id"])
-                    else:
-                        pid = str(item.product)
-                elif getattr(item, "productId", None):
-                    pid = str(item.productId)
-
-                if pid and pid.isdigit():
-                    product_ids.add(pid)
+                pid = item.productId or item.product
+                if pid and str(pid).isdigit():
+                    product_ids.add(str(pid))
 
     # 2. Fetch all required users, valets, products, and payments in parallel
     users_task = get_storage("users").findAll({"allowed_ids": list(user_ids.union(valet_ids))}) if user_ids.union(valet_ids) else None
@@ -364,7 +352,7 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
             id=order_resp.id,
             user=UserSnippet.model_validate(user, from_attributes=True) if user else None,
             assignedValet=ValetSnippet.model_validate(valet, from_attributes=True) if valet else None,
-            paymentEntries=[entry for payment in payment_entries for entry in getattr(payment, "payment_entries", [])] if payment_entries else [],
+            paymentEntries=[entry for payment in payment_entries for entry in (payment.payment_entries or [])] if payment_entries else [],
             items=populated_items,
             sub_orders=order_resp.sub_orders,
             orderStatus=order_resp.status,

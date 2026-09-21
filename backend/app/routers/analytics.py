@@ -276,21 +276,8 @@ async def record_event(
 
 
 
-    if getattr(event, "device", None):
-        val = event.device
-        if isinstance(val, dict):
-            if val.get("type"):
-                payload_items.append(EventPayloadItem(key="device_type", value=str(val["type"])))
-            if val.get("osVersion"):
-                payload_items.append(EventPayloadItem(key="device_os_version", value=str(val["osVersion"])))
-            if val.get("model"):
-                payload_items.append(EventPayloadItem(key="device_model", value=str(val["model"])))
-            if val.get("appVersion"):
-                payload_items.append(EventPayloadItem(key="device_app_version", value=str(val["appVersion"])))
-            if val.get("browser"):
-                payload_items.append(EventPayloadItem(key="device_browser", value=str(val["browser"])))
-        else:
-            payload_items.append(EventPayloadItem(key="device_model", value=str(val)))
+    if event.device:
+        payload_items.append(EventPayloadItem(key="device_model", value=str(event.device)))
 
 
 
@@ -316,21 +303,10 @@ async def record_event(
         # Unify OS
         final_os = event.os
         final_browser = event.browser
-        final_device_type = None
-        final_device_os_version = None
-        final_device_model = None
-        final_device_app_version = None
-
-        if getattr(event, "device", None) and isinstance(event.device, dict):
-            if not final_os and event.device.get("os"):
-                final_os = event.device.get("os")
-            if not final_browser and event.device.get("browser"):
-                final_browser = event.device.get("browser")
-            
-            final_device_type = event.device.get("type")
-            final_device_os_version = event.device.get("osVersion")
-            final_device_model = event.device.get("model")
-            final_device_app_version = event.device.get("appVersion")
+        final_device_type = event.deviceType
+        final_device_os_version = event.deviceOsVersion
+        final_device_model = event.deviceModel or event.device
+        final_device_app_version = event.deviceAppVersion
 
         # Determine IP Address
         final_ip = event.ipAddress

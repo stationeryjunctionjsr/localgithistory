@@ -430,7 +430,7 @@ class CouponRepository:
         all_coupons = await self.storage.findAll({})
         max_num = 0
         for doc in all_coupons:
-            did = doc.code if hasattr(doc, "code") and doc.code else ""
+            did = doc.code or ""
             if did.startswith(prefix):
                 try:
                     num = int(did[len(prefix) :])
@@ -730,7 +730,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             if not (matches_selective or matches_behavior):
                 return {"valid": False, "message": "Discount not applicable for your account"}
 
-        applicable_payment_methods = (getattr(coupon, "applicablePaymentMethods", None))
+        applicable_payment_methods = coupon.applicablePaymentMethods
         if (
             applicable_payment_methods is not None
             and payment_method
@@ -895,7 +895,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                     if not (matches_selective or matches_behavior):
                         continue
                 if payment_method:
-                    applicable_payment_methods = (getattr(coupon, "applicablePaymentMethods", None))
+                    applicable_payment_methods = coupon.applicablePaymentMethods
                     if applicable_payment_methods is not None and payment_method.lower() not in [
                         m.lower() for m in applicable_payment_methods
                     ]:
@@ -1139,7 +1139,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 overlaps.append(
                     {
                         "couponId": str(c.id),
-                        "displayId": c.code if hasattr(c, "code") and c.code else "",
+                        "displayId": c.code or "",
                         "overlappingProductIds": list(intersection),
                     }
                 )
