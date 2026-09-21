@@ -105,13 +105,13 @@ class MySQLUserDAO:
         await session.execute(text('DELETE FROM sj_seller_pincodes WHERE user_id = :uid'), {'uid': uid})
         await session.execute(text('DELETE FROM sj_seller_zones WHERE user_id = :uid'), {'uid': uid})
         address = data.address
-        saved_addresses = data.savedAddresses if data.savedAddresses is not None else []
+        saved_addresses = data.saved_addresses if data.saved_addresses is not None else []
         if address:
             await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone) VALUES (:uid, 1, :st, :c, :s, :p, :ph)'), {'uid': uid, 'st': address.street, 'c': address.city, 's': address.state, 'p': address.pincode, 'ph': address.phone})
         for a in saved_addresses:
             if a != address:
                 await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone) VALUES (:uid, 0, :st, :c, :s, :p, :ph)'), {'uid': uid, 'st': a.street, 'c': a.city, 's': a.state, 'p': a.pincode, 'ph': a.phone})
-        seller_perms = data.sellerPermissions
+        seller_perms = data.seller_permissions
         if seller_perms:
             for p in seller_perms.serviceablePincodes if seller_perms.serviceablePincodes is not None else []:
                 await session.execute(text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'serviceable')"), {'uid': uid, 'p': p})
@@ -119,7 +119,7 @@ class MySQLUserDAO:
                 await session.execute(text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'urgent')"), {'uid': uid, 'p': p})
             for p in seller_perms.slotPincodes if seller_perms.slotPincodes is not None else []:
                 await session.execute(text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'slot')"), {'uid': uid, 'p': p})
-        for zone_ext_id in data.serviceAreaZones if data.serviceAreaZones is not None else []:
+        for zone_ext_id in data.service_area_zones if data.service_area_zones is not None else []:
             name_res = await session.execute(text('SELECT name FROM sj_delivery_zones WHERE external_id = :eid LIMIT 1'), {'eid': zone_ext_id})
             name_row = name_res.fetchone()
             zone_name = name_row.name if name_row else zone_ext_id
@@ -229,7 +229,12 @@ class MySQLUserDAO:
             user_id_formatted = f'USER-{next_id}'
             await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name, gst_number,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, upi_id, qr_code_url, created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name, :gst_number,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :upi_id, :qr_code_url, :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.companyName, 'gst_number': data.gstin, 'is_active': 1 if (data.isActive if data.isActive is not None else True) else 0, 'approval_status': data.approvalStatus if data.approvalStatus is not None else 'approved', 'is_deactivated': 1 if data.isDeactivated else 0, 'credit_limit': data.creditLimit if data.creditLimit is not None else 0, 'credit_used': data.creditUsed if data.creditUsed is not None else 0, 'payment_terms': str(data.paymentTerms if data.paymentTerms is not None else '30'), 'assigned_salesperson': data.assignedSalesperson, 'is_email_verified': 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else 0, 'referral_code': data.referralCode, 'is_seller_admin': 1 if data.isSellerAdmin else 0, 'is_on_duty': 1 if data.isOnDuty else 0, 'commission_override_pct': data.commissionOverridePct, 'upi_id': data.upiId, 'qr_code_url': data.qrCodeUrl, 'created_at': now, 'updated_at': now})
             new_id = (await session.execute(text(f'SELECT id FROM {self.TABLE} WHERE external_id = :eid'), {'eid': external_id})).scalar()
-            await self._replace_children(session, new_id, data)
+            temp_data = data.model_dump(by_alias=True)
+            temp_data['_id'] = str(new_id)
+            temp_data['userId'] = new_id
+            temp_data['userIdFormatted'] = user_id_formatted
+            temp_user = User.model_validate(temp_data)
+            await self._replace_children(session, new_id, temp_user)
             await session.commit()
         return await self.findById(str(new_id))
 
