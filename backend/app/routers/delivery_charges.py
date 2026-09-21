@@ -37,8 +37,6 @@ class ServiceableSeller(BaseModel):
     name: str
     companyName: str
     city: Optional[str] = None
-    allowUrgentDelivery: bool = False
-    allowDeliverySlots: bool = False
 
 class ServiceabilityResponse(BaseModel):
     isServiceable: bool
@@ -185,8 +183,6 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
                         "name": (seller_doc.name or ""),
                         "companyName": (seller_doc.company_name if seller_doc.company_name is not None else (seller_doc.name or "")),
                         "city": seller_doc.city or (seller_doc.address.city if seller_doc.address else None),
-                        "allowUrgentDelivery": platform_urgent,
-                        "allowDeliverySlots": True,  # zone slot configs are the gate; set True so frontend defers to slotBookingAvailable
                     })
             except Exception as exc:
                 from app.utils.logger import logger
@@ -205,8 +201,6 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
                         "name": (seller_doc.name or ""),
                         "companyName": (seller_doc.company_name if seller_doc.company_name is not None else (seller_doc.name or "")),
                         "city": seller_doc.city or (seller_doc.address.city if seller_doc.address else None),
-                        "allowUrgentDelivery": platform_urgent,
-                        "allowDeliverySlots": True,  # zone slot configs are the gate; set True so frontend defers to slotBookingAvailable
                     })
                 except Exception as exc:
                     from app.utils.logger import logger

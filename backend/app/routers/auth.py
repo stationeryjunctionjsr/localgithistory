@@ -303,7 +303,6 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
             role=user_data.role,
             deviceId=user_data.deviceId,
             msg91Token=user_data.msg91Token,
-            allowUrgentDelivery=user_data.allowUrgentDelivery,
             companyName=user_data.companyName,
             address=user_data.address,
             approvalStatus=user_data.approvalStatus,

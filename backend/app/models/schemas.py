@@ -270,8 +270,6 @@ class UserBase(BaseModel):
     effectiveRole: Optional[str] = Field(default=None, validation_alias=AliasChoices("effectiveRole", "effective_role"))
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
-    allowDeliverySlots: Optional[bool] = None
-    allowUrgentDelivery: Optional[bool] = None
     # Device / verification metadata — populated at registration time, None for admin-created users.
     deviceId: Optional[str] = None
     msg91Token: Optional[str] = None
@@ -327,8 +325,6 @@ class UserUpdate(BaseModel):
     preferredLanguage: Optional[str] = None
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
-    allowDeliverySlots: Optional[bool] = None
-    allowUrgentDelivery: Optional[bool] = None
 
 
 class UserResponse(UserBase):
@@ -1668,12 +1664,8 @@ class UserInternalCreate(BaseModel):
     assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
     referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
     isEmailVerified: bool = False
-    allowDeliverySlots: Optional[bool] = None
-    allowUrgentDelivery: Optional[bool] = None
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
-    allowDeliverySlots: Optional[bool] = None
-    allowUrgentDelivery: Optional[bool] = None
     # Device / verification metadata captured at registration time.
     # otp is intentionally excluded — it is verified and deleted before create() is called.
     deviceId: Optional[str] = None
@@ -1702,13 +1694,9 @@ class UserInternalUpdate(BaseModel):
     isEmailVerified: Optional[bool] = None
     sellerPermissions: Optional[list] = None
     serviceAreaZones: Optional[List[str]] = None
-    allowDeliverySlots: Optional[bool] = None
-    allowUrgentDelivery: Optional[bool] = None
     commissionOverridePct: Optional[float] = None
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
-    allowDeliverySlots: Optional[bool] = None
-    allowUrgentDelivery: Optional[bool] = None
 
 
 # --- Shared Payload DTOs ---
@@ -1926,8 +1914,6 @@ class ReturnEligibilityResponse(BaseModel):
 class UPIDetailsResponse(BaseModel):
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
-    allowDeliverySlots: Optional[bool] = None
-    allowUrgentDelivery: Optional[bool] = None
     instructions: Optional[str] = None
     message: Optional[str] = None
 

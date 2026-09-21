@@ -34,8 +34,6 @@ class User(BaseModel):
     updated_at: Optional[datetime] = Field(default=None, alias="updatedAt")
     session_id: Optional[str] = Field(default=None, alias="sessionId")
     effective_role: Optional[str] = Field(default=None, alias="effectiveRole")
-    allow_delivery_slots: Optional[bool] = Field(default=True, alias="allowDeliverySlots")
-    allow_urgent_delivery: Optional[bool] = Field(default=True, alias="allowUrgentDelivery")
     upi_id: Optional[str] = Field(default=None, alias="upiId")
     qr_code_url: Optional[str] = Field(default=None, alias="qrCodeUrl")
 
