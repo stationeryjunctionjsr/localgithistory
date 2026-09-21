@@ -1169,6 +1169,16 @@ class ProductResponse(ProductBase):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
+
+class RecommendationResponse(BaseModel):
+    newArrivals: List[SkinnyProductResponse] = Field(default_factory=list)
+    customerFavourites: List[SkinnyProductResponse] = Field(default_factory=list)
+    trendingNow: List[SkinnyProductResponse] = Field(default_factory=list)
+    explore: List[SkinnyProductResponse] = Field(default_factory=list)
+    wholesalerFavourites: List[SkinnyProductResponse] = Field(default_factory=list)
+    businessFavourites: List[SkinnyProductResponse] = Field(default_factory=list)
+    sectionOrder: List[str] = Field(default_factory=list)
+
 class SkinnyProductResponse(BaseModel):
     id: str = Field(alias="_id")
     productId: Optional[int] = None

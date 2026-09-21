@@ -1,6 +1,6 @@
 from app.models.user import User
 from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
+from app.models.schemas import RecommendationResponse, MessageResponse
 import asyncio
 import time as _time
 from typing import Optional
@@ -52,8 +52,8 @@ class RecommendationEventBody(BaseModel):
     strategy: Optional[str] = None  # 'trending' | 'user_favorites' | 'explore' for bandit reward update
 
 
-@router.get("", response_model=RecommendationResponse)
-@router.get("/", response_model=RecommendationResponse)
+@router.get("", )
+@router.get("/", )
 async def get_recommendations(
     current_user: Optional[dict] = Depends(get_optional_user),
     pincode: Optional[str] = Query(None)

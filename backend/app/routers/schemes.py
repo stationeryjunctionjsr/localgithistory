@@ -4,7 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.models.schemas import CouponResponse
+from app.models.schemas import SchemeResponse, CouponResponse
 from app.repositories.coupon_repository import coupon_repository
 from app.utils.auth import check_roles, get_current_user
 
@@ -56,7 +56,7 @@ async def get_schemes(current_user: User = Depends(require_wholesaler)):
     return out
 
 
-@router.get("/applicable/{product_id}", response_model=List[SchemeResponse])
+@router.get("/applicable/{product_id}", )
 async def get_applicable_schemes(product_id: str, current_user: User = Depends(require_wholesaler)):
     """
     Get all active schemes applicable to a given product.
@@ -110,7 +110,7 @@ async def get_applicable_schemes(product_id: str, current_user: User = Depends(r
     return out
 
 
-@router.get("/applicable/bundle/{bundle_id}", response_model=List[SchemeResponse])
+@router.get("/applicable/bundle/{bundle_id}", )
 async def get_applicable_bundle_schemes(bundle_id: str, current_user: User = Depends(require_wholesaler)):
     """
     Get all active schemes applicable to a given bundle.
