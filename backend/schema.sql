@@ -480,6 +480,17 @@ CREATE TABLE `sj_coupon_users` (
   CONSTRAINT `fk_coupon_users_coupon` FOREIGN KEY (`parent_id`) REFERENCES `sj_coupons` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Table: sj_coupon_user_usages
+CREATE TABLE sj_coupon_user_usages (
+  id int NOT NULL AUTO_INCREMENT,
+  parent_id int NOT NULL,
+  user_id varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  usage_count int NOT NULL DEFAULT '0',
+  PRIMARY KEY (id),
+  KEY ix_coupon_usages_parent (parent_id),
+  CONSTRAINT k_coupon_usages_coupon FOREIGN KEY (parent_id) REFERENCES sj_coupons (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Table: sj_coupons
 CREATE TABLE `sj_coupons` (
   `id` int NOT NULL AUTO_INCREMENT,
