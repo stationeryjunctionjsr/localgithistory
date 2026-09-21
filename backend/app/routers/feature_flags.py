@@ -149,9 +149,9 @@ async def toggle_feature_flag(flag_id: str, current_user: User = Depends(require
         if not flag:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
-        flag_model = flag if isinstance(flag, FeatureFlagItem) else FeatureFlagItem.model_validate(flag)
-        flag_db_id = flag_model.db_id or flag_model.id
-        updated = await feature_flag_repository.update(flag_db_id, {"enabled": not flag_model.enabled})
+        flag_db_id = flag.db_id or flag.id
+        update_data = FeatureFlagUpdate(enabled=not flag.enabled)
+        updated = await feature_flag_repository.update(flag_db_id, update_data)
         return updated
     except HTTPException:
         raise
