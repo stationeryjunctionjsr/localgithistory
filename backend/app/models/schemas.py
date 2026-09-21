@@ -494,15 +494,28 @@ class ProductUpdate(BaseModel):
 
 
 
+class BxGyEvaluationResponse(BaseModel):
+    discount: float = 0.0
+    itemDiscounts: Optional[Dict[int, float]] = None
+    bxgyItemIndices: Optional[List[int]] = None
+
+
 class CouponValidationDetail(BaseModel):
     code: str
     discountType: str
     discountValue: float
+    id: Optional[str] = None
+    method: Optional[str] = None
+
 
 class CouponValidationResponse(BaseModel):
     valid: bool
     coupon: Optional[CouponValidationDetail] = None
-    discount: float
+    discount: float = 0.0
+    message: Optional[str] = None
+    eligibleItemIndices: Optional[List[int]] = None
+    itemDiscounts: Optional[Dict[int, float]] = None
+    bxgyItemIndices: Optional[List[int]] = None
 
 class CouponValidateCart(BaseModel):
     """Validate discount against cart: backend computes eligible subtotal from items."""

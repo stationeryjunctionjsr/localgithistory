@@ -37,15 +37,7 @@ async def validate_coupon(
     )
     if not validation.valid:
         raise HTTPException(status_code=400, detail=validation.message)
-    return {
-        "valid": True,
-        "coupon": {
-            "code": validation["coupon"]["code"],
-            "discountType": validation["coupon"]["discountType"],
-            "discountValue": validation["coupon"]["discountValue"],
-        },
-        "discount": validation["discount"],
-    }
+    return validation
 
 
 @router.post("/validate", response_model=CouponValidationResponse)
@@ -74,15 +66,7 @@ async def validate_coupon_with_cart(body: CouponValidateCart, current_user: User
     )
     if not validation.valid:
         raise HTTPException(status_code=400, detail=validation.message)
-    return {
-        "valid": True,
-        "coupon": {
-            "code": validation["coupon"]["code"],
-            "discountType": validation["coupon"]["discountType"],
-            "discountValue": validation["coupon"]["discountValue"],
-        },
-        "discount": validation["discount"],
-    }
+    return validation
 
 
 @router.get("/{coupon_id}", response_model=CouponResponse)

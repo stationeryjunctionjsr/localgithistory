@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
+from app.models.schemas import BxGyEvaluationResponse, CouponValidationResponse, CouponValidationDetail
 
 
 class OverlapConflictError(ValueError):
@@ -225,7 +226,7 @@ class CouponRepository:
                     item_discounts[e["idx"]] = (item_discounts[e["idx"]] if e["idx"] in item_discounts else 0.0) + d
                     total_discount += d
 
-        return BxGyEvaluationResponse(discount=total_discount, itemDiscounts=item_discounts, "bxgyItemIndices": bxgy_item_indices)
+        return BxGyEvaluationResponse(discount=total_discount, itemDiscounts=item_discounts, bxgyItemIndices=bxgy_item_indices)
 
     async def findAll(self, query: Optional[Dict] = None):
         return await self.storage.findAll(query or {})
@@ -707,8 +708,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         if (coupon.maxUsagePerUser if coupon.maxUsagePerUser is not None else None):
             user_usages = (coupon.userUsages if coupon.userUsages is not None else {})
             if (user_usages[user_id] if user_id in user_usages else 0) >= coupon.maxUsagePerUser:
-                return CouponValidationResponse(valid=False, message=f"You have reached the maximum usage limit ({coupon.maxUsagePerUser)) for this discount",
-                }
+                return CouponValidationResponse(valid=False, message=f"You have reached the maximum usage limit ({coupon.maxUsagePerUser}) for this discount")
 
         if user_role not in (coupon.applicableRoles if coupon.applicableRoles is not None else []):
             return CouponValidationResponse(valid=False, message="Discount not applicable for your role")
@@ -734,7 +734,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             and payment_method
             and payment_method.lower() not in [m.lower() for m in applicable_payment_methods]
         ):
-            return CouponValidationResponse(valid=False, message=f"Discount not applicable for {payment_method.upper()) payment method"}
+            return CouponValidationResponse(valid=False, message=f"Discount not applicable for {payment_method.upper()} payment method")
 
         if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
             if not shipping_address:
@@ -751,8 +751,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                     return CouponValidationResponse(valid=False, message="Shipping address must include a pincode for this discount.")
                 allowed_pincodes = (coupon.shippingPincodes if coupon.shippingPincodes is not None else None) or []
                 if allowed_pincodes and str(pincode).strip() not in [str(p).strip() for p in allowed_pincodes]:
-                    return CouponValidationResponse(valid=False, message=f"This shipping discount is not applicable for pincode {pincode).",
-                    }
+                    return CouponValidationResponse(valid=False, message=f"This shipping discount is not applicable for pincode {pincode}.")
             else:
                 return CouponValidationResponse(valid=False, message="A shipping address is required to apply this shipping discount.")
 
@@ -797,15 +796,13 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
 
         min_req = (coupon.minRequirementType if coupon.minRequirementType is not None else None) or "none"
         if min_req == "min_amount" and purchase_amount_to_use < (coupon.minPurchaseAmount if coupon.minPurchaseAmount is not None else 0):
-            return CouponValidationResponse(valid=False, message=f"Minimum purchase amount of {coupon['minPurchaseAmount']) required (on eligible items)",
-            }
+            return CouponValidationResponse(valid=False, message=f"Minimum purchase amount of {coupon.minPurchaseAmount} required (on eligible items)")
         if min_req == "min_quantity":
             min_qty = (coupon.minQuantityOfEligibleItems if coupon.minQuantityOfEligibleItems is not None else None) or 0
             if eligible_quantity < min_qty:
-                return CouponValidationResponse(valid=False, message=f"Minimum quantity of {min_qty) eligible items required (you have {eligible_quantity} eligible in cart)",
-                }
+                return CouponValidationResponse(valid=False, message=f"Minimum quantity of {min_qty} eligible items required (you have {eligible_quantity} eligible in cart)")
             if not cart_items and min_qty > 0:
-                return CouponValidationResponse(valid=False, message="Minimum quantity requirement cannot be validated without cart items",)
+                return CouponValidationResponse(valid=False, message="Minimum quantity requirement cannot be validated without cart items")
 
         # Calculate discount on eligible amount only
         discount = 0.0
@@ -813,9 +810,9 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         bxgy_item_indices = None
         if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "buy_x_get_y" and cart_items and product_repository:
             bxgy_res = await self._calculate_bxgy_discount(coupon, cart_items, product_repository, user_role, user_id)
-            discount = bxgy_res["discount"]
-            item_discounts = bxgy_res["itemDiscounts"]
-            bxgy_item_indices = (bxgy_res["bxgyItemIndices"] if "bxgyItemIndices" in bxgy_res else None)
+            discount = bxgy_res.discount
+            item_discounts = bxgy_res.itemDiscounts
+            bxgy_item_indices = bxgy_res.bxgyItemIndices
         elif (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
             if coupon.discountType == "percentage":
                 discount = (shipping_charge * coupon.discountValue) / 100
@@ -835,14 +832,20 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 else:
                     discount = coupon.discountValue
 
-        out = {"valid": True, "coupon": coupon, "discount": round(discount, 2)}
-        if eligible_item_indices is not None:
-            out["eligibleItemIndices"] = eligible_item_indices
-        if item_discounts is not None:
-            out["itemDiscounts"] = item_discounts
-        if bxgy_item_indices is not None:
-            out["bxgyItemIndices"] = bxgy_item_indices
-        return out
+        return CouponValidationResponse(
+            valid=True,
+            coupon=CouponValidationDetail(
+                code=coupon.code,
+                discountType=coupon.discountType,
+                discountValue=coupon.discountValue,
+                id=str(coupon.id) if coupon.id else None,
+                method=coupon.method
+            ),
+            discount=round(discount, 2),
+            eligibleItemIndices=eligible_item_indices,
+            itemDiscounts=item_discounts,
+            bxgyItemIndices=bxgy_item_indices,
+        )
 
     async def find_applicable_automatic_discounts(
         self,
@@ -950,9 +953,9 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                     bxgy_res = await self._calculate_bxgy_discount(
                         coupon, cart_items, product_repository, user_role, user_id
                     )
-                    discount = bxgy_res["discount"]
-                    item_discounts = bxgy_res["itemDiscounts"]
-                    bxgy_item_indices = (bxgy_res["bxgyItemIndices"] if "bxgyItemIndices" in bxgy_res else None)
+                    discount = bxgy_res.discount
+                    item_discounts = bxgy_res.itemDiscounts
+                    bxgy_item_indices = bxgy_res.bxgyItemIndices
                 elif (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
                     if coupon.discountType == "percentage":
                         discount = (shipping_charge * coupon.discountValue) / 100
