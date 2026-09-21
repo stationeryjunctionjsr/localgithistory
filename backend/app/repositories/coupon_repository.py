@@ -605,6 +605,23 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 ),
                 {"id": pk},
             )
+            
+            # Upsert user usage
+            res_usage = await session.execute(
+                text("SELECT id FROM sj_coupon_user_usages WHERE parent_id = :id AND user_id = :uid"),
+                {"id": pk, "uid": user_id}
+            )
+            row = res_usage.fetchone()
+            if row:
+                await session.execute(
+                    text("UPDATE sj_coupon_user_usages SET usage_count = usage_count + 1 WHERE id = :rid"),
+                    {"rid": row[0]}
+                )
+            else:
+                await session.execute(
+                    text("INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :uid, 1)"),
+                    {"id": pk, "uid": user_id}
+                )
             await session.commit()
 
         self.invalidate_cache()
@@ -706,8 +723,9 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             return CouponValidationResponse(valid=False, message="Discount usage limit reached")
 
         if (coupon.maxUsagePerUser if coupon.maxUsagePerUser is not None else None):
-            user_usages = (coupon.userUsages if coupon.userUsages is not None else {})
-            if (user_usages[user_id] if user_id in user_usages else 0) >= coupon.maxUsagePerUser:
+            user_usages = coupon.userUsages or []
+            usage_count = next((u.usageCount for u in user_usages if u.userId == user_id), 0)
+            if usage_count >= coupon.maxUsagePerUser:
                 return CouponValidationResponse(valid=False, message=f"You have reached the maximum usage limit ({coupon.maxUsagePerUser}) for this discount")
 
         if user_role not in (coupon.applicableRoles if coupon.applicableRoles is not None else []):
@@ -943,8 +961,9 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                     if eligible_quantity < min_qty:
                         continue
                 if (coupon.maxUsagePerUser if coupon.maxUsagePerUser is not None else None):
-                    user_usages = (coupon.userUsages if coupon.userUsages is not None else {})
-                    if (user_usages[user_id] if user_id in user_usages else 0) >= coupon.maxUsagePerUser:
+                    user_usages = coupon.userUsages or []
+                    usage_count = next((u.usageCount for u in user_usages if u.userId == user_id), 0)
+                    if usage_count >= coupon.maxUsagePerUser:
                         continue
                 discount = 0.0
                 item_discounts = None

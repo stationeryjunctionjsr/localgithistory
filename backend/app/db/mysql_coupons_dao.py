@@ -181,10 +181,6 @@ class MySQLCouponsDAO:
             cols.append("max_usage_per_user")
             params["s_max_usage_per_user"] = data.maxUsagePerUser
 
-        if data.userUsages is not None:
-            cols.append("user_usages")
-            params["s_user_usages"] = json.dumps(data.userUsages)
-
         if data.userBehavior is not None:
             cols.append("user_behavior")
             params["s_user_behavior"] = data.userBehavior
@@ -423,6 +419,18 @@ class MySQLCouponsDAO:
         return c_map
 
     async def _replace_children(self, session, row_id: int, data: Any):
+
+
+        if data.userUsages is not None:
+            await session.execute(text(f"DELETE FROM sj_coupon_user_usages WHERE parent_id = :id"), {"id": row_id})
+            child_list = data.userUsages or []
+
+            if child_list:
+                for item in child_list:
+                    p = {"id": row_id}
+                    p["v0"] = item.userId
+                    p["v1"] = item.usageCount
+                    await session.execute(text(f"INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :v0, :v1)"), p)
 
         if data.quantityTiers is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_quantity_tiers WHERE parent_id = :id"), {"id": row_id})

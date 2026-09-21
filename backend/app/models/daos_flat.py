@@ -543,6 +543,10 @@ class CouponQuantityTierInternal(BaseModel):
     minQuantity: Optional[int] = None
     discountValue: Optional[float] = None
 
+class CouponUserUsageInternal(BaseModel):
+    userId: str
+    usageCount: int
+
 class CouponInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
     externalId: Optional[str] = Field(None, alias='externalId')
@@ -571,7 +575,7 @@ class CouponInternal(BaseModel):
     applicableItemType: Optional[str] = None
     couponMode: Optional[str] = None
     maxUsagePerUser: Optional[int] = None
-    userUsages: Optional[Dict[str, int]] = None
+    userUsages: Optional[List[CouponUserUsageInternal]] = None
     userBehavior: Optional[str] = None
 
     
@@ -610,7 +614,7 @@ class CouponInternalCreate(BaseModel):
     applicableItemType: Optional[str] = None
     couponMode: Optional[str] = None
     maxUsagePerUser: Optional[int] = None
-    userUsages: Optional[Dict[str, int]] = None
+    userUsages: Optional[List[CouponUserUsageInternal]] = None
     userBehavior: Optional[str] = None
 
     
@@ -647,7 +651,7 @@ class CouponInternalUpdate(BaseModel):
     applicableItemType: Optional[str] = None
     couponMode: Optional[str] = None
     maxUsagePerUser: Optional[int] = None
-    userUsages: Optional[Dict[str, int]] = None
+    userUsages: Optional[List[CouponUserUsageInternal]] = None
     userBehavior: Optional[str] = None
 
     
