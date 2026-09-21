@@ -150,9 +150,9 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     Find the next best eligible valet for a return pickup.
     - Customer Pincode: Extracted from parent order shipping address.
     - Routing Mode:
-      - Delivery Slot Flow: If product's seller has allowDeliverySlots=True and a slot was specified,
+      - Delivery Slot Flow: If a slot was specified,
         valet must be available for that slot on the date.
-      - Normal Flow (Without Slot Confirmation): If seller does not use slots / no slot specified,
+      - Normal Flow (Without Slot Confirmation): If no slot specified,
         any on-duty valet available for today serving customer's pincode is eligible.
     - Capacity: active forward orders + active return pickups < maxConcurrentOrders.
     """
