@@ -371,7 +371,7 @@ async def get_saved_for_later(current_user: User = Depends(get_current_user)):
     """Get saved for later items"""
     try:
         saved = await cart_repository.getSavedForLater(current_user.id)
-        return saved or {"items": []}
+        return saved or SavedForLaterResponse(items=[])
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
