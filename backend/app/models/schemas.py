@@ -1522,7 +1522,7 @@ class AdBase(BaseModel):
     utm_source: Optional[str] = None
     utm_medium: Optional[str] = None
     utm_campaign: Optional[str] = None
-    device: Optional[Dict[str, str]] = None
+    device: Optional[str] = None
     google_conversion_id: Optional[str] = None
     google_conversion_label: Optional[str] = None
     meta_pixel_id: Optional[str] = None
@@ -1721,7 +1721,7 @@ class AnalyticsEventCreate(BaseModel):
     browser: Optional[str] = None
     ipAddress: Optional[str] = None
     campaign: Optional[str] = None
-    device: Optional[Dict[str, str]] = None
+    device: Optional[str] = None
     deviceType: Optional[str] = None
     deviceOsVersion: Optional[str] = None
     deviceModel: Optional[str] = None
