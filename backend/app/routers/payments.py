@@ -356,7 +356,7 @@ async def submit_credit_settlement(
                 from app.models.daos import NotificationInternalCreate
                 await notification_repository.create(
                     NotificationInternalCreate(
-                        id=str(uuid.uuid4()),
+                        _id=str(uuid.uuid4()),
                         userId=super_admin.id,
                         type="new_payment",
                         title="New Payment Received",

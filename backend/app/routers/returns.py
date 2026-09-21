@@ -275,7 +275,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
             from app.models.daos import NotificationInternalCreate
             await notification_repository.create(
                 NotificationInternalCreate(
-                    id=str(uuid.uuid4()),
+                    _id=str(uuid.uuid4()),
                     userId=super_admin.id,
                     type="new_return",
                     title="New Return Request",

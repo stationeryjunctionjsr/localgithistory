@@ -74,7 +74,7 @@ async def create_order_notification(order):
                     "orderNumber": (order.order_number if order.order_number is not None else order.id),
                     "amount": (order.total if order.total is not None else 0),
                     "userId": order.user,
-                    "createdAt": order.created_at,
+                    "createdAt": order.created_at.isoformat() if order.created_at else None,
                 },
             }
         )
@@ -1610,7 +1610,7 @@ async def create_order(
                         from app.models.daos import NotificationInternalCreate
                         await notification_repository.create(
                             NotificationInternalCreate(
-                                id=str(uuid.uuid4()),
+                                _id=str(uuid.uuid4()),
                                 userId=super_admin.id,
                                 type="low_stock",
                                 title="Low Stock Alert",
@@ -1668,7 +1668,7 @@ async def create_order(
                     "amount": total,
                     "image": screenshot_path,
                     "verified": False,
-                    "createdAt": order.created_at,
+                    "createdAt": order.created_at.isoformat() if order.created_at else None,
                 }
             ]
         elif order_data.paymentMethod == "credit":
@@ -1868,7 +1868,7 @@ async def create_order(
                     "notes": order_data.notes or "",
                     "couponCode": coupon_code,
                     "couponInfo": coupon_info,
-                    "createdAt": order.created_at,
+                    "createdAt": order.created_at.isoformat() if order.created_at else None,
                 }
                 sub = await sub_order_repository.create(SubOrderInternalCreate(**sub_order_data))
                 sub_order_ids.append(str(sub.id))
