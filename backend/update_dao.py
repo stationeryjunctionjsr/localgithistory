@@ -1,58 +1,111 @@
-﻿import re
-
-with open('app/db/mysql_events_dao.py', 'r', encoding='utf-8') as f:
+﻿with open('app/db/mysql_supportTickets_dao.py', 'r', encoding='utf-8') as f:
     text = f.read()
 
-# Update findAll SQL
-text = text.replace(
-    'text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC")',
-    'text(f"SELECT e.*, t.session_id, t.user_id, t.ip_address, t.os, t.browser, t.campaign, t.source, t.device_type FROM {self.TABLE} e LEFT JOIN sj_tracking t ON e.tracking_id = t.id WHERE {where_sql.replace(\'event_type\', \'e.event_type\')} ORDER BY e.id ASC")'
-)
+# UPDATE SELECT
+old_select = '''        q_responses = text(f"SELECT parent_id, admin_id, message FROM sj_ticket_responses WHERE parent_id IN ({id_list})")
+        res_responses = await session.execute(q_responses)
+        rows_responses = res_responses.fetchall()
 
-# Update findById SQL
-text = text.replace(
-    'text(f"SELECT * FROM {self.TABLE} WHERE id = :id")',
-    'text(f"SELECT e.*, t.session_id, t.user_id, t.ip_address, t.os, t.browser, t.campaign, t.source, t.device_type FROM {self.TABLE} e LEFT JOIN sj_tracking t ON e.tracking_id = t.id WHERE e.id = :id")'
-)
+        for r in rows_responses:
+            if "responses" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["responses"] = []
+            
+            c_map[r.parent_id]["responses"].append(
+                {"user": r[1], "message": r[2]}
+            )'''
 
-# Update valid_columns mapped arrays
-new_valid_columns = '''
-        # Unmap flat columns back to payload
-        valid_columns = {
-            "session_id": "sessionId", "user_id": "userId", "ip_address": "ipAddress", 
-            "os": "os", "browser": "browser", "campaign": "campaign", "source": "source",
-            "product_id": "productId", "product_name": "productName", "quantity": "quantity", 
-            "query": "query", "results_count": "resultsCount", "reason": "reason",
-            "page": "page", "screen": "screen", "test_run_id": "testRunId", 
-            "device_type": "device_type", 
-            "device_os_version": "device_os_version", "device_model": "device_model", 
-            "device_app_version": "device_app_version"
-        }
-'''
+new_select = '''        q_responses = text(f"SELECT parent_id, admin_id, message, is_admin_response, attachments FROM sj_ticket_responses WHERE parent_id IN ({id_list})")
+        res_responses = await session.execute(q_responses)
+        rows_responses = res_responses.fetchall()
 
-text = re.sub(
-    r'        # Unmap flat columns back to payload\n        valid_columns = {.*?        }',
-    new_valid_columns.strip('\n'),
-    text,
-    flags=re.DOTALL
-)
+        import json
 
-# Update create valid columns
-new_create_valid = '''
-                valid_columns = {
-                    "product_id", "product_name", "quantity", "query", "results_count", "reason",
-                    "page", "screen", "test_run_id", "device_os_version",
-                    "device_model", "device_app_version"
-                }
-'''
-text = re.sub(
-    r'                valid_columns = {.*?                }',
-    new_create_valid.strip('\n'),
-    text,
-    flags=re.DOTALL
-)
+        for r in rows_responses:
+            if "responses" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["responses"] = []
+            
+            try:
+                atts = json.loads(r[4]) if r[4] else []
+            except Exception:
+                atts = []
 
-with open('app/db/mysql_events_dao.py', 'w', encoding='utf-8') as f:
+            c_map[r.parent_id]["responses"].append(
+                {"user": r[1], "message": r[2], "isAdminResponse": bool(r[3]), "attachments": atts}
+            )'''
+text = text.replace(old_select, new_select)
+
+# UPDATE DELETE/INSERT
+old_insert = '''        if getattr(data, "responses", None) is not None:
+            await session.execute(text(f"DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": pk})
+
+            result = await session.execute(
+                text(f"SELECT id FROM sj_ticket_responses WHERE parent_id = :id LIMIT 1"),
+                {"id": pk}
+            )
+            if result.rowcount > 0:
+                 return  # cannot safely replace children without primary key handling
+
+            child_list = data.responses or []
+
+            if child_list:
+                for item in child_list:
+                    p = {"id": pk}
+
+                    p["v0"] = item.user
+                    p["v1"] = item.message
+                    await session.execute(text(f"INSERT INTO sj_ticket_responses (parent_id, admin_id, message) VALUES (:id, :v0, :v1)"), p)'''
+
+new_insert = '''        if getattr(data, "responses", None) is not None:
+            await session.execute(text(f"DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": pk})
+
+            result = await session.execute(
+                text(f"SELECT id FROM sj_ticket_responses WHERE parent_id = :id LIMIT 1"),
+                {"id": pk}
+            )
+            if result.rowcount > 0:
+                 return  # cannot safely replace children without primary key handling
+
+            child_list = data.responses or []
+
+            import json
+            if child_list:
+                for item in child_list:
+                    p = {"id": pk}
+
+                    p["v0"] = item.user
+                    p["v1"] = item.message
+                    p["v2"] = item.isAdminResponse
+                    p["v3"] = json.dumps(item.attachments) if item.attachments else None
+                    await session.execute(text(f"INSERT INTO sj_ticket_responses (parent_id, admin_id, message, is_admin_response, attachments) VALUES (:id, :v0, :v1, :v2, :v3)"), p)'''
+text = text.replace(old_insert, new_insert)
+
+old_update = '''        if getattr(data, "responses", None) is not None:
+            await session.execute(text(f"DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": row_id})
+            child_list = data.responses or []
+
+            if child_list:
+                for item in child_list:
+                    p = {"id": row_id}
+
+                    p["v0"] = item.user
+                    p["v1"] = item.message
+                    await session.execute(text(f"INSERT INTO sj_ticket_responses (parent_id, admin_id, message) VALUES (:id, :v0, :v1)"), p)'''
+
+new_update = '''        if getattr(data, "responses", None) is not None:
+            await session.execute(text(f"DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": row_id})
+            child_list = data.responses or []
+
+            import json
+            if child_list:
+                for item in child_list:
+                    p = {"id": row_id}
+
+                    p["v0"] = item.user
+                    p["v1"] = item.message
+                    p["v2"] = item.isAdminResponse
+                    p["v3"] = json.dumps(item.attachments) if item.attachments else None
+                    await session.execute(text(f"INSERT INTO sj_ticket_responses (parent_id, admin_id, message, is_admin_response, attachments) VALUES (:id, :v0, :v1, :v2, :v3)"), p)'''
+text = text.replace(old_update, new_update)
+
+with open('app/db/mysql_supportTickets_dao.py', 'w', encoding='utf-8') as f:
     f.write(text)
-
-print("Updated mysql_events_dao.py")

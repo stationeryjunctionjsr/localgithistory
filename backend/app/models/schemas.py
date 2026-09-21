@@ -749,6 +749,7 @@ class TicketResponseItemInternal(BaseModel):
     message: Optional[str] = None
     attachments: Optional[List[str]] = None
     createdAt: Optional[str] = None
+    isAdminResponse: Optional[bool] = None
 
 class TicketResponseItem(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)

@@ -57,12 +57,12 @@ class SupportTicketRepository:
         if not ticket:
             raise ValueError("Ticket not found")
 
-        new_resp = TicketResponseItemInternal(user=user, message=message, attachments=attachments)
+        new_resp = TicketResponseItemInternal(user=user, message=message, attachments=attachments, isAdminResponse=is_admin_response)
 
         responses: list[TicketResponseItemInternal] = []
         if ticket.responses:
             for r in ticket.responses:
-                responses.append(TicketResponseItemInternal(user=r.user, message=r.message, attachments=r.attachments))
+                responses.append(TicketResponseItemInternal(user=r.user, message=r.message, attachments=r.attachments, isAdminResponse=r.isAdminResponse))
 
         responses.append(new_resp)
 
