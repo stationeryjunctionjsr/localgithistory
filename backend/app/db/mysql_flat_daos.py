@@ -1507,6 +1507,8 @@ class MySQLProductReviewsDAO:
             "rating": row.rating,
             "reviewText": row.review_text,
             "status": row.status,
+            "userName": getattr(row, "user_name", None),
+            "classification": getattr(row, "classification", None),
 
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
@@ -1662,8 +1664,8 @@ class MySQLClassificationTagsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> ProductReviewResponse:
-        return ProductReviewResponse(**{
+    def __map_to_schema(self, row) -> ClassificationTagResponse:
+        return ClassificationTagResponse(**{
             "_id": str(row.id),
             "id": row.id,
             "external_id": row.external_id,
@@ -1673,7 +1675,7 @@ class MySQLClassificationTagsDAO:
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
         })
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[ProductReviewResponse]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[ClassificationTagResponse]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -1695,7 +1697,7 @@ class MySQLClassificationTagsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ProductReviewResponse]:
+    async def findOne(self, query: Dict) -> Optional[ClassificationTagResponse]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1703,7 +1705,7 @@ class MySQLClassificationTagsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[ProductReviewResponse]:
+    async def findById(self, id: str) -> Optional[ClassificationTagResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1715,7 +1717,7 @@ class MySQLClassificationTagsDAO:
             ).fetchone()
         return self.__map_to_schema(row) if row else None
 
-    async def create(self, data: ClassificationTagsInternalCreate) -> ProductReviewResponse:
+    async def create(self, data: ClassificationTagsInternalCreate) -> ClassificationTagResponse:
 
         if isinstance(data, dict):
             data = ClassificationTagsInternalCreate(**data)

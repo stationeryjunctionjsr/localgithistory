@@ -831,6 +831,8 @@ class ProductReviewsInternalCreate(BaseModel):
     reviewText: Optional[str] = None
     status: Optional[str] = None
     userId: Optional[str] = None
+    userName: Optional[str] = Field(None, alias='userName')
+    classification: Optional[str] = None
 
 class ProductReviewsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -839,6 +841,8 @@ class ProductReviewsInternalUpdate(BaseModel):
     rating: Optional[int] = None
     reviewText: Optional[str] = None
     status: Optional[str] = None
+    userName: Optional[str] = Field(None, alias='userName')
+    classification: Optional[str] = None
     userId: Optional[str] = None
 
 class ClassificationTagsInternalCreate(BaseModel):

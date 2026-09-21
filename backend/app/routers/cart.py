@@ -166,7 +166,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
 
         from app.models.daos import CartItemInternal
         new_item = CartItemInternal(
-            id=str(uuid.uuid4()),
+            id_=str(uuid.uuid4()),
             product=item.productId,
             quantity=item.quantity,
             sellAsCase=sell_as_case,

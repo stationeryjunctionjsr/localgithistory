@@ -89,7 +89,7 @@ async def create_review(review_data: ReviewCreate, current_user: User = Depends(
         "userId": user_id,
         "userName": (current_user.name if current_user.name is not None else "Verified Buyer"),
         "rating": review_data.rating,
-        "comment": review_data.comment.strip(),
+        "reviewText": review_data.comment.strip(),
         "classification": review_data.classification,
         "status": "pending",
     }

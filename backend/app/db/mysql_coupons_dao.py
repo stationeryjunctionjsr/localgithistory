@@ -153,7 +153,7 @@ class MySQLCouponsDAO:
             cols.append("applies_to_type")
             params["s_appliesToType"] = data.appliesToType
 
-if data.displayId is not None:
+        if data.displayId is not None:
             cols.append("display_id")
             params["s_displayId"] = data.displayId
 
