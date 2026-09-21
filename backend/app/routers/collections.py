@@ -122,7 +122,7 @@ async def create_collection(data: CollectionCreate, current_user: User = Depends
         productIds=data.productIds
     )
     if data.visibilityRules:
-        internal_data.visibilityRules = [r.model_dump_json() for r in data.visibilityRules]
+        internal_data.visibilityRules = data.visibilityRules
         
     collection = await collection_repository.create(internal_data)
     _invalidate_collection_caches()
@@ -143,7 +143,7 @@ async def update_collection(
     if 'userSegments' in data.model_fields_set: internal_update.userSegments = data.userSegments
     if 'productIds' in data.model_fields_set: internal_update.productIds = data.productIds
     if data.visibilityRules is not None:
-        internal_update.visibilityRules = [r.model_dump_json() for r in data.visibilityRules]
+        internal_update.visibilityRules = data.visibilityRules
 
     collection = await collection_repository.update(collection_id, internal_update)
     if not collection:

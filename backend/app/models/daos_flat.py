@@ -193,7 +193,7 @@ class CollectionInternal(BaseModel):
     displayOrder: Optional[int] = None
     visiblePages: Optional[List[str]] = None
     userSegments: Optional[List[str]] = None
-    visibilityRules: Optional[List[str]] = None
+    visibilityRules: Optional[List[Any]] = None
     productIds: Optional[List[str]] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
@@ -209,7 +209,7 @@ class CollectionInternalCreate(BaseModel):
     displayOrder: Optional[int] = None
     visiblePages: Optional[List[str]] = None
     userSegments: Optional[List[str]] = None
-    visibilityRules: Optional[List[str]] = None
+    visibilityRules: Optional[List[Any]] = None
     productIds: Optional[List[str]] = None
 
 class CollectionInternalUpdate(BaseModel):
@@ -223,7 +223,7 @@ class CollectionInternalUpdate(BaseModel):
     displayOrder: Optional[int] = None
     visiblePages: Optional[List[str]] = None
     userSegments: Optional[List[str]] = None
-    visibilityRules: Optional[List[str]] = None
+    visibilityRules: Optional[List[Any]] = None
     productIds: Optional[List[str]] = None
 
 class SearchTagInternal(BaseModel):

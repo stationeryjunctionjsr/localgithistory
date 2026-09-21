@@ -292,7 +292,8 @@ class MySQLCollectionsDAO:
 
             if child_list:
                 for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_collection_rules (parent_id, rule) VALUES (:id, :v)"), {"id": row_id, "v": item})
+                    val = item.model_dump_json() if type(item) is not str else item
+                    await session.execute(text(f"INSERT INTO sj_collection_rules (parent_id, rule) VALUES (:id, :v)"), {"id": row_id, "v": val})
 
         if data.productIds is not None:
             await session.execute(text(f"DELETE FROM sj_collection_products WHERE parent_id = :id"), {"id": row_id})
