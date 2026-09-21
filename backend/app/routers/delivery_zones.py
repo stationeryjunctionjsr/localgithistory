@@ -1,6 +1,6 @@
 from app.models.user import User
 from typing import Dict, Any, List
-from app.models.schemas import MessageResponse, DeliveryZoneResponse
+from app.models.schemas import MessageResponse, DeliveryZoneResponse, DeliveryZoneInternalCreate
 """
 Delivery Zones router.
 

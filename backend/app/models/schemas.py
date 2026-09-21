@@ -1565,6 +1565,12 @@ class OrderAddress(BaseModel):
     state: Optional[str] = None
     pincode: Optional[str] = None
     phone: Optional[str] = None
+    address: Optional[str] = None
+    district: Optional[str] = None
+    country: Optional[str] = None
+    googleLocation: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 

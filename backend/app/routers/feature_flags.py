@@ -131,8 +131,8 @@ async def update_feature_flag(
         if not flag:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
-        update_dict = update_data
-        updated = await feature_flag_repository.update(flag["_id"], update_dict)
+        
+        updated = await feature_flag_repository.update(flag.id, update_data)
         return updated
     except HTTPException:
         raise

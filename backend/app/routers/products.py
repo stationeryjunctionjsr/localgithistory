@@ -641,7 +641,7 @@ async def get_public_products(
     role = "customer" # Force role to customer for public endpoint
     query = {}
     if category:
-        query.category = category
+        query["category"] = category
     if categories:
         query["categories"] = categories  # Comma-separated list of categories
     if subCategory:
@@ -790,7 +790,7 @@ async def get_products(
 
     query = {}
     if category:
-        query.category = category
+        query["category"] = category
     if categories:
         query["categories"] = categories  # Comma-separated list of categories
     if subCategory:

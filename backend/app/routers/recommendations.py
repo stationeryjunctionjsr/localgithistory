@@ -52,8 +52,8 @@ class RecommendationEventBody(BaseModel):
     strategy: Optional[str] = None  # 'trending' | 'user_favorites' | 'explore' for bandit reward update
 
 
-@router.get("", response_model=List[Product])
-@router.get("/", response_model=List[Product])
+@router.get("", response_model=RecommendationResponse)
+@router.get("/", response_model=RecommendationResponse)
 async def get_recommendations(
     current_user: Optional[dict] = Depends(get_optional_user),
     pincode: Optional[str] = Query(None)
@@ -211,7 +211,7 @@ async def get_favourites_page(
         if p.category:
             categories_seen.add(p.category)
         if p.sub_category:
-            sub_categories_seen.add(p.subCategory)
+            sub_categories_seen.add(p.sub_category)
         if p.brand:
             brands_seen.add(p.brand)
 
