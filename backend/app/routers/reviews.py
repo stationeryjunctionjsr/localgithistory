@@ -217,7 +217,7 @@ async def admin_update_classification(
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Classification not found")
 
-    update_dict = {}
+    has_updates = False
     if class_data.name is not None:
         name = class_data.name.strip()
         if not name:
@@ -230,13 +230,15 @@ async def admin_update_classification(
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, detail="Classification name already in use"
                 )
-        update_dict["name"] = name
+        existing.name = name
+        has_updates = True
 
     if class_data.isActive is not None:
-        update_dict["isActive"] = class_data.isActive
+        existing.isActive = class_data.isActive
+        has_updates = True
 
-    if not update_dict:
+    if not has_updates:
         return existing
 
-    updated = await review_classification_repository.update(class_id, update_dict)
+    updated = await review_classification_repository.update(class_id, existing)
     return {"message": "Classification updated successfully", "classification": updated}
