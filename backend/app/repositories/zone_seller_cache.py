@@ -123,6 +123,11 @@ async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional
                 return None, None
 
             seller_ids = set(await _get_sellers_for_zone(zone_str_id))
+            
+            from app.routers.seller_availability import get_all_unavailable_seller_ids
+            unavailable = await get_all_unavailable_seller_ids()
+            if unavailable:
+                seller_ids = seller_ids - unavailable
 
             return zone_str_id, seller_ids
 
@@ -142,6 +147,13 @@ async def get_seller_ids_for_pincode(pincode: str) -> Optional[Set[str]]:
         set(ids) -- zone found with sellers -> filter to these IDs
     """
     _, seller_ids = await get_zone_id_and_seller_ids_for_pincode(pincode)
+    
+    if seller_ids:
+        from app.routers.seller_availability import get_all_unavailable_seller_ids
+        unavailable = await get_all_unavailable_seller_ids()
+        if unavailable:
+            seller_ids = seller_ids - unavailable
+            
     return seller_ids
 
 from app.models.daos_flat import DeliveryZoneInternal

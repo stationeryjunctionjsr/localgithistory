@@ -325,11 +325,11 @@ class MySQLUserDAO:
                 if "address" in fields_set:
                     existing.address = update_data.address
                 if "savedAddresses" in fields_set:
-                    existing.savedAddresses = update_data.savedAddresses
+                    existing.saved_addresses = update_data.savedAddresses
                 if "sellerPermissions" in fields_set:
-                    existing.sellerPermissions = update_data.sellerPermissions
+                    existing.seller_permissions = update_data.sellerPermissions
                 if "serviceAreaZones" in fields_set:
-                    existing.serviceAreaZones = update_data.serviceAreaZones
+                    existing.service_area_zones = update_data.serviceAreaZones
                             
                 await self._replace_children(session, int(id) if str(id).isdigit() else None, existing)
                 
