@@ -68,13 +68,12 @@ async def _check_pincode_conflicts(
     """Return list of pincodes that already belong to another zone."""
     storage = get_storage("deliveryZones")
     all_zones = await storage.findAll({})
-    taken: Dict[str, str] = {}
+    taken_pincodes = []
     for z in all_zones:
         if exclude_zone_id and str(z.id) == str(exclude_zone_id):
             continue
-        for pc in (z.pincodes or []):
-            taken[pc] = z.name if z.name is not None else str(z.id)
-    return [pc for pc in pincodes if pc in taken]
+        taken_pincodes.extend(z.pincodes or [])
+    return [pc for pc in pincodes if pc in taken_pincodes]
 
 
 # ── Routes — ORDER MATTERS: static paths before /{zone_id} ───────────────────

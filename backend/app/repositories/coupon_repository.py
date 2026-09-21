@@ -144,7 +144,7 @@ class CouponRepository:
         bx_candidates = [e for e in elements if e["is_bx"]]
         bx_candidates.sort(key=lambda x: x["price"], reverse=True)
         if len(bx_candidates) < x_required:
-            return BxGyEvaluationResponse(discount=0.0, itemDiscounts={)}
+            return BxGyEvaluationResponse(discount=0.0, itemDiscounts={})
 
         bx_allocated = bx_candidates[:x_required]
         bx_ids = {id(e) for e in bx_allocated}
@@ -155,7 +155,7 @@ class CouponRepository:
         gy_ids = {id(e) for e in gy_allocated}
 
         if not gy_allocated:
-            return BxGyEvaluationResponse(discount=0.0, itemDiscounts={)}
+            return BxGyEvaluationResponse(discount=0.0, itemDiscounts={})
 
         applicable_auto = await self.get_applicable_automatic_product_discounts(user_role, user_id)
         best_auto_per_product = {}

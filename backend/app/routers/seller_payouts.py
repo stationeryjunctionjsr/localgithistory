@@ -161,7 +161,7 @@ async def settle_all_seller_payouts(
     # Calculate total payout
     total_amount = sum(float(so.total) - float(so.commission_amount) for so in sub_orders)
 
-    sub_order_ids = [str(so["_id"]) for so in sub_orders]
+    sub_order_ids = [str(so.id) for so in sub_orders]
 
     now = datetime.now(timezone.utc).isoformat() + "Z"
     from app.models.daos import SellerPayoutInternalCreate

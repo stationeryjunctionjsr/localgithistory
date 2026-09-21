@@ -111,51 +111,49 @@ async def _enrich_bundle(bundle) -> BundleResponse:
         if stock < qty:
             fully_available = False
 
+        from app.models.product import Product
+        p_obj = Product.model_validate({
+            "_id": product.id,
+            "name": product.name,
+            "sku": product.sku,
+            "mrp": mrp,
+            "images": (product.images or []),
+            "stock": stock,
+        })
         enriched_items.append(
-            {
-                "productId": item.productId,
-                "quantity": qty,
-                "product": {
-                    "_id": product.id,
-                    "name": product.name,
-                    "sku": product.sku,
-                    "mrp": mrp,
-                    "images": (product.images or []),
-                    "stock": stock,
-                },
-                "lineMrp": line_mrp,
-            }
+            BundleItemResponse(
+                productId=item.productId,
+                quantity=qty,
+                product=p_obj,
+                lineMrp=line_mrp,
+            )
         )
 
     bundle_price = float((bundle.price if bundle.price is not None else 0))
     display_img = next(
-        (item["product"]["images"][0] for item in enriched_items if "product" in item and item["product"] and "images" in item["product"] and item["product"]["images"]),
+        (item.product.images[0] for item in enriched_items if item.product and item.product.images),
         None,
     )
     
     # Since we avoid dynamic dumps, we map it manually
-    bundle_dict = {
-        "id": bundle.id,
-        "name": bundle.name,
-        "description": bundle.description,
-        "price": bundle.price,
-        "discountPercentage": bundle.discountPercentage,
-        "isActive": bundle.isActive,
-        "salesCount": bundle.salesCount,
-        "items": enriched_items, # Overwritten anyway
-        "createdAt": bundle.createdAt,
-        "updatedAt": bundle.updatedAt,
-        "external_id": bundle.external_id,
-    }
-    return {
-        **bundle_dict,
-        "items": enriched_items,
-        "totalMrp": round(total_mrp, 2),
-        "savings": round(total_mrp - bundle_price, 2),
-        "savingsPercent": round((total_mrp - bundle_price) / total_mrp * 100, 1) if total_mrp else 0,
-        "isAvailable": fully_available,
-        "displayImage": display_img,
-    }
+    return BundleResponse(
+        id=bundle.id,
+        name=bundle.name,
+        description=bundle.description,
+        price=bundle.price,
+        discountPercentage=bundle.discountPercentage,
+        isActive=bundle.isActive,
+        salesCount=bundle.salesCount,
+        items=enriched_items,
+        createdAt=bundle.createdAt,
+        updatedAt=bundle.updatedAt,
+        external_id=bundle.external_id,
+        totalMrp=round(total_mrp, 2),
+        savings=round(total_mrp - bundle_price, 2),
+        savingsPercent=round((total_mrp - bundle_price) / total_mrp * 100, 1) if total_mrp else 0,
+        isAvailable=fully_available,
+        displayImage=display_img,
+    )
 
 
 async def _validate_bundle_items(items: List[BundleItemSchema] = Field(..., validation_alias=AliasChoices("items", "products"))):
