@@ -250,17 +250,18 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
         )
 
     delivery_charge_val = elig_model.returnDeliveryCharge or 0
+    from app.models.daos import ReturnRequestInternalCreate
     created = await return_request_repository.create(
-        {
-            "orderId": request_data.orderId,
-            "userId": current_user.id,
-            "items": [i for i in request_data.items],
-            "paymentMethod": request_data.paymentMethod,
-            "upiPaymentScreenshot": screenshot_path,
-            "notes": request_data.notes,
-            "status": ReturnRequestStatus.PENDING.value,
-            "deliveryCharge": delivery_charge_val,
-        }
+        ReturnRequestInternalCreate(
+            orderId=request_data.orderId,
+            userId=current_user.id,
+            items=[i for i in request_data.items],
+            paymentMethod=request_data.paymentMethod,
+            upiPaymentScreenshot=screenshot_path,
+            notes=request_data.notes,
+            status=ReturnRequestStatus.PENDING.value,
+            deliveryCharge=delivery_charge_val,
+        )
     )
 
     # Notify super admin

@@ -52,17 +52,17 @@ class SupportTicketRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def addResponse(self, ticket_id: str, user: str, message: str, is_admin_response: bool) -> SupportTicketInternal:
+    async def addResponse(self, ticket_id: str, user: str, message: str, attachments: list[str], is_admin_response: bool) -> SupportTicketInternal:
         ticket = await self.findById(ticket_id)
         if not ticket:
             raise ValueError("Ticket not found")
 
-        new_resp = TicketResponseItemInternal(user=user, message=message)
+        new_resp = TicketResponseItemInternal(user=user, message=message, attachments=attachments)
 
         responses: list[TicketResponseItemInternal] = []
         if ticket.responses:
             for r in ticket.responses:
-                responses.append(TicketResponseItemInternal(user=r.user, message=r.message))
+                responses.append(TicketResponseItemInternal(user=r.user, message=r.message, attachments=r.attachments))
 
         responses.append(new_resp)
 

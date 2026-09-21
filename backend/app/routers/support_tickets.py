@@ -197,13 +197,11 @@ async def add_ticket_response(
     is_admin_response = current_user.role == "super_admin"
 
     await support_ticket_repository.addResponse(
-        ticket_id,
-        {
-            "user": current_user.id,
-            "message": response_data.message,
-            "attachments": response_data.attachments or [],
-            "isAdminResponse": is_admin_response,
-        },
+        ticket_id=ticket_id,
+        user=current_user.id,
+        message=response_data.message,
+        attachments=response_data.attachments or [],
+        is_admin_response=is_admin_response,
     )
 
     updated_ticket = await support_ticket_repository.findById(ticket_id)

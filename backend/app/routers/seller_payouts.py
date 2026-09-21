@@ -111,22 +111,23 @@ async def create_seller_payout(
         raise HTTPException(status_code=404, detail="Seller not found")
 
     now = datetime.now(timezone.utc).isoformat() + "Z"
-    payout_doc = {
-        "sellerId": data.sellerId,
-        "sellerName": seller.company_name or seller.name or "",
-        "amount": data.amount,
-        "periodStart": data.periodStart,
-        "periodEnd": data.periodEnd,
-        "status": "paid",
-        "notes": data.notes,
-        "subOrderIds": data.subOrderIds or [],
-        "createdBy": str(current_user.id),
-        "paidAt": now,
-        "createdAt": now,
-    }
-
+    from app.models.daos import SellerPayoutInternalCreate
     storage = _payout_storage()
-    created = await storage.create(payout_doc)
+    created = await storage.create(
+        SellerPayoutInternalCreate(
+            sellerId=data.sellerId,
+            sellerName=seller.company_name or seller.name or "",
+            amount=data.amount,
+            periodStart=data.periodStart,
+            periodEnd=data.periodEnd,
+            status="paid",
+            notes=data.notes,
+            subOrderIds=data.subOrderIds or [],
+            createdBy=str(current_user.id),
+            paidAt=now,
+            createdAt=now,
+        )
+    )
 
     # Mark included sub-orders as commission paid
     for so_id in data.subOrderIds or []:
@@ -163,20 +164,21 @@ async def settle_all_seller_payouts(
     sub_order_ids = [str(so["_id"]) for so in sub_orders]
 
     now = datetime.now(timezone.utc).isoformat() + "Z"
-    payout_doc = {
-        "sellerId": seller_id,
-        "sellerName": seller.company_name or seller.name or "",
-        "amount": round(total_amount, 2),
-        "status": "paid",
-        "notes": "Bulk settlement of all realized sub-orders",
-        "subOrderIds": sub_order_ids,
-        "createdBy": str(current_user.id),
-        "paidAt": now,
-        "createdAt": now,
-    }
-
+    from app.models.daos import SellerPayoutInternalCreate
     storage = _payout_storage()
-    created = await storage.create(payout_doc)
+    created = await storage.create(
+        SellerPayoutInternalCreate(
+            sellerId=seller_id,
+            sellerName=seller.company_name or seller.name or "",
+            amount=round(total_amount, 2),
+            status="paid",
+            notes="Bulk settlement of all realized sub-orders",
+            subOrderIds=sub_order_ids,
+            createdBy=str(current_user.id),
+            paidAt=now,
+            createdAt=now,
+        )
+    )
 
     # Mark included sub-orders as paid
     for so_id in sub_order_ids:
