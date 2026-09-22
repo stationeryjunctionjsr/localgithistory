@@ -27,7 +27,7 @@ class User(BaseModel):
     is_email_verified: bool = Field(default=False, alias="isEmailVerified")
     referral_code: Optional[str] = Field(default=None, alias="referralCode")
     is_seller_admin: bool = Field(default=False, alias="isSellerAdmin")
-    service_area_zones: List[str] = Field(default=[], alias="serviceAreaZones")
+    service_area_zones: Optional[List[str]] = Field(default=[], alias="serviceAreaZones")
     is_on_duty: bool = Field(default=False, alias="isOnDuty")
     commission_override_pct: Optional[float] = Field(default=None, alias="commissionOverridePct")
     created_at: Optional[datetime] = Field(default=None, alias="createdAt")

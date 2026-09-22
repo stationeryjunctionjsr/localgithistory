@@ -83,11 +83,18 @@ class AddressSnippet(BaseModel):
     name: Optional[str] = None
     isPrimary: Optional[bool] = None
     phone: Optional[str] = None
+    address: Optional[str] = None
     street: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
+    district: Optional[str] = None
+    country: Optional[str] = "India"
     pincode: Optional[str] = None
+    zipCode: Optional[str] = None
     locationLink: Optional[str] = None
+    googleLocation: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 class UserSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')

@@ -1849,6 +1849,11 @@ CREATE TABLE `sj_user_addresses` (
   `state` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `pincode` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+    district varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  country varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  google_location varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  latitude decimal(10,8) DEFAULT NULL,
+  longitude decimal(11,8) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_usr_addr` (`user_id`),
   CONSTRAINT `fk_usr_addr` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`) ON DELETE CASCADE
