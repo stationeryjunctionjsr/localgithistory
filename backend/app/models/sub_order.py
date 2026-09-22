@@ -1,4 +1,4 @@
-from app.models.schemas import AddressSnippet as Address, ItemSnippet as CartItem, ItemSnippet as OrderItem, SellerPermissionSnippet as SellerPermissions
+from app.models.schemas import AddressSnippet as Address, ItemSnippet as CartItem, ItemSnippet as OrderItem
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field

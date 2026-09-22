@@ -196,8 +196,7 @@ async def get_all_availability(
     seller_zones = set()
     if is_seller and current_user.role != "super_admin":
         # Use serviceableZoneIds directly — sellers now declare zones, not pincodes
-        perms = current_user.seller_permissions
-        zone_ids = (perms.serviceableZoneIds or perms.serviceable_zone_ids or [])
+        zone_ids = current_user.service_area_zones or []
         seller_zones = set(zone_ids)
 
     enriched = []

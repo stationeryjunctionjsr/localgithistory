@@ -1184,8 +1184,7 @@ async def create_order(
             for sid in seller_ids_in_order:
                 sdoc = await user_repository.findById(sid)
                 if sdoc:
-                    s_perm = sdoc.sellerPermissions
-                    seller_zone_ids = s_perm.serviceableZoneIds or []
+                    seller_zone_ids = sdoc.service_area_zones or []
                     # Empty list = seller hasn't configured zones yet; allow during migration
                     if seller_zone_ids and order_zone_id not in seller_zone_ids:
                         s_name = sdoc.companyName or sdoc.name or "Seller"

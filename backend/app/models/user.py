@@ -1,4 +1,4 @@
-from app.models.schemas import AddressSnippet as Address, SellerPermissionSnippet as SellerPermissions, CartItem, OrderItem, VisibilityRule
+from app.models.schemas import AddressSnippet as Address, CartItem, OrderItem, VisibilityRule
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
@@ -27,7 +27,6 @@ class User(BaseModel):
     is_email_verified: bool = Field(default=False, alias="isEmailVerified")
     referral_code: Optional[str] = Field(default=None, alias="referralCode")
     is_seller_admin: bool = Field(default=False, alias="isSellerAdmin")
-    seller_permissions: Optional['SellerPermissions'] = Field(default=None, alias='sellerPermissions')
     service_area_zones: List[str] = Field(default=[], alias="serviceAreaZones")
     is_on_duty: bool = Field(default=False, alias="isOnDuty")
     commission_override_pct: Optional[float] = Field(default=None, alias="commissionOverridePct")

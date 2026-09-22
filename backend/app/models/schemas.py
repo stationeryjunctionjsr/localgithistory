@@ -145,20 +145,10 @@ class VisibilityRuleSnippet(BaseModel):
     pageType: Optional[str] = None
     pageIds: Optional[List[str]] = None
 
-class SellerPermissionSnippet(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
-    canManageProducts: Optional[bool] = None
-    canManageOrders: Optional[bool] = None
-    serviceablePincodes: Optional[List[str]] = None
-    urgentPincodes: Optional[List[str]] = None
-    slotPincodes: Optional[List[str]] = None
-    serviceableZoneIds: Optional[List[str]] = None
-
 # Aliases for models and snippets
 CartItem = ItemSnippet
 OrderItem = ItemSnippet
 VisibilityRule = VisibilityRuleSnippet
-SellerPermissions = SellerPermissionSnippet
 
 class ValetSnippet(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -235,10 +225,6 @@ class SavedAddress(BaseModel):
     pincode: str
     isDefault: bool
 
-class SellerPermission(BaseModel):
-    module: str
-    access: str
-
 
 class UserBase(BaseModel):
     isActive: Optional[bool] = None
@@ -264,7 +250,6 @@ class UserBase(BaseModel):
     isSellerAdmin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
     isOnDuty: Optional[bool] = False
     commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
-    sellerPermissions: Optional[SellerPermissions] = None
     serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
     password: Optional[str] = None
     sessionId: Optional[str] = None
@@ -321,7 +306,6 @@ class UserUpdate(BaseModel):
     isSellerAdmin: Optional[bool] = None
     isOnDuty: Optional[bool] = None
     commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
-    sellerPermissions: Optional[SellerPermissions] = None
     serviceAreaZones: Optional[List[str]] = None
     referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
     preferredLanguage: Optional[str] = None
@@ -344,7 +328,6 @@ class UserResponse(UserBase):
     assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
     referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
     isSellerAdmin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
-    sellerPermissions: Optional[SellerPermissionSnippet] = Field(default=None, validation_alias=AliasChoices("sellerPermissions", "seller_permissions"))
     commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
@@ -1645,7 +1628,6 @@ class UserInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     userId: int
     isSellerAdmin: bool = False
-    sellerPermissions: Optional[List[SellerPermission]] = None
     serviceAreaZones: Optional[List[str]] = None
     savedAddresses: Optional[List[SavedAddress]] = None
     isOnDuty: bool = False
@@ -1697,7 +1679,6 @@ class UserInternalUpdate(BaseModel):
     assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
     referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
     isEmailVerified: Optional[bool] = None
-    sellerPermissions: Optional[list] = None
     serviceAreaZones: Optional[List[str]] = None
     commissionOverridePct: Optional[float] = None
     upiId: Optional[str] = None

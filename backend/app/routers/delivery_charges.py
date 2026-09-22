@@ -177,7 +177,6 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
             try:
                 seller_doc = await user_repository.findById(sa_id)
                 if seller_doc:
-                    perms = seller_doc.seller_permissions or {}
                     serviceable_sellers.append({
                         "id": str((seller_doc.id if seller_doc.id is not None else sa_id)),
                         "name": (seller_doc.name or ""),
@@ -195,7 +194,6 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
                     seller_doc = await user_repository.findById(sid)
                     if not seller_doc:
                         continue
-                    perms = seller_doc.seller_permissions or {}
                     serviceable_sellers.append({
                         "id": str((seller_doc.id if seller_doc.id is not None else sid)),
                         "name": (seller_doc.name or ""),

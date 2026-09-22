@@ -96,10 +96,9 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
     all_valets = await user_repository.findAll({'role': 'valet', 'isOnDuty': True})
     skip_ids: set[str] = set()
     for entry in skip_valet_ids:
-        vid = entry.valetId
-            
-            if vid:
-                skip_ids.add(str(vid))
+        vid = entry.valetId if hasattr(entry, 'valetId') else entry.get('valetId') if isinstance(entry, dict) else entry
+        if vid:
+            skip_ids.add(str(vid))
         else:
             skip_ids.add(str(entry))
     eligible_valets = [v for v in all_valets if str(v.id) not in skip_ids]
@@ -185,16 +184,14 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
         seller = await user_repository.findById(seller_id)
     else:
         seller = await user_repository.findOne({'role': 'super_admin'})
-    seller_perms = (seller.sellerPermissions) or {} if seller else {}
     slot_id = return_req.deliverySlotId
     slot_date = (return_req.deliverySlotDate) or dt_date.today().isoformat()
     all_valets = await user_repository.findAll({'role': 'valet', 'isOnDuty': True})
     skip_ids: set[str] = set()
     for entry in skip_valet_ids:
-        vid = entry.valetId
-            
-            if vid:
-                skip_ids.add(str(vid))
+        vid = entry.valetId if hasattr(entry, 'valetId') else entry.get('valetId') if isinstance(entry, dict) else entry
+        if vid:
+            skip_ids.add(str(vid))
         else:
             skip_ids.add(str(entry))
     eligible_valets = [v for v in all_valets if str(v.id) not in skip_ids]

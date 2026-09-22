@@ -18,13 +18,12 @@ def _map_to_schema(r, children: Dict) -> User:
     all_addresses = children['addresses'] if 'addresses' in children else []
     address = next((a for a in all_addresses if (a['isPrimary'] if 'isPrimary' in a else None)), {})
     saved_addresses = [a for a in all_addresses if not (a['isPrimary'] if 'isPrimary' in a else None)]
-    seller_permissions = {'serviceablePincodes': children['serviceablePincodes'] if 'serviceablePincodes' in children else [], 'urgentPincodes': children['urgentPincodes'] if 'urgentPincodes' in children else [], 'slotPincodes': children['slotPincodes'] if 'slotPincodes' in children else [], 'serviceableZoneIds': children['serviceableZoneIds'] if 'serviceableZoneIds' in children else []}
     is_seller_admin_val = r.is_seller_admin
     is_on_duty_val = r.is_on_duty
     commission_override_val = r.commission_override_pct
     upi_id = r.upi_id
     qr_code_url = r.qr_code_url
-    return User(**{'_id': str(r.id), 'userId': r.id, 'userIdFormatted': r.user_id_formatted or (f'USER-{r.id}' if r.id else None), 'name': r.name, 'email': r.email, 'password': r.password_hash, 'role': r.role, 'phone': r.phone or '', 'companyName': r.company_name, 'gstin': r.gst_number, 'address': address, 'savedAddresses': saved_addresses, 'isActive': bool(r.is_active) if r.is_active is not None else True, 'approvalStatus': r.approval_status, 'isDeactivated': bool(r.is_deactivated) if r.is_deactivated is not None else False, 'creditLimit': float(r.credit_limit) if r.credit_limit is not None else 0, 'creditUsed': float(r.credit_used) if r.credit_used is not None else 0, 'paymentTerms': clean_terms(r.payment_terms), 'assignedSalesperson': r.assigned_salesperson, 'isEmailVerified': bool(r.is_email_verified) if r.is_email_verified is not None else False, 'referralCode': r.referral_code, 'isSellerAdmin': bool(is_seller_admin_val) if is_seller_admin_val is not None else False, 'sellerPermissions': seller_permissions, 'serviceAreaZones': children['zones'] if 'zones' in children else [], 'isOnDuty': bool(is_on_duty_val) if is_on_duty_val is not None else False, 'commissionOverridePct': float(commission_override_val) if commission_override_val is not None else None, 'upiId': upi_id, 'qrCodeUrl': qr_code_url, 'createdAt': r.created_at, 'updatedAt': r.updated_at})
+    return User(**{'_id': str(r.id), 'userId': r.id, 'userIdFormatted': r.user_id_formatted or (f'USER-{r.id}' if r.id else None), 'name': r.name, 'email': r.email, 'password': r.password_hash, 'role': r.role, 'phone': r.phone or '', 'companyName': r.company_name, 'gstin': r.gst_number, 'address': address, 'savedAddresses': saved_addresses, 'isActive': bool(r.is_active) if r.is_active is not None else True, 'approvalStatus': r.approval_status, 'isDeactivated': bool(r.is_deactivated) if r.is_deactivated is not None else False, 'creditLimit': float(r.credit_limit) if r.credit_limit is not None else 0, 'creditUsed': float(r.credit_used) if r.credit_used is not None else 0, 'paymentTerms': clean_terms(r.payment_terms), 'assignedSalesperson': r.assigned_salesperson, 'isEmailVerified': bool(r.is_email_verified) if r.is_email_verified is not None else False, 'referralCode': r.referral_code, 'isSellerAdmin': bool(is_seller_admin_val) if is_seller_admin_val is not None else False, 'serviceAreaZones': children['zones'] if 'zones' in children else [], 'isOnDuty': bool(is_on_duty_val) if is_on_duty_val is not None else False, 'commissionOverridePct': float(commission_override_val) if commission_override_val is not None else None, 'upiId': upi_id, 'qrCodeUrl': qr_code_url, 'createdAt': r.created_at, 'updatedAt': r.updated_at})
 
 class MySQLUserDAO:
 
@@ -75,7 +74,7 @@ class MySQLUserDAO:
         return (where_sql, params)
 
     async def _fetch_children(self, session, uids: List[int]) -> Dict[int, Dict]:
-        children_map = {uid: {'addresses': [], 'serviceablePincodes': [], 'urgentPincodes': [], 'slotPincodes': [], 'zones': [], 'serviceableZoneIds': []} for uid in uids}
+        children_map = {uid: {'addresses': [], 'zones': []} for uid in uids}
         if not uids:
             return children_map
         chunks = [uids[i:i + 999] for i in range(0, len(uids), 999)]
@@ -96,13 +95,10 @@ class MySQLUserDAO:
             res = await session.execute(text(f'SELECT user_id, zone_name, zone_id FROM sj_seller_zones WHERE user_id IN ({placeholders})'), chunk_params)
             for r in res.fetchall():
                 children_map[r.user_id]['zones'].append(r.zone_name)
-                if r.zone_id:
-                    children_map[r.user_id]['serviceableZoneIds'].append(r.zone_id)
         return children_map
 
     async def _replace_children(self, session, uid: int, data: User):
         await session.execute(text('DELETE FROM sj_user_addresses WHERE user_id = :uid'), {'uid': uid})
-        await session.execute(text('DELETE FROM sj_seller_pincodes WHERE user_id = :uid'), {'uid': uid})
         await session.execute(text('DELETE FROM sj_seller_zones WHERE user_id = :uid'), {'uid': uid})
         address = data.address
         saved_addresses = data.saved_addresses if data.saved_addresses is not None else []
@@ -111,14 +107,6 @@ class MySQLUserDAO:
         for a in saved_addresses:
             if a != address:
                 await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone) VALUES (:uid, 0, :st, :c, :s, :p, :ph)'), {'uid': uid, 'st': a.street, 'c': a.city, 's': a.state, 'p': a.pincode, 'ph': a.phone})
-        seller_perms = data.seller_permissions
-        if seller_perms:
-            for p in seller_perms.serviceablePincodes if seller_perms.serviceablePincodes is not None else []:
-                await session.execute(text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'serviceable')"), {'uid': uid, 'p': p})
-            for p in seller_perms.urgentPincodes if seller_perms.urgentPincodes is not None else []:
-                await session.execute(text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'urgent')"), {'uid': uid, 'p': p})
-            for p in seller_perms.slotPincodes if seller_perms.slotPincodes is not None else []:
-                await session.execute(text("INSERT INTO sj_seller_pincodes (user_id, pincode, pincode_type) VALUES (:uid, :p, 'slot')"), {'uid': uid, 'p': p})
         for zone_ext_id in data.service_area_zones if data.service_area_zones is not None else []:
             name_res = await session.execute(text('SELECT name FROM sj_delivery_zones WHERE external_id = :eid LIMIT 1'), {'eid': zone_ext_id})
             name_row = name_res.fetchone()
@@ -319,7 +307,7 @@ class MySQLUserDAO:
                 'updated_at': now
             })
             
-            child_keys = ['address', 'savedAddresses', 'sellerPermissions', 'serviceAreaZones']
+            child_keys = ['address', 'savedAddresses', 'serviceAreaZones']
             has_child_updates = False
             for k in child_keys:
                 if k in update_data.model_fields_set:
@@ -331,8 +319,6 @@ class MySQLUserDAO:
                     existing.address = update_data.address
                 if "savedAddresses" in fields_set:
                     existing.saved_addresses = update_data.savedAddresses
-                if "sellerPermissions" in fields_set:
-                    existing.seller_permissions = update_data.sellerPermissions
                 if "serviceAreaZones" in fields_set:
                     existing.service_area_zones = update_data.serviceAreaZones
                             

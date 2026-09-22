@@ -122,7 +122,6 @@ async def deactivate_own_account(current_user: User = Depends(get_current_user))
     update_data = UserUpdate(isActive=False)
     if user.role == "wholesaler":
         update_data.isDeactivated = True
-        update_data.sellerPermissions = None
         update_data.serviceAreaZones = []
 
     updated_user = await user_repository.update(user_id, update_data)
@@ -304,11 +303,7 @@ async def get_seller_delivery_settings(
     zones_storage = get_storage("deliveryZones")
     all_zones = await zones_storage.findAll({"isActive": True})
 
-    perms = current_user.seller_permissions
-    if perms and perms.serviceableZoneIds:
-        current_zone_ids = perms.serviceableZoneIds
-    else:
-        current_zone_ids = current_user.service_area_zones or []
+    current_zone_ids = current_user.service_area_zones or []
 
     available_zones = []
     for z in all_zones:
@@ -444,7 +439,7 @@ async def deactivate_user(user_id: str, current_user: User = Depends(require_sup
     if user.role != "wholesaler":
         raise HTTPException(status_code=400, detail="Only business customers can be deactivated")
 
-    updated_user = await user_repository.update(user_id, UserUpdate(isDeactivated=True, sellerPermissions=None, serviceAreaZones=[]))
+    updated_user = await user_repository.update(user_id, UserUpdate(isDeactivated=True, serviceAreaZones=[]))
     return updated_user
 
 
