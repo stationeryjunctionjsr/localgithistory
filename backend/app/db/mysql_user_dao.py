@@ -84,14 +84,6 @@ class MySQLUserDAO:
             res = await session.execute(text(f'SELECT user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code FROM sj_user_addresses WHERE user_id IN ({placeholders})'), chunk_params)
             for r in res.fetchall():
                 children_map[r.user_id]['addresses'].append({'isPrimary': bool(r.is_primary), 'street': r.street, 'city': r.city, 'state': r.state, 'pincode': r.pincode, 'phone': r.phone, 'district': r.district, 'country': r.country, 'googleLocation': r.google_location, 'latitude': float(r.latitude) if r.latitude is not None else None, 'longitude': float(r.longitude) if r.longitude is not None else None})
-            res = await session.execute(text(f'SELECT user_id, pincode, pincode_type FROM sj_seller_pincodes WHERE user_id IN ({placeholders})'), chunk_params)
-            for r in res.fetchall():
-                if r.pincode_type == 'serviceable':
-                    children_map[r.user_id]['serviceablePincodes'].append(r.pincode)
-                elif r.pincode_type == 'urgent':
-                    children_map[r.user_id]['urgentPincodes'].append(r.pincode)
-                elif r.pincode_type == 'slot':
-                    children_map[r.user_id]['slotPincodes'].append(r.pincode)
             res = await session.execute(text(f'SELECT user_id, zone_name, zone_id FROM sj_seller_zones WHERE user_id IN ({placeholders})'), chunk_params)
             for r in res.fetchall():
                 children_map[r.user_id]['zones'].append(r.zone_name)
@@ -217,11 +209,37 @@ class MySQLUserDAO:
             user_id_formatted = f'USER-{next_id}'
             await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name, gst_number,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, upi_id, qr_code_url, created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name, :gst_number,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :upi_id, :qr_code_url, :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.companyName, 'gst_number': data.gstin, 'is_active': 1 if (data.isActive if data.isActive is not None else True) else 0, 'approval_status': data.approvalStatus if data.approvalStatus is not None else 'approved', 'is_deactivated': 1 if data.isDeactivated else 0, 'credit_limit': data.creditLimit if data.creditLimit is not None else 0, 'credit_used': data.creditUsed if data.creditUsed is not None else 0, 'payment_terms': str(data.paymentTerms if data.paymentTerms is not None else '30'), 'assigned_salesperson': data.assignedSalesperson, 'is_email_verified': 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else 0, 'referral_code': data.referralCode, 'is_seller_admin': 1 if data.isSellerAdmin else 0, 'is_on_duty': 1 if data.isOnDuty else 0, 'commission_override_pct': data.commissionOverridePct, 'upi_id': data.upiId, 'qr_code_url': data.qrCodeUrl, 'created_at': now, 'updated_at': now})
             new_id = (await session.execute(text(f'SELECT id FROM {self.TABLE} WHERE external_id = :eid'), {'eid': external_id})).scalar()
-            temp_data = data.model_dump(by_alias=True)
-            temp_data['_id'] = str(new_id)
-            temp_data['userId'] = new_id
-            temp_data['userIdFormatted'] = user_id_formatted
-            temp_user = User.model_validate(temp_data)
+            temp_user = User(
+                _id=str(new_id),
+                userId=new_id,
+                userIdFormatted=user_id_formatted,
+                name=data.name,
+                email=data.email,
+                password=data.password,
+                role=data.role,
+                phone=data.phone,
+                companyName=data.companyName,
+                gstin=data.gstin,
+                address=data.address,
+                savedAddresses=data.savedAddresses if data.savedAddresses else [],
+                isActive=data.isActive if data.isActive is not None else True,
+                approvalStatus=data.approvalStatus if data.approvalStatus is not None else 'approved',
+                isDeactivated=data.isDeactivated if data.isDeactivated is not None else False,
+                creditLimit=data.creditLimit if data.creditLimit is not None else 0.0,
+                creditUsed=data.creditUsed if data.creditUsed is not None else 0.0,
+                paymentTerms=data.paymentTerms,
+                assignedSalesperson=data.assignedSalesperson,
+                isEmailVerified=data.isEmailVerified if data.isEmailVerified is not None else False,
+                referralCode=data.referralCode,
+                isSellerAdmin=data.isSellerAdmin if data.isSellerAdmin is not None else False,
+                serviceAreaZones=data.serviceAreaZones if data.serviceAreaZones else [],
+                isOnDuty=data.isOnDuty if data.isOnDuty is not None else False,
+                commissionOverridePct=data.commissionOverridePct,
+                upiId=data.upiId,
+                qrCodeUrl=data.qrCodeUrl,
+                createdAt=now,
+                updatedAt=now
+            )
             await self._replace_children(session, new_id, temp_user)
             await session.commit()
         return await self.findById(str(new_id))

@@ -1535,17 +1535,6 @@ CREATE TABLE `sj_seller_payouts` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Table: sj_seller_pincodes
-CREATE TABLE `sj_seller_pincodes` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `user_id` int NOT NULL,
-  `pincode` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `pincode_type` enum('serviceable','urgent','slot') COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `fk_usr_pin` (`user_id`),
-  CONSTRAINT `fk_usr_pin` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- Table: sj_seller_request_attachments
 CREATE TABLE `sj_seller_request_attachments` (
   `id` int NOT NULL AUTO_INCREMENT,
