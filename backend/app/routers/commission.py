@@ -130,7 +130,7 @@ async def resolve_commission_pct(order_total: float, seller_id: Optional[str]) -
     # 2. Fall through to global tiers
     settings = await _get_settings()
     raw_tiers = settings.tiers or []
-    tiers: List[CommissionTier] = [t if isinstance(t, CommissionTier) else CommissionTier.model_validate(t) for t in raw_tiers]
+    tiers: List[CommissionTier] = [t if isinstance(t, CommissionTier) else CommissionTier.model_validate(t, from_attributes=True) for t in raw_tiers]
     default_pct: float = (settings.default_commission_pct if settings.default_commission_pct is not None else 5.0)
 
     for tier in sorted(tiers, key=lambda t: (t.minOrderValue if t.minOrderValue is not None else 0)):

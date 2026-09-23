@@ -53,7 +53,7 @@ async def get_page_info(page_id: str, current_user: User = Depends(require_super
         with open(page_info_path, "r", encoding="utf-8") as f:
             raw_data = json.load(f)
 
-        container = PageInfoContainer.model_validate(raw_data)
+        container = PageInfoContainer.model_validate(raw_data, from_attributes=True)
         page_data = container.pages[page_id] if page_id in container.pages else None
 
         if not page_data:

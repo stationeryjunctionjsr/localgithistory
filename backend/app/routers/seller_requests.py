@@ -36,7 +36,7 @@ async def populate_request(request):
         resp_model = (
             response
             if isinstance(response, SellerRequestResponseItem)
-            else SellerRequestResponseItem.model_validate(response)
+            else SellerRequestResponseItem.model_validate(response, from_attributes=True)
         )
         user_val = resp_model.user
         user_id_str = (

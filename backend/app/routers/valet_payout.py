@@ -55,7 +55,7 @@ async def _get_settings() -> ValetPayoutSettingsModel:
     docs = await storage.findAll()
     if docs:
         doc = docs[0]
-        return doc if isinstance(doc, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(doc)
+        return doc if isinstance(doc, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(doc, from_attributes=True)
     default = {
         "deliveryChargePerOrder": 0.0,
         "returnPickupChargePerOrder": 0.0,
@@ -63,7 +63,7 @@ async def _get_settings() -> ValetPayoutSettingsModel:
         "updatedAt": datetime.now(timezone.utc).isoformat(),
     }
     created = await storage.create(default)
-    return created if isinstance(created, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(created)
+    return created if isinstance(created, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(created, from_attributes=True)
 
 
 class ValetPayoutSettingsPayload(BaseModel):
@@ -104,7 +104,7 @@ async def update_valet_payout_settings(
             "returnPickupChargePerOrder": payload.returnPickupChargePerOrder,
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
-    updated_model = updated if isinstance(updated, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(updated)
+    updated_model = updated if isinstance(updated, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(updated, from_attributes=True)
     return {
         "deliveryChargePerOrder": (updated_model.deliveryChargePerOrder if updated_model.deliveryChargePerOrder is not None else 0.0),
         "returnPickupChargePerOrder": (updated_model.returnPickupChargePerOrder if updated_model.returnPickupChargePerOrder is not None else 0.0),

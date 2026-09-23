@@ -233,7 +233,7 @@ async def get_my_availability_windows(
     docs = await storage.findAll({"sellerId": seller_id})
     # Sort by startAt descending (most recent first)
     parsed_docs = [
-        d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d)
+        d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d, from_attributes=True)
         for d in docs
     ]
     parsed_docs.sort(key=lambda d: (d.startAt or d.startDate or ""), reverse=True)
@@ -256,7 +256,7 @@ async def get_all_seller_availability(
     docs = await storage.findAll(query)
     enriched = await _enrich_with_seller_name(docs)
     parsed_enriched = [
-        d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d)
+        d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d, from_attributes=True)
         for d in enriched
     ]
     parsed_enriched.sort(key=lambda d: (d.startAt or d.startDate or ""), reverse=True)

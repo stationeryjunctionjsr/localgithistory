@@ -150,7 +150,7 @@ async def fulfill_availability_request(
             from app.services.push_notification_service import push_notification_service
 
             result = await push_notification_service.send_to_user(user_id, notification_payload)
-            push_res = PushNotificationResult.model_validate(result)
+            push_res = PushNotificationResult.model_validate(result, from_attributes=True)
             push_delivered = push_res.deliveredCount
         except Exception as e:
             logger.warning("Could not send push notification for availability request %s: %s", request_id, e)
@@ -165,7 +165,7 @@ async def fulfill_availability_request(
             tracking_storage = _gs("tracking")
             all_events = await tracking_storage.findAll({})
             parsed_events: List[TrackingNotifyEvent] = [
-                e if isinstance(e, TrackingNotifyEvent) else TrackingNotifyEvent.model_validate(e)
+                e if isinstance(e, TrackingNotifyEvent) else TrackingNotifyEvent.model_validate(e, from_attributes=True)
                 for e in all_events
             ]
             notify_events = [
@@ -184,7 +184,7 @@ async def fulfill_availability_request(
                         from app.services.push_notification_service import push_notification_service
 
                         r = await push_notification_service.send_to_user(ev_user_id, notification_payload)
-                        r_res = PushNotificationResult.model_validate(r)
+                        r_res = PushNotificationResult.model_validate(r, from_attributes=True)
                         notify_push += (r_res.deliveredCount if r_res.deliveredCount is not None else 0)
                     except Exception as e:
                         logging.warning("Background task failed", exc_info=e)

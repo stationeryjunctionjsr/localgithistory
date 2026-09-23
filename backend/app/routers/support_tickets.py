@@ -28,7 +28,7 @@ from app.models.schemas import UserSnippet, TicketResponseItem
 async def populate_ticket(ticket_data):
     """Populate ticket with user data"""
     # Strictly validate incoming raw data into internal model where user is a string ID
-    ticket = SupportTicketInternal.model_validate(ticket_data)
+    ticket = SupportTicketInternal.model_validate(ticket_data, from_attributes=True)
 
     user = await user_repository.findById(ticket.user) if ticket.user else None
     assigned_to = await user_repository.findById(ticket.assignedTo) if ticket.assignedTo else None
@@ -40,7 +40,7 @@ async def populate_ticket(ticket_data):
         response_user = await user_repository.findById(resp_user_id_str) if resp_user_id_str else None
         
         # Build Pydantic model natively
-        new_resp_model = TicketResponseItem.model_validate(response)
+        new_resp_model = TicketResponseItem.model_validate(response, from_attributes=True)
         if response_user:
             new_resp_model.user = UserSnippet(
                 _id=response_user.id,

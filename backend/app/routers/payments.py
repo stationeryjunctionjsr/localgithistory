@@ -74,7 +74,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
         if p.payment_method == "credit":
             # Calculate verified amount paid
             entries: List[PaymentEntry] = [
-                entry if isinstance(entry, PaymentEntry) else PaymentEntry.model_validate(entry)
+                entry if isinstance(entry, PaymentEntry) else PaymentEntry.model_validate(entry, from_attributes=True)
                 for entry in (p.payment_entries or [])
             ]
             verified_paid = sum(
@@ -349,7 +349,7 @@ async def submit_credit_settlement(
                 p_model = (
                     updated_payment
                     if isinstance(updated_payment, Payment)
-                    else Payment.model_validate(updated_payment)
+                    else Payment.model_validate(updated_payment, from_attributes=True)
                 )
                 payment_id = p_model.payment_id or p_model.id
                 import uuid
