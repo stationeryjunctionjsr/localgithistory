@@ -1,4 +1,4 @@
-from app.models.daos import SellerAvailabilityInternalCreate
+# from app.models.daos_flat import SellerAvailabilityInternalCreate
 import logging
 """
 MySQL DAO for seller availability windows.

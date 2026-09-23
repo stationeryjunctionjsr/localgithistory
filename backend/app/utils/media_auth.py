@@ -1,5 +1,5 @@
 from typing import Optional
-from app.models.schemas import User
+from app.models.user import User
 
 async def verify_media_ownership(key_or_path: str, current_user: Optional[User]) -> bool:
     if not current_user:

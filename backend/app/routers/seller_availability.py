@@ -204,7 +204,7 @@ async def schedule_unavailability(
         raise HTTPException(status_code=400, detail="Cannot schedule unavailability in the past.")
 
     seller_id = str(current_user.id)
-    from app.models.daos import SellerAvailabilityInternalCreate
+    from app.models.daos_flat import SellerAvailabilityInternalCreate
     created = await storage.create(SellerAvailabilityInternalCreate(
         sellerId=seller_id,
         startAt=data.startAt,

@@ -1395,9 +1395,9 @@ async def create_order(
 
     order = await order_repository.create(
         OrderInternalCreate(
-            "user": current_user.id,
-            "sessionId": current_user.session_id,
-            "items": [
+            user= current_user.id,
+            sessionId= current_user.session_id,
+            items= [
                 OrderItem(
                     productId=str(i.product),
                     product=str(i.product),
@@ -1408,28 +1408,28 @@ async def create_order(
                 )
                 for i in order_items
             ],
-            "subtotalBeforeCoupon": round(subtotal_before_coupon, 2),
-            "subtotal": round(subtotal, 2),
-            "tax": tax,
-            "shipping": shipping,
-            "deliveryGst": delivery_gst,
-            "discount": discount,
-            "couponCode": coupon_code,
-            "couponInfo": coupon_info,
-            "total": total,
-            "orderType": order_type,
-            "isUrgentDelivery": order_data.isUrgentDelivery if effective_role in ("customer", "wholesaler") else False,
-            "deliverySlot": selected_slot_info,
-            "shippingAddress": order_data.shippingAddress,
-            "billingAddress": order_data.billingAddress or order_data.shippingAddress,
-            "paymentMethod": order_data.paymentMethod,
-            "upiPaymentScreenshot": screenshot_path if order_data.paymentMethod == "upi" else None,
-            "notes": f"Referral Code Applied: {applied_referral_code} | {order_data.notes or ''}".strip(" |")
+            subtotalBeforeCoupon= round(subtotal_before_coupon, 2),
+            subtotal= round(subtotal, 2),
+            tax= tax,
+            shipping= shipping,
+            deliveryGst= delivery_gst,
+            discount= discount,
+            couponCode= coupon_code,
+            couponInfo= coupon_info,
+            total= total,
+            orderType= order_type,
+            isUrgentDelivery= order_data.isUrgentDelivery if effective_role in ("customer", "wholesaler") else False,
+            deliverySlot= selected_slot_info,
+            shippingAddress= order_data.shippingAddress,
+            billingAddress= order_data.billingAddress or order_data.shippingAddress,
+            paymentMethod= order_data.paymentMethod,
+            upiPaymentScreenshot= screenshot_path if order_data.paymentMethod == "upi" else None,
+            notes= f"Referral Code Applied: {applied_referral_code} | {order_data.notes or ''}".strip(" |")
             if applied_referral_code
             else (order_data.notes or ""),
-            "printedBill": order_data.printedBill,
-            "idempotencyKey": idempotency_key,
-        })
+            printedBill= order_data.printedBill,
+            idempotencyKey= idempotency_key,
+        )
     )
 
     # ── Post-creation compensation block ─────────────────────────────────────────

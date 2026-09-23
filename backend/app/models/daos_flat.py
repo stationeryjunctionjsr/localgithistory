@@ -1104,3 +1104,14 @@ class ReturnRequestInternalUpdate(BaseModel):
     valetCascadeCount: Optional[int] = None
     valetDeclineHistory: Optional[List[ReturnRequestValetDeclineInternal]] = None
     notes: Optional[str] = None
+
+
+class SellerAvailabilityInternalCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sellerId: Optional[str] = None
+    status: Optional[str] = None
+    startAt: Optional[str] = None
+    endAt: Optional[str] = None
+    isFullDay: Optional[bool] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
