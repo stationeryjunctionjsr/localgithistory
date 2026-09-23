@@ -53,8 +53,8 @@ class SellerAvailabilityItem(BaseModel):
 class SellerAvailabilityResponse(BaseModel):
     id: str = Field(alias="_id")
     sellerId: str
-    startDate: str
-    endDate: str
+    startAt: str
+    endAt: str
     reason: Optional[str] = None
     status: str
     createdAt: Optional[str] = None

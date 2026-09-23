@@ -24,14 +24,11 @@ from app.db.storage_factory import get_storage
 from app.utils.auth import get_current_user, require_super_admin_or_seller
 
 
-class ValetAvailabilityResponse(BaseModel):
-    id: str = Field(alias="_id")
-    userId: str
-    status: str
-    currentLocation: Optional[Dict[str, float]] = None
-    lastActiveAt: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+from app.models.valet_availability import ValetAvailability
+class EnrichedValetAvailabilityResponse(ValetAvailability):
+    valetName: Optional[str] = None
+    valetPhone: Optional[str] = None
+    serviceAreaZones: Optional[List[str]] = []
 
 router = APIRouter()
 storage = get_storage("valetAvailability")
@@ -73,8 +70,8 @@ def _require_valet(current_user: dict):
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
 
-@router.post("", response_model=ValetAvailabilityResponse, status_code=201)
-@router.post("/", response_model=ValetAvailabilityResponse, status_code=201)
+@router.post("", response_model=ValetAvailability, status_code=201)
+@router.post("/", response_model=ValetAvailability, status_code=201)
 async def mark_availability(
     data: ValetAvailabilityCreate,
     current_user: User = Depends(get_current_user),
@@ -154,7 +151,7 @@ async def mark_availability(
         return created
 
 
-@router.get("/my", response_model=ValetAvailabilityResponse)
+@router.get("/my", response_model=List[ValetAvailability])
 async def get_my_availability(
     current_user: User = Depends(get_current_user),
 ):
@@ -170,8 +167,8 @@ async def get_my_availability(
     return [(doc) for doc in all_docs if (doc.date.strftime("%Y-%m-%d")) in upcoming_dates]
 
 
-@router.get("", response_model=ValetAvailabilityResponse)
-@router.get("/", response_model=ValetAvailabilityResponse)
+@router.get("", response_model=List[EnrichedValetAvailabilityResponse])
+@router.get("/", response_model=List[EnrichedValetAvailabilityResponse])
 async def get_all_availability(
     date: Optional[str] = Query(None, description="Filter by date (YYYY-MM-DD)"),
     valetId: Optional[str] = Query(None, description="Filter by valet ID"),
