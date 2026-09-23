@@ -99,11 +99,14 @@ async def _get_sellers_for_zone(zone_external_id: str) -> frozenset:
 
 async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional[str], Optional[Set[str]]]:
     """
-    Resolve a pincode to its zone ID and the set of seller IDs for its zone.
+    Resolve a pincode to its zone ID and the FULL set of seller IDs for its zone.
+    Unavailable sellers are intentionally included so their products can be shown
+    as greyed-out in the UI rather than hidden completely.
+
     Returns:
         (None, None)        -> pincode not in any zone
         (zone_id, set())    -> zone found but no sellers declared
-        (zone_id, set(ids)) -> zone found with sellers
+        (zone_id, set(ids)) -> zone found with sellers (includes unavailable sellers)
     """
     if not pincode:
         return None, None
@@ -122,13 +125,10 @@ async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional
                 logger.warning("zone_seller_cache: zone has no _id: %s", zone)
                 return None, None
 
+            # Return the full seller set — unavailable sellers are NOT subtracted here.
+            # Use get_unavailable_seller_ids_for_pincode() to find the unavailable subset
+            # for UI tagging purposes.
             seller_ids = set(await _get_sellers_for_zone(zone_str_id))
-            
-            from app.routers.seller_availability import get_all_unavailable_seller_ids
-            unavailable = await get_all_unavailable_seller_ids()
-            if unavailable:
-                seller_ids = seller_ids - unavailable
-
             return zone_str_id, seller_ids
 
         return None, None
@@ -139,22 +139,38 @@ async def get_zone_id_and_seller_ids_for_pincode(pincode: str) -> Tuple[Optional
 
 async def get_seller_ids_for_pincode(pincode: str) -> Optional[Set[str]]:
     """
-    Resolve a pincode to the set of seller IDs for its zone.
+    Resolve a pincode to the FULL set of seller IDs for its zone, including
+    sellers who are currently in an unavailability window. Callers that need
+    to filter those out (e.g. autocomplete) should use
+    get_unavailable_seller_ids_for_pincode() to subtract the unavailable subset.
 
     Returns:
         None     -- pincode not in any zone -> callers should apply no filter
         set()    -- zone found but no sellers declared -> nothing available
-        set(ids) -- zone found with sellers -> filter to these IDs
+        set(ids) -- zone found with sellers (includes unavailable sellers)
     """
     _, seller_ids = await get_zone_id_and_seller_ids_for_pincode(pincode)
-    
-    if seller_ids:
-        from app.routers.seller_availability import get_all_unavailable_seller_ids
-        unavailable = await get_all_unavailable_seller_ids()
-        if unavailable:
-            seller_ids = seller_ids - unavailable
-            
     return seller_ids
+
+
+async def get_unavailable_seller_ids_for_pincode(pincode: str) -> Set[str]:
+    """
+    Returns the subset of zone sellers for a pincode who are currently within
+    an unavailability window. Use this to tag/grey products in the UI rather
+    than to remove them from query results.
+
+    Returns an empty set when:
+    - No pincode is provided
+    - The pincode is not in any zone
+    - No sellers in the zone are currently unavailable
+    """
+    _, all_seller_ids = await get_zone_id_and_seller_ids_for_pincode(pincode)
+    if not all_seller_ids:
+        return set()
+    from app.routers.seller_availability import get_all_unavailable_seller_ids
+    unavailable = await get_all_unavailable_seller_ids()
+    return unavailable & all_seller_ids
+
 
 from app.models.daos_flat import DeliveryZoneInternal
 async def get_zone_for_pincode(pincode: str) -> Optional[DeliveryZoneInternal]:

@@ -1074,8 +1074,20 @@ class ProductRepository:
                     )
                     combo.sku = combo_sku
         
+        existing_product = await self.storage.findById(id)
         internal_update = ProductInternalUpdate(**update_fields)
         updated = await self.storage.update(id, internal_update)
+        
+        # Trigger restock notifications if stock increased from 0
+        if "stock" in update_fields and existing_product:
+            old_stock = existing_product.stock or 0
+            new_stock = update_fields["stock"] or 0
+            if old_stock == 0 and new_stock > 0:
+                from app.repositories.product_notification_repository import product_notification_repository
+                import asyncio
+                # Fire and forget
+                asyncio.create_task(product_notification_repository.trigger_restock_notifications(id, updated.name))
+        
         return (await self._attach_category_gst([updated]))[0] if updated else None
 
     async def delete(self, id: str):

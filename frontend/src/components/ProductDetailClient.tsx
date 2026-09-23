@@ -27,6 +27,8 @@ import { toast } from 'react-toastify';
 import AuthModal from '@/components/AuthModal';
 import { usePincode } from '@/context/PincodeContext';
 import { logger } from '@/utils/logger';
+import { useSellerAvailability, formatUnavailableUntil } from '@/hooks/useSellerAvailability';
+
 
 // Icons
 const StarIcon = () => (
@@ -83,6 +85,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   const { cart, addToCart, updateQuantity, removeFromCart, fetchCart, openCart } = useCart();
   const { pincode, serviceableSellers } = usePincode();
   const { share } = useShare();
+  const { sellerAvailability } = useSellerAvailability();
   const [product, setProduct] = useState<any>(initialProduct || null);
   const [loading, setLoading] = useState(!initialProduct);
   const [quantity, setQuantity] = useState(1);
@@ -96,6 +99,14 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   const [requestAdded, setRequestAdded] = useState(false);
   const [notifyAdded, setNotifyAdded] = useState(false);
   const [pincodeActionLoading, setPincodeActionLoading] = useState<'request' | 'notify' | null>(null);
+
+  // Seller time-off state — derived from the zone-status map each render
+  // (product state may be null on first render; defaults to "available")
+  const productSellerId: string | undefined = product?.sellers?.[0]?.sellerId;
+  const sellerTimeOffUntil: string | undefined =
+    productSellerId ? sellerAvailability[productSellerId] : undefined;
+  const isSellerTimeOff = !!sellerTimeOffUntil;
+
 
   // Computes how many full copies of a bundle are currently in the cart.
   // Each bundle item is tagged with bundleId; we find the minimum ratio of
@@ -243,6 +254,11 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
         const response = await api.get(endpoint, { params });
         let prods = response.data.products || [];
         prods = prods.filter((p: any) => p._id !== product._id);
+        // Exclude products from sellers currently in a time-off window
+        prods = prods.filter((p: any) => {
+          const sid = p.sellers?.[0]?.sellerId;
+          return !sid || !sellerAvailability[sid];
+        });
         const mapped = prods.map((p: any) => ({
           _id: p._id,
           name: p.name,
@@ -251,6 +267,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
           displayStock: p.stock
         }));
         setRecommendations(mapped);
+
       } catch (error) {
         logger.error('Failed to fetch recommendations', error);
       }
@@ -829,8 +846,30 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                 )}
               </div>
 
+              {/* Seller Time-Off Banner */}
+              {isSellerTimeOff && (
+                <div className="mb-4 rounded-xl border border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-700 p-4">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+                        Product currently unavailable
+                      </p>
+                      <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">
+                        This product will be back by{' '}
+                        <span className="font-semibold">{formatUnavailableUntil(sellerTimeOffUntil!)}</span>.
+                        You can save it to your wishlist and check back then.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Pincode Unavailability Banner */}
               {pincode && !isAvailableAtPincode && (
+
                 <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-4">
                   <div className="flex items-start gap-3">
                     <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -966,10 +1005,11 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                 ) : (
                   <button
                     onClick={isSameAsCart ? () => openCart() : (cartItem ? handleUpdateCart : handleAddToCart)}
-                    disabled={(isOutOfStock || !isAvailableAtPincode) && !isSameAsCart}
-                    className={`${styles.addToCartBtn} ${((isOutOfStock || !isAvailableAtPincode) && !isSameAsCart) ? 'cursor-not-allowed opacity-50' : ''}`}
-                    style={{ background: ((isOutOfStock || !isAvailableAtPincode) && !isSameAsCart) ? '#a0a0a0' : theme.primary }}
+                    disabled={(isOutOfStock || !isAvailableAtPincode || isSellerTimeOff) && !isSameAsCart}
+                    className={`${styles.addToCartBtn} ${((isOutOfStock || !isAvailableAtPincode || isSellerTimeOff) && !isSameAsCart) ? 'cursor-not-allowed opacity-50' : ''}`}
+                    style={{ background: ((isOutOfStock || !isAvailableAtPincode || isSellerTimeOff) && !isSameAsCart) ? '#a0a0a0' : theme.primary }}
                   >
+
                     <svg
                       width="20"
                       height="20"

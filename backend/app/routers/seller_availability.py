@@ -142,6 +142,47 @@ async def get_all_unavailable_seller_ids() -> Set[str]:
     return unavailable_sellers
 
 
+async def get_seller_unavailable_until(seller_ids: Set[str]) -> Optional[str]:
+    """
+    Given a set of seller IDs that are known to be unavailable, return the latest
+    ``endAt`` ISO string across all their active unavailability windows.
+
+    This is used by the products listing / detail endpoints to populate the
+    ``sellerUnavailableUntil`` field so the frontend can display a
+    "Back at {date/time}" message to customers.
+
+    Returns None if no active window can be found (graceful fallback).
+    """
+    if not seller_ids:
+        return None
+
+    current_utc = datetime.now(timezone.utc)
+    latest_end: Optional[datetime] = None
+
+    try:
+        all_docs = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
+        for doc in all_docs:
+            if str(doc.seller_id) not in seller_ids:
+                continue
+            try:
+                start = datetime.fromisoformat(doc.startAt.replace("Z", ""))
+                end = datetime.fromisoformat(doc.endAt.replace("Z", ""))
+                if start <= current_utc <= end:
+                    if latest_end is None or end > latest_end:
+                        latest_end = end
+            except Exception:
+                continue
+    except Exception:
+        return None
+
+    if latest_end is None:
+        return None
+    # Return as UTC ISO string with Z suffix for easy frontend parsing
+    return latest_end.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+
+
 async def _enrich_with_seller_name(docs: list) -> list:
     """Add sellerName to each doc for admin display."""
     from app.repositories.user_repository import user_repository
@@ -166,7 +207,58 @@ async def _enrich_with_seller_name(docs: list) -> list:
     return enriched
 
 
+
 # ─── Endpoints ────────────────────────────────────────────────────────────────
+
+
+@router.get("/zone-status")
+async def get_zone_seller_availability_status(pincode: Optional[str] = None):
+    """
+    Public endpoint — returns a map of { sellerId: unavailableUntil (ISO string) }
+    for all sellers in the given pincode's zone who are currently in an unavailability
+    window.
+
+    The frontend uses this to grey-out product cards and show "Back at {time}" badges
+    without touching the cached product listing responses.
+
+    Returns {} (empty object) when:
+    - No pincode is provided
+    - Pincode is not in any zone
+    - No sellers in the zone are currently unavailable
+    """
+    if not pincode:
+        return {"unavailableSellers": {}}
+
+    from app.repositories.zone_seller_cache import get_unavailable_seller_ids_for_pincode
+    unavailable_ids = await get_unavailable_seller_ids_for_pincode(pincode)
+    if not unavailable_ids:
+        return {"unavailableSellers": {}}
+
+    # Build {sellerId: endAt} for each unavailable seller
+    result: Dict[str, str] = {}
+    current_utc = datetime.now(timezone.utc)
+    try:
+        all_docs = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
+        for doc in all_docs:
+            sid = str(doc.seller_id or "")
+            if sid not in unavailable_ids:
+                continue
+            try:
+                start = datetime.fromisoformat(doc.startAt.replace("Z", ""))
+                end = datetime.fromisoformat(doc.endAt.replace("Z", ""))
+                if start <= current_utc <= end:
+                    end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    # Keep the latest endAt if there are multiple windows
+                    if sid not in result or end_str > result[sid]:
+                        result[sid] = end_str
+            except Exception:
+                continue
+    except Exception:
+        return {"unavailableSellers": {}}
+
+    return {"unavailableSellers": result}
+
+
 
 
 @router.post("", response_model=SellerAvailabilityResponse, status_code=201)

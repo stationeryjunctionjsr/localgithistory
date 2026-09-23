@@ -13,6 +13,8 @@ import AuthModal from '@/components/AuthModal';
 import { usePincode } from '@/context/PincodeContext';
 import UnserviceableLocationBanner from '@/components/UnserviceableLocationBanner';
 import { logger } from '@/utils/logger';
+import { useSellerAvailability, formatUnavailableUntil } from '@/hooks/useSellerAvailability';
+
 
 // pageMode controls what appears as chips (on the page) vs. filters (in sidebar):
 //   'category'    → sub-categories as chips on page, brands in filters (no categories, no sub-categories in sidebar)
@@ -126,6 +128,8 @@ export default function ProductCatalog({
   }, []);
 
   const { isServiceable, pincode } = usePincode();
+  const { sellerAvailability } = useSellerAvailability();
+
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
@@ -1738,11 +1742,18 @@ export default function ProductCatalog({
                         ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
                         : 0;
 
+                    // ── Seller availability ────────────────────────────────
+                    const productSellerId: string | undefined =
+                      product.sellers?.[0]?.sellerId;
+                    const unavailableUntil: string | undefined =
+                      productSellerId ? sellerAvailability[productSellerId] : undefined;
+                    const isSellerUnavailable = !isBundle && !!unavailableUntil;
+
                     return (
                       <div
                         key={product._id}
-                        onClick={() => { if (!isBundle) handleProductClick(product); }}
-                        className={`group flex ${isBundle ? 'cursor-default' : 'cursor-pointer'} flex-col overflow-hidden rounded-lg border bg-white transition-all duration-200 hover:shadow-lg active:scale-[0.98] sm:rounded-xl border-gray-100 hover:border-gray-200`}
+                        onClick={() => { if (!isBundle && !isSellerUnavailable) handleProductClick(product); }}
+                        className={`group flex ${isBundle ? 'cursor-default' : isSellerUnavailable ? 'cursor-default' : 'cursor-pointer'} flex-col overflow-hidden rounded-lg border bg-white transition-all duration-200 hover:shadow-lg active:scale-[0.98] sm:rounded-xl border-gray-100 hover:border-gray-200`}
                       >
                         {/* Image Container */}
                         <div className="relative aspect-square overflow-hidden bg-gray-50">
@@ -1754,37 +1765,43 @@ export default function ProductCatalog({
                             loading="lazy"
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                             style={{
-                              opacity: !isBundle && (!product.stock || product.stock === 0) ? 0.5 : 1,
-                              filter: !isBundle && (!product.stock || product.stock === 0) ? 'grayscale(50%)' : 'none',
+                              opacity: isSellerUnavailable ? 0.45 : (!isBundle && (!product.stock || product.stock === 0) ? 0.5 : 1),
+                              filter: isSellerUnavailable ? 'grayscale(70%)' : (!isBundle && (!product.stock || product.stock === 0) ? 'grayscale(50%)' : 'none'),
                             }}
                           />
 
                           {/* Badges */}
                           <div className="absolute left-2 top-2 flex flex-col gap-1">
-                            {!isBundle && (!product.stock || product.stock === 0) && (
+                            {isSellerUnavailable && (
+                              <span className="rounded bg-amber-500/90 px-2 py-0.5 text-[9px] font-bold uppercase text-white backdrop-blur-sm">
+                                Back at {formatUnavailableUntil(unavailableUntil!)}
+                              </span>
+                            )}
+                            {!isSellerUnavailable && !isBundle && (!product.stock || product.stock === 0) && (
                               <span className="rounded bg-gray-900/90 px-2 py-0.5 text-[9px] font-bold uppercase text-white backdrop-blur-sm">
                                 Sold Out
                               </span>
                             )}
-                            {!isBundle && product.bestSeller && product.stock > 0 && (
+                            {!isBundle && product.bestSeller && product.stock > 0 && !isSellerUnavailable && (
                               <span className="rounded bg-amber-400 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-900">
                                 Bestseller
                               </span>
                             )}
-                            {!isBundle && product.isNew && product.stock > 0 && (
+                            {!isBundle && product.isNew && product.stock > 0 && !isSellerUnavailable && (
                               <span className="rounded bg-emerald-500 px-2 py-0.5 text-[9px] font-bold uppercase text-white">
                                 New
                               </span>
                             )}
-                            {!isBundle && product.previouslyBought && (
+                            {!isBundle && product.previouslyBought && !isSellerUnavailable && (
                               <span className="rounded bg-indigo-100 px-2 py-0.5 text-[9px] font-bold uppercase text-indigo-700">
                                 Previously Bought
                               </span>
                             )}
                           </div>
 
-                          {/* Wishlist Button — hidden for bundles */}
-                          {!isBundle && (
+                          {/* Wishlist Button — hidden for bundles and unavailable products */}
+                          {!isBundle && !isSellerUnavailable && (
+
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1809,7 +1826,14 @@ export default function ProductCatalog({
                           )}
 
                            {/* Quick Add Button / Quantity Selector */}
-                           {(isBundle ? true : product.stock > 0) && (() => {
+                           {isSellerUnavailable ? (
+                             <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center bg-amber-500/90 py-2 backdrop-blur-sm">
+                               <span className="text-[10px] font-semibold uppercase tracking-wide text-white">
+                                 Temporarily Unavailable
+                               </span>
+                             </div>
+                           ) : (isBundle ? true : product.stock > 0) && (() => {
+
                              // ── Bundle counter ────────────────────────────
                              if (isBundle) {
                                if (bundleCopiesInCart > 0) {
