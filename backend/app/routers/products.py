@@ -737,7 +737,10 @@ async def get_public_products(
     # stale content for up to 60s more while a fresh fetch happens in the background.
     response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=60"
 
-    f = facets if facets else ProductFacets()
+    if isinstance(facets, dict):
+        f = ProductFacets(**facets)
+    else:
+        f = facets if facets else ProductFacets()
 
     return {
         "products": products_with_pricing,
@@ -893,7 +896,10 @@ async def get_products(
 
         products_with_pricing.append(product)
 
-    f = facets if facets else ProductFacets()
+    if isinstance(facets, dict):
+        f = ProductFacets(**facets)
+    else:
+        f = facets if facets else ProductFacets()
 
     return {
         "products": products_with_pricing,
