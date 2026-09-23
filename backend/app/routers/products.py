@@ -1,3 +1,4 @@
+from app.models.daos import ProductInternalUpdate
 import logging
 from app.models.user import User
 from fastapi.responses import StreamingResponse

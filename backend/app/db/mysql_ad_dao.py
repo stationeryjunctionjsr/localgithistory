@@ -1,3 +1,4 @@
+from typing import Any
 import secrets
 from typing import Dict
 from app.models.ad import Ad, List, Optional

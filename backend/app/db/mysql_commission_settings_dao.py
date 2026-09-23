@@ -1,3 +1,4 @@
+from typing import Any
 """
 MySQL DAO for sj_commission_settings (Relational).
 """

@@ -1,3 +1,4 @@
+from app.models.daos_flat import DeliverySlotConfigInternalUpdate
 from app.models.user import User
 from app.models.schemas import MessageResponse
 from app.models.daos_flat import DeliverySlotConfigInternalCreate, DeliverySlotInternal

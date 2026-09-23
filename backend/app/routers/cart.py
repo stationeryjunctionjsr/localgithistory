@@ -1,3 +1,4 @@
+from app.models.daos import CartItemInternal
 from app.models.user import User
 from app.models.schemas import CartResponse, SavedForLaterResponse, MessageResponse
 from app.models.daos import WishlistItemInternal

@@ -1,3 +1,4 @@
+from app.models.daos import ProductInternalUpdate
 from app.models.user import User
 from app.models.schemas import MessageResponse, ProductReviewResponse, ClassificationTagResponse, ReviewActionResponse, ClassificationActionResponse
 from datetime import datetime

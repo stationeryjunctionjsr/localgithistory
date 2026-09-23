@@ -1,3 +1,4 @@
+from app.models.daos import NotificationInternal
 from typing import Any
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional

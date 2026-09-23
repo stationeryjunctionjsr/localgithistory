@@ -1,3 +1,4 @@
+from app.models.schemas import PushSubscription
 import json
 from typing import Any
 from datetime import datetime, timezone

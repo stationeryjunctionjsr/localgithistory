@@ -1,3 +1,4 @@
+from app.models.daos import ProductInternalUpdate
 import uuid
 from app.models.user import User
 from collections import defaultdict
@@ -460,11 +461,11 @@ async def valet_return_response(
     if current_user.role != "super_admin":
         if current_user.role != "valet":
             raise HTTPException(status_code=403, detail="Access denied")
-        pending_valet = ret_model.pendingValetId or ""
+        pending_valet = ret.pendingValetId or ""
         if str(pending_valet or "") != str(current_user.id):
             raise HTTPException(status_code=403, detail="Return is not assigned to you")
 
-    current_status = ret_model.status
+    current_status = ret.status
     if current_status != "pending_valet":
         raise HTTPException(status_code=400, detail="Return is not pending valet acceptance")
 

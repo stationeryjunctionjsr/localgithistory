@@ -1,3 +1,4 @@
+from app.models.sub_order import SubOrderInternalCreate, SubOrderInternalUpdate
 import logging
 """
 MySQL DAO for sub-orders.

@@ -1394,7 +1394,7 @@ async def create_order(
     # Create order
 
     order = await order_repository.create(
-        OrderInternalCreate(**{
+        OrderInternalCreate(
             "user": current_user.id,
             "sessionId": current_user.session_id,
             "items": [
@@ -1857,7 +1857,7 @@ async def create_order(
                     "couponInfo": coupon_info,
                     "createdAt": order.created_at.isoformat() if order.created_at else None,
                 }
-                sub = await sub_order_repository.create(SubOrderInternalCreate(**sub_order_data))
+                sub = await sub_order_repository.create(SubOrderInternalCreate(orderId=sub_order_data["orderId"], sellerId=sub_order_data["sellerId"], items=sub_order_data["items"], subTotal=sub_order_data["subTotal"], status=sub_order_data["status"]))
                 sub_order_ids.append(str(sub.id))
 
                 # Notify the seller about their new sub-order (if it's a seller admin, not platform)

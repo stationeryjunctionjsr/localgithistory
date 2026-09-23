@@ -1,5 +1,6 @@
+from app.models.schemas import AnalyticsEventCreate
 from app.models.user import User
-from typing import List, Optional
+from typing import Dict, List, Optional
 from app.models.schemas import MessageResponse, TrackBeaconRequest, TrackNotifyPincodeRequest, ItemSnippet
 from datetime import datetime, timezone
 

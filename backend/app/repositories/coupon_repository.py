@@ -1,3 +1,4 @@
+from app.models.schemas import CouponUpdate
 from app.models.daos_flat import CouponInternalUpdate
 from typing import Any
 from datetime import datetime, timedelta, timezone

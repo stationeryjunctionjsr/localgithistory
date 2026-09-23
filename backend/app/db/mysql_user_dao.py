@@ -1,3 +1,4 @@
+from typing import Any
 from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserResponse
 from app.models.user import User
 '\nMySQL DAO for sj_users (Fully Relational).\n'
