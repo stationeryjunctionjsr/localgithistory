@@ -1079,7 +1079,8 @@ class ProductRepository:
         return (await self._attach_category_gst([updated]))[0] if updated else None
 
     async def delete(self, id: str):
-        return await self.storage.update(id, {"isActive": False})
+        from app.models.daos import ProductInternalUpdate
+        return await self.storage.update(id, ProductInternalUpdate(isActive=False))
 
     def getPriceForRole(
         self,
