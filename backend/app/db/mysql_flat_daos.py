@@ -2348,21 +2348,19 @@ class MySQLPincodeSearchesDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> Any:
-        return {
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "pincode": row.pincode,
-            "query": row.query,
-            "isServiceable": bool(row.is_serviceable) if ("is_serviceable" in row._mapping and row.is_serviceable is not None) else False,
-            "timestamp": row.timestamp,
+    def __map_to_schema(self, row) -> PincodeSearches:
+        return PincodeSearches(
+            id=str(row.id),
+            external_id=row.external_id,
+            pincode=row.pincode,
+            query=row.query,
+            is_serviceable=bool(row.is_serviceable) if ("is_serviceable" in row._mapping and row.is_serviceable is not None) else False,
+            timestamp=row.timestamp,
+            created_at=row.created_at.isoformat() if row.created_at else None,
+            updated_at=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[PincodeSearches]:
         query = query or {}
         where_clauses = []
         params = {}
