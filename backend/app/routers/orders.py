@@ -50,7 +50,7 @@ router = APIRouter()
 
 def _resolve_product_seller_id(product: Product, serviceable_seller_ids: list[str] = None) -> str:
     if product.sellers:
-        return product.sellers[0].id
+        return product.sellers[0].sellerId
     # Product has no seller_id field — sellers list is the sole source
     return None
 
