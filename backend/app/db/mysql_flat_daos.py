@@ -51,7 +51,7 @@ class MySQLReturnSettingsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
+    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -513,7 +513,7 @@ class MySQLPushNotificationsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
+    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -719,7 +719,7 @@ class MySQLCoachMarksDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
+    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1018,7 +1018,7 @@ class MySQLGoogle_reviewsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
+    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1341,7 +1341,7 @@ class MySQLProductNotificationsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
+    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2655,19 +2655,17 @@ class MySQLValetPayoutSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> Dict:
-        return {
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "deliveryChargePerOrder": row.delivery_charge_per_order,
-            "returnPickupChargePerOrder": row.return_pickup_charge_per_order,
+    def __map_to_schema(self, row) -> ValetPayoutSettings:
+        return ValetPayoutSettings(
+            id=str(row.id),
+            external_id=row.external_id,
+            delivery_charge_per_order=row.delivery_charge_per_order,
+            return_pickup_charge_per_order=row.return_pickup_charge_per_order,
+            created_at=row.created_at.isoformat() if row.created_at else None,
+            updated_at=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[Google_reviewsInternal]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[ValetPayoutSettings]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -2689,7 +2687,7 @@ class MySQLValetPayoutSettingsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Google_reviewsInternal]:
+    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2709,7 +2707,7 @@ class MySQLValetPayoutSettingsDAO:
             ).fetchone()
         return self.__map_to_schema(row) if row else None
 
-    async def create(self, data: ValetPayoutSettingsInternalCreate) -> Dict:
+    async def create(self, data: ValetPayoutSettingsInternalCreate) -> ValetPayoutSettings:
 
         factory = self._factory()
         now = now_utc()
