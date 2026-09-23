@@ -174,9 +174,9 @@ async def test_full_e2e_flow():
         print("5. Checkout successful.", order_id)
 
         # 6. Valet assignment, cascading
-        from app.jobs.valet_timeout_job import tick_valet_assignments
+        from app.jobs.valet_timeout_job import run_valet_timeout_job
         # Call tick to trigger assignments
-        await tick_valet_assignments(app)
+        await run_valet_timeout_job()
         print("6. Valet cascading triggered")
         
         # Admin gets order to see assigned valet

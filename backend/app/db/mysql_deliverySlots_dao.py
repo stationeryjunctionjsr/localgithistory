@@ -14,6 +14,8 @@ class MySQLDeliverySlotsDAO:
     def __init__(self):
         self.table_name = "sj_delivery_slots"
     
+    CHILD_TABLE = "sj_delivery_slot_times"
+
     @property
     def TABLE(self):
         from app.config.settings import settings
