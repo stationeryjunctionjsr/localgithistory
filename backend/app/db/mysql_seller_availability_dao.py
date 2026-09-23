@@ -118,7 +118,7 @@ class MySQLSellerAvailabilityDAO:
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: SellerAvailabilityInternalCreate) -> Dict:
         factory = self._get_session_factory()
         if not factory:
             raise RuntimeError("MySQL not configured")

@@ -1719,8 +1719,7 @@ class MySQLClassificationTagsDAO:
 
     async def create(self, data: ClassificationTagsInternalCreate) -> ClassificationTagResponse:
 
-        if isinstance(data, dict):
-            data = ClassificationTagsInternalCreate(**data)
+
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1750,8 +1749,7 @@ class MySQLClassificationTagsDAO:
 
     async def update(self, id: str, data: ClassificationTagsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = ClassificationTagsInternalUpdate(**data)
+
         existing = await self.findById(id)
         if not existing:
             return None

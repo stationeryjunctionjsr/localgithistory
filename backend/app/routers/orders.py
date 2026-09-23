@@ -1928,12 +1928,11 @@ async def update_order_tracking(
         if not seller_has_sub:
             raise HTTPException(status_code=403, detail="You do not have a sub-order in this order")
 
-    update_payload = {
-        "trackingId": data.trackingId,
-        "courierPartner": data.courierPartner,
-        "trackingUpdatedAt": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
-    }
-    await order_repository.update(order_id, OrderInternalUpdate(**update_payload))
+    await order_repository.update(order_id, OrderInternalUpdate(
+        trackingId=data.trackingId,
+        courierPartner=data.courierPartner,
+        trackingUpdatedAt=__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
+    ))
 
     # Push notification to customer
     try:
@@ -1941,11 +1940,10 @@ async def update_order_tracking(
 
         await push_notification_service.send_to_user(
             str(order.user),
-            {
-                "title": "Order Shipped",
-                "message": f"Your order #{(order.order_number if order.order_number is not None else order_id)} has been shipped. Tracking ID: {data.trackingId}",
-                "data": {"orderId": order_id, "trackingId": data.trackingId, "type": "order_shipped"},
-            },
+            PushNotifications(
+                title="Order Shipped",
+                message=f"Your order #{(order.order_number if order.order_number is not None else order_id)} has been shipped. Tracking ID: {data.trackingId}"
+            ),
         )
     except Exception as _ne:
         logger.warning("Tracking notification failed for order %s: %s", order_id, _ne)
@@ -2435,23 +2433,14 @@ async def dispatch_order(
         from app.services.push_notification_service import push_notification_service
 
         timeout_label = "5 minutes" if is_urgent else "20 minutes"
-        await push_notification_service.send_to_user(
-            valet_data.valetId,
-            {
-                "title": "New Delivery Request",
-                "message": (
+        await push_notification_service.send_to_user(valet_data.valetId, PushNotifications(
+                title= "New Delivery Request",
+                message= (
                     f"You have a new delivery order #{(order.order_number if order.order_number is not None else order_id)}. "
                     f"Please respond within {timeout_label}."
                 ),
-                "link": f"/valet/orders/{order_id}",
-                "data": {
-                    "orderId": order_id,
-                    "type": "valet_assignment",
-                    "isUrgent": is_urgent,
-                    "timeoutMinutes": timeout_minutes,
-                },
-            },
-        )
+                link= f"/valet/orders/{order_id}",
+            ))
     except Exception as push_err:
         logger.warning("[Dispatch] Push notification to valet failed: %s", push_err)
         # Non-fatal — order is already in pending_valet state
@@ -2716,22 +2705,14 @@ async def valet_response(
                     try:
                         from app.services.push_notification_service import push_notification_service
 
-                        await push_notification_service.send_to_user(
-                            _seller_id,
-                            {
-                                "title": "Valet is Coming to Pick Up",
-                                "message": (
+                        await push_notification_service.send_to_user(_seller_id, PushNotifications(
+                                title= "Valet is Coming to Pick Up",
+                                message= (
                                     f"{valet_name} accepted order #{(order.order_number if order.order_number is not None else order_id)} "
                                     "and will collect your items soon."
                                 ),
-                                "link": f"/seller/orders/{order_id}",
-                                "data": {
-                                    "orderId": order_id,
-                                    "subOrderId": _so_id,
-                                    "type": "valet_accepted",
-                                },
-                            },
-                        )
+                                link= f"/seller/orders/{order_id}",
+                            ))
                     except Exception as e:
                         logger.warning("[ValetResponse] Push to seller %s failed: %s", _seller_id, e)
         else:
@@ -2742,12 +2723,11 @@ async def valet_response(
 
                     await push_notification_service.send_to_user(
                         seller_id,
-                        {
-                            "title": "Order Dispatched",
-                            "message": f"{valet_name} accepted order #{(order.order_number if order.order_number is not None else order_id)} and is on the way.",
-                            "link": f"/seller/orders/{order_id}",
-                            "data": {"orderId": order_id, "type": "valet_accepted"},
-                        },
+                        PushNotifications(
+                            title="Order Dispatched",
+                            message=f"{valet_name} accepted order #{(order.order_number if order.order_number is not None else order_id)} and is on the way.",
+                            link=f"/seller/orders/{order_id}"
+                        ),
                     )
                 except Exception as e:
                     logger.warning("[ValetResponse] Push to seller failed: %s", e)
@@ -2821,18 +2801,14 @@ async def valet_response(
             from app.services.push_notification_service import push_notification_service
 
             timeout_label = "5 minutes" if is_urgent else "20 minutes"
-            await push_notification_service.send_to_user(
-                next_valet_id,
-                {
-                    "title": "New Delivery Request",
-                    "message": (
+            await push_notification_service.send_to_user(next_valet_id, PushNotifications(
+                    title= "New Delivery Request",
+                    message= (
                         f"You have a new delivery order #{(order.order_number if order.order_number is not None else order_id)}. "
                         f"Please respond within {timeout_label}."
                     ),
-                    "link": f"/valet/orders/{order_id}",
-                    "data": {"orderId": order_id, "type": "valet_assignment", "isUrgent": is_urgent},
-                },
-            )
+                    link= f"/valet/orders/{order_id}",
+                ))
         except Exception as e:
             logger.warning("[ValetResponse] Push to next valet failed: %s", e)
     else:
@@ -2846,18 +2822,14 @@ async def valet_response(
             try:
                 from app.services.push_notification_service import push_notification_service
 
-                await push_notification_service.send_to_user(
-                    seller_id,
-                    {
-                        "title": "No Valets Available — Reassign Required",
-                        "message": (
+                await push_notification_service.send_to_user(seller_id, PushNotifications(
+                        title= "No Valets Available — Reassign Required",
+                        message= (
                             f"All valets declined order #{(order.order_number if order.order_number is not None else order_id)}. "
                             "Please assign a valet manually."
                         ),
-                        "link": f"/seller/orders/{order_id}",
-                        "data": {"orderId": order_id, "type": "valet_all_declined"},
-                    },
-                )
+                        link= f"/seller/orders/{order_id}",
+                    ))
             except Exception as e:
                 logger.warning("[ValetResponse] Push to seller (all declined) failed: %s", e)
 
@@ -2929,18 +2901,14 @@ async def confirm_sub_order_pickup(
         try:
             from app.services.push_notification_service import push_notification_service
 
-            await push_notification_service.send_to_user(
-                order.user,
-                {
-                    "title": "Your Order is On the Way! 🚴",
-                    "message": (
+            await push_notification_service.send_to_user(order.user, PushNotifications(
+                    title= "Your Order is On the Way! 🚴",
+                    message= (
                         f"Your order #{(order.order_number if order.order_number is not None else order_id)} has been collected "
                         "from all sellers and is now heading to you."
                     ),
-                    "link": f"/orders/{order_id}",
-                    "data": {"orderId": order_id, "type": "order_out_for_delivery"},
-                },
-            )
+                    link= f"/orders/{order_id}",
+                ))
         except Exception as e:
             logger.warning("[ConfirmPickup] Customer notification failed: %s", e)
 

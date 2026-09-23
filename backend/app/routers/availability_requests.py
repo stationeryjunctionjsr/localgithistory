@@ -136,11 +136,12 @@ async def fulfill_availability_request(
     user_id = req.userId
     user_email = req.userEmail
 
-    notification_payload = {
-        "title": "Product Now Available! 🎉",
-        "message": f"{product_name} is now available for delivery to pincode {pincode}.",
-        "link": f"/customer/product/{product_id}",
-    }
+    from app.models.push_notifications import PushNotifications
+    notification_payload = PushNotifications(
+        title="Product Now Available! 🎉",
+        message=f"{product_name} is now available for delivery to pincode {pincode}.",
+        link=f"/customer/product/{product_id}"
+    )
 
     # Send push notification to user (if authenticated)
     push_delivered = 0

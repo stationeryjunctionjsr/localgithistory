@@ -204,15 +204,15 @@ async def schedule_unavailability(
         raise HTTPException(status_code=400, detail="Cannot schedule unavailability in the past.")
 
     seller_id = str(current_user.id)
-    payload = {
-        "sellerId": seller_id,
-        "startAt": data.startAt,
-        "endAt": data.endAt,
-        "reason": data.reason,
-        "status": "scheduled",
-        "createdAt": now.isoformat() + "Z",
-    }
-    created = await storage.create(payload)
+    from app.models.daos import SellerAvailabilityInternalCreate
+    created = await storage.create(SellerAvailabilityInternalCreate(
+        sellerId=seller_id,
+        startAt=data.startAt,
+        endAt=data.endAt,
+        reason=data.reason,
+        status="scheduled",
+        createdAt=now.isoformat() + "Z"
+    ))
     # Invalidate unavailability cache so next request sees the new window immediately
     _unavailable_cache["expires"] = 0.0
     # Also invalidate product listing cache so pincode-filtered results refresh

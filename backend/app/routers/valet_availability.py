@@ -131,21 +131,26 @@ async def mark_availability(
 
     from datetime import datetime, timezone
 
-    payload = {
-        "valetId": valet_id,
-        "date": data.date,
-        "availabilityType": data.availabilityType,
-        "slots": data.slots,
-        "zones": data.zones,
-        "markedAt": datetime.now(timezone.utc).isoformat() + "Z",
-    }
+    from app.models.daos import ValetAvailabilityInternalCreate, ValetAvailabilityInternalUpdate
 
     if existing:
         doc_id = str(existing[0]["_id"])
-        updated = await storage.update(doc_id, payload)
+        updated = await storage.update(doc_id, ValetAvailabilityInternalUpdate(
+            valetId=valet_id,
+            date=data.date,
+            availabilityType=data.availabilityType,
+            slots=data.slots,
+            zones=data.zones
+        ))
         return updated
     else:
-        created = await storage.create(payload)
+        created = await storage.create(ValetAvailabilityInternalCreate(
+            valetId=valet_id,
+            date=data.date,
+            availabilityType=data.availabilityType,
+            slots=data.slots,
+            zones=data.zones
+        ))
         return created
 
 
