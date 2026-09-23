@@ -1894,21 +1894,19 @@ class MySQLAboutUsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> Any:
-        return {
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "title": row.title,
-            "content": row.content,
-            "version": row.version,
-            "isPublished": bool(row.is_published) if ("is_published" in row._mapping and row.is_published is not None) else False,
+    def __map_to_schema(self, row) -> AboutUs:
+        return AboutUs(
+            id=str(row.id),
+            external_id=row.external_id,
+            title=row.title,
+            content=row.content,
+            version=row.version,
+            is_published=bool(row.is_published) if ("is_published" in row._mapping and row.is_published is not None) else False,
+            created_at=row.created_at.isoformat() if row.created_at else None,
+            updated_at=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[AboutUs]:
         query = query or {}
         where_clauses = []
         params = {}
