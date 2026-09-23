@@ -46,7 +46,8 @@ async def test_email_verification_reset_on_email_change(client: AsyncClient, use
     # Set profile to verified first
     res = await client.get("/api/users/profile", headers=user_auth)
     user_id = res.json()["_id"]
-    await user_repository.update(user_id, {"isEmailVerified": True})
+    from app.models.schemas import UserInternalUpdate
+    await user_repository.update(user_id, UserInternalUpdate(isEmailVerified=True))
 
     # Verify it is true
     res = await client.get("/api/users/profile", headers=user_auth)

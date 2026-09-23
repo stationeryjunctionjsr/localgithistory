@@ -64,12 +64,13 @@ class ProductNotificationRepository:
 
     async def create_notification(self, product_id: str, email: str, user_id: Optional[str] = None) -> Dict:
         await self.ensure_table_exists()
-        notification_data = {
-            "productId": str(product_id),
-            "email": email.strip().lower(),
-            "userId": str(user_id) if user_id else None,
-            "status": "active",
-        }
+        from app.models.daos_flat import ProductNotificationsInternalCreate
+        notification_data = ProductNotificationsInternalCreate(
+            productId=str(product_id),
+            email=email.strip().lower(),
+            userId=str(user_id) if user_id else None,
+            status="active"
+        )
         # Check if an active notification already exists for this email and product
         existing = await self.storage.findAll(
             {"productId": str(product_id), "email": email.strip().lower(), "status": "active"}
@@ -108,12 +109,12 @@ class ProductNotificationRepository:
         """
 
         for notif in active_notifs:
-            email = notif["email"] if "email" in notif else None
+            email = notif.email if hasattr(notif, "email") else notif.get("email")
             if email:
                 # Send email
                 email_service.send_email(email, subject, plain_text_body, html_body=html_body)
                 # Mark as notified
-                await self.storage.update(notif["_id"], ProductNotificationsInternalUpdate(status="notified"))
+                await self.storage.update(notif.id if hasattr(notif, "id") else notif.get("_id"), ProductNotificationsInternalUpdate(status="notified"))
 
 
 product_notification_repository = ProductNotificationRepository()
