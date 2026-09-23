@@ -2041,21 +2041,19 @@ class MySQLPrivacyPolicyDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> Any:
-        return {
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "version": row.version,
-            "content": row.content,
-            "effectiveDate": row.effective_date,
-            "isActive": bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
+    def __map_to_schema(self, row) -> PrivacyPolicy:
+        return PrivacyPolicy(
+            id=str(row.id),
+            external_id=row.external_id,
+            version=row.version,
+            content=row.content,
+            effective_date=row.effective_date.isoformat() if hasattr(row.effective_date, 'isoformat') else row.effective_date,
+            is_active=bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
+            created_at=row.created_at.isoformat() if row.created_at else None,
+            updated_at=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[PrivacyPolicy]:
         query = query or {}
         where_clauses = []
         params = {}
