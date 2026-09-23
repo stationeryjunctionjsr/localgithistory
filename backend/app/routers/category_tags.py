@@ -4,7 +4,8 @@ from app.models.schemas import MessageResponse
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
 
 from app.models.daos_flat import CategoryTagInternalCreate, CategoryTagInternalUpdate
 from app.repositories.category_tag_repository import category_tag_repository
@@ -22,9 +23,11 @@ class CategoryTagBase(BaseModel):
 
 
 class CategoryTagResponse(CategoryTagBase):
-    id: str = Field(alias="_id")
+    model_config = ConfigDict(populate_by_name=True)
+    id: Optional[str] = Field(None, alias="_id")
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
+
 class CategoryTagUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1)
     description: Optional[str] = None

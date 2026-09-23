@@ -14,7 +14,10 @@ from app.utils.limiter import limiter
 router = APIRouter()
 
 def ext_os(p, r): return p.os or "Unknown"
-def ext_br(p, r): return p.browser or r.headers["user-agent"] if "user-agent" in r.headers else None
+def ext_br(p, r):
+    raw = p.browser or (r.headers["user-agent"] if "user-agent" in r.headers else None)
+    return raw[:255] if raw else None
+
 def ext_ip(p, r): return p.ipAddress or (r.client.host if r.client else None)
 
 
@@ -480,7 +483,8 @@ async def track_notify_pincode(request: Request, data: TrackNotifyPincodeRequest
         filterName="email",
         filterValue=user_email,
         searchTerm=data.pincode,
-        browser=request.headers["user-agent"] if "user-agent" in request.headers else None,
+        browser=(request.headers["user-agent"][:255] if "user-agent" in request.headers else None),
+
         ipAddress=request.client.host if request.client else None
     )
     await tracking_repository.create(record)

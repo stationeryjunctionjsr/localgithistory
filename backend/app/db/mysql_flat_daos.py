@@ -983,7 +983,7 @@ class MySQLGoogle_reviewsDAO:
             id=str(row.id),
             externalId=row.external_id,
             rating=row.rating,
-            reviewCount=row.review_count,
+            reviewCount=str(row.review_count) if row.review_count is not None else None,
             lastUpdated=row.last_updated,
             method=row.method,
             createdAt=row.created_at.isoformat() if row.created_at else None,

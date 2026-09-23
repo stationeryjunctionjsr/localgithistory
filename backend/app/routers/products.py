@@ -510,13 +510,13 @@ async def populate_product_discounts(
     # Filter applicable ones for the current role and user (behavior matched)
     applicable_discounts = []
     for c in active_discounts:
-        if role not in (c.applicable_roles or []):
+        if role not in (c.applicableRoles or []):
             continue
-        applicable_user_ids = c.applicable_user_ids or []
+        applicable_user_ids = c.applicableUserIds or []
         if applicable_user_ids:
             if not user_id or str(user_id) not in [str(x) for x in applicable_user_ids]:
                 continue
-        behavior = c.user_behavior
+        behavior = c.userBehavior
         if behavior and behavior != "none":
             if not user_id or not await coupon_repository._user_matches_behavior(
                 user_id, behavior, user_behavior_cache=user_behavior_cache
