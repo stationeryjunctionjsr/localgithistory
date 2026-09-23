@@ -1080,12 +1080,7 @@ class MySQLGoogle_reviewsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        kwargs = {}
-        for k in existing.model_fields.keys():
-            if hasattr(data, k) and getattr(data, k) is not None:
-                kwargs[k] = getattr(data, k)
-            else:
-                kwargs[k] = getattr(existing, k)
+
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
@@ -2047,7 +2042,7 @@ class MySQLPrivacyPolicyDAO:
             external_id=row.external_id,
             version=row.version,
             content=row.content,
-            effective_date=row.effective_date.isoformat() if hasattr(row.effective_date, 'isoformat') else row.effective_date,
+            effective_date=row.effective_date,
             is_active=bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
             created_at=row.created_at.isoformat() if row.created_at else None,
             updated_at=row.updated_at.isoformat() if row.updated_at else None,
