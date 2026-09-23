@@ -59,7 +59,7 @@ class SubOrder(BaseModel):
     created_at: Optional[datetime] = Field(default=None, alias='createdAt')
     updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class SubOrderInternalCreate(BaseModel):
     subOrderNumber: str
@@ -99,7 +99,8 @@ class SubOrderInternalCreate(BaseModel):
     commissionStatus: Optional[str] = None
     createdAt: Optional[str] = None
 
-class SubOrderInternalUpdate(BaseModel, extra='forbid'):
+class SubOrderInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
     status: Optional[str] = None
     shippedAt: Optional[str] = None
     deliveredAt: Optional[str] = None

@@ -714,7 +714,7 @@ class ContactUpdate(BaseModel):
 class ContactResponse(ContactBase):
     id: str = Field(alias="_id")
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -776,7 +776,7 @@ class SupportTicketInternal(SupportTicketBase):
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     externalId: Optional[str] = None
 
 
@@ -790,7 +790,7 @@ class SupportTicketResponse(SupportTicketBase):
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -901,7 +901,7 @@ class OrderFeedbackResponse(OrderFeedbackBase):
     id: str = Field(alias="_id")
     userId: str
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -931,7 +931,7 @@ class CoachMarkUpdate(BaseModel):
 class CoachMarkResponse(CoachMarkBase):
     id: str = Field(alias="_id")
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -970,7 +970,7 @@ class SearchTagUpdate(BaseModel):
 class SearchTagResponse(SearchTagBase):
     id: str = Field(alias="_id")
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1008,7 +1008,7 @@ class CollectionUpdate(BaseModel):
 class CollectionResponse(CollectionBase):
     id: str = Field(alias="_id")
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1113,7 +1113,7 @@ class ReturnRequestResponse(BaseModel):
     user: Optional[UserSnippet] = None  # populated user
     deliveryCharge: float
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -1156,7 +1156,7 @@ class ProductResponse(ProductBase):
     searchTags: Optional[List[str]] = None
     gst: Optional[float] = 0  # Evaluated from category level
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1195,7 +1195,7 @@ class SkinnyProductResponse(BaseModel):
     gst: Optional[float] = 0
     displayImage: Optional[str] = None
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1320,7 +1320,7 @@ class CouponResponse(CouponBase):
     id: str = Field(alias="_id")
     usedCount: Optional[int] = None
     createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: str
+    updatedAt: str = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1559,19 +1559,19 @@ class AdStatusUpdate(BaseModel):
 
 
 class AdSummaryResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    total_views: int = 0
-    total_clicks: int = 0
-    active_campaigns: int = 0
-    total_spend_estimate: Optional[float] = None
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    total_views: int = Field(default=0, alias="totalViews")
+    total_clicks: int = Field(default=0, alias="totalClicks")
+    active_campaigns: int = Field(default=0, alias="activeCampaigns")
+    total_spend_estimate: Optional[float] = Field(default=None, alias="totalSpendEstimate")
     ctr: Optional[float] = None
-    total_ads: Optional[int] = 0
-    active: Optional[int] = 0
-    paused: Optional[int] = 0
-    draft: Optional[int] = 0
-    total_impressions: Optional[int] = 0
-    total_conversions: Optional[int] = 0
-    overall_ctr: Optional[float] = 0.0
+    total_ads: Optional[int] = Field(default=0, alias="totalAds")
+    active: Optional[int] = Field(default=0, alias="active")
+    paused: Optional[int] = Field(default=0, alias="paused")
+    draft: Optional[int] = Field(default=0, alias="draft")
+    total_impressions: Optional[int] = Field(default=0, alias="totalImpressions")
+    total_conversions: Optional[int] = Field(default=0, alias="totalConversions")
+    overall_ctr: Optional[float] = Field(default=0.0, alias="overallCtr")
 
 
 class OrderAddress(BaseModel):
