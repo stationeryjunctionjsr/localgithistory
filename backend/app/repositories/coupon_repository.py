@@ -1,3 +1,4 @@
+from app.models.daos_flat import CouponInternalUpdate
 from typing import Any
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
@@ -493,7 +494,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                         if existing_coupon:
                             excl = set(existing_coupon.excludedProductIds or [])
                             excl.update(detail["overlappingProductIds"])
-                            await self.storage.update(detail["couponId"], {"excludedProductIds": list(excl)})
+                            await self.storage.update(detail["couponId"], CouponInternalUpdate(excludedProductIds=list(excl)))
                 elif resolution == "retain":
                     # Add exclusions to current coupon
                     excl = set((coupon.excludedProductIds if coupon.excludedProductIds is not None else None) or [])
@@ -592,7 +593,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             if not coupon:
                 return None
             new_count = (coupon.usedCount if coupon.usedCount is not None else 0) + 1
-            res = await self.storage.update(id, {"usedCount": new_count})
+            res = await self.storage.update(id, CouponInternalUpdate(usedCount=new_count))
             self.invalidate_cache()
             return res
 

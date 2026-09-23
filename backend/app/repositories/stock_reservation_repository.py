@@ -1,3 +1,4 @@
+from app.models.daos_flat import StockReservationsInternalUpdate
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 
@@ -107,7 +108,7 @@ class StockReservationRepository:
 
         active_res = await self.storage.findAll(query)
         for res in active_res:
-            await self.storage.update(str(res.id), {"status": "released"})
+            await self.storage.update(str(res.id), StockReservationsInternalUpdate(status="released"))
             logger.info("Released stock reservation %s for user %s", res.id, user_id)
 
     async def fulfill_user_reservations(self, user_id: str, product_id: Optional[str] = None):
@@ -123,10 +124,10 @@ class StockReservationRepository:
         for res in active_res:
             # Only fulfill if not already expired
             if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) > now:
-                await self.storage.update(str(res.id), {"status": "fulfilled"})
+                await self.storage.update(str(res.id), StockReservationsInternalUpdate(status="fulfilled"))
                 logger.info("Fulfilled stock reservation %s for user %s", res.id, user_id)
             else:
-                await self.storage.update(str(res.id), {"status": "expired"})
+                await self.storage.update(str(res.id), StockReservationsInternalUpdate(status="expired"))
 
     async def cleanup_expired(self):
         """Finds and marks all expired reservations as 'expired'."""
@@ -138,7 +139,7 @@ class StockReservationRepository:
 
         for res in active_res:
             if res.expires_at and res.expires_at.replace(tzinfo=timezone.utc) <= now:
-                await self.storage.update(str(res.id), {"status": "expired"})
+                await self.storage.update(str(res.id), StockReservationsInternalUpdate(status="expired"))
                 expired_count += 1
 
         if expired_count > 0:

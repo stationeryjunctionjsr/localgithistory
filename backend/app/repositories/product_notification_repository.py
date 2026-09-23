@@ -1,3 +1,4 @@
+from app.models.daos_flat import ProductNotificationsInternalUpdate
 import asyncio
 from datetime import datetime
 from typing import Dict, Any, List, Optional
@@ -112,7 +113,7 @@ class ProductNotificationRepository:
                 # Send email
                 email_service.send_email(email, subject, plain_text_body, html_body=html_body)
                 # Mark as notified
-                await self.storage.update(notif["_id"], {"status": "notified"})
+                await self.storage.update(notif["_id"], ProductNotificationsInternalUpdate(status="notified"))
 
 
 product_notification_repository = ProductNotificationRepository()

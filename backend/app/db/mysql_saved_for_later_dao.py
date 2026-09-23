@@ -89,7 +89,7 @@ class MySQLSavedForLaterDAO:
     async def findById(self, id: str) -> Optional[Dict]:
         return await self.findOne({"user": id})
 
-    async def create(self, data: Dict) -> Dict:
+    async def create(self, data: SavedForLater) -> SavedForLater:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -122,7 +122,7 @@ class MySQLSavedForLaterDAO:
             await session.commit()
         return await self.findOne({"user": user_id})
 
-    async def update(self, id: str, update_data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, update_data: SavedForLater) -> Optional[SavedForLater]:
         factory = self._factory()
         if not factory:
             return None

@@ -1,3 +1,4 @@
+from app.models.saved_for_later import SavedForLater, SavedForLaterItem
 from typing import Dict, Any
 from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
 
@@ -86,7 +87,7 @@ class CartRepository:
         saved_storage = get_storage("savedForLater")
         existing = await saved_storage.findOne({"user": user_id})
 
-        saved_item = {"user": user_id, "productId": product_id, "savedAt": datetime.now(timezone.utc).isoformat()}
+        saved_item = SavedForLaterItem(user=user_id, productId=product_id, savedAt=datetime.now(timezone.utc).isoformat())
 
         if existing:
             # Check if already saved
@@ -95,14 +96,14 @@ class CartRepository:
             if already_saved:
                 return existing
             items.append(saved_item)
-            return await saved_storage.update(existing.id, {"items": items})
+            return await saved_storage.update(existing.id, SavedForLater(user=user_id, items=items))
         else:
-            return await saved_storage.create({"user": user_id, "items": [saved_item]})
+            return await saved_storage.create(SavedForLater(user=user_id, items=[saved_item]))
 
     async def getSavedForLater(self, user_id: str):
         """Get saved for later items"""
         saved_storage = get_storage("savedForLater")
-        return await saved_storage.findOne({"user": user_id}) or {"items": []}
+        return await saved_storage.findOne({"user": user_id}) or SavedForLater(user=user_id, items=[])
 
 
 from datetime import datetime, timezone
