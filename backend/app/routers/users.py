@@ -339,10 +339,12 @@ async def update_seller_delivery_settings(
     from app.repositories.zone_seller_cache import invalidate_zone_cache
 
     seller_id = str((current_user.id or ""))
-    await user_repository.update(seller_id, UserUpdate(serviceAreaZones=data.serviceableZoneIds))
+    updated_user = await user_repository.update(seller_id, UserUpdate(serviceAreaZones=data.serviceableZoneIds))
     # Invalidate the full seller-zone cache so changes take effect immediately
     invalidate_zone_cache()
-    return {"ok": True}
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return updated_user
 
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str, current_user: User = Depends(get_current_user)):
