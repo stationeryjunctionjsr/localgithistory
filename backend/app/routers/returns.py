@@ -388,7 +388,7 @@ async def complete_return(
             product = await product_repository.findById(item.product_id)
             if product:
                 await product_repository.update(
-                    product.id, {"stock": (product.stock if product.stock is not None else 0) + (item.quantity if item.quantity is not None else 0)}
+                    product.id, ProductInternalUpdate(stock=(product.stock if product.stock is not None else 0) + (item.quantity if item.quantity is not None else 0))
                 )
         except (ValueError, KeyError, TypeError) as e:
             logger.warning(

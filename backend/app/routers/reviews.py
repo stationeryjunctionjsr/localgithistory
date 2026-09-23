@@ -149,7 +149,7 @@ async def admin_approve_review(review_id: str, current_user: User = Depends(requ
             if all_approved:
                 avg_rating = sum(int((r.rating if r.rating is not None else 0)) for r in all_approved) / len(all_approved)
                 await product_repository.update(
-                    product_id, {"rating": round(avg_rating, 2), "reviews": len(all_approved)}
+                    product_id, ProductInternalUpdate(rating=round(avg_rating, 2), reviews=len(all_approved))
                 )
     except Exception as e:
         logger.error("Failed to update product aggregated rating: %s", str(e))
@@ -174,10 +174,10 @@ async def admin_remove_review(review_id: str, current_user: User = Depends(requi
             if all_approved:
                 avg_rating = sum(int((r.rating if r.rating is not None else 0)) for r in all_approved) / len(all_approved)
                 await product_repository.update(
-                    product_id, {"rating": round(avg_rating, 2), "reviews": len(all_approved)}
+                    product_id, ProductInternalUpdate(rating=round(avg_rating, 2), reviews=len(all_approved))
                 )
             else:
-                await product_repository.update(product_id, {"rating": None, "reviews": 0})
+                await product_repository.update(product_id, ProductInternalUpdate(rating=None, reviews=0))
     except Exception as e:
         logger.error("Failed to update product aggregated rating: %s", str(e))
 

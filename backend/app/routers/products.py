@@ -260,7 +260,28 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                     existing = await products_col.findOne({"name": product_data.name})
 
                 if existing:
-                    await product_repository.update(existing.id, product_data)
+                    internal_data = ProductInternalUpdate(
+                        name=product_data.name,
+                        sku=product_data.sku,
+                        category=product_data.category,
+                        subCategory=product_data.subCategory,
+                        description=product_data.description,
+                        brand=product_data.brand,
+                        collection=product_data.collection,
+                        mrp=product_data.mrp,
+                        mrpPerCase=product_data.mrpPerCase,
+                        quantityPerCase=product_data.quantityPerCase,
+                        stock=product_data.stock,
+                        images=product_data.images,
+                        videos=product_data.videos,
+                        isActive=product_data.isActive,
+                        isExclusive=product_data.isExclusive,
+                        tags=product_data.tags,
+                        variations=product_data.variations,
+                        variantAttributes=product_data.variantAttributes,
+                        variants=product_data.variants
+                    )
+                    await product_repository.update(existing.id, internal_data)
                     product_id_to_show = (product_data.productIdFormatted if product_data.productIdFormatted is not None else product_data.name)
                     results.append({"product": product_id_to_show, "action": "updated"})
                 else:
@@ -946,7 +967,28 @@ async def update_product(
     product_id: str, product_data: ProductUpdate, current_user: User = Depends(require_super_admin)
 ):
     try:
-        product = await product_repository.update(product_id, product_data)
+        internal_data = ProductInternalUpdate(
+            name=product_data.name,
+            sku=product_data.sku,
+            category=product_data.category,
+            subCategory=product_data.subCategory,
+            description=product_data.description,
+            brand=product_data.brand,
+            collection=product_data.collection,
+            mrp=product_data.mrp,
+            mrpPerCase=product_data.mrpPerCase,
+            quantityPerCase=product_data.quantityPerCase,
+            stock=product_data.stock,
+            images=product_data.images,
+            videos=product_data.videos,
+            isActive=product_data.isActive,
+            isExclusive=product_data.isExclusive,
+            tags=product_data.tags,
+            variations=product_data.variations,
+            variantAttributes=product_data.variantAttributes,
+            variants=product_data.variants
+        )
+        product = await product_repository.update(product_id, internal_data)
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
         _invalidate_product_caches()
@@ -968,13 +1010,16 @@ async def delete_product(product_id: str, current_user: User = Depends(require_s
 async def bulk_update_products(update_data: BulkUpdateData, current_user: User = Depends(require_super_admin)):
     results = []
     for product_id in update_data.ids:
-        data = {}
+        data = ProductInternalUpdate()
+        has_updates = False
         if update_data.isActive is not None:
-            data.is_active = update_data.isActive
+            data.isActive = update_data.isActive
+            has_updates = True
         if update_data.isExclusive is not None:
             data.isExclusive = update_data.isExclusive
+            has_updates = True
 
-        if data:
+        if has_updates:
             await product_repository.update(product_id, data)
             results.append(product_id)
 
@@ -1192,7 +1237,7 @@ async def create_seller_request(
         sellers_list.append(new_entry)
         
     # Save product
-    update_data = ProductUpdate(sellers=sellers_list)
+    update_data = ProductInternalUpdate(sellers=sellers_list)
     updated = await product_repository.update(product_id, update_data)
     return updated
 
@@ -1226,7 +1271,7 @@ async def update_my_seller_entry(
     if data.isActive is not None:
         existing_entry.isActive = data.isActive
         
-    update_data = ProductUpdate(sellers=sellers_list)
+    update_data = ProductInternalUpdate(sellers=sellers_list)
     updated = await product_repository.update(product_id, update_data)
     return updated
 
@@ -1282,6 +1327,6 @@ async def approve_seller_request(
     if data and data.notes:
         target_entry.notes = data.notes
         
-    update_data = ProductUpdate(sellers=sellers_list)
+    update_data = ProductInternalUpdate(sellers=sellers_list)
     updated = await product_repository.update(product_id, update_data)
     return updated

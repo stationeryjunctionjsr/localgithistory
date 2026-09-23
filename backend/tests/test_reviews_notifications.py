@@ -1,4 +1,5 @@
 import pytest
+from app.models.daos import ProductInternalUpdate
 from httpx import AsyncClient
 from app.repositories.product_repository import product_repository
 from app.repositories.user_repository import user_repository
@@ -45,7 +46,7 @@ async def test_notify_me_registration_guest(client: AsyncClient):
     assert notifs[0]["status"] == "active"
 
     # 4. Trigger restock by updating stock to 5
-    await product_repository.update(product_id, {"stock": 5})
+    await product_repository.update(product_id, ProductInternalUpdate(stock=5))
 
     # Wait for status to change to 'notified' (asynchronous task execution)
     import asyncio
