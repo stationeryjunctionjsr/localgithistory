@@ -186,3 +186,11 @@ async def test_full_e2e_flow():
         print("Order assigned to valet:", order_info["assignedValet"])
         
         return True
+import sys
+import logging
+
+def debug_exception(exc_type, exc_value, exc_traceback):
+    import traceback
+    traceback.print_exception(exc_type, exc_value, exc_traceback)
+    
+sys.excepthook = debug_exception

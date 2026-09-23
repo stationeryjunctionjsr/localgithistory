@@ -305,6 +305,8 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
     isDeactivated: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
     creditLimit: Optional[float] = None
     creditUsed: Optional[float] = None
     paymentTerms: Optional[str] = None
@@ -1680,6 +1682,8 @@ class UserInternalUpdate(BaseModel):
     isActive: Optional[bool] = None
     approvalStatus: Optional[str] = Field(default=None, validation_alias=AliasChoices("approvalStatus", "approval_status"))
     isDeactivated: Optional[bool] = None
+    isSellerAdmin: Optional[bool] = None
+    isOnDuty: Optional[bool] = None
     creditLimit: Optional[float] = None
     creditUsed: Optional[float] = None
     paymentTerms: Optional[str] = None
