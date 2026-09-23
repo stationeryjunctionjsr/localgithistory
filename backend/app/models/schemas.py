@@ -336,7 +336,7 @@ class UserResponse(UserBase):
     referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
     isSellerAdmin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
     commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -573,7 +573,7 @@ class BannerUpdate(BaseModel):
 
 class BannerResponse(BannerBase):
     id: str = Field(alias="_id")
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: datetime = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
@@ -713,7 +713,7 @@ class ContactUpdate(BaseModel):
 
 class ContactResponse(ContactBase):
     id: str = Field(alias="_id")
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
@@ -775,7 +775,7 @@ class SupportTicketInternal(SupportTicketBase):
     responses: Optional[List[TicketResponseItemInternal]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
     externalId: Optional[str] = None
 
@@ -789,7 +789,7 @@ class SupportTicketResponse(SupportTicketBase):
     responses: Optional[List[TicketResponseItem]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -900,7 +900,7 @@ class OrderFeedbackCreate(OrderFeedbackBase):
 class OrderFeedbackResponse(OrderFeedbackBase):
     id: str = Field(alias="_id")
     userId: str
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
@@ -930,7 +930,7 @@ class CoachMarkUpdate(BaseModel):
 
 class CoachMarkResponse(CoachMarkBase):
     id: str = Field(alias="_id")
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
@@ -969,7 +969,7 @@ class SearchTagUpdate(BaseModel):
 
 class SearchTagResponse(SearchTagBase):
     id: str = Field(alias="_id")
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
@@ -1007,7 +1007,7 @@ class CollectionUpdate(BaseModel):
 
 class CollectionResponse(CollectionBase):
     id: str = Field(alias="_id")
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
@@ -1112,7 +1112,7 @@ class ReturnRequestResponse(BaseModel):
     valetAssignedAt: Optional[str] = None
     user: Optional[UserSnippet] = None  # populated user
     deliveryCharge: float
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1155,7 +1155,7 @@ class ProductResponse(ProductBase):
     variations: Optional[List[VariantOption]] = None
     searchTags: Optional[List[str]] = None
     gst: Optional[float] = 0  # Evaluated from category level
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
@@ -1194,7 +1194,7 @@ class SkinnyProductResponse(BaseModel):
     searchTags: Optional[List[str]] = None
     gst: Optional[float] = 0
     displayImage: Optional[str] = None
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
@@ -1319,7 +1319,7 @@ class CouponUpdate(BaseModel):
 class CouponResponse(CouponBase):
     id: str = Field(alias="_id")
     usedCount: Optional[int] = None
-    createdAt: datetime = Field(validation_alias=AliasChoices("createdAt", "created_at"))
+    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
     updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
