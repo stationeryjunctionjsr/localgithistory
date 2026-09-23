@@ -541,10 +541,10 @@ async def populate_product_discounts(
             affected = c._affected_product_ids or set()
             if pid in affected:
                 pct = 0.0
-                val = float(c.discount_value or 0)
-                if c.discount_type == "percentage":
+                val = float(c.discountValue or 0)
+                if c.discountType == "percentage":
                     pct = val
-                elif c.discount_type == "fixed":
+                elif c.discountType == "fixed":
                     if mrp > 0:
                         if not mrp:
                             raise ValueError("Cannot calculate discount: MRP is zero or None")
@@ -552,7 +552,7 @@ async def populate_product_discounts(
                 if pct > auto_discount_pct:
                     auto_discount_pct = pct
                     auto_discount_value = val
-                    auto_discount_type = c.discount_type
+                    auto_discount_type = c.discountType
                     default_coupon = c
 
         # Apply default discount to price
