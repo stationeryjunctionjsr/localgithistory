@@ -73,8 +73,6 @@ class MySQLReturnSettingsDAO:
 
     async def create(self, data: ReturnSettingsInternalCreate) -> Dict:
 
-        if isinstance(data, dict):
-            data = ReturnSettingsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -100,20 +98,17 @@ class MySQLReturnSettingsDAO:
 
     async def update(self, id: str, data: ReturnSettingsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = ReturnSettingsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ReturnSettingsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.returnDays is not None:
+        if data.returnDays is not None:
             updates.append("return_days = :returnDays")
-            params["returnDays"] = merged.returnDays
+            params["returnDays"] = data.returnDays
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -143,21 +138,21 @@ class MySQLOrderFeedbackDAO:
         return get_async_session_factory()
 
     def __map_to_schema(self, row) -> OrderFeedbackResponse:
-        return OrderFeedbackResponse(**{
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "orderId": row.order_id,
-            "userId": row.user_id,
-            "rating": row.rating,
-            "comment": row.comments,
-            "deliveryRating": row.delivery_rating,
-            "deliveryComment": row.delivery_comment,
-            "feedbackType": row.feedback_type,
+        return OrderFeedbackResponse(
+            _id=str(row.id),
+            id=row.id,
+            external_id=row.external_id,
+            orderId=row.order_id,
+            userId=row.user_id,
+            rating=row.rating,
+            comment=row.comments,
+            deliveryRating=row.delivery_rating,
+            deliveryComment=row.delivery_comment,
+            feedbackType=row.feedback_type,
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        })
+            createdAt=row.created_at.isoformat() if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[OrderFeedbackResponse]:
         query = query or {}
@@ -218,8 +213,6 @@ class MySQLOrderFeedbackDAO:
 
     async def create(self, data: OrderFeedbackInternalCreate) -> OrderFeedbackResponse:
 
-        if isinstance(data, dict):
-            data = OrderFeedbackInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -269,38 +262,35 @@ class MySQLOrderFeedbackDAO:
 
     async def update(self, id: str, data: OrderFeedbackInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = OrderFeedbackInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = OrderFeedbackInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.orderId is not None:
+        if data.orderId is not None:
             updates.append("order_id = :orderId")
-            params["orderId"] = merged.orderId
-        if merged.userId is not None:
+            params["orderId"] = data.orderId
+        if data.userId is not None:
             updates.append("user_id = :userId")
-            params["userId"] = merged.userId
-        if merged.rating is not None:
+            params["userId"] = data.userId
+        if data.rating is not None:
             updates.append("rating = :rating")
-            params["rating"] = merged.rating
-        if merged.comment is not None:
+            params["rating"] = data.rating
+        if data.comment is not None:
             updates.append("comments = :comment")
-            params["comment"] = merged.comment
-        if merged.deliveryRating is not None:
+            params["comment"] = data.comment
+        if data.deliveryRating is not None:
             updates.append("delivery_rating = :deliveryRating")
-            params["deliveryRating"] = merged.deliveryRating
-        if merged.deliveryComment is not None:
+            params["deliveryRating"] = data.deliveryRating
+        if data.deliveryComment is not None:
             updates.append("delivery_comment = :deliveryComment")
-            params["deliveryComment"] = merged.deliveryComment
-        if merged.feedbackType is not None:
+            params["deliveryComment"] = data.deliveryComment
+        if data.feedbackType is not None:
             updates.append("feedback_type = :feedbackType")
-            params["feedbackType"] = merged.feedbackType
+            params["feedbackType"] = data.feedbackType
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -330,13 +320,13 @@ class MySQLPromoStripsDAO:
         return get_async_session_factory()
 
     def __map_to_schema(self, row) -> PromoStripResponse:
-        return PromoStripResponse(**{
-            "_id": str(row.id),
-            "text": row.text,
-            "isActive": bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        })
+        return PromoStripResponse(
+            _id=str(row.id),
+            text=row.text,
+            isActive=bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
+            createdAt=row.created_at.isoformat() if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[PromoStripResponse]:
         query = query or {}
@@ -382,8 +372,6 @@ class MySQLPromoStripsDAO:
 
     async def create(self, data: PromoStripsInternalCreate) -> PromoStripResponse:
 
-        if isinstance(data, dict):
-            data = PromoStripsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -413,23 +401,20 @@ class MySQLPromoStripsDAO:
 
     async def update(self, id: str, data: PromoStripsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = PromoStripsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PromoStripsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.text is not None:
+        if data.text is not None:
             updates.append("text = :text")
-            params["text"] = merged.text
-        if merged.isActive is not None:
+            params["text"] = data.text
+        if data.isActive is not None:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged.isActive else None
+            params["isActive"] = 1 if data.isActive else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -550,8 +535,6 @@ class MySQLPushNotificationsDAO:
 
     async def create(self, data: PushNotificationsInternalCreate) -> Dict:
 
-        if isinstance(data, dict):
-            data = PushNotificationsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -617,50 +600,47 @@ class MySQLPushNotificationsDAO:
 
     async def update(self, id: str, data: PushNotificationsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = PushNotificationsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PushNotificationsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.title is not None:
+        if data.title is not None:
             updates.append("title = :title")
-            params["title"] = merged.title
-        if merged.message is not None:
+            params["title"] = data.title
+        if data.message is not None:
             updates.append("message = :message")
-            params["message"] = merged.message
-        if merged.link is not None:
+            params["message"] = data.message
+        if data.link is not None:
             updates.append("link = :link")
-            params["link"] = merged.link
-        if merged.image is not None:
+            params["link"] = data.link
+        if data.image is not None:
             updates.append("image = :image")
-            params["image"] = merged.image
-        if merged.status is not None:
+            params["image"] = data.image
+        if data.status is not None:
             updates.append("status = :status")
-            params["status"] = merged.status
-        if merged.scheduledFor is not None:
+            params["status"] = data.status
+        if data.scheduledFor is not None:
             updates.append("scheduled_for = :scheduledFor")
-            params["scheduledFor"] = merged.scheduledFor
-        if merged.deliveredCount is not None:
+            params["scheduledFor"] = data.scheduledFor
+        if data.deliveredCount is not None:
             updates.append("delivered_count = :deliveredCount")
-            params["deliveredCount"] = merged.deliveredCount
-        if merged.readCount is not None:
+            params["deliveredCount"] = data.deliveredCount
+        if data.readCount is not None:
             updates.append("read_count = :readCount")
-            params["readCount"] = merged.readCount
-        if merged.userSegment is not None:
+            params["readCount"] = data.readCount
+        if data.userSegment is not None:
             updates.append("user_segment = :userSegment")
-            params["userSegment"] = merged.userSegment
-        if merged.userBehavior is not None:
+            params["userSegment"] = data.userSegment
+        if data.userBehavior is not None:
             updates.append("user_behavior = :userBehavior")
-            params["userBehavior"] = merged.userBehavior
-        if merged.createdBy is not None:
+            params["userBehavior"] = data.userBehavior
+        if data.createdBy is not None:
             updates.append("created_by = :createdBy")
-            params["createdBy"] = merged.createdBy
+            params["createdBy"] = data.createdBy
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -761,8 +741,6 @@ class MySQLCoachMarksDAO:
 
     async def create(self, data: CoachMarksInternalCreate) -> Dict:
 
-        if isinstance(data, dict):
-            data = CoachMarksInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -808,35 +786,32 @@ class MySQLCoachMarksDAO:
 
     async def update(self, id: str, data: CoachMarksInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = CoachMarksInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = CoachMarksInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.anchorId is not None:
+        if data.anchorId is not None:
             updates.append("anchor_id = :anchorId")
-            params["anchorId"] = merged.anchorId
-        if merged.title is not None:
+            params["anchorId"] = data.anchorId
+        if data.title is not None:
             updates.append("title = :title")
-            params["title"] = merged.title
-        if merged.description is not None:
+            params["title"] = data.title
+        if data.description is not None:
             updates.append("description = :description")
-            params["description"] = merged.description
-        if merged.screenName is not None:
+            params["description"] = data.description
+        if data.screenName is not None:
             updates.append("screen_name = :screenName")
-            params["screenName"] = merged.screenName
-        if merged.sequenceOrder is not None:
+            params["screenName"] = data.screenName
+        if data.sequenceOrder is not None:
             updates.append("sequence_order = :sequenceOrder")
-            params["sequenceOrder"] = merged.sequenceOrder
-        if merged.isActive is not None:
+            params["sequenceOrder"] = data.sequenceOrder
+        if data.isActive is not None:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged.isActive else None
+            params["isActive"] = 1 if data.isActive else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -866,17 +841,17 @@ class MySQLCategoryTagsDAO:
         return get_async_session_factory()
 
     def __map_to_schema(self, row) -> Any:
-        return CategoryTagResponse(**{
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "name": row.name,
-            "description": row.description,
-            "isActive": bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
+        return CategoryTagResponse(
+            _id=str(row.id),
+            id=row.id,
+            external_id=row.external_id,
+            name=row.name,
+            description=row.description,
+            isActive=bool(row.is_active) if ("is_active" in row._mapping and row.is_active is not None) else False,
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        })
+            createdAt=row.created_at.isoformat() if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[CategoryTagResponse]:
         query = query or {}
@@ -925,8 +900,6 @@ class MySQLCategoryTagsDAO:
 
     async def create(self, data: CategoryTagsInternalCreate) -> Any:
 
-        if isinstance(data, dict):
-            data = CategoryTagsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -960,26 +933,23 @@ class MySQLCategoryTagsDAO:
 
     async def update(self, id: str, data: CategoryTagsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = CategoryTagsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = CategoryTagsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.name is not None:
+        if data.name is not None:
             updates.append("name = :name")
-            params["name"] = merged.name
-        if merged.description is not None:
+            params["name"] = data.name
+        if data.description is not None:
             updates.append("description = :description")
-            params["description"] = merged.description
-        if merged.isActive is not None:
+            params["description"] = data.description
+        if data.isActive is not None:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged.isActive else None
+            params["isActive"] = 1 if data.isActive else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1070,8 +1040,6 @@ class MySQLGoogle_reviewsDAO:
 
     async def create(self, data: Google_reviewsInternalCreate) -> Google_reviewsInternal:
 
-        if isinstance(data, dict):
-            data = Google_reviewsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1109,8 +1077,6 @@ class MySQLGoogle_reviewsDAO:
 
     async def update(self, id: str, data: Google_reviewsInternalUpdate) -> Optional[Google_reviewsInternal]:
 
-        if isinstance(data, dict):
-            data = Google_reviewsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
@@ -1120,24 +1086,23 @@ class MySQLGoogle_reviewsDAO:
                 kwargs[k] = getattr(data, k)
             else:
                 kwargs[k] = getattr(existing, k)
-        merged = Google_reviewsInternalUpdate(**kwargs)
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.rating is not None:
+        if data.rating is not None:
             updates.append("rating = :rating")
-            params["rating"] = merged.rating
-        if merged.reviewCount is not None:
+            params["rating"] = data.rating
+        if data.reviewCount is not None:
             updates.append("review_count = :reviewCount")
-            params["reviewCount"] = merged.reviewCount
-        if merged.lastUpdated is not None:
+            params["reviewCount"] = data.reviewCount
+        if data.lastUpdated is not None:
             updates.append("last_updated = :lastUpdated")
-            params["lastUpdated"] = merged.lastUpdated
-        if merged.method is not None:
+            params["lastUpdated"] = data.lastUpdated
+        if data.method is not None:
             updates.append("method = :method")
-            params["method"] = merged.method
+            params["method"] = data.method
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1221,8 +1186,6 @@ class MySQLStockReservationsDAO:
 
     async def create(self, data: StockReservationsInternalCreate) -> StockReservation:
 
-        if isinstance(data, dict):
-            data = StockReservationsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1400,8 +1363,6 @@ class MySQLProductNotificationsDAO:
 
     async def create(self, data: ProductNotificationsInternalCreate) -> Dict:
 
-        if isinstance(data, dict):
-            data = ProductNotificationsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1443,32 +1404,29 @@ class MySQLProductNotificationsDAO:
 
     async def update(self, id: str, data: ProductNotificationsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = ProductNotificationsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ProductNotificationsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.productId is not None:
+        if data.productId is not None:
             updates.append("product_id = :productId")
-            params["productId"] = merged.productId
-        if merged.userId is not None:
+            params["productId"] = data.productId
+        if data.userId is not None:
             updates.append("user_id = :userId")
-            params["userId"] = merged.userId
-        if merged.email is not None:
+            params["userId"] = data.userId
+        if data.email is not None:
             updates.append("email = :email")
-            params["email"] = merged.email
-        if merged.phone is not None:
+            params["email"] = data.email
+        if data.phone is not None:
             updates.append("phone = :phone")
-            params["phone"] = merged.phone
-        if merged.status is not None:
+            params["phone"] = data.phone
+        if data.status is not None:
             updates.append("status = :status")
-            params["status"] = merged.status
+            params["status"] = data.status
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1498,21 +1456,21 @@ class MySQLProductReviewsDAO:
         return get_async_session_factory()
 
     def __map_to_schema(self, row) -> ProductReviewResponse:
-        return ProductReviewResponse(**{
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "productId": row.product_id,
-            "userId": row.user_id,
-            "rating": row.rating,
-            "reviewText": row.review_text,
-            "status": row.status,
-            "userName": getattr(row, "user_name", None),
-            "classification": getattr(row, "classification", None),
+        return ProductReviewResponse(
+            _id=str(row.id),
+            id=row.id,
+            external_id=row.external_id,
+            productId=row.product_id,
+            userId=row.user_id,
+            rating=row.rating,
+            reviewText=row.review_text,
+            status=row.status,
+            userName=getattr(row, "user_name", None),
+            classification=getattr(row, "classification", None),
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        })
+            createdAt=row.created_at.isoformat() if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[ProductReviewResponse]:
         query = query or {}
@@ -1567,8 +1525,6 @@ class MySQLProductReviewsDAO:
 
     async def create(self, data: ProductReviewsInternalCreate) -> ProductReviewResponse:
 
-        if isinstance(data, dict):
-            data = ProductReviewsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1610,32 +1566,29 @@ class MySQLProductReviewsDAO:
 
     async def update(self, id: str, data: ProductReviewsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = ProductReviewsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ProductReviewsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.productId is not None:
+        if data.productId is not None:
             updates.append("product_id = :productId")
-            params["productId"] = merged.productId
-        if merged.userId is not None:
+            params["productId"] = data.productId
+        if data.userId is not None:
             updates.append("user_id = :userId")
-            params["userId"] = merged.userId
-        if merged.rating is not None:
+            params["userId"] = data.userId
+        if data.rating is not None:
             updates.append("rating = :rating")
-            params["rating"] = merged.rating
-        if merged.reviewText is not None:
+            params["rating"] = data.rating
+        if data.reviewText is not None:
             updates.append("review_text = :reviewText")
-            params["reviewText"] = merged.reviewText
-        if merged.status is not None:
+            params["reviewText"] = data.reviewText
+        if data.status is not None:
             updates.append("status = :status")
-            params["status"] = merged.status
+            params["status"] = data.status
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1665,15 +1618,15 @@ class MySQLClassificationTagsDAO:
         return get_async_session_factory()
 
     def __map_to_schema(self, row) -> ClassificationTagResponse:
-        return ClassificationTagResponse(**{
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "name": row.name,
-            "isActive": bool(row.is_active),
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        })
+        return ClassificationTagResponse(
+            _id=str(row.id),
+            id=row.id,
+            external_id=row.external_id,
+            name=row.name,
+            isActive=bool(row.is_active),
+            createdAt=row.created_at.isoformat() if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[ClassificationTagResponse]:
         query = query or {}
@@ -1753,18 +1706,17 @@ class MySQLClassificationTagsDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ClassificationTagsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.name is not None:
+        if data.name is not None:
             updates.append("name = :name")
-            params["name"] = merged.name
-        if merged.isActive is not None:
+            params["name"] = data.name
+        if data.isActive is not None:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged.isActive else None
+            params["isActive"] = 1 if data.isActive else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1794,18 +1746,18 @@ class MySQLReviewClassificationsDAO:
         return get_async_session_factory()
 
     def __map_to_schema(self, row) -> ClassificationTagResponse:
-        return ClassificationTagResponse(**{
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "reviewId": row.review_id,
-            "category": row.category,
-            "confidenceScore": row.confidence_score,
-            "sentiment": row.sentiment,
+        return ClassificationTagResponse(
+            _id=str(row.id),
+            id=row.id,
+            external_id=row.external_id,
+            reviewId=row.review_id,
+            category=row.category,
+            confidenceScore=row.confidence_score,
+            sentiment=row.sentiment,
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        })
+            createdAt=row.created_at.isoformat() if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[ClassificationTagResponse]:
         query = query or {}
@@ -1857,8 +1809,6 @@ class MySQLReviewClassificationsDAO:
 
     async def create(self, data: ReviewClassificationsInternalCreate) -> ClassificationTagResponse:
 
-        if isinstance(data, dict):
-            data = ReviewClassificationsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1896,29 +1846,26 @@ class MySQLReviewClassificationsDAO:
 
     async def update(self, id: str, data: ReviewClassificationsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = ReviewClassificationsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = ReviewClassificationsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.reviewId is not None:
+        if data.reviewId is not None:
             updates.append("review_id = :reviewId")
-            params["reviewId"] = merged.reviewId
-        if merged.category is not None:
+            params["reviewId"] = data.reviewId
+        if data.category is not None:
             updates.append("category = :category")
-            params["category"] = merged.category
-        if merged.confidenceScore is not None:
+            params["category"] = data.category
+        if data.confidenceScore is not None:
             updates.append("confidence_score = :confidenceScore")
-            params["confidenceScore"] = merged.confidenceScore
-        if merged.sentiment is not None:
+            params["confidenceScore"] = data.confidenceScore
+        if data.sentiment is not None:
             updates.append("sentiment = :sentiment")
-            params["sentiment"] = merged.sentiment
+            params["sentiment"] = data.sentiment
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2011,8 +1958,6 @@ class MySQLAboutUsDAO:
 
     async def create(self, data: AboutUsInternalCreate) -> Any:
 
-        if isinstance(data, dict):
-            data = AboutUsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2050,29 +1995,26 @@ class MySQLAboutUsDAO:
 
     async def update(self, id: str, data: AboutUsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = AboutUsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = AboutUsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.title is not None:
+        if data.title is not None:
             updates.append("title = :title")
-            params["title"] = merged.title
-        if merged.content is not None:
+            params["title"] = data.title
+        if data.content is not None:
             updates.append("content = :content")
-            params["content"] = merged.content
-        if merged.version is not None:
+            params["content"] = data.content
+        if data.version is not None:
             updates.append("version = :version")
-            params["version"] = merged.version
-        if merged.isPublished is not None:
+            params["version"] = data.version
+        if data.isPublished is not None:
             updates.append("is_published = :isPublished")
-            params["isPublished"] = 1 if merged.isPublished else None
+            params["isPublished"] = 1 if data.isPublished else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2165,8 +2107,6 @@ class MySQLPrivacyPolicyDAO:
 
     async def create(self, data: PrivacyPolicyInternalCreate) -> Any:
 
-        if isinstance(data, dict):
-            data = PrivacyPolicyInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2204,29 +2144,26 @@ class MySQLPrivacyPolicyDAO:
 
     async def update(self, id: str, data: PrivacyPolicyInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = PrivacyPolicyInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PrivacyPolicyInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.version is not None:
+        if data.version is not None:
             updates.append("version = :version")
-            params["version"] = merged.version
-        if merged.content is not None:
+            params["version"] = data.version
+        if data.content is not None:
             updates.append("content = :content")
-            params["content"] = merged.content
-        if merged.effectiveDate is not None:
+            params["content"] = data.content
+        if data.effectiveDate is not None:
             updates.append("effective_date = :effectiveDate")
-            params["effectiveDate"] = merged.effectiveDate
-        if merged.isActive is not None:
+            params["effectiveDate"] = data.effectiveDate
+        if data.isActive is not None:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if merged.isActive else None
+            params["isActive"] = 1 if data.isActive else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2256,19 +2193,19 @@ class MySQLAvailabilityRequestsDAO:
         return get_async_session_factory()
 
     def __map_to_schema(self, row) -> AvailabilityRequestResponse:
-        return AvailabilityRequestResponse(**{
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "productId": row.product_id,
-            "productName": row.product_name,
-            "pincode": row.pincode,
-            "userName": row.user_name,
-            "userEmail": row.user_email,
+        return AvailabilityRequestResponse(
+            _id=str(row.id),
+            id=row.id,
+            external_id=row.external_id,
+            productId=row.product_id,
+            productName=row.product_name,
+            pincode=row.pincode,
+            userName=row.user_name,
+            userEmail=row.user_email,
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        })
+            createdAt=row.created_at.isoformat() if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[AvailabilityRequestResponse]:
         query = query or {}
@@ -2323,8 +2260,6 @@ class MySQLAvailabilityRequestsDAO:
 
     async def create(self, data: AvailabilityRequestsInternalCreate) -> AvailabilityRequestResponse:
 
-        if isinstance(data, dict):
-            data = AvailabilityRequestsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2366,32 +2301,29 @@ class MySQLAvailabilityRequestsDAO:
 
     async def update(self, id: str, data: AvailabilityRequestsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = AvailabilityRequestsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = AvailabilityRequestsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.productId is not None:
+        if data.productId is not None:
             updates.append("product_id = :productId")
-            params["productId"] = merged.productId
-        if merged.productName is not None:
+            params["productId"] = data.productId
+        if data.productName is not None:
             updates.append("product_name = :productName")
-            params["productName"] = merged.productName
-        if merged.pincode is not None:
+            params["productName"] = data.productName
+        if data.pincode is not None:
             updates.append("pincode = :pincode")
-            params["pincode"] = merged.pincode
-        if merged.userName is not None:
+            params["pincode"] = data.pincode
+        if data.userName is not None:
             updates.append("user_name = :userName")
-            params["userName"] = merged.userName
-        if merged.userEmail is not None:
+            params["userName"] = data.userName
+        if data.userEmail is not None:
             updates.append("user_email = :userEmail")
-            params["userEmail"] = merged.userEmail
+            params["userEmail"] = data.userEmail
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2484,8 +2416,6 @@ class MySQLPincodeSearchesDAO:
 
     async def create(self, data: PincodeSearchesInternalCreate) -> Any:
 
-        if isinstance(data, dict):
-            data = PincodeSearchesInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2523,29 +2453,26 @@ class MySQLPincodeSearchesDAO:
 
     async def update(self, id: str, data: PincodeSearchesInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = PincodeSearchesInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = PincodeSearchesInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.pincode is not None:
+        if data.pincode is not None:
             updates.append("pincode = :pincode")
-            params["pincode"] = merged.pincode
-        if merged.query is not None:
+            params["pincode"] = data.pincode
+        if data.query is not None:
             updates.append("query = :query")
-            params["query"] = merged.query
-        if merged.isServiceable is not None:
+            params["query"] = data.query
+        if data.isServiceable is not None:
             updates.append("is_serviceable = :isServiceable")
-            params["isServiceable"] = 1 if merged.isServiceable else None
-        if merged.timestamp is not None:
+            params["isServiceable"] = 1 if data.isServiceable else None
+        if data.timestamp is not None:
             updates.append("timestamp = :timestamp")
-            params["timestamp"] = merged.timestamp
+            params["timestamp"] = data.timestamp
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2575,19 +2502,19 @@ class MySQLSystemSettingsDAO:
         return get_async_session_factory()
 
     def __map_to_schema(self, row) -> Any:
-        return SystemSettingsResponse(**{
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "maintenanceMode": bool(row.maintenance_mode) if ("maintenance_mode" in row._mapping and row.maintenance_mode is not None) else False,
-            "allowSignups": bool(row.allow_signups) if ("allow_signups" in row._mapping and row.allow_signups is not None) else False,
-            "maxUploadSizeMb": row.max_upload_size_mb,
-            "defaultCurrency": row.default_currency,
-            "timezone": row.timezone,
+        return SystemSettingsResponse(
+            _id=str(row.id),
+            id=row.id,
+            external_id=row.external_id,
+            maintenanceMode=bool(row.maintenance_mode) if ("maintenance_mode" in row._mapping and row.maintenance_mode is not None) else False,
+            allowSignups=bool(row.allow_signups) if ("allow_signups" in row._mapping and row.allow_signups is not None) else False,
+            maxUploadSizeMb=row.max_upload_size_mb,
+            defaultCurrency=row.default_currency,
+            timezone=row.timezone,
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        })
+            createdAt=row.created_at.isoformat() if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() if row.updated_at else None,
+        )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[SystemSettingsResponse]:
         query = query or {}
@@ -2642,8 +2569,6 @@ class MySQLSystemSettingsDAO:
 
     async def create(self, data: SystemSettingsInternalCreate) -> Any:
 
-        if isinstance(data, dict):
-            data = SystemSettingsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2685,32 +2610,29 @@ class MySQLSystemSettingsDAO:
 
     async def update(self, id: str, data: SystemSettingsInternalUpdate) -> Optional[Any]:
 
-        if isinstance(data, dict):
-            data = SystemSettingsInternalUpdate(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = SystemSettingsInternalUpdate(**{**existing.__dict__, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.maintenanceMode is not None:
+        if data.maintenanceMode is not None:
             updates.append("maintenance_mode = :maintenanceMode")
-            params["maintenanceMode"] = 1 if merged.maintenanceMode else None
-        if merged.allowSignups is not None:
+            params["maintenanceMode"] = 1 if data.maintenanceMode else None
+        if data.allowSignups is not None:
             updates.append("allow_signups = :allowSignups")
-            params["allowSignups"] = 1 if merged.allowSignups else None
-        if merged.maxUploadSizeMb is not None:
+            params["allowSignups"] = 1 if data.allowSignups else None
+        if data.maxUploadSizeMb is not None:
             updates.append("max_upload_size_mb = :maxUploadSizeMb")
-            params["maxUploadSizeMb"] = merged.maxUploadSizeMb
-        if merged.defaultCurrency is not None:
+            params["maxUploadSizeMb"] = data.maxUploadSizeMb
+        if data.defaultCurrency is not None:
             updates.append("default_currency = :defaultCurrency")
-            params["defaultCurrency"] = merged.defaultCurrency
-        if merged.timezone is not None:
+            params["defaultCurrency"] = data.defaultCurrency
+        if data.timezone is not None:
             updates.append("timezone = :timezone")
-            params["timezone"] = merged.timezone
+            params["timezone"] = data.timezone
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2795,8 +2717,6 @@ class MySQLValetPayoutSettingsDAO:
 
     async def create(self, data: ValetPayoutSettingsInternalCreate) -> Dict:
 
-        if isinstance(data, dict):
-            data = ValetPayoutSettingsInternalCreate(**data)
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -2826,23 +2746,20 @@ class MySQLValetPayoutSettingsDAO:
 
     async def update(self, id: str, data: Dict) -> Optional[Dict]:
 
-        if isinstance(data, dict):
-            data = Dict(**data)
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = SystemSettingsInternalUpdate(**{**existing, **data.__dict__})
         now = now_utc()
         pid = int(id) if str(id).isdigit() else None
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if merged.deliveryChargePerOrder is not None:
+        if data.deliveryChargePerOrder is not None:
             updates.append("delivery_charge_per_order = :deliveryChargePerOrder")
-            params["deliveryChargePerOrder"] = merged.deliveryChargePerOrder
-        if merged.returnPickupChargePerOrder is not None:
+            params["deliveryChargePerOrder"] = data.deliveryChargePerOrder
+        if data.returnPickupChargePerOrder is not None:
             updates.append("return_pickup_charge_per_order = :returnPickupChargePerOrder")
-            params["returnPickupChargePerOrder"] = merged.returnPickupChargePerOrder
+            params["returnPickupChargePerOrder"] = data.returnPickupChargePerOrder
 
         set_sql = ", ".join(updates)
         factory = self._factory()
