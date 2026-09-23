@@ -317,14 +317,32 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
     if len(contents) > 5 * 1024 * 1024:  # 5 MB cap
         raise HTTPException(status_code=413, detail="CSV file exceeds the 5 MB size limit")
     csv_content = contents.decode("utf-8")
-    csv_reader = csv.DictReader(io.StringIO(csv_content))
-
+    csv_reader = csv.reader(io.StringIO(csv_content))
+    
     success_count = 0
     errors = []
+    
+    headers = next(csv_reader, [])
 
     for raw_row in csv_reader:
         try:
-            row = CsvDeliveryChargeRow.model_validate(raw_row)
+            def _v(k):
+                try: return raw_row[headers.index(k)]
+                except ValueError: return None
+
+            row = CsvDeliveryChargeRow(
+                pincode=_v("pincode"),
+                state=_v("state"),
+                city=_v("city"),
+                district=_v("district"),
+                charge=float(_v("charge")) if _v("charge") else 0.0,
+                minCartValue=float(_v("min_cart_value")) if _v("min_cart_value") else 0.0,
+                isActive=_v("is_active") or "true",
+                serviceableForCustomer=_v("serviceable_for_customer") or "true",
+                serviceableForWholesaler=_v("serviceable_for_wholesaler") or "false",
+                urgentDeliveryAvailable=_v("urgent_delivery_available") or "false",
+                urgentDeliveryCharge=_v("urgent_delivery_charge"),
+            )
             serviceable_for_customer = (row.serviceableForCustomer if row.serviceableForCustomer is not None else "true").lower() == "true"
             serviceable_for_wholesaler = (row.serviceableForWholesaler if row.serviceableForWholesaler is not None else "false").lower() == "true"
             urgent_delivery_available = (row.urgentDeliveryAvailable if row.urgentDeliveryAvailable is not None else "false").lower() == "true"

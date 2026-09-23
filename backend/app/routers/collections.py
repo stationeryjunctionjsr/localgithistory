@@ -26,11 +26,11 @@ def _format_collection_response(collection):
         for r_str in collection.visibilityRules:
             if isinstance(r_str, str):
                 try:
-                    parsed_rules.append(VisibilityRuleSnippet.model_validate(json.loads(r_str)))
+                    parsed_rules.append(VisibilityRuleSnippet.model_validate_json(r_str))
                 except Exception:
                     pass
             else:
-                parsed_rules.append(VisibilityRuleSnippet.model_validate(r_str))
+                parsed_rules.append(VisibilityRuleSnippet.model_validate(r_str, from_attributes=True))
                 
     response = CollectionResponse.model_validate(collection, from_attributes=True)
     response.visibilityRules = parsed_rules

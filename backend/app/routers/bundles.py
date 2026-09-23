@@ -112,14 +112,15 @@ async def _enrich_bundle(bundle) -> BundleResponse:
             fully_available = False
 
         from app.models.product import Product
-        p_obj = Product.model_validate({
-            "_id": product.id,
-            "name": product.name,
-            "sku": product.sku,
-            "mrp": mrp,
-            "images": (product.images or []),
-            "stock": stock,
-        })
+        p_obj = Product(
+            id=product.id,
+            productId=product.product_id,
+            name=product.name,
+            sku=product.sku,
+            mrp=mrp,
+            images=(product.images or []),
+            stock=stock,
+        )
         enriched_items.append(
             BundleItemResponse(
                 productId=item.productId,
