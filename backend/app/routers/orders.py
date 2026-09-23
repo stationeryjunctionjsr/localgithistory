@@ -1857,7 +1857,7 @@ async def create_order(
                     "couponInfo": coupon_info,
                     "createdAt": order.created_at.isoformat() if order.created_at else None,
                 }
-                sub = await sub_order_repository.create(SubOrderInternalCreate(orderId=sub_order_data["orderId"], sellerId=sub_order_data["sellerId"], items=sub_order_data["items"], subTotal=sub_order_data["subTotal"], status=sub_order_data["status"]))
+                sub = await sub_order_repository.create(SubOrderInternalCreate(**sub_order_data))
                 sub_order_ids.append(str(sub.id))
 
                 # Notify the seller about their new sub-order (if it's a seller admin, not platform)
@@ -1883,10 +1883,8 @@ async def create_order(
             # Store sub-order references on the parent order
             await order_repository.update(
                 str(order.id),
-                OrderInternalUpdate(**{
-                    "hasSubOrders": True,
-                    "subOrderIds": sub_order_ids,
-                }),
+                OrderInternalUpdate(hasSubOrders=True,
+                    subOrderIds=sub_order_ids,),
             )
             # Refresh populated_order to include subOrderIds
             updated_parent = await order_repository.findById(str(order.id))
@@ -1984,7 +1982,7 @@ async def update_delivery_charge(
     # Update order totals
     new_total = (order.total if order.total is not None else 0) + difference
 
-    await order_repository.update(order_id, OrderInternalUpdate(**{"shipping": new_delivery_charge, "total": new_total}))
+    await order_repository.update(order_id, OrderInternalUpdate(shipping=new_delivery_charge, total=new_total))
 
     # Update payment record based on payment method
     payments = await payment_repository.findByOrderId(order_id)
@@ -2232,10 +2230,8 @@ async def update_order_status(
                 continue
             if status_data.status == "cancelled":
                 await sub_order_repository.update(
-                    _so_id, SubOrderInternalUpdate(**{
-                        "status": "cancelled",
-                        "cancelledAt": _dt.utcnow().isoformat() + "Z",
-                    }),
+                    _so_id, SubOrderInternalUpdate(status="cancelled",
+                        cancelledAt=_dt.utcnow().isoformat() + "Z",),
                 )
             elif status_data.status == "delivered":
                 _cascade = {
@@ -2296,7 +2292,7 @@ async def update_order_status(
                     invoice_path = await save_invoice_pdf(pdf_buffer, order_id)
                     await order_repository.update(
                         order_id,
-                        OrderInternalUpdate(**{"invoicePath": invoice_path, "invoiceGeneratedAt": _dt.utcnow().isoformat() + "Z"}),
+                        OrderInternalUpdate(invoicePath=invoice_path, invoiceGeneratedAt=_dt.utcnow().isoformat() + "Z"),
                     )
                     # Refresh populated_order so the returned object has the invoice path
                     updated_order = await order_repository.findById(order_id)
@@ -2332,7 +2328,7 @@ async def accept_order(order_id: str, current_user: User = Depends(require_super
         if not any_verified:
             raise HTTPException(status_code=400, detail="UPI payment must be verified before accepting the order")
 
-    updated_order = await order_repository.update(order_id, OrderInternalUpdate(**{"status": "processing"}))
+    updated_order = await order_repository.update(order_id, OrderInternalUpdate(status="processing"))
 
     populated_order = await populate_order(updated_order)
     return populated_order
@@ -2376,7 +2372,7 @@ async def decline_order(
             await product_repository.increment_stock_atomic(str(item.product), int((item.quantity if item.quantity is not None else 0)))
 
     updated_order = await order_repository.update(
-        order_id, OrderInternalUpdate(**{"status": "declined", "declineReason": decline_data.reason})
+        order_id, OrderInternalUpdate(status="declined", declineReason=decline_data.reason)
     )
 
     populated_order = await populate_order(updated_order)
@@ -2419,13 +2415,11 @@ async def dispatch_order(
 
     updated_order = await order_repository.update(
         order_id,
-        OrderInternalUpdate(**{
-            "status": "pending_valet",
-            "pendingValetId": valet_data.valetId,
-            "valetAssignedAt": now_iso,
-            "valetDeclineHistory": [],
-            "valetCascadeCount": 0,
-        }),
+        OrderInternalUpdate(status="pending_valet",
+            pendingValetId=valet_data.valetId,
+            valetAssignedAt=now_iso,
+            valetDeclineHistory=[],
+            valetCascadeCount=0,),
     )
 
     # Push notification to the valet
@@ -2505,13 +2499,12 @@ async def get_valet_pending_orders(current_user: User = Depends(get_current_user
 #         except Exception:
 #             invoice = None
 #
-#         updated_order = await order_repository.update(order_id, OrderInternalUpdate(**{
-#             "status": "shipped",
-#             "assignedValet": str(current_user.id),
-#             "pendingValetId": None,
-#             "shippedAt": now_iso,
-#             "invoiceUrl": invoice.url if invoice else None
-#         }))
+#         updated_order = await order_repository.update(order_id, OrderInternalUpdate(#             status="shipped",
+#             assignedValet=str(current_user.id),
+#             pendingValetId=None,
+#             shippedAt=now_iso,
+#             invoiceUrl=invoice.url if invoice else None
+#))
 #         # Notify seller
 #         seller_id = order.seller_id
 #         if seller_id:
@@ -2535,10 +2528,9 @@ async def get_valet_pending_orders(current_user: User = Depends(get_current_user
 #         if valet_id_str not in history:
 #             history.append(valet_id_str)
 #
-#         await order_repository.update(order_id, OrderInternalUpdate(**{
-#             "valetDeclineHistory": history,
-#             "pendingValetId": None
-#         }))
+#         await order_repository.update(order_id, OrderInternalUpdate(#             valetDeclineHistory=history,
+#             pendingValetId=None
+#))
 #         order.valetDeclineHistory = history
 #         order.pendingValetId = None
 #
@@ -2586,7 +2578,7 @@ async def cancel_order(order_id: str, current_user: User = Depends(get_current_u
 
     updated_order = await order_repository.update(
         order_id,
-        OrderInternalUpdate(**{"status": "cancelled", "cancelledAt": datetime.now(__import__("datetime").timezone.utc).isoformat(), "cancelledBy": current_user.id}),
+        OrderInternalUpdate(status="cancelled", cancelledAt=datetime.now(__import__("datetime").timezone.utc).isoformat(), cancelledBy=current_user.id),
     )
 
     populated_order = await populate_order(updated_order)
@@ -2605,7 +2597,7 @@ async def assign_valet(
     if not valet or valet.role != "valet":
         raise HTTPException(status_code=400, detail="Invalid valet")
 
-    updated_order = await order_repository.update(order_id, OrderInternalUpdate(**{"assignedValet": valet_data.valetId}))
+    updated_order = await order_repository.update(order_id, OrderInternalUpdate(assignedValet=valet_data.valetId))
 
     populated_order = await populate_order(updated_order)
     return populated_order
@@ -2672,13 +2664,11 @@ async def valet_response(
     if response_data.action == "accept":
         updated_order = await order_repository.update(
             order_id,
-            OrderInternalUpdate(**{
-                "status": "shipped",
-                "assignedValet": valet_id,
-                "pendingValetId": None,
-                "valetAcceptedAt": now_iso,
-                "shippedAt": now_iso,
-            }),
+            OrderInternalUpdate(status="shipped",
+                assignedValet=valet_id,
+                pendingValetId=None,
+                valetAcceptedAt=now_iso,
+                shippedAt=now_iso,),
         )
 
         # Fetch valet details once for notifications
@@ -2694,10 +2684,8 @@ async def valet_response(
                 _so_id = str(_so.id)
                 # Set assignedValet on each sub-order so sellers can see who's picking up
                 await sub_order_repository.update(
-                    _so_id, SubOrderInternalUpdate(**{
-                        "assignedValet": valet_id,
-                        "pickupStatus": "pending_pickup",
-                    }),
+                    _so_id, SubOrderInternalUpdate(assignedValet=valet_id,
+                        pickupStatus="pending_pickup",),
                 )
                 _seller_id = _so.sellerId
                 if _seller_id and _seller_id not in notified_sellers:
@@ -2756,7 +2744,7 @@ async def valet_response(
                     invoice_path = await save_invoice_pdf(pdf_buffer, updated_order.id)
                     await order_repository.update(
                         updated_order.id,
-                        OrderInternalUpdate(**{"invoicePath": invoice_path, "invoiceGeneratedAt": now_iso}),
+                        OrderInternalUpdate(invoicePath=invoice_path, invoiceGeneratedAt=now_iso),
                     )
             except Exception as invoice_err:
                 logger.error("[ValetResponse] Invoice generation failed: %s", invoice_err)
@@ -2772,13 +2760,11 @@ async def valet_response(
 
     await order_repository.update(
         order_id,
-        OrderInternalUpdate(**{
-            "valetDeclinedAt": now_iso,
-            "valetDeclineReason": response_data.declineReason or "",
-            "valetDeclineHistory": decline_history,
-            "pendingValetId": None,
-            "valetCascadeCount": (order.valet_cascade_count or 0) + 1,
-        }),
+        OrderInternalUpdate(valetDeclinedAt=now_iso,
+            valetDeclineReason=response_data.declineReason or "",
+            valetDeclineHistory=decline_history,
+            pendingValetId=None,
+            valetCascadeCount=(order.valet_cascade_count or 0) + 1,),
     )
 
     # Try to find the next available valet (cascade)
@@ -2791,10 +2777,8 @@ async def valet_response(
         next_valet_id = str(next_valet.id)
         updated_order = await order_repository.update(
             order_id,
-            OrderInternalUpdate(**{
-                "pendingValetId": next_valet_id,
-                "valetAssignedAt": now_iso,
-            }),
+            OrderInternalUpdate(pendingValetId=next_valet_id,
+                valetAssignedAt=now_iso,),
         )
         # Notify next valet
         try:
@@ -2815,7 +2799,7 @@ async def valet_response(
         # No more valets — revert to processing
         updated_order = await order_repository.update(
             order_id,
-            OrderInternalUpdate(**{"status": "processing", "pendingValetId": None, "valetAssignedAt": None}),
+            OrderInternalUpdate(status="processing", pendingValetId=None, valetAssignedAt=None),
         )
         # Notify seller
         if seller_id:
@@ -2881,7 +2865,7 @@ async def confirm_sub_order_pickup(
         raise HTTPException(status_code=400, detail="Pickup already confirmed for this seller")
 
     # Mark this sub-order as picked up (pickedUpAt is auto-stamped by the repository)
-    await sub_order_repository.update(sub_order_id, SubOrderInternalUpdate(**{"pickupStatus": "picked_up"}))
+    await sub_order_repository.update(sub_order_id, SubOrderInternalUpdate(pickupStatus="picked_up"))
 
     # Re-fetch all sibling sub-orders to check if ALL pickups are done
     all_sub_orders = await sub_order_repository.findByParentOrder(order_id)
@@ -2891,7 +2875,7 @@ async def confirm_sub_order_pickup(
 
     if not remaining:
         # ── All sellers picked up — transition parent to 'out_for_delivery' ──
-        await order_repository.update(order_id, OrderInternalUpdate(**{"status": "out_for_delivery"}))
+        await order_repository.update(order_id, OrderInternalUpdate(status="out_for_delivery"))
         logger.info(
             "[ConfirmPickup] All %d sub-orders picked up for order %s — moving to out_for_delivery",
             len(all_sub_orders),
@@ -3047,7 +3031,7 @@ async def generate_invoice(order_id: str, current_user: User = Depends(require_s
 
     # Update order with invoice path
     await order_repository.update(
-        order_id, OrderInternalUpdate(**{"invoicePath": invoice_path, "invoiceGeneratedAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"})
+        order_id, OrderInternalUpdate(invoicePath=invoice_path, invoiceGeneratedAt=datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z")
     )
 
     return {"message": "Invoice generated successfully", "invoicePath": invoice_path}
@@ -3156,23 +3140,24 @@ async def update_seller_order_status(
 
     from datetime import datetime as _dt
 
-    update_fields = {"status": status_data.status}
+    internal_update = SubOrderInternalUpdate(status=status_data.status)
     if status_data.status == "delivered":
-        update_fields["deliveredAt"] = _dt.utcnow().isoformat() + "Z"
-        # Stamp commission on sub-order delivery
+        internal_update.deliveredAt = _dt.utcnow().isoformat() + "Z"
         try:
             from app.routers.commission import stamp_commission_on_delivery
 
             _comm = await stamp_commission_on_delivery(sub_order)
-            update_fields.update(_comm)
+            if "commissionPct" in _comm: internal_update.commissionPct = _comm["commissionPct"]
+            if "commissionAmount" in _comm: internal_update.commissionAmount = _comm["commissionAmount"]
+            if "commissionStatus" in _comm: internal_update.commissionStatus = _comm["commissionStatus"]
         except Exception as _ce:
             logger.warning("Commission stamp failed for sub-order %s: %s", sub_order_id, _ce)
     elif status_data.status == "cancelled":
-        update_fields["cancelledAt"] = _dt.utcnow().isoformat() + "Z"
+        internal_update.cancelledAt = _dt.utcnow().isoformat() + "Z"
     elif status_data.status == "shipped":
-        update_fields["shippedAt"] = _dt.utcnow().isoformat() + "Z"
+        internal_update.shippedAt = _dt.utcnow().isoformat() + "Z"
 
-    updated = await sub_order_repository.update(sub_order_id, SubOrderInternalUpdate(**update_fields))
+    updated = await sub_order_repository.update(sub_order_id, internal_update)
 
     # Bubble up: recalculate parent fulfillmentStatus
     parent_id = sub_order.parent_order_id

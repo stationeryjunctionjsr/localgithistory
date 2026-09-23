@@ -158,9 +158,9 @@ async def test_full_e2e_flow():
         selected_slot = slots_data[0]
 
         checkout_payload = {
-            "shippingAddress": {"zipCode": test_pincode, "city": "Delhi", "state": "Delhi", "addressLine1": "Test Addr", "name": "Cust", "phone": "9999999999"},
-            "billingAddress": {"zipCode": test_pincode, "city": "Delhi", "state": "Delhi", "addressLine1": "Test Addr", "name": "Cust", "phone": "9999999999"},
-            "shippingAddress": {"zipCode": test_pincode, "city": "Delhi", "state": "Delhi", "addressLine1": "Test Addr", "name": "Cust", "phone": "9999999999"},
+            "shippingAddress": {"zipCode": test_pincode, "city": "Delhi", "state": "Delhi", "address": "Test Addr", "name": "Cust", "phone": "9999999999"},
+            "billingAddress": {"zipCode": test_pincode, "city": "Delhi", "state": "Delhi", "address": "Test Addr", "name": "Cust", "phone": "9999999999"},
+            "shippingAddress": {"zipCode": test_pincode, "city": "Delhi", "state": "Delhi", "address": "Test Addr", "name": "Cust", "phone": "9999999999"},
             "deliverySlotId": selected_slot["slotId"],
             "deliverySlotConfigId": selected_slot["configId"],
             "deliverySlotDate": today_str,
