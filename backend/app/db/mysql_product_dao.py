@@ -600,13 +600,13 @@ class MySQLProductDAO:
             description=update_data.description if update_data.description is not None else existing.description,
             sku=update_data.sku if update_data.sku is not None else existing.sku,
             category=update_data.category if update_data.category is not None else existing.category,
-            subCategory=update_data.subCategory if update_data.subCategory is not None else existing.subCategory,
+            subCategory=update_data.subCategory if update_data.subCategory is not None else existing.sub_category,
             brand=update_data.brand if update_data.brand is not None else existing.brand,
             mrp=update_data.mrp if update_data.mrp is not None else existing.mrp,
-            mrpPerCase=update_data.mrpPerCase if update_data.mrpPerCase is not None else existing.mrpPerCase,
-            quantityPerCase=update_data.quantityPerCase if update_data.quantityPerCase is not None else existing.quantityPerCase,
+            mrpPerCase=update_data.mrpPerCase if update_data.mrpPerCase is not None else existing.mrp_per_case,
+            quantityPerCase=update_data.quantityPerCase if update_data.quantityPerCase is not None else existing.quantity_per_case,
             stock=update_data.stock if update_data.stock is not None else existing.stock,
-            isActive=update_data.isActive if update_data.isActive is not None else existing.isActive,
+            isActive=update_data.isActive if update_data.isActive is not None else existing.is_active,
             rating=update_data.rating if update_data.rating is not None else existing.rating,
             reviews=update_data.reviews if update_data.reviews is not None else existing.reviews,
             images=update_data.images if update_data.images is not None else existing.images,
@@ -614,7 +614,7 @@ class MySQLProductDAO:
             videos=update_data.videos if update_data.videos is not None else existing.videos,
             sellers=update_data.sellers if update_data.sellers is not None else existing.sellers,
             details=update_data.details if update_data.details is not None else existing.details,
-            variantAttributes=update_data.variantAttributes if update_data.variantAttributes is not None else existing.variantAttributes,
+            variantAttributes=update_data.variantAttributes if update_data.variantAttributes is not None else existing.variant_attributes,
             variants=update_data.variants if update_data.variants is not None else existing.variants
         )
         factory = self._factory()

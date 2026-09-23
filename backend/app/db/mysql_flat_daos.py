@@ -59,7 +59,7 @@ class MySQLReturnSettingsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
+    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -521,7 +521,7 @@ class MySQLPushNotificationsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
+    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -727,7 +727,7 @@ class MySQLCoachMarksDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
+    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1026,7 +1026,7 @@ class MySQLGoogle_reviewsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
+    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1344,7 +1344,7 @@ class MySQLProductNotificationsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
+    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -2690,7 +2690,7 @@ class MySQLValetPayoutSettingsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Google_reviewsInternal]:
+    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -2731,7 +2731,7 @@ class MySQLValetPayoutSettingsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: ValetPayoutSettingsInternalUpdate) -> Optional[ValetPayoutSettings]:
 
         existing = await self.findById(id)
         if not existing:

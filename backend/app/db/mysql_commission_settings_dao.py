@@ -132,7 +132,7 @@ class MySQLCommissionSettingsDAO:
         if not existing:
             return None
             
-        pct = existing.defaultCommissionPct
+        pct = existing.default_commission_pct
         if update_data.defaultCommissionPct is not None:
             pct = update_data.defaultCommissionPct
             
