@@ -469,6 +469,7 @@ class DeliverySlotInternal(BaseModel):
     isFullDay: Optional[bool] = False
     isUrgent: Optional[bool] = False
     cutoffHours: Optional[int] = None
+    urgentCutoffHours: Optional[int] = None
     isActive: Optional[bool] = True
 
 class DeliverySlotConfigInternal(BaseModel):
