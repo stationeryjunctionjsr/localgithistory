@@ -3,6 +3,7 @@ import asyncio
 import uuid
 import pytest
 from app.models.daos import ProductInternalUpdate
+from app.models.schemas import ProductSellerEntry
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.models.schemas import UserCreate
@@ -126,7 +127,7 @@ async def test_full_e2e_flow():
         seller_id = seller_user_res.json()["_id"]
         
         
-        await product_repository.storage.update(prod_id, ProductInternalUpdate(catalogSellerIds=[seller_id]))
+        await product_repository.storage.update(prod_id, ProductInternalUpdate(sellers=[ProductSellerEntry(sellerId=seller_id, stock=100, isActive=True, requestStatus="approved")]))
         print("4. Product created and seller added to product.")
 
         # Create delivery charge for pincode
