@@ -166,28 +166,28 @@ class MySQLValetPayoutDAO:
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
 
-        def _handle_field(api_k, db_k, new_val):
+        def _handle_field(api_k, db_k, new_val, is_date=False):
             if new_val is not None:
                 updates.append(f"{db_k} = :{api_k}")
-                params[api_k] = new_val
+                params[api_k] = _parse_dt(new_val) if is_date else new_val
             else:
-                fallback_val = existing[api_k] if api_k in existing else None
+                fallback_val = existing.get(api_k)
                 if fallback_val is not None:
                     updates.append(f"{db_k} = :{api_k}")
-                    params[api_k] = fallback_val
+                    params[api_k] = _parse_dt(fallback_val) if is_date else fallback_val
 
         _handle_field("valetId", "valet_id", data.valetId)
         _handle_field("amount", "amount", data.amount)
         _handle_field("deliveryCount", "delivery_count", data.deliveryCount)
         _handle_field("returnCount", "return_count", data.returnCount)
-        _handle_field("periodStart", "period_start", _parse_dt(data.periodStart))
-        _handle_field("periodEnd", "period_end", _parse_dt(data.periodEnd))
+        _handle_field("periodStart", "period_start", data.periodStart, True)
+        _handle_field("periodEnd", "period_end", data.periodEnd, True)
         _handle_field("status", "status", data.status)
         _handle_field("paymentMethod", "payment_method", data.paymentMethod)
         _handle_field("paymentReference", "payment_reference", data.paymentReference)
-        _handle_field("adminPaidAt", "admin_paid_at", _parse_dt(data.adminPaidAt))
+        _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt, True)
         _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy)
-        _handle_field("valetReceivedAt", "valet_received_at", _parse_dt(data.valetReceivedAt))
+        _handle_field("valetReceivedAt", "valet_received_at", data.valetReceivedAt, True)
         _handle_field("notes", "notes", data.notes)
 
         set_sql = ", ".join(updates)

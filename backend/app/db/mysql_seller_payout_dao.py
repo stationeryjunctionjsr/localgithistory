@@ -17,7 +17,7 @@ class MySQLSellerPayoutDAO:
     def _map_row(self, row) -> Dict:
         return {
             "_id": str(row.id),
-            "id": row.id,
+            "id": str(row.id),
             "external_id": row.external_id,
             "sellerId": row.seller_id,
             "amount": float(row.amount) if row.amount is not None else 0.0,
@@ -164,26 +164,26 @@ class MySQLSellerPayoutDAO:
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
 
-        def _handle_field(api_k, db_k, new_val):
+        def _handle_field(api_k, db_k, new_val, is_date=False):
             if new_val is not None:
                 updates.append(f"{db_k} = :{api_k}")
-                params[api_k] = new_val
+                params[api_k] = _parse_dt(new_val) if is_date else new_val
             else:
-                fallback_val = existing[api_k] if api_k in existing else None
+                fallback_val = existing.get(api_k)
                 if fallback_val is not None:
                     updates.append(f"{db_k} = :{api_k}")
-                    params[api_k] = fallback_val
+                    params[api_k] = _parse_dt(fallback_val) if is_date else fallback_val
 
         _handle_field("sellerId", "seller_id", data.sellerId)
         _handle_field("amount", "amount", data.amount)
-        _handle_field("periodStart", "period_start", _parse_dt(data.periodStart))
-        _handle_field("periodEnd", "period_end", _parse_dt(data.periodEnd))
+        _handle_field("periodStart", "period_start", data.periodStart, True)
+        _handle_field("periodEnd", "period_end", data.periodEnd, True)
         _handle_field("status", "status", data.status)
         _handle_field("paymentMethod", "payment_method", data.paymentMethod)
         _handle_field("paymentReference", "payment_reference", data.paymentReference)
-        _handle_field("adminPaidAt", "admin_paid_at", _parse_dt(data.adminPaidAt))
+        _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt, True)
         _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy)
-        _handle_field("sellerReceivedAt", "seller_received_at", _parse_dt(data.sellerReceivedAt))
+        _handle_field("sellerReceivedAt", "seller_received_at", data.sellerReceivedAt, True)
         _handle_field("notes", "notes", data.notes)
 
         sub_orders = data.subOrderIds if data.subOrderIds is not None else (existing["subOrderIds"] if "subOrderIds" in existing else None)
