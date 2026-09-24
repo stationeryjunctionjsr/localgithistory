@@ -4,6 +4,7 @@ from app.models.schemas import MessageResponse
 from typing import Dict, Any, List, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.encoders import jsonable_encoder
 
 from app.models.schemas import CouponCreate, CouponValidationResponse, CouponResponse, CouponUpdate, CouponValidateCart
 from app.repositories.coupon_repository import coupon_repository
@@ -96,7 +97,7 @@ async def create_coupon(
 
         if isinstance(e, OverlapConflictError):
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail={"message": str(e), "overlap": e.overlap_data}
+                status_code=status.HTTP_409_CONFLICT, detail={"message": str(e), "overlap": jsonable_encoder(e.overlap_data)}
             )
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -122,7 +123,7 @@ async def update_coupon(
 
         if isinstance(e, OverlapConflictError):
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail={"message": str(e), "overlap": e.overlap_data}
+                status_code=status.HTTP_409_CONFLICT, detail={"message": str(e), "overlap": jsonable_encoder(e.overlap_data)}
             )
         raise HTTPException(status_code=400, detail=str(e))
 

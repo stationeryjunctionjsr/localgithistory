@@ -428,12 +428,12 @@ class BundlesListResponse(BaseModel):
 class ProductBase(BaseModel):
     name: str
     sku: Optional[str] = None
-    category: str
+    category: Optional[str] = None
     subCategory: Optional[str] = None
     description: Optional[str] = None
     brand: Optional[str] = None
     collection: Optional[str] = None
-    mrp: float  # MRP per unit (retail; also used for business when selling by unit)
+    mrp: Optional[float] = None  # MRP per unit (retail; also used for business when selling by unit)
     mrpPerCase: Optional[float] = None  # MRP per case (business only)
     quantityPerCase: Optional[int] = None  # Units per case (for business case pricing and stock)
     stock: Optional[int] = None  # Total units (reduced by units sold or by cases * quantityPerCase)
@@ -1191,7 +1191,7 @@ class SkinnyProductResponse(BaseModel):
     productIdFormatted: Optional[str] = None
     name: str
     sku: Optional[str] = None
-    category: str
+    category: Optional[str] = None
     subCategory: Optional[str] = None
     brand: Optional[str] = None
     collection: Optional[str] = None

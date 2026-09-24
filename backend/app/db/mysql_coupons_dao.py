@@ -91,102 +91,126 @@ class MySQLCouponsDAO:
         external_id = secrets.token_hex(16)
         
         cols = ["external_id", "created_at", "updated_at"]
+        vals = [":eid", ":c", ":u"]
         params = {"eid": external_id, "c": now, "u": now}
 
         if data.code is not None:
             cols.append("code")
+            vals.append(":s_code")
             params["s_code"] = data.code
 
         if data.discountType is not None:
             cols.append("discount_type")
+            vals.append(":s_discountType")
             params["s_discountType"] = data.discountType
 
         if data.discountValue is not None:
             cols.append("discount_value")
+            vals.append(":s_discountValue")
             params["s_discountValue"] = data.discountValue
 
         if data.minOrderValue is not None:
             cols.append("min_order_value")
+            vals.append(":s_minOrderValue")
             params["s_minOrderValue"] = data.minOrderValue
 
         if data.maxUses is not None:
             cols.append("max_uses")
+            vals.append(":s_maxUses")
             params["s_maxUses"] = data.maxUses
 
         if data.usedCount is not None:
             cols.append("used_count")
+            vals.append(":s_usedCount")
             params["s_usedCount"] = data.usedCount
 
         if data.validFrom is not None:
             cols.append("start_date")
+            vals.append(":s_validFrom")
             params["s_validFrom"] = data.validFrom
 
         if data.validUntil is not None:
             cols.append("end_date")
+            vals.append(":s_validUntil")
             params["s_validUntil"] = data.validUntil
 
         if data.isActive is not None:
             cols.append("is_active")
+            vals.append(":s_isActive")
             params["s_isActive"] = data.isActive
 
         if data.typeOfDiscount is not None:
             cols.append("type_of_discount")
+            vals.append(":s_typeOfDiscount")
             params["s_typeOfDiscount"] = data.typeOfDiscount
 
         if data.method is not None:
             cols.append("method")
+            vals.append(":s_method")
             params["s_method"] = data.method
 
         if data.minRequirementType is not None:
             cols.append("min_requirement_type")
+            vals.append(":s_minRequirementType")
             params["s_minRequirementType"] = data.minRequirementType
 
         if data.minQuantityOfEligibleItems is not None:
             cols.append("min_quantity_of_eligible_items")
+            vals.append(":s_minQuantityOfEligibleItems")
             params["s_minQuantityOfEligibleItems"] = data.minQuantityOfEligibleItems
 
         if data.maxDiscountAmount is not None:
             cols.append("max_discount_amount")
+            vals.append(":s_maxDiscountAmount")
             params["s_maxDiscountAmount"] = data.maxDiscountAmount
 
         if data.appliesToType is not None:
             cols.append("applies_to_type")
+            vals.append(":s_appliesToType")
             params["s_appliesToType"] = data.appliesToType
 
         if data.displayId is not None:
             cols.append("display_id")
+            vals.append(":s_displayId")
             params["s_displayId"] = data.displayId
 
         if data.buyXGetYCustomerGetsAppliesToValueIds is not None:
             cols.append("bxgy_applies_to_ids")
+            vals.append(":s_bxgy_applies_to_ids")
             params["s_bxgy_applies_to_ids"] = json.dumps(data.buyXGetYCustomerGetsAppliesToValueIds)
 
         if data.buyXGetYCustomerGetsDiscountType is not None:
             cols.append("bxgy_discount_type")
+            vals.append(":s_bxgy_discount_type")
             params["s_bxgy_discount_type"] = data.buyXGetYCustomerGetsDiscountType
 
         if data.buyXGetYCustomerGetsDiscountValue is not None:
             cols.append("bxgy_discount_value")
+            vals.append(":s_bxgy_discount_value")
             params["s_bxgy_discount_value"] = data.buyXGetYCustomerGetsDiscountValue
 
         if data.applicableItemType is not None:
             cols.append("applicable_item_type")
+            vals.append(":s_applicable_item_type")
             params["s_applicable_item_type"] = data.applicableItemType
 
         if data.couponMode is not None:
             cols.append("coupon_mode")
+            vals.append(":s_coupon_mode")
             params["s_coupon_mode"] = data.couponMode
 
         if data.maxUsagePerUser is not None:
             cols.append("max_usage_per_user")
+            vals.append(":s_max_usage_per_user")
             params["s_max_usage_per_user"] = data.maxUsagePerUser
 
         if data.userBehavior is not None:
             cols.append("user_behavior")
+            vals.append(":s_user_behavior")
             params["s_user_behavior"] = data.userBehavior
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['code', 'discountType', 'discountValue', 'minOrderValue', 'maxUses', 'usedCount', 'validFrom', 'validUntil', 'isActive', 'typeOfDiscount', 'method', 'minRequirementType', 'minQuantityOfEligibleItems', 'maxDiscountAmount', 'appliesToType'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join(vals)
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)

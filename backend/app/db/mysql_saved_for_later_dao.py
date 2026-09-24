@@ -100,10 +100,10 @@ class MySQLSavedForLaterDAO:
         now = now_utc()
         async with factory() as session:
             for item in items:
-                product_id = item.productId or item.product_id
+                product_id = item.product
                 if not product_id:
                     continue
-                saved_at = _to_ts(item.savedAt or item.saved_at) or now
+                saved_at = _to_ts(item.addedAt) or now
                 await session.execute(
                     text(
                         f"""
@@ -138,10 +138,10 @@ class MySQLSavedForLaterDAO:
             )
             await session.commit()
             for item in items:
-                product_id = item.productId or item.product_id
+                product_id = item.product
                 if not product_id:
                     continue
-                saved_at = _to_ts(item.savedAt or item.saved_at) or now
+                saved_at = _to_ts(item.addedAt) or now
                 await session.execute(
                     text(
                         f"""

@@ -299,8 +299,8 @@ async def upload_category_images(
         raise HTTPException(status_code=500, detail="Server error")
 
 
-@router.post("", response_model=Category)
-@router.post("/", response_model=Category)
+@router.post("", response_model=Category, status_code=201)
+@router.post("/", response_model=Category, status_code=201)
 async def create_category(category: CategoryBase, current_user: User = Depends(require_super_admin)):
     """Create a new category (Super Admin only)"""
     try:
