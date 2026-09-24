@@ -1682,7 +1682,7 @@ async def create_order(
             exc_info=True,
         )
         try:
-            await order_repository.update(order.id, {"status": "failed"})
+            await order_repository.update(str(order.id), OrderInternalUpdate(status="failed"))
         except Exception:
             logger.error("[OrderCreate] Could not mark order %s as failed.", order.id, exc_info=True)
 

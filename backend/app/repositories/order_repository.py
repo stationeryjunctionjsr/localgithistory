@@ -25,14 +25,14 @@ class OrderRepository:
             # Generate incremental ID for each type
             all_orders = await self.storage.findAll()
             orders_of_type = [
-                order for order in all_orders if order.orderNumber and order.orderNumber.startswith(prefix)
+                order for order in all_orders if order.order_number and order.order_number.startswith(prefix)
             ]
 
             max_id = 0
             import re
 
             for order in orders_of_type:
-                match = re.match(f"{re.escape(prefix)}(\\d+)", order.orderNumber)
+                match = re.match(f"{re.escape(prefix)}(\\d+)", order.order_number)
                 if match:
                     max_id = max(max_id, int(match.group(1)))
 
@@ -87,10 +87,13 @@ class OrderRepository:
                 if update_data.codPaymentReceivedAt is None:
                     update_data.codPaymentReceivedAt = datetime.now(timezone.utc).isoformat()
             try:
-                created_at_str = order.createdAt if order else None
-                if created_at_str and update_data.deliveredAt:
-                    created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                created_at = order.created_at if order else None
+                if created_at and created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+                if created_at and update_data.deliveredAt:
                     delivered_at = datetime.fromisoformat(update_data.deliveredAt.replace("Z", "+00:00"))
+                    if delivered_at.tzinfo is None:
+                        delivered_at = delivered_at.replace(tzinfo=timezone.utc)
                     hours = (delivered_at - created_at).total_seconds() / 3600.0
                     update_data.turnaroundHours = round(hours, 2)
             except Exception as e:

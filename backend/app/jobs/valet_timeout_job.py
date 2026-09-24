@@ -9,6 +9,7 @@ or reverts to `processing`/`pending` and notifies the seller/admin.
 from datetime import datetime, timedelta, timezone
 from app.repositories.order_repository import order_repository
 from app.repositories.return_request_repository import return_request_repository
+from app.models.daos_flat import OrderInternalUpdate, ReturnRequestInternalUpdate
 from app.repositories.user_repository import user_repository
 from app.utils.logger import logger
 URGENT_TIMEOUT_MINUTES = 5
@@ -28,7 +29,7 @@ async def _cascade_or_revert(order):
     if next_valet:
         next_valet_id = str(next_valet.id)
         cascade_count = ((order.valetCascadeCount) or 0) + 1
-        await order_repository.update(order_id, {'pendingValetId': next_valet_id, 'valetAssignedAt': now_iso, 'valetCascadeCount': cascade_count, 'valetDeclineHistory': declined_history})
+        await order_repository.update(order_id, OrderInternalUpdate(pendingValetId=next_valet_id, valetAssignedAt=now_iso, valetCascadeCount=cascade_count, valetDeclineHistory=declined_history))
         try:
             from app.services.push_notification_service import push_notification_service
             timeout_label = '5 minutes' if is_urgent else '20 minutes'
@@ -37,7 +38,7 @@ async def _cascade_or_revert(order):
             logger.error('[ValetTimeout] Failed to notify next valet %s: %s', next_valet_id, e)
         logger.info('[ValetTimeout] Order %s cascaded to valet %s (cascade #%d)', order_id, next_valet_id, cascade_count)
     else:
-        await order_repository.update(order_id, {'status': 'processing', 'pendingValetId': None, 'valetAssignedAt': None, 'valetCascadeCount': ((order.valetCascadeCount) or 0) + 1})
+        await order_repository.update(order_id, OrderInternalUpdate(status='processing', pendingValetId=None, valetAssignedAt=None, valetCascadeCount=((order.valetCascadeCount) or 0) + 1))
         if seller_id:
             try:
                 from app.services.push_notification_service import push_notification_service
@@ -265,7 +266,7 @@ async def _cascade_or_revert_return(return_req):
     if next_valet:
         next_valet_id = str(next_valet.id)
         cascade_count = ((return_req.valetCascadeCount) or 0) + 1
-        await return_request_repository.update(req_id, {'status': 'pending_valet', 'pendingValetId': next_valet_id, 'valetAssignedAt': now_iso, 'valetCascadeCount': cascade_count, 'valetDeclineHistory': declined_history})
+        await return_request_repository.update(req_id, ReturnRequestInternalUpdate(status='pending_valet', pendingValetId=next_valet_id, valetAssignedAt=now_iso, valetCascadeCount=cascade_count, valetDeclineHistory=declined_history))
         try:
             from app.services.push_notification_service import push_notification_service
             return_num = return_req.returnId or req_id
@@ -274,7 +275,7 @@ async def _cascade_or_revert_return(return_req):
             logger.error('[ValetTimeout] Failed to notify next valet for return %s: %s', next_valet_id, e)
         logger.info('[ValetTimeout] Return %s cascaded to valet %s (cascade #%d)', req_id, next_valet_id, cascade_count)
     else:
-        await return_request_repository.update(req_id, {'status': 'pending', 'pendingValetId': None, 'valetAssignedAt': None, 'valetCascadeCount': ((return_req.valetCascadeCount) or 0) + 1})
+        await return_request_repository.update(req_id, ReturnRequestInternalUpdate(status='pending', pendingValetId=None, valetAssignedAt=None, valetCascadeCount=((return_req.valetCascadeCount) or 0) + 1))
         try:
             from app.services.push_notification_service import push_notification_service
             super_admin = await user_repository.findOne({'role': 'super_admin'})
@@ -312,7 +313,7 @@ async def run_valet_timeout_job():
                             from app.models.schemas import ValetDeclineHistory
                             history.append(ValetDeclineHistory(valetId=pending_valet_id, reason='timeout'))
                         order.valetDeclineHistory = history
-                        await order_repository.update(str(order.id), {'valetDeclineHistory': history, 'pendingValetId': None})
+                        await order_repository.update(str(order.id), OrderInternalUpdate(valetDeclineHistory=history, pendingValetId=None))
                         order = await order_repository.findById(str(order.id))
                     await _cascade_or_revert(order)
         pending_returns = await return_request_repository.findAll({'status': 'pending_valet'})
@@ -337,7 +338,7 @@ async def run_valet_timeout_job():
                             from app.models.schemas import ValetDeclineHistory
                             history.append(ValetDeclineHistory(valetId=pending_valet_id, reason='timeout'))
                         ret.valetDeclineHistory = history
-                        await return_request_repository.update(req_id, {'valetDeclineHistory': history, 'pendingValetId': None})
+                        await return_request_repository.update(req_id, ReturnRequestInternalUpdate(valetDeclineHistory=history, pendingValetId=None))
                         ret = await return_request_repository.findById(req_id)
                     await _cascade_or_revert_return(ret)
     except Exception as e:

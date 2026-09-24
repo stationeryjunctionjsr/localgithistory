@@ -218,7 +218,7 @@ async def maybe_realize_commission(sub_order: dict) -> dict:
     if await is_return_period_over(sub_order):
         from app.repositories.sub_order_repository import sub_order_repository
 
-        updated = await sub_order_repository.update(sub_order["_id"], {"commissionStatus": "realized"})
+        updated = await sub_order_repository.update(sub_order["_id"], SubOrderInternalUpdate(commissionStatus="realized"))
         return updated if updated else {**sub_order, "commissionStatus": "realized"}
 
     return sub_order

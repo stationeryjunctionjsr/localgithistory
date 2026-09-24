@@ -132,7 +132,7 @@ async def create_seller_payout(
     # Mark included sub-orders as commission paid
     for so_id in data.subOrderIds or []:
         try:
-            await sub_order_repository.update(so_id, {"commissionStatus": "paid", "commissionPaidAt": now})
+            await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid", commissionPaidAt=now))
         except Exception as e:
             logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
 
@@ -183,7 +183,7 @@ async def settle_all_seller_payouts(
     # Mark included sub-orders as paid
     for so_id in sub_order_ids:
         try:
-            await sub_order_repository.update(so_id, {"commissionStatus": "paid", "commissionPaidAt": now})
+            await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid", commissionPaidAt=now))
         except Exception as e:
             logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
 
