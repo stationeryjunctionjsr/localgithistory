@@ -108,13 +108,19 @@ class ProductNotificationRepository:
         </div>
         """
 
-        for notif in active_notifs:
-            email = notif.email if hasattr(notif, "email") else notif.get("email")
-            if email:
-                # Send email
-                email_service.send_email(email, subject, plain_text_body, html_body=html_body)
-                # Mark as notified
-                await self.storage.update(notif.id if hasattr(notif, "id") else notif.get("_id"), ProductNotificationsInternalUpdate(status="notified"))
+        import traceback
+        from app.utils.logger import logger
+        try:
+            for notif in active_notifs:
+                if notif.email:
+                    # Send email
+                    import asyncio
+                    await asyncio.to_thread(email_service.send_email, notif.email, subject, plain_text_body, html_body=html_body)
+                    # Mark as notified
+                    await self.storage.update(notif.id, ProductNotificationsInternalUpdate(status="notified"))
+        except Exception as e:
+            logger.error(f"Restock notification crashed: {e}
+{traceback.format_exc()}")
 
 
 product_notification_repository = ProductNotificationRepository()
