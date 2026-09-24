@@ -412,10 +412,11 @@ from app.routers import content_pages
 app.include_router(content_pages.router, prefix="/api/content", tags=["content-pages"])
 app.include_router(bundles.router, prefix="/api/bundles", tags=["bundles"])
 
-from app.routers import commission, valet_payout, valet_availability, availability_requests
+from app.routers import commission, valet_payout, valet_availability, availability_requests, seller_payouts
 
 app.include_router(commission.router, prefix="/api/commission", tags=["commission"])
-app.include_router(valet_payout.router, prefix="/api/valet-payout", tags=["valet-payout"])
+app.include_router(valet_payout.router, prefix="/api/valet-payouts", tags=["valet-payouts"])
+app.include_router(seller_payouts.router, prefix="/api/seller-payouts", tags=["seller-payouts"])
 app.include_router(valet_availability.router, prefix="/api/valet-availability", tags=["valet-availability"])
 app.include_router(availability_requests.router, prefix="/api/availability-requests", tags=["availability_requests"])
 

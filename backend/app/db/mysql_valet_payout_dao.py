@@ -109,11 +109,11 @@ class MySQLValetPayoutDAO:
         if data.periodStart is not None:
             cols.append("period_start")
             vals.append(":periodStart")
-            params["periodStart"] = data.periodStart
+            params["periodStart"] = _parse_dt(data.periodStart)
         if data.periodEnd is not None:
             cols.append("period_end")
             vals.append(":periodEnd")
-            params["periodEnd"] = data.periodEnd
+            params["periodEnd"] = _parse_dt(data.periodEnd)
         if data.status is not None:
             cols.append("status")
             vals.append(":status")
@@ -129,7 +129,7 @@ class MySQLValetPayoutDAO:
         if data.adminPaidAt is not None:
             cols.append("admin_paid_at")
             vals.append(":adminPaidAt")
-            params["adminPaidAt"] = data.adminPaidAt
+            params["adminPaidAt"] = _parse_dt(data.adminPaidAt)
         if data.adminPaidBy is not None:
             cols.append("admin_paid_by")
             vals.append(":adminPaidBy")
@@ -137,7 +137,7 @@ class MySQLValetPayoutDAO:
         if data.valetReceivedAt is not None:
             cols.append("valet_received_at")
             vals.append(":valetReceivedAt")
-            params["valetReceivedAt"] = data.valetReceivedAt
+            params["valetReceivedAt"] = _parse_dt(data.valetReceivedAt)
         if data.notes is not None:
             cols.append("notes")
             vals.append(":notes")
@@ -180,14 +180,14 @@ class MySQLValetPayoutDAO:
         _handle_field("amount", "amount", data.amount)
         _handle_field("deliveryCount", "delivery_count", data.deliveryCount)
         _handle_field("returnCount", "return_count", data.returnCount)
-        _handle_field("periodStart", "period_start", data.periodStart)
-        _handle_field("periodEnd", "period_end", data.periodEnd)
+        _handle_field("periodStart", "period_start", _parse_dt(data.periodStart))
+        _handle_field("periodEnd", "period_end", _parse_dt(data.periodEnd))
         _handle_field("status", "status", data.status)
         _handle_field("paymentMethod", "payment_method", data.paymentMethod)
         _handle_field("paymentReference", "payment_reference", data.paymentReference)
-        _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt)
+        _handle_field("adminPaidAt", "admin_paid_at", _parse_dt(data.adminPaidAt))
         _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy)
-        _handle_field("valetReceivedAt", "valet_received_at", data.valetReceivedAt)
+        _handle_field("valetReceivedAt", "valet_received_at", _parse_dt(data.valetReceivedAt))
         _handle_field("notes", "notes", data.notes)
 
         set_sql = ", ".join(updates)
@@ -210,3 +210,13 @@ class MySQLValetPayoutDAO:
             )
             await session.commit()
             return res.rowcount > 0
+def _parse_dt(dt_val):
+    if isinstance(dt_val, str):
+        try:
+            from datetime import datetime
+            return datetime.fromisoformat(dt_val.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+    return dt_val
+
+

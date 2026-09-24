@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field
 
 from app.models.user import User
 from app.models.schemas import MessageResponse, SellerPayoutDetailResponse, MarkPaidRequest
-from app.models.daos import SellerPayoutInternalCreate, SellerPayoutInternalUpdate, SubOrderInternalUpdate
+from app.models.daos import SellerPayoutInternalCreate, SellerPayoutInternalUpdate
+from app.models.sub_order import SubOrderInternalUpdate
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_current_user, is_seller_admin, require_super_admin, require_super_admin_or_seller
 from app.utils.logger import logger
