@@ -70,7 +70,7 @@ async def test_full_returns_e2e_flow():
         res = await client.get(f"/api/returns/order/{order_id}/eligibility", headers=cust_auth)
         assert res.status_code == 200, res.text
         eligibility = res.json()
-        assert len(eligibility["eligibleItems"]) > 0, "No items eligible for return!"
+        assert len(eligibility["eligibleItems"]) > 0, f"No items eligible for return! Reason: {eligibility.get('reason')}"
 
         # Request Return
         return_payload = {

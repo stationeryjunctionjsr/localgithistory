@@ -106,6 +106,22 @@ class OrderInternalCreate(BaseModel):
     idempotencyKey: Optional[str] = None
 
 class OrderInternalUpdate(BaseModel, extra='forbid'):
+
+    user: Optional[str] = None
+    orderNumber: Optional[str] = None
+    subtotal: Optional[float] = None
+    tax: Optional[float] = None
+    discount: Optional[float] = None
+    orderType: Optional[str] = None
+    paymentMethod: Optional[str] = None
+    upiPaymentScreenshot: Optional[str] = None
+    shippingAddress: Optional['OrderAddress'] = None
+    billingAddress: Optional['OrderAddress'] = None
+    notes: Optional[str] = None
+    printedBill: Optional[bool] = None
+    isUrgentDelivery: Optional[bool] = None
+    items: Optional[List['OrderItem']] = None
+
     status: Optional[str] = None
     shippedAt: Optional[str] = None
     valetDeclineHistory: Optional[List[ValetDeclineHistoryEntry]] = None
