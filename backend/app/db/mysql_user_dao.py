@@ -133,13 +133,17 @@ class MySQLUserDAO:
             return []
         where_sql, params = self._build_query_conditions(query or {})
         async with factory() as session:
-            query_str = f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC\n            '
-            if limit is not None:
-                query_str += f' LIMIT {int(limit)}'
-            if skip is not None:
-                query_str += f' OFFSET {int(skip)}'
-            rows = (await session.execute(text(query_str), params)).fetchall()
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
+            try:
+                query_str = f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC\n            '
+                if limit is not None:
+                    query_str += f' LIMIT {int(limit)}'
+                if skip is not None:
+                    query_str += f' OFFSET {int(skip)}'
+                rows = (await session.execute(text(query_str), params)).fetchall()
+                children_map = await self._fetch_children(session, [int(r.id) for r in rows])
+            except Exception as e:
+                await session.rollback()
+                raise e
         from app.models.user import User
         docs = [UserResponse.model_validate(_map_to_schema(r, children_map[int(r.id)] if int(r.id) in children_map else {})) for r in rows]
         pass
@@ -162,10 +166,14 @@ class MySQLUserDAO:
         if not factory:
             return None
         async with factory() as session:
-            row = (await session.execute(text(f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE id = :id\n            '), {'id': int(id) if str(id).isdigit() else None})).fetchone()
-            if not row:
-                return None
-            children_map = await self._fetch_children(session, [int(row.id)])
+            try:
+                row = (await session.execute(text(f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE id = :id\n            '), {'id': int(id) if str(id).isdigit() else None})).fetchone()
+                if not row:
+                    return None
+                children_map = await self._fetch_children(session, [int(row.id)])
+            except Exception as e:
+                await session.rollback()
+                raise e
         return _map_to_schema(row, children_map[int(row.id)])
 
     async def findByEmail(self, email: str) -> Optional[User]:
@@ -173,10 +181,14 @@ class MySQLUserDAO:
         if not factory or not email:
             return None
         async with factory() as session:
-            row = (await session.execute(text(f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE LOWER(email) = :email LIMIT 1\n            '), {'email': email.lower()})).fetchone()
-            if not row:
-                return None
-            children_map = await self._fetch_children(session, [int(row.id)])
+            try:
+                row = (await session.execute(text(f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE LOWER(email) = :email LIMIT 1\n            '), {'email': email.lower()})).fetchone()
+                if not row:
+                    return None
+                children_map = await self._fetch_children(session, [int(row.id)])
+            except Exception as e:
+                await session.rollback()
+                raise e
         return _map_to_schema(row, children_map[int(row.id)])
 
     async def findByPhone(self, phone: str) -> Optional[User]:
@@ -187,10 +199,14 @@ class MySQLUserDAO:
         if not normalized:
             return None
         async with factory() as session:
-            row = (await session.execute(text(f"\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE phone = :phone OR REGEXP_REPLACE(phone, '[^0-9]', '') = :normalized LIMIT 1\n            "), {'phone': phone, 'normalized': normalized})).fetchone()
-            if not row:
-                return None
-            children_map = await self._fetch_children(session, [int(row.id)])
+            try:
+                row = (await session.execute(text(f"\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE phone = :phone OR REGEXP_REPLACE(phone, '[^0-9]', '') = :normalized LIMIT 1\n            "), {'phone': phone, 'normalized': normalized})).fetchone()
+                if not row:
+                    return None
+                children_map = await self._fetch_children(session, [int(row.id)])
+            except Exception as e:
+                await session.rollback()
+                raise e
         return _map_to_schema(row, children_map[int(row.id)])
 
     async def findByReferralCode(self, referral_code: str) -> Optional[User]:
@@ -198,10 +214,14 @@ class MySQLUserDAO:
         if not factory or not referral_code:
             return None
         async with factory() as session:
-            row = (await session.execute(text(f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE UPPER(referral_code) = :referral_code LIMIT 1\n            '), {'referral_code': referral_code.upper()})).fetchone()
-            if not row:
-                return None
-            children_map = await self._fetch_children(session, [int(row.id)])
+            try:
+                row = (await session.execute(text(f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE UPPER(referral_code) = :referral_code LIMIT 1\n            '), {'referral_code': referral_code.upper()})).fetchone()
+                if not row:
+                    return None
+                children_map = await self._fetch_children(session, [int(row.id)])
+            except Exception as e:
+                await session.rollback()
+                raise e
         return _map_to_schema(row, children_map[int(row.id)])
 
     async def create(self, data: UserInternalCreate) -> User:
@@ -211,47 +231,51 @@ class MySQLUserDAO:
         if not factory:
             raise RuntimeError('MySQL not configured')
         async with factory() as session:
-            next_id = (await session.execute(text(f'SELECT IFNULL(MAX(id), 0) + 1 FROM {self.TABLE}'))).scalar() or 1
-            user_id_formatted = f'USER-{next_id}'
-            await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name, gst_number,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                    bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                    created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name, :gst_number,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :upi_id, :qr_code_url,\n                    :bank_account_number, :bank_ifsc_code, :bank_account_holder, :bank_name,\n                    :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.companyName, 'gst_number': data.gstin, 'is_active': 1 if (data.isActive if data.isActive is not None else True) else 0, 'approval_status': data.approvalStatus if data.approvalStatus is not None else 'approved', 'is_deactivated': 1 if data.isDeactivated else 0, 'credit_limit': data.creditLimit if data.creditLimit is not None else 0, 'credit_used': data.creditUsed if data.creditUsed is not None else 0, 'payment_terms': str(data.paymentTerms if data.paymentTerms is not None else '30'), 'assigned_salesperson': data.assignedSalesperson, 'is_email_verified': 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else 0, 'referral_code': data.referralCode, 'is_seller_admin': 1 if data.isSellerAdmin else 0, 'is_on_duty': 1 if data.isOnDuty else 0, 'commission_override_pct': data.commissionOverridePct, 'upi_id': data.upiId, 'qr_code_url': data.qrCodeUrl, 'bank_account_number': data.bankAccountNumber, 'bank_ifsc_code': data.bankIfscCode, 'bank_account_holder': data.bankAccountHolder, 'bank_name': data.bankName, 'created_at': now, 'updated_at': now})
-            new_id = (await session.execute(text(f'SELECT id FROM {self.TABLE} WHERE external_id = :eid'), {'eid': external_id})).scalar()
-            temp_user = User(
-                _id=str(new_id),
-                userId=new_id,
-                userIdFormatted=user_id_formatted,
-                name=data.name,
-                email=data.email,
-                password=data.password,
-                role=data.role,
-                phone=data.phone,
-                companyName=data.companyName,
-                gstin=data.gstin,
-                address=data.address,
-                savedAddresses=data.savedAddresses if data.savedAddresses else [],
-                isActive=data.isActive if data.isActive is not None else True,
-                approvalStatus=data.approvalStatus if data.approvalStatus is not None else 'approved',
-                isDeactivated=data.isDeactivated if data.isDeactivated is not None else False,
-                creditLimit=data.creditLimit if data.creditLimit is not None else 0.0,
-                creditUsed=data.creditUsed if data.creditUsed is not None else 0.0,
-                paymentTerms=data.paymentTerms,
-                assignedSalesperson=data.assignedSalesperson,
-                isEmailVerified=data.isEmailVerified if data.isEmailVerified is not None else False,
-                referralCode=data.referralCode,
-                isSellerAdmin=data.isSellerAdmin if data.isSellerAdmin is not None else False,
-                serviceAreaZones=data.serviceAreaZones if data.serviceAreaZones else [],
-                isOnDuty=data.isOnDuty if data.isOnDuty is not None else False,
-                commissionOverridePct=data.commissionOverridePct,
-                upiId=data.upiId,
-                qrCodeUrl=data.qrCodeUrl,
-                bankAccountNumber=data.bankAccountNumber,
-                bankIfscCode=data.bankIfscCode,
-                bankAccountHolder=data.bankAccountHolder,
-                bankName=data.bankName,
-                createdAt=now,
-                updatedAt=now
-            )
-            await self._replace_children(session, new_id, temp_user)
-            await session.commit()
+            try:
+                next_id = (await session.execute(text(f'SELECT IFNULL(MAX(id), 0) + 1 FROM {self.TABLE}'))).scalar() or 1
+                user_id_formatted = f'USER-{next_id}'
+                await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name, gst_number,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                    bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                    created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name, :gst_number,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :upi_id, :qr_code_url,\n                    :bank_account_number, :bank_ifsc_code, :bank_account_holder, :bank_name,\n                    :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.companyName, 'gst_number': data.gstin, 'is_active': 1 if (data.isActive if data.isActive is not None else True) else 0, 'approval_status': data.approvalStatus if data.approvalStatus is not None else 'approved', 'is_deactivated': 1 if data.isDeactivated else 0, 'credit_limit': data.creditLimit if data.creditLimit is not None else 0, 'credit_used': data.creditUsed if data.creditUsed is not None else 0, 'payment_terms': str(data.paymentTerms if data.paymentTerms is not None else '30'), 'assigned_salesperson': data.assignedSalesperson, 'is_email_verified': 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else 0, 'referral_code': data.referralCode, 'is_seller_admin': 1 if data.isSellerAdmin else 0, 'is_on_duty': 1 if data.isOnDuty else 0, 'commission_override_pct': data.commissionOverridePct, 'upi_id': data.upiId, 'qr_code_url': data.qrCodeUrl, 'bank_account_number': data.bankAccountNumber, 'bank_ifsc_code': data.bankIfscCode, 'bank_account_holder': data.bankAccountHolder, 'bank_name': data.bankName, 'created_at': now, 'updated_at': now})
+                new_id = (await session.execute(text(f'SELECT id FROM {self.TABLE} WHERE external_id = :eid'), {'eid': external_id})).scalar()
+                temp_user = User(
+                    _id=str(new_id),
+                    userId=new_id,
+                    userIdFormatted=user_id_formatted,
+                    name=data.name,
+                    email=data.email,
+                    password=data.password,
+                    role=data.role,
+                    phone=data.phone,
+                    companyName=data.companyName,
+                    gstin=data.gstin,
+                    address=data.address,
+                    savedAddresses=data.savedAddresses if data.savedAddresses else [],
+                    isActive=data.isActive if data.isActive is not None else True,
+                    approvalStatus=data.approvalStatus if data.approvalStatus is not None else 'approved',
+                    isDeactivated=data.isDeactivated if data.isDeactivated is not None else False,
+                    creditLimit=data.creditLimit if data.creditLimit is not None else 0.0,
+                    creditUsed=data.creditUsed if data.creditUsed is not None else 0.0,
+                    paymentTerms=data.paymentTerms,
+                    assignedSalesperson=data.assignedSalesperson,
+                    isEmailVerified=data.isEmailVerified if data.isEmailVerified is not None else False,
+                    referralCode=data.referralCode,
+                    isSellerAdmin=data.isSellerAdmin if data.isSellerAdmin is not None else False,
+                    serviceAreaZones=data.serviceAreaZones if data.serviceAreaZones else [],
+                    isOnDuty=data.isOnDuty if data.isOnDuty is not None else False,
+                    commissionOverridePct=data.commissionOverridePct,
+                    upiId=data.upiId,
+                    qrCodeUrl=data.qrCodeUrl,
+                    bankAccountNumber=data.bankAccountNumber,
+                    bankIfscCode=data.bankIfscCode,
+                    bankAccountHolder=data.bankAccountHolder,
+                    bankName=data.bankName,
+                    createdAt=now,
+                    updatedAt=now
+                )
+                await self._replace_children(session, new_id, temp_user)
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                raise e
         return await self.findById(str(new_id))
 
     async def add_credit_used_atomic(self, id: str, amount: float) -> bool:
@@ -263,11 +287,15 @@ class MySQLUserDAO:
             return False
         from sqlalchemy import text
         async with factory() as session:
-            res = await session.execute(text(f'\n                    UPDATE {self.TABLE} \n                    SET credit_used = COALESCE(credit_used, 0) + :amount,\n                        updated_at = UTC_TIMESTAMP()\n                    WHERE id = :uid \n                    AND (credit_limit IS NULL OR credit_limit = 0 OR COALESCE(credit_used, 0) + :amount <= credit_limit)\n                '), {'uid': uid, 'amount': amount})
-            await session.commit()
-            return res.rowcount > 0
+            try:
+                res = await session.execute(text(f'\n                    UPDATE {self.TABLE} \n                    SET credit_used = COALESCE(credit_used, 0) + :amount,\n                        updated_at = UTC_TIMESTAMP()\n                    WHERE id = :uid \n                    AND (credit_limit IS NULL OR credit_limit = 0 OR COALESCE(credit_used, 0) + :amount <= credit_limit)\n                '), {'uid': uid, 'amount': amount})
+                await session.commit()
+                return res.rowcount > 0
 
 
+            except Exception as e:
+                await session.rollback()
+                raise e
     async def update(self, id: str, update_data: Any) -> Optional[User]:
         existing = await self.findById(id)
         if not existing:
@@ -303,76 +331,84 @@ class MySQLUserDAO:
         bank_account_holder = update_data.bankAccountHolder if update_data.bankAccountHolder is not None else existing.bank_account_holder
         bank_name = update_data.bankName if update_data.bankName is not None else existing.bank_name
         async with factory() as session:
-            await session.execute(text('''
-                UPDATE sj_users SET
-                    name = :name, email = :email, password_hash = :password_hash, role = :role, phone = :phone,
-                    company_name = :company_name, gst_number = :gst_number, is_active = :is_active, approval_status = :approval_status,
-                    is_deactivated = :is_deactivated, credit_limit = :credit_limit, credit_used = :credit_used,
-                    payment_terms = :payment_terms, assigned_salesperson = :assigned_salesperson,
-                    is_email_verified = :is_email_verified, referral_code = :referral_code, is_seller_admin = :is_seller_admin,
-                    is_on_duty = :is_on_duty, commission_override_pct = :commission_override_pct,
-                    upi_id = :upi_id, qr_code_url = :qr_code_url,
-                    bank_account_number = :bank_account_number, bank_ifsc_code = :bank_ifsc_code,
-                    bank_account_holder = :bank_account_holder, bank_name = :bank_name,
-                    updated_at = :updated_at
-                WHERE id = :id
-            '''), {
-                'id': int(id) if str(id).isdigit() else None,
-                'name': name,
-                'email': email,
-                'password_hash': password_hash,
-                'role': role,
-                'phone': phone or None,
-                'company_name': company_name,
-                'gst_number': gst_number,
-                'is_active': 1 if (is_active if is_active is not None else True) else 0,
-                'approval_status': approval_status,
-                'is_deactivated': 1 if is_deactivated else 0,
-                'credit_limit': credit_limit if credit_limit is not None else 0,
-                'credit_used': credit_used if credit_used is not None else 0,
-                'payment_terms': str(payment_terms) if payment_terms is not None else None,
-                'assigned_salesperson': assigned_salesperson,
-                'is_email_verified': 1 if is_email_verified else 0,
-                'referral_code': referral_code,
-                'is_seller_admin': 1 if is_seller_admin else 0,
-                'is_on_duty': 1 if is_on_duty else 0,
-                'commission_override_pct': commission_override_pct,
-                'upi_id': upi_id,
-                'qr_code_url': qr_code_url,
-                'bank_account_number': bank_account_number,
-                'bank_ifsc_code': bank_ifsc_code,
-                'bank_account_holder': bank_account_holder,
-                'bank_name': bank_name,
-                'updated_at': now
-            })
+            try:
+                await session.execute(text('''
+                    UPDATE sj_users SET
+                        name = :name, email = :email, password_hash = :password_hash, role = :role, phone = :phone,
+                        company_name = :company_name, gst_number = :gst_number, is_active = :is_active, approval_status = :approval_status,
+                        is_deactivated = :is_deactivated, credit_limit = :credit_limit, credit_used = :credit_used,
+                        payment_terms = :payment_terms, assigned_salesperson = :assigned_salesperson,
+                        is_email_verified = :is_email_verified, referral_code = :referral_code, is_seller_admin = :is_seller_admin,
+                        is_on_duty = :is_on_duty, commission_override_pct = :commission_override_pct,
+                        upi_id = :upi_id, qr_code_url = :qr_code_url,
+                        bank_account_number = :bank_account_number, bank_ifsc_code = :bank_ifsc_code,
+                        bank_account_holder = :bank_account_holder, bank_name = :bank_name,
+                        updated_at = :updated_at
+                    WHERE id = :id
+                '''), {
+                    'id': int(id) if str(id).isdigit() else None,
+                    'name': name,
+                    'email': email,
+                    'password_hash': password_hash,
+                    'role': role,
+                    'phone': phone or None,
+                    'company_name': company_name,
+                    'gst_number': gst_number,
+                    'is_active': 1 if (is_active if is_active is not None else True) else 0,
+                    'approval_status': approval_status,
+                    'is_deactivated': 1 if is_deactivated else 0,
+                    'credit_limit': credit_limit if credit_limit is not None else 0,
+                    'credit_used': credit_used if credit_used is not None else 0,
+                    'payment_terms': str(payment_terms) if payment_terms is not None else None,
+                    'assigned_salesperson': assigned_salesperson,
+                    'is_email_verified': 1 if is_email_verified else 0,
+                    'referral_code': referral_code,
+                    'is_seller_admin': 1 if is_seller_admin else 0,
+                    'is_on_duty': 1 if is_on_duty else 0,
+                    'commission_override_pct': commission_override_pct,
+                    'upi_id': upi_id,
+                    'qr_code_url': qr_code_url,
+                    'bank_account_number': bank_account_number,
+                    'bank_ifsc_code': bank_ifsc_code,
+                    'bank_account_holder': bank_account_holder,
+                    'bank_name': bank_name,
+                    'updated_at': now
+                })
             
-            child_keys = ['address', 'savedAddresses', 'serviceAreaZones']
-            has_child_updates = False
-            for k in child_keys:
-                if k in update_data.model_fields_set:
-                    has_child_updates = True
+                child_keys = ['address', 'savedAddresses', 'serviceAreaZones']
+                has_child_updates = False
+                for k in child_keys:
+                    if k in update_data.model_fields_set:
+                        has_child_updates = True
                         
-            if has_child_updates:
-                fields_set = update_data.model_fields_set
-                if "address" in fields_set:
-                    existing.address = update_data.address
-                if "savedAddresses" in fields_set:
-                    existing.saved_addresses = update_data.savedAddresses
-                if "serviceAreaZones" in fields_set:
-                    existing.service_area_zones = update_data.serviceAreaZones
+                if has_child_updates:
+                    fields_set = update_data.model_fields_set
+                    if "address" in fields_set:
+                        existing.address = update_data.address
+                    if "savedAddresses" in fields_set:
+                        existing.saved_addresses = update_data.savedAddresses
+                    if "serviceAreaZones" in fields_set:
+                        existing.service_area_zones = update_data.serviceAreaZones
                             
-                await self._replace_children(session, int(id) if str(id).isdigit() else None, existing)
+                    await self._replace_children(session, int(id) if str(id).isdigit() else None, existing)
                 
-            await session.commit()
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                raise e
         return await self.findById(id)
     async def delete(self, id: str) -> bool:
         factory = self._factory()
         if not factory:
             return False
         async with factory() as session:
-            result = await session.execute(text(f'DELETE FROM {self.TABLE} WHERE id = :id'), {'id': int(id) if str(id).isdigit() else None})
-            await session.commit()
-            return result.rowcount > 0
+            try:
+                result = await session.execute(text(f'DELETE FROM {self.TABLE} WHERE id = :id'), {'id': int(id) if str(id).isdigit() else None})
+                await session.commit()
+                return result.rowcount > 0
+            except Exception as e:
+                await session.rollback()
+                raise e
     find_all = findAll
     find_by_id = findById
     find_one = findOne
