@@ -1,5 +1,6 @@
 import secrets
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
+from app.models.schemas import ValetPayoutDetailResponse
 from app.models.daos import ValetPayoutInternalCreate, ValetPayoutInternalUpdate
 
 from sqlalchemy import text
@@ -13,29 +14,27 @@ class MySQLValetPayoutDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_row(self, row) -> Dict:
-        return {
-            "_id": str(row.id),
-            "id": str(row.id),
-            "external_id": row.external_id,
-            "valetId": row.valet_id,
-            "amount": float(row.amount) if row.amount is not None else 0.0,
-            "deliveryCount": row.delivery_count if row.delivery_count is not None else 0,
-            "returnCount": row.return_count if row.return_count is not None else 0,
-            "periodStart": row.period_start.isoformat() if row.period_start else None,
-            "periodEnd": row.period_end.isoformat() if row.period_end else None,
-            "status": row.status if row.status else 'pending_payment',
-            "paymentMethod": row.payment_method,
-            "paymentReference": row.payment_reference,
-            "adminPaidAt": row.admin_paid_at.isoformat() if row.admin_paid_at else None,
-            "adminPaidBy": row.admin_paid_by,
-            "valetReceivedAt": row.valet_received_at.isoformat() if row.valet_received_at else None,
-            "notes": row.notes,
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+    def _map_row(self, row) -> ValetPayoutDetailResponse:
+        return ValetPayoutDetailResponse(
+            id=str(row.id),
+            valetId=row.valet_id,
+            amount=float(row.amount) if row.amount is not None else 0.0,
+            deliveryCount=row.delivery_count if row.delivery_count is not None else 0,
+            returnCount=row.return_count if row.return_count is not None else 0,
+            periodStart=row.period_start.isoformat() + "Z" if row.period_start else None,
+            periodEnd=row.period_end.isoformat() + "Z" if row.period_end else None,
+            status=row.status if row.status else 'pending_payment',
+            paymentMethod=row.payment_method,
+            paymentReference=row.payment_reference,
+            adminPaidAt=row.admin_paid_at.isoformat() + "Z" if row.admin_paid_at else None,
+            adminPaidBy=row.admin_paid_by,
+            valetReceivedAt=row.valet_received_at.isoformat() + "Z" if row.valet_received_at else None,
+            notes=row.notes,
+            createdAt=row.created_at.isoformat() + "Z" if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() + "Z" if row.updated_at else None,
+        )
 
-    async def findAll(self, query: Dict = None) -> list:
+    async def findAll(self, query: Dict = None) -> List[ValetPayoutDetailResponse]:
         query = query or {}
         where_clauses = []
         params = {}
@@ -66,7 +65,7 @@ class MySQLValetPayoutDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Dict:
+    async def findById(self, id: str) -> Optional[ValetPayoutDetailResponse]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -155,7 +154,7 @@ class MySQLValetPayoutDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ValetPayoutInternalUpdate) -> Dict:
+    async def update(self, id: str, data: ValetPayoutInternalUpdate) -> Optional[ValetPayoutDetailResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -166,29 +165,28 @@ class MySQLValetPayoutDAO:
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
 
-        def _handle_field(api_k, db_k, new_val, is_date=False):
+        def _handle_field(api_k, db_k, new_val, existing_val, is_date=False):
             if new_val is not None:
                 updates.append(f"{db_k} = :{api_k}")
                 params[api_k] = _parse_dt(new_val) if is_date else new_val
             else:
-                fallback_val = existing.get(api_k)
-                if fallback_val is not None:
+                if existing_val is not None:
                     updates.append(f"{db_k} = :{api_k}")
-                    params[api_k] = _parse_dt(fallback_val) if is_date else fallback_val
+                    params[api_k] = _parse_dt(existing_val) if is_date else existing_val
 
-        _handle_field("valetId", "valet_id", data.valetId)
-        _handle_field("amount", "amount", data.amount)
-        _handle_field("deliveryCount", "delivery_count", data.deliveryCount)
-        _handle_field("returnCount", "return_count", data.returnCount)
-        _handle_field("periodStart", "period_start", data.periodStart, True)
-        _handle_field("periodEnd", "period_end", data.periodEnd, True)
-        _handle_field("status", "status", data.status)
-        _handle_field("paymentMethod", "payment_method", data.paymentMethod)
-        _handle_field("paymentReference", "payment_reference", data.paymentReference)
-        _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt, True)
-        _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy)
-        _handle_field("valetReceivedAt", "valet_received_at", data.valetReceivedAt, True)
-        _handle_field("notes", "notes", data.notes)
+        _handle_field("valetId", "valet_id", data.valetId, existing.valetId)
+        _handle_field("amount", "amount", data.amount, existing.amount)
+        _handle_field("deliveryCount", "delivery_count", data.deliveryCount, existing.deliveryCount)
+        _handle_field("returnCount", "return_count", data.returnCount, existing.returnCount)
+        _handle_field("periodStart", "period_start", data.periodStart, existing.periodStart, True)
+        _handle_field("periodEnd", "period_end", data.periodEnd, existing.periodEnd, True)
+        _handle_field("status", "status", data.status, existing.status)
+        _handle_field("paymentMethod", "payment_method", data.paymentMethod, existing.paymentMethod)
+        _handle_field("paymentReference", "payment_reference", data.paymentReference, existing.paymentReference)
+        _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt, existing.adminPaidAt, True)
+        _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy, existing.adminPaidBy)
+        _handle_field("valetReceivedAt", "valet_received_at", data.valetReceivedAt, existing.valetReceivedAt, True)
+        _handle_field("notes", "notes", data.notes, existing.notes)
 
         set_sql = ", ".join(updates)
         factory = self._factory()

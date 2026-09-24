@@ -1,5 +1,6 @@
 import secrets
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
+from app.models.schemas import SellerPayoutDetailResponse
 from app.models.seller_payout import SellerPayout, List, Optional
 from app.models.daos import SellerPayoutInternalCreate, SellerPayoutInternalUpdate
 
@@ -14,25 +15,23 @@ class MySQLSellerPayoutDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_row(self, row) -> Dict:
-        return {
-            "_id": str(row.id),
-            "id": str(row.id),
-            "external_id": row.external_id,
-            "sellerId": row.seller_id,
-            "amount": float(row.amount) if row.amount is not None else 0.0,
-            "periodStart": row.period_start.isoformat() if row.period_start else None,
-            "periodEnd": row.period_end.isoformat() if row.period_end else None,
-            "status": row.status if row.status else 'pending_payment',
-            "paymentMethod": row.payment_method,
-            "paymentReference": row.payment_reference,
-            "adminPaidAt": row.admin_paid_at.isoformat() if row.admin_paid_at else None,
-            "adminPaidBy": row.admin_paid_by,
-            "sellerReceivedAt": row.seller_received_at.isoformat() if row.seller_received_at else None,
-            "notes": row.notes,
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
+    def _map_row(self, row) -> SellerPayoutDetailResponse:
+        return SellerPayoutDetailResponse(
+            id=str(row.id),
+            sellerId=row.seller_id,
+            amount=float(row.amount) if row.amount is not None else 0.0,
+            periodStart=row.period_start.isoformat() + "Z" if row.period_start else None,
+            periodEnd=row.period_end.isoformat() + "Z" if row.period_end else None,
+            status=row.status if row.status else 'pending_payment',
+            paymentMethod=row.payment_method,
+            paymentReference=row.payment_reference,
+            adminPaidAt=row.admin_paid_at.isoformat() + "Z" if row.admin_paid_at else None,
+            adminPaidBy=row.admin_paid_by,
+            sellerReceivedAt=row.seller_received_at.isoformat() + "Z" if row.seller_received_at else None,
+            notes=row.notes,
+            createdAt=row.created_at.isoformat() + "Z" if row.created_at else None,
+            updatedAt=row.updated_at.isoformat() + "Z" if row.updated_at else None,
+        )
 
     async def _fetch_sub_orders(self, payout_id: str) -> List[str]:
         factory = self._factory()
@@ -164,27 +163,26 @@ class MySQLSellerPayoutDAO:
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
 
-        def _handle_field(api_k, db_k, new_val, is_date=False):
+        def _handle_field(api_k, db_k, new_val, existing_val, is_date=False):
             if new_val is not None:
                 updates.append(f"{db_k} = :{api_k}")
                 params[api_k] = _parse_dt(new_val) if is_date else new_val
             else:
-                fallback_val = existing.get(api_k)
-                if fallback_val is not None:
+                if existing_val is not None:
                     updates.append(f"{db_k} = :{api_k}")
-                    params[api_k] = _parse_dt(fallback_val) if is_date else fallback_val
+                    params[api_k] = _parse_dt(existing_val) if is_date else existing_val
 
-        _handle_field("sellerId", "seller_id", data.sellerId)
-        _handle_field("amount", "amount", data.amount)
-        _handle_field("periodStart", "period_start", data.periodStart, True)
-        _handle_field("periodEnd", "period_end", data.periodEnd, True)
-        _handle_field("status", "status", data.status)
-        _handle_field("paymentMethod", "payment_method", data.paymentMethod)
-        _handle_field("paymentReference", "payment_reference", data.paymentReference)
-        _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt, True)
-        _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy)
-        _handle_field("sellerReceivedAt", "seller_received_at", data.sellerReceivedAt, True)
-        _handle_field("notes", "notes", data.notes)
+        _handle_field("sellerId", "seller_id", data.sellerId, existing.sellerId)
+        _handle_field("amount", "amount", data.amount, existing.amount)
+        _handle_field("periodStart", "period_start", data.periodStart, existing.periodStart, True)
+        _handle_field("periodEnd", "period_end", data.periodEnd, existing.periodEnd, True)
+        _handle_field("status", "status", data.status, existing.status)
+        _handle_field("paymentMethod", "payment_method", data.paymentMethod, existing.paymentMethod)
+        _handle_field("paymentReference", "payment_reference", data.paymentReference, existing.paymentReference)
+        _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt, existing.adminPaidAt, True)
+        _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy, existing.adminPaidBy)
+        _handle_field("sellerReceivedAt", "seller_received_at", data.sellerReceivedAt, existing.sellerReceivedAt, True)
+        _handle_field("notes", "notes", data.notes, existing.notes)
 
         sub_orders = data.subOrderIds if data.subOrderIds is not None else (existing["subOrderIds"] if "subOrderIds" in existing else None)
 

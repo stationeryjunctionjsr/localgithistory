@@ -53,16 +53,16 @@ class SellerPayoutSummaryResponse(BaseModel):
     subOrderCount: int
 
 
-async def _enrich_with_seller(doc: dict) -> dict:
-    seller = await user_repository.findById(doc.get("sellerId"))
+async def _enrich_with_seller(doc: SellerPayoutDetailResponse) -> SellerPayoutDetailResponse:
+    seller = await user_repository.findById(doc.sellerId)
     if seller:
-        doc["sellerName"] = seller.company_name or seller.name or ""
-        doc["sellerUpiId"] = seller.upi_id
-        doc["sellerQrCodeUrl"] = seller.qr_code_url
-        doc["sellerBankAccountNumber"] = seller.bank_account_number
-        doc["sellerBankIfscCode"] = seller.bank_ifsc_code
-        doc["sellerBankAccountHolder"] = seller.bank_account_holder
-        doc["sellerBankName"] = seller.bank_name
+        doc.sellerName = seller.company_name or seller.name or ""
+        doc.sellerUpiId = seller.upi_id
+        doc.sellerQrCodeUrl = seller.qr_code_url
+        doc.sellerBankAccountNumber = seller.bank_account_number
+        doc.sellerBankIfscCode = seller.bank_ifsc_code
+        doc.sellerBankAccountHolder = seller.bank_account_holder
+        doc.sellerBankName = seller.bank_name
     return doc
 
 @router.get("", response_model=List[SellerPayoutDetailResponse])
@@ -176,7 +176,7 @@ async def mark_payout_paid(
             adminPaidBy=str(current_user.id),
             paymentMethod=data.paymentMethod,
             paymentReference=data.paymentReference,
-            notes=data.notes if data.notes else existing.get("notes")
+            notes=data.notes if data.notes else existing.notes
         )
     )
     
@@ -193,7 +193,7 @@ async def mark_payout_received(
     if not existing:
         raise HTTPException(status_code=404, detail="Payout not found")
         
-    if is_seller_admin(current_user) and existing.get("sellerId") != str(current_user.id):
+    if is_seller_admin(current_user) and existing.sellerId != str(current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized to update this payout")
         
     now = datetime.now(timezone.utc).isoformat() + "Z"

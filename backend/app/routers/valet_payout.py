@@ -103,7 +103,8 @@ async def update_valet_payout_settings(
     }
 
 
-async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, returns: list) -> dict:
+from app.models.schemas import ValetEarningsResponse
+async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, returns: list) -> ValetEarningsResponse:
     delivery_rate = float((settings.delivery_charge_per_order if settings.delivery_charge_per_order is not None else 0.0))
     return_rate = float((settings.return_pickup_charge_per_order if settings.return_pickup_charge_per_order is not None else 0.0))
 
@@ -135,15 +136,16 @@ async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, r
     total_returns = len(return_records)
     total_earned = round(total_deliveries * delivery_rate + total_returns * return_rate, 2)
 
-    return {
-        "valetId": valet_id,
-        "totalDeliveries": total_deliveries,
-        "totalReturnPickups": total_returns,
-        "deliveryRatePerOrder": delivery_rate,
-        "returnRatePerOrder": return_rate,
-        "totalEarned": total_earned,
-        "records": delivery_records + return_records,
-    }
+    from app.models.schemas import ValetEarningsResponse
+    return ValetEarningsResponse(
+        valetId=valet_id,
+        totalDeliveries=total_deliveries,
+        totalReturnPickups=total_returns,
+        deliveryRatePerOrder=delivery_rate,
+        returnRatePerOrder=return_rate,
+        totalEarned=total_earned,
+        records=delivery_records + return_records,
+    )
 
 
 @router.get("/earnings/me", response_model=ValetEarningsResponse)
@@ -175,21 +177,19 @@ async def get_valet_earnings_by_id(
     returns = await return_request_repository.findAll({"valetId": valet_id})
 
     result = await _compute_valet_earnings(valet_id, settings, orders, returns)
-    result["valetName"] = (valet.name or "")
-    result["valetPhone"] = (valet.phone or "")
     return result
 
-async def _enrich_with_valet(doc: dict) -> dict:
-    valet = await user_repository.findById(doc.get("valetId"))
+async def _enrich_with_valet(doc: ValetPayoutDetailResponse) -> ValetPayoutDetailResponse:
+    valet = await user_repository.findById(doc.valetId)
     if valet:
-        doc["valetName"] = valet.name
-        doc["valetPhone"] = valet.phone
-        doc["valetUpiId"] = valet.upi_id
-        doc["valetQrCodeUrl"] = valet.qr_code_url
-        doc["valetBankAccountNumber"] = valet.bank_account_number
-        doc["valetBankIfscCode"] = valet.bank_ifsc_code
-        doc["valetBankAccountHolder"] = valet.bank_account_holder
-        doc["valetBankName"] = valet.bank_name
+        doc.valetName = valet.name
+        doc.valetPhone = valet.phone
+        doc.valetUpiId = valet.upi_id
+        doc.valetQrCodeUrl = valet.qr_code_url
+        doc.valetBankAccountNumber = valet.bank_account_number
+        doc.valetBankIfscCode = valet.bank_ifsc_code
+        doc.valetBankAccountHolder = valet.bank_account_holder
+        doc.valetBankName = valet.bank_name
     return doc
 
 
@@ -260,7 +260,7 @@ async def mark_valet_payout_paid(
             adminPaidBy=str(current_user.id),
             paymentMethod=data.paymentMethod,
             paymentReference=data.paymentReference,
-            notes=data.notes if data.notes else existing.get("notes")
+            notes=data.notes if data.notes else existing.notes
         )
     )
     await _enrich_with_valet(updated)
@@ -278,7 +278,7 @@ async def mark_valet_payout_received(
     if not existing:
         raise HTTPException(status_code=404, detail="Payout not found")
         
-    if existing.get("valetId") != str(current_user.id):
+    if existing.valetId != str(current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized to update this payout")
         
     now = datetime.now(timezone.utc).isoformat() + "Z"
