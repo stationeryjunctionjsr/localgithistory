@@ -54,6 +54,15 @@ class MySQLUserDAO:
         if 'isSellerAdmin' in query:
             where_clauses.append('is_seller_admin = :isSellerAdmin')
             params['isSellerAdmin'] = 1 if query['isSellerAdmin'] else 0
+        if 'isOnDuty' in query:
+            where_clauses.append('is_on_duty = :isOnDuty')
+            params['isOnDuty'] = 1 if query['isOnDuty'] else 0
+        if 'approvalStatus' in query:
+            where_clauses.append('approval_status = :approvalStatus')
+            params['approvalStatus'] = query['approvalStatus']
+        if 'isActive' in query:
+            where_clauses.append('is_active = :isActive')
+            params['isActive'] = 1 if query['isActive'] else 0
         if 'allowed_ids' in query:
             allowed_ids = query['allowed_ids']
             if not allowed_ids:
@@ -121,23 +130,7 @@ class MySQLUserDAO:
             children_map = await self._fetch_children(session, [int(r.id) for r in rows])
         from app.models.user import User
         docs = [UserResponse.model_validate(_map_to_schema(r, children_map[int(r.id)] if int(r.id) in children_map else {})) for r in rows]
-        if query:
-            filtered = []
-            for doc in docs:
-                match = True
-                for k, v in query.items():
-                    if k in ('allowed_ids',):
-                        continue
-                    if k in ('_id', 'id'):
-                        if doc.id != str(v) and doc.id != v:
-                            match = False
-                            break
-                    elif (doc[k] if k in doc else None) != v:
-                        match = False
-                        break
-                if match:
-                    filtered.append(doc)
-            return filtered
+        pass
         return docs
 
     async def findOne(self, query: Dict) -> Optional[User]:

@@ -463,7 +463,7 @@ class RecommendationRepository:
             self.product_storage.findAll({"isActive": True}),
         )
         pid_to_subcat: Dict[str, str] = {
-            p.id: (p.subCategory or "None") for p in all_products if p.id
+            p.id: (p.sub_category or "None") for p in all_products if p.id
         }
         segment_order_count: Dict[str, Dict[str, int]] = {}
         segment_quantity: Dict[str, Dict[str, int]] = {}
@@ -546,7 +546,7 @@ class RecommendationRepository:
             self.product_storage.findAll({"isActive": True}),
         )
         pid_to_subcat: Dict[str, str] = {
-            p.id: (p.subCategory or "None") for p in all_products if p.id
+            p.id: (p.sub_category or "None") for p in all_products if p.id
         }
         segment_order_count: Dict[str, Dict[str, int]] = {}
         segment_quantity: Dict[str, Dict[str, int]] = {}
@@ -876,7 +876,7 @@ class RecommendationRepository:
                 if not pid: continue
                 p = product_by_id[pid] if pid in product_by_id else None
                 if p:
-                    subcat = p.subCategory or p.category
+                    subcat = p.sub_category or p.category
                     if subcat:
                         subcat_counts[subcat] = (subcat_counts[subcat] if subcat in subcat_counts else 0) + (item.quantity if item.quantity is not None else 1)
 
@@ -907,7 +907,7 @@ class RecommendationRepository:
                 p = product_by_id[pid] if pid in product_by_id else None
                 if not p: continue
                 
-                subcat = p.subCategory or p.category
+                subcat = p.sub_category or p.category
                 if subcat in neglected_set:
                     quantity = (item.quantity if item.quantity is not None else 1)
                     if subcat not in subcat_product_sales:
@@ -1012,7 +1012,7 @@ class RecommendationRepository:
                 p = product_by_id[pid] if pid in product_by_id else None
                 if not p:
                     continue
-                subcat = p.subCategory or p.category
+                subcat = p.sub_category or p.category
                 if subcat:
                     subcat_counts[subcat] = (subcat_counts[subcat] if subcat in subcat_counts else 0) + (item.quantity if item.quantity is not None else 1)
 
@@ -1045,8 +1045,8 @@ class RecommendationRepository:
                         for item in eb["items"] if "items" in eb else []:
                             pid = item.productId
                             p = product_map[str(pid)] if str(pid) in product_map else None if product_map else None
-                            if p and p.subCategory:
-                                sc = p.subCategory
+                            if p and p.sub_category:
+                                sc = p.sub_category
                                 sub_cat = sc["name"] if "name" in sc else None if isinstance(sc, dict) else sc
                                 break
                     eb["subCategory"] = sub_cat
