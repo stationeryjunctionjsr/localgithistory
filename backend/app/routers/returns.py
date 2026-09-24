@@ -118,25 +118,13 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
     if order.status != "delivered":
         return {"eligibleItems": [], "reason": "Order is not delivered yet"}
 
-    delivered_at_raw = order.delivered_at
-    if not delivered_at_raw:
+    if not order.delivered_at:
         return {"eligibleItems": [], "reason": "Delivery date not found"}
-
-    try:
-        from datetime import datetime
-        if isinstance(delivered_at_raw, datetime):
-            delivered_at = delivered_at_raw
-        else:
-            delivered_at = datetime.fromisoformat(str(delivered_at_raw).replace("Z", "+00:00"))
-            
-        if not delivered_at.tzinfo:
-            from datetime import timezone
-            delivered_at = delivered_at.replace(tzinfo=timezone.utc)
-    except ValueError:
-        return {"eligibleItems": [], "reason": "Malformed delivery date format"}
-    except Exception as e:
-        logger.error("Unexpected error parsing deliveredAt for order %s: %s", order_id, str(e), exc_info=True)
-        return {"eligibleItems": [], "reason": "Error processing delivery date"}
+        
+    delivered_at = order.delivered_at
+    from datetime import timezone
+    if not delivered_at.tzinfo:
+        delivered_at = delivered_at.replace(tzinfo=timezone.utc)
 
     settings = await return_settings_repository.get_settings()
     return_days = settings.returnDays if settings.returnDays is not None else 7
