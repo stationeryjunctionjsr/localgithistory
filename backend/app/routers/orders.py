@@ -1,3 +1,4 @@
+from app.models.daos import NotificationInternalCreate
 from app.models.payment import PaymentEntry
 import uuid
 from app.models.schemas import UserSnippet, ValetSnippet, UserInternalUpdate

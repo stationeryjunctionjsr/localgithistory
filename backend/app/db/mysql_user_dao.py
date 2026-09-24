@@ -105,10 +105,18 @@ class MySQLUserDAO:
         address = data.address
         saved_addresses = data.saved_addresses if data.saved_addresses is not None else []
         if address:
-            await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 1, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), {'uid': uid, 'st': address.street, 'c': address.city, 's': address.state, 'p': address.pincode, 'ph': address.phone, 'd': address.district, 'co': address.country, 'gl': address.googleLocation, 'lat': address.latitude, 'lon': address.longitude, 'at': address.address, 'zc': getattr(address, 'zipCode', None)})
+            params = {'uid': uid, 'st': getattr(address, 'street', None), 'c': getattr(address, 'city', None), 's': getattr(address, 'state', None), 'p': getattr(address, 'pincode', None), 'ph': getattr(address, 'phone', None), 'd': getattr(address, 'district', None), 'co': getattr(address, 'country', None), 'gl': getattr(address, 'googleLocation', None), 'lat': getattr(address, 'latitude', None), 'lon': getattr(address, 'longitude', None), 'at': getattr(address, 'address', None), 'zc': getattr(address, 'zipCode', None)}
+            try:
+                await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 1, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), params)
+            except Exception as e:
+                import traceback
+                print("CRASH ON ADDRESS PARAMS:", params)
+                traceback.print_exc()
+                raise e
         for a in saved_addresses:
             if a != address:
-                await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 0, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), {'uid': uid, 'st': a.street, 'c': a.city, 's': a.state, 'p': a.pincode, 'ph': a.phone, 'd': a.district, 'co': a.country, 'gl': a.googleLocation, 'lat': a.latitude, 'lon': a.longitude, 'at': getattr(a, 'address', None), 'zc': getattr(a, 'zipCode', None)})
+                a_params = {'uid': uid, 'st': getattr(a, 'street', None), 'c': getattr(a, 'city', None), 's': getattr(a, 'state', None), 'p': getattr(a, 'pincode', None), 'ph': getattr(a, 'phone', None), 'd': getattr(a, 'district', None), 'co': getattr(a, 'country', None), 'gl': getattr(a, 'googleLocation', None), 'lat': getattr(a, 'latitude', None), 'lon': getattr(a, 'longitude', None), 'at': getattr(a, 'address', None), 'zc': getattr(a, 'zipCode', None)}
+                await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 0, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), a_params)
         for zone_ext_id in data.service_area_zones if data.service_area_zones is not None else []:
             name_res = await session.execute(text('SELECT name FROM sj_delivery_zones WHERE external_id = :eid LIMIT 1'), {'eid': zone_ext_id})
             name_row = name_res.fetchone()

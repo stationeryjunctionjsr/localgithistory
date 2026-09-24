@@ -19,6 +19,12 @@ export default function SellerProfilePage() {
   const [form, setForm] = useState({ name: '', companyName: '', phone: '', email: '' });
   const [saving, setSaving] = useState(false);
 
+  // Payment Details State
+  const [payForm, setPayForm] = useState({ upiId: '', bankAccountNumber: '', bankIfscCode: '', bankAccountHolder: '', bankName: '' });
+  const [payQrUrl, setPayQrUrl] = useState('');
+  const [savingPay, setSavingPay] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
+
   // Availability state
   const [windows, setWindows] = useState<AvailabilityWindow[]>([]);
   const [avLoading, setAvLoading] = useState(true);
@@ -34,8 +40,46 @@ export default function SellerProfilePage() {
         phone: (user as any).phone || '',
         email: user.email || '',
       });
+      setPayForm({
+        upiId: (user as any).upiId || '',
+        bankAccountNumber: (user as any).bankAccountNumber || '',
+        bankIfscCode: (user as any).bankIfscCode || '',
+        bankAccountHolder: (user as any).bankAccountHolder || '',
+        bankName: (user as any).bankName || '',
+      });
+      setPayQrUrl((user as any).qrCodeUrl || '');
     }
   }, [user]);
+
+  const handleSavePaymentDetails = async () => {
+    setSavingPay(true);
+    try {
+      await api.put('/users/me/payment-details', { ...payForm, qrCodeUrl: payQrUrl });
+      toast.success('Payment details updated');
+      await fetchUser();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Failed to update payment details');
+    } finally { setSavingPay(false); }
+  };
+
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setUploadingQr(true);
+    try {
+      const file = e.target.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/upi/upload-qr', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setPayQrUrl(res.data.qrCodeUrl || res.data.url);
+      toast.success('QR Code uploaded');
+    } catch (err: any) {
+      toast.error('Failed to upload QR code');
+    } finally {
+      setUploadingQr(false);
+    }
+  };
 
   useEffect(() => { fetchWindows(); }, []);
 
@@ -107,6 +151,23 @@ export default function SellerProfilePage() {
     </div>
   );
 
+  const payField = (label: string, key: keyof typeof payForm, disabled = false) => (
+    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{label}</label>
+      <input
+        type="text"
+        value={payForm[key]}
+        disabled={disabled}
+        onChange={e => setPayForm(f => ({ ...f, [key]: e.target.value }))}
+        style={{
+          padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14,
+          background: disabled ? '#f9fafb' : '#fff', color: disabled ? '#9ca3af' : '#111827',
+          cursor: disabled ? 'not-allowed' : 'text',
+        }}
+      />
+    </div>
+  );
+
   const statusColor = (status: string) => {
     if (status === 'active') return { bg: '#fee2e2', color: '#b91c1c', label: '🔴 Active now' };
     if (status === 'scheduled') return { bg: '#fef9c3', color: '#a16207', label: '🟡 Scheduled' };
@@ -149,6 +210,48 @@ export default function SellerProfilePage() {
           }}
         >
           {saving ? 'Saving…' : 'Save Changes'}
+        </button>
+      </div>
+
+      {/* ── Payment Details Card ── */}
+      <div style={{ background: '#fff', borderRadius: 14, padding: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.07)', display: 'grid', gap: 18, marginBottom: 28 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Payment Details</h2>
+        <p style={{ fontSize: 13, color: '#6b7280', marginTop: 0, marginBottom: 10 }}>
+          Update your bank and UPI details for receiving payouts.
+        </p>
+
+        {payField('UPI ID', 'upiId')}
+        {payField('Bank Account Number', 'bankAccountNumber')}
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Bank IFSC Code</label>
+          <input type="text" value={payForm.bankIfscCode} onChange={e => setPayForm(f => ({ ...f, bankIfscCode: e.target.value.toUpperCase() }))} style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14 }} />
+        </div>
+        {payField('Bank Account Holder Name', 'bankAccountHolder')}
+        {payField('Bank Name', 'bankName')}
+
+        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>QR Code Upload</label>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <input type="file" accept="image/*" onChange={handleQrUpload} disabled={uploadingQr} />
+            {uploadingQr && <span style={{ fontSize: 13, color: '#6b7280' }}>Uploading...</span>}
+          </div>
+          {payQrUrl && (
+            <div style={{ marginTop: 10 }}>
+              <img src={payQrUrl} alt="QR Code" style={{ width: 120, height: 120, borderRadius: 8, border: '1px solid #d1d5db', objectFit: 'contain' }} />
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleSavePaymentDetails}
+          disabled={savingPay}
+          style={{
+            padding: '10px 20px', background: savingPay ? '#9ca3af' : '#10b981', color: '#fff',
+            border: 'none', borderRadius: 9, cursor: savingPay ? 'not-allowed' : 'pointer',
+            fontWeight: 600, fontSize: 14, alignSelf: 'start', marginTop: 8
+          }}
+        >
+          {savingPay ? 'Saving…' : 'Save Payment Details'}
         </button>
       </div>
 

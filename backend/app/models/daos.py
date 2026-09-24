@@ -155,6 +155,12 @@ class SellerPayoutInternalCreate(BaseModel):
     amount: Optional[float] = 0.0
     periodStart: Optional[str] = None
     periodEnd: Optional[str] = None
+    status: Optional[str] = 'pending_payment'
+    paymentMethod: Optional[str] = None
+    paymentReference: Optional[str] = None
+    adminPaidAt: Optional[str] = None
+    adminPaidBy: Optional[str] = None
+    sellerReceivedAt: Optional[str] = None
     notes: Optional[str] = None
     subOrderIds: Optional[List[str]] = []
 
@@ -165,8 +171,46 @@ class SellerPayoutInternalUpdate(BaseModel):
     amount: Optional[float] = None
     periodStart: Optional[str] = None
     periodEnd: Optional[str] = None
+    status: Optional[str] = None
+    paymentMethod: Optional[str] = None
+    paymentReference: Optional[str] = None
+    adminPaidAt: Optional[str] = None
+    adminPaidBy: Optional[str] = None
+    sellerReceivedAt: Optional[str] = None
     notes: Optional[str] = None
     subOrderIds: Optional[List[str]] = None
+
+class ValetPayoutInternalCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    valetId: Optional[str] = None
+    amount: Optional[float] = 0.0
+    deliveryCount: Optional[int] = 0
+    returnCount: Optional[int] = 0
+    periodStart: Optional[str] = None
+    periodEnd: Optional[str] = None
+    status: Optional[str] = 'pending_payment'
+    paymentMethod: Optional[str] = None
+    paymentReference: Optional[str] = None
+    notes: Optional[str] = None
+    adminPaidAt: Optional[str] = None
+    adminPaidBy: Optional[str] = None
+    valetReceivedAt: Optional[str] = None
+
+class ValetPayoutInternalUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    valetId: Optional[str] = None
+    amount: Optional[float] = None
+    deliveryCount: Optional[int] = None
+    returnCount: Optional[int] = None
+    periodStart: Optional[str] = None
+    periodEnd: Optional[str] = None
+    status: Optional[str] = None
+    paymentMethod: Optional[str] = None
+    paymentReference: Optional[str] = None
+    notes: Optional[str] = None
+    adminPaidAt: Optional[str] = None
+    adminPaidBy: Optional[str] = None
+    valetReceivedAt: Optional[str] = None
 
 class ValetAvailabilityInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)

@@ -28,8 +28,15 @@ async def test_full_returns_e2e_flow():
     # Create Zone for customer's pincode
     from app.db.storage_factory import get_storage
     zone_storage = get_storage("deliveryZones")
-    from app.models.daos_flat import DeliveryZoneInternalCreate
-    zone_doc = await zone_storage.create(DeliveryZoneInternalCreate(name="Test Zone", pincodes=["123456"], isActive=True))
+    all_zones = await zone_storage.findAll()
+    zone_doc = None
+    for z in all_zones:
+        if "123456" in str(z.pincodes or ""):
+            zone_doc = z
+            break
+    if not zone_doc:
+        from app.models.daos_flat import DeliveryZoneInternalCreate
+        zone_doc = await zone_storage.create(DeliveryZoneInternalCreate(name="Test Zone", pincodes=["123456"], isActive=True))
     zone_id = str(zone_doc.id)
     
     # Create Valet Availability

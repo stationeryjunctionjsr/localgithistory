@@ -71,6 +71,15 @@ export default function ValetDashboard() {
   const [valetLocation, setValetLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
 
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [payForm, setPayForm] = useState({ upiId: '', bankAccountNumber: '', bankIfscCode: '', bankAccountHolder: '', bankName: '' });
+  const [payQrUrl, setPayQrUrl] = useState('');
+  const [savingPay, setSavingPay] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
+
+  const [myPayouts, setMyPayouts] = useState<any[]>([]);
+  const [loadingPayouts, setLoadingPayouts] = useState(true);
+
   useEffect(() => {
     if (authLoading) return;
     const userRole = user?.effectiveRole || user?.role;
@@ -142,6 +151,78 @@ export default function ValetDashboard() {
     }, 1000);
     return () => clearInterval(tick);
   }, [pendingAssignments, pendingReturns]);
+
+  useEffect(() => {
+    if (user) {
+      setPayForm({
+        upiId: (user as any).upiId || '',
+        bankAccountNumber: (user as any).bankAccountNumber || '',
+        bankIfscCode: (user as any).bankIfscCode || '',
+        bankAccountHolder: (user as any).bankAccountHolder || '',
+        bankName: (user as any).bankName || '',
+      });
+      setPayQrUrl((user as any).qrCodeUrl || '');
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && user.effectiveRole === 'valet') {
+      fetchMyPayouts();
+    }
+  }, [user]);
+
+  const fetchMyPayouts = async () => {
+    setLoadingPayouts(true);
+    try {
+      const res = await api.get('/valet-payout/payouts/my');
+      setMyPayouts(res.data);
+    } catch {
+      console.error('Failed to load payouts');
+    } finally {
+      setLoadingPayouts(false);
+    }
+  };
+
+  const handleSavePaymentDetails = async () => {
+    setSavingPay(true);
+    try {
+      await api.put('/users/me/payment-details', { ...payForm, qrCodeUrl: payQrUrl });
+      toast.success('Payment details updated');
+      setShowPaymentForm(false);
+      // Wait to optionally trigger fetchUser here if available in context
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Failed to update payment details');
+    } finally { setSavingPay(false); }
+  };
+
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setUploadingQr(true);
+    try {
+      const file = e.target.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/upi/upload-qr', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setPayQrUrl(res.data.qrCodeUrl || res.data.url);
+      toast.success('QR Code uploaded');
+    } catch (err: any) {
+      toast.error('Failed to upload QR code');
+    } finally {
+      setUploadingQr(false);
+    }
+  };
+
+  const handleMarkReceived = async (id: string) => {
+    try {
+      await api.post(`/valet-payout/payouts/${id}/mark-received`);
+      toast.success('Payout marked as received');
+      fetchMyPayouts();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Failed to mark as received');
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -412,6 +493,15 @@ export default function ValetDashboard() {
                       className="block w-full px-4 py-2 text-left text-black hover:bg-gray-100"
                     >
                       My Availability
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowPaymentForm(true);
+                        setShowProfileDropdown(false);
+                      }}
+                      className="block w-full px-4 py-2 text-left text-black hover:bg-gray-100"
+                    >
+                      Payment Details
                     </button>
                     <button
                       onClick={() => {
@@ -1013,7 +1103,121 @@ export default function ValetDashboard() {
             </div>
           )}
         </div>
+
+        {/* ── My Payouts Section ── */}
+        <div className="mt-8 rounded-lg bg-white p-6 shadow-md">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-bold">My Payouts</h2>
+            <button
+              onClick={fetchMyPayouts}
+              className="rounded bg-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-300"
+            >
+              Refresh
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="border border-gray-200 px-4 py-3 text-left font-semibold text-gray-600">Period</th>
+                  <th className="border border-gray-200 px-4 py-3 text-left font-semibold text-gray-600">Amount</th>
+                  <th className="border border-gray-200 px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                  <th className="border border-gray-200 px-4 py-3 text-left font-semibold text-gray-600">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingPayouts ? (
+                  <tr><td colSpan={4} className="text-center py-4">Loading...</td></tr>
+                ) : myPayouts.length === 0 ? (
+                  <tr><td colSpan={4} className="text-center py-4 text-gray-500">No payouts found.</td></tr>
+                ) : (
+                  myPayouts.map((payout) => (
+                    <tr key={payout.id} className="hover:bg-gray-50">
+                      <td className="border border-gray-200 px-4 py-3">
+                        {payout.periodStart ? new Date(payout.periodStart).toLocaleDateString() : 'N/A'} - {payout.periodEnd ? new Date(payout.periodEnd).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="border border-gray-200 px-4 py-3 font-bold text-gray-800">
+                        ₹{payout.amount.toFixed(2)}
+                      </td>
+                      <td className="border border-gray-200 px-4 py-3">
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                          payout.status === 'pending_payment' ? 'bg-yellow-100 text-yellow-800' :
+                          payout.status === 'admin_paid' ? 'bg-blue-100 text-blue-800' :
+                          payout.status === 'valet_received' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {payout.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="border border-gray-200 px-4 py-3">
+                        {payout.status === 'admin_paid' && (
+                          <button
+                            onClick={() => handleMarkReceived(payout.id)}
+                            className="bg-green-600 text-white px-3 py-1 rounded text-xs font-medium hover:bg-green-700"
+                          >
+                            Mark as Received
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </main>
+
+      {/* ── Payment Details Modal ── */}
+      {showPaymentForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="mx-auto w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Payment Details</h3>
+              <button onClick={() => setShowPaymentForm(false)} className="text-gray-500 text-2xl hover:text-gray-700">×</button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">UPI ID</label>
+                <input type="text" value={payForm.upiId} onChange={e => setPayForm(f => ({ ...f, upiId: e.target.value }))} className="w-full border rounded p-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Account Number</label>
+                <input type="text" value={payForm.bankAccountNumber} onChange={e => setPayForm(f => ({ ...f, bankAccountNumber: e.target.value }))} className="w-full border rounded p-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank IFSC Code</label>
+                <input type="text" value={payForm.bankIfscCode} onChange={e => setPayForm(f => ({ ...f, bankIfscCode: e.target.value.toUpperCase() }))} className="w-full border rounded p-2 uppercase" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Account Holder Name</label>
+                <input type="text" value={payForm.bankAccountHolder} onChange={e => setPayForm(f => ({ ...f, bankAccountHolder: e.target.value }))} className="w-full border rounded p-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                <input type="text" value={payForm.bankName} onChange={e => setPayForm(f => ({ ...f, bankName: e.target.value }))} className="w-full border rounded p-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">QR Code</label>
+                <div className="flex items-center gap-4">
+                  <input type="file" accept="image/*" onChange={handleQrUpload} disabled={uploadingQr} />
+                  {uploadingQr && <span className="text-sm text-gray-500">Uploading...</span>}
+                </div>
+                {payQrUrl && <img src={payQrUrl} alt="QR Code" className="mt-2 w-24 h-24 object-contain border rounded" />}
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setShowPaymentForm(false)} className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSavePaymentDetails} disabled={savingPay} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50">
+                {savingPay ? 'Saving...' : 'Save Details'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showOrderModal && selectedOrder && (
         <div

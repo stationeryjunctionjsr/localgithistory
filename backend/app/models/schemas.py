@@ -235,6 +235,7 @@ class SavedAddress(BaseModel):
 
 class UserBase(BaseModel):
     isActive: Optional[bool] = None
+    maxConcurrentOrders: Optional[int] = None
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: UserRole
@@ -263,6 +264,10 @@ class UserBase(BaseModel):
     effectiveRole: Optional[str] = Field(default=None, validation_alias=AliasChoices("effectiveRole", "effective_role"))
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
+    bankAccountNumber: Optional[str] = Field(default=None, validation_alias=AliasChoices('bankAccountNumber', 'bank_account_number'))
+    bankIfscCode: Optional[str] = Field(default=None, validation_alias=AliasChoices('bankIfscCode', 'bank_ifsc_code'))
+    bankAccountHolder: Optional[str] = Field(default=None, validation_alias=AliasChoices('bankAccountHolder', 'bank_account_holder'))
+    bankName: Optional[str] = Field(default=None, validation_alias=AliasChoices('bankName', 'bank_name'))
     # Device / verification metadata — populated at registration time, None for admin-created users.
     deviceId: Optional[str] = None
     msg91Token: Optional[str] = None
@@ -320,6 +325,10 @@ class UserUpdate(BaseModel):
     preferredLanguage: Optional[str] = None
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
+    bankAccountNumber: Optional[str] = None
+    bankIfscCode: Optional[str] = None
+    bankAccountHolder: Optional[str] = None
+    bankName: Optional[str] = None
 
 
 class UserResponse(UserBase):
@@ -1665,6 +1674,10 @@ class UserInternalCreate(BaseModel):
     isEmailVerified: bool = False
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
+    bankAccountNumber: Optional[str] = None
+    bankIfscCode: Optional[str] = None
+    bankAccountHolder: Optional[str] = None
+    bankName: Optional[str] = None
     # Device / verification metadata captured at registration time.
     # otp is intentionally excluded — it is verified and deleted before create() is called.
     deviceId: Optional[str] = None
@@ -2134,6 +2147,81 @@ class PopulatedOrderResponse(BaseModel):
     # Timestamps
     createdAt: Optional[datetime] = None
     updatedAt: Optional[datetime] = None
+
+class PaymentDetailsResponse(BaseModel):
+    upiId: Optional[str] = None
+    qrCodeUrl: Optional[str] = None
+    bankAccountNumber: Optional[str] = None
+    bankIfscCode: Optional[str] = None
+    bankAccountHolder: Optional[str] = None
+    bankName: Optional[str] = None
+
+class SellerPayoutDetailResponse(BaseModel):
+    id: str
+    sellerId: str
+    sellerName: Optional[str] = None
+    amount: float
+    periodStart: Optional[str] = None
+    periodEnd: Optional[str] = None
+    status: str
+    paymentMethod: Optional[str] = None
+    paymentReference: Optional[str] = None
+    notes: Optional[str] = None
+    subOrderIds: List[str] = []
+    createdBy: Optional[str] = None
+    adminPaidAt: Optional[str] = None
+    adminPaidBy: Optional[str] = None
+    sellerReceivedAt: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+    # Seller payment details (shown to admin at payout time)
+    sellerUpiId: Optional[str] = None
+    sellerQrCodeUrl: Optional[str] = None
+    sellerBankAccountNumber: Optional[str] = None
+    sellerBankIfscCode: Optional[str] = None
+    sellerBankAccountHolder: Optional[str] = None
+    sellerBankName: Optional[str] = None
+
+class ValetPayoutCreate(BaseModel):
+    valetId: str
+    amount: float = Field(..., ge=0)
+    deliveryCount: int = Field(default=0, ge=0)
+    returnCount: int = Field(default=0, ge=0)
+    periodStart: Optional[str] = None
+    periodEnd: Optional[str] = None
+    notes: Optional[str] = None
+
+class ValetPayoutDetailResponse(BaseModel):
+    id: str
+    valetId: str
+    valetName: Optional[str] = None
+    valetPhone: Optional[str] = None
+    amount: float
+    deliveryCount: int = 0
+    returnCount: int = 0
+    periodStart: Optional[str] = None
+    periodEnd: Optional[str] = None
+    status: str
+    paymentMethod: Optional[str] = None
+    paymentReference: Optional[str] = None
+    notes: Optional[str] = None
+    adminPaidAt: Optional[str] = None
+    adminPaidBy: Optional[str] = None
+    valetReceivedAt: Optional[str] = None
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+    # Valet payment details
+    valetUpiId: Optional[str] = None
+    valetQrCodeUrl: Optional[str] = None
+    valetBankAccountNumber: Optional[str] = None
+    valetBankIfscCode: Optional[str] = None
+    valetBankAccountHolder: Optional[str] = None
+    valetBankName: Optional[str] = None
+
+class MarkPaidRequest(BaseModel):
+    paymentMethod: str  # 'upi', 'bank_transfer', 'cash'
+    paymentReference: Optional[str] = None
+    notes: Optional[str] = None
 
 UserResponse.model_rebuild()
 

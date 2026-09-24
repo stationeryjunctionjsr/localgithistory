@@ -1,233 +1,236 @@
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+
 from app.models.user import User
-from app.models.schemas import MessageResponse
+from app.models.schemas import MessageResponse, SellerPayoutDetailResponse, MarkPaidRequest
+from app.models.daos import SellerPayoutInternalCreate, SellerPayoutInternalUpdate, SubOrderInternalUpdate
+from app.db.storage_factory import get_storage
+from app.utils.auth import get_current_user, is_seller_admin, require_super_admin, require_super_admin_or_seller
+from app.utils.logger import logger
+from app.repositories.sub_order_repository import sub_order_repository
+from app.repositories.user_repository import user_repository
+
 """
 Seller Payout Ledger Router
 
 Tracks actual cash disbursements from the platform to sellers.
 Commissions move: unrealized -> realized (automatic after return window)
-                   realized -> paid (admin manually marks as paid via this router)
-
-Endpoints:
-  GET  /seller-payouts                    – List all payout records (admin: all; seller: own)
-  POST /seller-payouts                    – Admin creates a payout record
-  GET  /seller-payouts/summary/{seller_id} – Realized, paid, and outstanding totals
-  GET  /seller-payouts/my-summary         – Same but for authenticated seller
+                   realized -> pending_payment (when payout created) -> admin_paid -> seller_received
 """
-
-from datetime import datetime, timezone
-from typing import Dict, Any, List, Any, Dict, List, Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
-
-from app.db.storage_factory import get_storage
-from app.utils.auth import get_current_user, is_seller_admin, require_super_admin, require_super_admin_or_seller
-from app.utils.logger import logger
-
-
-from pydantic import BaseModel, Field
-class SellerPayoutResponse(BaseModel):
-    id: str = Field(alias="_id")
-    sellerId: str
-    amount: float
-    referenceId: Optional[str] = None
-    status: str
-    settledSubOrderIds: List[str]
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-
-class SellerPayoutSummaryResponse(BaseModel):
-    sellerId: str
-    totalSettled: float
-    pendingSettlement: float
-    lastPayoutDate: Optional[str] = None
 
 router = APIRouter()
 
 PAYOUT_COLLECTION = "sellerPayouts"
-SUB_ORDER_COLLECTION = "sub_orders"
-
 
 def _payout_storage():
     return get_storage(PAYOUT_COLLECTION)
-
 
 class SellerPayoutCreate(BaseModel):
     sellerId: str
     amount: float = Field(..., ge=0)
     periodStart: Optional[str] = None
     periodEnd: Optional[str] = None
+    status: Optional[str] = 'pending_payment'
     notes: Optional[str] = None
     subOrderIds: Optional[List[str]] = Field(default=[], description="Sub-order IDs included in this payout")
 
-
-class SellerPayoutResponse(BaseModel):
-    id: str
+class SellerPayoutSummaryResponse(BaseModel):
     sellerId: str
     sellerName: Optional[str] = None
-    amount: float
-    periodStart: Optional[str] = None
-    periodEnd: Optional[str] = None
-    status: str  # "paid"
-    notes: Optional[str] = None
-    subOrderIds: List[str] = []
-    createdBy: Optional[str] = None
-    paidAt: str
-    createdAt: str
+    totalRealized: float
+    totalPaid: float
+    totalOutstanding: float
+    totalUnrealized: float
+    totalPayoutRealized: float
+    totalPayoutPaid: float
+    totalPayoutOutstanding: float
+    totalPayoutUnrealized: float
+    totalValueRealized: float
+    totalTaxRealized: float
+    subOrderCount: int
 
 
-@router.get("", response_model=List[SellerPayoutResponse])
-@router.get("/", response_model=List[SellerPayoutResponse])
+async def _enrich_with_seller(doc: dict) -> dict:
+    seller = await user_repository.findById(doc.get("sellerId"))
+    if seller:
+        doc["sellerName"] = seller.company_name or seller.name or ""
+        doc["sellerUpiId"] = seller.upi_id
+        doc["sellerQrCodeUrl"] = seller.qr_code_url
+        doc["sellerBankAccountNumber"] = seller.bank_account_number
+        doc["sellerBankIfscCode"] = seller.bank_ifsc_code
+        doc["sellerBankAccountHolder"] = seller.bank_account_holder
+        doc["sellerBankName"] = seller.bank_name
+    return doc
+
+@router.get("", response_model=List[SellerPayoutDetailResponse])
+@router.get("/", response_model=List[SellerPayoutDetailResponse])
 async def list_seller_payouts(
     seller_id: Optional[str] = Query(None),
     current_user: User = Depends(require_super_admin_or_seller),
 ):
-    """List payout records. Sellers see only their own records. Admins can filter by seller_id."""
     storage = _payout_storage()
     query: Dict[str, Any] = {}
-
     if is_seller_admin(current_user):
-        # Sellers only see their own payouts
         query["sellerId"] = str(current_user.id)
     elif seller_id:
         query["sellerId"] = seller_id
 
     records = await storage.findAll(query)
+    for r in records:
+        await _enrich_with_seller(r)
     return records
 
 
-@router.post("", response_model=SellerPayoutResponse, status_code=201)
-@router.post("/", response_model=SellerPayoutResponse, status_code=201)
+@router.post("", response_model=SellerPayoutDetailResponse, status_code=201)
+@router.post("/", response_model=SellerPayoutDetailResponse, status_code=201)
 async def create_seller_payout(
     data: SellerPayoutCreate,
     current_user: User = Depends(require_super_admin),
 ):
-    """Record a payout to a seller (Super Admin only). Marks the included sub-orders as commission paid."""
-    from app.repositories.sub_order_repository import sub_order_repository
-    from app.repositories.user_repository import user_repository
-
     seller = await user_repository.findById(data.sellerId)
     if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
 
     now = datetime.now(timezone.utc).isoformat() + "Z"
-    from app.models.daos import SellerPayoutInternalCreate
     storage = _payout_storage()
     created = await storage.create(
         SellerPayoutInternalCreate(
             sellerId=data.sellerId,
-            sellerName=seller.company_name or seller.name or "",
             amount=data.amount,
             periodStart=data.periodStart,
             periodEnd=data.periodEnd,
-            status="paid",
+            status=data.status or "pending_payment",
             notes=data.notes,
-            subOrderIds=data.subOrderIds or [],
-            createdBy=str(current_user.id),
-            paidAt=now,
-            createdAt=now,
+            subOrderIds=data.subOrderIds or []
         )
     )
 
-    # Mark included sub-orders as commission paid
     for so_id in data.subOrderIds or []:
         try:
             await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid", commissionPaidAt=now))
         except Exception as e:
             logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
 
+    await _enrich_with_seller(created)
+    created["createdBy"] = str(current_user.id)
     return created
 
-
-@router.post("/settle-all/{seller_id}", response_model=SellerPayoutResponse, status_code=201)
+@router.post("/settle-all/{seller_id}", response_model=SellerPayoutDetailResponse, status_code=201)
 async def settle_all_seller_payouts(
     seller_id: str,
     current_user: User = Depends(require_super_admin),
 ):
-    """Settle all realized sub-orders for a seller."""
-    from app.repositories.sub_order_repository import sub_order_repository
-    from app.repositories.user_repository import user_repository
-
     seller = await user_repository.findById(seller_id)
     if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
 
-    # Fetch all realized sub-orders
     sub_orders = await sub_order_repository.findAll({"sellerId": seller_id, "commissionStatus": "realized"})
-
     if not sub_orders:
         raise HTTPException(status_code=400, detail="No realized sub-orders found to settle")
 
-    # Calculate total payout
     total_amount = sum(float(so.total) - float(so.commission_amount) for so in sub_orders)
-
     sub_order_ids = [str(so.id) for so in sub_orders]
-
     now = datetime.now(timezone.utc).isoformat() + "Z"
-    from app.models.daos import SellerPayoutInternalCreate
+    
     storage = _payout_storage()
     created = await storage.create(
         SellerPayoutInternalCreate(
             sellerId=seller_id,
-            sellerName=seller.company_name or seller.name or "",
             amount=round(total_amount, 2),
-            status="paid",
+            status="pending_payment",
             notes="Bulk settlement of all realized sub-orders",
-            subOrderIds=sub_order_ids,
-            createdBy=str(current_user.id),
-            paidAt=now,
-            createdAt=now,
+            subOrderIds=sub_order_ids
         )
     )
 
-    # Mark included sub-orders as paid
     for so_id in sub_order_ids:
         try:
             await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid", commissionPaidAt=now))
         except Exception as e:
             logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
 
+    await _enrich_with_seller(created)
+    created["createdBy"] = str(current_user.id)
     return created
 
+@router.post("/{payout_id}/mark-paid", response_model=SellerPayoutDetailResponse)
+async def mark_payout_paid(
+    payout_id: str,
+    data: MarkPaidRequest,
+    current_user: User = Depends(require_super_admin),
+):
+    storage = _payout_storage()
+    existing = await storage.findById(payout_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Payout not found")
+        
+    now = datetime.now(timezone.utc).isoformat() + "Z"
+    updated = await storage.update(
+        payout_id,
+        SellerPayoutInternalUpdate(
+            status="admin_paid",
+            adminPaidAt=now,
+            adminPaidBy=str(current_user.id),
+            paymentMethod=data.paymentMethod,
+            paymentReference=data.paymentReference,
+            notes=data.notes if data.notes else existing.get("notes")
+        )
+    )
+    
+    await _enrich_with_seller(updated)
+    return updated
+
+@router.post("/{payout_id}/mark-received", response_model=SellerPayoutDetailResponse)
+async def mark_payout_received(
+    payout_id: str,
+    current_user: User = Depends(require_super_admin_or_seller),
+):
+    storage = _payout_storage()
+    existing = await storage.findById(payout_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Payout not found")
+        
+    if is_seller_admin(current_user) and existing.get("sellerId") != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to update this payout")
+        
+    now = datetime.now(timezone.utc).isoformat() + "Z"
+    updated = await storage.update(
+        payout_id,
+        SellerPayoutInternalUpdate(
+            status="seller_received",
+            sellerReceivedAt=now
+        )
+    )
+    
+    await _enrich_with_seller(updated)
+    return updated
 
 @router.get("/my-summary", response_model=SellerPayoutSummaryResponse)
 async def get_my_seller_payout_summary(
     current_user: User = Depends(get_current_user),
 ):
-    """Get payout summary for the authenticated seller."""
     if not is_seller_admin(current_user):
         raise HTTPException(status_code=403, detail="Only sellers can access this endpoint")
     return await _get_seller_summary(str(current_user.id))
-
 
 @router.get("/summary/{seller_id}", response_model=SellerPayoutSummaryResponse)
 async def get_seller_payout_summary(
     seller_id: str,
     current_user: User = Depends(require_super_admin),
 ):
-    """Get payout summary for a specific seller (Super Admin only)."""
     return await _get_seller_summary(seller_id)
-
 
 @router.get("/summaries", response_model=List[SellerPayoutSummaryResponse])
 async def get_all_seller_payout_summaries(
     current_user: User = Depends(require_super_admin),
 ):
-    """Get payout summaries for all sellers (Super Admin only)."""
     import asyncio
-
-    from app.repositories.user_repository import user_repository
-
     sellers = await user_repository.findAll({"role": "wholesaler", "isSellerAdmin": True})
-
-    tasks = []
-    for seller in sellers:
-        seller_id = str(seller.id)
-        tasks.append(_get_seller_summary(seller_id))
-
+    tasks = [_get_seller_summary(str(seller.id)) for seller in sellers]
     results = await asyncio.gather(*tasks)
 
-    # Merge seller name into the summary
     for i, seller in enumerate(sellers):
         results[i]["sellerName"] = seller.company_name or seller.name or "Unknown"
 
@@ -235,37 +238,18 @@ async def get_all_seller_payout_summaries(
 
 
 async def _get_seller_summary(seller_id: str) -> Dict[str, Any]:
-    """Compute realized, paid, and outstanding payout and commission totals for a seller."""
-    from app.repositories.sub_order_repository import sub_order_repository
-
     sub_orders = await sub_order_repository.findAll({"sellerId": seller_id})
 
-    # Commission values
-    comm_realized = sum(
-        float(so.commission_amount)
-        for so in sub_orders
-        if so.commission_status in ("realized", "paid")
-    )
+    comm_realized = sum(float(so.commission_amount) for so in sub_orders if so.commission_status in ("realized", "paid"))
     comm_paid = sum(float(so.commission_amount) for so in sub_orders if so.commission_status == "paid")
-    comm_unrealized = sum(
-        float(so.commission_amount) for so in sub_orders if so.commission_status == "unrealized"
-    )
+    comm_unrealized = sum(float(so.commission_amount) for so in sub_orders if so.commission_status == "unrealized")
 
-    # Sub-order values
-    val_realized = sum(
-        float(so.total) for so in sub_orders if so.commission_status in ("realized", "paid")
-    )
+    val_realized = sum(float(so.total) for so in sub_orders if so.commission_status in ("realized", "paid"))
     val_paid = sum(float(so.total) for so in sub_orders if so.commission_status == "paid")
     val_unrealized = sum(float(so.total) for so in sub_orders if so.commission_status == "unrealized")
 
-    # Tax (GST) values
-    tax_realized = sum(
-        float(so.tax) for so in sub_orders if so.commission_status in ("realized", "paid")
-    )
-    tax_paid = sum(float(so.tax) for so in sub_orders if so.commission_status == "paid")
-    tax_unrealized = sum(float(so.tax) for so in sub_orders if so.commission_status == "unrealized")
+    tax_realized = sum(float(so.tax) for so in sub_orders if so.commission_status in ("realized", "paid"))
 
-    # Net Payout (Sub-order Value - Commission)
     payout_realized = round(val_realized - comm_realized, 2)
     payout_paid = round(val_paid - comm_paid, 2)
     payout_unrealized = round(val_unrealized - comm_unrealized, 2)
@@ -273,19 +257,15 @@ async def _get_seller_summary(seller_id: str) -> Dict[str, Any]:
 
     return {
         "sellerId": seller_id,
-        # Commission metrics
         "totalRealized": round(comm_realized, 2),
         "totalPaid": round(comm_paid, 2),
         "totalOutstanding": round(comm_realized - comm_paid, 2),
         "totalUnrealized": round(comm_unrealized, 2),
-        # Payout metrics
         "totalPayoutRealized": payout_realized,
         "totalPayoutPaid": payout_paid,
         "totalPayoutOutstanding": payout_outstanding,
         "totalPayoutUnrealized": payout_unrealized,
-        # Sub-order value and tax metrics
         "totalValueRealized": round(val_realized, 2),
         "totalTaxRealized": round(tax_realized, 2),
         "subOrderCount": len(sub_orders),
     }
-

@@ -71,6 +71,7 @@ from app.db.mysql_sub_order_dao import MySQLSubOrderDAO
 from app.db.mysql_seller_request_dao import MySQLSellerRequestDAO
 from app.db.mysql_ad_dao import MySQLAdDAO
 from app.db.mysql_seller_payout_dao import MySQLSellerPayoutDAO
+from app.db.mysql_valet_payout_dao import MySQLValetPayoutDAO
 from app.db.mysql_events_dao import MySQLEventsDAO
 
 from app.db.mysql_deliverySlots_dao import MySQLDeliverySlotsDAO
@@ -103,6 +104,7 @@ _MYSQL_DAO_COLLECTIONS = {
     "sellerRequests": MySQLSellerRequestDAO,
     "ads": MySQLAdDAO,
     "sellerPayouts": MySQLSellerPayoutDAO,
+    "valetPayouts": MySQLValetPayoutDAO,
     "events": MySQLEventsDAO,
 
     "deliverySlots": MySQLDeliverySlotsDAO,

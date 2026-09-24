@@ -23,6 +23,12 @@ class MySQLSellerPayoutDAO:
             "amount": float(row.amount) if row.amount is not None else 0.0,
             "periodStart": row.period_start.isoformat() if row.period_start else None,
             "periodEnd": row.period_end.isoformat() if row.period_end else None,
+            "status": row.status if row.status else 'pending_payment',
+            "paymentMethod": row.payment_method,
+            "paymentReference": row.payment_reference,
+            "adminPaidAt": row.admin_paid_at.isoformat() if row.admin_paid_at else None,
+            "adminPaidBy": row.admin_paid_by,
+            "sellerReceivedAt": row.seller_received_at.isoformat() if row.seller_received_at else None,
             "notes": row.notes,
             "createdAt": row.created_at.isoformat() if row.created_at else None,
             "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
@@ -127,6 +133,10 @@ class MySQLSellerPayoutDAO:
             cols.append("notes")
             vals.append(":notes")
             params["notes"] = data.notes
+        if data.status is not None:
+            cols.append("status")
+            vals.append(":status")
+            params["status"] = data.status
 
         sub_orders = (data.subOrderIds if data.subOrderIds is not None else [])
 
@@ -168,6 +178,12 @@ class MySQLSellerPayoutDAO:
         _handle_field("amount", "amount", data.amount)
         _handle_field("periodStart", "period_start", data.periodStart)
         _handle_field("periodEnd", "period_end", data.periodEnd)
+        _handle_field("status", "status", data.status)
+        _handle_field("paymentMethod", "payment_method", data.paymentMethod)
+        _handle_field("paymentReference", "payment_reference", data.paymentReference)
+        _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt)
+        _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy)
+        _handle_field("sellerReceivedAt", "seller_received_at", data.sellerReceivedAt)
         _handle_field("notes", "notes", data.notes)
 
         sub_orders = data.subOrderIds if data.subOrderIds is not None else (existing["subOrderIds"] if "subOrderIds" in existing else None)

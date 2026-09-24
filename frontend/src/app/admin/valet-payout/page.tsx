@@ -15,6 +15,30 @@ interface PayoutSettings {
   updatedAt?: string;
 }
 
+interface ValetPayoutRecord {
+  id: string;
+  valetId: string;
+  valetName?: string;
+  valetPhone?: string;
+  amount: number;
+  deliveryCount: number;
+  returnCount: number;
+  status: string;
+  paymentMethod?: string;
+  paymentReference?: string;
+  notes?: string;
+  adminPaidAt?: string;
+  valetReceivedAt?: string;
+  valetUpiId?: string;
+  valetBankAccountNumber?: string;
+  valetBankIfscCode?: string;
+  valetBankAccountHolder?: string;
+  valetBankName?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  createdAt?: string;
+}
+
 interface Valet {
   _id: string;
   userId?: number;
@@ -72,6 +96,18 @@ export default function ValetPayoutPage() {
 
   // Detail modal
   const [detailValet, setDetailValet] = useState<ValetPayout | null>(null);
+
+  // Payout Records
+  const [payoutRecords, setPayoutRecords] = useState<ValetPayoutRecord[]>([]);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [creatingPayout, setCreatingPayout] = useState<ValetPayout | null>(null);
+  const [createForm, setCreateForm] = useState({ periodStart: '', periodEnd: '', notes: '' });
+  const [isCreating, setIsCreating] = useState(false);
+
+  const [markingPaid, setMarkingPaid] = useState<ValetPayoutRecord | null>(null);
+  const [payMethod, setPayMethod] = useState('UPI');
+  const [payRef, setPayRef] = useState('');
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
 
   // ── Fetch settings ──
   const fetchSettings = useCallback(async () => {
@@ -140,8 +176,65 @@ export default function ValetPayoutPage() {
     if (user?.role === 'super_admin') {
       fetchSettings();
       fetchPayouts();
+      fetchPayoutRecords();
     }
   }, [user, fetchSettings, fetchPayouts]);
+
+  const fetchPayoutRecords = async () => {
+    setRecordsLoading(true);
+    try {
+      const res = await api.get('/valet-payout/payouts');
+      setPayoutRecords(res.data);
+    } catch {
+      toast.error('Failed to load payout records');
+    } finally {
+      setRecordsLoading(false);
+    }
+  };
+
+  const handleCreatePayout = async () => {
+    if (!creatingPayout) return;
+    setIsCreating(true);
+    try {
+      await api.post('/valet-payout/payouts', {
+        valetId: creatingPayout.valet._id,
+        amount: creatingPayout.payoutAmount,
+        deliveryCount: creatingPayout.deliveredCount,
+        returnCount: 0,
+        periodStart: createForm.periodStart || undefined,
+        periodEnd: createForm.periodEnd || undefined,
+        notes: createForm.notes || undefined,
+      });
+      toast.success('Payout created successfully');
+      setCreatingPayout(null);
+      setCreateForm({ periodStart: '', periodEnd: '', notes: '' });
+      fetchPayoutRecords();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Failed to create payout');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    if (!markingPaid) return;
+    setIsMarkingPaid(true);
+    try {
+      await api.post(`/valet-payout/payouts/${markingPaid.id}/mark-paid`, {
+        paymentMethod: payMethod,
+        paymentReference: payRef,
+      });
+      toast.success('Payout marked as paid');
+      setMarkingPaid(null);
+      setPayMethod('UPI');
+      setPayRef('');
+      fetchPayoutRecords();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Failed to mark payout as paid');
+    } finally {
+      setIsMarkingPaid(false);
+    }
+  };
 
   // ── Save settings ──
   const saveSettings = async () => {
@@ -430,7 +523,7 @@ export default function ValetPayoutPage() {
                           {p.valet.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="border border-gray-200 px-4 py-3">
+                      <td className="border border-gray-200 px-4 py-3 flex gap-2">
                         <button
                           onClick={() => setDetailValet(p)}
                           className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors"
@@ -439,6 +532,12 @@ export default function ValetPayoutPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
                           Orders
+                        </button>
+                        <button
+                          onClick={() => setCreatingPayout(p)}
+                          className="inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
+                        >
+                          Create Payout
                         </button>
                       </td>
                     </tr>
@@ -465,7 +564,147 @@ export default function ValetPayoutPage() {
           )}
         </div>
 
+        {/* ════════════════════════════════════════
+            PAYOUT RECORDS
+        ════════════════════════════════════════ */}
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden mt-8">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">Payout Records</h2>
+            <p className="text-sm text-gray-500 mt-0.5">History of created payouts and their statuses.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="border border-gray-200 px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">Date</th>
+                  <th className="border border-gray-200 px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">Valet Name</th>
+                  <th className="border border-gray-200 px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">Amount</th>
+                  <th className="border border-gray-200 px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">Deliveries</th>
+                  <th className="border border-gray-200 px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">Status</th>
+                  <th className="border border-gray-200 px-4 py-3 text-left text-xs font-semibold uppercase text-gray-600">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recordsLoading ? (
+                  <tr><td colSpan={6} className="text-center py-4 text-gray-500">Loading records...</td></tr>
+                ) : payoutRecords.length === 0 ? (
+                  <tr><td colSpan={6} className="text-center py-4 text-gray-500">No payout records found.</td></tr>
+                ) : (
+                  payoutRecords.map(record => (
+                    <tr key={record.id} className="hover:bg-gray-50">
+                      <td className="border border-gray-200 px-4 py-3 text-gray-700">{new Date(record.createdAt || '').toLocaleDateString()}</td>
+                      <td className="border border-gray-200 px-4 py-3 font-medium text-gray-900">{record.valetName || record.valetId}</td>
+                      <td className="border border-gray-200 px-4 py-3 font-bold text-gray-800">₹{record.amount.toFixed(2)}</td>
+                      <td className="border border-gray-200 px-4 py-3 text-gray-600">{record.deliveryCount}</td>
+                      <td className="border border-gray-200 px-4 py-3">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          record.status === 'pending_payment' ? 'bg-yellow-100 text-yellow-800' :
+                          record.status === 'admin_paid' ? 'bg-blue-100 text-blue-800' :
+                          record.status === 'valet_received' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {record.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="border border-gray-200 px-4 py-3">
+                        {record.status === 'pending_payment' && (
+                          <button
+                            onClick={() => setMarkingPaid(record)}
+                            className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded font-medium text-xs border border-indigo-200"
+                          >
+                            Mark as Paid
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          CREATE PAYOUT MODAL
+      ══════════════════════════════════════════════════════════════════════ */}
+      {creatingPayout && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Create Payout - {creatingPayout.valet.name}</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
+                <input type="number" value={creatingPayout.payoutAmount} readOnly className="w-full border-gray-300 rounded shadow-sm p-2 border bg-gray-50" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Period Start</label>
+                  <input type="date" value={createForm.periodStart} onChange={e => setCreateForm(f => ({ ...f, periodStart: e.target.value }))} className="w-full border-gray-300 rounded shadow-sm p-2 border" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Period End</label>
+                  <input type="date" value={createForm.periodEnd} onChange={e => setCreateForm(f => ({ ...f, periodEnd: e.target.value }))} className="w-full border-gray-300 rounded shadow-sm p-2 border" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea value={createForm.notes} onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))} className="w-full border-gray-300 rounded shadow-sm p-2 border" rows={3}></textarea>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button onClick={() => setCreatingPayout(null)} className="px-4 py-2 border border-gray-300 rounded text-sm text-gray-700">Cancel</button>
+                <button onClick={handleCreatePayout} disabled={isCreating} className="px-4 py-2 bg-indigo-600 text-white rounded text-sm disabled:opacity-50">
+                  {isCreating ? 'Creating...' : 'Create Payout'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          MARK PAID MODAL
+      ══════════════════════════════════════════════════════════════════════ */}
+      {markingPaid && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4">Mark Payout as Paid</h3>
+            <p className="text-sm text-gray-600 mb-4">Record the payment of ₹{markingPaid.amount.toFixed(2)} to {markingPaid.valetName}.</p>
+            
+            <div className="bg-gray-50 p-3 rounded mb-4 text-sm border">
+              <p className="font-semibold mb-1">Valet Payment Details:</p>
+              <p><strong>UPI ID:</strong> {markingPaid.valetUpiId || 'N/A'}</p>
+              <p><strong>Bank A/C:</strong> {markingPaid.valetBankAccountNumber || 'N/A'}</p>
+              <p><strong>IFSC:</strong> {markingPaid.valetBankIfscCode || 'N/A'}</p>
+              <p><strong>Holder:</strong> {markingPaid.valetBankAccountHolder || 'N/A'}</p>
+              <p><strong>Bank:</strong> {markingPaid.valetBankName || 'N/A'}</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="w-full border-gray-300 rounded shadow-sm p-2 border">
+                  <option value="UPI">UPI</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Cash">Cash</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reference / UTR (Optional)</label>
+                <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} className="w-full border-gray-300 rounded shadow-sm p-2 border" placeholder="e.g. UTR123456789" />
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end space-x-3">
+              <button onClick={() => { setMarkingPaid(null); setPayMethod('UPI'); setPayRef(''); }} className="px-4 py-2 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleMarkPaid} disabled={isMarkingPaid} className="px-4 py-2 bg-indigo-600 rounded text-sm text-white hover:bg-indigo-700 disabled:opacity-50">
+                {isMarkingPaid ? 'Saving...' : 'Confirm Paid'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           DETAIL MODAL – Delivered orders for a valet

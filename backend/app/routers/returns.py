@@ -1,3 +1,4 @@
+from datetime import timezone
 from app.models.daos import ProductInternalUpdate
 import uuid
 from app.models.user import User
@@ -294,7 +295,7 @@ async def auto_assign_return(request_id: str, current_user: User = Depends(requi
         )
 
     valet_id = str(candidate.id if hasattr(candidate, "id") else candidate.get("_id"))
-    now_iso = datetime.utcnow().isoformat() + "Z"
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     from app.models.daos_flat import ReturnRequestInternalUpdate
     updated = await return_request_repository.update(
@@ -454,7 +455,7 @@ async def valet_return_response(
 
     from datetime import datetime, timezone
 
-    now_iso = datetime.now(timezone.utc).isoformat() + "Z"
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     if response_data.accept:
         updated_ret = await return_request_repository.update(

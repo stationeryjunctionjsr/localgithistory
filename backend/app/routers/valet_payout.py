@@ -1,33 +1,27 @@
+import asyncio
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, ConfigDict
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.user import User
-from app.models.schemas import MessageResponse, ValetPayoutSettingsResponse, ValetEarningsResponse
+from app.models.schemas import MessageResponse, ValetPayoutSettingsResponse, ValetEarningsResponse, ValetPayoutDetailResponse, ValetPayoutCreate, MarkPaidRequest
+from app.models.daos import ValetPayoutInternalCreate, ValetPayoutInternalUpdate
 from app.db.storage_factory import get_storage
+from app.db.mysql_valet_payout_dao import MySQLValetPayoutDAO
 from app.utils.auth import get_current_user, require_super_admin
 from app.repositories.order_repository import order_repository
 from app.repositories.return_request_repository import return_request_repository
 from app.repositories.user_repository import user_repository
 
-"""
-Valet payout settings router.
-
-Endpoints:
-  GET  /api/valet-payout/settings  – Fetch global per-delivery and per-return charges
-  PUT  /api/valet-payout/settings  – Update charges (super admin only)
-"""
-
 router = APIRouter()
-
 COLLECTION = "valetPayoutSettings"
-
 
 def _storage():
     return get_storage(COLLECTION)
 
+valet_payout_dao = MySQLValetPayoutDAO()
 
 class ValetPayoutSettingsModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -73,7 +67,6 @@ class ValetPayoutSettingsPayload(BaseModel):
 
 @router.get("/settings", response_model=ValetPayoutSettingsResponse)
 async def get_valet_payout_settings(current_user: User = Depends(require_super_admin)):
-    """Fetch global valet payout charge settings."""
     settings = await _get_settings()
     return {
         "deliveryChargePerOrder": (settings.delivery_charge_per_order if settings.delivery_charge_per_order is not None else 0.0),
@@ -81,13 +74,11 @@ async def get_valet_payout_settings(current_user: User = Depends(require_super_a
         "updatedAt": settings.updated_at,
     }
 
-
 @router.put("/settings", response_model=ValetPayoutSettingsResponse)
 async def update_valet_payout_settings(
     payload: ValetPayoutSettingsPayload,
     current_user: User = Depends(require_super_admin),
 ):
-    """Update global valet payout charge settings."""
     storage = _storage()
     settings = await _get_settings()
     updated = await storage.update(
@@ -112,11 +103,7 @@ async def update_valet_payout_settings(
     }
 
 
-# ── Valet Earnings History ────────────────────────────────────────────────────
-
-
 async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, returns: list) -> dict:
-    """Compute earnings summary for a valet from their completed orders and return pickups."""
     delivery_rate = float((settings.delivery_charge_per_order if settings.delivery_charge_per_order is not None else 0.0))
     return_rate = float((settings.return_pickup_charge_per_order if settings.return_pickup_charge_per_order is not None else 0.0))
 
@@ -129,8 +116,7 @@ async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, r
             "amount": delivery_rate,
             "status": o.status,
         }
-        for o in orders
-        if o.status == "delivered"
+        for o in orders if o.status == "delivered"
     ]
 
     return_records = [
@@ -142,8 +128,7 @@ async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, r
             "amount": return_rate,
             "status": r.status,
         }
-        for r in returns
-        if r.valet_status in ("collected", "returned") or r.status in ("collected", "returned")
+        for r in returns if r.valet_status in ("collected", "returned") or r.status in ("collected", "returned")
     ]
 
     total_deliveries = len(delivery_records)
@@ -165,7 +150,6 @@ async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, r
 async def get_my_valet_earnings(
     current_user: User = Depends(get_current_user),
 ):
-    """Get earnings summary for the currently authenticated valet."""
     if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can access this endpoint")
 
@@ -182,7 +166,6 @@ async def get_valet_earnings_by_id(
     valet_id: str,
     current_user: User = Depends(require_super_admin),
 ):
-    """Get earnings summary for a specific valet (super admin only)."""
     valet = await user_repository.findById(valet_id)
     if not valet or valet.role != "valet":
         raise HTTPException(status_code=404, detail="Valet not found")
@@ -195,3 +178,116 @@ async def get_valet_earnings_by_id(
     result["valetName"] = (valet.name or "")
     result["valetPhone"] = (valet.phone or "")
     return result
+
+async def _enrich_with_valet(doc: dict) -> dict:
+    valet = await user_repository.findById(doc.get("valetId"))
+    if valet:
+        doc["valetName"] = valet.name
+        doc["valetPhone"] = valet.phone
+        doc["valetUpiId"] = valet.upi_id
+        doc["valetQrCodeUrl"] = valet.qr_code_url
+        doc["valetBankAccountNumber"] = valet.bank_account_number
+        doc["valetBankIfscCode"] = valet.bank_ifsc_code
+        doc["valetBankAccountHolder"] = valet.bank_account_holder
+        doc["valetBankName"] = valet.bank_name
+    return doc
+
+
+@router.post("/payouts", response_model=ValetPayoutDetailResponse, status_code=201)
+async def create_valet_payout(
+    data: ValetPayoutCreate,
+    current_user: User = Depends(require_super_admin)
+):
+    valet = await user_repository.findById(data.valetId)
+    if not valet or valet.role != "valet":
+        raise HTTPException(status_code=404, detail="Valet not found")
+        
+    created = await valet_payout_dao.create(ValetPayoutInternalCreate(
+        valetId=data.valetId,
+        amount=data.amount,
+        deliveryCount=data.deliveryCount,
+        returnCount=data.returnCount,
+        periodStart=data.periodStart,
+        periodEnd=data.periodEnd,
+        status='pending_payment',
+        notes=data.notes
+    ))
+    
+    await _enrich_with_valet(created)
+    return created
+
+@router.get("/payouts", response_model=List[ValetPayoutDetailResponse])
+async def list_valet_payouts(
+    valet_id: Optional[str] = Query(None),
+    current_user: User = Depends(require_super_admin)
+):
+    query = {}
+    if valet_id:
+        query["valetId"] = valet_id
+    records = await valet_payout_dao.findAll(query)
+    for r in records:
+        await _enrich_with_valet(r)
+    return records
+
+@router.get("/payouts/my", response_model=List[ValetPayoutDetailResponse])
+async def list_my_valet_payouts(
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "valet":
+        raise HTTPException(status_code=403, detail="Only valets can access this endpoint")
+        
+    records = await valet_payout_dao.findAll({"valetId": str(current_user.id)})
+    for r in records:
+        await _enrich_with_valet(r)
+    return records
+
+@router.post("/payouts/{payout_id}/mark-paid", response_model=ValetPayoutDetailResponse)
+async def mark_valet_payout_paid(
+    payout_id: str,
+    data: MarkPaidRequest,
+    current_user: User = Depends(require_super_admin)
+):
+    existing = await valet_payout_dao.findById(payout_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Payout not found")
+        
+    now = datetime.now(timezone.utc).isoformat() + "Z"
+    updated = await valet_payout_dao.update(
+        payout_id,
+        ValetPayoutInternalUpdate(
+            status="admin_paid",
+            adminPaidAt=now,
+            adminPaidBy=str(current_user.id),
+            paymentMethod=data.paymentMethod,
+            paymentReference=data.paymentReference,
+            notes=data.notes if data.notes else existing.get("notes")
+        )
+    )
+    await _enrich_with_valet(updated)
+    return updated
+
+@router.post("/payouts/{payout_id}/mark-received", response_model=ValetPayoutDetailResponse)
+async def mark_valet_payout_received(
+    payout_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "valet":
+        raise HTTPException(status_code=403, detail="Only valets can access this endpoint")
+        
+    existing = await valet_payout_dao.findById(payout_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Payout not found")
+        
+    if existing.get("valetId") != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to update this payout")
+        
+    now = datetime.now(timezone.utc).isoformat() + "Z"
+    updated = await valet_payout_dao.update(
+        payout_id,
+        ValetPayoutInternalUpdate(
+            status="valet_received",
+            valetReceivedAt=now
+        )
+    )
+    await _enrich_with_valet(updated)
+    return updated
