@@ -1,3 +1,33 @@
+from fastapi.responses import FileResponse
+from app.models.schemas import VariantAttributes, CouponResponse
+from app.utils.metrics import ORDER_FAILURES
+from app.utils.logger import logger
+from app.utils.limiter import limiter
+from app.utils.invoice_generator import generate_invoice_pdf, save_invoice_pdf
+from app.utils.auth import (
+    get_current_user,
+    is_seller_admin,
+    require_seller_admin,
+    require_super_admin,
+    require_super_admin_or_seller,
+    require_super_admin_or_valet,
+)
+from app.services.email_service import email_service
+from app.repositories.user_repository import user_repository
+from app.repositories.sub_order_repository import sub_order_repository
+from app.repositories.product_repository import product_repository
+from app.repositories.payment_repository import payment_repository
+from app.repositories.order_repository import order_repository
+from app.repositories.notification_repository import notification_repository
+from app.repositories.category_repository import category_repository
+from app.repositories.cart_repository import cart_repository
+from pydantic import BaseModel
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Header, status
+from typing import List, Optional
+from datetime import datetime, timezone
+from typing import Dict, Any
+from app.models.schemas import UserSnippet, ValetSnippet, Address, OrderItemCreate, SellerDeliveryOption, ItemSnippet as OrderItem
+from app.schemas.orders import PaginatedOrdersResponse, PaginatedSubOrdersResponse, DeliveryChargeUpdateResponse
 from app.models.daos import NotificationInternalCreate
 from app.models.payment import PaymentEntry
 import uuid
@@ -11,40 +41,12 @@ from app.models.daos import BundleInternalUpdate
 from app.models.sub_order import SubOrder, SubOrderInternalCreate, SubOrderInternalUpdate, SubOrderItem
 from app.models.product import Product
 from pydantic import BaseModel, ConfigDict, Field
+
+
 class GenerateInvoiceResponse(BaseModel):
     success: bool
     invoiceUrl: str
-from fastapi.responses import FileResponse
-from app.schemas.orders import PaginatedOrdersResponse, PaginatedSubOrdersResponse, DeliveryChargeUpdateResponse
-from app.models.schemas import UserSnippet, ValetSnippet, Address, OrderItemCreate, SellerDeliveryOption, ItemSnippet as OrderItem
-from typing import Dict, Any
-from datetime import datetime, timezone
-from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Header, status
-from pydantic import BaseModel
-
-from app.repositories.cart_repository import cart_repository
-from app.repositories.category_repository import category_repository
-from app.repositories.notification_repository import notification_repository
-from app.repositories.order_repository import order_repository
-from app.repositories.payment_repository import payment_repository
-from app.repositories.product_repository import product_repository
-from app.repositories.sub_order_repository import sub_order_repository
-from app.repositories.user_repository import user_repository
-from app.services.email_service import email_service
-from app.utils.auth import (
-    get_current_user,
-    is_seller_admin,
-    require_seller_admin,
-    require_super_admin,
-    require_super_admin_or_seller,
-    require_super_admin_or_valet,
-)
-from app.utils.invoice_generator import generate_invoice_pdf, save_invoice_pdf
-from app.utils.limiter import limiter
-from app.utils.logger import logger
-from app.utils.metrics import ORDER_FAILURES
 
 router = APIRouter()
 
@@ -82,7 +84,8 @@ async def create_order_notification(order):
             })
         )
     except Exception as e:
-        logger.error("Error creating order notification for order %s: %s", order.id, str(e), exc_info=True)
+        logger.error("Error creating order notification for order %s: %s",
+                     order.id, str(e), exc_info=True)
 
 
 # Helper function to create payment notification
@@ -128,17 +131,16 @@ class OrderCreateRequest(BaseModel):
     referralCode: Optional[str] = None  # Referral code to apply
     discount: Optional[float] = 0
     printedBill: Optional[bool] = False
-    items: Optional[List[OrderItemCreate]] = None  # [{productId, quantity}] - optional, if not provided uses user's cart
+    # [{productId, quantity}] - optional, if not provided uses user's cart
+    items: Optional[List[OrderItemCreate]] = None
     isUrgentDelivery: Optional[bool] = False
     deliverySlotId: Optional[str] = None  # slot.id within a slot config
-    deliverySlotConfigId: Optional[str] = None  # _id of the DeliverySlotConfig doc
+    # _id of the DeliverySlotConfig doc
+    deliverySlotConfigId: Optional[str] = None
     deliverySlotDate: Optional[str] = None  # ISO date string e.g. "2026-07-15"
     # Per-seller delivery options for split-cart orders
     # [{sellerId, isUrgentDelivery, deliverySlotId, deliverySlotConfigId, deliverySlotDate}]
     sellerDeliveryOptions: Optional[List[SellerDeliveryOption]] = None
-
-
-from app.models.schemas import VariantAttributes, CouponResponse
 
 
 class CalculatedOrderItem(BaseModel):
@@ -169,7 +171,7 @@ class CalculatedOrderItem(BaseModel):
 
 
 class OrderStatusUpdate(BaseModel):
-        status: str
+    status: str
 
 
 class AssignValetRequest(BaseModel):
@@ -254,7 +256,8 @@ class ReferralProgramSegmentSettings(BaseModel):
 
 class ReferralSettingsModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    retail: ReferralProgramSegmentSettings = Field(default_factory=ReferralProgramSegmentSettings)
+    retail: ReferralProgramSegmentSettings = Field(
+        default_factory=ReferralProgramSegmentSettings)
     business: Optional[ReferralProgramSegmentSettings] = None
 
 
@@ -285,15 +288,22 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
             order_ids.add(str(order.id))
 
         for item in order.items if order.items else []:
-                # ItemSnippet.product holds the product ID reference
-                pid = item.productId or item.product
-                if pid and str(pid).isdigit():
-                    product_ids.add(str(pid))
+            # ItemSnippet.product holds the product ID reference
+            if 'productId' in item.model_fields:
+                pid = item.productId
+            else:
+                pid = item.product.id if item.product else None
+
+            if pid and str(pid).isdigit():
+                product_ids.add(str(pid))
 
     # 2. Fetch all required users, valets, products, and payments in parallel
-    users_task = get_storage("users").findAll({"allowed_ids": list(user_ids.union(valet_ids))}) if user_ids.union(valet_ids) else None
-    products_task = get_storage("products").findAll({"allowed_ids": list(product_ids)}) if product_ids else None
-    payments_task = get_storage("payments").findAll({"allowed_order_ids": list(order_ids)}) if order_ids else None
+    users_task = get_storage("users").findAll({"allowed_ids": list(
+        user_ids.union(valet_ids))}) if user_ids.union(valet_ids) else None
+    products_task = get_storage("products").findAll(
+        {"allowed_ids": list(product_ids)}) if product_ids else None
+    payments_task = get_storage("payments").findAll(
+        {"allowed_order_ids": list(order_ids)}) if order_ids else None
 
     # Execute DB queries concurrently (if any)
     users_list = await users_task if users_task else []
@@ -323,7 +333,8 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
         valet = users_map[o_valet] if o_valet and o_valet in users_map else None
 
         o_id = str(order.id) if order.id else None
-        payment_entries = payments_map[o_id] if o_id and o_id in payments_map else []
+        payment_entries = payments_map[o_id] if o_id and o_id in payments_map else [
+        ]
 
         o_items = order.items if order.items else []
         populated_items = []
@@ -331,7 +342,8 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
         for i_dict in o_items:
             # i_dict is a Pydantic ItemSnippet (OrderItem)
             # .product holds the product ID reference; .productId is the alternate field
-            pid = str(i_dict.product) if i_dict.product else (str(i_dict.productId) if i_dict.productId else None)
+            pid = str(i_dict.product) if i_dict.product else (
+                str(i_dict.productId) if i_dict.productId else None)
             product = products_map[pid] if pid and pid in products_map else None
 
             # stockStatus, taxRate, taxAmount are not stored in sj_order_items (DB has
@@ -355,9 +367,12 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
         # (no DB columns) — declared on PopulatedOrderResponse as Optional[str] = None
         pop_order = PopulatedOrderResponse(
             id=order_resp.id,
-            user=UserSnippet.model_validate(user, from_attributes=True) if user else None,
-            assignedValet=ValetSnippet.model_validate(valet, from_attributes=True) if valet else None,
-            paymentEntries=[entry for payment in payment_entries for entry in (payment.payment_entries or [])] if payment_entries else [],
+            user=UserSnippet.model_validate(
+                user, from_attributes=True) if user else None,
+            assignedValet=ValetSnippet.model_validate(
+                valet, from_attributes=True) if valet else None,
+            paymentEntries=[entry for payment in payment_entries for entry in (
+                payment.payment_entries or [])] if payment_entries else [],
             items=populated_items,
             sub_orders=order_resp.sub_orders,
             orderStatus=order_resp.status,
@@ -367,7 +382,8 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
             couponCode=None,
             paymentMethod=order_resp.payment_method,
             paymentStatus=order_resp.payment_status,
-            address=Address.model_validate(order_resp.shipping_address, from_attributes=True) if order_resp.shipping_address else None,
+            address=Address.model_validate(
+                order_resp.shipping_address, from_attributes=True) if order_resp.shipping_address else None,
             createdAt=order_resp.created_at,
             updatedAt=order_resp.updated_at,
             zoneId=None,
@@ -378,6 +394,8 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
         populated.append(pop_order)
 
     return populated
+
+
 async def populate_order(order: Any) -> Optional[PopulatedOrderResponse]:
     """Populate a single order by reusing populate_orders"""
     if not order:
@@ -453,7 +471,8 @@ async def get_order(order_id: str, current_user: User = Depends(get_current_user
         if order.assigned_valet != current_user.id:
             raise HTTPException(status_code=403, detail="Access denied")
     elif current_user.role == "seller":
-        is_seller = any(str(sub.seller_id) == str(current_user.id) for sub in (order.sub_orders or []))
+        is_seller = any(str(sub.seller_id) == str(current_user.id)
+                        for sub in (order.sub_orders or []))
         if not is_seller:
             raise HTTPException(status_code=403, detail="Access denied")
 
@@ -474,7 +493,8 @@ async def create_order(
     order_zone_id = None
     # User must be logged in to place an order
     if not current_user:
-        raise HTTPException(status_code=401, detail="Please log in to place an order")
+        raise HTTPException(
+            status_code=401, detail="Please log in to place an order")
 
     # Check for existing order with the same idempotency key for this user
     if idempotency_key:
@@ -486,7 +506,8 @@ async def create_order(
 
     # Valets cannot place orders
     if current_user.role == "valet":
-        raise HTTPException(status_code=403, detail="Valets cannot place orders")
+        raise HTTPException(
+            status_code=403, detail="Valets cannot place orders")
 
     # Get user to check deactivation status
     user = await user_repository.findById(current_user.id)
@@ -526,29 +547,33 @@ async def create_order(
                     for entry in (p.payment_entries or [])
                     if (entry.verified)
                 )
-                effective_due = (p.total_amount if p.total_amount is not None else 0.0) - verified_paid
+                effective_due = (
+                    p.total_amount if p.total_amount is not None else 0.0) - verified_paid
 
                 if effective_due > 0:
                     order_date_raw = p.order_date or p.created_at
                     if order_date_raw:
                         try:
                             from datetime import timedelta
-                            
+
                             if isinstance(order_date_raw, str):
                                 order_date = (
-                                    datetime.fromisoformat(order_date_raw.replace("Z", "+00:00"))
+                                    datetime.fromisoformat(
+                                        order_date_raw.replace("Z", "+00:00"))
                                     .astimezone(__import__("datetime").timezone.utc)
                                     .replace(tzinfo=None)
                                 )
                             else:
-                                order_date = order_date_raw.replace(tzinfo=None)
+                                order_date = order_date_raw.replace(
+                                    tzinfo=None)
 
                             due_date = order_date + timedelta(days=terms_days)
                             if now > due_date:
                                 has_overdue = True
                                 break
                         except Exception as e:
-                            logging.warning("Background task failed", exc_info=e)
+                            logging.warning(
+                                "Background task failed", exc_info=e)
         if has_overdue:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -577,10 +602,12 @@ async def create_order(
 
     if not is_method_enabled:
         method_label = (
-            "Cash on Delivery" if payment_method == "cod" else ("UPI" if payment_method == "upi" else "Credit")
+            "Cash on Delivery" if payment_method == "cod" else (
+                "UPI" if payment_method == "upi" else "Credit")
         )
         segment_label = "business" if is_wholesale else "retail"
-        raise HTTPException(status_code=400, detail=f"{method_label} is not enabled for {segment_label} customers")
+        raise HTTPException(
+            status_code=400, detail=f"{method_label} is not enabled for {segment_label} customers")
 
     # Get cart items from user's cart (or from request if provided)
     if order_data.items:
@@ -607,10 +634,12 @@ async def create_order(
     # Calculate initial subtotal and base shipping before coupon application
     temp_subtotal = 0.0
     for item in cart_items:
-        p = (_cart_products_map[str(item.product or item.product_id)] if str(item.product or item.product_id) in _cart_products_map else None)
+        p = (_cart_products_map[str(item.product or item.product_id)] if str(
+            item.product or item.product_id) in _cart_products_map else None)
         if p:
             qty = (item.quantity if item.quantity is not None else 0)
-            sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
+            sell_as_case = (
+                item.sell_as_case if item.sell_as_case is not None else False)
             temp_subtotal += product_repository.calculateTotalPrice(
                 p, effective_role, qty, sell_as_case=sell_as_case, user_id=current_user.id
             )
@@ -632,8 +661,10 @@ async def create_order(
                 delivery_charge_data_raw
             )
             if delivery_charge_data:
-                charge_amount = float(delivery_charge_data.charge if delivery_charge_data.charge is not None else 0.0)
-                min_cart_value_for_free = float(delivery_charge_data.minCartValue if delivery_charge_data.minCartValue is not None else 0.0)
+                charge_amount = float(
+                    delivery_charge_data.charge if delivery_charge_data.charge is not None else 0.0)
+                min_cart_value_for_free = float(
+                    delivery_charge_data.minCartValue if delivery_charge_data.minCartValue is not None else 0.0)
                 is_applicable = (
                     delivery_charge_data.isApplicableToRole
                     if delivery_charge_data.isApplicableToRole is not None
@@ -645,7 +676,8 @@ async def create_order(
                     elif min_cart_value_for_free == 0 or min_cart_value_for_free == float("inf"):
                         base_shipping = float(charge_amount)
         except Exception as e:
-            logger.warning("Error calculating base shipping before coupon: %s", str(e))
+            logger.warning(
+                "Error calculating base shipping before coupon: %s", str(e))
 
     # Validate and apply discount (coupon) if provided. When discount has "Applies to" (categories/brands/etc.),
     # only eligible cart items count toward minimum and discount amount.
@@ -761,13 +793,15 @@ async def create_order(
     eligible_subtotal_for_discount = None
     item_totals = []
     for idx, item in enumerate(cart_items):
-        product = (_cart_products_map[str(item.product or item.product_id)] if str(item.product or item.product_id) in _cart_products_map else None)
+        product = (_cart_products_map[str(item.product or item.product_id)] if str(
+            item.product or item.product_id) in _cart_products_map else None)
         if not product:
             raise HTTPException(
                 status_code=400, detail=f"Product not found: {item.product or item.product_id}"
             )
         quantity = (item.quantity if item.quantity is not None else 0)
-        sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
+        sell_as_case = (
+            item.sell_as_case if item.sell_as_case is not None else False)
 
         ignore_auto = False
         if is_override and eligible_item_indices is not None and idx in eligible_item_indices:
@@ -784,7 +818,8 @@ async def create_order(
         item_totals.append((product, item_total, quantity, sell_as_case, item))
         initial_subtotal += item_total
     if eligible_item_indices is not None and len(eligible_item_indices) > 0 and coupon_discount > 0:
-        eligible_subtotal_for_discount = sum(item_totals[i][1] for i in eligible_item_indices if i < len(item_totals))
+        eligible_subtotal_for_discount = sum(
+            item_totals[i][1] for i in eligible_item_indices if i < len(item_totals))
 
     # --- Phase 1: Apply Coupon Discount ---
     c_type_of_disc = coupon_info["typeOfDiscount"] if coupon_info is not None else None
@@ -796,7 +831,8 @@ async def create_order(
             item_coupon_discount = 0.0
         elif item_discounts is not None and idx in item_discounts:
             item_coupon_discount = item_discounts[idx]
-            item_discounts[idx] = 0.0  # Prevent double application if any logic loops
+            # Prevent double application if any logic loops
+            item_discounts[idx] = 0.0
         elif (
             coupon_discount > 0
             and eligible_subtotal_for_discount
@@ -804,7 +840,8 @@ async def create_order(
             and idx in (eligible_item_indices or [])
         ):
             if eligible_subtotal_for_discount is None:
-                raise ValueError("Data Integrity Error: Missing eligible subtotal for coupon discount allocation")
+                raise ValueError(
+                    "Data Integrity Error: Missing eligible subtotal for coupon discount allocation")
             coupon_discount_ratio = coupon_discount / eligible_subtotal_for_discount
             item_coupon_discount = item_total_before_coupon * coupon_discount_ratio
         elif coupon_discount > 0 and initial_subtotal > 0:
@@ -813,7 +850,8 @@ async def create_order(
         else:
             item_coupon_discount = 0.0
 
-        item_total_after_coupon = max(0.0, item_total_before_coupon - item_coupon_discount)
+        item_total_after_coupon = max(
+            0.0, item_total_before_coupon - item_coupon_discount)
 
         # Store temporary values back in the tuple (re-constructing the tuple)
         item_totals[idx] = (
@@ -837,12 +875,14 @@ async def create_order(
 
         # 1. User must be customer role (Retail)
         if effective_role != "customer":
-            raise HTTPException(status_code=400, detail="Referral discount is only available for retail customers")
+            raise HTTPException(
+                status_code=400, detail="Referral discount is only available for retail customers")
 
         # 2. Must be first order (0 orders)
         order_count = await order_repository.countByUser(current_user.id)
         if order_count > 0:
-            raise HTTPException(status_code=400, detail="Referral discount is only available on your first order")
+            raise HTTPException(
+                status_code=400, detail="Referral discount is only available on your first order")
 
         # 3. Settings must be active globally
         from app.repositories.referral_repository import referral_repository
@@ -853,24 +893,29 @@ async def create_order(
         )
         retail_settings = ref_settings.retail
         if not (retail_settings.is_active if retail_settings.is_active is not None else False) or (retail_settings.discount_value if retail_settings.discount_value is not None else 0) <= 0:
-            raise HTTPException(status_code=400, detail="Referral program is not active at the moment")
+            raise HTTPException(
+                status_code=400, detail="Referral program is not active at the moment")
 
         # 4. Valid referrer user
         referrer = await user_repository.findOne({"referralCode": ref_code})
         if not referrer:
-            raise HTTPException(status_code=400, detail="Invalid referral code")
+            raise HTTPException(
+                status_code=400, detail="Invalid referral code")
 
         # 5. Cannot refer self
         if str(referrer.id) == str(current_user.id):
-            raise HTTPException(status_code=400, detail="You cannot use your own referral code")
+            raise HTTPException(
+                status_code=400, detail="You cannot use your own referral code")
 
         # If all valid, calculate discount using latest settings
         discount_type = retail_settings.discount_type
-        discount_value = (retail_settings.discount_value if retail_settings.discount_value is not None else 0)
+        discount_value = (
+            retail_settings.discount_value if retail_settings.discount_value is not None else 0)
 
         if discount_type == "percentage":
             if subtotal_after_coupon is None or discount_value is None:
-                raise ValueError("Data Integrity Error: Missing values for referral discount calculation")
+                raise ValueError(
+                    "Data Integrity Error: Missing values for referral discount calculation")
             referral_discount = subtotal_after_coupon * (discount_value / 100)
         else:  # fixed
             referral_discount = min(discount_value, subtotal_after_coupon)
@@ -898,7 +943,8 @@ async def create_order(
             _pincode_seller_ids = await get_seller_ids_for_pincode(_customer_pincode)
             _pincode_seller_ids = set(_pincode_seller_ids or [])
         except Exception as _pse:
-            logger.warning("Could not resolve serviceable sellers for pincode %s: %s", _customer_pincode, _pse)
+            logger.warning(
+                "Could not resolve serviceable sellers for pincode %s: %s", _customer_pincode, _pse)
 
     for idx, (
         product,
@@ -911,24 +957,32 @@ async def create_order(
     ) in enumerate(item_totals):
         # Distribute referral discount proportionally
         if referral_discount > 0 and subtotal_after_coupon > 0:
-            item_referral_discount = item_total_after_coupon * (referral_discount / subtotal_after_coupon)
+            item_referral_discount = item_total_after_coupon * \
+                (referral_discount / subtotal_after_coupon)
         else:
             item_referral_discount = 0.0
 
-        final_item_total = max(0.0, item_total_after_coupon - item_referral_discount)
+        final_item_total = max(
+            0.0, item_total_after_coupon - item_referral_discount)
 
         # Calculate total single physical units
         qty_per_case = int(product.quantity_per_case or 1)
-        total_single_units = (quantity * qty_per_case) if sell_as_case else quantity
+        total_single_units = (
+            quantity * qty_per_case) if sell_as_case else quantity
 
-        single_unit_price = final_item_total / total_single_units if total_single_units > 0 else 0.0
+        single_unit_price = final_item_total / \
+            total_single_units if total_single_units > 0 else 0.0
 
         # GST Calculation per single unit
-        gst_percent = (product.gst if product.gst is not None else 0) if gst_enabled else 0
+        gst_percent = (
+            product.gst if product.gst is not None else 0) if gst_enabled else 0
         gst_multiplier = 1 + (gst_percent / 100)
-        single_unit_taxable_value = single_unit_price / gst_multiplier if gst_multiplier > 0 else single_unit_price
-        single_unit_cgst = single_unit_taxable_value * (gst_percent / 200) if gst_percent > 0 else 0
-        single_unit_sgst = single_unit_taxable_value * (gst_percent / 200) if gst_percent > 0 else 0
+        single_unit_taxable_value = single_unit_price / \
+            gst_multiplier if gst_multiplier > 0 else single_unit_price
+        single_unit_cgst = single_unit_taxable_value * \
+            (gst_percent / 200) if gst_percent > 0 else 0
+        single_unit_sgst = single_unit_taxable_value * \
+            (gst_percent / 200) if gst_percent > 0 else 0
 
         # Aggregate totals for the item
         taxable_value = single_unit_taxable_value * total_single_units
@@ -939,12 +993,14 @@ async def create_order(
         total_cgst += cgst
         total_sgst += sgst
 
-        effective_price = ((item_total_before_coupon or 0) / quantity) if quantity else 0
+        effective_price = ((item_total_before_coupon or 0) /
+                           quantity) if quantity else 0
 
         order_items.append(
             CalculatedOrderItem(
                 product=str(product.id),
-                sellerId=_resolve_product_seller_id(product, _pincode_seller_ids),
+                sellerId=_resolve_product_seller_id(
+                    product, _pincode_seller_ids),
                 productName=product.name,
                 quantity=quantity,
                 sellAsCase=sell_as_case,
@@ -974,7 +1030,8 @@ async def create_order(
         from app.repositories.stock_reservation_repository import stock_reservation_repository
 
         user_res = await stock_reservation_repository.get_user_reservations(current_user.id)
-        prod_res = next((r for r in user_res if r.product_id == str(product.id)), None)
+        prod_res = next(
+            (r for r in user_res if r.product_id == str(product.id)), None)
 
         has_valid_reservation = False
         if prod_res and int(prod_res.quantity) >= quantity:
@@ -1032,13 +1089,15 @@ async def create_order(
         _slot_config_raw = None
         if order_zone_id:
             _zone_configs = await slot_storage.findAll(
-                {"date": target_date, "segment": seg, "zoneId": order_zone_id, "isActive": True}
+                {"date": target_date, "segment": seg,
+                    "zoneId": order_zone_id, "isActive": True}
             )
             if _zone_configs:
                 _slot_config_raw = _zone_configs[0]
         if not _slot_config_raw:
             _default_configs = await slot_storage.findAll(
-                {"date": target_date, "segment": seg, "zoneId": "default", "isActive": True}
+                {"date": target_date, "segment": seg,
+                    "zoneId": "default", "isActive": True}
             )
             if _default_configs:
                 _slot_config_raw = _default_configs[0]
@@ -1086,7 +1145,8 @@ async def create_order(
                             anchor_time_str = sl.endTime or sl.end_time or ""  # urgent → end time
                             try:
                                 anchor_ist = ist.localize(
-                                    _dt.datetime.strptime(f"{target_date} {anchor_time_str}", "%Y-%m-%d %H:%M")
+                                    _dt.datetime.strptime(
+                                        f"{target_date} {anchor_time_str}", "%Y-%m-%d %H:%M")
                                 )
                                 if now_ist >= (anchor_ist - _dt.timedelta(hours=cutoff)):
                                     continue
@@ -1113,7 +1173,8 @@ async def create_order(
                     status_code=400, detail="Urgent delivery is currently unavailable for your location."
                 )
             else:
-                raise HTTPException(status_code=400, detail="Selected delivery slot is no longer available.")
+                raise HTTPException(
+                    status_code=400, detail="Selected delivery slot is no longer available.")
 
         # Re-check capacity & cutoffs for standard slot selection
         if not order_data.isUrgentDelivery or order_data.deliverySlotId:
@@ -1125,12 +1186,14 @@ async def create_order(
                     _cap = matched_config.zoneDefaultCapacity
                 _booked = (matched_slot.bookedCount) or 0
                 if _cap is not None and _booked >= int(_cap):
-                    raise HTTPException(status_code=400, detail="Selected delivery slot is fully booked.")
+                    raise HTTPException(
+                        status_code=400, detail="Selected delivery slot is fully booked.")
 
                 ms_is_urgent = bool(matched_slot.isUrgent)
                 ms_urgent_cutoff = matched_slot.urgentCutoffHours
                 ms_cutoff = matched_slot.cutoffHours
-                cutoff_hours = (ms_urgent_cutoff if ms_is_urgent and ms_urgent_cutoff is not None else ms_cutoff)
+                cutoff_hours = (
+                    ms_urgent_cutoff if ms_is_urgent and ms_urgent_cutoff is not None else ms_cutoff)
                 if cutoff_hours is not None:
                     ist = pytz.timezone("Asia/Kolkata")
                     now_ist = _dt.datetime.now(ist)
@@ -1139,10 +1202,12 @@ async def create_order(
                     anchor_time_str = (ms_end if ms_is_urgent else ms_start)
                     try:
                         anchor_ist = ist.localize(
-                            _dt.datetime.strptime(f"{target_date} {anchor_time_str}", "%Y-%m-%d %H:%M")
+                            _dt.datetime.strptime(
+                                f"{target_date} {anchor_time_str}", "%Y-%m-%d %H:%M")
                         )
                         if now_ist >= (anchor_ist - _dt.timedelta(hours=cutoff_hours)):
-                            raise HTTPException(status_code=400, detail="Booking time for this slot has passed.")
+                            raise HTTPException(
+                                status_code=400, detail="Booking time for this slot has passed.")
                     except ValueError:
                         pass
 
@@ -1167,7 +1232,8 @@ async def create_order(
 
     # Check pincode serviceability before proceeding
     if order_data.shippingAddress and (order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zipCode):
-        shipping_zip = str(order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zipCode).strip()
+        shipping_zip = str(
+            order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zipCode).strip()
         is_serviceable = await delivery_charge_repository.isPincodeServiceable(shipping_zip, effective_role)
 
         if not is_serviceable:
@@ -1185,7 +1251,8 @@ async def create_order(
                 order_zone_id = str(_z2.id or "")
 
         if order_zone_id:
-            seller_ids_in_order = {item.sellerId for item in order_items if item.sellerId}
+            seller_ids_in_order = {
+                item.sellerId for item in order_items if item.sellerId}
             for sid in seller_ids_in_order:
                 sdoc = await user_repository.findById(sid)
                 if sdoc:
@@ -1193,12 +1260,12 @@ async def create_order(
                     # Empty list = seller hasn't configured zones yet; allow during migration
                     if seller_zone_ids and order_zone_id not in seller_zone_ids:
                         s_name = sdoc.companyName or sdoc.name or "Seller"
-                        ORDER_FAILURES.labels(reason="seller_zone_not_serviceable").inc()
+                        ORDER_FAILURES.labels(
+                            reason="seller_zone_not_serviceable").inc()
                         raise HTTPException(
                             status_code=400,
                             detail=f"Products from '{s_name}' are not available for delivery to your area.",
                         )
-
 
     # Calculate delivery charge based on location, user role, and order amount
     # Enhanced logic to handle all scenarios:
@@ -1223,7 +1290,8 @@ async def create_order(
             zip_code = order_data.shippingAddress.zipCode if order_data.shippingAddress.zipCode is not None else ""
 
             # Calculate total before shipping for tiered charge calculation
-            total_before_shipping = subtotal  # Use subtotal (after coupon, includes GST)
+            # Use subtotal (after coupon, includes GST)
+            total_before_shipping = subtotal
 
             # Get delivery charge with role and amount consideration (now includes pincode)
             delivery_charge_data_raw = await delivery_charge_repository.getChargeForLocation(
@@ -1247,7 +1315,8 @@ async def create_order(
                             # The cart is treated as a single unit — all items are either
                             # urgent or standard. No per-seller validation needed here.
                             urgent_charge = delivery_charge_data.urgentDeliveryCharge
-                            shipping = float(urgent_charge) if urgent_charge is not None else 0.0
+                            shipping = float(
+                                urgent_charge) if urgent_charge is not None else 0.0
                         else:
                             raise HTTPException(
                                 status_code=400, detail="Urgent delivery is not available for this location"
@@ -1264,35 +1333,40 @@ async def create_order(
                         status_code=400, detail="Urgent delivery is not available for your customer type"
                     )
             elif order_data.isUrgentDelivery:
-                raise HTTPException(status_code=400, detail="Urgent delivery is not available for this location")
+                raise HTTPException(
+                    status_code=400, detail="Urgent delivery is not available for this location")
         except (KeyError, ValueError, TypeError) as e:
             logger.warning("Data error fetching delivery charge: %s", str(e))
             shipping = 0.0
         except Exception as e:
-            logger.error("Unexpected error fetching delivery charge: %s", str(e), exc_info=True)
+            logger.error(
+                "Unexpected error fetching delivery charge: %s", str(e), exc_info=True)
             shipping = 0.0
 
     # Apply shipping discount calculation and compute net shipping to charge
     base_shipping = shipping
     c_tod = coupon_info["typeOfDiscount"] if coupon_info is not None else None
     is_shipping_discount = coupon_info is not None and c_tod == "shipping_discount"
-    
+
     shipping_net_to_charge = base_shipping
     if is_shipping_discount:
         shipping_discount_amount = coupon_discount
-        shipping_net_to_charge = max(0.0, base_shipping - shipping_discount_amount)
+        shipping_net_to_charge = max(
+            0.0, base_shipping - shipping_discount_amount)
 
     # Delivery GST calculation on the net shipping charge (Inclusive of tax)
     delivery_gst = 0.0
     if shipping_net_to_charge > 0:
         default_charge = await delivery_charge_repository.getDefaultCharge()
         if default_charge and default_charge.delivery_charge_gst:
-            gst_percentage = float((default_charge.delivery_charge_gst_percentage if default_charge.delivery_charge_gst_percentage is not None else 18.0))
+            gst_percentage = float(
+                (default_charge.delivery_charge_gst_percentage if default_charge.delivery_charge_gst_percentage is not None else 18.0))
             gst_multiplier = 1 + (gst_percentage / 100)
 
             # Shipping is inclusive of taxes. Extract base charge and tax.
             base_shipping_charge = shipping_net_to_charge / gst_multiplier
-            delivery_gst = round(shipping_net_to_charge - base_shipping_charge, 2)
+            delivery_gst = round(shipping_net_to_charge -
+                                 base_shipping_charge, 2)
 
             # The system treats the base amount as the actual delivery charge
             shipping_net_to_charge = round(base_shipping_charge, 2)
@@ -1305,7 +1379,8 @@ async def create_order(
     if is_shipping_discount:
         # Since base_shipping was inclusive, we must also extract its base value
         if default_charge and default_charge.delivery_charge_gst:
-            gst_percentage = float((default_charge.delivery_charge_gst_percentage if default_charge.delivery_charge_gst_percentage is not None else 18.0))
+            gst_percentage = float(
+                (default_charge.delivery_charge_gst_percentage if default_charge.delivery_charge_gst_percentage is not None else 18.0))
             gst_multiplier = 1 + (gst_percentage / 100)
             shipping = round(base_shipping / gst_multiplier, 2)
         else:
@@ -1320,7 +1395,8 @@ async def create_order(
     # For UPI, require payment screenshot
     if order_data.paymentMethod == "upi":
         if not order_data.upiPaymentScreenshot:
-            raise HTTPException(status_code=400, detail="UPI payment screenshot is required")
+            raise HTTPException(
+                status_code=400, detail="UPI payment screenshot is required")
 
     # Check credit limit for credit payment method
     if order_data.paymentMethod == "credit":
@@ -1334,7 +1410,8 @@ async def create_order(
 
         if ((user.credit_used if user.credit_used is not None else 0) + total) > (user.credit_limit if user.credit_limit is not None else 0):
             ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()
-            raise HTTPException(status_code=400, detail="Credit limit exceeded")
+            raise HTTPException(
+                status_code=400, detail="Credit limit exceeded")
 
     # Upload UPI screenshot to OCI if present
     screenshot_path = None
@@ -1356,7 +1433,8 @@ async def create_order(
         success = await user_repository.add_credit_used_atomic(current_user.id, total)
         if not success:
             ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()
-            raise HTTPException(status_code=400, detail="Insufficient credit limit or user not found.")
+            raise HTTPException(
+                status_code=400, detail="Insufficient credit limit or user not found.")
         _credit_deducted = True
 
     # ── MULTI-VM CREDIT DEDUCTION (commented out — already atomic at DB level) ───
@@ -1395,14 +1473,13 @@ async def create_order(
     #
     # ─────────────────────────────────────────────────────────────────────────────
 
-
     # Create order
 
     order = await order_repository.create(
         OrderInternalCreate(
-            user= current_user.id,
-            sessionId= current_user.session_id,
-            items= [
+            user=current_user.id,
+            sessionId=current_user.session_id,
+            items=[
                 OrderItem(
                     productId=str(i.product),
                     product=str(i.product),
@@ -1413,27 +1490,29 @@ async def create_order(
                 )
                 for i in order_items
             ],
-            subtotalBeforeCoupon= round(subtotal_before_coupon, 2),
-            subtotal= round(subtotal, 2),
-            tax= tax,
-            shipping= shipping,
-            deliveryGst= delivery_gst,
-            discount= discount,
-            couponCode= coupon_code,
-            couponInfo= coupon_info,
-            total= total,
-            orderType= order_type,
-            isUrgentDelivery= order_data.isUrgentDelivery if effective_role in ("customer", "wholesaler") else False,
-            deliverySlot= selected_slot_info,
-            shippingAddress= order_data.shippingAddress,
-            billingAddress= order_data.billingAddress or order_data.shippingAddress,
-            paymentMethod= order_data.paymentMethod,
-            upiPaymentScreenshot= screenshot_path if order_data.paymentMethod == "upi" else None,
-            notes= f"Referral Code Applied: {applied_referral_code} | {order_data.notes or ''}".strip(" |")
+            subtotalBeforeCoupon=round(subtotal_before_coupon, 2),
+            subtotal=round(subtotal, 2),
+            tax=tax,
+            shipping=shipping,
+            deliveryGst=delivery_gst,
+            discount=discount,
+            couponCode=coupon_code,
+            couponInfo=coupon_info,
+            total=total,
+            orderType=order_type,
+            isUrgentDelivery=order_data.isUrgentDelivery if effective_role in (
+                "customer", "wholesaler") else False,
+            deliverySlot=selected_slot_info,
+            shippingAddress=order_data.shippingAddress,
+            billingAddress=order_data.billingAddress or order_data.shippingAddress,
+            paymentMethod=order_data.paymentMethod,
+            upiPaymentScreenshot=screenshot_path if order_data.paymentMethod == "upi" else None,
+            notes=f"Referral Code Applied: {applied_referral_code} | {order_data.notes or ''}".strip(
+                " |")
             if applied_referral_code
             else (order_data.notes or ""),
-            printedBill= order_data.printedBill,
-            idempotencyKey= idempotency_key,
+            printedBill=order_data.printedBill,
+            idempotencyKey=idempotency_key,
         )
     )
 
@@ -1461,7 +1540,7 @@ async def create_order(
                         async with factory() as session:
                             child_table = slot_storage.CHILD_TABLE
                             parent_table = slot_storage.TABLE
-                            
+
                             # --- BEGIN OLD COMMENTED CODE ---
                             # result = await session.execute(
                             #     text(f"SELECT booked_count, capacity FROM {child_table} WHERE parent_id = :id AND slot_uuid = :slot_id FOR UPDATE"),
@@ -1491,17 +1570,21 @@ async def create_order(
                                       AND slot_uuid = :slot_id 
                                       AND (capacity IS NULL OR capacity = '' OR booked_count < CAST(capacity AS UNSIGNED))
                                 """),
-                                {"id": int(db_id) if str(db_id).isdigit() else None, "slot_id": slot_id},
+                                {"id": int(db_id) if str(db_id).isdigit()
+                                 else None, "slot_id": slot_id},
                             )
-                            
+
                             if update_result.rowcount == 0:
                                 # Rowcount 0 means either the slot doesn't exist OR it's fully booked.
                                 # Raising an exception triggers the order compensation block, refunding credit and marking order as failed.
-                                raise ValueError("Delivery slot is fully booked or unavailable.")
-                                
+                                raise ValueError(
+                                    "Delivery slot is fully booked or unavailable.")
+
                             await session.execute(
-                                text(f"UPDATE {parent_table} SET updated_at = UTC_TIMESTAMP() WHERE id = :id"),
-                                {"id": int(db_id) if str(db_id).isdigit() else None},
+                                text(
+                                    f"UPDATE {parent_table} SET updated_at = UTC_TIMESTAMP() WHERE id = :id"),
+                                {"id": int(db_id) if str(
+                                    db_id).isdigit() else None},
                             )
                             await session.commit()
                             # --- END NEW ATOMIC CODE ---
@@ -1519,7 +1602,8 @@ async def create_order(
         # Increment sales volume for product bundles included in this order.
         # Increment by the actual number of bundle copies purchased (not always +1).
         try:
-            unique_bundle_ids = {item.bundle_id for item in cart_items if item.bundle_id}
+            unique_bundle_ids = {
+                item.bundle_id for item in cart_items if item.bundle_id}
             for b_id in unique_bundle_ids:
                 from app.repositories.bundle_repository import bundle_repository
 
@@ -1527,12 +1611,14 @@ async def create_order(
                 if bundle:
                     # Determine how many full copies of this bundle were in the order.
                     # Use the first bundle item spec as the reference: copies = cart_qty / spec_qty.
-                    bundle_items_in_order = [i for i in cart_items if i.bundle_id == b_id]
+                    bundle_items_in_order = [
+                        i for i in cart_items if i.bundle_id == b_id]
                     bundle_specs = bundle.items or []
                     copies = 1  # default
                     if bundle_specs and bundle_items_in_order:
                         spec = bundle_specs[0]
-                        spec_qty = max(1, spec.quantity if spec.quantity is not None else 1)
+                        spec_qty = max(
+                            1, spec.quantity if spec.quantity is not None else 1)
                         spec_pid = str(spec.productId or "")
                         ref_item = next(
                             (
@@ -1543,13 +1629,15 @@ async def create_order(
                             ),
                             bundle_items_in_order[0],
                         )
-                        copies = max(1, (ref_item.quantity if ref_item.quantity is not None else spec_qty) // spec_qty)
+                        copies = max(
+                            1, (ref_item.quantity if ref_item.quantity is not None else spec_qty) // spec_qty)
                     # Bundle.salesCount is a declared Pydantic field
                     sales_c = bundle.salesCount if bundle.salesCount is not None else 0
                     new_sales = sales_c + copies
                     await bundle_repository.update(b_id, BundleInternalUpdate(salesCount=new_sales))
         except Exception as e:
-            logger.error("Failed to increment bundle salesCount: %s", str(e), exc_info=True)
+            logger.error("Failed to increment bundle salesCount: %s",
+                         str(e), exc_info=True)
 
         # Atomically decrement stock and fulfil the reservation in one shot per item.
         # Uses SELECT … FOR UPDATE so concurrent orders for the same product serialize
@@ -1560,7 +1648,8 @@ async def create_order(
             # Build variant_combinations arg expected by decrement_stock_atomic
             variant_combos = None
             if item.variant_attributes or item.variantAttributes:
-                variant_combos = [{"attributes": item.variant_attributes or item.variantAttributes, "quantity": item.quantity}]
+                variant_combos = [
+                    {"attributes": item.variant_attributes or item.variantAttributes, "quantity": item.quantity}]
 
             new_stock = await product_repository.decrement_stock_atomic(
                 str(item.product),
@@ -1576,7 +1665,8 @@ async def create_order(
                     item.product,
                     order.id,
                 )
-                new_stock = max(0, product.stock - item.quantity) if product.stock is not None else None
+                new_stock = max(
+                    0, product.stock - item.quantity) if product.stock is not None else None
 
             # Fulfil the stock reservation for this user + product
             from app.repositories.stock_reservation_repository import stock_reservation_repository
@@ -1642,7 +1732,8 @@ async def create_order(
         user_for_payment = await user_repository.findById(current_user.id)
         payment_data = {
             "orderId": order.id,
-            "userId": str(user_for_payment.user_id),  # Use userId instead of customerId
+            # Use userId instead of customerId
+            "userId": str(user_for_payment.user_id),
             "customerName": user_for_payment.name,
             "orderDate": order.created_at if isinstance(order.created_at, str) else str(order.created_at),
             "paymentMethod": order_data.paymentMethod,
@@ -1689,7 +1780,8 @@ async def create_order(
         try:
             await order_repository.update(str(order.id), OrderInternalUpdate(status="failed"))
         except Exception:
-            logger.error("[OrderCreate] Could not mark order %s as failed.", order.id, exc_info=True)
+            logger.error(
+                "[OrderCreate] Could not mark order %s as failed.", order.id, exc_info=True)
 
         # Restore credit that was pre-deducted if this was a credit order.
         if _credit_deducted:
@@ -1703,7 +1795,8 @@ async def create_order(
                     exc_info=True,
                 )
 
-        raise HTTPException(status_code=500, detail="Order could not be completed. Please try again.")
+        raise HTTPException(
+            status_code=500, detail="Order could not be completed. Please try again.")
 
     # Create notification for new order
 
@@ -1724,9 +1817,11 @@ async def create_order(
     await user_repository.update(current_user.id, UserInternalUpdate(address=order_data.shippingAddress))
 
     populated_order = await populate_order(order)
-    email = populated_order.user.email if (populated_order.user and populated_order.user.email) else None
+    email = populated_order.user.email if (
+        populated_order.user and populated_order.user.email) else None
     if email:
-        background_tasks.add_task(email_service.send_order_placed_email, email, populated_order)
+        background_tasks.add_task(
+            email_service.send_order_placed_email, email, populated_order)
 
     # ────────────────────────────────────────────────────────────────
     # Sub-order creation: split by seller
@@ -1744,7 +1839,8 @@ async def create_order(
                 oi.sellerId = super_admin_id
 
         # Build a lookup of sellerId -> seller user doc (for name)
-        seller_ids_in_order = {item.sellerId for item in order_items if item.sellerId}
+        seller_ids_in_order = {
+            item.sellerId for item in order_items if item.sellerId}
         seller_docs = {}
         for sid in seller_ids_in_order:
             sdoc = await user_repository.findById(sid)
@@ -1761,7 +1857,8 @@ async def create_order(
 
         # Only split if multiple seller groups exist
         if len(groups) > 1:
-            parent_order_number = (order.order_number if order.order_number is not None else str(order.id))
+            parent_order_number = (
+                order.order_number if order.order_number is not None else str(order.id))
             sub_order_ids = []
 
             # Build per-seller delivery option lookup from request
@@ -1784,12 +1881,16 @@ async def create_order(
                 logging.warning("Background task failed", exc_info=e)
 
             for idx, (seller_id, items_group) in enumerate(groups.items()):
-                sub_number = sub_order_repository._generate_sub_order_number(parent_order_number, idx)
+                sub_number = sub_order_repository._generate_sub_order_number(
+                    parent_order_number, idx)
 
                 # Per-group subtotal / tax
-                grp_subtotal = sum((i.subtotal if i.subtotal is not None else 0) for i in items_group)
-                grp_tax = sum((i.cgst if i.cgst is not None else 0) + (i.sgst if i.sgst is not None else 0) for i in items_group)
-                grp_discount = sum((i.coupon_discount if i.coupon_discount is not None else 0) + (i.referral_discount if i.referral_discount is not None else 0) for i in items_group)
+                grp_subtotal = sum(
+                    (i.subtotal if i.subtotal is not None else 0) for i in items_group)
+                grp_tax = sum((i.cgst if i.cgst is not None else 0) +
+                              (i.sgst if i.sgst is not None else 0) for i in items_group)
+                grp_discount = sum((i.coupon_discount if i.coupon_discount is not None else 0) + (
+                    i.referral_discount if i.referral_discount is not None else 0) for i in items_group)
 
                 # ── Delivery charge: always 0 on sub-orders ──────────────────
                 # Delivery is charged once on the parent order based on the
@@ -1800,7 +1901,8 @@ async def create_order(
                 # Inherit urgent flag from the parent order request
                 grp_is_urgent = bool(order_data.isUrgentDelivery)
 
-                sdo = (seller_delivery_map[str(seller_id)] if seller_id and str(seller_id) in seller_delivery_map else None)
+                sdo = (seller_delivery_map[str(seller_id)] if seller_id and str(
+                    seller_id) in seller_delivery_map else None)
 
                 # Record the delivery slot on the sub-order (informational, no charge)
                 if sdo and sdo.deliverySlotId and sdo.deliverySlotDate:
@@ -1821,9 +1923,11 @@ async def create_order(
 
                 seller_name = ""
                 if seller_id:
-                    sdoc = (seller_docs[str(seller_id)] if str(seller_id) in seller_docs else None)
+                    sdoc = (seller_docs[str(seller_id)] if str(
+                        seller_id) in seller_docs else None)
                     if sdoc:
-                        seller_name = sdoc.companyName if sdoc.companyName else (sdoc.name if sdoc.name else "")
+                        seller_name = sdoc.companyName if sdoc.companyName else (
+                            sdoc.name if sdoc.name else "")
                 else:
                     seller_name = "Platform"
 
@@ -1882,16 +1986,17 @@ async def create_order(
                                     "parentOrderId": str(order.id),
                                     "amount": grp_total,
                                 }
-            })
-        )
+                            })
+                        )
                     except Exception as notif_err:
-                        logger.error("Error notifying seller %s: %s", seller_id, str(notif_err), exc_info=True)
+                        logger.error("Error notifying seller %s: %s",
+                                     seller_id, str(notif_err), exc_info=True)
 
             # Store sub-order references on the parent order
             await order_repository.update(
                 str(order.id),
                 OrderInternalUpdate(hasSubOrders=True,
-                    subOrderIds=sub_order_ids,),
+                                    subOrderIds=sub_order_ids,),
             )
             # Refresh populated_order to include subOrderIds
             updated_parent = await order_repository.findById(str(order.id))
@@ -1931,12 +2036,14 @@ async def update_order_tracking(
                 seller_has_sub = True
                 break
         if not seller_has_sub:
-            raise HTTPException(status_code=403, detail="You do not have a sub-order in this order")
+            raise HTTPException(
+                status_code=403, detail="You do not have a sub-order in this order")
 
     await order_repository.update(order_id, OrderInternalUpdate(
         trackingId=data.trackingId,
         courierPartner=data.courierPartner,
-        trackingUpdatedAt=__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
+        trackingUpdatedAt=__import__("datetime").datetime.now(
+            __import__("datetime").timezone.utc).isoformat() + "Z"
     ))
 
     # Push notification to customer
@@ -1951,13 +2058,14 @@ async def update_order_tracking(
             ),
         )
     except Exception as _ne:
-        logger.warning("Tracking notification failed for order %s: %s", order_id, _ne)
+        logger.warning(
+            "Tracking notification failed for order %s: %s", order_id, _ne)
 
     return {"message": "Tracking updated", "trackingId": data.trackingId, "courierPartner": data.courierPartner}
 
 
 class UpdateDeliveryChargeRequest(BaseModel):
-        newDeliveryCharge: float
+    newDeliveryCharge: float
 
 
 @router.put("/{order_id}/delivery-charge", response_model=DeliveryChargeUpdateResponse)
@@ -1973,18 +2081,21 @@ async def update_delivery_charge(
     # Only allow for wholesaler/retailer orders
     user = await user_repository.findById(order.user)
     if not user or user.role != "wholesaler":
-        raise HTTPException(status_code=403, detail="Can only update delivery charge for business customer orders")
+        raise HTTPException(
+            status_code=403, detail="Can only update delivery charge for business customer orders")
 
     # Only allow before dispatch
     if order.status not in ["pending", "confirmed", "processing"]:
-        raise HTTPException(status_code=400, detail="Can only update delivery charge before order is dispatched")
+        raise HTTPException(
+            status_code=400, detail="Can only update delivery charge before order is dispatched")
 
     new_delivery_charge = request.newDeliveryCharge
     old_delivery_charge = (order.shipping if order.shipping is not None else 0)
     difference = new_delivery_charge - old_delivery_charge
 
     if difference == 0:
-        raise HTTPException(status_code=400, detail="New delivery charge is same as current charge")
+        raise HTTPException(
+            status_code=400, detail="New delivery charge is same as current charge")
 
     # Update order totals
     new_total = (order.total if order.total is not None else 0) + difference
@@ -1995,19 +2106,24 @@ async def update_delivery_charge(
     payments = await payment_repository.findByOrderId(order_id)
     if payments and len(payments) > 0:
         payment = payments[0]
-        payment_method = (order.payment_method if order.payment_method is not None else "cod")
+        payment_method = (
+            order.payment_method if order.payment_method is not None else "cod")
 
         if payment_method == "upi":
             # For UPI: Update amount remaining (to be settled during delivery as COD)
-            new_amount_remaining = (payment.amount_remaining if payment.amount_remaining is not None else 0) + difference
+            new_amount_remaining = (
+                payment.amount_remaining if payment.amount_remaining is not None else 0) + difference
             await payment_repository.update(
-                payment.id, {"totalAmount": new_total, "amountRemaining": new_amount_remaining}
+                payment.id, {"totalAmount": new_total,
+                             "amountRemaining": new_amount_remaining}
             )
         elif payment_method in ["credit", "cod"]:
             # For Credit/COD: Update amount remaining
-            new_amount_remaining = (payment.amount_remaining if payment.amount_remaining is not None else 0) + difference
+            new_amount_remaining = (
+                payment.amount_remaining if payment.amount_remaining is not None else 0) + difference
             await payment_repository.update(
-                payment.id, {"totalAmount": new_total, "amountRemaining": new_amount_remaining}
+                payment.id, {"totalAmount": new_total,
+                             "amountRemaining": new_amount_remaining}
             )
 
     # Get updated order
@@ -2035,7 +2151,8 @@ async def _compute_fulfillment_status(sub_order_ids: list) -> Optional[str]:
     for so_id in sub_order_ids:
         so = await sub_order_repository.findById(so_id)
         if so:
-            statuses.append((so.status if so.status is not None else "pending"))
+            statuses.append(
+                (so.status if so.status is not None else "pending"))
 
     if not statuses:
         return None
@@ -2071,9 +2188,11 @@ async def update_order_status(
     # Valet can only mark orders as delivered (any payment method)
     if current_user.role == "valet":
         if status_data.status != "delivered":
-            raise HTTPException(status_code=403, detail="Valet can only mark orders as delivered")
+            raise HTTPException(
+                status_code=403, detail="Valet can only mark orders as delivered")
         if order.assigned_valet != current_user.id:
-            raise HTTPException(status_code=403, detail="Order not assigned to you")
+            raise HTTPException(
+                status_code=403, detail="Order not assigned to you")
 
         # ── Pickup gate: for multi-seller orders, ALL sub-orders must be picked up ──
         # NOTE: hasSubOrders/subOrderIds not in relational DB — query sub-orders directly.
@@ -2098,7 +2217,8 @@ async def update_order_status(
 
             update_data.paymentStatus = "paid"
             update_data.codPaymentReceived = True
-            update_data.codPaymentReceivedAt = datetime.now(__import__("datetime").timezone.utc).isoformat()
+            update_data.codPaymentReceivedAt = datetime.now(
+                __import__("datetime").timezone.utc).isoformat()
 
     if status_data.status == "out_for_delivery":
         update_data.shippedAt = None  # Will be set by repository
@@ -2107,11 +2227,11 @@ async def update_order_status(
 
         # Increment deliveredCount on the slot
 
-
         if order.payment_method == "cod" and "paymentStatus" not in update_data:
             update_data.paymentStatus = "paid"
             update_data.codPaymentReceived = True
-            update_data.codPaymentReceivedAt = datetime.now(__import__("datetime").timezone.utc).isoformat()
+            update_data.codPaymentReceivedAt = datetime.now(
+                __import__("datetime").timezone.utc).isoformat()
 
             # Create or update payment record for COD
             existing_payment = await payment_repository.findByOrderId(order.id)
@@ -2123,11 +2243,13 @@ async def update_order_status(
                     await payment_repository.updatePaymentEntry(
                         payment.id,
                         payment.payment_entries[0].entryId,
-                        {"amount": order.total or payment.total_amount, "verified": False},
+                        {"amount": order.total or payment.total_amount,
+                            "verified": False},
                     )
                     updated_payment = await payment_repository.update(
                         payment.id,
-                        {"amountPaid": order.total or payment.total_amount, "amountRemaining": 0},
+                        {"amountPaid": order.total or payment.total_amount,
+                            "amountRemaining": 0},
                     )
                     # Create notification for COD payment
                     await create_payment_notification(updated_payment)
@@ -2135,7 +2257,8 @@ async def update_order_status(
                     # Add new payment entry for COD payment received
                     updated_payment_with_entry = await payment_repository.addPaymentEntry(
                         payment.id,
-                        {"amount": order.total or payment.total_amount, "image": None, "verified": False},
+                        {"amount": order.total or payment.total_amount,
+                            "image": None, "verified": False},
                     )
                     # Create notification for COD payment
                     await create_payment_notification(
@@ -2185,7 +2308,8 @@ async def update_order_status(
                 )
     elif status_data.status == "cancelled":
         # Guard: prevent re-cancelling a terminal order which would double-restore stock/credit.
-        _TERMINAL_STATUSES = {"cancelled", "declined", "delivered", "returned", "failed"}
+        _TERMINAL_STATUSES = {"cancelled", "declined",
+                              "delivered", "returned", "failed"}
         if order.status in _TERMINAL_STATUSES:
             raise HTTPException(
                 status_code=400,
@@ -2196,7 +2320,8 @@ async def update_order_status(
             user = await user_repository.findById(order.user)
             if user and user.credit_used:
                 if user.credit_used is None or order.total is None:
-                    raise ValueError("Cannot calculate credit usage: credit_used or total is None")
+                    raise ValueError(
+                        "Cannot calculate credit usage: credit_used or total is None")
                 new_credit_used = max(0, user.credit_used - order.total)
                 await user_repository.update(order.user, UserInternalUpdate(creditUsed=new_credit_used))
 
@@ -2208,7 +2333,8 @@ async def update_order_status(
 
         from datetime import datetime
 
-        update_data.cancelledAt = datetime.now(__import__("datetime").timezone.utc).isoformat()
+        update_data.cancelledAt = datetime.now(
+            __import__("datetime").timezone.utc).isoformat()
         update_data.cancelledBy = current_user.id
 
         # Mark existing payment as cancelled (do NOT create new records or mark as paid)
@@ -2238,7 +2364,7 @@ async def update_order_status(
             if status_data.status == "cancelled":
                 await sub_order_repository.update(
                     _so_id, SubOrderInternalUpdate(status="cancelled",
-                        cancelledAt=_dt.utcnow().isoformat() + "Z",),
+                                                   cancelledAt=_dt.utcnow().isoformat() + "Z",),
                 )
             elif status_data.status == "delivered":
                 _cascade = {
@@ -2252,7 +2378,8 @@ async def update_order_status(
                     _comm = await stamp_commission_on_delivery(_so)
                     _cascade.update(_comm)
                 except Exception as _ce:
-                    logger.warning("Commission stamp failed for sub-order %s: %s", _so_id, _ce)
+                    logger.warning(
+                        "Commission stamp failed for sub-order %s: %s", _so_id, _ce)
                 await sub_order_repository.update(_so_id, SubOrderInternalUpdate(**_cascade))
 
     # Recompute parent fulfillmentStatus from all sub-orders
@@ -2267,9 +2394,11 @@ async def update_order_status(
     # Send status change email notification
     populated_order = await populate_order(updated_order)
     if populated_order:
-        email = populated_order.user.email if (populated_order.user and populated_order.user.email) else None
+        email = populated_order.user.email if (
+            populated_order.user and populated_order.user.email) else None
         if email:
-            background_tasks.add_task(email_service.send_order_status_email, email, populated_order)
+            background_tasks.add_task(
+                email_service.send_order_status_email, email, populated_order)
 
     # ────────────────────────────────────────────────────────────────
     # RETAIL INVOICE GENERATION
@@ -2281,29 +2410,30 @@ async def update_order_status(
         # Check if it's retail and hasn't been generated yet
         if order_user and order_user.role == "customer" and not updated_order.invoicePath:
             try:
-                    payments_for_order = await payment_repository.findByOrderId(order_id)
-                    payment_for_invoice = payments_for_order[0] if payments_for_order else None
-                    super_admin = await user_repository.findOne({"role": "super_admin"})
-                    pdf_buffer = await generate_invoice_pdf(
-                        populated_order,
-                        payment_for_invoice,
-                        {
-                            "name": (super_admin.name if super_admin.name is not None else "Stationery Junction")
-                            if super_admin
-                            else "Stationery Junction",
-                            "companyName": (super_admin.company_name or "") if super_admin else "",
-                            "gstin": (super_admin.gstin or "") if super_admin else "",
-                            "address": (super_admin.address or {}) if super_admin else {},
-                        },
-                    )
-                    invoice_path = await save_invoice_pdf(pdf_buffer, order_id)
-                    await order_repository.update(
-                        order_id,
-                        OrderInternalUpdate(invoicePath=invoice_path, invoiceGeneratedAt=_dt.utcnow().isoformat() + "Z"),
-                    )
-                    # Refresh populated_order so the returned object has the invoice path
-                    updated_order = await order_repository.findById(order_id)
-                    populated_order = await populate_order(updated_order)
+                payments_for_order = await payment_repository.findByOrderId(order_id)
+                payment_for_invoice = payments_for_order[0] if payments_for_order else None
+                super_admin = await user_repository.findOne({"role": "super_admin"})
+                pdf_buffer = await generate_invoice_pdf(
+                    populated_order,
+                    payment_for_invoice,
+                    {
+                        "name": (super_admin.name if super_admin.name is not None else "Stationery Junction")
+                        if super_admin
+                        else "Stationery Junction",
+                        "companyName": (super_admin.company_name or "") if super_admin else "",
+                        "gstin": (super_admin.gstin or "") if super_admin else "",
+                        "address": (super_admin.address or {}) if super_admin else {},
+                    },
+                )
+                invoice_path = await save_invoice_pdf(pdf_buffer, order_id)
+                await order_repository.update(
+                    order_id,
+                    OrderInternalUpdate(
+                        invoicePath=invoice_path, invoiceGeneratedAt=_dt.utcnow().isoformat() + "Z"),
+                )
+                # Refresh populated_order so the returned object has the invoice path
+                updated_order = await order_repository.findById(order_id)
+                populated_order = await populate_order(updated_order)
             except Exception as invoice_error:
                 logger.error(
                     "Error auto-generating invoice on delivery for order %s: %s",
@@ -2324,7 +2454,8 @@ async def accept_order(order_id: str, current_user: User = Depends(require_super
         raise HTTPException(status_code=404, detail="Order not found")
 
     if order.status != "pending":
-        raise HTTPException(status_code=400, detail="Only pending orders can be accepted")
+        raise HTTPException(
+            status_code=400, detail="Only pending orders can be accepted")
 
     # UPI orders must have a verified payment entry before acceptance
     if order.payment_method == "upi":
@@ -2333,7 +2464,8 @@ async def accept_order(order_id: str, current_user: User = Depends(require_super
         entries = (payment.payment_entries or []) if payment else []
         any_verified = any(entry.verified for entry in entries)
         if not any_verified:
-            raise HTTPException(status_code=400, detail="UPI payment must be verified before accepting the order")
+            raise HTTPException(
+                status_code=400, detail="UPI payment must be verified before accepting the order")
 
     updated_order = await order_repository.update(order_id, OrderInternalUpdate(status="processing"))
 
@@ -2342,7 +2474,7 @@ async def accept_order(order_id: str, current_user: User = Depends(require_super
 
 
 class DeclineOrderRequest(BaseModel):
-        reason: str
+    reason: str
 
 
 @router.put("/{order_id}/decline", response_model=PopulatedOrderResponse)
@@ -2355,20 +2487,24 @@ async def decline_order(
         raise HTTPException(status_code=404, detail="Order not found")
 
     if order.payment_method == "upi":
-        raise HTTPException(status_code=400, detail="UPI orders cannot be declined")
+        raise HTTPException(
+            status_code=400, detail="UPI orders cannot be declined")
 
     if order.payment_method not in ["cod", "credit"]:
-        raise HTTPException(status_code=400, detail="Only COD and Credit orders can be declined")
+        raise HTTPException(
+            status_code=400, detail="Only COD and Credit orders can be declined")
 
     if order.status != "pending":
-        raise HTTPException(status_code=400, detail="Only pending orders can be declined")
+        raise HTTPException(
+            status_code=400, detail="Only pending orders can be declined")
 
     # For credit orders, refund credit used
     if order.payment_method == "credit":
         user = await user_repository.findById(order.user)
         if user and user.credit_used:
             if user.credit_used is None or order.total is None:
-                raise ValueError("Cannot calculate credit usage: credit_used or total is None")
+                raise ValueError(
+                    "Cannot calculate credit usage: credit_used or total is None")
             new_credit_used = max(0, user.credit_used - order.total)
             await user_repository.update(order.user, UserInternalUpdate(creditUsed=new_credit_used))
 
@@ -2379,7 +2515,8 @@ async def decline_order(
             await product_repository.increment_stock_atomic(str(item.product), int((item.quantity if item.quantity is not None else 0)))
 
     updated_order = await order_repository.update(
-        order_id, OrderInternalUpdate(status="declined", declineReason=decline_data.reason)
+        order_id, OrderInternalUpdate(
+            status="declined", declineReason=decline_data.reason)
     )
 
     populated_order = await populate_order(updated_order)
@@ -2405,10 +2542,12 @@ async def dispatch_order(
     # Sellers can only dispatch orders that belong to them
     if is_seller_admin(current_user):
         if str((order.seller_id or "")) != str(current_user.id):
-            raise HTTPException(status_code=403, detail="You can only dispatch your own orders")
+            raise HTTPException(
+                status_code=403, detail="You can only dispatch your own orders")
 
     if order.status != "processing":
-        raise HTTPException(status_code=400, detail="Only processing orders can be dispatched")
+        raise HTTPException(
+            status_code=400, detail="Only processing orders can be dispatched")
 
     valet = await user_repository.findById(valet_data.valetId)
     if not valet or valet.role != "valet":
@@ -2416,17 +2555,19 @@ async def dispatch_order(
 
     from datetime import datetime
 
-    now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
-    is_urgent = (order.is_urgent_delivery if order.is_urgent_delivery is not None else False)
+    now_iso = datetime.now(__import__(
+        "datetime").timezone.utc).isoformat() + "Z"
+    is_urgent = (
+        order.is_urgent_delivery if order.is_urgent_delivery is not None else False)
     timeout_minutes = 5 if is_urgent else 20
 
     updated_order = await order_repository.update(
         order_id,
         OrderInternalUpdate(status="pending_valet",
-            pendingValetId=valet_data.valetId,
-            valetAssignedAt=now_iso,
-            valetDeclineHistory=[],
-            valetCascadeCount=0,),
+                            pendingValetId=valet_data.valetId,
+                            valetAssignedAt=now_iso,
+                            valetDeclineHistory=[],
+                            valetCascadeCount=0,),
     )
 
     # Push notification to the valet
@@ -2435,15 +2576,16 @@ async def dispatch_order(
 
         timeout_label = "5 minutes" if is_urgent else "20 minutes"
         await push_notification_service.send_to_user(valet_data.valetId, PushNotifications(
-                title= "New Delivery Request",
-                message= (
-                    f"You have a new delivery order #{(order.order_number if order.order_number is not None else order_id)}. "
-                    f"Please respond within {timeout_label}."
-                ),
-                link= f"/valet/orders/{order_id}",
-            ))
+            title="New Delivery Request",
+            message=(
+                f"You have a new delivery order #{(order.order_number if order.order_number is not None else order_id)}. "
+                f"Please respond within {timeout_label}."
+            ),
+            link=f"/valet/orders/{order_id}",
+        ))
     except Exception as push_err:
-        logger.warning("[Dispatch] Push notification to valet failed: %s", push_err)
+        logger.warning(
+            "[Dispatch] Push notification to valet failed: %s", push_err)
         # Non-fatal — order is already in pending_valet state
 
     populated_order = await populate_order(updated_order)
@@ -2453,7 +2595,8 @@ async def dispatch_order(
 @router.get("/valet/pending", response_model=List[Order])
 async def get_valet_pending_orders(current_user: User = Depends(get_current_user)):
     if current_user.role != "valet":
-        raise HTTPException(status_code=403, detail="Only valets can view pending assignments")
+        raise HTTPException(
+            status_code=403, detail="Only valets can view pending assignments")
     orders = await order_repository.findAll({
         "status": "pending_valet",
         "pendingValetId": str(current_user.id)
@@ -2511,7 +2654,7 @@ async def get_valet_pending_orders(current_user: User = Depends(get_current_user
 #             pendingValetId=None,
 #             shippedAt=now_iso,
 #             invoiceUrl=invoice.url if invoice else None
-#))
+# ))
 #         # Notify seller
 #         seller_id = order.seller_id
 #         if seller_id:
@@ -2537,7 +2680,7 @@ async def get_valet_pending_orders(current_user: User = Depends(get_current_user
 #
 #         await order_repository.update(order_id, OrderInternalUpdate(#             valetDeclineHistory=history,
 #             pendingValetId=None
-#))
+# ))
 #         order.valetDeclineHistory = history
 #         order.pendingValetId = None
 #
@@ -2560,18 +2703,21 @@ async def cancel_order(order_id: str, current_user: User = Depends(get_current_u
 
     # Only COD/Credit orders can be cancelled
     if order.payment_method not in ["cod", "credit"]:
-        raise HTTPException(status_code=400, detail="Only COD and Credit orders can be cancelled")
+        raise HTTPException(
+            status_code=400, detail="Only COD and Credit orders can be cancelled")
 
     # Orders can only be cancelled before they are Accepted (status is still 'pending')
     if order.status != "pending":
-        raise HTTPException(status_code=400, detail="Orders can only be cancelled before they are accepted")
+        raise HTTPException(
+            status_code=400, detail="Orders can only be cancelled before they are accepted")
 
     # For credit orders, refund credit used
     if order.payment_method == "credit":
         user = await user_repository.findById(order.user)
         if user and user.credit_used:
             if user.credit_used is None or order.total is None:
-                raise ValueError("Cannot calculate credit usage: credit_used or total is None")
+                raise ValueError(
+                    "Cannot calculate credit usage: credit_used or total is None")
             new_credit_used = max(0, user.credit_used - order.total)
             await user_repository.update(order.user, UserInternalUpdate(creditUsed=new_credit_used))
 
@@ -2585,7 +2731,8 @@ async def cancel_order(order_id: str, current_user: User = Depends(get_current_u
 
     updated_order = await order_repository.update(
         order_id,
-        OrderInternalUpdate(status="cancelled", cancelledAt=datetime.now(__import__("datetime").timezone.utc).isoformat(), cancelledBy=current_user.id),
+        OrderInternalUpdate(status="cancelled", cancelledAt=datetime.now(
+            __import__("datetime").timezone.utc).isoformat(), cancelledBy=current_user.id),
     )
 
     populated_order = await populate_order(updated_order)
@@ -2632,27 +2779,32 @@ async def valet_response(
     from datetime import datetime, timedelta
 
     if response_data.action not in ("accept", "decline"):
-        raise HTTPException(status_code=400, detail="action must be 'accept' or 'decline'")
+        raise HTTPException(
+            status_code=400, detail="action must be 'accept' or 'decline'")
 
     order = await order_repository.findById(order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
     if order.status != "pending_valet":
-        raise HTTPException(status_code=400, detail="Order is not awaiting valet confirmation")
+        raise HTTPException(
+            status_code=400, detail="Order is not awaiting valet confirmation")
 
     # Valets can only respond to orders assigned to them
     if current_user.role == "valet":
         if str((order.pending_valet_id or "")) != str(current_user.id):
-            raise HTTPException(status_code=403, detail="This order is not assigned to you")
+            raise HTTPException(
+                status_code=403, detail="This order is not assigned to you")
 
     # Check if the offer window has expired
     assigned_at_str = (order.valet_assigned_at or "")
-    is_urgent = (order.is_urgent_delivery if order.is_urgent_delivery is not None else False)
+    is_urgent = (
+        order.is_urgent_delivery if order.is_urgent_delivery is not None else False)
     timeout_minutes = 5 if is_urgent else 20
     if assigned_at_str:
         try:
-            assigned_at = datetime.fromisoformat(assigned_at_str.replace("Z", "+00:00")).replace(tzinfo=None)
+            assigned_at = datetime.fromisoformat(
+                assigned_at_str.replace("Z", "+00:00")).replace(tzinfo=None)
             if datetime.now(__import__("datetime").timezone.utc) >= assigned_at + timedelta(minutes=timeout_minutes):
                 raise HTTPException(
                     status_code=400,
@@ -2663,8 +2815,10 @@ async def valet_response(
         except Exception as e:
             logging.warning("Background task failed", exc_info=e)
 
-    now_iso = datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z"
-    valet_id = str(current_user.id) if current_user.role == "valet" else str((order.pending_valet_id or ""))
+    now_iso = datetime.now(__import__(
+        "datetime").timezone.utc).isoformat() + "Z"
+    valet_id = str(current_user.id) if current_user.role == "valet" else str(
+        (order.pending_valet_id or ""))
     seller_id = order.seller_id
 
     # ── ACCEPT ────────────────────────────────────────────────────────────────
@@ -2672,15 +2826,16 @@ async def valet_response(
         updated_order = await order_repository.update(
             order_id,
             OrderInternalUpdate(status="shipped",
-                assignedValet=valet_id,
-                pendingValetId=None,
-                valetAcceptedAt=now_iso,
-                shippedAt=now_iso,),
+                                assignedValet=valet_id,
+                                pendingValetId=None,
+                                valetAcceptedAt=now_iso,
+                                shippedAt=now_iso,),
         )
 
         # Fetch valet details once for notifications
         valet = await user_repository.findById(valet_id)
-        valet_name = (valet.name if valet.name is not None else "The valet") if valet else "The valet"
+        valet_name = (
+            valet.name if valet.name is not None else "The valet") if valet else "The valet"
 
         # ── Multi-seller: propagate assignedValet to all sub-orders, notify each seller ──
         # NOTE: hasSubOrders/subOrderIds not in relational DB — query sub-orders directly.
@@ -2692,7 +2847,7 @@ async def valet_response(
                 # Set assignedValet on each sub-order so sellers can see who's picking up
                 await sub_order_repository.update(
                     _so_id, SubOrderInternalUpdate(assignedValet=valet_id,
-                        pickupStatus="pending_pickup",),
+                                                   pickupStatus="pending_pickup",),
                 )
                 _seller_id = _so.sellerId
                 if _seller_id and _seller_id not in notified_sellers:
@@ -2701,15 +2856,16 @@ async def valet_response(
                         from app.services.push_notification_service import push_notification_service
 
                         await push_notification_service.send_to_user(_seller_id, PushNotifications(
-                                title= "Valet is Coming to Pick Up",
-                                message= (
-                                    f"{valet_name} accepted order #{(order.order_number if order.order_number is not None else order_id)} "
-                                    "and will collect your items soon."
-                                ),
-                                link= f"/seller/orders/{order_id}",
-                            ))
+                            title="Valet is Coming to Pick Up",
+                            message=(
+                                f"{valet_name} accepted order #{(order.order_number if order.order_number is not None else order_id)} "
+                                "and will collect your items soon."
+                            ),
+                            link=f"/seller/orders/{order_id}",
+                        ))
                     except Exception as e:
-                        logger.warning("[ValetResponse] Push to seller %s failed: %s", _seller_id, e)
+                        logger.warning(
+                            "[ValetResponse] Push to seller %s failed: %s", _seller_id, e)
         else:
             # Single-seller: notify the order's seller as before
             if seller_id:
@@ -2725,7 +2881,8 @@ async def valet_response(
                         ),
                     )
                 except Exception as e:
-                    logger.warning("[ValetResponse] Push to seller failed: %s", e)
+                    logger.warning(
+                        "[ValetResponse] Push to seller failed: %s", e)
 
         # Auto-generate invoice for B2B orders on accept
         order_user = await user_repository.findById(updated_order.user)
@@ -2751,10 +2908,12 @@ async def valet_response(
                     invoice_path = await save_invoice_pdf(pdf_buffer, updated_order.id)
                     await order_repository.update(
                         updated_order.id,
-                        OrderInternalUpdate(invoicePath=invoice_path, invoiceGeneratedAt=now_iso),
+                        OrderInternalUpdate(
+                            invoicePath=invoice_path, invoiceGeneratedAt=now_iso),
                     )
             except Exception as invoice_err:
-                logger.error("[ValetResponse] Invoice generation failed: %s", invoice_err)
+                logger.error(
+                    "[ValetResponse] Invoice generation failed: %s", invoice_err)
 
         populated_order = await populate_order(updated_order)
         return populated_order
@@ -2763,15 +2922,16 @@ async def valet_response(
     decline_history = list(order.valet_decline_history or [])
     if valet_id and not any(d.valetId == valet_id for d in decline_history):
         from app.models.order import ValetDeclineHistoryEntry
-        decline_history.append(ValetDeclineHistoryEntry(valetId=valet_id, reason="declined"))
+        decline_history.append(ValetDeclineHistoryEntry(
+            valetId=valet_id, reason="declined"))
 
     await order_repository.update(
         order_id,
         OrderInternalUpdate(valetDeclinedAt=now_iso,
-            valetDeclineReason=response_data.declineReason or "",
-            valetDeclineHistory=decline_history,
-            pendingValetId=None,
-            valetCascadeCount=(order.valet_cascade_count or 0) + 1,),
+                            valetDeclineReason=response_data.declineReason or "",
+                            valetDeclineHistory=decline_history,
+                            pendingValetId=None,
+                            valetCascadeCount=(order.valet_cascade_count or 0) + 1,),
     )
 
     # Try to find the next available valet (cascade)
@@ -2785,7 +2945,7 @@ async def valet_response(
         updated_order = await order_repository.update(
             order_id,
             OrderInternalUpdate(pendingValetId=next_valet_id,
-                valetAssignedAt=now_iso,),
+                                valetAssignedAt=now_iso,),
         )
         # Notify next valet
         try:
@@ -2793,20 +2953,21 @@ async def valet_response(
 
             timeout_label = "5 minutes" if is_urgent else "20 minutes"
             await push_notification_service.send_to_user(next_valet_id, PushNotifications(
-                    title= "New Delivery Request",
-                    message= (
-                        f"You have a new delivery order #{(order.order_number if order.order_number is not None else order_id)}. "
-                        f"Please respond within {timeout_label}."
-                    ),
-                    link= f"/valet/orders/{order_id}",
-                ))
+                title="New Delivery Request",
+                message=(
+                    f"You have a new delivery order #{(order.order_number if order.order_number is not None else order_id)}. "
+                    f"Please respond within {timeout_label}."
+                ),
+                link=f"/valet/orders/{order_id}",
+            ))
         except Exception as e:
             logger.warning("[ValetResponse] Push to next valet failed: %s", e)
     else:
         # No more valets — revert to processing
         updated_order = await order_repository.update(
             order_id,
-            OrderInternalUpdate(status="processing", pendingValetId=None, valetAssignedAt=None),
+            OrderInternalUpdate(status="processing",
+                                pendingValetId=None, valetAssignedAt=None),
         )
         # Notify seller
         if seller_id:
@@ -2814,15 +2975,16 @@ async def valet_response(
                 from app.services.push_notification_service import push_notification_service
 
                 await push_notification_service.send_to_user(seller_id, PushNotifications(
-                        title= "No Valets Available — Reassign Required",
-                        message= (
-                            f"All valets declined order #{(order.order_number if order.order_number is not None else order_id)}. "
-                            "Please assign a valet manually."
-                        ),
-                        link= f"/seller/orders/{order_id}",
-                    ))
+                    title="No Valets Available — Reassign Required",
+                    message=(
+                        f"All valets declined order #{(order.order_number if order.order_number is not None else order_id)}. "
+                        "Please assign a valet manually."
+                    ),
+                    link=f"/seller/orders/{order_id}",
+                ))
             except Exception as e:
-                logger.warning("[ValetResponse] Push to seller (all declined) failed: %s", e)
+                logger.warning(
+                    "[ValetResponse] Push to seller (all declined) failed: %s", e)
 
     populated_order = await populate_order(updated_order)
     return populated_order
@@ -2851,7 +3013,8 @@ async def confirm_sub_order_pickup(
     # Only the assigned valet (or super admin) may confirm pickups
     if current_user.role == "valet":
         if str((order.assigned_valet or "")) != str(current_user.id):
-            raise HTTPException(status_code=403, detail="This order is not assigned to you")
+            raise HTTPException(
+                status_code=403, detail="This order is not assigned to you")
 
     # Guard: order must be in 'shipped' state (valet accepted, pickups in progress)
     if order.status != "shipped":
@@ -2865,11 +3028,13 @@ async def confirm_sub_order_pickup(
     if not sub_order:
         raise HTTPException(status_code=404, detail="Sub-order not found")
     if str((sub_order.parent_order_id or "")) != str(order_id):
-        raise HTTPException(status_code=400, detail="Sub-order does not belong to this order")
+        raise HTTPException(
+            status_code=400, detail="Sub-order does not belong to this order")
 
     # Idempotency: already picked up
     if sub_order.pickup_status == "picked_up":
-        raise HTTPException(status_code=400, detail="Pickup already confirmed for this seller")
+        raise HTTPException(
+            status_code=400, detail="Pickup already confirmed for this seller")
 
     # Mark this sub-order as picked up (pickedUpAt is auto-stamped by the repository)
     await sub_order_repository.update(sub_order_id, SubOrderInternalUpdate(pickupStatus="picked_up"))
@@ -2893,15 +3058,16 @@ async def confirm_sub_order_pickup(
             from app.services.push_notification_service import push_notification_service
 
             await push_notification_service.send_to_user(order.user, PushNotifications(
-                    title= "Your Order is On the Way! 🚴",
-                    message= (
-                        f"Your order #{(order.order_number if order.order_number is not None else order_id)} has been collected "
-                        "from all sellers and is now heading to you."
-                    ),
-                    link= f"/orders/{order_id}",
-                ))
+                title="Your Order is On the Way! 🚴",
+                message=(
+                    f"Your order #{(order.order_number if order.order_number is not None else order_id)} has been collected "
+                    "from all sellers and is now heading to you."
+                ),
+                link=f"/orders/{order_id}",
+            ))
         except Exception as e:
-            logger.warning("[ConfirmPickup] Customer notification failed: %s", e)
+            logger.warning(
+                "[ConfirmPickup] Customer notification failed: %s", e)
 
         updated_order = await order_repository.findById(order_id)
     else:
@@ -2949,16 +3115,19 @@ async def settle_credit(
 
     # Only credit orders can be settled this way
     if order.payment_method != "credit":
-        raise HTTPException(status_code=400, detail="This order is not a credit order")
+        raise HTTPException(
+            status_code=400, detail="This order is not a credit order")
 
     user = await user_repository.findById(current_user.id)
     if user.role != "wholesaler":
-        raise HTTPException(status_code=403, detail="Only business customers can settle credit")
+        raise HTTPException(
+            status_code=403, detail="Only business customers can settle credit")
 
     # Reject zero or negative settlement amounts
     settle_amount = float(settle_data.amount)
     if settle_amount <= 0:
-        raise HTTPException(status_code=400, detail="Settlement amount must be greater than zero")
+        raise HTTPException(
+            status_code=400, detail="Settlement amount must be greater than zero")
 
     # Find payment record
     payments = await payment_repository.findByOrderId(order_id)
@@ -2967,7 +3136,8 @@ async def settle_credit(
     payment = payments[0]
 
     if payment.amount_paid is None:
-        raise ValueError("Cannot calculate remaining amount: amount_paid is None")
+        raise ValueError(
+            "Cannot calculate remaining amount: amount_paid is None")
     remaining_amount = (
         payment.amount_remaining
         if payment.amount_remaining is not None
@@ -2986,7 +3156,8 @@ async def settle_credit(
     # credit balance was reduced immediately on an unverified submission.
     payment_image = settle_data.paymentImage or settle_data.upiPaymentScreenshot
     await payment_repository.addPaymentEntry(
-        payment.id, {"amount": settle_amount, "image": payment_image, "verified": False}
+        payment.id, {"amount": settle_amount,
+                     "image": payment_image, "verified": False}
     )
 
     updated_payment = await payment_repository.findById(payment.id)
@@ -3011,7 +3182,8 @@ async def generate_invoice(order_id: str, current_user: User = Depends(require_s
     payment = payments[0] if payments and len(payments) > 0 else None
 
     if not payment:
-        raise HTTPException(status_code=400, detail="Payment record not found for this order")
+        raise HTTPException(
+            status_code=400, detail="Payment record not found for this order")
 
     # Get seller (Super Admin) information
     super_admin = await user_repository.findOne({"role": "super_admin"})
@@ -3038,7 +3210,8 @@ async def generate_invoice(order_id: str, current_user: User = Depends(require_s
 
     # Update order with invoice path
     await order_repository.update(
-        order_id, OrderInternalUpdate(invoicePath=invoice_path, invoiceGeneratedAt=datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z")
+        order_id, OrderInternalUpdate(invoicePath=invoice_path, invoiceGeneratedAt=datetime.now(
+            __import__("datetime").timezone.utc).isoformat() + "Z")
     )
 
     return {"message": "Invoice generated successfully", "invoicePath": invoice_path}
@@ -3065,7 +3238,8 @@ async def download_invoice(order_id: str, current_user: User = Depends(get_curre
         raise HTTPException(status_code=403, detail="Access denied")
 
     if not order.invoice_path:
-        raise HTTPException(status_code=404, detail="Invoice not generated yet")
+        raise HTTPException(
+            status_code=404, detail="Invoice not generated yet")
 
     invoice_path_str = order.invoice_path
     if invoice_path_str.startswith("/uploads/"):
@@ -3098,7 +3272,8 @@ async def get_seller_orders(
     seller_id = str(current_user.id)
     query: dict = {}
     if status:
-        query["status"] = status  # was query.status = status (dict has no .status attribute)
+        # was query.status = status (dict has no .status attribute)
+        query["status"] = status
     skip = (page - 1) * limit
     sub_orders = await sub_order_repository.findBySeller(seller_id, query, skip=skip, limit=limit)
     total = await sub_order_repository.count({"sellerId": seller_id, **query})
@@ -3125,7 +3300,7 @@ async def get_seller_order(
 
 
 class SubOrderStatusUpdate(BaseModel):
-        status: str
+    status: str
 
 
 @router.put("/seller-orders/{sub_order_id}/status", response_model=SubOrder)
@@ -3141,9 +3316,11 @@ async def update_seller_order_status(
     if str(sub_order.seller_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Access denied.")
 
-    allowed_statuses = ["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered", "cancelled"]
+    allowed_statuses = ["pending", "confirmed", "processing",
+                        "shipped", "out_for_delivery", "delivered", "cancelled"]
     if status_data.status not in allowed_statuses:
-        raise HTTPException(status_code=400, detail=f"Invalid status. Allowed: {', '.join(allowed_statuses)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid status. Allowed: {', '.join(allowed_statuses)}")
 
     from datetime import datetime as _dt
 
@@ -3154,11 +3331,15 @@ async def update_seller_order_status(
             from app.routers.commission import stamp_commission_on_delivery
 
             _comm = await stamp_commission_on_delivery(sub_order)
-            if "commissionPct" in _comm: internal_update.commissionPct = _comm["commissionPct"]
-            if "commissionAmount" in _comm: internal_update.commissionAmount = _comm["commissionAmount"]
-            if "commissionStatus" in _comm: internal_update.commissionStatus = _comm["commissionStatus"]
+            if "commissionPct" in _comm:
+                internal_update.commissionPct = _comm["commissionPct"]
+            if "commissionAmount" in _comm:
+                internal_update.commissionAmount = _comm["commissionAmount"]
+            if "commissionStatus" in _comm:
+                internal_update.commissionStatus = _comm["commissionStatus"]
         except Exception as _ce:
-            logger.warning("Commission stamp failed for sub-order %s: %s", sub_order_id, _ce)
+            logger.warning(
+                "Commission stamp failed for sub-order %s: %s", sub_order_id, _ce)
     elif status_data.status == "cancelled":
         internal_update.cancelledAt = _dt.utcnow().isoformat() + "Z"
     elif status_data.status == "shipped":
@@ -3197,7 +3378,8 @@ async def get_all_sub_orders(
         else:
             query["sellerId"] = sellerId
     if status:
-        query["status"] = status  # was query.status = status (dict has no .status attribute)
+        # was query.status = status (dict has no .status attribute)
+        query["status"] = status
     if commissionStatus:
         query["commissionStatus"] = commissionStatus
     if startDate:
@@ -3215,7 +3397,8 @@ async def get_all_sub_orders(
         sub_orders = list(await asyncio.gather(*[maybe_realize_commission(so) for so in sub_orders]))
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("Commission promotion failed: %s", e)
+        logging.getLogger(__name__).warning(
+            "Commission promotion failed: %s", e)
 
     return {
         "subOrders": sub_orders,
@@ -3223,11 +3406,3 @@ async def get_all_sub_orders(
         "page": page,
         "limit": limit,
     }
-
-
-
-
-
-
-
-

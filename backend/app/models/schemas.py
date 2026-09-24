@@ -1711,6 +1711,10 @@ class UserInternalUpdate(BaseModel):
     commissionOverridePct: Optional[float] = None
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
+    bankAccountNumber: Optional[str] = None
+    bankIfscCode: Optional[str] = None
+    bankAccountHolder: Optional[str] = None
+    bankName: Optional[str] = None
 
 
 # --- Shared Payload DTOs ---

@@ -621,7 +621,7 @@ async def populate_product_discounts(
 
 
 def _invalidate_product_caches():
-    cache.invalidate(get_public_products)
+    if hasattr(get_public_products, "_cache_key"): cache.invalidate(get_public_products)
     cache.invalidate(get_public_product)
     cache.invalidate(get_products)
     cache.invalidate(get_product)

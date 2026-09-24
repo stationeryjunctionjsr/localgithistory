@@ -110,7 +110,7 @@ async def test_orders_optimization_logic():
     # 5. Test findByOrderId query offloading
     found_payments = await payment_repository.findByOrderId(order.id)
     assert len(found_payments) == 1
-    assert found_payments[0]["_id"] == payment.id
+    assert found_payments[0].id == payment.id
 
 
 @pytest.mark.asyncio
