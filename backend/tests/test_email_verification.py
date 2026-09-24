@@ -21,8 +21,12 @@ async def test_email_verification_flow(client: AsyncClient, user_auth):
     res = await client.post("/api/users/request-email-verification", headers=user_auth)
     assert res.status_code == 200
     res_data = res.json()
-    # assert "code" in res_data
-    from app.db.mysql_email_otp_dao import email_otp_dao; otp_rec = await email_otp_dao.find_active_otp(profile["email"], "default"); code = otp_rec["otp"] if isinstance(otp_rec, dict) else getattr(otp_rec, "otp", None)
+    
+    # Fetch the generated OTP directly from the test database
+    from app.db.mysql_email_otp_dao import email_otp_dao
+    otp_rec = await email_otp_dao.find_active_otp(profile["email"], "default")
+    code = otp_rec["otp"]
+    
     assert len(code) == 6
 
     # 3. Verify with wrong code should return 400
