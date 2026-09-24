@@ -245,10 +245,11 @@ class MySQLNotificationsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if data.data is not None:
+        if getattr(data, "metadata", getattr(data, "data", None)) is not None:
             await session.execute(text(f"DELETE FROM sj_notification_data WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.data or []
+            child_list = getattr(data, "metadata", getattr(data, "data", None)) or {}
 
             if child_list:
-                for k, v in child_list.items():
+                child_dict = child_list.model_dump() if hasattr(child_list, "model_dump") else child_list
+            for k, v in (child_dict.items() if isinstance(child_dict, dict) else []):
                     await session.execute(text(f"INSERT INTO sj_notification_data (parent_id, data_key, data_value) VALUES (:id, :k, :v)"), {"id": row_id, "k": k, "v": v})

@@ -306,12 +306,12 @@ class ProductRepository:
                     "sku": p.sku,
                     "searchTags": p.searchTags,
                     "category": p.category,
-                    "categoryTag": p.categoryTag,
+                    "categoryTag": getattr(p, "categoryTag", getattr(p, "category_tag", None)),
                     "subCategory": p.sub_category,
                     "resolvedCollectionNames": p.resolvedCollectionNames,
                     "brand": p.brand,
                     "variantAttributes": p.variant_attributes,
-                    "variantCombinations": p.variantCombinations,
+                    "variantCombinations": getattr(p, "variantCombinations", getattr(p, "variant_combinations", None)),
                     "description": p.description,
                     # Seller IDs for pincode-based availability filtering in autocomplete
                     "sellerIds": [

@@ -160,7 +160,7 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     from datetime import date as dt_date
     from app.db.storage_factory import get_storage
     from app.repositories.product_repository import product_repository
-    order_id = return_req.order_id
+    order_id = return_req.orderId
     order = await order_repository.findById(order_id) if order_id else None
     if not order:
         return None
@@ -176,10 +176,10 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     if not seller_id:
         items = (return_req.items) or []
         if items:
-            p_id = items[0].product_id
+            p_id = items[0].productId
             prod = await product_repository.findById(p_id) if p_id else None
             if prod:
-                seller_id = prod.sellerId
+                seller_id = prod.sellers[0].sellerId if prod.sellers else None
         if not seller_id:
             seller_id = order.seller_id
     if seller_id:
