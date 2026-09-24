@@ -13,23 +13,27 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-@router.get("/public", response_model=List[BannerResponse])
 @cache.ttl_cache(ttl=300.0)
-async def get_public_banners(
-    position: Optional[str] = None,
-    targetAudience: Optional[str] = None,
-    pageType: Optional[str] = None,
-    pageId: Optional[str] = None,
-    userRole: Optional[str] = "guest",
-):
-    query = {
-        "position": position,
-        "targetAudience": targetAudience,
-        "pageType": pageType,
-        "pageId": pageId,
-        "userRole": userRole,
-    }
-    banners = await banner_repository.findActive(query)
+async def _get_public_banners_cached(
+    position: Optional[str],
+    targetAudience: Optional[str],
+    pageType: Optional[str],
+    pageId: Optional[str],
+    userRole: str,
+    zone_id: Optional[str],
+) -> List[BannerResponse]:
+    banners = await banner_repository.findActive(
+        {
+            "isActive": True,
+            "isPublished": True,
+            "position": position,
+            "targetAudience": targetAudience,
+            "pageType": pageType,
+            "pageId": pageId,
+            "userRole": userRole,
+        },
+        zone_id=zone_id,
+    )
 
     # Enhanced position filtering to support sub-positions and legacy platform-agnostic ones
     if position:
@@ -53,6 +57,26 @@ async def get_public_banners(
         banners = [b for b in banners if b.targetAudience == targetAudience or b.targetAudience == "all"]
 
     return banners
+
+
+@router.get("/public", response_model=List[BannerResponse])
+async def get_public_banners(
+    position: Optional[str] = None,
+    targetAudience: Optional[str] = None,
+    pageType: Optional[str] = None,
+    pageId: Optional[str] = None,
+    userRole: Optional[str] = "guest",
+    pincode: Optional[str] = None,
+):
+    """Public banners filtered by position/audience/zone. Pincode resolves to zone."""
+    zone_id: Optional[str] = None
+    if userRole != "wholesaler" and pincode:
+        from app.repositories.zone_seller_cache import get_zone_id_and_seller_ids_for_pincode
+        zone_id_result, _ = await get_zone_id_and_seller_ids_for_pincode(pincode)
+        zone_id = zone_id_result
+    return await _get_public_banners_cached(
+        position, targetAudience, pageType, pageId, userRole or "guest", zone_id
+    )
 
 
 @router.get("", response_model=List[BannerResponse])
@@ -120,7 +144,7 @@ async def get_banner(banner_id: str, current_user: User = Depends(require_super_
 @router.post("/", response_model=BannerResponse, status_code=status.HTTP_201_CREATED)
 async def create_banner(banner_data: BannerCreate, current_user: User = Depends(require_super_admin)):
     banner = await banner_repository.create(banner_data)
-    cache.invalidate(get_public_banners)
+    cache.invalidate(_get_public_banners_cached)
     return banner
 
 
@@ -129,7 +153,7 @@ async def update_banner(banner_id: str, banner_data: BannerUpdate, current_user:
     banner = await banner_repository.update(banner_id, banner_data)
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
-    cache.invalidate(get_public_banners)
+    cache.invalidate(_get_public_banners_cached)
     return banner
 
 
@@ -138,6 +162,6 @@ async def delete_banner(banner_id: str, current_user: User = Depends(require_sup
     result = await banner_repository.delete(banner_id)
     if not result:
         raise HTTPException(status_code=404, detail="Banner not found")
-    cache.invalidate(get_public_banners)
+    cache.invalidate(_get_public_banners_cached)
     return {"message": "Banner deleted successfully"}
 

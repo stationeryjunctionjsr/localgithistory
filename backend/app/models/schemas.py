@@ -551,6 +551,7 @@ class BannerBase(BaseModel):
     linkUrl: Optional[str] = None
     position: Optional[str] = None
     targetAudience: Optional[str] = None
+    zoneIds: Optional[List[str]] = None
 
 
 class BannerCreate(BannerBase):
@@ -571,6 +572,7 @@ class BannerUpdate(BaseModel):
     linkUrl: Optional[str] = None
     position: Optional[str] = None
     targetAudience: Optional[str] = None
+    zoneIds: Optional[List[str]] = None
 
 
 class BannerResponse(BannerBase):
@@ -1603,6 +1605,7 @@ class CouponCreateInternal(CouponBase):
 class PromoStripBase(BaseModel):
     text: str
     isActive: Optional[bool] = True
+    zoneIds: Optional[List[str]] = None
 
 class PromoStripCreate(PromoStripBase):
     pass
@@ -1610,6 +1613,7 @@ class PromoStripCreate(PromoStripBase):
 class PromoStripUpdate(BaseModel):
     text: Optional[str] = None
     isActive: Optional[bool] = None
+    zoneIds: Optional[List[str]] = None
 
 class PromoStripResponse(PromoStripBase):
     id: str = Field(alias='_id')

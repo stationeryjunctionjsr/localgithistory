@@ -285,7 +285,7 @@ class MySQLOrderDAO:
             {"order_id": order_id},
         )
         for it in items or []:
-            pid_raw = it.product
+            pid_raw = getattr(it, "productId", None) or getattr(it, "product", None)
             pid = int(pid_raw) if str(pid_raw).isdigit() else None
             if pid is None:
                 continue

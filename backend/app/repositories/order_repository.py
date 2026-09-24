@@ -105,29 +105,7 @@ class OrderRepository:
         if update_data.status == "cancelled" and update_data.cancelledAt is None:
             update_data.cancelledAt = datetime.now(timezone.utc).isoformat()
 
-        fields = {}
-        for f in update_data.model_fields_set:
-            if f == "status": fields[f] = update_data.status
-            elif f == "shippedAt": fields[f] = update_data.shippedAt
-            elif f == "deliveredAt": fields[f] = update_data.deliveredAt
-            elif f == "paymentStatus": fields[f] = update_data.paymentStatus
-            elif f == "codPaymentReceived": fields[f] = update_data.codPaymentReceived
-            elif f == "codPaymentReceivedAt": fields[f] = update_data.codPaymentReceivedAt
-            elif f == "turnaroundHours": fields[f] = update_data.turnaroundHours
-            elif f == "cancelledAt": fields[f] = update_data.cancelledAt
-            elif f == "fulfillmentStatus": fields[f] = update_data.fulfillmentStatus
-            elif f == "shipping": fields[f] = update_data.shipping
-            elif f == "total": fields[f] = update_data.total
-            elif f == "assignedValet": fields[f] = update_data.assignedValet
-            elif f == "declineReason": fields[f] = update_data.declineReason
-            elif f == "pendingValetId": fields[f] = update_data.pendingValetId
-            elif f == "valetAssignedAt": fields[f] = update_data.valetAssignedAt
-            elif f == "cancelledBy": fields[f] = update_data.cancelledBy
-            elif f == "invoicePath": fields[f] = update_data.invoicePath
-            elif f == "invoiceGeneratedAt": fields[f] = update_data.invoiceGeneratedAt
-            elif f == "valetDeclineHistory": fields[f] = update_data.valetDeclineHistory
-            elif f == "valetDeclinedAt": fields[f] = update_data.valetDeclinedAt
-        return await self.storage.update(id, fields)
+        return await self.storage.update(id, update_data)
 
     async def delete(self, id: str):
         return await self.storage.delete(id)

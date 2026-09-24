@@ -153,6 +153,22 @@ async def get_seller_ids_for_pincode(pincode: str) -> Optional[Set[str]]:
     return seller_ids
 
 
+async def get_seller_ids_for_zone_id(zone_id: str) -> Optional[Set[str]]:
+    """
+    Get the FULL set of seller IDs for a known zone_id directly —
+    no pincode resolution needed. Use this inside cached functions
+    that already have a resolved zone_id.
+
+    Returns:
+        None      -> zone_id is empty/invalid
+        set()     -> zone found but no sellers declared
+        set(ids)  -> zone found with sellers
+    """
+    if not zone_id:
+        return None
+    return set(await _get_sellers_for_zone(zone_id))
+
+
 async def get_unavailable_seller_ids_for_pincode(pincode: str) -> Set[str]:
     """
     Returns the subset of zone sellers for a pincode who are currently within

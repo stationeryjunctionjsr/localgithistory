@@ -105,7 +105,7 @@ class BannerRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def findActive(self, query: Optional[Dict] = None):
+    async def findActive(self, query: Optional[Dict] = None, zone_id: Optional[str] = None):
         now = datetime.now(timezone.utc).isoformat()
         banners = await self.findAll({**(query or {}), "isActive": True, "isPublished": True})
 
@@ -148,6 +148,14 @@ class BannerRepository:
 
             active_banners.append(banner)
 
+        # Zone filtering: if zone_id given, keep banners that have no zone restriction
+        # (zoneIds is None/empty = applies to all zones) OR explicitly include this zone.
+        if zone_id:
+            active_banners = [
+                b for b in active_banners
+                if not b.zoneIds or zone_id in b.zoneIds
+            ]
+
         return active_banners
 
     async def create(self, banner_data: Any):
@@ -176,6 +184,7 @@ class BannerRepository:
             "userSegments": user_segments,
             "visibilityRules": visibility_rules,
             "position": position,
+            "zoneIds": banner_data.zoneIds if banner_data.zoneIds is not None else None,
         }
 
         banner_model = BannerInternalCreate.model_validate(banner_dict)
@@ -199,6 +208,7 @@ class BannerRepository:
                 case "userSegments": update_dict["userSegments"] = update_data.userSegments
                 case "visibilityRules": update_dict["visibilityRules"] = update_data.visibilityRules
                 case "position": update_dict["position"] = update_data.position
+                case "zoneIds": update_dict["zoneIds"] = update_data.zoneIds
         
         if "userSegments" in update_dict:
             segments = update_dict["userSegments"]

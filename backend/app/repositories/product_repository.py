@@ -329,6 +329,7 @@ class ProductRepository:
                         if s.isActive
                         and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"
                     ],
+                    "displayImage": p.display_image or (p.images[0] if p.images else None),
                 }
                 for p in products
             ]

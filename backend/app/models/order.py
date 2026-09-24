@@ -31,6 +31,7 @@ class Order(BaseModel):
     discount: Optional[float] = None
     order_type: Optional[str] = Field(default=None, alias="orderType")
     payment_status: Optional[str] = Field(default=None, alias="paymentStatus")
+    seller_id: Optional[str] = Field(default=None, alias="sellerId")
     payment_method: Optional[str] = Field(default=None, alias="paymentMethod")
     upi_payment_screenshot: Optional[str] = Field(default=None, alias="upiPaymentScreenshot")
     shipping_address: OrderAddress = Field(default_factory=OrderAddress, alias="shippingAddress")
@@ -42,6 +43,7 @@ class Order(BaseModel):
     valet_assigned_at: Optional[datetime] = Field(default=None, alias="valetAssignedAt")
     valet_cascade_count: Optional[int] = Field(default=0, alias="valetCascadeCount")
     is_urgent_delivery: bool = Field(default=False, alias="isUrgentDelivery")
+    delivery_slot_id: Optional[str] = Field(default=None, alias="deliverySlotId")
     shipped_at: Optional[datetime] = Field(default=None, alias="shippedAt")
     delivered_at: Optional[datetime] = Field(default=None, alias="deliveredAt")
     cod_payment_received: bool = Field(default=False, alias="codPaymentReceived")

@@ -30,32 +30,21 @@ async def populate_return_request(request: ReturnRequestInternal) -> ReturnReque
     if request.valetId:
         valet = await user_repository.findById(request.valetId)
 
-    from app.models.schemas import ItemSnippet, ProductSnippet, UserSnippet, ValetSnippet
+    from app.models.schemas import ItemSnippet, UserSnippet, ValetSnippet
     populated_items = []
     items_list = request.items or []
     for item in items_list:
-        pid = item.productId
+        pid = getattr(item, "productId", getattr(item, "product", None))
         product = await product_repository.findById(pid) if pid else None
         
-        prod_snippet = None
-        if product:
-            prod_snippet = ProductSnippet(
-                id=product.id,
-                name=product.name,
-                image=product.image,
-                price=product.price,
-                stock=product.stock,
-                type=product.type
-            )
-        else:
-            prod_snippet = ProductSnippet(id=pid or "", name="Product not found")
-            
         populated_items.append(ItemSnippet(
-            product=prod_snippet,
-            qty=item.qty or 0,
-            price=item.price or 0.0,
-            returnReason=item.returnReason or "",
-            images=item.images or []
+            productId=pid,
+            product=product.name if product else "Product not found",
+            quantity=getattr(item, "quantity", 0),
+            price=product.price if product else 0.0,
+            mrp=product.mrp if product else 0.0,
+            name=product.name if product else "Unknown",
+            image=product.images[0] if product and getattr(product, "images", None) else None
         ))
 
     response = ReturnRequestResponse.model_validate(request, from_attributes=True)
@@ -119,7 +108,7 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
         return {"eligibleItems": [], "reason": "Order is not delivered yet"}
 
     if not order.delivered_at:
-        return {"eligibleItems": [], "reason": "Delivery date not found"}
+        return ReturnEligibilityResponse(eligibleItems=[], reason="Delivery date not found")
         
     delivered_at = order.delivered_at
     from datetime import timezone
@@ -145,7 +134,7 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
         ]:
             items_list = req.items or []
             for item in (items_list or []):
-                pid = item.product_id
+                pid = item.productId
                 qty = item.quantity if item.quantity is not None else 0
                 if pid:
                     returned_items_qty[pid] += qty
@@ -153,7 +142,7 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
     # Check which items are from returnable categories
     eligible_items = []
     for item in (order.items or []):
-        pid = item.product
+        pid = item.productId
         product = await product_repository.findById(pid)
         if not product:
             continue
@@ -198,11 +187,11 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
         if charge_data:
             delivery_charge = float(charge_data.charge or 0)
 
-    return {
-        "eligibleItems": eligible_items,
-        "reason": None if eligible_items else "No items in this order are eligible for return",
-        "returnDeliveryCharge": delivery_charge,
-    }
+    return ReturnEligibilityResponse(
+        eligibleItems=eligible_items,
+        reason=None if eligible_items else "No items in this order are eligible for return",
+        returnDeliveryCharge=delivery_charge,
+    )
 
 
 @router.post("/request", response_model=ReturnRequestResponse)

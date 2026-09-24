@@ -122,6 +122,7 @@ class BannerInternalCreate(BaseModel):
     userSegments: Optional[List[str]] = []
     visibilityRules: Optional[List[VisibilityRuleSnippet]] = []
     position: Optional[str] = None
+    zoneIds: Optional[List[str]] = None
 
 class BannerInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -141,6 +142,7 @@ class BannerInternalUpdate(BaseModel):
     userSegments: Optional[List[str]] = None
     visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
     position: Optional[str] = None
+    zoneIds: Optional[List[str]] = None
 
 class BannerChildrenData(BaseModel):
     userSegments: Optional[List[str]] = None

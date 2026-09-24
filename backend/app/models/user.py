@@ -36,6 +36,7 @@ class User(BaseModel):
     effective_role: Optional[str] = Field(default=None, alias="effectiveRole")
     upi_id: Optional[str] = Field(default=None, alias="upiId")
     qr_code_url: Optional[str] = Field(default=None, alias="qrCodeUrl")
+    max_concurrent_orders: Optional[int] = Field(default=None, alias="maxConcurrentOrders")
 
 User.model_rebuild()
 

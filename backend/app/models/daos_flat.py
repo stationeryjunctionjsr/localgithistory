@@ -147,6 +147,7 @@ class PromoStripsInternal(BaseModel):
     text: Optional[str] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
+    zoneIds: Optional[List[str]] = None
 
 class DeviceKeyInternal(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -669,12 +670,14 @@ class PromoStripsInternalCreate(BaseModel):
     externalId: Optional[str] = Field(None, alias='externalId')
     isActive: Optional[bool] = None
     text: Optional[str] = None
+    zoneIds: Optional[List[str]] = None
 
 class PromoStripsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     isActive: Optional[bool] = None
     text: Optional[str] = None
+    zoneIds: Optional[List[str]] = None
 
 class PushNotificationsInternal(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')

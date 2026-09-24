@@ -27,6 +27,8 @@ class MySQLBannerDAO:
         return get_async_session_factory()
 
     def _map_to_schema(self, r, children: Dict) -> BannerResponse:
+        zone_ids_raw = r._mapping["zone_ids"] if "zone_ids" in r._mapping else None
+        zone_ids = json.loads(zone_ids_raw) if zone_ids_raw else []
         return BannerResponse(**{
             "_id": str(r.id),
             "title": r.title,
@@ -42,6 +44,7 @@ class MySQLBannerDAO:
             "position": r.position,
             "userSegments": children["userSegments"] if "userSegments" in children else [],
             "visibilityRules": children["visibilityRules"] if "visibilityRules" in children else [],
+            "zoneIds": zone_ids,
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
         })
@@ -139,11 +142,13 @@ class MySQLBannerDAO:
                         external_id, title, description, image_url, link_url,
                         display_order, start_date, end_date,
                         is_active, is_published, target_audience, position,
+                        zone_ids,
                         created_at, updated_at
                     ) VALUES (
                         :external_id, :title, :description, :image_url, :link_url,
                         :display_order, :start_date, :end_date,
                         :is_active, :is_published, :target_audience, :position,
+                        :zone_ids,
                         :created_at, :updated_at
                     )
                     """
@@ -161,6 +166,7 @@ class MySQLBannerDAO:
                     "is_published": int(bool((data.isPublished if data.isPublished is not None else False))),
                     "target_audience": data.targetAudience,
                     "position": data.position,
+                    "zone_ids": json.dumps(data.zoneIds) if data.zoneIds else None,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -180,7 +186,7 @@ class MySQLBannerDAO:
             return None
             
         merged = {}
-        for k in ["title", "description", "imageUrl", "linkUrl", "displayOrder", "startDate", "endDate", "isActive", "isPublished", "targetAudience", "position"]:
+        for k in ["title", "description", "imageUrl", "linkUrl", "displayOrder", "startDate", "endDate", "isActive", "isPublished", "targetAudience", "position", "zoneIds"]:
             val = None
             match k:
                 case "title": val = update_data.title if update_data.title is not None else existing.title
@@ -194,6 +200,7 @@ class MySQLBannerDAO:
                 case "isPublished": val = update_data.isPublished if update_data.isPublished is not None else existing.is_published
                 case "targetAudience": val = update_data.targetAudience if update_data.targetAudience is not None else existing.target_audience
                 case "position": val = update_data.position if update_data.position is not None else existing.position
+                case "zoneIds": val = update_data.zoneIds if update_data.zoneIds is not None else existing.zoneIds
             merged[k] = val
 
         factory = self._factory()
@@ -215,6 +222,7 @@ class MySQLBannerDAO:
                         is_published = :is_published,
                         target_audience = :target_audience,
                         position = :position,
+                        zone_ids = :zone_ids,
                         updated_at = :updated_at
                     WHERE id = :id
                     """
@@ -232,14 +240,15 @@ class MySQLBannerDAO:
                     "is_published": int(bool(merged["isPublished"] if "isPublished" in merged else False)),
                     "target_audience": merged["targetAudience"],
                     "position": merged["position"],
+                    "zone_ids": json.dumps(merged["zoneIds"]) if merged["zoneIds"] else None,
                     "updated_at": now,
                 },
             )
             # Need to pass an object with userSegments and visibilityRules for _replace_children
             from app.models.daos import BannerChildrenData
             dummy_merged = BannerChildrenData(
-                userSegments=update_data.userSegments if update_data.userSegments is not None else existing.user_segments,
-                visibilityRules=update_data.visibilityRules if update_data.visibilityRules is not None else existing.visibility_rules
+                userSegments=update_data.userSegments if update_data.userSegments is not None else existing.userSegments,
+                visibilityRules=update_data.visibilityRules if update_data.visibilityRules is not None else existing.visibilityRules
             )
             await self._replace_children(session, bid, dummy_merged)
             await session.commit()

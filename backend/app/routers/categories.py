@@ -43,33 +43,28 @@ class CategoryUpdate(BaseModel):
 
 
 @cache.ttl_cache(ttl=300.0)
-async def _get_available_categories_cached(pincode: Optional[str], effective_role: str):
+async def _get_available_categories_cached(zone_id: Optional[str], effective_role: str):
     if effective_role == "wholesaler":
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
         sa_id = await get_super_admin_seller_id()
-        if sa_id:
-            seller_id_set = {sa_id}
-        else:
-            seller_id_set = set()
+        seller_id_set = {sa_id} if sa_id else set()
     else:
-        if not pincode:
-            return None
-
-        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
-        seller_id_set = await get_seller_ids_for_pincode(pincode)
-
+        if not zone_id:
+            return None  # No zone → fail open (show nothing)
+        from app.repositories.zone_seller_cache import get_seller_ids_for_zone_id
+        seller_id_set = await get_seller_ids_for_zone_id(zone_id)
         if seller_id_set is None:
-            return None  # Pincode not in any zone -> fail open (show all)
+            return None  # Zone not found → fail open
 
     result = {
         "categoryNames": set(),
-        "subCategories": {},  # dict[category_name, set[subcategory_name]]
+        "subCategories": {},
         "brandNames": set(),
         "collectionNames": set(),
     }
 
     if not seller_id_set:
-        # Zone found, but no sellers -> empty result
+        # Zone found, but no sellers → empty result
         return {"categoryNames": [], "subCategories": {}, "brandNames": [], "collectionNames": []}
 
     from app.repositories.product_repository import product_repository
@@ -77,25 +72,24 @@ async def _get_available_categories_cached(pincode: Optional[str], effective_rol
     products = await product_repository._get_lightweight_search_catalog("customer", None)
 
     for p in products:
-        p_seller_ids = p.catalog_seller_ids or []
-        # Check if the product has any overlap with the zone's seller IDs
+        # lightweight catalog items are dicts; access keys directly
+        p_seller_ids = p["catalogSellerIds"] if "catalogSellerIds" in p else []
         if any(sid in seller_id_set for sid in p_seller_ids):
-            cat = p.category
+            cat = p["category"] if "category" in p else None
             if cat:
                 result["categoryNames"].add(cat)
                 if cat not in result["subCategories"]:
                     result["subCategories"][cat] = set()
-                sub = p.sub_category
+                sub = p["subCategory"] if "subCategory" in p else None
                 if sub:
                     result["subCategories"][cat].add(sub)
-            brand = p.brand
+            brand = p["brand"] if "brand" in p else None
             if brand:
                 result["brandNames"].add(brand)
-            collections = p.resolved_collection_names or []
-            for col in collections:
+            collections = p["resolvedCollectionNames"] if "resolvedCollectionNames" in p else []
+            for col in (collections or []):
                 result["collectionNames"].add(col)
 
-    # Convert sets to lists for JSON serialization
     return {
         "categoryNames": list(result["categoryNames"]),
         "subCategories": {k: list(v) for k, v in result["subCategories"].items()},
@@ -111,15 +105,22 @@ async def get_available_categories(
     current_user: Optional[User] = Depends(get_optional_user)
 ):
     """
-    Returns the category names and subcategories that have at least one product
-    available for the given pincode (based on zone -> seller mapping).
-    Returns null if no pincode is provided or if the pincode is not in any zone (fail-open).
+    Returns category names and subcategories available in the customer's zone.
+    For retail: requires pincode; resolves to zone_id for zone-scoped filtering.
+    For wholesale: no zone filter; uses super admin products.
+    Returns null if no zone can be resolved (fail-open).
     """
     effective_role = role or "customer"
     if current_user and current_user.role:
         effective_role = current_user.role
-        
-    return await _get_available_categories_cached(pincode, effective_role)
+
+    zone_id: Optional[str] = None
+    if effective_role != "wholesaler" and pincode:
+        from app.repositories.zone_seller_cache import get_zone_id_and_seller_ids_for_pincode
+        zone_id_result, _ = await get_zone_id_and_seller_ids_for_pincode(pincode)
+        zone_id = zone_id_result
+
+    return await _get_available_categories_cached(zone_id, effective_role)
 
 
 

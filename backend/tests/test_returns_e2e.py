@@ -22,7 +22,31 @@ async def test_full_returns_e2e_flow():
 
     await user_repository.create(UserCreate(name="Admin", email=admin_email, password="pass", role="super_admin"))
     await user_repository.create(UserCreate(name="Seller", email=seller_email, password="pass", role="seller"))
-    valet = await user_repository.create(UserCreate(name="Valet", email=valet_email, password="pass", role="valet", isOnDuty=True, isApproved=True))
+    
+    valet = await user_repository.create(UserCreate(name="Valet", email=valet_email, password="pass", role="valet", isOnDuty=True, isApproved=True, serviceablePincodes=["123456"]))
+    
+    # Create Zone for customer's pincode
+    from app.db.storage_factory import get_storage
+    zone_storage = get_storage("zones")
+    zone_doc = await zone_storage.create({"name": "Test Zone", "pincodes": ["123456"], "isActive": True})
+    zone_id = str(zone_doc["_id"])
+    
+    # Create Valet Availability
+    avail_storage = get_storage("valetAvailability")
+    from datetime import date as dt_date
+    from app.models.daos import ValetAvailabilityInternalCreate
+    avail = await avail_storage.create(ValetAvailabilityInternalCreate(**{
+        "valetId": str(valet.id),
+        "date": dt_date.today().isoformat(),
+        "availabilityType": "full_day",
+        "zones": [zone_id],
+        "slots": []
+    }))
+    print("Created AVAIL:", avail)
+    found_avail = await avail_storage.findAll({"date": dt_date.today().isoformat()})
+    print("Found AVAIL:", found_avail)
+
+
     await user_repository.create(UserCreate(name="Customer", email=customer_email, password="pass", role="customer"))
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -41,7 +65,7 @@ async def test_full_returns_e2e_flow():
         prod_doc = await product_repository.create(ProductInternalCreate(
             name="Returnable Product",
             mrp=100.0, price=90.0,
-            category=str(cat_doc.id),
+            category=cat_doc.name,
             stock=10,
             isActive=True,
             isReturnable=True
@@ -70,12 +94,24 @@ async def test_full_returns_e2e_flow():
         res = await client.get(f"/api/returns/order/{order_id}/eligibility", headers=cust_auth)
         assert res.status_code == 200, res.text
         eligibility = res.json()
+        
+        # Debug DB
+        db_order = await order_repository.findById(order_id)
+        print("DB ORDER:", db_order)
+        db_prod = await product_repository.findById(prod_id)
+        print("DB PRODUCT:", db_prod)
+        from app.repositories.category_repository import category_repository
+        db_cat = await category_repository.findByName(db_prod.category)
+        print("DB CAT:", db_cat)
+        
+        print("ELIGIBILITY RESULT:", eligibility)
         assert len(eligibility["eligibleItems"]) > 0, f"No items eligible for return! Reason: {eligibility.get('reason')}"
+
 
         # Request Return
         return_payload = {
             "orderId": order_id,
-            "items": [{"productId": prod_id, "quantity": 1, "price": 100.0, "returnReason": "Defective"}],
+            "items": [{"productId": prod_id, "quantity": 1, "price": 100.0, "reason": "Defective"}],
             "paymentMethod": "wallet"
         }
         res = await client.post("/api/returns/request", json=return_payload, headers=cust_auth)

@@ -434,64 +434,69 @@ async def export_csv(current_user: User = Depends(require_super_admin)):
 
 @router.get("/suggest", response_model=SearchSuggestResponse)
 async def get_search_suggestions(q: str = "", limit: int = 8, pincode: str = None, role: str = "customer"):
-    """Lightweight autocomplete endpoint returning matching product names, brands, and categories"""
+    """Lightweight autocomplete served from in-memory zone-filtered product catalog. Zero DB hits."""
     if len(q) < 2:
-        return {"products": [], "brands": [], "categories": []}
+        return {"products": [], "brands": [], "categories": [], "suggestions": []}
 
     q_lower = q.lower()
     tokens = [t for t in q_lower.split() if t.strip()]
     if not tokens:
-        return {"products": [], "brands": [], "categories": []}
+        return {"products": [], "brands": [], "categories": [], "suggestions": []}
 
-    query = {"search": q, "isActive": True}
-    
-    serviceable_seller_ids = None
-    if role == "wholesaler":
+    effective_role = "wholesaler" if role == "wholesaler" else "customer"
+
+    # Determine zone-based serviceable seller set
+    serviceable_seller_ids: Optional[set] = None
+    if effective_role == "wholesaler":
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
         sa_id = await get_super_admin_seller_id()
-        if sa_id:
-            serviceable_seller_ids = {sa_id}
-        else:
-            serviceable_seller_ids = set()
+        serviceable_seller_ids = {sa_id} if sa_id else set()
     elif pincode:
-        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
-        serviceable_seller_ids = await get_seller_ids_for_pincode(pincode)
+        from app.repositories.zone_seller_cache import get_zone_id_and_seller_ids_for_pincode
+        _zone_id, serviceable_seller_ids = await get_zone_id_and_seller_ids_for_pincode(pincode)
 
-    if serviceable_seller_ids is not None:
-        query["seller_ids"] = list(serviceable_seller_ids)
+    # Pull from the in-memory lightweight catalog (300 s cache, rebuilt only on expiry)
+    catalog = await product_repository._get_lightweight_search_catalog(effective_role, None)
 
-    active_products = await product_repository.storage.findAll(query)
+    matched_products = []
+    brands: set = set()
+    categories: set = set()
 
-    products = []
-    brands = set()
-    categories = set()
+    for p in catalog:
+        # Zone filter: p is a dict produced by _get_lightweight_search_catalog
+        if serviceable_seller_ids is not None:
+            p_seller_ids = p["sellerIds"] if "sellerIds" in p else []
+            if not any(sid in serviceable_seller_ids for sid in p_seller_ids):
+                continue
 
-    for p in active_products:
-        name = (p.name or "")
+        name = (p["name"] if "name" in p else "") or ""
         name_lower = name.lower()
-        if all(t in name_lower for t in tokens):
-            if p.brand:
-                brands.add(p.brand)
-            if p.category:
-                categories.add(p.category)
-                
-            if len(products) < limit:
-                display_image = p.display_image or (p.images[0] if p.images else None)
-                products.append({
-                    "productId": str((p.id if p.id is not None else p.product_id)),
-                    "name": name,
-                    "productName": name,
-                    "displayImage": display_image
-                })
-            
-            if len(products) >= limit and len(brands) >= 3 and len(categories) >= 3:
-                break
+        if not all(t in name_lower for t in tokens):
+            continue
+
+        p_brand = p["brand"] if "brand" in p else None
+        p_category = p["category"] if "category" in p else None
+        if p_brand:
+            brands.add(p_brand)
+        if p_category:
+            categories.add(p_category)
+
+        if len(matched_products) < limit:
+            matched_products.append({
+                "productId": str(p["_id"] if "_id" in p else ""),
+                "name": name,
+                "productName": name,
+                "displayImage": p["displayImage"] if "displayImage" in p else None,
+            })
+
+        if len(matched_products) >= limit and len(brands) >= 3 and len(categories) >= 3:
+            break
 
     return {
-        "products": products,
-        "suggestions": [p.name for p in products],
+        "products": matched_products,
+        "suggestions": [p["name"] for p in matched_products],
         "brands": list(brands)[:3],
-        "categories": list(categories)[:3]
+        "categories": list(categories)[:3],
     }
 
 
@@ -634,44 +639,42 @@ def _invalidate_product_caches():
         logging.warning("Background task failed", exc_info=e)
 
 
-@router.get("/public", response_model=PaginatedProductResponse)
+
 @cache.ttl_cache(ttl=300.0)
-async def get_public_products(
+async def _get_public_products_cached(
     response: Response,
-    category: Optional[str] = None,
-    categories: Optional[str] = None,
-    subCategory: Optional[str] = None,
-    search: Optional[str] = None,
-    brand: Optional[str] = None,
-    collection: Optional[str] = None,
-    popularity: Optional[str] = None,
-    minDiscount: Optional[str] = None,
-    minPrice: Optional[float] = None,
-    maxPrice: Optional[float] = None,
-    availability: Optional[str] = None,
-    page: int = 1,
-    limit: int = 50,
-    role: str = "customer",
-    categoryTag: Optional[str] = None,
-    sort: Optional[str] = None,
-    includeFacets: bool = True,
-    skinny: bool = False,
-    myProducts: bool = False,
-    pincode: Optional[str] = None,
+    category: Optional[str],
+    categories: Optional[str],
+    subCategory: Optional[str],
+    search: Optional[str],
+    brand: Optional[str],
+    collection: Optional[str],
+    popularity: Optional[str],
+    minDiscount: Optional[str],
+    minPrice: Optional[float],
+    maxPrice: Optional[float],
+    availability: Optional[str],
+    page: int,
+    limit: int,
+    categoryTag: Optional[str],
+    sort: Optional[str],
+    includeFacets: bool,
+    skinny: bool,
+    zone_id: Optional[str],  # None for wholesaler (super-admin products) or no-pincode guest
 ):
-    """Get all products (public endpoint - no auth required)"""
-    role = "customer" # Force role to customer for public endpoint
-    query = {}
+    """Internal cached function. Cache key is zone_id — all pincodes in same zone share one entry."""
+    role = "customer"  # public endpoint is always customer role
+    query: dict = {}
     if category:
         query["category"] = category
     if categories:
-        query["categories"] = categories  # Comma-separated list of categories
+        query["categories"] = categories
     if subCategory:
         query["subCategory"] = subCategory
     if search:
         query["search"] = search
     if brand:
-        query.brand = brand
+        query["brand"] = brand
     if collection:
         query["collection"] = collection
     if categoryTag:
@@ -690,20 +693,12 @@ async def get_public_products(
         query["sort"] = sort
     query["role"] = role
 
-    # Zone-based seller filter: resolve pincode → zone → seller set so only
-    # products serviceable in the user's zone are returned.
-    # None means pincode was not supplied or not found → fail-open (show all).
-    if pincode:
-        from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
-        seller_id_set = await get_seller_ids_for_pincode(pincode)
+    # Zone-based seller filter: zone_id already resolved by the route handler.
+    if zone_id:
+        from app.repositories.zone_seller_cache import get_seller_ids_for_zone_id
+        seller_id_set = await get_seller_ids_for_zone_id(zone_id)
         if seller_id_set is not None:
             query["allowed_seller_ids"] = list(seller_id_set)
-
-    if role == "wholesaler":
-        from app.repositories.zone_seller_cache import get_super_admin_seller_id
-        sa_id = await get_super_admin_seller_id()
-        if sa_id:
-            query["allowed_seller_ids"] = [sa_id]
 
     if page > 1:
         includeFacets = False
@@ -729,12 +724,8 @@ async def get_public_products(
     for product in products:
         if product.tags is None:
             product.tags = []
-
         products_with_pricing.append(product)
 
-    # Tell browsers and CDNs to cache public product lists for 5 minutes
-    # (matches the server-side TTL cache). stale-while-revalidate allows serving
-    # stale content for up to 60s more while a fresh fetch happens in the background.
     response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=60"
 
     if facets:
@@ -757,6 +748,54 @@ async def get_public_products(
         "usedFuzzy": used_fuzzy,
         "suggestedQuery": suggested_query,
     }
+
+
+@router.get("/public", response_model=PaginatedProductResponse)
+async def get_public_products(
+    response: Response,
+    category: Optional[str] = None,
+    categories: Optional[str] = None,
+    subCategory: Optional[str] = None,
+    search: Optional[str] = None,
+    brand: Optional[str] = None,
+    collection: Optional[str] = None,
+    popularity: Optional[str] = None,
+    minDiscount: Optional[str] = None,
+    minPrice: Optional[float] = None,
+    maxPrice: Optional[float] = None,
+    availability: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
+    categoryTag: Optional[str] = None,
+    sort: Optional[str] = None,
+    includeFacets: bool = True,
+    skinny: bool = False,
+    myProducts: bool = False,
+    pincode: Optional[str] = None,
+):
+    """Get products filtered by zone. Requires pincode for retail guests. Wholesalers use super-admin catalog."""
+    # Guests without a pincode get an empty result set (zone is required for product visibility)
+    if not pincode:
+        return {
+            "products": [],
+            "totalCount": 0,
+            "brands": [],
+            "categories": [],
+            "subCategories": {},
+            "collections": [],
+            "usedFuzzy": False,
+            "suggestedQuery": None,
+        }
+
+    # Resolve pincode → zone_id. zone_id is the cache discriminator.
+    from app.repositories.zone_seller_cache import get_zone_id_and_seller_ids_for_pincode
+    zone_id, _ = await get_zone_id_and_seller_ids_for_pincode(pincode)
+
+    return await _get_public_products_cached(
+        response, category, categories, subCategory, search, brand, collection,
+        popularity, minDiscount, minPrice, maxPrice, availability,
+        page, limit, categoryTag, sort, includeFacets, skinny, zone_id,
+    )
 
 
 @router.get("/public/{product_id}", response_model=ProductResponse)
