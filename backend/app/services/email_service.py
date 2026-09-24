@@ -57,9 +57,9 @@ class EmailService:
                 msg.attach(MIMEText(html_body, "html"))
 
             if self.smtp_port == 465:
-                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
+                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=2)
             else:
-                server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+                server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=2)
                 server.starttls()
 
             server.login(self.smtp_user, self.smtp_pass)
@@ -103,9 +103,9 @@ class EmailService:
             msg.attach(part)
 
             if self.smtp_port == 465:
-                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
+                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=2)
             else:
-                server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+                server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=2)
                 server.starttls()
 
             server.login(self.smtp_user, self.smtp_pass)
@@ -140,9 +140,9 @@ class EmailService:
             msg.attach(MIMEText(body, "plain"))
 
             if self.smtp_port == 465:
-                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
+                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=2)
             else:
-                server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+                server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=2)
                 server.starttls()
 
             server.login(self.smtp_user, self.smtp_pass)

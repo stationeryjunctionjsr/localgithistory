@@ -246,7 +246,7 @@ class UserBase(BaseModel):
     address: Optional[AddressSnippet] = None
     savedAddresses: List[AddressSnippet] = Field(default=[], description="List of saved addresses for the user")
     referralCode: Optional[str] = Field(default=None, description="Referral code used to sign up")
-    isEmailVerified: Optional[bool] = False
+    isEmailVerified: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isEmailVerified", "is_email_verified"))
     preferredLanguage: Optional[str] = Field(default="en", description="User's preferred UI language (BCP-47 code, e.g. 'hi', 'ta')")
     approvalStatus: Optional[str] = "approved"
     isDeactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))

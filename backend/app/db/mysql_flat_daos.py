@@ -51,7 +51,7 @@ class MySQLReturnSettingsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
+    async def findOne(self, query: Dict) -> Any:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -59,7 +59,7 @@ class MySQLReturnSettingsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
+    async def findById(self, id: str) -> Any:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -513,7 +513,7 @@ class MySQLPushNotificationsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
+    async def findOne(self, query: Dict) -> Any:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -521,7 +521,7 @@ class MySQLPushNotificationsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
+    async def findById(self, id: str) -> Any:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -719,7 +719,7 @@ class MySQLCoachMarksDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
+    async def findOne(self, query: Dict) -> Any:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -727,7 +727,7 @@ class MySQLCoachMarksDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
+    async def findById(self, id: str) -> Any:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1018,7 +1018,7 @@ class MySQLGoogle_reviewsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
+    async def findOne(self, query: Dict) -> Any:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1026,7 +1026,7 @@ class MySQLGoogle_reviewsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
+    async def findById(self, id: str) -> Any:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1336,7 +1336,7 @@ class MySQLProductNotificationsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
+    async def findOne(self, query: Dict) -> Any:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1344,7 +1344,7 @@ class MySQLProductNotificationsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
+    async def findById(self, id: str) -> Any:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -2682,7 +2682,7 @@ class MySQLValetPayoutSettingsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[ValetPayoutSettings]:
+    async def findOne(self, query: Dict) -> Any:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2690,7 +2690,7 @@ class MySQLValetPayoutSettingsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[ValetPayoutSettings]:
+    async def findById(self, id: str) -> Any:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:

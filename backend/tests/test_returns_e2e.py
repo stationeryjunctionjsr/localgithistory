@@ -10,7 +10,7 @@ from app.repositories.product_repository import product_repository
 from app.repositories.category_repository import category_repository
 from app.repositories.order_repository import order_repository
 from app.db.storage_factory import get_storage
-from app.models.daos import CategoryInternalUpdate, ProductInternalUpdate
+from app.models.daos import CategoryInternalCreate, ProductInternalCreate
 
 @pytest.mark.asyncio
 async def test_full_returns_e2e_flow():
@@ -36,16 +36,16 @@ async def test_full_returns_e2e_flow():
 
         # Create Category and Product
         cat_storage = get_storage("categories")
-        cat_doc = await cat_storage.create(CategoryInternalUpdate(name=f"Returns Category {uuid.uuid4().hex[:8]}", isActive=True))
+        cat_doc = await cat_storage.create(CategoryInternalCreate(name=f"Returns Category {uuid.uuid4().hex[:8]}", isActive=True, gst=18.0))
         
-        prod_doc = await product_repository.create(ProductInternalUpdate(
+        prod_doc = await product_repository.create(ProductInternalCreate(
             name="Returnable Product",
-            mrp=100.0,
+            mrp=100.0, price=90.0,
             category=str(cat_doc.id),
             stock=10,
             isActive=True,
-            isReturnable=True,
-            returnDays=7
+            isReturnable=True
+            
         ))
         prod_id = str(prod_doc.id)
 
@@ -54,7 +54,7 @@ async def test_full_returns_e2e_flow():
         await client.post("/api/cart", json=cart_payload, headers=cust_auth)
         
         checkout_payload = {
-            "address": {"street": "123 Test St", "city": "Test", "state": "TS", "pincode": "123456"},
+            "shippingAddress": {"street": "123 Test St", "city": "Test", "state": "TS", "pincode": "123456"},
             "paymentMethod": "cod"
         }
         res = await client.post("/api/orders", json=checkout_payload, headers=cust_auth)
@@ -63,7 +63,8 @@ async def test_full_returns_e2e_flow():
 
         # Mark order as delivered so it can be returned
         now_iso = datetime.now(timezone.utc).isoformat()
-        await order_repository.update(order_id, {"status": "delivered", "delivered_at": now_iso})
+        from app.models.order import OrderInternalUpdate
+        await order_repository.update(order_id, OrderInternalUpdate(status="delivered", deliveredAt=now_iso))
 
         # Check Eligibility
         res = await client.get(f"/api/returns/order/{order_id}/eligibility", headers=cust_auth)

@@ -245,25 +245,27 @@ class DeliveryChargeRepository:
                 )
 
             # If no tiers configured, no delivery charge
-            return {
-                "charge": 0,
-                "minCartValue": 0,
-                "source": "default-no-tiers",
-                "deliveryCharge": default_charge,
-                "isApplicableToRole": True,
-                "urgentDeliveryAvailable": urgent_avail,
-                "urgentDeliveryCharge": urgent_charge,
-            }
+            from app.routers.delivery_charges import LocationChargeResponse
+            return LocationChargeResponse(
+                charge=0,
+                minCartValue=0,
+                source="default-no-tiers",
+                deliveryCharge=default_charge.charge if default_charge else None,
+                isApplicableToRole=True,
+                urgentDeliveryAvailable=urgent_avail,
+                urgentDeliveryCharge=urgent_charge,
+            )
 
-        return {
-            "charge": 0,
-            "minCartValue": 0,
-            "source": "none",
-            "deliveryCharge": None,
-            "isApplicableToRole": True,
-            "urgentDeliveryAvailable": False,
-            "urgentDeliveryCharge": None,
-        }
+        from app.routers.delivery_charges import LocationChargeResponse
+        return LocationChargeResponse(
+            charge=0,
+            minCartValue=0,
+            source="none",
+            deliveryCharge=None,
+            isApplicableToRole=True,
+            urgentDeliveryAvailable=False,
+            urgentDeliveryCharge=None,
+        )
 
     def isChargeApplicableToRole(self, charge_data: Any, user_role: str) -> bool:
         """Check if delivery charge is applicable to the user's role"""
