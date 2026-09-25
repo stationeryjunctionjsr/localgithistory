@@ -3,68 +3,70 @@ from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
 from pydantic import BaseModel
+from app.models.base import CamelBaseModel
 
-class CouponInfo(BaseModel):
+class CouponInfo(CamelBaseModel):
     code: Optional[str] = None
     discountType: Optional[str] = None
     discountValue: Optional[float] = None
 
-class DeliverySlotInfo(BaseModel):
+class DeliverySlotInfo(CamelBaseModel):
     date: Optional[str] = None
     time: Optional[str] = None
     slotId: Optional[str] = None
 
-class SubOrderItem(BaseModel):
-    product_id: Optional[str] = Field(default=None, alias='productId')
+class SubOrderItem(CamelBaseModel):
+    product_id: Optional[str] = Field(default=None)
     name: Optional[str] = None
     qty: Optional[int] = None
     price: Optional[float] = None
 
-class SubOrder(BaseModel):
+class SubOrder(CamelBaseModel):
     id: str = Field(default="", alias='_id')
-    external_id: Optional[str] = Field(default=None, alias='externalId')
-    sub_order_number: Optional[str] = Field(default=None, alias='subOrderNumber')
-    parent_order_id: Optional[str] = Field(default=None, alias='parentOrderId')
-    parent_order_number: Optional[str] = Field(default=None, alias='parentOrderNumber')
-    seller_id: Optional[str] = Field(default=None, alias='sellerId')
-    seller_name: Optional[str] = Field(default=None, alias='sellerName')
+    external_id: Optional[str] = Field(default=None)
+    sub_order_number: Optional[str] = Field(default=None)
+    parent_order_id: Optional[str] = Field(default=None)
+    parent_order_number: Optional[str] = Field(default=None)
+    seller_id: Optional[str] = Field(default=None)
+    seller_name: Optional[str] = Field(default=None)
     user_id: Optional[str] = Field(default=None, alias='user')
     subtotal: Optional[float] = None
     tax: Optional[float] = None
     shipping: Optional[float] = None
-    delivery_gst: float = Field(default=0.0, alias='deliveryGst')
+    delivery_gst: float = Field(default=0.0)
     discount: Optional[float] = None
     total: Optional[float] = None
-    order_type: Optional[str] = Field(default=None, alias='orderType')
+    order_type: Optional[str] = Field(default=None)
     status: str = "pending"
-    payment_method: Optional[str] = Field(default=None, alias='paymentMethod')
-    payment_status: str = Field(default="pending", alias='paymentStatus')
-    is_urgent_delivery: bool = Field(default=False, alias='isUrgentDelivery')
-    delivery_slot: Optional[DeliverySlotInfo] = Field(default=None, alias='deliverySlot')
+    payment_method: Optional[str] = Field(default=None)
+    payment_status: str = Field(default="pending")
+    is_urgent_delivery: bool = Field(default=False)
+    delivery_slot: Optional[DeliverySlotInfo] = Field(default=None)
     notes: Optional[str] = None
-    coupon_code: Optional[str] = Field(default=None, alias='couponCode')
-    coupon_info: Optional[CouponInfo] = Field(default=None, alias='couponInfo')
-    commission_status: str = Field(default="unrealized", alias='commissionStatus')
-    commission_amount: Optional[float] = Field(default=0.0, alias='commissionAmount')
-    commission_pct: Optional[float] = Field(default=None, alias='commissionPct')
-    shipping_address: Optional['Address'] = Field(default=None, alias='shippingAddress')
-    billing_address: Optional['Address'] = Field(default=None, alias='billingAddress')
-    pickup_status: str = Field(default="pending_pickup", alias='pickupStatus')
-    assigned_valet: Optional[str] = Field(default=None, alias='assignedValet')
-    return_status: Optional[str] = Field(default=None, alias='returnStatus')
+    coupon_code: Optional[str] = Field(default=None)
+    coupon_info: Optional[CouponInfo] = Field(default=None)
+    commission_status: str = Field(default="unrealized")
+    commission_amount: Optional[float] = Field(default=0.0)
+    commission_pct: Optional[float] = Field(default=None)
+    shipping_address: Optional['Address'] = Field(default=None)
+    billing_address: Optional['Address'] = Field(default=None)
+    pickup_status: str = Field(default="pending_pickup")
+    assigned_valet: Optional[str] = Field(default=None)
+    return_status: Optional[str] = Field(default=None)
     items: List[SubOrderItem] = []
     
     # Dates
-    delivered_at: Optional[datetime] = Field(default=None, alias='deliveredAt')
-    dispatched_at: Optional[datetime] = Field(default=None, alias='dispatchedAt')
-    cancelled_at: Optional[datetime] = Field(default=None, alias='cancelledAt')
-    picked_up_at: Optional[datetime] = Field(default=None, alias='pickedUpAt')
-    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
-    updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
+    delivered_at: Optional[datetime] = Field(default=None)
+    dispatched_at: Optional[datetime] = Field(default=None)
+    cancelled_at: Optional[datetime] = Field(default=None)
+    picked_up_at: Optional[datetime] = Field(default=None)
+    created_at: Optional[datetime] = Field(default=None)
+    updated_at: Optional[datetime] = Field(default=None)
 
 from pydantic import BaseModel, Field, ConfigDict
+from app.models.base import CamelBaseModel
 
-class SubOrderInternalCreate(BaseModel):
+class SubOrderInternalCreate(CamelBaseModel):
     subOrderNumber: str
     parentOrderId: str
     parentOrderNumber: str
@@ -102,8 +104,8 @@ class SubOrderInternalCreate(BaseModel):
     commissionStatus: Optional[str] = None
     createdAt: Optional[str] = None
 
-class SubOrderInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+class SubOrderInternalUpdate(CamelBaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, from_attributes=True, extra='forbid', populate_by_name=True)
     status: Optional[str] = None
     shippedAt: Optional[str] = None
     deliveredAt: Optional[str] = None
