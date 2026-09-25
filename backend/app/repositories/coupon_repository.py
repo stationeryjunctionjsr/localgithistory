@@ -852,7 +852,8 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 discountValue=coupon.discountValue,
                 id=str(coupon.id) if coupon.id else None,
                 method=coupon.method,
-                couponMode=coupon.couponMode or "override"
+                couponMode=coupon.couponMode or "override",
+                typeOfDiscount=coupon.typeOfDiscount
             ),
             discount=round(discount, 2),
             eligibleItemIndices=eligible_item_indices,
@@ -991,13 +992,22 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                         else:
                             discount = coupon.discountValue
                 results.append(
-                    {
-                        "coupon": coupon,
-                        "discount": round(discount, 2),
-                        "eligibleItemIndices": eligible_item_indices,
-                        "itemDiscounts": item_discounts,
-                        "bxgyItemIndices": bxgy_item_indices,
-                    }
+                    CouponValidationResponse(
+                        valid=True,
+                        coupon=CouponValidationDetail(
+                            code=coupon.code,
+                            discountType=coupon.discountType,
+                            discountValue=coupon.discountValue,
+                            id=str(coupon.id) if coupon.id else None,
+                            method=coupon.method,
+                            couponMode=coupon.couponMode or "override",
+                            typeOfDiscount=coupon.typeOfDiscount
+                        ),
+                        discount=round(discount, 2),
+                        eligibleItemIndices=eligible_item_indices,
+                        itemDiscounts=item_discounts,
+                        bxgyItemIndices=bxgy_item_indices,
+                    )
                 )
             except Exception:
                 continue
