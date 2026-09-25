@@ -908,7 +908,7 @@ async def create_order(
 
     # Resolve customer delivery pincode for seller routing
     _customer_pincode = (
-        (order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zipCode or order_data.shippingAddress.pincode or "")
+        (order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zip_code or order_data.shippingAddress.pincode or "")
         if order_data.shippingAddress
         else ""
     )
@@ -1208,9 +1208,9 @@ async def create_order(
             order_data.isUrgentDelivery = True
 
     # Check pincode serviceability before proceeding
-    if order_data.shippingAddress and (order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zipCode):
+    if order_data.shippingAddress and (order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zip_code):
         shipping_zip = str(
-            order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zipCode).strip()
+            order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zip_code).strip()
         is_serviceable = await delivery_charge_repository.isPincodeServiceable(shipping_zip, effective_role)
 
         if not is_serviceable:
@@ -1264,7 +1264,7 @@ async def create_order(
             state = order_data.shippingAddress.state if order_data.shippingAddress.state is not None else ""
             city = order_data.shippingAddress.city if order_data.shippingAddress.city is not None else ""
             district = order_data.shippingAddress.district if order_data.shippingAddress.district is not None else ""
-            zip_code = order_data.shippingAddress.zipCode if order_data.shippingAddress.zipCode is not None else ""
+            zip_code = order_data.shippingAddress.zip_code if order_data.shippingAddress.zip_code is not None else ""
 
             # Calculate total before shipping for tiered charge calculation
             # Use subtotal (after coupon, includes GST)
@@ -1849,7 +1849,7 @@ async def create_order(
                     order_data.shippingAddress.state if order_data.shippingAddress.state is not None else "",
                     order_data.shippingAddress.city if order_data.shippingAddress.city is not None else "",
                     order_data.shippingAddress.district if order_data.shippingAddress.district is not None else "",
-                    order_data.shippingAddress.zipCode if order_data.shippingAddress.zipCode is not None else "",
+                    order_data.shippingAddress.zip_code if order_data.shippingAddress.zip_code is not None else "",
                     effective_role,
                     subtotal,
                 )

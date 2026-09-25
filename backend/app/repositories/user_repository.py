@@ -172,7 +172,7 @@ class UserRepository:
             if (
                 sa.street == address.street
                 and sa.city == address.city
-                and sa.zipCode == address.zipCode
+                and sa.zip_code == address.zip_code
             ):
                 is_duplicate = True
                 break
