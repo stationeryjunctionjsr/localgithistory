@@ -27,7 +27,7 @@ class MySQLCartDAO:
         return get_async_session_factory()
 
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict] = None) -> List['Cart']:
         factory = self._factory()
         if not factory:
             return []
@@ -107,11 +107,11 @@ class MySQLCartDAO:
             out.append(cart)
         return out
 
-    async def findOne(self, query: Dict) -> Optional[Any]:
+    async def findOne(self, query: Dict) -> Optional['Cart']:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['Cart']:
         return await self.findOne({"_id": id})
 
     async def _replace_items(self, session, cart_external_id: str, items: List[CartItemInternal]) -> None:
@@ -197,7 +197,7 @@ class MySQLCartDAO:
 
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: CartInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, update_data: CartInternalUpdate) -> Optional['Cart']:
         existing = await self.findById(id)
         if not existing:
             return None

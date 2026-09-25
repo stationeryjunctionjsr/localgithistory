@@ -16,7 +16,7 @@ class MySQLAdDAO:
 
     def _map_to_schema(self, row) -> Ad:
         return Ad.model_validate(row)
-    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict] = None) -> List['Ad']:
         factory = self._factory()
         if not factory:
             return []
@@ -152,7 +152,7 @@ class MySQLAdDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> Optional[Any]:
+    async def update(self, id: str, data: Any) -> Optional['Ad']:
         existing = await self.findById(id)
         if not existing:
             return None

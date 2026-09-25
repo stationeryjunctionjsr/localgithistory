@@ -24,10 +24,10 @@ class MySQLDeliverySlotsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['DeliverySlotConfigInternal']:
         return await self.findOne({"_id": id})
 
-    async def findOne(self, query=None, **kwargs) -> Optional[Any]:
+    async def findOne(self, query=None, **kwargs) -> Optional['DeliverySlotConfigInternal']:
         if query:
             kwargs.update(query)
         if not kwargs:
@@ -57,7 +57,7 @@ class MySQLDeliverySlotsDAO:
             children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
-    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List['DeliverySlotConfigInternal']:
         query = query or {}
         async with self._factory()() as session:
             sql = f"SELECT * FROM {self.TABLE}"
@@ -87,7 +87,7 @@ class MySQLDeliverySlotsDAO:
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: Any) -> Any:
+    async def create(self, data: Any) -> 'DeliverySlotConfigInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -126,7 +126,7 @@ class MySQLDeliverySlotsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> Any:
+    async def update(self, id: str, data: Any) -> 'DeliverySlotConfigInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -160,7 +160,7 @@ class MySQLDeliverySlotsDAO:
                 
         return await self.findById(id)
 
-    def _map_to_schema(self, r, children: Dict) -> Any:
+    def _map_to_schema(self, r, children: Dict) -> 'DeliverySlotConfigInternal':
         obj = DeliverySlotConfigInternal.model_validate(r)
         for k, v in children.items():
             setattr(obj, k, v)

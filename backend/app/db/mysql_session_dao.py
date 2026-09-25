@@ -34,10 +34,10 @@ class MySQLSessionDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_to_schema(self, r) -> Any:
+    def _map_to_schema(self, r) -> 'Session':
         return Session.model_validate(r)
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict] = None) -> List['Session']:
         factory = self._factory()
         if not factory:
             return []
@@ -70,11 +70,11 @@ class MySQLSessionDAO:
                 filtered.append(d)
         return filtered
 
-    async def findOne(self, query: Dict) -> Optional[Any]:
+    async def findOne(self, query: Dict) -> Optional['Session']:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['Session']:
         factory = self._factory()
         if not factory:
             return None
@@ -139,7 +139,7 @@ class MySQLSessionDAO:
             new_id = r.scalar()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'SessionInternalUpdate') -> Optional[Any]:
+    async def update(self, id: str, update_data: 'SessionInternalUpdate') -> Optional['Session']:
         existing = await self.findById(id)
         if not existing:
             return None

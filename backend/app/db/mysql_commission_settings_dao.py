@@ -123,7 +123,7 @@ class MySQLCommissionSettingsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Any) -> Optional[Any]:
+    async def update(self, id: str, update_data: Any) -> Optional['CommissionSettings']:
         existing = await self.findById(id)
         if not existing:
             return None

@@ -55,7 +55,7 @@ class MySQLSavedForLaterDAO:
             for r in rows
         ]
 
-    def _doc(self, user_id: str, items: List[Dict]) -> Any:
+    def _doc(self, user_id: str, items: List[Dict]) -> 'SavedForLater':
         return SavedForLater.model_validate({
             "_id": user_id, "user": user_id, "items": items})
 

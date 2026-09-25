@@ -169,6 +169,6 @@ class MySQLCustomerSegmentDAO:
             await session.commit()
             return res.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Any:
+    async def deleteMany(self, query: Dict) -> 'CustomerSegmentInternal':
         return {"deletedCount": 0}
 

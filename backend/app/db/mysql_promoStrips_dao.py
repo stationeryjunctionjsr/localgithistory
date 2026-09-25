@@ -22,10 +22,10 @@ class MySQLPromoStripsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['PromoStripsInternal']:
         return await self.findOne({"_id": id})
 
-    async def findOne(self, query=None, **kwargs) -> Optional[Any]:
+    async def findOne(self, query=None, **kwargs) -> Optional['PromoStripsInternal']:
         if query:
             kwargs.update(query)
         if not kwargs:
@@ -54,7 +54,7 @@ class MySQLPromoStripsDAO:
             children_map = await self._fetch_children(session, [int(row.id)]) if False else {}
             return self._map_to_schema(row, children_map[int(row.id)] if int(row.id) in children_map else {})
             
-    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List['PromoStripsInternal']:
         query = query or {}
         async with self._factory()() as session:
             sql = f"SELECT * FROM {self.TABLE}"
@@ -84,7 +84,7 @@ class MySQLPromoStripsDAO:
             
             return [self._map_to_schema(r, children_map[int(r.id)] if int(r.id) in children_map else {}) for r in rows]
 
-    async def create(self, data: Any) -> Any:
+    async def create(self, data: Any) -> 'PromoStripsInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -126,7 +126,7 @@ class MySQLPromoStripsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> Any:
+    async def update(self, id: str, data: Any) -> 'PromoStripsInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -170,7 +170,7 @@ class MySQLPromoStripsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Any:
+    async def deleteMany(self, query: Dict) -> 'PromoStripsInternal':
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
@@ -180,7 +180,7 @@ class MySQLPromoStripsDAO:
                 deleted += 1
         return {"deletedCount": deleted}
 
-    def _map_to_schema(self, r, children: Dict) -> Any:
+    def _map_to_schema(self, r, children: Dict) -> 'PromoStripsInternal':
         d = dict(r._mapping)
         if "zone_ids" in d and isinstance(d["zone_ids"], str):
             try:

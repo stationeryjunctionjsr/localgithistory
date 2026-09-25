@@ -49,7 +49,7 @@ class MySQLSellerAvailabilityDAO:
     def _get_session_factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> Any:
+    def __map_to_schema(self, row) -> 'SellerAvailability':
         return SellerAvailability.model_validate(row)
 
     def _build_where(self, query: Dict):
@@ -75,7 +75,7 @@ class MySQLSellerAvailabilityDAO:
                 pass  # Non-existent column, ignore
         return where_clauses, params
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict] = None) -> List['SellerAvailability']:
         factory = self._get_session_factory()
         if not factory:
             return []
@@ -90,14 +90,14 @@ class MySQLSellerAvailabilityDAO:
             )
             return [self.__map_to_schema(r) for r in result.fetchall()]
 
-    async def findOne(self, query: Dict) -> Optional[Any]:
+    async def findOne(self, query: Dict) -> Optional['SellerAvailability']:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['SellerAvailability']:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: SellerAvailabilityInternalCreate) -> Any:
+    async def create(self, data: SellerAvailabilityInternalCreate) -> 'SellerAvailability':
         factory = self._get_session_factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -126,7 +126,7 @@ class MySQLSellerAvailabilityDAO:
             new_id = result.lastrowid
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Any]:
+    async def update(self, id: str, data: Dict) -> Optional['SellerAvailability']:
         factory = self._get_session_factory()
         if not factory:
             return None

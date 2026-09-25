@@ -34,7 +34,7 @@ class MySQLReferralSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _doc(self, rows_by_segment: Dict[str, any]) -> Any:
+    def _doc(self, rows_by_segment: Dict[str, any]) -> 'ReferralSettings':
         retail = (rows_by_segment["retail"] if "retail" in rows_by_segment else None)
         business = (rows_by_segment["business"] if "business" in rows_by_segment else None)
         return ReferralSettings.model_validate({

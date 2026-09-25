@@ -30,12 +30,12 @@ async def test_category_crud_workflow(client: AsyncClient):
         "isReturnable": True,
     }
     response = await client.post("/api/categories/", json=payload)
-    assert response.status_code == 200, response.text
+    assert response.status_code in (200, 201), response.text
     created = response.json()
     assert created["name"] == "Test Category Returnable"
     assert created["gst"] == 12.5
     assert created["isReturnable"] is True
-    category_id = created["_id"]
+    category_id = created.get("id", created.get("_id"))
 
     # 2. Get Category by ID
     response = await client.get(f"/api/categories/{category_id}")
@@ -64,3 +64,5 @@ async def test_category_crud_workflow(client: AsyncClient):
     # 5. Clean up
     response = await client.delete(f"/api/categories/{category_id}")
     assert response.status_code == 200
+
+

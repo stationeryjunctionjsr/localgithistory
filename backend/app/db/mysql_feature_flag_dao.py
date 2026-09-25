@@ -23,7 +23,7 @@ class MySQLFeatureFlagDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, r) -> Any:
+    def __map_to_schema(self, r) -> 'FeatureFlag':
         return FeatureFlag.model_validate(r)
 
     async def findAll(self, query: Optional[Dict] = None) -> List[FeatureFlag]:

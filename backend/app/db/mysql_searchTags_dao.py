@@ -22,10 +22,10 @@ class MySQLSearchTagsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['SearchTagInternal']:
         return await self.findOne({"_id": id})
 
-    async def findOne(self, query=None, **kwargs) -> Optional[Any]:
+    async def findOne(self, query=None, **kwargs) -> Optional['SearchTagInternal']:
         if query:
             kwargs.update(query)
         if not kwargs:
@@ -54,7 +54,7 @@ class MySQLSearchTagsDAO:
             children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
-    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List['SearchTagInternal']:
         query = query or {}
         async with self._factory()() as session:
             sql = f"SELECT * FROM {self.TABLE}"
@@ -84,7 +84,7 @@ class MySQLSearchTagsDAO:
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: Any) -> Any:
+    async def create(self, data: Any) -> 'SearchTagInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -123,7 +123,7 @@ class MySQLSearchTagsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> Any:
+    async def update(self, id: str, data: Any) -> 'SearchTagInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -183,7 +183,7 @@ class MySQLSearchTagsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Any:
+    async def deleteMany(self, query: Dict) -> 'SearchTagInternal':
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
@@ -193,7 +193,7 @@ class MySQLSearchTagsDAO:
                 deleted += 1
         return {"deletedCount": deleted}
 
-    def _map_to_schema(self, r, children: Dict) -> Any:
+    def _map_to_schema(self, r, children: Dict) -> 'SearchTagInternal':
         d = dict(r._mapping)
         if "subCategories" in children:
             d["sub_categories"] = children["subCategories"]
