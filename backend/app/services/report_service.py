@@ -58,7 +58,7 @@ class ReportService:
             session_id = search.sessionId
             search_term = search.searchTerm or ""
             results_count = search.resultsCount or 0
-            product_ids = search.productIds or []
+            product_ids = search.product_ids or []
             search_time = search.timestamp
 
             added_to_cart = False
@@ -67,7 +67,7 @@ class ReportService:
             if session_id:
                 for conv in conversion_events:
                     if conv.sessionId == session_id and (conv.timestamp or "") >= (search_time or ""):
-                        prod_id = conv.productId
+                        prod_id = conv.product_id
                         if prod_id in product_ids:
                             if conv.type == "cart_add":
                                 added_to_cart = True

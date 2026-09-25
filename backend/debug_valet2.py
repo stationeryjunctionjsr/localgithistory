@@ -4,8 +4,8 @@ with open('app/jobs/valet_timeout_job.py', 'r', encoding='utf-8') as f:
     text = f.read()
 
 text = text.replace(
-    'order_id = return_req.orderId',
-    'order_id = return_req.orderId\n    import sys\n    print(f"FIND_VALET order_id={order_id}", file=sys.stderr)'
+    'order_id = return_req.order_id',
+    'order_id = return_req.order_id\n    import sys\n    print(f"FIND_VALET order_id={order_id}", file=sys.stderr)'
 )
 text = text.replace(
     'if not order:\n        return None',

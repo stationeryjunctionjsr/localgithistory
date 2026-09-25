@@ -70,7 +70,7 @@ class MySQLFlatBaseDAO:
 
     @property
     def table_name(self) -> str:
-        return "{self._raw_table_name}"
+        return self._raw_table_name
 
     def _factory(self):
         return get_async_session_factory()

@@ -17,7 +17,7 @@ class MySQLSearchTagsDAO:
     @property
     def TABLE(self):
         from app.config.settings import settings
-        return "{self.table_name}"
+        return self.table_name
 
     def _factory(self):
         return get_async_session_factory()
@@ -314,9 +314,9 @@ class MySQLSearchTagsDAO:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_collections (parent_id, collection) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.productIds is not None:
+        if data.product_ids is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_products WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.productIds or []
+            child_list = data.product_ids or []
 
             if child_list:
                 for item in child_list:

@@ -123,7 +123,7 @@ async def get_cart(current_user: User = Depends(get_current_user)):
 async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_current_user)):
     """Add item to cart"""
     try:
-        product = await product_repository.findById(item.productId)
+        product = await product_repository.findById(item.product_id)
         if not product or not product.is_active:
             raise HTTPException(status_code=404, detail="Product not found")
 
@@ -134,7 +134,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
         existing_total_qty = 0
         if cart:
             existing_total_qty = sum(
-                (i.quantity if i.quantity is not None else 0) for i in (cart.items or []) if i.product == item.productId
+                (i.quantity if i.quantity is not None else 0) for i in (cart.items or []) if i.product == item.product_id
             )
 
         final_qty = existing_total_qty + item.quantity
@@ -144,7 +144,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
         ttl_minutes = 30 if role == "wholesaler" else 10
         try:
             await stock_reservation_repository.reserve_stock_checked(
-                product_id=item.productId, user_id=current_user.id, quantity=final_qty, ttl_minutes=ttl_minutes
+                product_id=item.product_id, user_id=current_user.id, quantity=final_qty, ttl_minutes=ttl_minutes
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -168,7 +168,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
         from app.models.daos import CartItemInternal
         new_item = CartItemInternal(
             id_=str(uuid.uuid4()),
-            product=item.productId,
+            product=item.product_id,
             quantity=item.quantity,
             sellAsCase=sell_as_case,
             variantAttributes=item.variantAttributes,
@@ -179,7 +179,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
                 (
                     i
                     for i in (cart.items or [])
-                    if i.product == item.productId
+                    if i.product == item.product_id
                     and i.sell_as_case == sell_as_case
                     and i.variant_attributes == item.variantAttributes
                 ),
@@ -209,13 +209,13 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
         # Automatically remove from wishlist
         from app.repositories.wishlist_repository import wishlist_repository
 
-        await wishlist_repository.removeItem(current_user.id, item.productId)
+        await wishlist_repository.removeItem(current_user.id, item.product_id)
 
         # Track the addition
         from app.repositories.tracking_repository import tracking_repository
 
         await tracking_repository.trackCartAdd(
-            current_user.id, item.productId, item.quantity, item.sessionId
+            current_user.id, item.product_id, item.quantity, item.sessionId
         )
 
         return {"message": "Item added to cart"}
@@ -360,7 +360,7 @@ async def save_for_later(request: SaveForLaterRequest, current_user: User = Depe
     try:
         from app.repositories.wishlist_repository import wishlist_repository
 
-        await wishlist_repository.addItem(current_user.id, WishlistItemInternal(product=request.productId))
+        await wishlist_repository.addItem(current_user.id, WishlistItemInternal(product=request.product_id))
         return {"message": "Item saved for later"}
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)

@@ -75,7 +75,7 @@ class CouponRepository:
         ):
             cols = await self._collection_storage.findAll()
             self._collections_map = {
-                str(c.id): [str(pid) for pid in (c.productIds if c.productIds is not None else [])] for c in cols if "_id" in c
+                str(c.id): [str(pid) for pid in (c.product_ids if c.product_ids is not None else [])] for c in cols if "_id" in c
             }
             self._collections_map_time = now
         return (self._collections_map[str(cid)] if str(cid) in self._collections_map else None)
@@ -88,7 +88,7 @@ class CouponRepository:
         y_required = int(coupon.buyXGetYCustomerGetsQuantity) if coupon.buyXGetYCustomerGetsQuantity is not None else None
 
         # Batch-load all cart products upfront to avoid N+1 (one DB hit per item)
-        cart_pids = [str(item.product or item.productId) for item in cart_items if item.product or item.productId]
+        cart_pids = [str(item.product or item.product_id) for item in cart_items if item.product or item.product_id]
         if cart_pids:
             products_list = await product_repository.findAll({"allowed_ids": cart_pids})
             product_map = {str(p.id): p for p in products_list if p.id}
@@ -97,7 +97,7 @@ class CouponRepository:
 
         elements = []
         for idx, item in enumerate(cart_items):
-            pid = str(item.product or item.productId)
+            pid = str(item.product or item.product_id)
             product = (product_map[pid] if pid in product_map else None)
             if not product:
                 continue
@@ -777,7 +777,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             applies_to_ids = (coupon.appliesToValueIds if coupon.appliesToValueIds is not None else None) or []
             eligible_subtotal = 0.0
             for idx, item in enumerate(cart_items):
-                product = await product_repository.findById(item.product or item.productId)
+                product = await product_repository.findById(item.product or item.product_id)
                 if not product:
                     continue
                 if await self._product_eligible_async(
@@ -823,8 +823,8 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "buy_x_get_y" and cart_items and product_repository:
             bxgy_res = await self._calculate_bxgy_discount(coupon, cart_items, product_repository, user_role, user_id)
             discount = bxgy_res.discount
-            item_discounts = bxgy_res.itemDiscounts
-            bxgy_item_indices = bxgy_res.bxgyItemIndices
+            item_discounts = bxgy_res.item_discounts
+            bxgy_item_indices = bxgy_res.bxgy_item_indices
         elif (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
             if coupon.discountType == "percentage":
                 discount = (shipping_charge * coupon.discountValue) / 100
@@ -934,7 +934,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 eligible_quantity = 0
                 eligible_item_indices = []
                 for idx, item in enumerate(cart_items):
-                    product = await product_repository.findById(item.product or item.productId)
+                    product = await product_repository.findById(item.product or item.product_id)
                     if not product:
                         continue
                     if await self._product_eligible_async(
@@ -971,8 +971,8 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                         coupon, cart_items, product_repository, user_role, user_id
                     )
                     discount = bxgy_res.discount
-                    item_discounts = bxgy_res.itemDiscounts
-                    bxgy_item_indices = bxgy_res.bxgyItemIndices
+                    item_discounts = bxgy_res.item_discounts
+                    bxgy_item_indices = bxgy_res.bxgy_item_indices
                 elif (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
                     if coupon.discountType == "percentage":
                         discount = (shipping_charge * coupon.discountValue) / 100

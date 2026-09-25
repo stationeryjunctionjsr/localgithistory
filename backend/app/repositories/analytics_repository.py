@@ -268,7 +268,7 @@ class AnalyticsRepository:
 
         for order in orders:
             for item in order.items:
-                product_id = item.product or item.productId
+                product_id = item.product or item.product_id
                 if not product_id:
                     continue
 
@@ -492,7 +492,7 @@ class AnalyticsRepository:
 
         for order in orders:
             for item in order.items:
-                product_id = item.product or item.productId
+                product_id = item.product or item.product_id
                 if product_id:
                     product_stats[product_id].sold += item.quantity
 
@@ -1006,7 +1006,7 @@ class AnalyticsRepository:
             if end_date and created and created > end_date:
                 continue
 
-            order = (order_map[ret.orderId] if ret.orderId in order_map else None)
+            order = (order_map[ret.order_id] if ret.order_id in order_map else None)
             user = (user_map[ret.userId] if ret.userId in user_map else None)
             items = ret.items
             refund_value = sum((i.subtotal or i.price) * i.quantity for i in items)
@@ -1014,7 +1014,7 @@ class AnalyticsRepository:
             result.append(
                 {
                     "returnId": ret.id,
-                    "orderId": ret.orderId,
+                    "orderId": ret.order_id,
                     "orderTotal": order.total,
                     "userName": user.name,
                     "userEmail": user.email,
@@ -1072,7 +1072,7 @@ class AnalyticsRepository:
         category_stats: dict = {}
         for order in orders:
             for item in order.items:
-                product_id = item.product or item.productId
+                product_id = item.product or item.product_id
                 product = (product_map[product_id] if product_id in product_map else None)
                 category = product.category or "Uncategorized"
 
@@ -1296,9 +1296,9 @@ class AnalyticsRepository:
             # Extract unique product IDs in this order
             product_ids = list(
                 set(
-                    item.product or item.productId
+                    item.product or item.product_id
                     for item in items
-                    if (item.product or item.productId)
+                    if (item.product or item.product_id)
                 )
             )
 
@@ -1396,7 +1396,7 @@ class AnalyticsRepository:
                 continue
 
             for item in req.items:
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if not pid:
                     continue
 
@@ -1559,7 +1559,7 @@ class AnalyticsRepository:
                     spec_qty = max(1, (spec["quantity"] if "quantity" in spec else 1) or 1)
                     spec_pid = str((spec["productId"] if "productId" in spec else ""))
                     ref_item = next(
-                        (i for i in b_items if str(i.product) == spec_pid or str(i.productId) == spec_pid),
+                        (i for i in b_items if str(i.product) == spec_pid or str(i.product_id) == spec_pid),
                         b_items[0]
                     )
                     copies = max(1, (ref_item["quantity"] if "quantity" in ref_item else spec_qty) // spec_qty)
@@ -1994,7 +1994,7 @@ class AnalyticsRepository:
             if not dt or dt < window_start:
                 continue
             for item in order.items:
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if pid and str(pid) in {str(k) for k in product_map}:
                     units_sold[str(pid)] += item.quantity
 
@@ -2138,7 +2138,7 @@ class AnalyticsRepository:
         units_sold: dict = defaultdict(int)
         for order in orders:
             for item in order.items:
-                pid = str(item.product or item.productId or "")
+                pid = str(item.product or item.product_id or "")
                 if pid and pid in product_map:
                     units_sold[pid] += item.quantity
 

@@ -137,7 +137,7 @@ class MySQLValetAvailabilityDAO:
                 """),
                 {
                     "external_id": external_id,
-                    "valet_id": str((data.valetId if data.valetId is not None else "")),
+                    "valet_id": str((data.valet_id if data.valet_id is not None else "")),
                     "date": data.date,
                     "availability_type": (data.availabilityType if data.availabilityType is not None else ""),
                     "created_at": now,
@@ -159,7 +159,7 @@ class MySQLValetAvailabilityDAO:
             return None
 
         merged = {}
-        merged["valetId"] = update_data.valetId if update_data.valetId is not None else (existing["valetId"] if "valetId" in existing else None)
+        merged["valetId"] = update_data.valet_id if update_data.valet_id is not None else (existing["valetId"] if "valetId" in existing else None)
         merged["date"] = update_data.date if update_data.date is not None else (existing["date"] if "date" in existing else None)
         merged["availabilityType"] = update_data.availabilityType if update_data.availabilityType is not None else (existing["availabilityType"] if "availabilityType" in existing else None)
         merged["slots"] = update_data.slots if update_data.slots is not None else (existing["slots"] if "slots" in existing else None)

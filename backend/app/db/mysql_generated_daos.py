@@ -26,7 +26,7 @@ class DynamicRelationalDAO:
 
     @property
     def TABLE(self):
-        return "{self.table_name}"
+        return self.table_name
 
     def _factory(self):
         return get_async_session_factory()

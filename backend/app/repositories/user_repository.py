@@ -104,9 +104,9 @@ class UserRepository:
             password=hashed_password,
             role=role,
             phone=(user_data.phone if user_data.phone is not None else ""),
-            companyName=(user_data.companyName if user_data.companyName is not None else ""),
+            companyName=(user_data.company_name if user_data.company_name is not None else ""),
             address=(user_data.address if user_data.address is not None else {}),
-            savedAddresses=(user_data.savedAddresses if user_data.savedAddresses is not None else []),
+            savedAddresses=(user_data.saved_addresses if user_data.saved_addresses is not None else []),
             isActive=(user_data.isActive if user_data.isActive is not None else True),
             approvalStatus=(user_data.approvalStatus if user_data.approvalStatus is not None else approval_status),
             isDeactivated=(user_data.isDeactivated if user_data.isDeactivated is not None else False),
@@ -115,7 +115,7 @@ class UserRepository:
             paymentTerms=(user_data.paymentTerms if user_data.paymentTerms is not None else "30"),
             assignedSalesperson=user_data.assignedSalesperson,
             referralCode=referral_code,
-            isEmailVerified=(user_data.isEmailVerified if user_data.isEmailVerified is not None else False),
+            isEmailVerified=(user_data.is_email_verified if user_data.is_email_verified is not None else False),
             isOnDuty=getattr(user_data, 'isOnDuty', False),
             isSellerAdmin=getattr(user_data, 'isSellerAdmin', False),
             serviceAreaZones=getattr(user_data, 'serviceAreaZones', []),
@@ -127,8 +127,8 @@ class UserRepository:
             msg91Token=user_data.msg91Token,
         )
 
-        if user_model.address and user_model.address not in user_model.savedAddresses:
-            user_model.savedAddresses.append(user_model.address)
+        if user_model.address and user_model.address not in user_model.saved_addresses:
+            user_model.saved_addresses.append(user_model.address)
 
         created_dict = await self.storage.create(user_model)
         return created_dict

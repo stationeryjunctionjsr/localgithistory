@@ -119,7 +119,7 @@ async def create_collection(data: CollectionCreate, current_user: User = Depends
         displayOrder=data.displayOrder,
         visiblePages=data.visiblePages,
         userSegments=data.userSegments,
-        productIds=data.productIds
+        productIds=data.product_ids
     )
     if data.visibilityRules:
         internal_data.visibilityRules = data.visibilityRules
@@ -141,7 +141,7 @@ async def update_collection(
     if 'displayOrder' in data.model_fields_set: internal_update.displayOrder = data.displayOrder
     if 'visiblePages' in data.model_fields_set: internal_update.visiblePages = data.visiblePages
     if 'userSegments' in data.model_fields_set: internal_update.userSegments = data.userSegments
-    if 'productIds' in data.model_fields_set: internal_update.productIds = data.productIds
+    if 'productIds' in data.model_fields_set: internal_update.product_ids = data.product_ids
     if data.visibilityRules is not None:
         internal_update.visibilityRules = data.visibilityRules
 

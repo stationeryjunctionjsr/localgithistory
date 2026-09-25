@@ -61,7 +61,7 @@ async def create_availability_request(
     user_email = (current_user.email if current_user else None) or data.userEmail
 
     record = {
-        "productId": data.productId,
+        "productId": data.product_id,
         "productName": data.productName,
         "pincode": data.pincode.strip(),
         "userId": user_id,
@@ -130,7 +130,7 @@ async def fulfill_availability_request(
         },
     )
 
-    product_id = req.productId
+    product_id = req.product_id
     product_name = (req.productName if req.productName is not None else "Your requested product")
     pincode = req.pincode
     user_id = req.userId
@@ -172,7 +172,7 @@ async def fulfill_availability_request(
                 e
                 for e in parsed_events
                 if e.type == "notify_pincode"
-                and str(e.productId) == str(product_id)
+                and str(e.product_id) == str(product_id)
                 and str(e.pincode) == str(pincode)
                 and not e.notified
             ]

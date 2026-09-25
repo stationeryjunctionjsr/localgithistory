@@ -180,7 +180,7 @@ async def get_valet_earnings_by_id(
     return result
 
 async def _enrich_with_valet(doc: ValetPayoutDetailResponse) -> ValetPayoutDetailResponse:
-    valet = await user_repository.findById(doc.valetId)
+    valet = await user_repository.findById(doc.valet_id)
     if valet:
         doc.valetName = valet.name
         doc.valetPhone = valet.phone
@@ -198,12 +198,12 @@ async def create_valet_payout(
     data: ValetPayoutCreate,
     current_user: User = Depends(require_super_admin)
 ):
-    valet = await user_repository.findById(data.valetId)
+    valet = await user_repository.findById(data.valet_id)
     if not valet or valet.role != "valet":
         raise HTTPException(status_code=404, detail="Valet not found")
         
     created = await valet_payout_dao.create(ValetPayoutInternalCreate(
-        valetId=data.valetId,
+        valetId=data.valet_id,
         amount=data.amount,
         deliveryCount=data.deliveryCount,
         returnCount=data.returnCount,
@@ -278,7 +278,7 @@ async def mark_valet_payout_received(
     if not existing:
         raise HTTPException(status_code=404, detail="Payout not found")
         
-    if existing.valetId != str(current_user.id):
+    if existing.valet_id != str(current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized to update this payout")
         
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")

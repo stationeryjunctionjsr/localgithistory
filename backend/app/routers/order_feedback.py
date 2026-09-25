@@ -18,11 +18,11 @@ router = APIRouter()
 async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: User = Depends(get_current_user)):
     # Only validate order if it's order feedback
     if feedback_data.feedbackType == "order":
-        if not feedback_data.orderId:
+        if not feedback_data.order_id:
             raise HTTPException(status_code=400, detail="OrderId is required for order feedback")
 
         # Verify order belongs to user and is delivered
-        order = await order_repository.findById(feedback_data.orderId)
+        order = await order_repository.findById(feedback_data.order_id)
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
 
@@ -33,13 +33,13 @@ async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: User
             raise HTTPException(status_code=400, detail="Order must be delivered before providing feedback")
 
         # Check if feedback already exists
-        existing = await order_feedback_repository.findByOrder(feedback_data.orderId)
+        existing = await order_feedback_repository.findByOrder(feedback_data.order_id)
         if existing:
             raise HTTPException(status_code=400, detail="Feedback already submitted for this order")
 
     feedback = await order_feedback_repository.create(
         {
-            "orderId": feedback_data.orderId,
+            "orderId": feedback_data.order_id,
             "userId": current_user.id,
             "rating": feedback_data.rating,
             "comment": feedback_data.comment or "",
@@ -68,7 +68,7 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
 
     # order orders by deliveredAt or createdAt descending
     orders.sort(key=lambda x: (x.created_at or ""), reverse=True)
-    feedback_order_ids = {f.orderId for f in feedbacks if f.orderId}
+    feedback_order_ids = {f.order_id for f in feedbacks if f.order_id}
     orders_without_feedback = [o for o in orders if o.id not in feedback_order_ids]
 
     if not orders_without_feedback:

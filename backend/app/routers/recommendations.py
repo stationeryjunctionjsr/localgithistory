@@ -348,8 +348,8 @@ async def track_recommendation_event(
         raise HTTPException(status_code=400, detail="eventType must be section_view, product_view, or add_to_cart")
     action = f"recommendation_{body.eventType}"
     meta = {"slot": body.slot}
-    if body.productId:
-        meta["productId"] = body.productId
+    if body.product_id:
+        meta["productId"] = body.product_id
     if body.productName:
         meta["productName"] = body.productName
     device = parse_device(request, default_type="web")

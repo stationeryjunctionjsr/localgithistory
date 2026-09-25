@@ -285,7 +285,7 @@ async def submit_credit_settlement(
 
     try:
         # Find the order
-        order = await order_repository.findById(settlement_data.orderId)
+        order = await order_repository.findById(settlement_data.order_id)
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
 
@@ -299,7 +299,7 @@ async def submit_credit_settlement(
             raise HTTPException(status_code=400, detail="This order is not a credit order")
 
         # Find the payment record
-        payments = await payment_repository.findByOrderId(settlement_data.orderId)
+        payments = await payment_repository.findByOrderId(settlement_data.order_id)
         if not payments or len(payments) == 0:
             raise HTTPException(status_code=404, detail="Payment record not found")
 
@@ -308,7 +308,7 @@ async def submit_credit_settlement(
         # Re-fetch the payment record immediately before the guard to avoid a
         # race condition where two concurrent requests both read the same stale
         # amountRemaining and both pass the check before either is deducted.
-        fresh_payments = await payment_repository.findByOrderId(settlement_data.orderId)
+        fresh_payments = await payment_repository.findByOrderId(settlement_data.order_id)
         if not fresh_payments:
             raise HTTPException(status_code=404, detail="Payment record not found")
         payment = fresh_payments[0]

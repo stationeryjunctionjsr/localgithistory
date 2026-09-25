@@ -145,7 +145,7 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
     for v in available_valets:
         vid = str(v.id)
         active_count = order_count_by_valet[vid] if vid in order_count_by_valet else 0
-        max_concurrent = int(v.maxConcurrentOrders or global_max)
+        max_concurrent = int(v.max_concurrent_orders or global_max)
         if active_count < max_concurrent:
             scored.append((active_count, v))
     if not scored:
@@ -167,7 +167,7 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     from datetime import date as dt_date
     from app.db.storage_factory import get_storage
     from app.repositories.product_repository import product_repository
-    order_id = return_req.orderId
+    order_id = return_req.order_id
     order = await order_repository.findById(order_id) if order_id else None
     if not order:
         return None
@@ -183,7 +183,7 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     if not seller_id:
         items = (return_req.items) or []
         if items:
-            p_id = items[0].productId
+            p_id = items[0].product_id
             prod = await product_repository.findById(p_id) if p_id else None
             if prod:
                 seller_id = prod.sellers[0].sellerId if prod.sellers else None
@@ -255,7 +255,7 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     all_active_returns = []
     for st in ACTIVE_RETURN_STATUSES:
         st_returns = await return_request_repository.findAll({'status': st})
-        all_active_returns.extend([r for r in st_returns if str(r.valetId or '') in available_valet_ids])
+        all_active_returns.extend([r for r in st_returns if str(r.valet_id or '') in available_valet_ids])
     return_count_by_valet: dict[str, int] = {}
     for r in all_active_returns:
         for key in ('valetId', 'pendingValetId'):
@@ -266,7 +266,7 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     for v in available_valets:
         vid = str(v.id)
         total_active_load = (order_count_by_valet[vid] if vid in order_count_by_valet else 0) + (return_count_by_valet[vid] if vid in return_count_by_valet else 0)
-        max_concurrent = int(v.maxConcurrentOrders or global_max)
+        max_concurrent = int(v.max_concurrent_orders or global_max)
         if total_active_load < max_concurrent:
             scored.append((total_active_load, v))
     if not scored:
@@ -329,7 +329,7 @@ async def run_valet_timeout_job():
                     pending_valet_id = order.pendingValetId
                     if pending_valet_id:
                         history = list((order.valetDeclineHistory) or [])
-                        if not any((d.valetId == pending_valet_id for d in history)):
+                        if not any((d.valet_id == pending_valet_id for d in history)):
                             from app.models.schemas import ValetDeclineHistory
                             history.append(ValetDeclineHistory(valetId=pending_valet_id, reason='timeout'))
                         order.valetDeclineHistory = history
@@ -354,7 +354,7 @@ async def run_valet_timeout_job():
                     pending_valet_id = ret.pendingValetId
                     if pending_valet_id:
                         history = list((ret.valetDeclineHistory) or [])
-                        if not any((d.valetId == pending_valet_id for d in history)):
+                        if not any((d.valet_id == pending_valet_id for d in history)):
                             from app.models.schemas import ValetDeclineHistory
                             history.append(ValetDeclineHistory(valetId=pending_valet_id, reason='timeout'))
                         ret.valetDeclineHistory = history

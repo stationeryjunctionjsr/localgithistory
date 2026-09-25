@@ -92,7 +92,7 @@ class CartRepository:
         if existing:
             # Check if already saved
             items = (existing.items if existing.items is not None else [])
-            already_saved = any(item.productId == product_id for item in items)
+            already_saved = any(item.product_id == product_id for item in items)
             if already_saved:
                 return existing
             items.append(saved_item)

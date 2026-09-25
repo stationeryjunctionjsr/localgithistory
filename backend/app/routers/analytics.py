@@ -240,8 +240,8 @@ async def record_event(
     if event.payload:
         if event.payload.returning is not None:
             payload_items.append(EventPayloadItem(key="returning", value=str(event.payload.returning)))
-        if event.payload.productId is not None:
-            payload_items.append(EventPayloadItem(key="productId", value=str(event.payload.productId)))
+        if event.payload.product_id is not None:
+            payload_items.append(EventPayloadItem(key="productId", value=str(event.payload.product_id)))
         if event.payload.productName is not None:
             payload_items.append(EventPayloadItem(key="productName", value=str(event.payload.productName)))
         if event.payload.source is not None:
@@ -269,8 +269,8 @@ async def record_event(
         payload_items.append(EventPayloadItem(key="browser", value=str(event.browser)))
     if event.campaign:
         payload_items.append(EventPayloadItem(key="campaign", value=str(event.campaign)))
-    if event.ipAddress:
-        payload_items.append(EventPayloadItem(key="ipAddress", value=str(event.ipAddress)))
+    if event.ip_address:
+        payload_items.append(EventPayloadItem(key="ipAddress", value=str(event.ip_address)))
     elif request.client and request.client.host:
         payload_items.append(EventPayloadItem(key="ipAddress", value=str(request.client.host)))
 
@@ -309,7 +309,7 @@ async def record_event(
         final_device_app_version = event.deviceAppVersion
 
         # Determine IP Address
-        final_ip = event.ipAddress
+        final_ip = event.ip_address
         if not final_ip and request.client and request.client.host:
             final_ip = request.client.host
 
@@ -336,23 +336,23 @@ async def record_event(
                 page = event.page if event.page is not None else "/"
                 tracking_obj = await tracking_repository.trackPageView(user_id, page, session_id, **kwargs)
             elif event_type == "product_view":
-                product_id = payload_obj.productId
+                product_id = payload_obj.product_id
                 product_name = payload_obj.productName if payload_obj.productName is not None else "Unknown"
                 if product_id:
                     tracking_obj = await tracking_repository.trackProductView(user_id, product_id, product_name, session_id, **kwargs)
             elif event_type == "product_click":
-                product_id = payload_obj.productId
+                product_id = payload_obj.product_id
                 product_name = payload_obj.productName if payload_obj.productName is not None else "Unknown"
                 p_source = payload_obj.source if payload_obj.source is not None else (final_source or "mobile_app")
                 if product_id:
                     tracking_obj = await tracking_repository.trackProductClick(user_id, product_id, product_name, session_id, **{**kwargs, "source": p_source})
             elif event_type == "add_to_cart":
-                product_id = payload_obj.productId
+                product_id = payload_obj.product_id
                 quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
                 if product_id:
                     tracking_obj = await tracking_repository.trackCartAdd(user_id, product_id, quantity, session_id, **kwargs)
             elif event_type == "remove_from_cart":
-                product_id = payload_obj.productId
+                product_id = payload_obj.product_id
                 quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
                 if product_id:
                     tracking_obj = await tracking_repository.trackCartItemRemove(user_id, product_id, quantity, session_id, **kwargs)
@@ -362,7 +362,7 @@ async def record_event(
                 tracking_obj = await tracking_repository.trackSearch(user_id, query, results_count, session_id, segment="customer", **kwargs)
             elif event_type == "add_to_wishlist":
 
-                product_id = payload_obj.productId
+                product_id = payload_obj.product_id
                 if product_id:
                     tracking_obj = await tracking_repository.trackWishlistAdd(user_id, product_id, "Unknown", session_id)
             elif event_type == "session_end":

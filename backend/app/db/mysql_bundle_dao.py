@@ -48,7 +48,7 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
                         stmt,
                         {
                             "b_id": bundle_id,
-                            "p_id": p.productId,
+                            "p_id": p.product_id,
                             "qty": p.quantity,
                         },
                     )

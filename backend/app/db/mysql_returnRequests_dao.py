@@ -17,7 +17,7 @@ class MySQLReturnRequestsDAO:
     @property
     def TABLE(self):
         from app.config.settings import settings
-        return "{self.table_name}"
+        return self.table_name
 
     def _factory(self):
         return get_async_session_factory()
@@ -96,9 +96,9 @@ class MySQLReturnRequestsDAO:
             cols.append("return_id")
             params["s_returnId"] = data.returnId
 
-        if data.orderId is not None:
+        if data.order_id is not None:
             cols.append("order_id")
-            params["s_orderId"] = data.orderId
+            params["s_orderId"] = data.order_id
 
         if data.userId is not None:
             cols.append("user_id")
@@ -120,9 +120,9 @@ class MySQLReturnRequestsDAO:
             cols.append("status")
             params["s_status"] = data.status
 
-        if data.valetId is not None:
+        if data.valet_id is not None:
             cols.append("valet_id")
-            params["s_valetId"] = data.valetId
+            params["s_valetId"] = data.valet_id
 
         if data.sellerId is not None:
             cols.append("seller_id")

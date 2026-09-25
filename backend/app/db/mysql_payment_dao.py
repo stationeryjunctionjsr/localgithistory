@@ -245,7 +245,7 @@ class MySQLPaymentDAO:
         payment_entries = data.paymentEntries or []
         params = {
             "external_id": external_id,
-            "order_id": data.orderId,
+            "order_id": data.order_id,
             "user_id": data.userId,
             "user_id_formatted": data.userIdFormatted,
             "customer_name": data.customerName,
@@ -309,7 +309,7 @@ class MySQLPaymentDAO:
         # Since existing is a Dict and update_data is a PaymentInternalUpdate, we merge by accessing update_data fields
         # falling back to existing.
         merged = {
-            "orderId": update_data.orderId if update_data.orderId is not None else existing.order_id,
+            "orderId": update_data.order_id if update_data.order_id is not None else existing.order_id,
             "userId": update_data.userId if update_data.userId is not None else existing.user_id,
             "userIdFormatted": update_data.userIdFormatted if update_data.userIdFormatted is not None else existing.user_id_formatted,
             "customerName": update_data.customerName if update_data.customerName is not None else existing.customer_name,

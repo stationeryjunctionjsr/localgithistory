@@ -28,8 +28,8 @@ router = APIRouter()
 async def populate_return_request(request: ReturnRequestInternal) -> ReturnRequestResponse:
     user = await user_repository.findById(request.userId) if request.userId else None
     valet = None
-    if request.valetId:
-        valet = await user_repository.findById(request.valetId)
+    if request.valet_id:
+        valet = await user_repository.findById(request.valet_id)
 
     from app.models.schemas import ItemSnippet, UserSnippet, ValetSnippet
     populated_items = []
@@ -135,7 +135,7 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
         ]:
             items_list = req.items or []
             for item in (items_list or []):
-                pid = item.productId
+                pid = item.product_id
                 qty = item.quantity if item.quantity is not None else 0
                 if pid:
                     returned_items_qty[pid] += qty
@@ -143,7 +143,7 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
     # Check which items are from returnable categories
     eligible_items = []
     for item in (order.items or []):
-        pid = item.productId
+        pid = item.product_id
         product = await product_repository.findById(pid)
         if not product:
             continue
@@ -201,7 +201,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
     if current_user.role != "customer":
         raise HTTPException(status_code=403, detail="Only retail customers can create return requests")
 
-    eligibility = await check_return_eligibility(request_data.orderId, current_user)
+    eligibility = await check_return_eligibility(request_data.order_id, current_user)
     elig_model = eligibility
 
     eligibility_reason = elig_model.reason
@@ -210,7 +210,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
 
     eligible_items_list = elig_model.eligibleItems
     eligible_items_map = {
-        item.productId: item.maxQuantity
+        item.product_id: item.maxQuantity
         for item in (eligible_items_list or [])
     }
 
@@ -218,10 +218,10 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
         raise HTTPException(status_code=400, detail="No items specified for return")
 
     for item in request_data.items:
-        if item.productId not in eligible_items_map:
-            raise HTTPException(status_code=400, detail=f"Item {item.productId} is not eligible for return")
-        if item.quantity > eligible_items_map[item.productId] or item.quantity <= 0:
-            raise HTTPException(status_code=400, detail=f"Invalid quantity for item {item.productId}")
+        if item.product_id not in eligible_items_map:
+            raise HTTPException(status_code=400, detail=f"Item {item.product_id} is not eligible for return")
+        if item.quantity > eligible_items_map[item.product_id] or item.quantity <= 0:
+            raise HTTPException(status_code=400, detail=f"Invalid quantity for item {item.product_id}")
 
     if request_data.paymentMethod == "upi" and not request_data.upiPaymentScreenshot:
         raise HTTPException(status_code=400, detail="UPI payment screenshot is required")
@@ -238,7 +238,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
     from app.models.daos import ReturnRequestInternalCreate
     created = await return_request_repository.create(
         ReturnRequestInternalCreate(
-            orderId=request_data.orderId,
+            orderId=request_data.order_id,
             userId=current_user.id,
             items=[i for i in request_data.items],
             paymentMethod=request_data.paymentMethod,
@@ -265,15 +265,15 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
                     userId=super_admin.id,
                     type="new_return",
                     title="New Return Request",
-                    message=f"New return request for order {request_data.orderId}",
+                    message=f"New return request for order {request_data.order_id}",
                     metadata={
                         "returnId": created_ret_id,
-                        "orderId": request_data.orderId,
+                        "orderId": request_data.order_id,
                     }
                 )
             )
     except Exception as e:
-        logger.error("Error notifying admin for return of order %s: %s", request_data.orderId, str(e), exc_info=True)
+        logger.error("Error notifying admin for return of order %s: %s", request_data.order_id, str(e), exc_info=True)
 
     return await populate_return_request(created)
 
@@ -317,19 +317,19 @@ async def assign_valet(
     request_id: str, valet_data: ReturnRequestUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Super Admin assigns valet to return request"""
-    if not valet_data.valetId:
+    if not valet_data.valet_id:
         raise HTTPException(status_code=400, detail="valetId is required")
 
     req = await return_request_repository.findById(request_id)
     if not req:
         raise HTTPException(status_code=404, detail="Return request not found")
 
-    v_user = await user_repository.findById(valet_data.valetId)
+    v_user = await user_repository.findById(valet_data.valet_id)
     if not v_user or v_user.role != "valet":
         raise HTTPException(status_code=400, detail="Valid Valet ID is required")
 
     updated = await return_request_repository.update(
-        request_id, ReturnRequestInternalUpdate(valetId=valet_data.valetId, status=ReturnRequestStatus.ASSIGNED.value)
+        request_id, ReturnRequestInternalUpdate(valetId=valet_data.valet_id, status=ReturnRequestStatus.ASSIGNED.value)
     )
 
     return await populate_return_request(updated)
@@ -474,7 +474,7 @@ async def valet_return_response(
         raw_history = ret.valetDeclineHistory
         history = list(raw_history or [])
         valet_id_str = str(current_user.id)
-        if not any(d.valetId == valet_id_str for d in history):
+        if not any(d.valet_id == valet_id_str for d in history):
             history.append(ReturnRequestValetDeclineInternal(valetId=valet_id_str, reason=response_data.declineReason))
 
         await return_request_repository.update(

@@ -97,7 +97,7 @@ async def _enrich_bundle(bundle) -> BundleResponse:
     fully_available = True
 
     for item in (bundle.items or []):
-        p_id = item.productId
+        p_id = item.product_id
         product = await product_repository.findById(p_id)
         if not product:
             continue
@@ -123,7 +123,7 @@ async def _enrich_bundle(bundle) -> BundleResponse:
         )
         enriched_items.append(
             BundleItemResponse(
-                productId=item.productId,
+                productId=item.product_id,
                 quantity=qty,
                 product=p_obj,
                 lineMrp=line_mrp,
@@ -161,11 +161,11 @@ async def _validate_bundle_items(items: List[BundleItemSchema] = Field(..., vali
     """Raise 400 if any product doesn't exist or has qty < 1."""
     for item in items:
         if item.quantity < 1:
-            raise HTTPException(status_code=400, detail=f"Quantity for product {item.productId} must be at least 1")
-        p_id = item.productId
+            raise HTTPException(status_code=400, detail=f"Quantity for product {item.product_id} must be at least 1")
+        p_id = item.product_id
         product = await product_repository.findById(p_id)
         if not product:
-            raise HTTPException(status_code=400, detail=f"Product {item.productId} not found")
+            raise HTTPException(status_code=400, detail=f"Product {item.product_id} not found")
 
 
 # ─── Public endpoints ──────────────────────────────────────────────────────────
@@ -363,7 +363,7 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
 
         # Validate stock before touching the cart
         for item in (bundle.items or []):
-            p_id = item.productId
+            p_id = item.product_id
             product = await product_repository.findById(p_id)
             if not product or not product.is_active:
                 raise HTTPException(status_code=400, detail=f"Product {p_id} is no longer available")
@@ -379,7 +379,7 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
         added_product_ids = []
 
         for item in (bundle.items or []):
-            pid = item.productId
+            pid = item.product_id
             qty = item.quantity if item.quantity is not None else 1
 
             from app.models.daos import CartItemInternal
@@ -456,7 +456,7 @@ async def create_bundle(payload: CreateBundleRequest, current_user: User = Depen
             name=payload.name.strip(),
             description=payload.description,
             price=payload.price,
-            items=[BundleItemInternal(productId=i.productId, quantity=i.quantity) for i in payload.items],
+            items=[BundleItemInternal(productId=i.product_id, quantity=i.quantity) for i in payload.items],
             imageUrl=payload.imageUrl,
             isActive=payload.isActive,
             salesCount=payload.salesCount if payload.salesCount is not None else 0,
@@ -494,7 +494,7 @@ async def update_bundle(
             update_model.price = payload.price
         if payload.items is not None:
             await _validate_bundle_items(payload.items)
-            update_model.items = [BundleItemInternal(productId=i.productId, quantity=i.quantity) for i in payload.items]
+            update_model.items = [BundleItemInternal(productId=i.product_id, quantity=i.quantity) for i in payload.items]
         if payload.imageUrl is not None:
             update_model.imageUrl = payload.imageUrl
         if payload.isActive is not None:

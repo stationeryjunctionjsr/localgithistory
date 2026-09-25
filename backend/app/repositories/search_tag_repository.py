@@ -80,7 +80,7 @@ class SearchTagRepository:
             subCategories=data.subCategories if data.subCategories is not None else [],
             brands=data.brands if data.brands is not None else [],
             collections=data.collections if data.collections is not None else [],
-            productIds=data.productIds if data.productIds is not None else [],
+            productIds=data.product_ids if data.product_ids is not None else [],
             excludedProductIds=data.excludedProductIds if data.excludedProductIds is not None else [],
         )
         return await self.storage.create(tag_internal)
@@ -98,7 +98,7 @@ class SearchTagRepository:
         tag = await self.findById(tag_id)
         if not tag:
             return None
-        product_ids = list(set((tag.productIds if tag.productIds is not None else []) + [product_id]))
+        product_ids = list(set((tag.product_ids if tag.product_ids is not None else []) + [product_id]))
         excluded = [pid for pid in (tag.excludedProductIds if tag.excludedProductIds is not None else []) if pid != product_id]
         return await self.update(tag_id, SearchTagInternalUpdate(productIds=product_ids, excludedProductIds=excluded))
 
@@ -108,7 +108,7 @@ class SearchTagRepository:
         if not tag:
             return None
         excluded = list(set((tag.excludedProductIds if tag.excludedProductIds is not None else []) + [product_id]))
-        product_ids = [pid for pid in (tag.productIds if tag.productIds is not None else []) if pid != product_id]
+        product_ids = [pid for pid in (tag.product_ids if tag.product_ids is not None else []) if pid != product_id]
         return await self.update(tag_id, SearchTagInternalUpdate(excludedProductIds=excluded, productIds=product_ids))
 
     async def delete(self, id: str) -> bool:

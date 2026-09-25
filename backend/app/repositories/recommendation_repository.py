@@ -257,7 +257,7 @@ class RecommendationRepository:
         out = set()
         for order in orders:
             for item in (order.items if order.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if pid:
                     out.add(pid)
         return out
@@ -269,7 +269,7 @@ class RecommendationRepository:
             return set()
         out = set()
         for item in (cart.items if cart.items is not None else []):
-            pid = item.product or item.productId
+            pid = item.product or item.product_id
             if pid:
                 out.add(pid)
         return out
@@ -292,7 +292,7 @@ class RecommendationRepository:
             if order.user not in retail_ids:
                 continue
             for item in (order.items if order.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if pid and pid not in exclude:
                     product_counts[pid] = (product_counts[pid] if pid in product_counts else 0) + (item.quantity if item.quantity is not None else 1)
         sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
@@ -370,14 +370,14 @@ class RecommendationRepository:
             order_start = order_dt - timedelta(days=days)
             pids_in_order = set()
             for item in (order.items if order.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if pid:
                     pids_in_order.add(pid)
             for pid in pids_in_order:
                 # Count only if this order is linked to a search for P within 7 days before order
                 linked = False
                 for s in searches:
-                    if pid not in (s.productIds or []):
+                    if pid not in (s.product_ids or []):
                         continue
                     st = s.timestamp
                     if not st:
@@ -479,7 +479,7 @@ class RecommendationRepository:
                     continue
             pids_in_order = set()
             for item in (order.items if order.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if not pid:
                     continue
                 subcat = pid_to_subcat[pid] if pid in pid_to_subcat else "None"
@@ -560,7 +560,7 @@ class RecommendationRepository:
                     continue
             pids_in_order = set()
             for item in (order.items if order.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if not pid:
                     continue
                 subcat = pid_to_subcat[pid] if pid in pid_to_subcat else "None"
@@ -673,7 +673,7 @@ class RecommendationRepository:
 
             pids_in_order: set = set()
             for item in (order.items if order.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if not pid:
                     continue
                 quantity_map[pid] = (quantity_map[pid] if pid in quantity_map else 0) + (item.quantity if item.quantity is not None else 1)
@@ -705,7 +705,7 @@ class RecommendationRepository:
             orders = await self.order_storage.findAll({"user": user_id})
             for o in orders:
                 for item in (o.items if o.items is not None else []):
-                    pid = item.product or item.productId
+                    pid = item.product or item.product_id
                     if pid:
                         user_ordered.add(pid)
         candidates: List[Tuple[str, Optional[datetime]]] = []
@@ -831,7 +831,7 @@ class RecommendationRepository:
             if order.user not in wholesaler_ids:
                 continue
             for item in (order.items if order.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if pid:
                     product_counts[pid] = (product_counts[pid] if pid in product_counts else 0) + (item.quantity if item.quantity is not None else 1)
         sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
@@ -844,7 +844,7 @@ class RecommendationRepository:
         product_counts: Dict[str, int] = {}
         for order in orders:
             for item in (order.items if order.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if pid:
                     product_counts[pid] = (product_counts[pid] if pid in product_counts else 0) + (item.quantity if item.quantity is not None else 1)
         sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
@@ -872,7 +872,7 @@ class RecommendationRepository:
         subcat_counts = {}
         for o in user_orders:
             for item in (o.items if o.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if not pid: continue
                 p = product_by_id[pid] if pid in product_by_id else None
                 if p:
@@ -902,7 +902,7 @@ class RecommendationRepository:
         subcat_product_sales = {}
         for order in all_orders:
             for item in (order.items if order.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if not pid: continue
                 p = product_by_id[pid] if pid in product_by_id else None
                 if not p: continue
@@ -1006,7 +1006,7 @@ class RecommendationRepository:
         subcat_counts = {}
         for o in orders:
             for item in (o.items if o.items is not None else []):
-                pid = item.product or item.productId
+                pid = item.product or item.product_id
                 if not pid:
                     continue
                 p = product_by_id[pid] if pid in product_by_id else None
@@ -1043,7 +1043,7 @@ class RecommendationRepository:
                     if not sub_cat:
                         # Attempt to derive from component products
                         for item in eb["items"] if "items" in eb else []:
-                            pid = item.productId
+                            pid = item.product_id
                             p = product_map[str(pid)] if str(pid) in product_map else None if product_map else None
                             if p and p.sub_category:
                                 sc = p.sub_category

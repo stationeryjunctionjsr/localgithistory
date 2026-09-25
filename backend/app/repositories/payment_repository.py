@@ -105,7 +105,7 @@ class PaymentRepository:
             else:
                 update_dict = {}
                 try:
-                    if update_data.orderId is not None: update_dict["orderId"] = update_data.orderId
+                    if update_data.order_id is not None: update_dict["orderId"] = update_data.order_id
                 except AttributeError: pass
                 try:
                     if update_data.userId is not None: update_dict["userId"] = update_data.userId

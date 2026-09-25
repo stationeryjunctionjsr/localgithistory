@@ -220,10 +220,10 @@ class MySQLOrderFeedbackDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.orderId is not None:
+        if data.order_id is not None:
             cols.append("order_id")
             vals.append(":orderId")
-            params["orderId"] = data.orderId
+            params["orderId"] = data.order_id
         if data.userId is not None:
             cols.append("user_id")
             vals.append(":userId")
@@ -270,9 +270,9 @@ class MySQLOrderFeedbackDAO:
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if data.orderId is not None:
+        if data.order_id is not None:
             updates.append("order_id = :orderId")
-            params["orderId"] = data.orderId
+            params["orderId"] = data.order_id
         if data.userId is not None:
             updates.append("user_id = :userId")
             params["userId"] = data.userId
@@ -1188,10 +1188,10 @@ class MySQLStockReservationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.productId is not None:
+        if data.product_id is not None:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.productId
+            params["productId"] = data.product_id
         if data.userId is not None:
             cols.append("user_id")
             vals.append(":userId")
@@ -1237,7 +1237,7 @@ class MySQLStockReservationsDAO:
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
         
-        product_id = data.productId if data.productId is not None else existing.product_id
+        product_id = data.product_id if data.product_id is not None else existing.product_id
         if product_id is not None:
             updates.append("product_id = :productId")
             params["productId"] = product_id
@@ -1365,10 +1365,10 @@ class MySQLProductNotificationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.productId is not None:
+        if data.product_id is not None:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.productId
+            params["productId"] = data.product_id
         if data.userId is not None:
             cols.append("user_id")
             vals.append(":userId")
@@ -1407,9 +1407,9 @@ class MySQLProductNotificationsDAO:
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if data.productId is not None:
+        if data.product_id is not None:
             updates.append("product_id = :productId")
-            params["productId"] = data.productId
+            params["productId"] = data.product_id
         if data.userId is not None:
             updates.append("user_id = :userId")
             params["userId"] = data.userId
@@ -1527,10 +1527,10 @@ class MySQLProductReviewsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.productId is not None:
+        if data.product_id is not None:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.productId
+            params["productId"] = data.product_id
         if data.userId is not None:
             cols.append("user_id")
             vals.append(":userId")
@@ -1569,9 +1569,9 @@ class MySQLProductReviewsDAO:
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if data.productId is not None:
+        if data.product_id is not None:
             updates.append("product_id = :productId")
-            params["productId"] = data.productId
+            params["productId"] = data.product_id
         if data.userId is not None:
             updates.append("user_id = :userId")
             params["userId"] = data.userId
@@ -2258,10 +2258,10 @@ class MySQLAvailabilityRequestsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.productId is not None:
+        if data.product_id is not None:
             cols.append("product_id")
             vals.append(":productId")
-            params["productId"] = data.productId
+            params["productId"] = data.product_id
         if data.productName is not None:
             cols.append("product_name")
             vals.append(":productName")
@@ -2300,9 +2300,9 @@ class MySQLAvailabilityRequestsDAO:
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if data.productId is not None:
+        if data.product_id is not None:
             updates.append("product_id = :productId")
-            params["productId"] = data.productId
+            params["productId"] = data.product_id
         if data.productName is not None:
             updates.append("product_name = :productName")
             params["productName"] = data.productName

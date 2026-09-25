@@ -185,7 +185,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
 
                 product_data = CSVProductPayload(
                     name=name,
-                    productIdFormatted=(main_row.productId or "").strip(),
+                    productIdFormatted=(main_row.product_id or "").strip(),
                     sku=(main_row.sku or "").strip(),
                     category=category_name,
                     subCategory=(main_row.subCategory or "").strip(),
@@ -252,8 +252,8 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
 
                 products_col = get_storage("products")
 
-                if product_data.productIdFormatted:
-                    existing = await products_col.findOne({"productIdFormatted": product_data.productIdFormatted})
+                if product_data.product_idFormatted:
+                    existing = await products_col.findOne({"productIdFormatted": product_data.product_idFormatted})
                 elif product_data.sku:
                     existing = await products_col.findOne({"sku": product_data.sku})
                 else:
@@ -283,7 +283,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                         variants=product_data.variants
                     )
                     await product_repository.update(existing.id, internal_data)
-                    product_id_to_show = (product_data.productIdFormatted if product_data.productIdFormatted is not None else product_data.name)
+                    product_id_to_show = (product_data.product_idFormatted if product_data.product_idFormatted is not None else product_data.name)
                     results.append({"product": product_id_to_show, "action": "updated"})
                 else:
                     await product_repository.create(product_data)

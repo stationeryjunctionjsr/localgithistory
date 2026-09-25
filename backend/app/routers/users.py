@@ -389,12 +389,12 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
         if existing_with_email and str(existing_with_email.id or existing_with_email._id) != user_id:
             raise HTTPException(status_code=400, detail="Email already in use by another account.")
         if not existing_user or existing_user.email != new_email:
-            user_data.isEmailVerified = False
+            user_data.is_email_verified = False
 
     # If super admin is changing role to wholesaler, validate Company Name and Address
     if current_user.role == "super_admin" and user_data.role is not None and user_data.role == "wholesaler":
         final_company_name = (
-            user_data.companyName if user_data.companyName is not None else existing_user.company_name
+            user_data.company_name if user_data.company_name is not None else existing_user.company_name
         )
         final_address = user_data.address if user_data.address is not None else existing_user.address
 
@@ -413,7 +413,7 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
 
     if user_data.role is None and existing_user.role == "wholesaler":
         final_company_name = (
-            user_data.companyName if user_data.companyName is not None else existing_user.company_name
+            user_data.company_name if user_data.company_name is not None else existing_user.company_name
         )
         final_address = user_data.address if user_data.address is not None else existing_user.address
 

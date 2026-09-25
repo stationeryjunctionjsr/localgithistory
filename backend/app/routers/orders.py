@@ -290,7 +290,7 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
         for item in order.items if order.items else []:
             # ItemSnippet.product holds the product ID reference
             if 'productId' in item.model_fields:
-                pid = item.productId
+                pid = item.product_id
             else:
                 pid = item.product.id if item.product else None
 
@@ -341,9 +341,9 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
 
         for i_dict in o_items:
             # i_dict is a Pydantic ItemSnippet (OrderItem)
-            # .product holds the product ID reference; .productId is the alternate field
+            # .product holds the product ID reference; .product_id is the alternate field
             pid = str(i_dict.product) if i_dict.product else (
-                str(i_dict.productId) if i_dict.productId else None)
+                str(i_dict.product_id) if i_dict.product_id else None)
             product = products_map[pid] if pid and pid in products_map else None
 
             # stockStatus, taxRate, taxAmount are not stored in sj_order_items (DB has
@@ -698,8 +698,8 @@ async def create_order(
         coupon_code = val_code or ("AUTO-" + (applied_coupon_id or "")[:8])
         coupon_discount = validation.discount
         eligible_item_indices = validation.eligibleItemIndices
-        item_discounts = validation.itemDiscounts
-        bxgy_item_indices = validation.bxgyItemIndices
+        item_discounts = validation.item_discounts
+        bxgy_item_indices = validation.bxgy_item_indices
 
         c_obj = val_c
         c_method = c_obj.method
@@ -742,8 +742,8 @@ async def create_order(
             )
             coupon_discount = best.discount if best.discount is not None else 0.0
             eligible_item_indices = best.eligibleItemIndices
-            item_discounts = best.itemDiscounts
-            bxgy_item_indices = best.bxgyItemIndices
+            item_discounts = best.item_discounts
+            bxgy_item_indices = best.bxgy_item_indices
             c_raw = best.coupon
             c = (
                 c_raw
@@ -847,8 +847,8 @@ async def create_order(
     referral_discount = 0.0
     applied_referral_code = None
 
-    if order_data.referralCode:
-        ref_code = order_data.referralCode.strip().upper()
+    if order_data.referral_code:
+        ref_code = order_data.referral_code.strip().upper()
 
         # 1. User must be customer role (Retail)
         if effective_role != "customer":
@@ -1596,13 +1596,13 @@ async def create_order(
                         spec = bundle_specs[0]
                         spec_qty = max(
                             1, spec.quantity if spec.quantity is not None else 1)
-                        spec_pid = str(spec.productId or "")
+                        spec_pid = str(spec.product_id or "")
                         ref_item = next(
                             (
                                 i
                                 for i in bundle_items_in_order
-                                # ItemSnippet has .product and .productId (camelCase), not product_id
-                                if str((i.product or "")) == spec_pid or str(i.productId or "") == spec_pid
+                                # ItemSnippet has .product and .product_id (camelCase), not product_id
+                                if str((i.product or "")) == spec_pid or str(i.product_id or "") == spec_pid
                             ),
                             bundle_items_in_order[0],
                         )
@@ -2241,7 +2241,7 @@ async def update_order_status(
                         {
                             "_id": updated_payment_with_entry.id,
                             "paymentId": updated_payment_with_entry.paymentId,
-                            "orderId": updated_payment_with_entry.orderId,
+                            "orderId": updated_payment_with_entry.order_id,
                             "totalAmount": (order.total if order.total is not None else payment.totalAmount),
                             "paymentMethod": "cod",
                             "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
@@ -2276,7 +2276,7 @@ async def update_order_status(
                     {
                         "_id": new_payment.id,
                         "paymentId": new_payment.paymentId,
-                        "orderId": new_payment.orderId,
+                        "orderId": new_payment.order_id,
                         "totalAmount": new_payment.totalAmount,
                         "paymentMethod": "cod",
                         "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
@@ -2525,7 +2525,7 @@ async def dispatch_order(
         raise HTTPException(
             status_code=400, detail="Only processing orders can be dispatched")
 
-    valet = await user_repository.findById(valet_data.valetId)
+    valet = await user_repository.findById(valet_data.valet_id)
     if not valet or valet.role != "valet":
         raise HTTPException(status_code=400, detail="Invalid valet")
 
@@ -2540,7 +2540,7 @@ async def dispatch_order(
     updated_order = await order_repository.update(
         order_id,
         OrderInternalUpdate(status="pending_valet",
-                            pendingValetId=valet_data.valetId,
+                            pendingValetId=valet_data.valet_id,
                             valetAssignedAt=now_iso,
                             valetDeclineHistory=[],
                             valetCascadeCount=0,),
@@ -2551,7 +2551,7 @@ async def dispatch_order(
         from app.services.push_notification_service import push_notification_service
 
         timeout_label = "5 minutes" if is_urgent else "20 minutes"
-        await push_notification_service.send_to_user(valet_data.valetId, PushNotifications(
+        await push_notification_service.send_to_user(valet_data.valet_id, PushNotifications(
             title="New Delivery Request",
             message=(
                 f"You have a new delivery order #{(order.order_number if order.order_number is not None else order_id)}. "
@@ -2723,11 +2723,11 @@ async def assign_valet(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    valet = await user_repository.findById(valet_data.valetId)
+    valet = await user_repository.findById(valet_data.valet_id)
     if not valet or valet.role != "valet":
         raise HTTPException(status_code=400, detail="Invalid valet")
 
-    updated_order = await order_repository.update(order_id, OrderInternalUpdate(assignedValet=valet_data.valetId))
+    updated_order = await order_repository.update(order_id, OrderInternalUpdate(assignedValet=valet_data.valet_id))
 
     populated_order = await populate_order(updated_order)
     return populated_order
@@ -2896,7 +2896,7 @@ async def valet_response(
 
     # ── DECLINE ───────────────────────────────────────────────────────────────
     decline_history = list(order.valet_decline_history or [])
-    if valet_id and not any(d.valetId == valet_id for d in decline_history):
+    if valet_id and not any(d.valet_id == valet_id for d in decline_history):
         from app.models.order import ValetDeclineHistoryEntry
         decline_history.append(ValetDeclineHistoryEntry(
             valetId=valet_id, reason="declined"))

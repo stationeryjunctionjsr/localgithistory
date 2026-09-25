@@ -17,7 +17,7 @@ class MySQLOrderFeedbackDAO:
     @property
     def TABLE(self):
         from app.config.settings import settings
-        return "{self.table_name}"
+        return self.table_name
 
     def _factory(self):
         return get_async_session_factory()
@@ -92,9 +92,9 @@ class MySQLOrderFeedbackDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.orderId is not None:
+        if data.order_id is not None:
             cols.append("order_id")
-            params["s_orderId"] = data.orderId
+            params["s_orderId"] = data.order_id
 
         if data.userId is not None:
             cols.append("user_id")
@@ -140,9 +140,9 @@ class MySQLOrderFeedbackDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.orderId is not None:
+        if data.order_id is not None:
             updates.append("order_id = :s_orderId")
-            params["s_orderId"] = data.orderId
+            params["s_orderId"] = data.order_id
 
         if data.userId is not None:
             updates.append("user_id = :s_userId")

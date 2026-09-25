@@ -141,14 +141,14 @@ class MySQLTrackingDAO:
                 text("INSERT INTO sj_tracking_cart_items (tracking_id, product_id, quantity, price) VALUES (:tid, :pid, :qty, :prc)"),
                 {
                     "tid": tid, 
-                    "pid": str(item_dict.productId), 
+                    "pid": str(item_dict.product_id), 
                     "qty": int(item_dict.quantity or 1),
                     "prc": float(item_dict.price) if item_dict.price is not None else None
                 }
             )
 
-        if data.productIds is not None:
-            for pid in data.productIds:
+        if data.product_ids is not None:
+            for pid in data.product_ids:
                 await session.execute(
                     text("INSERT INTO sj_tracking_products (tracking_id, product_id) VALUES (:tid, :pid)"),
                     {"tid": tid, "pid": str(pid)},
@@ -222,7 +222,7 @@ class MySQLTrackingDAO:
         
         add_col("searchTerm", "search_term", data.searchTerm)
         add_col("resultsCount", "results_count", data.resultsCount)
-        add_col("productId", "product_id", data.productId)
+        add_col("productId", "product_id", data.product_id)
         add_col("productName", "product_name", data.productName)
         add_col("segment", "segment", data.segment)
         add_col("page", "page", data.page)
@@ -245,9 +245,9 @@ class MySQLTrackingDAO:
         add_col("campaign", "campaign", data.campaign if data.campaign is not None else get_payload_extra("campaign"))
         add_col("os", "os", data.os if data.os is not None else get_payload_extra("os"))
         add_col("browser", "browser", data.browser if data.browser is not None else get_payload_extra("browser"))
-        add_col("ipAddress", "ip_address", data.ipAddress if data.ipAddress is not None else get_payload_extra("ipAddress"))
+        add_col("ipAddress", "ip_address", data.ip_address if data.ip_address is not None else get_payload_extra("ipAddress"))
         add_col("pageViews", "page_views", data.pageViews if data.pageViews is not None else get_payload_extra("pageViews"))
-        add_col("orderId", "order_id", data.orderId if data.orderId is not None else get_payload_extra("orderId"))
+        add_col("orderId", "order_id", data.order_id if data.order_id is not None else get_payload_extra("orderId"))
         add_col("orderValue", "order_value", data.orderValue if data.orderValue is not None else get_payload_extra("orderValue"))
         add_col("price", "price", data.price if data.price is not None else get_payload_extra("price"))
         add_col("category", "category", data.category if data.category is not None else get_payload_extra("category"))

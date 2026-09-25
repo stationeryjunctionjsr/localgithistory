@@ -190,7 +190,7 @@ class TrackingRepository:
             if end_date and ts and ts > end_date:
                 continue
 
-            pid = v.productId
+            pid = v.product_id
             name = v.productName if v.productName is not None else "Unknown"
             if pid:
                 if pid not in product_counts:
@@ -261,7 +261,7 @@ class TrackingRepository:
             items = a.cartItems if a.cartItems is not None else []
             for item in items:
                 # Zero Data Stripping: Strict dot notation
-                pid = item.product if item.product else item.productId
+                pid = item.product if item.product else item.product_id
 
                 if not pid:
                     continue
@@ -376,7 +376,7 @@ class TrackingRepository:
             ts = self._parse_timestamp(doc.timestamp)
             if not ts or ts < cutoff:
                 continue
-            for pid in doc.productIds if doc.productIds is not None else []:
+            for pid in doc.product_ids if doc.product_ids is not None else []:
                 if pid:
                     counts[pid] = (counts[pid] if pid in counts else 0) + 1
         return counts
@@ -389,7 +389,7 @@ class TrackingRepository:
             ts = self._parse_timestamp(doc.timestamp)
             if not ts or ts < cutoff:
                 continue
-            pids = doc.productIds if doc.productIds is not None else []
+            pids = doc.product_ids if doc.product_ids is not None else []
             if not pids:
                 continue
             out.append(
@@ -489,7 +489,7 @@ class TrackingRepository:
 
         view_counts = {}
         for track in filtered_tracking:
-            product_id = (track.productIds[0] if track.productIds else None)
+            product_id = (track.product_ids[0] if track.product_ids else None)
             if product_id:
                 if product_id not in view_counts:
                     view_counts[product_id] = {

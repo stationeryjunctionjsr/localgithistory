@@ -17,7 +17,7 @@ class MySQLActivitiesDAO:
     @property
     def TABLE(self):
         from app.config.settings import settings
-        return "{self.table_name}"
+        return self.table_name
 
     def _factory(self):
         return get_async_session_factory()
@@ -112,9 +112,9 @@ class MySQLActivitiesDAO:
             cols.append("is_guest")
             params["s_isGuest"] = data.isGuest
 
-        if data.userAgent is not None:
+        if data.user_agent is not None:
             cols.append("user_agent")
-            params["s_userAgent"] = data.userAgent
+            params["s_userAgent"] = data.user_agent
 
         if data.os is not None:
             cols.append("os")
@@ -184,9 +184,9 @@ class MySQLActivitiesDAO:
             updates.append("is_guest = :s_isGuest")
             params["s_isGuest"] = data.isGuest
 
-        if data.userAgent is not None:
+        if data.user_agent is not None:
             updates.append("user_agent = :s_userAgent")
-            params["s_userAgent"] = data.userAgent
+            params["s_userAgent"] = data.user_agent
 
         if data.os is not None:
             updates.append("os = :s_os")

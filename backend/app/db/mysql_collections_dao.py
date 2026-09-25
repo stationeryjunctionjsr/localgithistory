@@ -17,7 +17,7 @@ class MySQLCollectionsDAO:
     @property
     def TABLE(self):
         from app.config.settings import settings
-        return "{self.table_name}"
+        return self.table_name
 
     def _factory(self):
         return get_async_session_factory()
@@ -294,9 +294,9 @@ class MySQLCollectionsDAO:
                     val = item.model_dump_json() if type(item) is not str else item
                     await session.execute(text(f"INSERT INTO sj_collection_rules (parent_id, rule) VALUES (:id, :v)"), {"id": row_id, "v": val})
 
-        if data.productIds is not None:
+        if data.product_ids is not None:
             await session.execute(text(f"DELETE FROM sj_collection_products WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.productIds or []
+            child_list = data.product_ids or []
 
             if child_list:
                 for item in child_list:

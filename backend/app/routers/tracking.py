@@ -18,7 +18,7 @@ def ext_br(p, r):
     raw = p.browser or (r.headers["user-agent"] if "user-agent" in r.headers else None)
     return raw[:500] if raw else None
 
-def ext_ip(p, r): return p.ipAddress or (r.client.host if r.client else None)
+def ext_ip(p, r): return p.ip_address or (r.client.host if r.client else None)
 
 
 
@@ -179,7 +179,7 @@ async def track_search(
         payload.searchTerm,
         payload.resultsCount,
         payload.sessionId,
-        product_ids=payload.productIds,
+        product_ids=payload.product_ids,
         segment=segment,
     )
     return {"message": "Search tracked"}
@@ -193,7 +193,7 @@ async def track_view(
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackProductView(
-        current_user.id if current_user else None, payload.productId, payload.productName, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
+        current_user.id if current_user else None, payload.product_id, payload.productName, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "View tracked"}
 
 
@@ -206,7 +206,7 @@ async def track_click(
 ):
     await tracking_repository.trackProductClick(
         current_user.id if current_user else None,
-        payload.productId,
+        payload.product_id,
         payload.productName,
         session_id=payload.sessionId,
         source=payload.source,
@@ -310,7 +310,7 @@ async def track_cart_item_remove(
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartItemRemove(
-        current_user.id if current_user else None, payload.productId, payload.quantity, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
+        current_user.id if current_user else None, payload.product_id, payload.quantity, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Cart item removal tracked"}
 
 
@@ -322,7 +322,7 @@ async def track_cart_item_add(
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartAdd(
-        current_user.id if current_user else None, payload.productId, payload.quantity, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
+        current_user.id if current_user else None, payload.product_id, payload.quantity, payload.sessionId, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Cart item addition tracked"}
 
 
@@ -477,7 +477,7 @@ async def track_notify_pincode(request: Request, data: TrackNotifyPincodeRequest
     # Store the notification request
     record = AnalyticsEventCreate(
         type="notify_pincode",
-        productId=data.productId,
+        productId=data.product_id,
         productName=data.productName,
         userId=user_id,
         filterName="email",

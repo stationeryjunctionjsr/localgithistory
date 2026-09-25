@@ -29,7 +29,7 @@ class ActivityRepository:
             isGuest=is_guest,
         )
         if device and isinstance(device, dict):
-            if "userAgent" in device: payload.userAgent = device["userAgent"]
+            if "userAgent" in device: payload.user_agent = device["userAgent"]
             if "os" in device: payload.os = device["os"]
             if "osVersion" in device: payload.osVersion = device["osVersion"]
             if "deviceType" in device: payload.deviceType = device["deviceType"]

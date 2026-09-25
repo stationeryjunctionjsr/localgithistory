@@ -233,7 +233,7 @@ class MySQLUserDAO:
             try:
                 next_id = (await session.execute(text(f'SELECT IFNULL(MAX(id), 0) + 1 FROM {self.TABLE}'))).scalar() or 1
                 user_id_formatted = f'USER-{next_id}'
-                await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name, gst_number,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                    bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                    created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name, :gst_number,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :upi_id, :qr_code_url,\n                    :bank_account_number, :bank_ifsc_code, :bank_account_holder, :bank_name,\n                    :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.companyName, 'gst_number': data.gstin, 'is_active': 1 if (data.isActive if data.isActive is not None else True) else 0, 'approval_status': data.approvalStatus if data.approvalStatus is not None else 'approved', 'is_deactivated': 1 if data.isDeactivated else 0, 'credit_limit': data.creditLimit if data.creditLimit is not None else 0, 'credit_used': data.creditUsed if data.creditUsed is not None else 0, 'payment_terms': str(data.paymentTerms if data.paymentTerms is not None else '30'), 'assigned_salesperson': data.assignedSalesperson, 'is_email_verified': 1 if (data.isEmailVerified if data.isEmailVerified is not None else False) else 0, 'referral_code': data.referralCode, 'is_seller_admin': 1 if data.isSellerAdmin else 0, 'is_on_duty': 1 if data.isOnDuty else 0, 'commission_override_pct': data.commissionOverridePct, 'upi_id': data.upiId, 'qr_code_url': data.qrCodeUrl, 'bank_account_number': data.bankAccountNumber, 'bank_ifsc_code': data.bankIfscCode, 'bank_account_holder': data.bankAccountHolder, 'bank_name': data.bankName, 'created_at': now, 'updated_at': now})
+                await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name, gst_number,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                    bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                    created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name, :gst_number,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :upi_id, :qr_code_url,\n                    :bank_account_number, :bank_ifsc_code, :bank_account_holder, :bank_name,\n                    :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.company_name, 'gst_number': data.gstin, 'is_active': 1 if (data.isActive if data.isActive is not None else True) else 0, 'approval_status': data.approvalStatus if data.approvalStatus is not None else 'approved', 'is_deactivated': 1 if data.isDeactivated else 0, 'credit_limit': data.creditLimit if data.creditLimit is not None else 0, 'credit_used': data.creditUsed if data.creditUsed is not None else 0, 'payment_terms': str(data.paymentTerms if data.paymentTerms is not None else '30'), 'assigned_salesperson': data.assignedSalesperson, 'is_email_verified': 1 if (data.is_email_verified if data.is_email_verified is not None else False) else 0, 'referral_code': data.referral_code, 'is_seller_admin': 1 if data.isSellerAdmin else 0, 'is_on_duty': 1 if data.isOnDuty else 0, 'commission_override_pct': data.commissionOverridePct, 'upi_id': data.upiId, 'qr_code_url': data.qrCodeUrl, 'bank_account_number': data.bankAccountNumber, 'bank_ifsc_code': data.bankIfscCode, 'bank_account_holder': data.bankAccountHolder, 'bank_name': data.bankName, 'created_at': now, 'updated_at': now})
                 new_id = (await session.execute(text(f'SELECT id FROM {self.TABLE} WHERE external_id = :eid'), {'eid': external_id})).scalar()
                 temp_user = User(
                     _id=str(new_id),
@@ -244,10 +244,10 @@ class MySQLUserDAO:
                     password=data.password,
                     role=data.role,
                     phone=data.phone,
-                    companyName=data.companyName,
+                    companyName=data.company_name,
                     gstin=data.gstin,
                     address=data.address,
-                    savedAddresses=data.savedAddresses if data.savedAddresses else [],
+                    savedAddresses=data.saved_addresses if data.saved_addresses else [],
                     isActive=data.isActive if data.isActive is not None else True,
                     approvalStatus=data.approvalStatus if data.approvalStatus is not None else 'approved',
                     isDeactivated=data.isDeactivated if data.isDeactivated is not None else False,
@@ -255,8 +255,8 @@ class MySQLUserDAO:
                     creditUsed=data.creditUsed if data.creditUsed is not None else 0.0,
                     paymentTerms=data.paymentTerms,
                     assignedSalesperson=data.assignedSalesperson,
-                    isEmailVerified=data.isEmailVerified if data.isEmailVerified is not None else False,
-                    referralCode=data.referralCode,
+                    isEmailVerified=data.is_email_verified if data.is_email_verified is not None else False,
+                    referralCode=data.referral_code,
                     isSellerAdmin=data.isSellerAdmin if data.isSellerAdmin is not None else False,
                     serviceAreaZones=data.serviceAreaZones if data.serviceAreaZones else [],
                     isOnDuty=data.isOnDuty if data.isOnDuty is not None else False,
@@ -309,7 +309,7 @@ class MySQLUserDAO:
         password_hash = update_data.password if update_data.password is not None else existing.password
         role = update_data.role if update_data.role is not None else existing.role
         phone = update_data.phone if update_data.phone is not None else existing.phone
-        company_name = update_data.companyName if update_data.companyName is not None else existing.company_name
+        company_name = update_data.company_name if update_data.company_name is not None else existing.company_name
         is_active = update_data.isActive if update_data.isActive is not None else existing.is_active
         approval_status = update_data.approvalStatus if update_data.approvalStatus is not None else existing.approval_status
         gst_number = update_data.gstin if update_data.gstin is not None else None
@@ -318,8 +318,8 @@ class MySQLUserDAO:
         credit_used = update_data.creditUsed if update_data.creditUsed is not None else existing.credit_used
         payment_terms = update_data.paymentTerms if update_data.paymentTerms is not None else existing.payment_terms
         assigned_salesperson = update_data.assignedSalesperson if update_data.assignedSalesperson is not None else existing.assigned_salesperson
-        is_email_verified = update_data.isEmailVerified if update_data.isEmailVerified is not None else existing.is_email_verified
-        referral_code = update_data.referralCode if update_data.referralCode is not None else existing.referral_code
+        is_email_verified = update_data.is_email_verified if update_data.is_email_verified is not None else existing.is_email_verified
+        referral_code = update_data.referral_code if update_data.referral_code is not None else existing.referral_code
         is_seller_admin = update_data.isSellerAdmin if update_data.isSellerAdmin is not None else existing.is_seller_admin
         is_on_duty = update_data.isOnDuty if update_data.isOnDuty is not None else existing.is_on_duty
         commission_override_pct = update_data.commissionOverridePct if update_data.commissionOverridePct is not None else existing.commission_override_pct
@@ -385,7 +385,7 @@ class MySQLUserDAO:
                     if "address" in fields_set:
                         existing.address = update_data.address
                     if "savedAddresses" in fields_set:
-                        existing.saved_addresses = update_data.savedAddresses
+                        existing.saved_addresses = update_data.saved_addresses
                     if "serviceAreaZones" in fields_set:
                         existing.service_area_zones = update_data.serviceAreaZones
                             

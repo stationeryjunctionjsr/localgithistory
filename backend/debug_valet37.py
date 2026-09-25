@@ -3,7 +3,7 @@
 with open('app/repositories/user_repository.py', 'r', encoding='utf-8') as f:
     text = f.read()
 
-replacement = """            isEmailVerified=(user_data.isEmailVerified if user_data.isEmailVerified is not None else False),
+replacement = """            isEmailVerified=(user_data.is_email_verified if user_data.is_email_verified is not None else False),
             isOnDuty=getattr(user_data, 'isOnDuty', False),
             isSellerAdmin=getattr(user_data, 'isSellerAdmin', False),
             serviceAreaZones=getattr(user_data, 'serviceAreaZones', []),
@@ -13,7 +13,7 @@ replacement = """            isEmailVerified=(user_data.isEmailVerified if user_
             gstin=getattr(user_data, 'gstin', None),
             deviceId=user_data.deviceId,"""
 
-text = text.replace('            isEmailVerified=(user_data.isEmailVerified if user_data.isEmailVerified is not None else False),\n            deviceId=user_data.deviceId,', replacement)
+text = text.replace('            isEmailVerified=(user_data.is_email_verified if user_data.is_email_verified is not None else False),\n            deviceId=user_data.deviceId,', replacement)
 
 with open('app/repositories/user_repository.py', 'w', encoding='utf-8') as f:
     f.write(text)

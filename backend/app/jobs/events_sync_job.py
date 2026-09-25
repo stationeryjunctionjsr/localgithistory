@@ -103,24 +103,24 @@ async def run_events_sync_job_async():
             elif event_type == "page_view":
                 doc["page"] = e.page
             elif event_type == "product_view":
-                doc["productId"] = payload.productId
+                doc["productId"] = payload.product_id
                 doc["productName"] = payload.productName
             elif event_type == "product_click":
-                doc["productId"] = payload.productId
+                doc["productId"] = payload.product_id
                 doc["productName"] = payload.productName
                 doc["source"] = payload.source
             elif event_type == "add_to_cart":
-                doc["productId"] = payload.productId
+                doc["productId"] = payload.product_id
                 doc["quantity"] = payload.quantity
             elif event_type == "remove_from_cart":
-                doc["productId"] = payload.productId
+                doc["productId"] = payload.product_id
                 doc["quantity"] = payload.quantity
             elif event_type == "search":
                 doc["searchTerm"] = payload.query
                 doc["resultsCount"] = payload.resultsCount
                 doc["segment"] = "customer"
             elif event_type == "add_to_wishlist":
-                doc["productId"] = payload.productId
+                doc["productId"] = payload.product_id
             elif event_type == "begin_checkout":
                 doc["page"] = "/checkout/step1"
             elif event_type == "purchase":

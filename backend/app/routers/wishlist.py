@@ -100,20 +100,20 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
 async def add_to_wishlist(item: WishlistItemRequest, current_user: User = Depends(get_current_user)):
     """Add item to wishlist"""
     try:
-        product = await product_repository.findById(item.productId)
+        product = await product_repository.findById(item.product_id)
         if not product or product.is_active is False:
             raise HTTPException(status_code=404, detail="Product not found")
 
         role_for_pricing = get_role_for_pricing(current_user)
         min_qty = get_min_quantity_for_role(product, role_for_pricing)
 
-        await wishlist_repository.addItem(current_user.id, WishlistItemInternal(product=item.productId, quantity=min_qty))
+        await wishlist_repository.addItem(current_user.id, WishlistItemInternal(product=item.product_id, quantity=min_qty))
 
         # Track the addition
         from app.repositories.tracking_repository import tracking_repository
 
         await tracking_repository.trackWishlistAdd(
-            current_user.id, item.productId, item.sessionId
+            current_user.id, item.product_id, item.sessionId
         )
 
         return {"message": "Added to wishlist"}

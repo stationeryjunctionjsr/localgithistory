@@ -866,7 +866,7 @@ class ProductRepository:
                 matched = False
 
                 # Check direct product assignment
-                tag_product_ids = (tag.productIds if tag.productIds is not None else [])
+                tag_product_ids = (tag.product_ids if tag.product_ids is not None else [])
                 if pid in tag_product_ids:
                     matched = True
 

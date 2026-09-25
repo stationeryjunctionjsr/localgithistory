@@ -139,10 +139,10 @@ class ItemSnippet(CamelBaseModel):
     variantAttributes: Optional['VariantAttributes'] = Field(default=None, validation_alias=AliasChoices("variantAttributes", "variant_attributes"))
 
 
-class VariantOption(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+class VariantOption(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
     value: Optional[str] = None
-    priceModifier: Optional[float] = None
+    price_modifier: Optional[float] = None
     stock: Optional[int] = None
     sku: Optional[str] = None
     attributes: Optional[VariantAttributes] = None
@@ -164,9 +164,9 @@ class ValetSnippet(CamelBaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
 
-class ValetDeclineSnippet(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
-    valetId: Optional[str] = None
+class ValetDeclineSnippet(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
+    valet_id: Optional[str] = None
     reason: Optional[str] = None
 
 ValetDeclineHistoryEntry = ValetDeclineSnippet
@@ -186,9 +186,9 @@ class VariantAttributes(BaseModel):
     weight: Optional[str] = None
     flavor: Optional[str] = None
 
-class NotificationMetadata(BaseModel):
-    orderId: Optional[str] = None
-    productId: Optional[str] = None
+class NotificationMetadata(CamelBaseModel):
+    order_id: Optional[str] = None
+    product_id: Optional[str] = None
     url: Optional[str] = None
     type: Optional[str] = None
     status: Optional[str] = None
@@ -201,14 +201,14 @@ class ProductDetails(BaseModel):
     origin: Optional[str] = None
     warranty: Optional[str] = None
 
-class ActivityMetadata(BaseModel):
+class ActivityMetadata(CamelBaseModel):
     page: Optional[str] = None
     reason: Optional[str] = None
     search_query: Optional[str] = None
-    ipAddress: Optional[str] = None
-    userAgent: Optional[str] = None
-    orderId: Optional[str] = None
-    productId: Optional[str] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    order_id: Optional[str] = None
+    product_id: Optional[str] = None
 
 class PincodeStat(BaseModel):
     pincode: str
@@ -225,30 +225,30 @@ class RecordItem(BaseModel):
     date: str
     status: str
 
-class SavedAddress(BaseModel):
+class SavedAddress(CamelBaseModel):
     id: str
     street: str
     city: str
     state: str
     pincode: str
-    isDefault: bool
+    is_default: bool
 
 
-class UserBase(BaseModel):
-    isActive: Optional[bool] = None
-    maxConcurrentOrders: Optional[int] = None
+class UserBase(CamelBaseModel):
+    is_active: Optional[bool] = None
+    max_concurrent_orders: Optional[int] = None
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: UserRole
     phone: Optional[str] = None
-    alternatePhone: Optional[str] = None
-    companyName: Optional[str] = None
-    gstin: Optional[str] = None
+    alternate_phone: Optional[str] = None
+    company_name: Optional[str] = None
     gstin: Optional[str] = None
     address: Optional[AddressSnippet] = None
-    savedAddresses: List[AddressSnippet] = Field(default=[], description="List of saved addresses for the user")
-    referralCode: Optional[str] = Field(default=None, description="Referral code used to sign up")
-    isEmailVerified: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isEmailVerified", "is_email_verified"))
+    saved_addresses: List[AddressSnippet] = Field(default=[], description="List of saved addresses for the user")
+    referral_code: Optional[str] = Field(default=None, description="Referral code used to sign up")
+    is_email_verified: Optional[bool] = False
+    device_token: Optional[str] = None
     preferredLanguage: Optional[str] = Field(default="en", description="User's preferred UI language (BCP-47 code, e.g. 'hi', 'ta')")
     approvalStatus: Optional[str] = "approved"
     isDeactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
@@ -498,10 +498,10 @@ class ProductUpdate(BaseModel):
 
 
 
-class BxGyEvaluationResponse(BaseModel):
+class BxGyEvaluationResponse(CamelBaseModel):
     discount: float = 0.0
-    itemDiscounts: Optional[Dict[int, float]] = None
-    bxgyItemIndices: Optional[List[int]] = None
+    item_discounts: Optional[Dict[int, float]] = None
+    bxgy_item_indices: Optional[List[int]] = None
 
 
 class CouponValidationDetail(BaseModel):

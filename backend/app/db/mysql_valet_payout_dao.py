@@ -89,10 +89,10 @@ class MySQLValetPayoutDAO:
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
 
-        if data.valetId is not None:
+        if data.valet_id is not None:
             cols.append("valet_id")
             vals.append(":valetId")
-            params["valetId"] = data.valetId
+            params["valetId"] = data.valet_id
         if data.amount is not None:
             cols.append("amount")
             vals.append(":amount")
@@ -174,7 +174,7 @@ class MySQLValetPayoutDAO:
                     updates.append(f"{db_k} = :{api_k}")
                     params[api_k] = _parse_dt(existing_val) if is_date else existing_val
 
-        _handle_field("valetId", "valet_id", data.valetId, existing.valetId)
+        _handle_field("valetId", "valet_id", data.valet_id, existing.valet_id)
         _handle_field("amount", "amount", data.amount, existing.amount)
         _handle_field("deliveryCount", "delivery_count", data.deliveryCount, existing.deliveryCount)
         _handle_field("returnCount", "return_count", data.returnCount, existing.returnCount)

@@ -306,7 +306,7 @@ class MySQLOrderDAO:
         for d in declines or []:
             await session.execute(
                 text("INSERT INTO sj_order_valet_declines (parent_id, valet_id, reason) VALUES (:order_id, :vid, :r)"),
-                {"order_id": order_id, "vid": str((d.valetId if d.valetId is not None else "")), "r": d.reason}
+                {"order_id": order_id, "vid": str((d.valet_id if d.valet_id is not None else "")), "r": d.reason}
             )
 
     async def create(self, data: Any) -> Order:

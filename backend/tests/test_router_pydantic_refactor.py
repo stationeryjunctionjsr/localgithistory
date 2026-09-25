@@ -514,7 +514,7 @@ class TestTier4SchemaValidationAndHttp422:
             pincode="831001",
             email="user@test.com",
         )
-        assert valid.productId == "p100"
+        assert valid.product_id == "p100"
         assert valid.productName == "Pen Set"
         assert valid.pincode == "831001"
         assert valid.email == "user@test.com"
@@ -581,7 +581,7 @@ class TestTier4SchemaValidationAndHttp422:
     def test_tier4_order_item_create_model_validation(self):
         """OrderItemCreate validates quantity > 0 and price >= 0."""
         item = OrderItemCreateSchema(productId="prod_1", quantity=3, price=49.99)
-        assert item.productId == "prod_1"
+        assert item.product_id == "prod_1"
         assert item.quantity == 3
         assert item.price == 49.99
 
@@ -606,7 +606,7 @@ class TestTier4SchemaValidationAndHttp422:
     def test_tier4_return_request_create_validation(self):
         """ReturnRequestCreate requires orderId and reason."""
         ret = ReturnRequestCreateSchema(orderId="ord_123", reason="Damaged item")
-        assert ret.orderId == "ord_123"
+        assert ret.order_id == "ord_123"
         assert ret.reason == "Damaged item"
 
         with pytest.raises(ValidationError):
@@ -625,7 +625,7 @@ class TestTier4SchemaValidationAndHttp422:
 
         @test_router.post("/notify-pincode")
         def create_notify_pincode(payload: NotifyPincodePayloadSchema):
-            return {"status": "ok", "productId": payload.productId, "pincode": payload.pincode}
+            return {"status": "ok", "productId": payload.product_id, "pincode": payload.pincode}
 
         test_app.include_router(test_router)
         client = TestClient(test_app)
