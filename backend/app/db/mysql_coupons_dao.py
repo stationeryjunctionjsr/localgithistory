@@ -10,6 +10,21 @@ from app.models.daos_flat import CouponInternalCreate, CouponInternalUpdate
 def now_utc():
     return datetime.now(timezone.utc)
 
+def _parse_dt(dt_val):
+    if isinstance(dt_val, str):
+        if dt_val.endswith("Z"):
+            dt_val = dt_val[:-1] + "+00:00"
+        dt_val = dt_val.replace("+00:00+00:00", "+00:00")
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(dt_val)
+            if dt.tzinfo is not None:
+                dt = dt.replace(tzinfo=None)
+            return dt
+        except ValueError:
+            pass
+    return dt_val
+
 class MySQLCouponsDAO:
     def __init__(self):
         self.table_name = "sj_coupons"
@@ -127,12 +142,12 @@ class MySQLCouponsDAO:
         if data.validFrom is not None:
             cols.append("start_date")
             vals.append(":s_validFrom")
-            params["s_validFrom"] = data.validFrom
+            params["s_validFrom"] = _parse_dt(data.validFrom)
 
         if data.validUntil is not None:
             cols.append("end_date")
             vals.append(":s_validUntil")
-            params["s_validUntil"] = data.validUntil
+            params["s_validUntil"] = _parse_dt(data.validUntil)
 
         if data.isActive is not None:
             cols.append("is_active")
@@ -255,11 +270,11 @@ class MySQLCouponsDAO:
 
         if data.validFrom is not None:
             updates.append("start_date = :s_validFrom")
-            params["s_validFrom"] = data.validFrom
+            params["s_validFrom"] = _parse_dt(data.validFrom)
 
         if data.validUntil is not None:
             updates.append("end_date = :s_validUntil")
-            params["s_validUntil"] = data.validUntil
+            params["s_validUntil"] = _parse_dt(data.validUntil)
 
         if data.isActive is not None:
             updates.append("is_active = :s_isActive")

@@ -402,6 +402,9 @@ class DeliveryChargeDefaultInternal(BaseModel):
     id: Optional[str] = Field(None, alias="_id")
     applicableToWholesaler: Optional[bool] = None
     applicableToRetailer: Optional[bool] = None
+    charge: Optional[float] = None
+    urgentDeliveryAvailable: Optional[bool] = None
+    urgentDeliveryCharge: Optional[float] = None
     isActive: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
     createdAt: Optional[str] = None
@@ -412,6 +415,9 @@ class DeliveryChargeDefaultInternalCreate(BaseModel):
     externalId: Optional[str] = Field(None, alias='externalId')
     applicableToWholesaler: Optional[bool] = None
     applicableToRetailer: Optional[bool] = None
+    charge: Optional[float] = None
+    urgentDeliveryAvailable: Optional[bool] = None
+    urgentDeliveryCharge: Optional[float] = None
     isActive: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
@@ -420,6 +426,9 @@ class DeliveryChargeDefaultInternalUpdate(BaseModel):
     externalId: Optional[str] = Field(None, alias='externalId')
     applicableToWholesaler: Optional[bool] = None
     applicableToRetailer: Optional[bool] = None
+    charge: Optional[float] = None
+    urgentDeliveryAvailable: Optional[bool] = None
+    urgentDeliveryCharge: Optional[float] = None
     isActive: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
@@ -568,10 +577,13 @@ class CouponInternal(BaseModel):
     method: Optional[str] = None
     minRequirementType: Optional[str] = None
     minQuantityOfEligibleItems: Optional[int] = None
+    minPurchaseAmount: Optional[float] = None
     maxDiscountAmount: Optional[float] = None
     appliesToType: Optional[str] = None
     
     displayId: Optional[str] = None
+    buyXGetYCustomerGetsAppliesToType: Optional[str] = None
+    buyXGetYCustomerGetsQuantity: Optional[int] = None
     buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
     buyXGetYCustomerGetsDiscountType: Optional[str] = None
     buyXGetYCustomerGetsDiscountValue: Optional[float] = None
@@ -585,6 +597,8 @@ class CouponInternal(BaseModel):
     quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
     applicableRoles: Optional[List[str]] = None
     applicableUserIds: Optional[List[str]] = None
+    applicablePaymentMethods: Optional[List[str]] = None
+    shippingPincodes: Optional[List[str]] = None
     applicableCategories: Optional[List[str]] = None
     appliesToValueIds: Optional[List[str]] = None
     excludedProductIds: Optional[List[str]] = None
@@ -607,10 +621,13 @@ class CouponInternalCreate(BaseModel):
     method: Optional[str] = None
     minRequirementType: Optional[str] = None
     minQuantityOfEligibleItems: Optional[int] = None
+    minPurchaseAmount: Optional[float] = None
     maxDiscountAmount: Optional[float] = None
     appliesToType: Optional[str] = None
     
     displayId: Optional[str] = None
+    buyXGetYCustomerGetsAppliesToType: Optional[str] = None
+    buyXGetYCustomerGetsQuantity: Optional[int] = None
     buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
     buyXGetYCustomerGetsDiscountType: Optional[str] = None
     buyXGetYCustomerGetsDiscountValue: Optional[float] = None
@@ -624,6 +641,8 @@ class CouponInternalCreate(BaseModel):
     quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
     applicableRoles: Optional[List[str]] = None
     applicableUserIds: Optional[List[str]] = None
+    applicablePaymentMethods: Optional[List[str]] = None
+    shippingPincodes: Optional[List[str]] = None
     applicableCategories: Optional[List[str]] = None
     appliesToValueIds: Optional[List[str]] = None
     excludedProductIds: Optional[List[str]] = None
@@ -644,10 +663,13 @@ class CouponInternalUpdate(BaseModel):
     method: Optional[str] = None
     minRequirementType: Optional[str] = None
     minQuantityOfEligibleItems: Optional[int] = None
+    minPurchaseAmount: Optional[float] = None
     maxDiscountAmount: Optional[float] = None
     appliesToType: Optional[str] = None
     
     displayId: Optional[str] = None
+    buyXGetYCustomerGetsAppliesToType: Optional[str] = None
+    buyXGetYCustomerGetsQuantity: Optional[int] = None
     buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
     buyXGetYCustomerGetsDiscountType: Optional[str] = None
     buyXGetYCustomerGetsDiscountValue: Optional[float] = None
@@ -661,6 +683,8 @@ class CouponInternalUpdate(BaseModel):
     quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
     applicableRoles: Optional[List[str]] = None
     applicableUserIds: Optional[List[str]] = None
+    applicablePaymentMethods: Optional[List[str]] = None
+    shippingPincodes: Optional[List[str]] = None
     applicableCategories: Optional[List[str]] = None
     appliesToValueIds: Optional[List[str]] = None
     excludedProductIds: Optional[List[str]] = None
