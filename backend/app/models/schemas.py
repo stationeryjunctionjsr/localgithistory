@@ -509,6 +509,7 @@ class CouponValidationDetail(BaseModel):
     discountValue: float
     id: Optional[str] = None
     method: Optional[str] = None
+    couponMode: Optional[str] = "override"
 
 
 class CouponValidationResponse(BaseModel):
@@ -810,12 +811,12 @@ class SupportTicketResponse(SupportTicketBase):
 
 # Delivery Charge Schemas
 class DeliveryChargeTier(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, from_attributes=True)
     minOrderValue: Optional[float] = None
     maxOrderValue: Optional[float] = None
     charge: Optional[float] = None
     minAmount: Optional[float] = None
-    maxAmount: Optional[Union[float, str]] = None
+    maxAmount: Optional[Union[float, str]] = Field(default=None, validation_alias=AliasChoices("maxAmount", "max"))
 
 
 class DeliveryChargeBase(BaseModel):
@@ -1235,6 +1236,7 @@ class QuantityTier(BaseModel):
 # method: discount_code | automatic
 # applicableUserIds: when set, only these user ids can use (Selective Retail/Business)
 class CouponBase(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
     typeOfDiscount: str = (
         "product_discount"  # product_discount | buy_x_get_y | total_order_discount | shipping_discount
     )
