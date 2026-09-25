@@ -80,7 +80,7 @@ class MySQLValetPayoutDAO:
             return None
         return self._map_row(row)
 
-    async def create(self, data: ValetPayoutInternalCreate) -> Dict:
+    async def create(self, data: ValetPayoutInternalCreate) -> ValetPayoutDetailResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -210,9 +210,15 @@ class MySQLValetPayoutDAO:
             return res.rowcount > 0
 def _parse_dt(dt_val):
     if isinstance(dt_val, str):
+        if dt_val.endswith("Z"):
+            dt_val = dt_val[:-1] + "+00:00"
+        dt_val = dt_val.replace("+00:00+00:00", "+00:00")
         try:
             from datetime import datetime
-            return datetime.fromisoformat(dt_val.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(dt_val)
+            if dt.tzinfo is not None:
+                dt = dt.replace(tzinfo=None)
+            return dt
         except ValueError:
             pass
     return dt_val

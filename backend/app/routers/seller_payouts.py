@@ -94,7 +94,7 @@ async def create_seller_payout(
     if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
 
-    now = datetime.now(timezone.utc).isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     storage = _payout_storage()
     created = await storage.create(
         SellerPayoutInternalCreate(
@@ -115,7 +115,7 @@ async def create_seller_payout(
             logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
 
     await _enrich_with_seller(created)
-    created["createdBy"] = str(current_user.id)
+    created.createdBy = str(current_user.id)
     return created
 
 @router.post("/settle-all/{seller_id}", response_model=SellerPayoutDetailResponse, status_code=201)
@@ -133,7 +133,7 @@ async def settle_all_seller_payouts(
 
     total_amount = sum(float(so.total) - float(so.commission_amount) for so in sub_orders)
     sub_order_ids = [str(so.id) for so in sub_orders]
-    now = datetime.now(timezone.utc).isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     
     storage = _payout_storage()
     created = await storage.create(
@@ -153,7 +153,7 @@ async def settle_all_seller_payouts(
             logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
 
     await _enrich_with_seller(created)
-    created["createdBy"] = str(current_user.id)
+    created.createdBy = str(current_user.id)
     return created
 
 @router.post("/{payout_id}/mark-paid", response_model=SellerPayoutDetailResponse)
@@ -167,7 +167,7 @@ async def mark_payout_paid(
     if not existing:
         raise HTTPException(status_code=404, detail="Payout not found")
         
-    now = datetime.now(timezone.utc).isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     updated = await storage.update(
         payout_id,
         SellerPayoutInternalUpdate(
@@ -196,7 +196,7 @@ async def mark_payout_received(
     if is_seller_admin(current_user) and existing.sellerId != str(current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized to update this payout")
         
-    now = datetime.now(timezone.utc).isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     updated = await storage.update(
         payout_id,
         SellerPayoutInternalUpdate(
@@ -233,12 +233,12 @@ async def get_all_seller_payout_summaries(
     results = await asyncio.gather(*tasks)
 
     for i, seller in enumerate(sellers):
-        results[i]["sellerName"] = seller.company_name or seller.name or "Unknown"
+        results[i].sellerName = seller.company_name or seller.name or "Unknown"
 
     return results
 
 
-async def _get_seller_summary(seller_id: str) -> Dict[str, Any]:
+async def _get_seller_summary(seller_id: str) -> SellerPayoutSummaryResponse:
     sub_orders = await sub_order_repository.findAll({"sellerId": seller_id})
 
     comm_realized = sum(float(so.commission_amount) for so in sub_orders if so.commission_status in ("realized", "paid"))
@@ -256,17 +256,17 @@ async def _get_seller_summary(seller_id: str) -> Dict[str, Any]:
     payout_unrealized = round(val_unrealized - comm_unrealized, 2)
     payout_outstanding = round(payout_realized - payout_paid, 2)
 
-    return {
-        "sellerId": seller_id,
-        "totalRealized": round(comm_realized, 2),
-        "totalPaid": round(comm_paid, 2),
-        "totalOutstanding": round(comm_realized - comm_paid, 2),
-        "totalUnrealized": round(comm_unrealized, 2),
-        "totalPayoutRealized": payout_realized,
-        "totalPayoutPaid": payout_paid,
-        "totalPayoutOutstanding": payout_outstanding,
-        "totalPayoutUnrealized": payout_unrealized,
-        "totalValueRealized": round(val_realized, 2),
-        "totalTaxRealized": round(tax_realized, 2),
-        "subOrderCount": len(sub_orders),
-    }
+    return SellerPayoutSummaryResponse(
+        sellerId=seller_id,
+        totalRealized=round(comm_realized, 2),
+        totalPaid=round(comm_paid, 2),
+        totalOutstanding=round(comm_realized - comm_paid, 2),
+        totalUnrealized=round(comm_unrealized, 2),
+        totalPayoutRealized=payout_realized,
+        totalPayoutPaid=payout_paid,
+        totalPayoutOutstanding=payout_outstanding,
+        totalPayoutUnrealized=payout_unrealized,
+        totalValueRealized=round(val_realized, 2),
+        totalTaxRealized=round(tax_realized, 2),
+        subOrderCount=len(sub_orders),
+    )

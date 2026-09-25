@@ -78,7 +78,7 @@ class MySQLSellerPayoutDAO:
             d.subOrderIds = await self._fetch_sub_orders(d.id)
         return docs
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[SellerPayoutDetailResponse]:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -100,10 +100,10 @@ class MySQLSellerPayoutDAO:
         if not row:
             return None
         doc = self._map_row(row)
-        doc["subOrderIds"] = await self._fetch_sub_orders(doc["id"])
+        doc.subOrderIds = await self._fetch_sub_orders(doc.id)
         return doc
 
-    async def create(self, data: SellerPayoutInternalCreate) -> Dict:
+    async def create(self, data: SellerPayoutInternalCreate) -> SellerPayoutDetailResponse:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -184,7 +184,7 @@ class MySQLSellerPayoutDAO:
         _handle_field("sellerReceivedAt", "seller_received_at", data.sellerReceivedAt, existing.sellerReceivedAt, True)
         _handle_field("notes", "notes", data.notes, existing.notes)
 
-        sub_orders = data.subOrderIds if data.subOrderIds is not None else (existing["subOrderIds"] if "subOrderIds" in existing else None)
+        sub_orders = data.subOrderIds if data.subOrderIds is not None else existing.subOrderIds
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -210,9 +210,15 @@ class MySQLSellerPayoutDAO:
             return res.rowcount > 0
 def _parse_dt(dt_val):
     if isinstance(dt_val, str):
+        if dt_val.endswith("Z"):
+            dt_val = dt_val[:-1] + "+00:00"
+        dt_val = dt_val.replace("+00:00+00:00", "+00:00")
         try:
             from datetime import datetime
-            return datetime.fromisoformat(dt_val.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(dt_val)
+            if dt.tzinfo is not None:
+                dt = dt.replace(tzinfo=None)
+            return dt
         except ValueError:
             pass
     return dt_val

@@ -251,7 +251,7 @@ async def mark_valet_payout_paid(
     if not existing:
         raise HTTPException(status_code=404, detail="Payout not found")
         
-    now = datetime.now(timezone.utc).isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     updated = await valet_payout_dao.update(
         payout_id,
         ValetPayoutInternalUpdate(
@@ -281,7 +281,7 @@ async def mark_valet_payout_received(
     if existing.valetId != str(current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized to update this payout")
         
-    now = datetime.now(timezone.utc).isoformat() + "Z"
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     updated = await valet_payout_dao.update(
         payout_id,
         ValetPayoutInternalUpdate(
