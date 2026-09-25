@@ -8,12 +8,16 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 import warnings
+import os
 
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="slowapi")
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="circuitbreaker")
-
-# Load environment variables first before importing settings and logger
+# Load environment variables first
 load_dotenv()
+
+# Only silence these warnings in production; keep them visible in UAT/dev
+if os.getenv("ENVIRONMENT", "development").lower() == "production":
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module="slowapi")
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module="circuitbreaker")
+
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
