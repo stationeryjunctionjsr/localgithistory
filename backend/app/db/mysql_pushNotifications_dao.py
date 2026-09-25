@@ -35,7 +35,7 @@ class MySQLPushNotificationsDAO:
             conditions = []
             params = {}
             
-            query_map = {'title': 'title', 'message': 'message', 'link': 'link', 'image': 'image', 'status': 'status', 'scheduledFor': 'scheduled_for', 'deliveredCount': 'delivered_count', 'readCount': 'read_count', 'userSegment': 'user_segment', 'userBehavior': 'user_behavior', 'createdBy': 'created_by'}
+            query_map = {'title': 'title', 'message': 'message', 'link': 'link', 'image': 'image', 'status': 'status', 'scheduled_for': 'scheduled_for', 'delivered_count': 'delivered_count', 'read_count': 'read_count', 'user_segment': 'user_segment', 'user_behavior': 'user_behavior', 'created_by': 'created_by'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLPushNotificationsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'title': 'title', 'message': 'message', 'link': 'link', 'image': 'image', 'status': 'status', 'scheduledFor': 'scheduled_for', 'deliveredCount': 'delivered_count', 'readCount': 'read_count', 'userSegment': 'user_segment', 'userBehavior': 'user_behavior', 'createdBy': 'created_by'}
+            query_map = {'title': 'title', 'message': 'message', 'link': 'link', 'image': 'image', 'status': 'status', 'scheduled_for': 'scheduled_for', 'delivered_count': 'delivered_count', 'read_count': 'read_count', 'user_segment': 'user_segment', 'user_behavior': 'user_behavior', 'created_by': 'created_by'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -112,32 +112,32 @@ class MySQLPushNotificationsDAO:
             cols.append("status")
             params["s_status"] = data.status
 
-        if data.scheduledFor is not None:
+        if data.scheduled_for is not None:
             cols.append("scheduled_for")
-            params["s_scheduledFor"] = data.scheduledFor
+            params["s_scheduled_for"] = data.scheduled_for
 
-        if data.deliveredCount is not None:
+        if data.delivered_count is not None:
             cols.append("delivered_count")
-            params["s_deliveredCount"] = data.deliveredCount
+            params["s_delivered_count"] = data.delivered_count
 
-        if data.readCount is not None:
+        if data.read_count is not None:
             cols.append("read_count")
-            params["s_readCount"] = data.readCount
+            params["s_read_count"] = data.read_count
 
-        if data.userSegment is not None:
+        if data.user_segment is not None:
             cols.append("user_segment")
-            params["s_userSegment"] = data.userSegment
+            params["s_user_segment"] = data.user_segment
 
-        if data.userBehavior is not None:
+        if data.user_behavior is not None:
             cols.append("user_behavior")
-            params["s_userBehavior"] = data.userBehavior
+            params["s_user_behavior"] = data.user_behavior
 
         if data.created_by is not None:
             cols.append("created_by")
-            params["s_createdBy"] = data.created_by
+            params["s_created_by"] = data.created_by
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['title', 'message', 'link', 'image', 'status', 'scheduledFor', 'deliveredCount', 'readCount', 'userSegment', 'userBehavior', 'createdBy'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['title', 'message', 'link', 'image', 'status', 'scheduled_for', 'delivered_count', 'read_count', 'user_segment', 'user_behavior', 'created_by'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -176,29 +176,29 @@ class MySQLPushNotificationsDAO:
             updates.append("status = :s_status")
             params["s_status"] = data.status
 
-        if data.scheduledFor is not None:
+        if data.scheduled_for is not None:
             updates.append("scheduled_for = :s_scheduledFor")
-            params["s_scheduledFor"] = data.scheduledFor
+            params["s_scheduled_for"] = data.scheduled_for
 
-        if data.deliveredCount is not None:
+        if data.delivered_count is not None:
             updates.append("delivered_count = :s_deliveredCount")
-            params["s_deliveredCount"] = data.deliveredCount
+            params["s_delivered_count"] = data.delivered_count
 
-        if data.readCount is not None:
+        if data.read_count is not None:
             updates.append("read_count = :s_readCount")
-            params["s_readCount"] = data.readCount
+            params["s_read_count"] = data.read_count
 
-        if data.userSegment is not None:
+        if data.user_segment is not None:
             updates.append("user_segment = :s_userSegment")
-            params["s_userSegment"] = data.userSegment
+            params["s_user_segment"] = data.user_segment
 
-        if data.userBehavior is not None:
+        if data.user_behavior is not None:
             updates.append("user_behavior = :s_userBehavior")
-            params["s_userBehavior"] = data.userBehavior
+            params["s_user_behavior"] = data.user_behavior
 
         if data.created_by is not None:
             updates.append("created_by = :s_createdBy")
-            params["s_createdBy"] = data.created_by
+            params["s_created_by"] = data.created_by
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -238,35 +238,9 @@ class MySQLPushNotificationsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["title"] = rm["title"]
-        out["message"] = rm["message"]
-        out["link"] = rm["link"]
-        out["image"] = rm["image"]
-        out["status"] = rm["status"]
-        out["scheduledFor"] = rm["scheduled_for"]
-        out["deliveredCount"] = rm["delivered_count"]
-        out["readCount"] = rm["read_count"]
-        out["userSegment"] = rm["user_segment"]
-        out["userBehavior"] = rm["user_behavior"]
-        out["createdBy"] = rm["created_by"]
-        for k, v in children.items():
-            out[k] = v
-            
-        return PushNotificationsInternal(**out)
+        d = dict(r._mapping)
+        d.update(children)
+        return PushNotificationsInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}

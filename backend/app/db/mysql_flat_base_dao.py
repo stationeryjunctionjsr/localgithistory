@@ -288,7 +288,7 @@ class MySQLFlatBaseDAO:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d._id):
+            if await self.delete(d.id):
                 deleted += 1
         return {"deletedCount": deleted}
 

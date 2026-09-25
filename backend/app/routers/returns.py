@@ -294,7 +294,7 @@ async def auto_assign_return(request_id: str, current_user: User = Depends(requi
             detail="No eligible on-duty valets currently available in customer's area matching availability criteria.",
         )
 
-    valet_id = str(candidate.id if hasattr(candidate, "id") else candidate.get("_id"))
+    valet_id = str(candidate.id)
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     from app.models.daos_flat import ReturnRequestInternalUpdate

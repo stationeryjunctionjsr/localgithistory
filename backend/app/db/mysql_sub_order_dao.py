@@ -271,38 +271,38 @@ class MySQLSubOrderDAO:
             raise RuntimeError("MySQL not configured")
         now = datetime.now(timezone.utc)
 
-        slot = data.deliverySlot
-        c_info = data.couponInfo
+        slot = data.delivery_slot
+        c_info = data.coupon_info
         s_addr = data.shipping_address
         b_addr = data.billing_address
 
         params = {
             "external_id": secrets.token_hex(16),
-            "sub_order_number": (data.subOrderNumber if data.subOrderNumber is not None else ""),
-            "parent_order_id": str(data.parentOrderId or ""),
-            "parent_order_number": (data.parentOrderNumber if data.parentOrderNumber is not None else ""),
+            "sub_order_number": (data.sub_order_number if data.sub_order_number is not None else ""),
+            "parent_order_id": str(data.parent_order_id or ""),
+            "parent_order_number": (data.parent_order_number if data.parent_order_number is not None else ""),
             "seller_id": str(data.seller_id or "") or None,
             "seller_name": data.seller_name,
-            "user_id": str(data.user or ""),
+            "user_id": str(data.user_id or ""),
             "subtotal": _safe_float(data.subtotal),
             "tax": _safe_float(data.tax),
             "shipping": _safe_float(data.shipping),
-            "delivery_gst": _safe_float(data.deliveryGst),
+            "delivery_gst": _safe_float(data.delivery_gst),
             "discount": _safe_float(data.discount),
             "total": _safe_float(data.total),
-            "order_type": data.orderType,
+            "order_type": data.order_type,
             "status": (data.status if data.status is not None else "pending"),
             "payment_method": data.payment_method,
             "payment_status": (data.payment_status if data.payment_status is not None else "pending"),
             "is_urgent_delivery": 1 if data.is_urgent_delivery else 0,
-            "delivery_slot_config_id": slot.configId if slot else None,
-            "delivery_slot_id": slot.slotId if slot else None,
+            "delivery_slot_config_id": slot.config_id if slot else None,
+            "delivery_slot_id": slot.slot_id if slot else None,
             "delivery_slot_date": slot.date if slot else None,
             "notes": data.notes,
             "coupon_code": data.coupon_code,
-            "coupon_info_type": c_info.discountType if c_info else None,
-            "coupon_info_value": _safe_float(c_info.discountValue) if c_info else None,
-            "commission_status": (data.commissionStatus if data.commissionStatus is not None else "unrealized"),
+            "coupon_info_type": c_info.discount_type if c_info else None,
+            "coupon_info_value": _safe_float(c_info.discount_value) if c_info else None,
+            "commission_status": (data.commission_status if data.commission_status is not None else "unrealized"),
             "shipping_name": s_addr.name if s_addr else None,
             "shipping_phone": s_addr.phone if s_addr else None,
             "shipping_line1": (s_addr.street or s_addr.address) if s_addr else None,
@@ -316,7 +316,7 @@ class MySQLSubOrderDAO:
             "billing_state": b_addr.state if b_addr else None,
             "billing_pincode": b_addr.pincode if b_addr else None,
             # Valet pickup tracking
-            "pickup_status": (data.pickupStatus if data.pickupStatus is not None else "pending_pickup"),
+            "pickup_status": (data.pickup_status if data.pickup_status is not None else "pending_pickup"),
             "assigned_valet": data.assigned_valet,
             "created_at": now,
             "updated_at": now,
@@ -393,30 +393,30 @@ class MySQLSubOrderDAO:
         if data.status is not None:
             set_clauses.append("status = :status")
             params["status"] = data.status
-        if data.shippedAt is not None:
+        if data.shipped_at is not None:
             set_clauses.append("dispatched_at = :dispatched_at")
-            params["dispatched_at"] = self._parse_dt(data.shippedAt)
-        if data.deliveredAt is not None:
+            params["dispatched_at"] = self._parse_dt(data.shipped_at)
+        if data.delivered_at is not None:
             set_clauses.append("delivered_at = :delivered_at")
-            params["delivered_at"] = self._parse_dt(data.deliveredAt)
-        if data.cancelledAt is not None:
+            params["delivered_at"] = self._parse_dt(data.delivered_at)
+        if data.cancelled_at is not None:
             set_clauses.append("cancelled_at = :cancelled_at")
-            params["cancelled_at"] = self._parse_dt(data.cancelledAt)
-        if data.pickupStatus is not None:
+            params["cancelled_at"] = self._parse_dt(data.cancelled_at)
+        if data.pickup_status is not None:
             set_clauses.append("pickup_status = :pickup_status")
-            params["pickup_status"] = data.pickupStatus
-        if data.pickedUpAt is not None:
+            params["pickup_status"] = data.pickup_status
+        if data.picked_up_at is not None:
             set_clauses.append("picked_up_at = :picked_up_at")
-            params["picked_up_at"] = self._parse_dt(data.pickedUpAt)
-        if data.commissionPct is not None:
+            params["picked_up_at"] = self._parse_dt(data.picked_up_at)
+        if data.commission_pct is not None:
             set_clauses.append("commission_pct = :commission_pct")
-            params["commission_pct"] = data.commissionPct
-        if data.commissionAmount is not None:
+            params["commission_pct"] = data.commission_pct
+        if data.commission_amount is not None:
             set_clauses.append("commission_amount = :commission_amount")
-            params["commission_amount"] = data.commissionAmount
-        if data.commissionStatus is not None:
+            params["commission_amount"] = data.commission_amount
+        if data.commission_status is not None:
             set_clauses.append("commission_status = :commission_status")
-            params["commission_status"] = data.commissionStatus
+            params["commission_status"] = data.commission_status
         if data.assigned_valet is not None:
             set_clauses.append("assigned_valet = :assigned_valet")
             params["assigned_valet"] = data.assigned_valet

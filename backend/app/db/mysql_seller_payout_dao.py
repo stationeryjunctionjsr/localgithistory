@@ -18,19 +18,19 @@ class MySQLSellerPayoutDAO:
     def _map_row(self, row) -> SellerPayoutDetailResponse:
         return SellerPayoutDetailResponse(
             id=str(row.id),
-            sellerId=row.seller_id,
+            seller_id=row.seller_id,
             amount=float(row.amount) if row.amount is not None else 0.0,
-            periodStart=row.period_start.isoformat() + "Z" if row.period_start else None,
-            periodEnd=row.period_end.isoformat() + "Z" if row.period_end else None,
+            period_start=row.period_start.isoformat() + "Z" if row.period_start else None,
+            period_end=row.period_end.isoformat() + "Z" if row.period_end else None,
             status=row.status if row.status else 'pending_payment',
-            paymentMethod=row.payment_method,
-            paymentReference=row.payment_reference,
-            adminPaidAt=row.admin_paid_at.isoformat() + "Z" if row.admin_paid_at else None,
-            adminPaidBy=row.admin_paid_by,
-            sellerReceivedAt=row.seller_received_at.isoformat() + "Z" if row.seller_received_at else None,
+            payment_method=row.payment_method,
+            payment_reference=row.payment_reference,
+            admin_paid_at=row.admin_paid_at.isoformat() + "Z" if row.admin_paid_at else None,
+            admin_paid_by=row.admin_paid_by,
+            seller_received_at=row.seller_received_at.isoformat() + "Z" if row.seller_received_at else None,
             notes=row.notes,
-            createdAt=row.created_at.isoformat() + "Z" if row.created_at else None,
-            updatedAt=row.updated_at.isoformat() + "Z" if row.updated_at else None,
+            created_at=row.created_at.isoformat() + "Z" if row.created_at else None,
+            updated_at=row.updated_at.isoformat() + "Z" if row.updated_at else None,
         )
 
     async def _fetch_sub_orders(self, payout_id: str) -> List[str]:
@@ -59,9 +59,9 @@ class MySQLSellerPayoutDAO:
         query = query or {}
         where_clauses = []
         params = {}
-        if "sellerId" in query:
+        if "seller_id" in query:
             where_clauses.append("seller_id = :sellerId")
-            params["sellerId"] = query["sellerId"]
+            params["seller_id"] = query["seller_id"]
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
@@ -115,7 +115,7 @@ class MySQLSellerPayoutDAO:
         if data.seller_id is not None:
             cols.append("seller_id")
             vals.append(":sellerId")
-            params["sellerId"] = data.seller_id
+            params["seller_id"] = data.seller_id
         if data.amount is not None:
             cols.append("amount")
             vals.append(":amount")
@@ -123,11 +123,11 @@ class MySQLSellerPayoutDAO:
         if data.period_start is not None:
             cols.append("period_start")
             vals.append(":periodStart")
-            params["periodStart"] = _parse_dt(data.period_start)
+            params["period_start"] = _parse_dt(data.period_start)
         if data.period_end is not None:
             cols.append("period_end")
             vals.append(":periodEnd")
-            params["periodEnd"] = _parse_dt(data.period_end)
+            params["period_end"] = _parse_dt(data.period_end)
         if data.notes is not None:
             cols.append("notes")
             vals.append(":notes")
@@ -172,16 +172,16 @@ class MySQLSellerPayoutDAO:
                     updates.append(f"{db_k} = :{api_k}")
                     params[api_k] = _parse_dt(existing_val) if is_date else existing_val
 
-        _handle_field("sellerId", "seller_id", data.seller_id, existing.seller_id)
+        _handle_field("seller_id", "seller_id", data.seller_id, existing.seller_id)
         _handle_field("amount", "amount", data.amount, existing.amount)
-        _handle_field("periodStart", "period_start", data.period_start, existing.period_start, True)
-        _handle_field("periodEnd", "period_end", data.period_end, existing.period_end, True)
+        _handle_field("period_start", "period_start", data.period_start, existing.period_start, True)
+        _handle_field("period_end", "period_end", data.period_end, existing.period_end, True)
         _handle_field("status", "status", data.status, existing.status)
-        _handle_field("paymentMethod", "payment_method", data.payment_method, existing.payment_method)
-        _handle_field("paymentReference", "payment_reference", data.payment_reference, existing.payment_reference)
-        _handle_field("adminPaidAt", "admin_paid_at", data.admin_paid_at, existing.admin_paid_at, True)
-        _handle_field("adminPaidBy", "admin_paid_by", data.admin_paid_by, existing.admin_paid_by)
-        _handle_field("sellerReceivedAt", "seller_received_at", data.seller_received_at, existing.seller_received_at, True)
+        _handle_field("payment_method", "payment_method", data.payment_method, existing.payment_method)
+        _handle_field("payment_reference", "payment_reference", data.payment_reference, existing.payment_reference)
+        _handle_field("admin_paid_at", "admin_paid_at", data.admin_paid_at, existing.admin_paid_at, True)
+        _handle_field("admin_paid_by", "admin_paid_by", data.admin_paid_by, existing.admin_paid_by)
+        _handle_field("seller_received_at", "seller_received_at", data.seller_received_at, existing.seller_received_at, True)
         _handle_field("notes", "notes", data.notes, existing.notes)
 
         sub_orders = data.sub_order_ids if data.sub_order_ids is not None else existing.sub_order_ids

@@ -35,7 +35,7 @@ class MySQLCategoryTagsDAO:
             conditions = []
             params = {}
             
-            query_map = {'name': 'name', 'description': 'description', 'isActive': 'is_active'}
+            query_map = {'name': 'name', 'description': 'description', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLCategoryTagsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'name': 'name', 'description': 'description', 'isActive': 'is_active'}
+            query_map = {'name': 'name', 'description': 'description', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -100,9 +100,9 @@ class MySQLCategoryTagsDAO:
             cols.append("description")
             params["s_description"] = data.description
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -132,9 +132,9 @@ class MySQLCategoryTagsDAO:
             updates.append("description = :s_description")
             params["s_description"] = data.description
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -174,27 +174,9 @@ class MySQLCategoryTagsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["name"] = rm["name"]
-        out["description"] = rm["description"]
-        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
-        for k, v in children.items():
-            out[k] = v
-            
-        return CategoryTagInternal(**out)
+        d = dict(r._mapping)
+        # CategoryTagInternal has alias='_id' for 'id', so we ensure id is present
+        return CategoryTagInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}

@@ -92,17 +92,17 @@ class MySQLReturnRequestsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.returnId is not None:
+        if data.return_id is not None:
             cols.append("return_id")
-            params["s_returnId"] = data.returnId
+            params["s_returnId"] = data.return_id
 
         if data.order_id is not None:
             cols.append("order_id")
             params["s_orderId"] = data.order_id
 
-        if data.userId is not None:
+        if data.user_id is not None:
             cols.append("user_id")
-            params["s_userId"] = data.userId
+            params["s_userId"] = data.user_id
 
         if data.payment_method is not None:
             cols.append("payment_method")
@@ -144,20 +144,20 @@ class MySQLReturnRequestsDAO:
             cols.append("pending_valet_id")
             params["s_pendingValetId"] = data.pending_valet_id
 
-        if data.valetAssignedAt is not None:
+        if data.valet_assigned_at is not None:
             cols.append("valet_assigned_at")
-            params["s_valetAssignedAt"] = data.valetAssignedAt
+            params["s_valetAssignedAt"] = data.valet_assigned_at
 
-        if data.valetCascadeCount is not None:
+        if data.valet_cascade_count is not None:
             cols.append("valet_cascade_count")
-            params["s_valetCascadeCount"] = data.valetCascadeCount
+            params["s_valetCascadeCount"] = data.valet_cascade_count
 
         if data.delivery_charge is not None:
             cols.append("delivery_charge")
             params["s_deliveryCharge"] = data.delivery_charge
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['returnId', 'orderId', 'userId', 'paymentMethod', 'upiPaymentScreenshot', 'notes', 'status', 'valetId', 'sellerId', 'deliverySlotId', 'deliverySlotConfigId', 'deliverySlotDate', 'pendingValetId', 'valetAssignedAt', 'valetCascadeCount', 'deliveryCharge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['return_id', 'order_id', 'user_id', 'payment_method', 'upi_payment_screenshot', 'notes', 'status', 'valet_id', 'seller_id', 'delivery_slot_id', 'delivery_slot_config_id', 'delivery_slot_date', 'pending_valet_id', 'valet_assigned_at', 'valet_cascade_count', 'delivery_charge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -177,22 +177,22 @@ class MySQLReturnRequestsDAO:
         params = {"id": id, "u": now_utc()}
         
         field_map = {
-            "returnId": "return_id",
-            "orderId": "order_id",
-            "userId": "user_id",
-            "paymentMethod": "payment_method",
-            "upiPaymentScreenshot": "upi_payment_screenshot",
+            "return_id": "return_id",
+            "order_id": "order_id",
+            "user_id": "user_id",
+            "payment_method": "payment_method",
+            "upi_payment_screenshot": "upi_payment_screenshot",
             "notes": "notes",
             "status": "status",
-            "valetId": "valet_id",
-            "sellerId": "seller_id",
-            "deliverySlotId": "delivery_slot_id",
-            "deliverySlotConfigId": "delivery_slot_config_id",
-            "deliverySlotDate": "delivery_slot_date",
-            "pendingValetId": "pending_valet_id",
-            "valetAssignedAt": "valet_assigned_at",
-            "valetCascadeCount": "valet_cascade_count",
-            "deliveryCharge": "delivery_charge"
+            "valet_id": "valet_id",
+            "seller_id": "seller_id",
+            "delivery_slot_id": "delivery_slot_id",
+            "delivery_slot_config_id": "delivery_slot_config_id",
+            "delivery_slot_date": "delivery_slot_date",
+            "pending_valet_id": "pending_valet_id",
+            "valet_assigned_at": "valet_assigned_at",
+            "valet_cascade_count": "valet_cascade_count",
+            "delivery_charge": "delivery_charge"
         }
         
         if hasattr(data, 'model_dump'):
@@ -240,40 +240,12 @@ class MySQLReturnRequestsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["returnId"] = rm["return_id"]
-        out["orderId"] = rm["order_id"]
-        out["userId"] = rm["user_id"]
-        out["paymentMethod"] = rm["payment_method"]
-        out["upiPaymentScreenshot"] = rm["upi_payment_screenshot"]
-        out["notes"] = rm["notes"]
-        out["status"] = rm["status"]
-        out["valetId"] = rm["valet_id"]
-        out["sellerId"] = rm["seller_id"]
-        out["deliverySlotId"] = rm["delivery_slot_id"]
-        out["deliverySlotConfigId"] = rm["delivery_slot_config_id"]
-        out["deliverySlotDate"] = rm["delivery_slot_date"]
-        out["pendingValetId"] = rm["pending_valet_id"]
-        out["valetAssignedAt"] = rm["valet_assigned_at"].isoformat() + "Z" if rm["valet_assigned_at"] else None
-        out["valetCascadeCount"] = rm["valet_cascade_count"]
-        out["deliveryCharge"] = rm["delivery_charge"]
-        for k, v in children.items():
-            out[k] = v
-            
-        return ReturnRequestInternal(**out)
+        d = dict(r._mapping)
+        if "items" in children:
+            d["items"] = children["items"]
+        if "valetDeclineHistory" in children:
+            d["valet_decline_history"] = children["valetDeclineHistory"]
+        return ReturnRequestInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}
@@ -291,7 +263,7 @@ class MySQLReturnRequestsDAO:
                 c_map[r.parent_id]["items"] = []
             obj = {}
 
-            obj["productId"] = r[1]
+            obj["product_id"] = r[1]
             obj["quantity"] = r[2]
             obj["reason"] = r[3]
             c_map[r.parent_id]["items"].append(obj)
@@ -305,7 +277,7 @@ class MySQLReturnRequestsDAO:
                 c_map[r.parent_id]["valetDeclineHistory"] = []
             obj = {}
 
-            obj["valetId"] = r[1]
+            obj["valet_id"] = r[1]
             obj["reason"] = r[2]
             c_map[r.parent_id]["valetDeclineHistory"].append(obj)
 
@@ -320,18 +292,18 @@ class MySQLReturnRequestsDAO:
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
-                    p["v0"] = getattr(item, 'productId', None)
+                    p["v0"] = getattr(item, 'product_id', None)
                     p["v1"] = getattr(item, 'quantity', None)
                     p["v2"] = getattr(item, 'reason', None)
                     await session.execute(text(f"INSERT INTO sj_return_request_items (parent_id, product_id, quantity, reason) VALUES (:id, :v0, :v1, :v2)"), p)
 
-        if 'valetDeclineHistory' in fields:
+        if 'valet_decline_history' in fields:
             await session.execute(text(f"DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.valetDeclineHistory if hasattr(data, 'valetDeclineHistory') else []
+            child_list = data.valet_decline_history if hasattr(data, 'valet_decline_history') else []
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
-                    p["v0"] = getattr(item, 'valetId', None)
+                    p["v0"] = getattr(item, 'valet_id', None)
                     p["v1"] = getattr(item, 'reason', None)
-                    p["v2"] = getattr(item, 'declinedAt', None)
+                    p["v2"] = getattr(item, 'declined_at', None)
                     await session.execute(text(f"INSERT INTO sj_return_valet_declines (parent_id, valet_id, reason) VALUES (:id, :v0, :v1)"), p)

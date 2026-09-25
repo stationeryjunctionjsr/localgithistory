@@ -16,9 +16,9 @@ class MySQLFaqSectionDAO(MySQLFlatBaseDAO):
     def __init__(self):
         super().__init__(
             table_name="sj_faq_sections",
-            scalar_map={"title": "title", "orderIndex": "order_index", "isActive": "is_active", "icon": "icon"},
+            scalar_map={"title": "title", "order_index": "order_index", "is_active": "is_active", "icon": "icon"},
             
-            bool_api_keys=frozenset({"isActive"}),
+            bool_api_keys=frozenset({"is_active"}),
         )
 
     async def _fetch_items(self, section_id: str) -> List[Dict]:
@@ -47,21 +47,21 @@ class MySQLFaqSectionDAO(MySQLFlatBaseDAO):
     async def findById(self, id: str) -> Optional[Dict]:
         doc = await super().findById(id)
         if doc:
-            doc["items"] = await self._fetch_items(doc["externalId"])
+            doc["items"] = await self._fetch_items(doc["external_id"])
         return doc
 
     async def findAll(self) -> List[Dict]:
         docs = await super().findAll()
         for doc in docs:
-            doc["items"] = await self._fetch_items(doc["externalId"])
+            doc["items"] = await self._fetch_items(doc["external_id"])
         return docs
 
     async def create(self, data: Dict) -> Dict:
         items = data.pop("items", [])
         created = await super().create(data)
         if created and "externalId" in created:
-            await self._save_items(created["externalId"], items)
-            created["items"] = await self._fetch_items(created["externalId"])
+            await self._save_items(created["external_id"], items)
+            created["items"] = await self._fetch_items(created["external_id"])
         return created
 
     async def update(self, id: str, data: Dict) -> Dict:

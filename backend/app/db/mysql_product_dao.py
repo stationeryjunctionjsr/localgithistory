@@ -508,7 +508,7 @@ class MySQLProductDAO:
             # seller might be a dict if it came from merged_dict or it might be ProductSellerEntry
             s_id = seller.seller_id
             s_stock = seller.stock
-            s_active = seller.isActive
+            s_active = seller.is_active
             s_status = seller.requestStatus
             
             await session.execute(
@@ -563,13 +563,13 @@ class MySQLProductDAO:
                     "description": data.description,
                     "sku": data.sku,
                     "category": data.category,
-                    "sub_category": data.subCategory,
+                    "sub_category": data.sub_category,
                     "brand": data.brand,
                     "mrp": data.mrp,
-                    "mrp_per_case": data.mrpPerCase,
-                    "quantity_per_case": data.quantityPerCase,
+                    "mrp_per_case": data.mrp_per_case,
+                    "quantity_per_case": data.quantity_per_case,
                     "stock": data.stock if data.stock is not None else 0,
-                    "is_active": 1 if data.isActive else 0,
+                    "is_active": 1 if data.is_active else 0,
                     "rating": data.rating if data.rating is not None else 0.0,
                     "reviews": data.reviews if data.reviews is not None else 0,
                     "created_at": now,
@@ -599,13 +599,13 @@ class MySQLProductDAO:
             description=update_data.description if update_data.description is not None else existing.description,
             sku=update_data.sku if update_data.sku is not None else existing.sku,
             category=update_data.category if update_data.category is not None else existing.category,
-            subCategory=update_data.subCategory if update_data.subCategory is not None else existing.sub_category,
+            subCategory=update_data.sub_category if update_data.sub_category is not None else existing.sub_category,
             brand=update_data.brand if update_data.brand is not None else existing.brand,
             mrp=update_data.mrp if update_data.mrp is not None else existing.mrp,
-            mrpPerCase=update_data.mrpPerCase if update_data.mrpPerCase is not None else existing.mrp_per_case,
-            quantityPerCase=update_data.quantityPerCase if update_data.quantityPerCase is not None else existing.quantity_per_case,
+            mrpPerCase=update_data.mrp_per_case if update_data.mrp_per_case is not None else existing.mrp_per_case,
+            quantityPerCase=update_data.quantity_per_case if update_data.quantity_per_case is not None else existing.quantity_per_case,
             stock=update_data.stock if update_data.stock is not None else existing.stock,
-            isActive=update_data.isActive if update_data.isActive is not None else existing.is_active,
+            isActive=update_data.is_active if update_data.is_active is not None else existing.is_active,
             rating=update_data.rating if update_data.rating is not None else existing.rating,
             reviews=update_data.reviews if update_data.reviews is not None else existing.reviews,
             images=update_data.images if update_data.images is not None else existing.images,
@@ -634,13 +634,13 @@ class MySQLProductDAO:
                     "description": merged.description,
                     "sku": merged.sku,
                     "category": merged.category,
-                    "sub_category": merged.subCategory,
+                    "sub_category": merged.sub_category,
                     "brand": merged.brand,
                     "mrp": merged.mrp,
-                    "mrp_per_case": merged.mrpPerCase,
-                    "quantity_per_case": merged.quantityPerCase,
+                    "mrp_per_case": merged.mrp_per_case,
+                    "quantity_per_case": merged.quantity_per_case,
                     "stock": merged.stock,
-                    "is_active": 1 if (merged.isActive if merged.isActive is not None else True) else None,
+                    "is_active": 1 if (merged.is_active if merged.is_active is not None else True) else None,
                     "rating": (merged.rating if merged.rating is not None else 0.0),
                     "reviews": (merged.reviews if merged.reviews is not None else 0),
                     "updated_at": now,

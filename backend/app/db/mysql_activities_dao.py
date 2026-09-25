@@ -92,9 +92,9 @@ class MySQLActivitiesDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.userId is not None:
+        if data.user_id is not None:
             cols.append("user_id")
-            params["s_userId"] = data.userId
+            params["s_userId"] = data.user_id
 
         if data.session_id is not None:
             cols.append("session_id")
@@ -104,9 +104,9 @@ class MySQLActivitiesDAO:
             cols.append("action")
             params["s_action"] = data.action
 
-        if data.comment is not None:
+        if data.comments is not None:
             cols.append("comments")
-            params["s_comment"] = data.comment
+            params["s_comment"] = data.comments
 
         if data.is_guest is not None:
             cols.append("is_guest")
@@ -120,21 +120,21 @@ class MySQLActivitiesDAO:
             cols.append("os")
             params["s_os"] = data.os
 
-        if data.osVersion is not None:
+        if data.os_version is not None:
             cols.append("os_version")
-            params["s_osVersion"] = data.osVersion
+            params["s_osVersion"] = data.os_version
 
-        if data.deviceType is not None:
+        if data.device_type is not None:
             cols.append("device_type")
-            params["s_deviceType"] = data.deviceType
+            params["s_deviceType"] = data.device_type
 
-        if data.appVersion is not None:
+        if data.app_version is not None:
             cols.append("app_version")
-            params["s_appVersion"] = data.appVersion
+            params["s_appVersion"] = data.app_version
 
-        if data.deviceModel is not None:
+        if data.device_model is not None:
             cols.append("device_model")
-            params["s_deviceModel"] = data.deviceModel
+            params["s_deviceModel"] = data.device_model
 
         if data.locale is not None:
             cols.append("locale")
@@ -164,9 +164,9 @@ class MySQLActivitiesDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.userId is not None:
+        if data.user_id is not None:
             updates.append("user_id = :s_userId")
-            params["s_userId"] = data.userId
+            params["s_userId"] = data.user_id
 
         if data.session_id is not None:
             updates.append("session_id = :s_sessionId")
@@ -176,9 +176,9 @@ class MySQLActivitiesDAO:
             updates.append("action = :s_action")
             params["s_action"] = data.action
 
-        if data.comment is not None:
+        if data.comments is not None:
             updates.append("comments = :s_comment")
-            params["s_comment"] = data.comment
+            params["s_comment"] = data.comments
 
         if data.is_guest is not None:
             updates.append("is_guest = :s_isGuest")
@@ -192,21 +192,21 @@ class MySQLActivitiesDAO:
             updates.append("os = :s_os")
             params["s_os"] = data.os
 
-        if data.osVersion is not None:
+        if data.os_version is not None:
             updates.append("os_version = :s_osVersion")
-            params["s_osVersion"] = data.osVersion
+            params["s_osVersion"] = data.os_version
 
-        if data.deviceType is not None:
+        if data.device_type is not None:
             updates.append("device_type = :s_deviceType")
-            params["s_deviceType"] = data.deviceType
+            params["s_deviceType"] = data.device_type
 
-        if data.appVersion is not None:
+        if data.app_version is not None:
             updates.append("app_version = :s_appVersion")
-            params["s_appVersion"] = data.appVersion
+            params["s_appVersion"] = data.app_version
 
-        if data.deviceModel is not None:
+        if data.device_model is not None:
             updates.append("device_model = :s_deviceModel")
-            params["s_deviceModel"] = data.deviceModel
+            params["s_deviceModel"] = data.device_model
 
         if data.locale is not None:
             updates.append("locale = :s_locale")
@@ -254,39 +254,13 @@ class MySQLActivitiesDAO:
             if d_id and await self.delete(d_id):
                 deleted += 1
         return {"deletedCount": deleted}
-
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
+        from app.models.daos import ActivityInternal
+        rm = dict(r._mapping)
+        if "meta" in children:
+            rm["meta"] = children["meta"]
+        return ActivityInternal.model_validate(rm)
 
-        out["userId"] = rm["user_id"]
-        out["sessionId"] = rm["session_id"]
-        out["action"] = rm["action"]
-        out["comment"] = rm["comments"]
-        out["isGuest"] = bool(rm["is_guest"]) if rm["is_guest"] is not None else None
-        out["userAgent"] = rm["user_agent"]
-        out["os"] = rm["os"]
-        out["osVersion"] = rm["os_version"]
-        out["deviceType"] = rm["device_type"]
-        out["appVersion"] = rm["app_version"]
-        out["deviceModel"] = rm["device_model"]
-        out["locale"] = rm["locale"]
-        out["ip"] = rm["ip"]
-        for k, v in children.items():
-            out[k] = v
-            
-        return ActivityInternal(**out)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

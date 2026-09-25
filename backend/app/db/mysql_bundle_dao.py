@@ -18,12 +18,11 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
                 "name": "name",
                 "description": "description",
                 "price": "price",
-                "discountPercentage": "discount_percentage",
-                "isActive": "is_active",
-                "salesCount": "sales_count",
+                "discount_percentage": "discount_percentage",
+                "is_active": "is_active",
+                "sales_count": "sales_count",
             },
-            
-            bool_api_keys=frozenset({"isActive"}),
+            bool_api_keys=frozenset({"is_active"}),
         )
 
     async def _fetch_products(self, bundle_id: str) -> List[Dict]:
@@ -84,13 +83,13 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
             if data.price is not None: data_dict["price"] = data.price
         except AttributeError: pass
         try:
-            if data.discountPercentage is not None: data_dict["discountPercentage"] = data.discountPercentage
+            if data.discount_percentage is not None: data_dict["discount_percentage"] = data.discount_percentage
         except AttributeError: pass
         try:
-            if data.isActive is not None: data_dict["isActive"] = data.isActive
+            if data.is_active is not None: data_dict["is_active"] = data.is_active
         except AttributeError: pass
         try:
-            if data.salesCount is not None: data_dict["salesCount"] = data.salesCount
+            if data.sales_count is not None: data_dict["sales_count"] = data.sales_count
         except AttributeError: pass
 
         items = []
@@ -119,13 +118,13 @@ class MySQLBundleDAO(MySQLFlatBaseDAO):
             if update_data.price is not None: update_dict["price"] = update_data.price
         except AttributeError: pass
         try:
-            if update_data.discountPercentage is not None: update_dict["discountPercentage"] = update_data.discountPercentage
+            if update_data.discount_percentage is not None: update_dict["discount_percentage"] = update_data.discount_percentage
         except AttributeError: pass
         try:
-            if update_data.isActive is not None: update_dict["isActive"] = update_data.isActive
+            if update_data.is_active is not None: update_dict["is_active"] = update_data.is_active
         except AttributeError: pass
         try:
-            if update_data.salesCount is not None: update_dict["salesCount"] = update_data.salesCount
+            if update_data.sales_count is not None: update_dict["sales_count"] = update_data.sales_count
         except AttributeError: pass
 
         items = None

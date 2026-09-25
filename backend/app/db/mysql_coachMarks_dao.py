@@ -35,7 +35,7 @@ class MySQLCoachMarksDAO:
             conditions = []
             params = {}
             
-            query_map = {'anchorId': 'anchor_id', 'title': 'title', 'description': 'description', 'screenName': 'screen_name', 'sequenceOrder': 'sequence_order', 'isActive': 'is_active'}
+            query_map = {'anchor_id': 'anchor_id', 'title': 'title', 'description': 'description', 'screen_name': 'screen_name', 'sequence_order': 'sequence_order', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLCoachMarksDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'anchorId': 'anchor_id', 'title': 'title', 'description': 'description', 'screenName': 'screen_name', 'sequenceOrder': 'sequence_order', 'isActive': 'is_active'}
+            query_map = {'anchor_id': 'anchor_id', 'title': 'title', 'description': 'description', 'screen_name': 'screen_name', 'sequence_order': 'sequence_order', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -112,9 +112,9 @@ class MySQLCoachMarksDAO:
             cols.append("sequence_order")
             params["s_sequenceOrder"] = data.sequence_order
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
-            params["s_isActive"] = data.isActive
+            params["s_isActive"] = data.is_active
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['anchorId', 'title', 'description', 'screenName', 'sequenceOrder', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -156,9 +156,9 @@ class MySQLCoachMarksDAO:
             updates.append("sequence_order = :s_sequenceOrder")
             params["s_sequenceOrder"] = data.sequence_order
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_isActive"] = data.is_active
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -198,30 +198,8 @@ class MySQLCoachMarksDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["anchorId"] = rm["anchor_id"]
-        out["title"] = rm["title"]
-        out["description"] = rm["description"]
-        out["screenName"] = rm["screen_name"]
-        out["sequenceOrder"] = rm["sequence_order"]
-        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
-        for k, v in children.items():
-            out[k] = v
-            
-        return CoachMarkInternal(**out)
+        d = dict(r._mapping)
+        return CoachMarkInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}

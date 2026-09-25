@@ -35,7 +35,7 @@ class MySQLDeviceSubscriptionsDAO:
             conditions = []
             params = {}
             
-            query_map = {'userId': 'user_id', 'endpoint': 'endpoint', 'expoToken': 'expo_token'}
+            query_map = {'user_id': 'user_id', 'endpoint': 'endpoint', 'expo_token': 'expo_token'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLDeviceSubscriptionsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'userId': 'user_id', 'endpoint': 'endpoint', 'expoToken': 'expo_token'}
+            query_map = {'user_id': 'user_id', 'endpoint': 'endpoint', 'expo_token': 'expo_token'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -92,20 +92,20 @@ class MySQLDeviceSubscriptionsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.userId is not None:
+        if data.user_id is not None:
             cols.append("user_id")
-            params["s_userId"] = data.userId
+            params["s_user_id"] = data.user_id
 
         if data.endpoint is not None:
             cols.append("endpoint")
             params["s_endpoint"] = data.endpoint
 
-        if data.expoToken is not None:
+        if data.expo_token is not None:
             cols.append("expo_token")
-            params["s_expoToken"] = data.expoToken
+            params["s_expo_token"] = data.expo_token
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['userId', 'endpoint', 'expoToken'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['user_id', 'endpoint', 'expo_token'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -124,17 +124,17 @@ class MySQLDeviceSubscriptionsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.userId is not None:
+        if data.user_id is not None:
             updates.append("user_id = :s_userId")
-            params["s_userId"] = data.userId
+            params["s_user_id"] = data.user_id
 
         if data.endpoint is not None:
             updates.append("endpoint = :s_endpoint")
             params["s_endpoint"] = data.endpoint
 
-        if data.expoToken is not None:
+        if data.expo_token is not None:
             updates.append("expo_token = :s_expoToken")
-            params["s_expoToken"] = data.expoToken
+            params["s_expo_token"] = data.expo_token
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -178,27 +178,9 @@ class MySQLDeviceSubscriptionsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["userId"] = rm["user_id"]
-        out["endpoint"] = rm["endpoint"]
-        out["expoToken"] = rm["expo_token"]
-        for k, v in children.items():
-            out[k] = v
-            
-        return DeviceSubscriptionInternal(**out)
+        d = dict(r._mapping)
+        d.update(children)
+        return DeviceSubscriptionInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

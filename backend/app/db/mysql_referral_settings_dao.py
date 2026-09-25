@@ -20,9 +20,9 @@ SEGMENTS = ("retail", "business")
 def _row_to_segment(r) -> Dict:
     return {
         "segment": r.segment,
-        "discountType": r.discount_type or "percentage",
-        "discountValue": float(r.discount_value) if r.discount_value is not None else 0,
-        "isActive": bool(r.is_active) if r.is_active is not None else False,
+        "discount_type": r.discount_type or "percentage",
+        "discount_value": float(r.discount_value) if r.discount_value is not None else 0,
+        "is_active": bool(r.is_active) if r.is_active is not None else False,
     }
 
 
@@ -41,10 +41,10 @@ class MySQLReferralSettingsDAO:
             "_id": "1",
             "retail": _row_to_segment(retail)
             if retail
-            else {"segment": "retail", "discountType": "percentage", "discountValue": 0, "isActive": False},
+            else {"segment": "retail", "discount_type": "percentage", "discount_value": 0, "is_active": False},
             "business": _row_to_segment(business)
             if business
-            else {"segment": "business", "discountType": "percentage", "discountValue": 0, "isActive": False},
+            else {"segment": "business", "discount_type": "percentage", "discount_value": 0, "is_active": False},
         })
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
@@ -85,17 +85,17 @@ class MySQLReferralSettingsDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        defaults = {"segment": "retail", "discountType": "percentage", "discountValue": 0, "isActive": False}
+        defaults = {"segment": "retail", "discount_type": "percentage", "discount_value": 0, "is_active": False}
         async with factory() as session:
             for seg in SEGMENTS:
-                obj = (data[seg] if seg in data else None)
+                obj = getattr(data, seg, None) if hasattr(data, seg) else data.get(seg)
                 if not obj:
                     obj = {**defaults, "segment": seg}
-                discount_type = (obj["discountType"] if "discountType" in obj else None) or (obj["discount_type"] if "discount_type" in obj else None) or "percentage"
+                discount_type = (obj.discount_type if hasattr(obj, "discount_type") else obj.get("discount_type")) or "percentage"
                 discount_value = (
-                    (obj["discountValue"] if "discountValue" in obj else None) if (obj["discountValue"] if "discountValue" in obj else None) is not None else (obj["discount_value"] if "discount_value" in obj else 0)
+                    (obj.discount_value if hasattr(obj, "discount_value") else None) if (obj.discount_value if hasattr(obj, "discount_value") else None) is not None else (obj.discount_value if hasattr(obj, "discount_value") else 0)
                 )
-                is_active = 1 if (obj["isActive"] if "isActive" in obj else None) or (obj["is_active"] if "is_active" in obj else None) else 0
+                is_active = 1 if (obj.is_active if hasattr(obj, "is_active") else obj.get("is_active")) else 0
                 await session.execute(
                     text(
                         f"""
@@ -122,14 +122,14 @@ class MySQLReferralSettingsDAO:
             return None
         now = now_utc()
         for seg in SEGMENTS:
-            obj = (update_data[seg] if seg in update_data else None)
+            obj = getattr(update_data, seg, None) if hasattr(update_data, seg) else update_data.get(seg)
             if obj is None:
                 continue
-            discount_type = (obj["discountType"] if "discountType" in obj else None) or (obj["discount_type"] if "discount_type" in obj else None) or "percentage"
+            discount_type = (obj.discount_type if hasattr(obj, "discount_type") else obj.get("discount_type")) or "percentage"
             discount_value = (
-                (obj["discountValue"] if "discountValue" in obj else None) if (obj["discountValue"] if "discountValue" in obj else None) is not None else (obj["discount_value"] if "discount_value" in obj else 0)
+                (obj.discount_value if hasattr(obj, "discount_value") else None) if (obj.discount_value if hasattr(obj, "discount_value") else None) is not None else (obj.discount_value if hasattr(obj, "discount_value") else 0)
             )
-            is_active = 1 if (obj["isActive"] if "isActive" in obj else None) or (obj["is_active"] if "is_active" in obj else None) else 0
+            is_active = 1 if (obj.is_active if hasattr(obj, "is_active") else obj.get("is_active")) else 0
             async with factory() as session:
                 result = await session.execute(
                     text(

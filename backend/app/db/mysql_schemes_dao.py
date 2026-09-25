@@ -35,7 +35,7 @@ class MySQLSchemesDAO:
             conditions = []
             params = {}
             
-            query_map = {'name': 'name', 'description': 'description', 'discountType': 'discount_type', 'discountValue': 'discount_value', 'minOrderValue': 'min_order_value', 'validFrom': 'valid_from', 'validUntil': 'valid_until', 'isActive': 'is_active', 'code': 'code'}
+            query_map = {'name': 'name', 'description': 'description', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'valid_from': 'valid_from', 'valid_until': 'valid_until', 'is_active': 'is_active', 'code': 'code'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLSchemesDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'name': 'name', 'description': 'description', 'discountType': 'discount_type', 'discountValue': 'discount_value', 'minOrderValue': 'min_order_value', 'validFrom': 'valid_from', 'validUntil': 'valid_until', 'isActive': 'is_active', 'code': 'code'}
+            query_map = {'name': 'name', 'description': 'description', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'valid_from': 'valid_from', 'valid_until': 'valid_until', 'is_active': 'is_active', 'code': 'code'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -100,36 +100,36 @@ class MySQLSchemesDAO:
             cols.append("description")
             params["s_description"] = data.description
 
-        if data.discountType is not None:
+        if data.discount_type is not None:
             cols.append("discount_type")
-            params["s_discountType"] = data.discountType
+            params["s_discount_type"] = data.discount_type
 
-        if data.discountValue is not None:
+        if data.discount_value is not None:
             cols.append("discount_value")
-            params["s_discountValue"] = data.discountValue
+            params["s_discount_value"] = data.discount_value
 
-        if data.minOrderValue is not None:
+        if data.min_purchase_amount is not None:
             cols.append("min_order_value")
-            params["s_minOrderValue"] = data.minOrderValue
+            params["s_min_purchase_amount"] = data.min_purchase_amount
 
-        if data.validFrom is not None:
+        if data.valid_from is not None:
             cols.append("valid_from")
-            params["s_validFrom"] = data.validFrom
+            params["s_valid_from"] = data.valid_from
 
-        if data.validUntil is not None:
+        if data.valid_until is not None:
             cols.append("valid_until")
-            params["s_validUntil"] = data.validUntil
+            params["s_valid_until"] = data.valid_until
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         if data.code is not None:
             cols.append("code")
             params["s_code"] = data.code
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'discountType', 'discountValue', 'minOrderValue', 'validFrom', 'validUntil', 'isActive', 'code'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'discount_type', 'discount_value', 'min_purchase_amount', 'valid_from', 'valid_until', 'is_active', 'code'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -156,29 +156,29 @@ class MySQLSchemesDAO:
             updates.append("description = :s_description")
             params["s_description"] = data.description
 
-        if data.discountType is not None:
+        if data.discount_type is not None:
             updates.append("discount_type = :s_discountType")
-            params["s_discountType"] = data.discountType
+            params["s_discount_type"] = data.discount_type
 
-        if data.discountValue is not None:
+        if data.discount_value is not None:
             updates.append("discount_value = :s_discountValue")
-            params["s_discountValue"] = data.discountValue
+            params["s_discount_value"] = data.discount_value
 
-        if data.minOrderValue is not None:
+        if data.min_purchase_amount is not None:
             updates.append("min_order_value = :s_minOrderValue")
-            params["s_minOrderValue"] = data.minOrderValue
+            params["s_min_purchase_amount"] = data.min_purchase_amount
 
-        if data.validFrom is not None:
+        if data.valid_from is not None:
             updates.append("valid_from = :s_validFrom")
-            params["s_validFrom"] = data.validFrom
+            params["s_valid_from"] = data.valid_from
 
-        if data.validUntil is not None:
+        if data.valid_until is not None:
             updates.append("valid_until = :s_validUntil")
-            params["s_validUntil"] = data.validUntil
+            params["s_valid_until"] = data.valid_until
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         if data.code is not None:
             updates.append("code = :s_code")
@@ -224,33 +224,12 @@ class MySQLSchemesDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["name"] = rm["name"]
-        out["description"] = rm["description"]
-        out["discountType"] = rm["discount_type"]
-        out["discountValue"] = rm["discount_value"]
-        out["minOrderValue"] = rm["min_order_value"]
-        out["validFrom"] = rm["valid_from"]
-        out["validUntil"] = rm["valid_until"]
-        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
-        out["code"] = rm["code"]
-        for k, v in children.items():
-            out[k] = v
-            
-        return SchemeInternal(**out)
+        d = dict(r._mapping)
+        if "min_order_value" in d:
+            d["min_purchase_amount"] = d.pop("min_order_value")
+        if "applicable_roles" in children:
+            d["applicable_roles"] = children["applicable_roles"]
+        return SchemeInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}
@@ -264,17 +243,17 @@ class MySQLSchemesDAO:
         rows_applicableRoles = res_applicableRoles.fetchall()
 
         for r in rows_applicableRoles:
-            if "applicableRoles" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["applicableRoles"] = []
-            c_map[r.parent_id]["applicableRoles"].append(r[1])
+            if "applicable_roles" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["applicable_roles"] = []
+            c_map[r.parent_id]["applicable_roles"].append(r[1])
 
         return c_map
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if data.applicableRoles is not None:
+        if data.applicable_roles is not None:
             await session.execute(text(f"DELETE FROM sj_scheme_roles WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.applicableRoles or []
+            child_list = data.applicable_roles or []
 
             if child_list:
                 for item in child_list:

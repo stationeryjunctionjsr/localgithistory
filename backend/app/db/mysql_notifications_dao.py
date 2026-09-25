@@ -34,7 +34,7 @@ class MySQLNotificationsDAO:
             conditions = []
             params = {}
             
-            query_map = {'userId': 'user_id', 'type': 'type', 'title': 'title', 'message': 'message', 'isRead': 'is_read', 'isAcknowledged': 'is_acknowledged'}
+            query_map = {'user_id': 'user_id', 'type': 'type', 'title': 'title', 'message': 'message', 'is_read': 'is_read', 'is_acknowledged': 'is_acknowledged'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -59,7 +59,7 @@ class MySQLNotificationsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'userId': 'user_id', 'type': 'type', 'title': 'title', 'message': 'message', 'isRead': 'is_read', 'isAcknowledged': 'is_acknowledged'}
+            query_map = {'user_id': 'user_id', 'type': 'type', 'title': 'title', 'message': 'message', 'is_read': 'is_read', 'is_acknowledged': 'is_acknowledged'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -91,9 +91,9 @@ class MySQLNotificationsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.userId is not None:
+        if data.user_id is not None:
             cols.append("user_id")
-            params["s_userId"] = data.userId
+            params["s_user_id"] = data.user_id
 
         if data.type is not None:
             cols.append("type")
@@ -107,16 +107,16 @@ class MySQLNotificationsDAO:
             cols.append("message")
             params["s_message"] = data.message
 
-        if data.isRead is not None:
+        if data.is_read is not None:
             cols.append("is_read")
-            params["s_isRead"] = data.isRead
+            params["s_is_read"] = data.is_read
 
-        if data.isAcknowledged is not None:
+        if data.is_acknowledged is not None:
             cols.append("is_acknowledged")
-            params["s_isAcknowledged"] = data.isAcknowledged
+            params["s_is_acknowledged"] = data.is_acknowledged
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['userId', 'type', 'title', 'message', 'isRead', 'isAcknowledged'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['user_id', 'type', 'title', 'message', 'is_read', 'is_acknowledged'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -135,9 +135,9 @@ class MySQLNotificationsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.userId is not None:
+        if data.user_id is not None:
             updates.append("user_id = :s_userId")
-            params["s_userId"] = data.userId
+            params["s_user_id"] = data.user_id
 
         if data.type is not None:
             updates.append("type = :s_type")
@@ -151,13 +151,13 @@ class MySQLNotificationsDAO:
             updates.append("message = :s_message")
             params["s_message"] = data.message
 
-        if data.isRead is not None:
+        if data.is_read is not None:
             updates.append("is_read = :s_isRead")
-            params["s_isRead"] = data.isRead
+            params["s_is_read"] = data.is_read
 
-        if data.isAcknowledged is not None:
+        if data.is_acknowledged is not None:
             updates.append("is_acknowledged = :s_isAcknowledged")
-            params["s_isAcknowledged"] = data.isAcknowledged
+            params["s_is_acknowledged"] = data.is_acknowledged
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -199,30 +199,12 @@ class MySQLNotificationsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["userId"] = rm["user_id"]
-        out["type"] = rm["type"]
-        out["title"] = rm["title"]
-        out["message"] = rm["message"]
-        out["isRead"] = bool(rm["is_read"]) if rm["is_read"] is not None else None
-        out["isAcknowledged"] = bool(rm["is_acknowledged"]) if rm["is_acknowledged"] is not None else None
-        for k, v in children.items():
-            out[k] = v
-            
-        return NotificationInternal(**out)
+        d = dict(r._mapping)
+        if "data" in children:
+            d["metadata"] = children["data"]
+        else:
+            d.update(children)
+        return NotificationInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

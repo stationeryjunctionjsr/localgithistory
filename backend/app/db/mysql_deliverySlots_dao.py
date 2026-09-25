@@ -38,7 +38,7 @@ class MySQLDeliverySlotsDAO:
             params = {}
             
             # Map query keys to db cols
-            query_map = {'segment': 'segment', 'date': 'date', 'zoneId': 'zone_id', 'isActive': 'is_active'}
+            query_map = {'segment': 'segment', 'date': 'date', 'zone_id': 'zone_id', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -63,7 +63,7 @@ class MySQLDeliverySlotsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'segment': 'segment', 'date': 'date', 'zoneId': 'zone_id', 'isActive': 'is_active'}
+            query_map = {'segment': 'segment', 'date': 'date', 'zone_id': 'zone_id', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -105,14 +105,14 @@ class MySQLDeliverySlotsDAO:
 
         if data.zone_id is not None:
             cols.append("zone_id")
-            params["s_zoneId"] = data.zone_id
+            params["s_zone_id"] = data.zone_id
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['segment', 'date', 'zoneId', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['segment', 'date', 'zone_id', 'is_active'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -141,11 +141,11 @@ class MySQLDeliverySlotsDAO:
 
         if data.zone_id is not None:
             updates.append("zone_id = :s_zoneId")
-            params["s_zoneId"] = data.zone_id
+            params["s_zone_id"] = data.zone_id
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -161,28 +161,9 @@ class MySQLDeliverySlotsDAO:
         return await self.findById(id)
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["segment"] = rm["segment"]
-        out["date"] = rm["date"]
-        out["zoneId"] = rm["zone_id"]
-        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
-        for k, v in children.items():
-            out[k] = v
-            
-        return DeliverySlotConfigInternal(**out)
+        d = dict(r._mapping)
+        d.update(children)
+        return DeliverySlotConfigInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}
@@ -200,13 +181,13 @@ class MySQLDeliverySlotsDAO:
                 c_map[r.parent_id]["slots"] = []
             obj = {}
 
-            obj["startTime"] = r[1]
-            obj["endTime"] = r[2]
+            obj["start_time"] = r[1]
+            obj["end_time"] = r[2]
             obj["capacity"] = r[3]
-            obj["bookedCount"] = r[4]
-            obj["isFullDay"] = r[5]
-            obj["isUrgent"] = r[6]
-            obj["cutoffHours"] = r[7]
+            obj["booked_count"] = r[4]
+            obj["is_full_day"] = r[5]
+            obj["is_urgent"] = r[6]
+            obj["cutoff_hours"] = r[7]
             c_map[r.parent_id]["slots"].append(obj)
 
         return c_map
@@ -221,11 +202,11 @@ class MySQLDeliverySlotsDAO:
                 for item in child_list:
                     p = {"id": row_id}
 
-                    p["v0"] = item.startTime
-                    p["v1"] = item.endTime
+                    p["v0"] = item.start_time
+                    p["v1"] = item.end_time
                     p["v2"] = item.capacity
-                    p["v3"] = item.bookedCount
-                    p["v4"] = item.isFullDay
-                    p["v5"] = item.isUrgent
-                    p["v6"] = item.cutoffHours
+                    p["v3"] = item.booked_count
+                    p["v4"] = item.is_full_day
+                    p["v5"] = item.is_urgent
+                    p["v6"] = item.cutoff_hours
                     await session.execute(text(f"INSERT INTO sj_delivery_slot_times (parent_id, start_time, end_time, capacity, booked_count, is_full_day, is_urgent, cutoff_hours) VALUES (:id, :v0, :v1, :v2, :v3, :v4, :v5, :v6)"), p)

@@ -26,16 +26,8 @@ class MySQLCartDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, r, items: List[Dict]) -> Dict:
-        return {
-            "_id": str(r.id),
-            "user": str(r.user_id),
-            "items": items,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
         factory = self._factory()
         if not factory:
             return []
@@ -101,20 +93,26 @@ class MySQLCartDAO:
                         {
                             "product": str(ir.product_id),
                             "quantity": int(ir.quantity),
-                            "sellAsCase": bool(ir.sell_as_case),
-                            "bundleId": str(ir.bundle_id) if ir.bundle_id else None,
-                            "bundleName": str(ir.bundle_name) if ir.bundle_name else None,
-                            "variantAttributes": variant_attrs
+                            "sell_as_case": bool(ir.sell_as_case),
+                            "bundle_id": str(ir.bundle_id) if ir.bundle_id else None,
+                            "bundle_name": str(ir.bundle_name) if ir.bundle_name else None,
+                            "variant_attributes": variant_attrs
                         }
                     )
 
-        return [Cart.model_validate(self.__map_to_schema(r, items_map[r.external_id])) for r in rows]
+        out = []
+        for r in rows:
+            d = dict(r._mapping)
+            d["user"] = str(d["user_id"])
+            d["items"] = items_map[r.external_id]
+            out.append(Cart.model_validate(d))
+        return out
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Any]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Any]:
         return await self.findOne({"_id": id})
 
     async def _replace_items(self, session, cart_external_id: str, items: List[CartItemInternal]) -> None:
@@ -200,7 +198,7 @@ class MySQLCartDAO:
 
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: CartInternalUpdate) -> Optional[Dict]:
+    async def update(self, id: str, update_data: CartInternalUpdate) -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -259,5 +257,19 @@ class MySQLCartDAO:
         return {"deletedCount": deleted}
 
     async def count(self, query: Optional[Dict] = None) -> int:
-        docs = await self.findAll(query)
-        return len(docs)
+        factory = self._factory()
+        where_clauses = []
+        params = {}
+        if query:
+            for k, v in query.items():
+                if k in ("_id", "id"):
+                    where_clauses.append("id = :id")
+                    params["id"] = int(v) if str(v).isdigit() else None
+                elif k == "user":
+                    where_clauses.append("user_id = :uid")
+                    params["uid"] = int(v) if str(v).isdigit() else None
+        
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        async with factory() as session:
+            result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"), params)
+            return result.scalar() or 0

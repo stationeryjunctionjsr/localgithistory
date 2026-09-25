@@ -35,7 +35,7 @@ class MySQLDeliveryChargesDAO:
             conditions = []
             params = {}
             
-            query_map = {'locationId': 'location_id', 'pincode': 'pincode', 'state': 'state', 'city': 'city', 'district': 'district', 'applyDefaultCharge': 'apply_default_charge', 'charge': 'charge', 'minCartValue': 'min_cart_value', 'serviceableForCustomer': 'serviceable_for_customer', 'serviceableForWholesaler': 'serviceable_for_wholesaler', 'isActive': 'is_active', 'description': 'description', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'urgentDeliveryCharge': 'urgent_delivery_charge'}
+            query_map = {'location_id': 'location_id', 'pincode': 'pincode', 'state': 'state', 'city': 'city', 'district': 'district', 'apply_default_charge': 'apply_default_charge', 'charge': 'charge', 'min_cart_value': 'min_cart_value', 'serviceable_for_customer': 'serviceable_for_customer', 'serviceable_for_wholesaler': 'serviceable_for_wholesaler', 'is_active': 'is_active', 'description': 'description', 'urgent_delivery_available': 'urgent_delivery_available', 'urgent_delivery_charge': 'urgent_delivery_charge'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLDeliveryChargesDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'locationId': 'location_id', 'pincode': 'pincode', 'state': 'state', 'city': 'city', 'district': 'district', 'applyDefaultCharge': 'apply_default_charge', 'charge': 'charge', 'minCartValue': 'min_cart_value', 'serviceableForCustomer': 'serviceable_for_customer', 'serviceableForWholesaler': 'serviceable_for_wholesaler', 'isActive': 'is_active', 'description': 'description', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'urgentDeliveryCharge': 'urgent_delivery_charge'}
+            query_map = {'location_id': 'location_id', 'pincode': 'pincode', 'state': 'state', 'city': 'city', 'district': 'district', 'apply_default_charge': 'apply_default_charge', 'charge': 'charge', 'min_cart_value': 'min_cart_value', 'serviceable_for_customer': 'serviceable_for_customer', 'serviceable_for_wholesaler': 'serviceable_for_wholesaler', 'is_active': 'is_active', 'description': 'description', 'urgent_delivery_available': 'urgent_delivery_available', 'urgent_delivery_charge': 'urgent_delivery_charge'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -94,7 +94,7 @@ class MySQLDeliveryChargesDAO:
 
         if data.location_id is not None:
             cols.append("location_id")
-            params["s_locationId"] = data.location_id
+            params["s_location_id"] = data.location_id
 
         if data.pincode is not None:
             cols.append("pincode")
@@ -114,7 +114,7 @@ class MySQLDeliveryChargesDAO:
 
         if data.apply_default_charge is not None:
             cols.append("apply_default_charge")
-            params["s_applyDefaultCharge"] = data.apply_default_charge
+            params["s_apply_default_charge"] = data.apply_default_charge
 
         if data.charge is not None:
             cols.append("charge")
@@ -122,19 +122,19 @@ class MySQLDeliveryChargesDAO:
 
         if data.min_cart_value is not None:
             cols.append("min_cart_value")
-            params["s_minCartValue"] = data.min_cart_value
+            params["s_min_cart_value"] = data.min_cart_value
 
         if data.serviceable_for_customer is not None:
             cols.append("serviceable_for_customer")
-            params["s_serviceableForCustomer"] = data.serviceable_for_customer
+            params["s_serviceable_for_customer"] = data.serviceable_for_customer
 
         if data.serviceable_for_wholesaler is not None:
             cols.append("serviceable_for_wholesaler")
-            params["s_serviceableForWholesaler"] = data.serviceable_for_wholesaler
+            params["s_serviceable_for_wholesaler"] = data.serviceable_for_wholesaler
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         if data.description is not None:
             cols.append("description")
@@ -142,14 +142,14 @@ class MySQLDeliveryChargesDAO:
 
         if data.urgent_delivery_available is not None:
             cols.append("urgent_delivery_available")
-            params["s_urgentDeliveryAvailable"] = data.urgent_delivery_available
+            params["s_urgent_delivery_available"] = data.urgent_delivery_available
 
-        if data.urgentDeliveryCharge is not None:
+        if data.urgent_delivery_charge is not None:
             cols.append("urgent_delivery_charge")
-            params["s_urgentDeliveryCharge"] = data.urgentDeliveryCharge
+            params["s_urgent_delivery_charge"] = data.urgent_delivery_charge
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['locationId', 'pincode', 'state', 'city', 'district', 'applyDefaultCharge', 'charge', 'minCartValue', 'serviceableForCustomer', 'serviceableForWholesaler', 'isActive', 'description', 'urgentDeliveryAvailable', 'urgentDeliveryCharge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['location_id', 'pincode', 'state', 'city', 'district', 'apply_default_charge', 'charge', 'min_cart_value', 'serviceable_for_customer', 'serviceable_for_wholesaler', 'is_active', 'description', 'urgent_delivery_available', 'urgent_delivery_charge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -170,7 +170,7 @@ class MySQLDeliveryChargesDAO:
 
         if data.location_id is not None:
             updates.append("location_id = :s_locationId")
-            params["s_locationId"] = data.location_id
+            params["s_location_id"] = data.location_id
 
         if data.pincode is not None:
             updates.append("pincode = :s_pincode")
@@ -190,7 +190,7 @@ class MySQLDeliveryChargesDAO:
 
         if data.apply_default_charge is not None:
             updates.append("apply_default_charge = :s_applyDefaultCharge")
-            params["s_applyDefaultCharge"] = data.apply_default_charge
+            params["s_apply_default_charge"] = data.apply_default_charge
 
         if data.charge is not None:
             updates.append("charge = :s_charge")
@@ -198,19 +198,19 @@ class MySQLDeliveryChargesDAO:
 
         if data.min_cart_value is not None:
             updates.append("min_cart_value = :s_minCartValue")
-            params["s_minCartValue"] = data.min_cart_value
+            params["s_min_cart_value"] = data.min_cart_value
 
         if data.serviceable_for_customer is not None:
             updates.append("serviceable_for_customer = :s_serviceableForCustomer")
-            params["s_serviceableForCustomer"] = data.serviceable_for_customer
+            params["s_serviceable_for_customer"] = data.serviceable_for_customer
 
         if data.serviceable_for_wholesaler is not None:
             updates.append("serviceable_for_wholesaler = :s_serviceableForWholesaler")
-            params["s_serviceableForWholesaler"] = data.serviceable_for_wholesaler
+            params["s_serviceable_for_wholesaler"] = data.serviceable_for_wholesaler
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         if data.description is not None:
             updates.append("description = :s_description")
@@ -218,11 +218,11 @@ class MySQLDeliveryChargesDAO:
 
         if data.urgent_delivery_available is not None:
             updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
-            params["s_urgentDeliveryAvailable"] = data.urgent_delivery_available
+            params["s_urgent_delivery_available"] = data.urgent_delivery_available
 
-        if data.urgentDeliveryCharge is not None:
+        if data.urgent_delivery_charge is not None:
             updates.append("urgent_delivery_charge = :s_urgentDeliveryCharge")
-            params["s_urgentDeliveryCharge"] = data.urgentDeliveryCharge
+            params["s_urgent_delivery_charge"] = data.urgent_delivery_charge
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -264,38 +264,9 @@ class MySQLDeliveryChargesDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["locationId"] = rm["location_id"]
-        out["pincode"] = rm["pincode"]
-        out["state"] = rm["state"]
-        out["city"] = rm["city"]
-        out["district"] = rm["district"]
-        out["applyDefaultCharge"] = bool(rm["apply_default_charge"]) if rm["apply_default_charge"] is not None else None
-        out["charge"] = rm["charge"]
-        out["minCartValue"] = rm["min_cart_value"]
-        out["serviceableForCustomer"] = bool(rm["serviceable_for_customer"]) if rm["serviceable_for_customer"] is not None else None
-        out["serviceableForWholesaler"] = bool(rm["serviceable_for_wholesaler"]) if rm["serviceable_for_wholesaler"] is not None else None
-        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
-        out["description"] = rm["description"]
-        out["urgentDeliveryAvailable"] = bool(rm["urgent_delivery_available"]) if rm["urgent_delivery_available"] is not None else None
-        out["urgentDeliveryCharge"] = rm["urgent_delivery_charge"]
-        for k, v in children.items():
-            out[k] = v
-            
-        return DeliveryChargeInternal(**out)
+        d = dict(r._mapping)
+        d.update(children)
+        return DeliveryChargeInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

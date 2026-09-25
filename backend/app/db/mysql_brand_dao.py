@@ -12,7 +12,6 @@ from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
 from app.db.db_utils import now_utc
-from app.models.brand import Brand
 
 
 class MySQLBrandDAO:
@@ -22,56 +21,52 @@ class MySQLBrandDAO:
 
     def _factory(self):
         return get_async_session_factory()
-
-    def __map_to_schema(self, r) -> BrandResponse:
-        return BrandResponse(**{
-            "_id": str(r.id),
-            "name": r.name,
-            "slug": r.slug,
-            "logoUrl": r.image_url,
-            "showInMobileHomepage": bool((r.show_in_mobile_homepage if r.show_in_mobile_homepage is not None else False)),
-            "isActive": bool(r.is_active) if r.is_active is not None else True,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        })
-
-
     async def findAll(self, query: Optional[Dict] = None) -> List[BrandResponse]:
         factory = self._factory()
         if not factory:
             return []
+            
+        where_clauses = []
+        params = {}
+        if query:
+            for k, v in query.items():
+                if k in ("_id", "id"):
+                    where_clauses.append("id = :id")
+                    params["id"] = int(v) if str(v).isdigit() else None
+                elif k == "slug":
+                    where_clauses.append("slug = :slug")
+                    params["slug"] = v
+                elif k == "is_active":
+                    where_clauses.append("is_active = :is_active")
+                    params["is_active"] = 1 if v else 0
+                elif k == "name":
+                    where_clauses.append("name = :name")
+                    params["name"] = v
+                elif k == "show_in_mobile_homepage":
+                    where_clauses.append("show_in_mobile_homepage = :show_in_mobile_homepage")
+                    params["show_in_mobile_homepage"] = 1 if v else 0
+        
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        
         async with factory() as session:
             result = await session.execute(
                 text(
                     f"""
-                    SELECT id, external_id, name, slug, image_url, is_active, created_at, updated_at
+                    SELECT id AS _id, external_id, name, slug, image_url AS logo_url, show_in_mobile_homepage, is_active, created_at, updated_at
                     FROM {self.TABLE}
+                    WHERE {where_sql}
                     """
-                )
+                ),
+                params
             )
             rows = result.fetchall()
-        docs = [Brand.model_validate(self.__map_to_schema(r)) for r in rows]
-        if not query:
-            return docs
-        filtered: List[Dict] = []
-        for d in docs:
-            match = True
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    if str(d._id) != str(v):
-                        match = False
-                        break
-                elif (d[k] if k in d else None) != v:
-                    match = False
-                    break
-            if match:
-                filtered.append(d)
-        return filtered
+            
+        return [BrandResponse.model_validate(r._mapping) for r in rows]
+
 
     async def findOne(self, query: Dict) -> Optional[BrandResponse]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
-
     async def findById(self, id: str) -> Optional[BrandResponse]:
         factory = self._factory()
         if not factory:
@@ -81,14 +76,15 @@ class MySQLBrandDAO:
             result = await session.execute(
                 text(
                     f"""
-                    SELECT id, external_id, name, slug, image_url, is_active, created_at, updated_at
+                    SELECT id AS _id, external_id, name, slug, image_url AS logo_url, show_in_mobile_homepage, is_active, created_at, updated_at
                     FROM {self.TABLE} WHERE id = :id
                     """
                 ),
                 {"id": bid},
             )
             row = result.fetchone()
-        return self.__map_to_schema(row) if row else None
+        return BrandResponse.model_validate(row._mapping) if row else None
+
 
     async def create(self, data: 'BrandInternalCreate') -> BrandResponse:
         factory = self._factory()
@@ -188,7 +184,7 @@ class MySQLBrandDAO:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
-            if await self.delete(d._id):
+            if await self.delete(d.id):
                 deleted += 1
         return {"deletedCount": deleted}
 

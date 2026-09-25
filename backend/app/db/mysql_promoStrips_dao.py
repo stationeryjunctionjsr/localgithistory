@@ -35,7 +35,7 @@ class MySQLPromoStripsDAO:
             conditions = []
             params = {}
             
-            query_map = {'text': 'text', 'isActive': 'is_active'}
+            query_map = {'text': 'text', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLPromoStripsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'text': 'text', 'isActive': 'is_active'}
+            query_map = {'text': 'text', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -96,21 +96,21 @@ class MySQLPromoStripsDAO:
             cols.append("text")
             params["s_text"] = data.text
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         if data.zone_ids is not None:
             cols.append("zone_ids")
-            params["s_zoneIds"] = json.dumps(data.zone_ids)
+            params["s_zone_ids"] = json.dumps(data.zone_ids)
 
         col_sql = ", ".join(cols)
         val_parts = [":eid", ":c", ":u"]
         if "s_text" in params:
             val_parts.append(":s_text")
-        if "s_isActive" in params:
+        if "s_is_active" in params:
             val_parts.append(":s_isActive")
-        if "s_zoneIds" in params:
+        if "s_zone_ids" in params:
             val_parts.append(":s_zoneIds")
         val_sql = ", ".join(val_parts)
         
@@ -135,13 +135,13 @@ class MySQLPromoStripsDAO:
             updates.append("text = :s_text")
             params["s_text"] = data.text
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         if data.zone_ids is not None:
             updates.append("zone_ids = :s_zoneIds")
-            params["s_zoneIds"] = json.dumps(data.zone_ids)
+            params["s_zone_ids"] = json.dumps(data.zone_ids)
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -181,29 +181,14 @@ class MySQLPromoStripsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        zone_ids_raw = rm["zone_ids"] if "zone_ids" in rm else None
-        zone_ids = json.loads(zone_ids_raw) if zone_ids_raw else None
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["text"] = rm["text"]
-        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
-        out["zoneIds"] = zone_ids
-        for k, v in children.items():
-            out[k] = v
-            
-        return PromoStripsInternal(**out)
+        d = dict(r._mapping)
+        if "zone_ids" in d and isinstance(d["zone_ids"], str):
+            try:
+                d["zone_ids"] = json.loads(d["zone_ids"])
+            except:
+                pass
+        d.update(children)
+        return PromoStripsInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}

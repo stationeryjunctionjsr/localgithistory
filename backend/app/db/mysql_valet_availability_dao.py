@@ -23,17 +23,12 @@ class MySQLValetAvailabilityDAO:
         return get_async_session_factory()
 
     def _map_row(self, r, children: Dict) -> Dict:
-        return {
-            "_id": str(r.id),
-            "externalId": r.external_id,
-            "valetId": str(r.valet_id) if r.valet_id is not None else None,
-            "date": r.date.isoformat() if not isinstance(r.date, str) else str(r.date),
-            "availabilityType": r.availability_type,
-            "slots": (children["slots"] if "slots" in children else []),
-            "zones": (children["zones"] if "zones" in children else []),
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
+        d = dict(r._mapping)
+        if "slots" in children:
+            d["slots"] = children["slots"]
+        if "zones" in children:
+            d["zones"] = children["zones"]
+        return d
 
     async def _replace_children(self, session, vid: int, data: Dict):
         await session.execute(
@@ -67,13 +62,13 @@ class MySQLValetAvailabilityDAO:
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
                     params["id"] = int(v) if str(v).isdigit() else None
-                elif k == "valetId":
+                elif k == "valet_id":
                     where_clauses.append("valet_id = :valet_id")
                     params["valet_id"] = str(v)
                 elif k == "date":
                     where_clauses.append("date = :date")
                     params["date"] = str(v)
-                elif k == "availabilityType":
+                elif k == "availability_type":
                     where_clauses.append("availability_type = :atype")
                     params["atype"] = str(v)
 
@@ -139,7 +134,7 @@ class MySQLValetAvailabilityDAO:
                     "external_id": external_id,
                     "valet_id": str((data.valet_id if data.valet_id is not None else "")),
                     "date": data.date,
-                    "availability_type": (data.availabilityType if data.availabilityType is not None else ""),
+                    "availability_type": (data.availability_type if data.availability_type is not None else ""),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -159,11 +154,11 @@ class MySQLValetAvailabilityDAO:
             return None
 
         merged = {}
-        merged["valetId"] = update_data.valet_id if update_data.valet_id is not None else (existing["valetId"] if "valetId" in existing else None)
-        merged["date"] = update_data.date if update_data.date is not None else (existing["date"] if "date" in existing else None)
-        merged["availabilityType"] = update_data.availabilityType if update_data.availabilityType is not None else (existing["availabilityType"] if "availabilityType" in existing else None)
-        merged["slots"] = update_data.slots if update_data.slots is not None else (existing["slots"] if "slots" in existing else None)
-        merged["zones"] = update_data.zones if update_data.zones is not None else (existing["zones"] if "zones" in existing else None)
+        merged["valet_id"] = update_data.valet_id if update_data.valet_id is not None else (existing["valet_id"] if "valet_id" in existing else None)
+        merged["date"] = update_data.date if update_data.date is not None else (getattr(existing, "date", None) if "date" in existing else None)
+        merged["availability_type"] = update_data.availability_type if update_data.availability_type is not None else (existing["availability_type"] if "availability_type" in existing else None)
+        merged["slots"] = update_data.slots if update_data.slots is not None else (getattr(existing, "slots", None) if "slots" in existing else None)
+        merged["zones"] = update_data.zones if update_data.zones is not None else (getattr(existing, "zones", None) if "zones" in existing else None)
 
         factory = self._factory()
         if not factory:
@@ -180,9 +175,9 @@ class MySQLValetAvailabilityDAO:
                 """),
                 {
                     "id": pk,
-                    "valet_id": str(merged["valetId"]) if (merged["valetId"] if "valetId" in merged else None) is not None else "",
+                    "valet_id": str(merged["valet_id"]) if (merged["valet_id"] if "valet_id" in merged else None) is not None else "",
                     "date": (merged["date"] if "date" in merged else None),
-                    "atype": (merged["availabilityType"] if "availabilityType" in merged else None) if (merged["availabilityType"] if "availabilityType" in merged else None) is not None else "",
+                    "atype": (merged["availability_type"] if "availability_type" in merged else None) if (merged["availability_type"] if "availability_type" in merged else None) is not None else "",
                     "up": now,
                 },
             )

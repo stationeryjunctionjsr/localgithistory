@@ -1,812 +1,813 @@
+from app.models.base import CamelBaseModel
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, Optional, Dict, List
 from datetime import datetime
 from app.models.schemas import TicketResponseItemInternal, SocialMedia
 from app.models.daos import CustomerSegmentFilters
 
-class ReturnSettingsInternal(BaseModel):
+class ReturnSettingsInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    returnDays: Optional[int] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    return_days: Optional[int] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class ReturnSettingsInternalCreate(BaseModel):
+class ReturnSettingsInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    returnDays: Optional[int] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    return_days: Optional[int] = None
 
-class ReturnSettingsInternalUpdate(BaseModel):
+class ReturnSettingsInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    returnDays: Optional[int] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    return_days: Optional[int] = None
 
-class SchemeInternal(BaseModel):
+class SchemeInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
-    discountType: Optional[str] = None
-    discountValue: Optional[float] = None
-    minOrderValue: Optional[float] = None
-    validFrom: Optional[str] = None
-    validUntil: Optional[str] = None
-    isActive: Optional[bool] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    min_purchase_amount: Optional[float] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    is_active: Optional[bool] = None
     code: Optional[str] = None
-    applicableRoles: Optional[List[str]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    applicable_roles: Optional[List[str]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class SchemeInternalCreate(BaseModel):
+class SchemeInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
-    discountType: Optional[str] = None
-    discountValue: Optional[float] = None
-    minOrderValue: Optional[float] = None
-    validFrom: Optional[str] = None
-    validUntil: Optional[str] = None
-    isActive: Optional[bool] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    min_purchase_amount: Optional[float] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    is_active: Optional[bool] = None
     code: Optional[str] = None
-    applicableRoles: Optional[List[str]] = None
+    applicable_roles: Optional[List[str]] = None
 
-class SchemeInternalUpdate(BaseModel):
+class SchemeInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
-    discountType: Optional[str] = None
-    discountValue: Optional[float] = None
-    minOrderValue: Optional[float] = None
-    validFrom: Optional[str] = None
-    validUntil: Optional[str] = None
-    isActive: Optional[bool] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    min_purchase_amount: Optional[float] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    is_active: Optional[bool] = None
     code: Optional[str] = None
-    applicableRoles: Optional[List[str]] = None
+    applicable_roles: Optional[List[str]] = None
 
-class ContactInternal(BaseModel):
+class ContactInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     email: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
-    displayOrder: Optional[int] = None
+    is_active: Optional[bool] = None
+    display_order: Optional[int] = None
     addresses: Optional[List[str]] = None
-    phoneNumbers: Optional[List[str]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-    socialMedia: Optional[SocialMedia] = None
+    phone_numbers: Optional[List[str]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    social_media: Optional[SocialMedia] = None
 
-class ContactInternalCreate(BaseModel):
+class ContactInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     email: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
-    displayOrder: Optional[int] = None
+    is_active: Optional[bool] = None
+    display_order: Optional[int] = None
     addresses: Optional[List[str]] = None
-    phoneNumbers: Optional[List[str]] = None
-    socialMedia: Optional[SocialMedia] = None
+    phone_numbers: Optional[List[str]] = None
+    social_media: Optional[SocialMedia] = None
 
-class ContactInternalUpdate(BaseModel):
+class ContactInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     email: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
-    displayOrder: Optional[int] = None
+    is_active: Optional[bool] = None
+    display_order: Optional[int] = None
     addresses: Optional[List[str]] = None
-    phoneNumbers: Optional[List[str]] = None
-    socialMedia: Optional[SocialMedia] = None
+    phone_numbers: Optional[List[str]] = None
+    social_media: Optional[SocialMedia] = None
 
-class OrderFeedbackInternal(BaseModel):
+class OrderFeedbackInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     comment: Optional[str] = None
-    deliveryComment: Optional[str] = None
-    deliveryRating: Optional[int] = None
-    feedbackType: Optional[str] = None
-    orderId: Optional[str] = None
+    delivery_comment: Optional[str] = None
+    delivery_rating: Optional[int] = None
+    feedback_type: Optional[str] = None
+    order_id: Optional[str] = None
     rating: Optional[int] = None
-    userId: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    user_id: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class OrderFeedbackInternalCreate(BaseModel):
+class OrderFeedbackInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     comment: Optional[str] = None
-    deliveryComment: Optional[str] = None
-    deliveryRating: Optional[int] = None
-    feedbackType: Optional[str] = None
-    orderId: Optional[str] = None
+    delivery_comment: Optional[str] = None
+    delivery_rating: Optional[int] = None
+    feedback_type: Optional[str] = None
+    order_id: Optional[str] = None
     rating: Optional[int] = None
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
 
-class OrderFeedbackInternalUpdate(BaseModel):
+class OrderFeedbackInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     comment: Optional[str] = None
-    deliveryComment: Optional[str] = None
-    deliveryRating: Optional[int] = None
-    feedbackType: Optional[str] = None
-    orderId: Optional[str] = None
+    delivery_comment: Optional[str] = None
+    delivery_rating: Optional[int] = None
+    feedback_type: Optional[str] = None
+    order_id: Optional[str] = None
     rating: Optional[int] = None
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
 
-class PromoStripsInternal(BaseModel):
+class PromoStripsInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
     text: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
-    zoneIds: Optional[List[str]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    zone_ids: Optional[List[str]] = None
 
-class DeviceKeyInternal(BaseModel):
+class DeviceKeyInternal(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     key: str
     value: str
 
-class DeviceSubscriptionInternal(BaseModel):
+class DeviceSubscriptionInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
     endpoint: Optional[str] = None
-    expoToken: Optional[str] = None
+    expo_token: Optional[str] = None
     keys: Optional[List[DeviceKeyInternal]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class DeviceSubscriptionInternalCreate(BaseModel):
+class DeviceSubscriptionInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    userId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    user_id: Optional[str] = None
     endpoint: Optional[str] = None
-    expoToken: Optional[str] = None
-    keys: Optional[List[DeviceKeyInternal]] = None
-
-class DeviceSubscriptionInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    userId: Optional[str] = None
-    endpoint: Optional[str] = None
-    expoToken: Optional[str] = None
+    expo_token: Optional[str] = None
     keys: Optional[List[DeviceKeyInternal]] = None
 
-class CollectionInternal(BaseModel):
+class DeviceSubscriptionInternalUpdate(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    external_id: Optional[str] = Field(None, alias='externalId')
+    user_id: Optional[str] = None
+    endpoint: Optional[str] = None
+    expo_token: Optional[str] = None
+    keys: Optional[List[DeviceKeyInternal]] = None
+
+class CollectionInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
-    externalId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = None
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    isActive: Optional[bool] = None
-    displayOrder: Optional[int] = None
-    visiblePages: Optional[List[str]] = None
-    userSegments: Optional[List[str]] = None
+    image_url: Optional[str] = None
+    is_active: Optional[bool] = None
+    display_order: Optional[int] = None
+    visible_pages: Optional[List[str]] = None
+    user_segments: Optional[List[str]] = None
     visibilityRules: Optional[List[Any]] = None
-    productIds: Optional[List[str]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    product_ids: Optional[List[str]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class CollectionInternalCreate(BaseModel):
+class CollectionInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    externalId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    isActive: Optional[bool] = None
-    displayOrder: Optional[int] = None
-    visiblePages: Optional[List[str]] = None
-    userSegments: Optional[List[str]] = None
+    image_url: Optional[str] = None
+    is_active: Optional[bool] = None
+    display_order: Optional[int] = None
+    visible_pages: Optional[List[str]] = None
+    user_segments: Optional[List[str]] = None
     visibilityRules: Optional[List[Any]] = None
-    productIds: Optional[List[str]] = None
+    product_ids: Optional[List[str]] = None
 
-class CollectionInternalUpdate(BaseModel):
+class CollectionInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    externalId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    isActive: Optional[bool] = None
-    displayOrder: Optional[int] = None
-    visiblePages: Optional[List[str]] = None
-    userSegments: Optional[List[str]] = None
+    image_url: Optional[str] = None
+    is_active: Optional[bool] = None
+    display_order: Optional[int] = None
+    visible_pages: Optional[List[str]] = None
+    user_segments: Optional[List[str]] = None
     visibilityRules: Optional[List[Any]] = None
-    productIds: Optional[List[str]] = None
+    product_ids: Optional[List[str]] = None
 
-class SearchTagInternal(BaseModel):
+class SearchTagInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    tagId: Optional[str] = None
+    tag_id: Optional[str] = None
     name: Optional[str] = None
     type: Optional[str] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
     categories: Optional[List[str]] = None
-    subCategories: Optional[List[str]] = None
+    sub_categories: Optional[List[str]] = None
     brands: Optional[List[str]] = None
     collections: Optional[List[str]] = None
-    productIds: Optional[List[str]] = None
-    excludedProductIds: Optional[List[str]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    product_ids: Optional[List[str]] = None
+    excluded_product_ids: Optional[List[str]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class SearchTagInternalCreate(BaseModel):
+class SearchTagInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    tagId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    tag_id: Optional[str] = None
     name: Optional[str] = None
     type: Optional[str] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
     categories: Optional[List[str]] = None
-    subCategories: Optional[List[str]] = None
+    sub_categories: Optional[List[str]] = None
     brands: Optional[List[str]] = None
     collections: Optional[List[str]] = None
-    productIds: Optional[List[str]] = None
-    excludedProductIds: Optional[List[str]] = None
+    product_ids: Optional[List[str]] = None
+    excluded_product_ids: Optional[List[str]] = None
 
-class SearchTagInternalUpdate(BaseModel):
+class SearchTagInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    tagId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    tag_id: Optional[str] = None
     name: Optional[str] = None
     type: Optional[str] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
     categories: Optional[List[str]] = None
-    subCategories: Optional[List[str]] = None
+    sub_categories: Optional[List[str]] = None
     brands: Optional[List[str]] = None
     collections: Optional[List[str]] = None
-    productIds: Optional[List[str]] = None
-    excludedProductIds: Optional[List[str]] = None
+    product_ids: Optional[List[str]] = None
+    excluded_product_ids: Optional[List[str]] = None
 
-class CoachMarkInternal(BaseModel):
+class CoachMarkInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    anchorId: Optional[str] = None
+    anchor_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
-    screenName: Optional[str] = None
-    sequenceOrder: Optional[int] = None
-    isActive: Optional[bool] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    screen_name: Optional[str] = None
+    sequence_order: Optional[int] = None
+    is_active: Optional[bool] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class CoachMarkInternalCreate(BaseModel):
+class CoachMarkInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    anchorId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    anchor_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
-    screenName: Optional[str] = None
-    sequenceOrder: Optional[int] = None
-    isActive: Optional[bool] = None
+    screen_name: Optional[str] = None
+    sequence_order: Optional[int] = None
+    is_active: Optional[bool] = None
 
-class CoachMarkInternalUpdate(BaseModel):
+class CoachMarkInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    anchorId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    anchor_id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None
-    screenName: Optional[str] = None
-    sequenceOrder: Optional[int] = None
-    isActive: Optional[bool] = None
+    screen_name: Optional[str] = None
+    sequence_order: Optional[int] = None
+    is_active: Optional[bool] = None
 
-class CategoryTagInternal(BaseModel):
+class CategoryTagInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    is_active: Optional[bool] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class CategoryTagInternalCreate(BaseModel):
+class CategoryTagInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
 
-class CategoryTagInternalUpdate(BaseModel):
+class CategoryTagInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
 
-class DeliveryChargeTierInternal(BaseModel):
+class DeliveryChargeTierInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     min: Optional[float] = None
     max: Optional[float] = None
     charge: Optional[float] = None
 
-class DeliveryChargeInternal(BaseModel):
+class DeliveryChargeInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    locationId: Optional[int] = None
+    location_id: Optional[int] = None
     pincode: Optional[str] = None
     state: Optional[str] = None
     city: Optional[str] = None
     district: Optional[str] = None
-    applyDefaultCharge: Optional[bool] = None
+    apply_default_charge: Optional[bool] = None
     charge: Optional[float] = None
-    minCartValue: Optional[float] = None
-    serviceableForCustomer: Optional[bool] = None
-    serviceableForWholesaler: Optional[bool] = None
-    isActive: Optional[bool] = None
+    min_cart_value: Optional[float] = None
+    serviceable_for_customer: Optional[bool] = None
+    serviceable_for_wholesaler: Optional[bool] = None
+    is_active: Optional[bool] = None
     description: Optional[str] = None
-    urgentDeliveryAvailable: Optional[bool] = None
-    urgentDeliveryCharge: Optional[float] = None
+    urgent_delivery_available: Optional[bool] = None
+    urgent_delivery_charge: Optional[float] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class DeliveryChargeInternalCreate(BaseModel):
+class DeliveryChargeInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    locationId: Optional[int] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    location_id: Optional[int] = None
     pincode: Optional[str] = None
     state: Optional[str] = None
     city: Optional[str] = None
     district: Optional[str] = None
-    applyDefaultCharge: Optional[bool] = None
+    apply_default_charge: Optional[bool] = None
     charge: Optional[float] = None
-    minCartValue: Optional[float] = None
-    serviceableForCustomer: Optional[bool] = None
-    serviceableForWholesaler: Optional[bool] = None
-    isActive: Optional[bool] = None
+    min_cart_value: Optional[float] = None
+    serviceable_for_customer: Optional[bool] = None
+    serviceable_for_wholesaler: Optional[bool] = None
+    is_active: Optional[bool] = None
     description: Optional[str] = None
-    urgentDeliveryAvailable: Optional[bool] = None
-    urgentDeliveryCharge: Optional[float] = None
+    urgent_delivery_available: Optional[bool] = None
+    urgent_delivery_charge: Optional[float] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
-class DeliveryChargeInternalUpdate(BaseModel):
+class DeliveryChargeInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    locationId: Optional[int] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    location_id: Optional[int] = None
     pincode: Optional[str] = None
     state: Optional[str] = None
     city: Optional[str] = None
     district: Optional[str] = None
-    applyDefaultCharge: Optional[bool] = None
+    apply_default_charge: Optional[bool] = None
     charge: Optional[float] = None
-    minCartValue: Optional[float] = None
-    serviceableForCustomer: Optional[bool] = None
-    serviceableForWholesaler: Optional[bool] = None
-    isActive: Optional[bool] = None
+    min_cart_value: Optional[float] = None
+    serviceable_for_customer: Optional[bool] = None
+    serviceable_for_wholesaler: Optional[bool] = None
+    is_active: Optional[bool] = None
     description: Optional[str] = None
-    urgentDeliveryAvailable: Optional[bool] = None
-    urgentDeliveryCharge: Optional[float] = None
+    urgent_delivery_available: Optional[bool] = None
+    urgent_delivery_charge: Optional[float] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
-class DeliveryChargeDefaultInternal(BaseModel):
+class DeliveryChargeDefaultInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    applicableToWholesaler: Optional[bool] = None
-    applicableToRetailer: Optional[bool] = None
+    applicable_to_wholesaler: Optional[bool] = None
+    applicable_to_retailer: Optional[bool] = None
     charge: Optional[float] = None
-    urgentDeliveryAvailable: Optional[bool] = None
-    urgentDeliveryCharge: Optional[float] = None
-    isActive: Optional[bool] = None
+    urgent_delivery_available: Optional[bool] = None
+    urgent_delivery_charge: Optional[float] = None
+    is_active: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class DeliveryChargeDefaultInternalCreate(BaseModel):
+class DeliveryChargeDefaultInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    applicableToWholesaler: Optional[bool] = None
-    applicableToRetailer: Optional[bool] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    applicable_to_wholesaler: Optional[bool] = None
+    applicable_to_retailer: Optional[bool] = None
     charge: Optional[float] = None
-    urgentDeliveryAvailable: Optional[bool] = None
-    urgentDeliveryCharge: Optional[float] = None
-    isActive: Optional[bool] = None
+    urgent_delivery_available: Optional[bool] = None
+    urgent_delivery_charge: Optional[float] = None
+    is_active: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
-class DeliveryChargeDefaultInternalUpdate(BaseModel):
+class DeliveryChargeDefaultInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    applicableToWholesaler: Optional[bool] = None
-    applicableToRetailer: Optional[bool] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    applicable_to_wholesaler: Optional[bool] = None
+    applicable_to_retailer: Optional[bool] = None
     charge: Optional[float] = None
-    urgentDeliveryAvailable: Optional[bool] = None
-    urgentDeliveryCharge: Optional[float] = None
-    isActive: Optional[bool] = None
+    urgent_delivery_available: Optional[bool] = None
+    urgent_delivery_charge: Optional[float] = None
+    is_active: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
-class DeliveryZoneInternal(BaseModel):
+class DeliveryZoneInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     description: Optional[str] = None
-    defaultCapacity: Optional[int] = None
-    urgentDeliveryAvailable: Optional[bool] = None
-    customerType: Optional[str] = None
-    isActive: Optional[bool] = None
+    default_capacity: Optional[int] = None
+    urgent_delivery_available: Optional[bool] = None
+    customer_type: Optional[str] = None
+    is_active: Optional[bool] = None
     pincodes: Optional[List[str]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class DeliveryZoneInternalCreate(BaseModel):
+class DeliveryZoneInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
-    defaultCapacity: Optional[int] = None
-    urgentDeliveryAvailable: Optional[bool] = None
-    customerType: Optional[str] = None
-    isActive: Optional[bool] = None
+    default_capacity: Optional[int] = None
+    urgent_delivery_available: Optional[bool] = None
+    customer_type: Optional[str] = None
+    is_active: Optional[bool] = None
     pincodes: Optional[List[str]] = None
 
-class DeliveryZoneInternalUpdate(BaseModel):
+class DeliveryZoneInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
-    defaultCapacity: Optional[int] = None
-    urgentDeliveryAvailable: Optional[bool] = None
-    customerType: Optional[str] = None
-    isActive: Optional[bool] = None
+    default_capacity: Optional[int] = None
+    urgent_delivery_available: Optional[bool] = None
+    customer_type: Optional[str] = None
+    is_active: Optional[bool] = None
     pincodes: Optional[List[str]] = None
 
-class DeliverySlotInternal(BaseModel):
+class DeliverySlotInternal(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = None
-    startTime: Optional[str] = None
-    endTime: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
     capacity: Optional[int] = None
-    bookedCount: Optional[int] = 0
-    isFullDay: Optional[bool] = False
-    isUrgent: Optional[bool] = False
-    cutoffHours: Optional[int] = None
-    urgentCutoffHours: Optional[int] = None
-    isActive: Optional[bool] = True
+    booked_count: Optional[int] = 0
+    is_full_day: Optional[bool] = False
+    is_urgent: Optional[bool] = False
+    cutoff_hours: Optional[int] = None
+    urgent_cutoff_hours: Optional[int] = None
+    is_active: Optional[bool] = True
 
-class DeliverySlotConfigInternal(BaseModel):
+class DeliverySlotConfigInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     segment: Optional[str] = None
     date: Optional[str] = None
-    zoneId: Optional[str] = None
-    isActive: Optional[bool] = None
+    zone_id: Optional[str] = None
+    is_active: Optional[bool] = None
     slots: Optional[List[DeliverySlotInternal]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class DeliverySlotConfigInternalCreate(BaseModel):
+class DeliverySlotConfigInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     segment: Optional[str] = None
     date: Optional[str] = None
-    zoneId: Optional[str] = None
-    isActive: Optional[bool] = None
+    zone_id: Optional[str] = None
+    is_active: Optional[bool] = None
     slots: Optional[List[DeliverySlotInternal]] = None
 
-class DeliverySlotConfigInternalUpdate(BaseModel):
+class DeliverySlotConfigInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     segment: Optional[str] = None
     date: Optional[str] = None
-    zoneId: Optional[str] = None
-    isActive: Optional[bool] = None
+    zone_id: Optional[str] = None
+    is_active: Optional[bool] = None
     slots: Optional[List[DeliverySlotInternal]] = None
-    updatedAt: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class CustomerSegmentInternal(BaseModel):
+class CustomerSegmentInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    externalId: Optional[str] = None
+    external_id: Optional[str] = None
     type: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
-    isSystem: Optional[bool] = None
+    is_active: Optional[bool] = None
+    is_system: Optional[bool] = None
     filters: Optional[CustomerSegmentFilters] = None
-    userIds: Optional[List[str]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    user_ids: Optional[List[str]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class CustomerSegmentInternalCreate(BaseModel):
+class CustomerSegmentInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     type: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
-    isSystem: Optional[bool] = None
+    is_active: Optional[bool] = None
+    is_system: Optional[bool] = None
     filters: Optional[CustomerSegmentFilters] = None
-    userIds: Optional[List[str]] = None
+    user_ids: Optional[List[str]] = None
 
-class CustomerSegmentInternalUpdate(BaseModel):
+class CustomerSegmentInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
     filters: Optional[CustomerSegmentFilters] = None
-    userIds: Optional[List[str]] = None
-    updatedAt: Optional[str] = None
+    user_ids: Optional[List[str]] = None
+    updated_at: Optional[str] = None
 
-class CouponQuantityTierInternal(BaseModel):
+class CouponQuantityTierInternal(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    minQuantity: Optional[int] = None
-    discountValue: Optional[float] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    min_quantity: Optional[int] = None
+    discount_value: Optional[float] = None
 
-class CouponUserUsageInternal(BaseModel):
-    userId: str
-    usageCount: int
+class CouponUserUsageInternal(CamelBaseModel):
+    user_id: str
+    usage_count: int
 
-class CouponInternal(BaseModel):
+class CouponInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    externalId: Optional[str] = None
+    external_id: Optional[str] = None
     code: Optional[str] = None
-    discountType: Optional[str] = None
-    discountValue: Optional[float] = None
-    minOrderValue: Optional[float] = None
-    maxUses: Optional[int] = None
-    usedCount: Optional[int] = None
-    validFrom: Optional[str] = None
-    validUntil: Optional[str] = None
-    isActive: Optional[bool] = None
-    typeOfDiscount: Optional[str] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    min_purchase_amount: Optional[float] = None
+    usage_limit: Optional[int] = None
+    used_count: Optional[int] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    is_active: Optional[bool] = None
+    type_of_discount: Optional[str] = None
     method: Optional[str] = None
-    minRequirementType: Optional[str] = None
-    minQuantityOfEligibleItems: Optional[int] = None
+    min_requirement_type: Optional[str] = None
+    min_quantity_of_eligible_items: Optional[int] = None
     
-    maxDiscountAmount: Optional[float] = None
-    appliesToType: Optional[str] = None
+    max_discount_amount: Optional[float] = None
+    applies_to_type: Optional[str] = None
     
-    displayId: Optional[str] = None
-    buyXGetYCustomerGetsAppliesToType: Optional[str] = None
-    buyXGetYCustomerGetsQuantity: Optional[int] = None
-    buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
-    buyXGetYCustomerGetsDiscountType: Optional[str] = None
-    buyXGetYCustomerGetsDiscountValue: Optional[float] = None
-    applicableItemType: Optional[str] = None
-    couponMode: Optional[str] = None
-    maxUsagePerUser: Optional[int] = None
-    userUsages: Optional[List[CouponUserUsageInternal]] = None
-    userBehavior: Optional[str] = None
+    display_id: Optional[str] = None
+    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = None
+    buy_x_get_y_customer_gets_quantity: Optional[int] = None
+    buy_x_get_y_customer_gets_applies_to_value_ids: Optional[List[str]] = None
+    buy_x_get_y_customer_gets_discount_type: Optional[str] = None
+    buy_x_get_y_customer_gets_discount_value: Optional[float] = None
+    applicable_item_type: Optional[str] = None
+    coupon_mode: Optional[str] = None
+    max_usage_per_user: Optional[int] = None
+    user_usages: Optional[List[CouponUserUsageInternal]] = None
+    user_behavior: Optional[str] = None
 
     
-    quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
-    applicableRoles: Optional[List[str]] = None
-    applicableUserIds: Optional[List[str]] = None
-    applicablePaymentMethods: Optional[List[str]] = None
-    shippingPincodes: Optional[List[str]] = None
-    applicableCategories: Optional[List[str]] = None
-    appliesToValueIds: Optional[List[str]] = None
-    excludedProductIds: Optional[List[str]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    quantity_tiers: Optional[List[CouponQuantityTierInternal]] = None
+    applicable_roles: Optional[List[str]] = None
+    applicable_user_ids: Optional[List[str]] = None
+    applicable_payment_methods: Optional[List[str]] = None
+    shipping_pincodes: Optional[List[str]] = None
+    applicable_categories: Optional[List[str]] = None
+    applies_to_value_ids: Optional[List[str]] = None
+    excluded_product_ids: Optional[List[str]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class CouponInternalCreate(BaseModel):
+class CouponInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     code: Optional[str] = None
-    discountType: Optional[str] = None
-    discountValue: Optional[float] = None
-    minOrderValue: Optional[float] = None
-    maxUses: Optional[int] = None
-    usedCount: Optional[int] = None
-    validFrom: Optional[str] = None
-    validUntil: Optional[str] = None
-    isActive: Optional[bool] = None
-    typeOfDiscount: Optional[str] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    min_purchase_amount: Optional[float] = None
+    usage_limit: Optional[int] = None
+    used_count: Optional[int] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    is_active: Optional[bool] = None
+    type_of_discount: Optional[str] = None
     method: Optional[str] = None
-    minRequirementType: Optional[str] = None
-    minQuantityOfEligibleItems: Optional[int] = None
+    min_requirement_type: Optional[str] = None
+    min_quantity_of_eligible_items: Optional[int] = None
     
-    maxDiscountAmount: Optional[float] = None
-    appliesToType: Optional[str] = None
+    max_discount_amount: Optional[float] = None
+    applies_to_type: Optional[str] = None
     
-    displayId: Optional[str] = None
-    buyXGetYCustomerGetsAppliesToType: Optional[str] = None
-    buyXGetYCustomerGetsQuantity: Optional[int] = None
-    buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
-    buyXGetYCustomerGetsDiscountType: Optional[str] = None
-    buyXGetYCustomerGetsDiscountValue: Optional[float] = None
-    applicableItemType: Optional[str] = None
-    couponMode: Optional[str] = None
-    maxUsagePerUser: Optional[int] = None
-    userUsages: Optional[List[CouponUserUsageInternal]] = None
-    userBehavior: Optional[str] = None
+    display_id: Optional[str] = None
+    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = None
+    buy_x_get_y_customer_gets_quantity: Optional[int] = None
+    buy_x_get_y_customer_gets_applies_to_value_ids: Optional[List[str]] = None
+    buy_x_get_y_customer_gets_discount_type: Optional[str] = None
+    buy_x_get_y_customer_gets_discount_value: Optional[float] = None
+    applicable_item_type: Optional[str] = None
+    coupon_mode: Optional[str] = None
+    max_usage_per_user: Optional[int] = None
+    user_usages: Optional[List[CouponUserUsageInternal]] = None
+    user_behavior: Optional[str] = None
 
     
-    quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
-    applicableRoles: Optional[List[str]] = None
-    applicableUserIds: Optional[List[str]] = None
-    applicablePaymentMethods: Optional[List[str]] = None
-    shippingPincodes: Optional[List[str]] = None
-    applicableCategories: Optional[List[str]] = None
-    appliesToValueIds: Optional[List[str]] = None
-    excludedProductIds: Optional[List[str]] = None
+    quantity_tiers: Optional[List[CouponQuantityTierInternal]] = None
+    applicable_roles: Optional[List[str]] = None
+    applicable_user_ids: Optional[List[str]] = None
+    applicable_payment_methods: Optional[List[str]] = None
+    shipping_pincodes: Optional[List[str]] = None
+    applicable_categories: Optional[List[str]] = None
+    applies_to_value_ids: Optional[List[str]] = None
+    excluded_product_ids: Optional[List[str]] = None
 
-class CouponInternalUpdate(BaseModel):
+class CouponInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     code: Optional[str] = None
-    discountType: Optional[str] = None
-    discountValue: Optional[float] = None
-    minOrderValue: Optional[float] = None
-    maxUses: Optional[int] = None
-    usedCount: Optional[int] = None
-    validFrom: Optional[str] = None
-    validUntil: Optional[str] = None
-    isActive: Optional[bool] = None
-    typeOfDiscount: Optional[str] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    min_purchase_amount: Optional[float] = None
+    usage_limit: Optional[int] = None
+    used_count: Optional[int] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    is_active: Optional[bool] = None
+    type_of_discount: Optional[str] = None
     method: Optional[str] = None
-    minRequirementType: Optional[str] = None
-    minQuantityOfEligibleItems: Optional[int] = None
+    min_requirement_type: Optional[str] = None
+    min_quantity_of_eligible_items: Optional[int] = None
     
-    maxDiscountAmount: Optional[float] = None
-    appliesToType: Optional[str] = None
+    max_discount_amount: Optional[float] = None
+    applies_to_type: Optional[str] = None
     
-    displayId: Optional[str] = None
-    buyXGetYCustomerGetsAppliesToType: Optional[str] = None
-    buyXGetYCustomerGetsQuantity: Optional[int] = None
-    buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
-    buyXGetYCustomerGetsDiscountType: Optional[str] = None
-    buyXGetYCustomerGetsDiscountValue: Optional[float] = None
-    applicableItemType: Optional[str] = None
-    couponMode: Optional[str] = None
-    maxUsagePerUser: Optional[int] = None
-    userUsages: Optional[List[CouponUserUsageInternal]] = None
-    userBehavior: Optional[str] = None
+    display_id: Optional[str] = None
+    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = None
+    buy_x_get_y_customer_gets_quantity: Optional[int] = None
+    buy_x_get_y_customer_gets_applies_to_value_ids: Optional[List[str]] = None
+    buy_x_get_y_customer_gets_discount_type: Optional[str] = None
+    buy_x_get_y_customer_gets_discount_value: Optional[float] = None
+    applicable_item_type: Optional[str] = None
+    coupon_mode: Optional[str] = None
+    max_usage_per_user: Optional[int] = None
+    user_usages: Optional[List[CouponUserUsageInternal]] = None
+    user_behavior: Optional[str] = None
 
     
-    quantityTiers: Optional[List[CouponQuantityTierInternal]] = None
-    applicableRoles: Optional[List[str]] = None
-    applicableUserIds: Optional[List[str]] = None
-    applicablePaymentMethods: Optional[List[str]] = None
-    shippingPincodes: Optional[List[str]] = None
-    applicableCategories: Optional[List[str]] = None
-    appliesToValueIds: Optional[List[str]] = None
-    excludedProductIds: Optional[List[str]] = None
+    quantity_tiers: Optional[List[CouponQuantityTierInternal]] = None
+    applicable_roles: Optional[List[str]] = None
+    applicable_user_ids: Optional[List[str]] = None
+    applicable_payment_methods: Optional[List[str]] = None
+    shipping_pincodes: Optional[List[str]] = None
+    applicable_categories: Optional[List[str]] = None
+    applies_to_value_ids: Optional[List[str]] = None
+    excluded_product_ids: Optional[List[str]] = None
 
-class PromoStripsInternalCreate(BaseModel):
+class PromoStripsInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    isActive: Optional[bool] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    is_active: Optional[bool] = None
     text: Optional[str] = None
-    zoneIds: Optional[List[str]] = None
+    zone_ids: Optional[List[str]] = None
 
-class PromoStripsInternalUpdate(BaseModel):
+class PromoStripsInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    isActive: Optional[bool] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    is_active: Optional[bool] = None
     text: Optional[str] = None
-    zoneIds: Optional[List[str]] = None
+    zone_ids: Optional[List[str]] = None
 
-class PushNotificationsInternal(BaseModel):
+class PushNotificationsInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     title: Optional[str] = None
     message: Optional[str] = None
     link: Optional[str] = None
     image: Optional[str] = None
     status: Optional[str] = None
-    scheduledFor: Optional[str] = None
-    deliveredCount: Optional[int] = None
-    readCount: Optional[int] = None
-    userSegment: Optional[str] = None
-    userBehavior: Optional[str] = None
-    createdBy: Optional[str] = None
+    scheduled_for: Optional[str] = None
+    delivered_count: Optional[int] = None
+    read_count: Optional[int] = None
+    user_segment: Optional[str] = None
+    user_behavior: Optional[str] = None
+    created_by: Optional[str] = None
     targetedUserIds: Optional[List[str]] = None
     readByUserIds: Optional[List[str]] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
-class PushNotificationsInternalCreate(BaseModel):
+class PushNotificationsInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    createdBy: Optional[str] = None
-    deliveredCount: Optional[int] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    created_by: Optional[str] = None
+    delivered_count: Optional[int] = None
     image: Optional[str] = None
     link: Optional[str] = None
     message: Optional[str] = None
-    readCount: Optional[int] = None
-    scheduledFor: Optional[str] = None
+    read_count: Optional[int] = None
+    scheduled_for: Optional[str] = None
     status: Optional[str] = None
     title: Optional[str] = None
-    userSegment: Optional[str] = None
-    userBehavior: Optional[str] = None
+    user_segment: Optional[str] = None
+    user_behavior: Optional[str] = None
 
-    userSegment: Optional[str] = None
-    userBehavior: Optional[str] = None
-    userBehavior: Optional[str] = None
-    userSegment: Optional[str] = None
+    user_segment: Optional[str] = None
+    user_behavior: Optional[str] = None
+    user_behavior: Optional[str] = None
+    user_segment: Optional[str] = None
 
-class PushNotificationsInternalUpdate(BaseModel):
+class PushNotificationsInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    createdBy: Optional[str] = None
-    deliveredCount: Optional[int] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    created_by: Optional[str] = None
+    delivered_count: Optional[int] = None
     image: Optional[str] = None
     link: Optional[str] = None
     message: Optional[str] = None
-    readCount: Optional[int] = None
-    scheduledFor: Optional[str] = None
+    read_count: Optional[int] = None
+    scheduled_for: Optional[str] = None
     status: Optional[str] = None
     title: Optional[str] = None
-    userBehavior: Optional[str] = None
-    userSegment: Optional[str] = None
+    user_behavior: Optional[str] = None
+    user_segment: Optional[str] = None
 
-class CoachMarksInternalCreate(BaseModel):
+class CoachMarksInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    anchorId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    anchor_id: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
-    screenName: Optional[str] = None
-    sequenceOrder: Optional[int] = None
+    is_active: Optional[bool] = None
+    screen_name: Optional[str] = None
+    sequence_order: Optional[int] = None
     title: Optional[str] = None
 
-class CoachMarksInternalUpdate(BaseModel):
+class CoachMarksInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    anchorId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    anchor_id: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
-    screenName: Optional[str] = None
-    sequenceOrder: Optional[int] = None
+    is_active: Optional[bool] = None
+    screen_name: Optional[str] = None
+    sequence_order: Optional[int] = None
     title: Optional[str] = None
 
-class CategoryTagsInternalCreate(BaseModel):
+class CategoryTagsInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     description: Optional[str] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
     name: Optional[str] = None
 
-class CategoryTagsInternalUpdate(BaseModel):
+class CategoryTagsInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     description: Optional[str] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
     name: Optional[str] = None
 
 class Google_reviewsInternal(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    externalId: Optional[str] = None
+    external_id: Optional[str] = None
     lastUpdated: Optional[str] = None
     method: Optional[str] = None
     rating: Optional[float] = None
     reviewCount: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 class Google_reviewsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     lastUpdated: Optional[str] = None
     method: Optional[str] = None
     rating: Optional[float] = None
@@ -814,7 +815,7 @@ class Google_reviewsInternalCreate(BaseModel):
 
 class Google_reviewsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     lastUpdated: Optional[str] = None
     method: Optional[str] = None
     rating: Optional[float] = None
@@ -822,77 +823,77 @@ class Google_reviewsInternalUpdate(BaseModel):
 
 class StockReservationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     expiresAt: Optional[str] = None
-    productId: Optional[str] = None
+    product_id: Optional[str] = None
     quantity: Optional[int] = None
     status: Optional[str] = None
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
 
 class StockReservationsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     expiresAt: Optional[str] = None
-    productId: Optional[str] = None
+    product_id: Optional[str] = None
     quantity: Optional[int] = None
     status: Optional[str] = None
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
 
 class ProductNotificationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     email: Optional[str] = None
     phone: Optional[str] = None
-    productId: Optional[str] = None
+    product_id: Optional[str] = None
     status: Optional[str] = None
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
 
 class ProductNotificationsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     email: Optional[str] = None
     phone: Optional[str] = None
-    productId: Optional[str] = None
+    product_id: Optional[str] = None
     status: Optional[str] = None
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
 
 class ProductReviewsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    productId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    product_id: Optional[str] = None
     rating: Optional[int] = None
     reviewText: Optional[str] = None
     status: Optional[str] = None
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
     userName: Optional[str] = Field(None, alias='userName')
     classification: Optional[str] = None
 
 class ProductReviewsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    productId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    product_id: Optional[str] = None
     rating: Optional[int] = None
     reviewText: Optional[str] = None
     status: Optional[str] = None
     userName: Optional[str] = Field(None, alias='userName')
     classification: Optional[str] = None
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
 
 class ClassificationTagsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    isActive: Optional[bool] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    is_active: Optional[bool] = None
     name: Optional[str] = None
 
 class ClassificationTagsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    isActive: Optional[bool] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    is_active: Optional[bool] = None
     name: Optional[str] = None
 
 class ReviewClassificationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     category: Optional[str] = None
     confidenceScore: Optional[float] = None
     reviewId: Optional[str] = None
@@ -900,7 +901,7 @@ class ReviewClassificationsInternalCreate(BaseModel):
 
 class ReviewClassificationsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     category: Optional[str] = None
     confidenceScore: Optional[float] = None
     reviewId: Optional[str] = None
@@ -908,7 +909,7 @@ class ReviewClassificationsInternalUpdate(BaseModel):
 
 class AboutUsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     content: Optional[str] = None
     isPublished: Optional[bool] = None
     title: Optional[str] = None
@@ -916,7 +917,7 @@ class AboutUsInternalCreate(BaseModel):
 
 class AboutUsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     content: Optional[str] = None
     isPublished: Optional[bool] = None
     title: Optional[str] = None
@@ -924,41 +925,41 @@ class AboutUsInternalUpdate(BaseModel):
 
 class PrivacyPolicyInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     content: Optional[str] = None
     effectiveDate: Optional[str] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
     version: Optional[str] = None
 
 class PrivacyPolicyInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     content: Optional[str] = None
     effectiveDate: Optional[str] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
     version: Optional[str] = None
 
 class AvailabilityRequestsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     pincode: Optional[str] = None
-    productId: Optional[str] = None
+    product_id: Optional[str] = None
     productName: Optional[str] = None
     userEmail: Optional[str] = None
     userName: Optional[str] = None
 
 class AvailabilityRequestsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     pincode: Optional[str] = None
-    productId: Optional[str] = None
+    product_id: Optional[str] = None
     productName: Optional[str] = None
     userEmail: Optional[str] = None
     userName: Optional[str] = None
 
 class PincodeSearchesInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     isServiceable: Optional[bool] = None
     pincode: Optional[str] = None
     query: Optional[str] = None
@@ -966,7 +967,7 @@ class PincodeSearchesInternalCreate(BaseModel):
 
 class PincodeSearchesInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     isServiceable: Optional[bool] = None
     pincode: Optional[str] = None
     query: Optional[str] = None
@@ -974,7 +975,7 @@ class PincodeSearchesInternalUpdate(BaseModel):
 
 class SystemSettingsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     allowSignups: Optional[bool] = None
     defaultCurrency: Optional[str] = None
     maintenanceMode: Optional[bool] = None
@@ -983,7 +984,7 @@ class SystemSettingsInternalCreate(BaseModel):
 
 class SystemSettingsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     allowSignups: Optional[bool] = None
     defaultCurrency: Optional[str] = None
     maintenanceMode: Optional[bool] = None
@@ -992,20 +993,20 @@ class SystemSettingsInternalUpdate(BaseModel):
 
 class ValetPayoutSettingsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     deliveryChargePerOrder: Optional[float] = None
     returnPickupChargePerOrder: Optional[float] = None
 
 class ValetPayoutSettingsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     deliveryChargePerOrder: Optional[float] = None
     returnPickupChargePerOrder: Optional[float] = None
 
-class SupportTicketInternalCreate(BaseModel):
+class SupportTicketInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    ticketNumber: str
+    external_id: Optional[str] = Field(None, alias='externalId')
+    ticket_number: str
     user: Optional[str] = None
     name: Optional[str] = None
     email: Optional[str] = None
@@ -1017,20 +1018,20 @@ class SupportTicketInternalCreate(BaseModel):
     priority: Optional[str] = "medium"
     status: Optional[str] = "open"
     attachments: Optional[List[str]] = None
-    assignedTo: Optional[str] = None
+    assigned_to: Optional[str] = None
     responses: Optional[List[TicketResponseItemInternal]] = None
-    resolvedAt: Optional[str] = None
-    closedAt: Optional[str] = None
-    createdAt: Optional[str] = None
+    resolved_at: Optional[str] = None
+    closed_at: Optional[str] = None
+    created_at: Optional[str] = None
 
-class SupportTicketInternalUpdate(BaseModel):
+class SupportTicketInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    assignedTo: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    assigned_to: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
-    resolvedAt: Optional[str] = None
-    closedAt: Optional[str] = None
+    resolved_at: Optional[str] = None
+    closed_at: Optional[str] = None
     responses: Optional[List[TicketResponseItemInternal]] = None
 
 from app.models.schemas import TicketResponseItem
@@ -1039,109 +1040,110 @@ class ActivityMetaInternal(BaseModel):
     key: str
     value: str
 
-class ActivityInternalCreate(BaseModel):
-    userId: Optional[str] = None
-    sessionId: Optional[str] = None
+class ActivityInternalCreate(CamelBaseModel):
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
     action: str
-    comment: Optional[str] = None
-    isGuest: Optional[bool] = None
-    userAgent: Optional[str] = None
+    comments: Optional[str] = None
+    is_guest: Optional[bool] = None
+    user_agent: Optional[str] = None
     os: Optional[str] = None
-    osVersion: Optional[str] = None
-    deviceType: Optional[str] = None
+    os_version: Optional[str] = None
+    device_type: Optional[str] = None
     meta: Optional[List[ActivityMetaInternal]] = None
 
-class ActivityInternalUpdate(BaseModel):
-    userId: Optional[str] = None
-    isGuest: Optional[bool] = None
-    comment: Optional[str] = None
+class ActivityInternalUpdate(CamelBaseModel):
+    user_id: Optional[str] = None
+    is_guest: Optional[bool] = None
+    comments: Optional[str] = None
 
-class ActivityInternal(BaseModel):
+from app.models.base import CamelBaseModel
+class ActivityInternal(CamelBaseModel):
     id: str = Field(alias="_id")
-    userId: Optional[str] = None
-    sessionId: Optional[str] = None
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
     action: str
-    comment: Optional[str] = None
-    isGuest: Optional[bool] = None
-    userAgent: Optional[str] = None
+    comments: Optional[str] = None
+    is_guest: Optional[bool] = None
+    user_agent: Optional[str] = None
     os: Optional[str] = None
-    osVersion: Optional[str] = None
-    deviceType: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    os_version: Optional[str] = None
+    device_type: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
     meta: Optional[List[ActivityMetaInternal]] = None
 
-class ReturnRequestItemInternal(BaseModel):
-    productId: str
+class ReturnRequestItemInternal(CamelBaseModel):
+    product_id: str
     quantity: int
     reason: Optional[str] = None
 
-class ReturnRequestValetDeclineInternal(BaseModel):
-    valetId: str
+class ReturnRequestValetDeclineInternal(CamelBaseModel):
+    valet_id: str
     reason: Optional[str] = None
 
-class ReturnRequestInternal(BaseModel):
+class ReturnRequestInternal(CamelBaseModel):
     id: str = Field(alias="_id")
-    returnId: Optional[str] = None
-    orderId: Optional[str] = None
-    userId: Optional[str] = None
-    paymentMethod: Optional[str] = None
-    upiPaymentScreenshot: Optional[str] = None
+    return_id: Optional[str] = None
+    order_id: Optional[str] = None
+    user_id: Optional[str] = None
+    payment_method: Optional[str] = None
+    upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
-    valetId: Optional[str] = None
-    sellerId: Optional[str] = None
-    deliverySlotId: Optional[str] = None
-    deliverySlotConfigId: Optional[str] = None
-    deliverySlotDate: Optional[str] = None
-    pendingValetId: Optional[str] = None
-    valetAssignedAt: Optional[str] = None
-    valetCascadeCount: Optional[int] = None
-    deliveryCharge: Optional[float] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    valet_id: Optional[str] = None
+    seller_id: Optional[str] = None
+    delivery_slot_id: Optional[str] = None
+    delivery_slot_config_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None
+    pending_valet_id: Optional[str] = None
+    valet_assigned_at: Optional[str] = None
+    valet_cascade_count: Optional[int] = None
+    delivery_charge: Optional[float] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
     items: Optional[List[ReturnRequestItemInternal]] = None
-    valetDeclineHistory: Optional[List[ReturnRequestValetDeclineInternal]] = None
+    valet_decline_history: Optional[List[ReturnRequestValetDeclineInternal]] = None
     notes: Optional[str] = None
 
-class ReturnRequestInternalCreate(BaseModel):
-    returnId: Optional[str] = None
-    orderId: Optional[str] = None
-    userId: Optional[str] = None
-    paymentMethod: Optional[str] = None
-    upiPaymentScreenshot: Optional[str] = None
+class ReturnRequestInternalCreate(CamelBaseModel):
+    return_id: Optional[str] = None
+    order_id: Optional[str] = None
+    user_id: Optional[str] = None
+    payment_method: Optional[str] = None
+    upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
-    valetId: Optional[str] = None
-    sellerId: Optional[str] = None
-    deliverySlotId: Optional[str] = None
-    deliverySlotConfigId: Optional[str] = None
-    deliverySlotDate: Optional[str] = None
-    pendingValetId: Optional[str] = None
-    valetAssignedAt: Optional[str] = None
-    valetCascadeCount: Optional[int] = None
-    deliveryCharge: Optional[float] = None
+    valet_id: Optional[str] = None
+    seller_id: Optional[str] = None
+    delivery_slot_id: Optional[str] = None
+    delivery_slot_config_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None
+    pending_valet_id: Optional[str] = None
+    valet_assigned_at: Optional[str] = None
+    valet_cascade_count: Optional[int] = None
+    delivery_charge: Optional[float] = None
     items: Optional[List[ReturnRequestItemInternal]] = None
-    valetDeclineHistory: Optional[List[ReturnRequestValetDeclineInternal]] = None
+    valet_decline_history: Optional[List[ReturnRequestValetDeclineInternal]] = None
     notes: Optional[str] = None
 
-class ReturnRequestInternalUpdate(BaseModel):
+class ReturnRequestInternalUpdate(CamelBaseModel):
     status: Optional[str] = None
-    valetId: Optional[str] = None
-    pendingValetId: Optional[str] = None
-    valetAssignedAt: Optional[str] = None
-    valetCascadeCount: Optional[int] = None
-    valetDeclineHistory: Optional[List[ReturnRequestValetDeclineInternal]] = None
+    valet_id: Optional[str] = None
+    pending_valet_id: Optional[str] = None
+    valet_assigned_at: Optional[str] = None
+    valet_cascade_count: Optional[int] = None
+    valet_decline_history: Optional[List[ReturnRequestValetDeclineInternal]] = None
     notes: Optional[str] = None
 
 
-class SellerAvailabilityInternalCreate(BaseModel):
+class SellerAvailabilityInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
-    sellerId: Optional[str] = None
+    seller_id: Optional[str] = None
     status: Optional[str] = None
-    startAt: Optional[str] = None
-    endAt: Optional[str] = None
-    isFullDay: Optional[bool] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    start_at: Optional[str] = None
+    end_at: Optional[str] = None
+    is_full_day: Optional[bool] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 

@@ -22,15 +22,6 @@ class MySQLCommissionSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, r, tiers: List[Dict]) -> Dict:
-        return {
-            "_id": str(r.id),
-            "externalId": r.external_id,
-            "defaultCommissionPct": float(r.default_commission_pct) if r.default_commission_pct is not None else 0.0,
-            "tiers": tiers,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
         factory = self._factory()
@@ -77,7 +68,13 @@ class MySQLCommissionSettingsDAO:
                             }
                         )
 
-        return [CommissionSettings.model_validate(self.__map_to_schema(r, children_map[r.id]) ) for r in rows]
+        out = []
+        for r in rows:
+            d = dict(r._mapping)
+            d["id"] = str(r.id)
+            d["tiers"] = children_map[r.id]
+            out.append(CommissionSettings.model_validate(d))
+        return out
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -113,7 +110,7 @@ class MySQLCommissionSettingsDAO:
                 """),
                 {
                     "external_id": external_id,
-                    "default_commission_pct": (data.defaultCommissionPct if data.defaultCommissionPct is not None else 5.0),
+                    "default_commission_pct": (data.default_commission_pct if data.default_commission_pct is not None else 5.0),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -133,8 +130,8 @@ class MySQLCommissionSettingsDAO:
             return None
             
         pct = existing.default_commission_pct
-        if update_data.defaultCommissionPct is not None:
-            pct = update_data.defaultCommissionPct
+        if update_data.default_commission_pct is not None:
+            pct = update_data.default_commission_pct
             
         now = now_utc()
         factory = self._factory()

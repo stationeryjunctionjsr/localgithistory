@@ -5,30 +5,31 @@ from datetime import datetime
 
 from sqlalchemy import text
 from pydantic import BaseModel
+from app.models.base import CamelBaseModel
 
 from app.config.database import get_async_session_factory
 from app.db.db_utils import now_utc
 
-class EventPayloadItem(BaseModel):
+class EventPayloadItem(CamelBaseModel):
     key: str
     value: str
 
-class EventCreate(BaseModel):
-    eventType: Optional[str] = None
+class EventCreate(CamelBaseModel):
+    event_type: Optional[str] = None
     payload: Optional[List[EventPayloadItem]] = None
     tracking_id: Optional[int] = None
 
-class EventUpdate(BaseModel):
-    eventType: Optional[str] = None
+class EventUpdate(CamelBaseModel):
+    event_type: Optional[str] = None
     payload: Optional[List[EventPayloadItem]] = None
 
-class EventResponse(BaseModel):
+class EventResponse(CamelBaseModel):
     id: str
-    externalId: str
-    eventType: Optional[str] = None
+    external_id: str
+    event_type: Optional[str] = None
     payload: Optional[List[EventPayloadItem]] = None
-    createdAt: Optional[datetime] = None
-    updatedAt: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class MySQLEventsDAO:
     TABLE = "sj_events"
@@ -41,9 +42,9 @@ class MySQLEventsDAO:
         where_clauses = []
         params = {}
         
-        if "eventType" in query:
+        if "event_type" in query:
             where_clauses.append("event_type = :eventType")
-            params["eventType"] = query["eventType"]
+            params["event_type"] = query["event_type"]
             
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         factory = self._factory()
@@ -82,11 +83,11 @@ class MySQLEventsDAO:
         for r in rows:
             result.append(EventResponse(
                 id=str(r.id),
-                externalId=r.external_id,
-                eventType=r.event_type,
+                external_id=r.external_id,
+                event_type=r.event_type,
                 payload=[EventPayloadItem(key=k_camel, value=str(getattr(r, k_db))) for k_db, k_camel in valid_columns.items() if hasattr(r, k_db) and getattr(r, k_db) is not None],
-                createdAt=r.created_at,
-                updatedAt=r.updated_at
+                created_at=r.created_at,
+                updated_at=r.updated_at
             ))
 
             
@@ -132,11 +133,11 @@ class MySQLEventsDAO:
             
         return EventResponse(
             id=str(row.id),
-            externalId=row.external_id,
-            eventType=row.event_type,
+            external_id=row.external_id,
+            event_type=row.event_type,
             payload=payload_list,
-            createdAt=row.created_at,
-            updatedAt=row.updated_at
+            created_at=row.created_at,
+            updated_at=row.updated_at
         )
 
 
@@ -150,10 +151,10 @@ class MySQLEventsDAO:
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
         
-        if getattr(data, "eventType", None) is not None:
+        if getattr(data, "event_type", None) is not None:
             cols.append("event_type")
             vals.append(":eventType")
-            params["eventType"] = data.eventType
+            params["event_type"] = data.event_type
             
         # Map flat payload items if payload exists
         if data.payload is not None:
@@ -212,9 +213,9 @@ class MySQLEventsDAO:
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
         
-        if data.eventType is not None:
+        if data.event_type is not None:
             updates.append("event_type = :eventType")
-            params["eventType"] = data.eventType
+            params["event_type"] = data.event_type
             
         set_sql = ", ".join(updates)
         factory = self._factory()

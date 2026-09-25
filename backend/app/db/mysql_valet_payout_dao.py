@@ -38,9 +38,9 @@ class MySQLValetPayoutDAO:
         query = query or {}
         where_clauses = []
         params = {}
-        if "valetId" in query:
+        if "valet_id" in query:
             where_clauses.append("valet_id = :valetId")
-            params["valetId"] = query["valetId"]
+            params["valet_id"] = query["valet_id"]
         if "status" in query:
             where_clauses.append("status = :status")
             params["status"] = query["status"]
@@ -92,7 +92,7 @@ class MySQLValetPayoutDAO:
         if data.valet_id is not None:
             cols.append("valet_id")
             vals.append(":valetId")
-            params["valetId"] = data.valet_id
+            params["valet_id"] = data.valet_id
         if data.amount is not None:
             cols.append("amount")
             vals.append(":amount")
@@ -100,19 +100,19 @@ class MySQLValetPayoutDAO:
         if data.delivery_count is not None:
             cols.append("delivery_count")
             vals.append(":deliveryCount")
-            params["deliveryCount"] = data.delivery_count
+            params["delivery_count"] = data.delivery_count
         if data.return_count is not None:
             cols.append("return_count")
             vals.append(":returnCount")
-            params["returnCount"] = data.return_count
+            params["return_count"] = data.return_count
         if data.period_start is not None:
             cols.append("period_start")
             vals.append(":periodStart")
-            params["periodStart"] = _parse_dt(data.period_start)
+            params["period_start"] = _parse_dt(data.period_start)
         if data.period_end is not None:
             cols.append("period_end")
             vals.append(":periodEnd")
-            params["periodEnd"] = _parse_dt(data.period_end)
+            params["period_end"] = _parse_dt(data.period_end)
         if data.status is not None:
             cols.append("status")
             vals.append(":status")
@@ -120,23 +120,23 @@ class MySQLValetPayoutDAO:
         if data.payment_method is not None:
             cols.append("payment_method")
             vals.append(":paymentMethod")
-            params["paymentMethod"] = data.payment_method
+            params["payment_method"] = data.payment_method
         if data.payment_reference is not None:
             cols.append("payment_reference")
             vals.append(":paymentReference")
-            params["paymentReference"] = data.payment_reference
+            params["payment_reference"] = data.payment_reference
         if data.admin_paid_at is not None:
             cols.append("admin_paid_at")
             vals.append(":adminPaidAt")
-            params["adminPaidAt"] = _parse_dt(data.admin_paid_at)
+            params["admin_paid_at"] = _parse_dt(data.admin_paid_at)
         if data.admin_paid_by is not None:
             cols.append("admin_paid_by")
             vals.append(":adminPaidBy")
-            params["adminPaidBy"] = data.admin_paid_by
+            params["admin_paid_by"] = data.admin_paid_by
         if data.valet_received_at is not None:
             cols.append("valet_received_at")
             vals.append(":valetReceivedAt")
-            params["valetReceivedAt"] = _parse_dt(data.valet_received_at)
+            params["valet_received_at"] = _parse_dt(data.valet_received_at)
         if data.notes is not None:
             cols.append("notes")
             vals.append(":notes")
@@ -174,18 +174,18 @@ class MySQLValetPayoutDAO:
                     updates.append(f"{db_k} = :{api_k}")
                     params[api_k] = _parse_dt(existing_val) if is_date else existing_val
 
-        _handle_field("valetId", "valet_id", data.valet_id, existing.valet_id)
+        _handle_field("valet_id", "valet_id", data.valet_id, existing.valet_id)
         _handle_field("amount", "amount", data.amount, existing.amount)
-        _handle_field("deliveryCount", "delivery_count", data.delivery_count, existing.delivery_count)
-        _handle_field("returnCount", "return_count", data.return_count, existing.return_count)
-        _handle_field("periodStart", "period_start", data.period_start, existing.period_start, True)
-        _handle_field("periodEnd", "period_end", data.period_end, existing.period_end, True)
+        _handle_field("delivery_count", "delivery_count", data.delivery_count, existing.delivery_count)
+        _handle_field("return_count", "return_count", data.return_count, existing.return_count)
+        _handle_field("period_start", "period_start", data.period_start, existing.period_start, True)
+        _handle_field("period_end", "period_end", data.period_end, existing.period_end, True)
         _handle_field("status", "status", data.status, existing.status)
-        _handle_field("paymentMethod", "payment_method", data.payment_method, existing.payment_method)
-        _handle_field("paymentReference", "payment_reference", data.payment_reference, existing.payment_reference)
-        _handle_field("adminPaidAt", "admin_paid_at", data.admin_paid_at, existing.admin_paid_at, True)
-        _handle_field("adminPaidBy", "admin_paid_by", data.admin_paid_by, existing.admin_paid_by)
-        _handle_field("valetReceivedAt", "valet_received_at", data.valet_received_at, existing.valet_received_at, True)
+        _handle_field("payment_method", "payment_method", data.payment_method, existing.payment_method)
+        _handle_field("payment_reference", "payment_reference", data.payment_reference, existing.payment_reference)
+        _handle_field("admin_paid_at", "admin_paid_at", data.admin_paid_at, existing.admin_paid_at, True)
+        _handle_field("admin_paid_by", "admin_paid_by", data.admin_paid_by, existing.admin_paid_by)
+        _handle_field("valet_received_at", "valet_received_at", data.valet_received_at, existing.valet_received_at, True)
         _handle_field("notes", "notes", data.notes, existing.notes)
 
         set_sql = ", ".join(updates)

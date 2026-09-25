@@ -1,3 +1,4 @@
+from app.models.base import CamelBaseModel
 from typing import List, Optional, Any
 from pydantic import BaseModel, ConfigDict, Field
 from app.models.schemas import (
@@ -6,16 +7,16 @@ from app.models.schemas import (
 )
 from datetime import datetime
 
-class CartItemInternal(BaseModel):
+class CartItemInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     product: Optional[str] = None
     quantity: Optional[int] = 0
-    sellAsCase: Optional[bool] = False
-    bundleId: Optional[str] = None
-    bundleName: Optional[str] = None
+    sell_as_case: Optional[bool] = False
+    bundle_id: Optional[str] = None
+    bundle_name: Optional[str] = None
     price: Optional[float] = None
-    variantAttributes: Optional[VariantAttributes] = None
+    variant_attributes: Optional[VariantAttributes] = None
     id_: Optional[str] = Field(default=None, alias="_id")
 
     @property
@@ -42,73 +43,73 @@ class CartItemInternal(BaseModel):
     def variant_attributes(self) -> Optional[VariantAttributes]:
         return self.variant_attributes
 
-class CartInternalCreate(BaseModel):
+class CartInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     items: Optional[List[CartItemInternal]] = []
 
-class CartInternalUpdate(BaseModel):
+class CartInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     items: Optional[List[CartItemInternal]] = None
 
-class PaymentEntryInternal(BaseModel):
+class PaymentEntryInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    entryId: Optional[int] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    entry_id: Optional[int] = None
     amount: Optional[float] = 0.0
-    paymentMethod: Optional[str] = None
-    paidAt: Optional[str] = None
+    payment_method: Optional[str] = None
+    paid_at: Optional[str] = None
     image: Optional[str] = None
     notes: Optional[str] = None
     verified: Optional[bool] = False
-    createdAt: Optional[Any] = None
+    created_at: Optional[Any] = None
 
-class PaymentInternalCreate(BaseModel):
+class PaymentInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    orderId: Optional[str] = None
-    userId: Optional[str] = None
-    userIdFormatted: Optional[str] = None
-    customerName: Optional[str] = None
-    orderDate: Optional[str] = None
-    paymentMethod: Optional[str] = None
-    amountPaid: Optional[float] = 0.0
-    amountRemaining: Optional[float] = 0.0
-    totalAmount: Optional[float] = 0.0
-    paymentId: Optional[str] = None
-    paymentEntries: Optional[List[PaymentEntryInternal]] = []
-    createdAt: Optional[Any] = None
-    updatedAt: Optional[Any] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    order_id: Optional[str] = None
+    user_id: Optional[str] = None
+    user_id_formatted: Optional[str] = None
+    customer_name: Optional[str] = None
+    order_date: Optional[str] = None
+    payment_method: Optional[str] = None
+    amount_paid: Optional[float] = 0.0
+    amount_remaining: Optional[float] = 0.0
+    total_amount: Optional[float] = 0.0
+    payment_id: Optional[str] = None
+    payment_entries: Optional[List[PaymentEntryInternal]] = []
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None
 
-class PaymentInternalUpdate(BaseModel):
+class PaymentInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    orderId: Optional[str] = None
-    userId: Optional[str] = None
-    userIdFormatted: Optional[str] = None
-    customerName: Optional[str] = None
-    orderDate: Optional[str] = None
-    paymentMethod: Optional[str] = None
-    amountPaid: Optional[float] = None
-    amountRemaining: Optional[float] = None
-    totalAmount: Optional[float] = None
-    paymentId: Optional[str] = None
-    paymentEntries: Optional[List[PaymentEntryInternal]] = None
-    createdAt: Optional[Any] = None
-    updatedAt: Optional[Any] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    order_id: Optional[str] = None
+    user_id: Optional[str] = None
+    user_id_formatted: Optional[str] = None
+    customer_name: Optional[str] = None
+    order_date: Optional[str] = None
+    payment_method: Optional[str] = None
+    amount_paid: Optional[float] = None
+    amount_remaining: Optional[float] = None
+    total_amount: Optional[float] = None
+    payment_id: Optional[str] = None
+    payment_entries: Optional[List[PaymentEntryInternal]] = None
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None
 
 class VisibilityRuleInternal(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     pageType: Optional[str] = None
     pageIds: Optional[List[str]] = None
 
 class BannerInternalCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
@@ -116,17 +117,17 @@ class BannerInternalCreate(BaseModel):
     displayOrder: Optional[int] = 0
     startDate: Optional[datetime] = None
     endDate: Optional[datetime] = None
-    isActive: Optional[bool] = True
+    is_active: Optional[bool] = True
     isPublished: Optional[bool] = False
     targetAudience: Optional[str] = None
-    userSegments: Optional[List[str]] = []
-    visibilityRules: Optional[List[VisibilityRuleSnippet]] = []
+    user_segments: Optional[List[str]] = []
+    visibility_rules: Optional[List[VisibilityRuleSnippet]] = []
     position: Optional[str] = None
     zoneIds: Optional[List[str]] = None
 
 class BannerInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     title: Optional[str] = None
     description: Optional[str] = None
     imageUrl: Optional[str] = None
@@ -134,99 +135,99 @@ class BannerInternalUpdate(BaseModel):
     displayOrder: Optional[int] = None
     startDate: Optional[datetime] = None
     endDate: Optional[datetime] = None
-    isActive: Optional[bool] = None
-    salesCount: Optional[int] = None
-    updatedAt: Optional[Any] = None
+    is_active: Optional[bool] = None
+    sales_count: Optional[int] = None
+    updated_at: Optional[Any] = None
     isPublished: Optional[bool] = None
     targetAudience: Optional[str] = None
-    userSegments: Optional[List[str]] = None
-    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
+    user_segments: Optional[List[str]] = None
+    visibility_rules: Optional[List[VisibilityRuleSnippet]] = None
     position: Optional[str] = None
     zoneIds: Optional[List[str]] = None
 
 class BannerChildrenData(BaseModel):
-    userSegments: Optional[List[str]] = None
-    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
+    user_segments: Optional[List[str]] = None
+    visibility_rules: Optional[List[VisibilityRuleSnippet]] = None
 
-class SellerPayoutInternalCreate(BaseModel):
+class SellerPayoutInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    sellerId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    seller_id: Optional[str] = None
     amount: Optional[float] = 0.0
-    periodStart: Optional[str] = None
-    periodEnd: Optional[str] = None
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
     status: Optional[str] = 'pending_payment'
-    paymentMethod: Optional[str] = None
-    paymentReference: Optional[str] = None
-    adminPaidAt: Optional[str] = None
-    adminPaidBy: Optional[str] = None
-    sellerReceivedAt: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
+    admin_paid_at: Optional[str] = None
+    admin_paid_by: Optional[str] = None
+    seller_received_at: Optional[str] = None
     notes: Optional[str] = None
-    subOrderIds: Optional[List[str]] = []
+    sub_order_ids: Optional[List[str]] = []
 
-class SellerPayoutInternalUpdate(BaseModel):
+class SellerPayoutInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    sellerId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    seller_id: Optional[str] = None
     amount: Optional[float] = None
-    periodStart: Optional[str] = None
-    periodEnd: Optional[str] = None
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
     status: Optional[str] = None
-    paymentMethod: Optional[str] = None
-    paymentReference: Optional[str] = None
-    adminPaidAt: Optional[str] = None
-    adminPaidBy: Optional[str] = None
-    sellerReceivedAt: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
+    admin_paid_at: Optional[str] = None
+    admin_paid_by: Optional[str] = None
+    seller_received_at: Optional[str] = None
     notes: Optional[str] = None
-    subOrderIds: Optional[List[str]] = None
+    sub_order_ids: Optional[List[str]] = None
 
-class ValetPayoutInternalCreate(BaseModel):
+class ValetPayoutInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    valetId: Optional[str] = None
+    valet_id: Optional[str] = None
     amount: Optional[float] = 0.0
-    deliveryCount: Optional[int] = 0
-    returnCount: Optional[int] = 0
-    periodStart: Optional[str] = None
-    periodEnd: Optional[str] = None
+    delivery_count: Optional[int] = 0
+    return_count: Optional[int] = 0
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
     status: Optional[str] = 'pending_payment'
-    paymentMethod: Optional[str] = None
-    paymentReference: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
     notes: Optional[str] = None
-    adminPaidAt: Optional[str] = None
-    adminPaidBy: Optional[str] = None
-    valetReceivedAt: Optional[str] = None
+    admin_paid_at: Optional[str] = None
+    admin_paid_by: Optional[str] = None
+    valet_received_at: Optional[str] = None
 
-class ValetPayoutInternalUpdate(BaseModel):
+class ValetPayoutInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    valetId: Optional[str] = None
+    valet_id: Optional[str] = None
     amount: Optional[float] = None
-    deliveryCount: Optional[int] = None
-    returnCount: Optional[int] = None
-    periodStart: Optional[str] = None
-    periodEnd: Optional[str] = None
+    delivery_count: Optional[int] = None
+    return_count: Optional[int] = None
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
     status: Optional[str] = None
-    paymentMethod: Optional[str] = None
-    paymentReference: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
     notes: Optional[str] = None
-    adminPaidAt: Optional[str] = None
-    adminPaidBy: Optional[str] = None
-    valetReceivedAt: Optional[str] = None
+    admin_paid_at: Optional[str] = None
+    admin_paid_by: Optional[str] = None
+    valet_received_at: Optional[str] = None
 
-class ValetAvailabilityInternalCreate(BaseModel):
+class ValetAvailabilityInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    valetId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    valet_id: Optional[str] = None
     date: Optional[str] = None
-    availabilityType: Optional[str] = None
+    availability_type: Optional[str] = None
     slots: Optional[List[str]] = []
     zones: Optional[List[str]] = []
 
-class ValetAvailabilityInternalUpdate(BaseModel):
+class ValetAvailabilityInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    valetId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    valet_id: Optional[str] = None
     date: Optional[str] = None
-    availabilityType: Optional[str] = None
+    availability_type: Optional[str] = None
     slots: Optional[List[str]] = None
     zones: Optional[List[str]] = None
 
@@ -245,20 +246,20 @@ class DeviceSnippet(BaseModel):
     model: Optional[str] = None
     fcmToken: Optional[str] = None
 
-class SessionInternalCreate(BaseModel):
+class SessionInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
-    userId: Optional[str] = None
-    deviceInfo: Optional[DeviceSnippet] = None
-    ipAddress: Optional[str] = None
-    refreshTokenId: Optional[str] = None
+    user_id: Optional[str] = None
+    device_info: Optional[DeviceSnippet] = None
+    ip_address: Optional[str] = None
+    refresh_token_id: Optional[str] = None
     status: Optional[str] = None
-    lastActiveAt: Optional[str] = None
-    revokedAt: Optional[str] = None
-    revokedReason: Optional[str] = None
+    last_active_at: Optional[str] = None
+    revoked_at: Optional[str] = None
+    revoked_reason: Optional[str] = None
     device: Optional[DeviceSnippet] = None
-    isGuest: Optional[bool] = None
+    is_guest: Optional[bool] = None
     comment: Optional[str] = None
     id: Optional[str] = None
     user_id: Optional[str] = None
@@ -270,26 +271,26 @@ class SessionInternalCreate(BaseModel):
     created_at: Optional[Any] = None
     updated_at: Optional[Any] = None
 
-class SessionInternalUpdate(BaseModel):
+class SessionInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
-    userId: Optional[str] = None
-    deviceInfo: Optional[DeviceSnippet] = None
-    ipAddress: Optional[str] = None
-    isActive: Optional[bool] = None
-    salesCount: Optional[int] = None
-    updatedAt: Optional[Any] = None
-    refreshTokenId: Optional[str] = None
+    user_id: Optional[str] = None
+    device_info: Optional[DeviceSnippet] = None
+    ip_address: Optional[str] = None
+    is_active: Optional[bool] = None
+    sales_count: Optional[int] = None
+    updated_at: Optional[Any] = None
+    refresh_token_id: Optional[str] = None
     status: Optional[str] = None
-    lastActiveAt: Optional[str] = None
-    revokedAt: Optional[str] = None
-    revokedReason: Optional[str] = None
+    last_active_at: Optional[str] = None
+    revoked_at: Optional[str] = None
+    revoked_reason: Optional[str] = None
     device: Optional[DeviceSnippet] = None
-    isGuest: Optional[bool] = None
+    is_guest: Optional[bool] = None
     comment: Optional[str] = None
     id_: Optional[str] = Field(default=None, alias="_id")
-    createdAt: Optional[Any] = None
+    created_at: Optional[Any] = None
     external_id: Optional[str] = None
     comments: Optional[str] = None
     eid: Optional[str] = None
@@ -307,37 +308,37 @@ class SessionInternalUpdate(BaseModel):
     updated_at: Optional[Any] = None
 
 
-class WishlistItemInternal(BaseModel):
+class WishlistItemInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id_: Optional[str] = Field(default=None, alias="_id")
     product: str
     quantity: Optional[int] = 1
     addedAt: Optional[str] = None
 
-class WishlistInternalCreate(BaseModel):
+class WishlistInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     user: str
     items: Optional[List[WishlistItemInternal]] = []
 
-class WishlistInternalUpdate(BaseModel):
+class WishlistInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     items: Optional[List[WishlistItemInternal]] = None
 
 class TrackingInternalCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    orderId: str
+    external_id: Optional[str] = Field(None, alias='externalId')
+    order_id: str
     status: str
     details: Optional[str] = None
 
 class TrackingInternalUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    orderId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    order_id: Optional[str] = None
     status: Optional[str] = None
     details: Optional[str] = None
 
@@ -347,10 +348,10 @@ class BusinessDetailsInternal(BaseModel):
     panNumber: Optional[str] = None
     address: Optional[str] = None
 
-class SellerRequestInternalCreate(BaseModel):
+class SellerRequestInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    requestNumber: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    request_number: Optional[str] = None
     user: str
     subject: Optional[str] = None
     description: Optional[str] = None
@@ -359,15 +360,15 @@ class SellerRequestInternalCreate(BaseModel):
     status: str = "open"
     attachments: Optional[List[str]] = None
     responses: Optional[List['TicketResponseItem']] = None
-    resolvedAt: Optional[str] = None
-    closedAt: Optional[str] = None
-    createdAt: Optional[Any] = None
-    businessDetails: Optional[BusinessDetailsInternal] = None
+    resolved_at: Optional[str] = None
+    closed_at: Optional[str] = None
+    created_at: Optional[Any] = None
+    business_details: Optional[BusinessDetailsInternal] = None
 
-class SellerRequestInternalUpdate(BaseModel):
+class SellerRequestInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    requestNumber: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    request_number: Optional[str] = None
     user: Optional[str] = None
     subject: Optional[str] = None
     description: Optional[str] = None
@@ -376,265 +377,265 @@ class SellerRequestInternalUpdate(BaseModel):
     status: Optional[str] = None
     attachments: Optional[List[str]] = None
     responses: Optional[List['TicketResponseItem']] = None
-    resolvedAt: Optional[str] = None
-    closedAt: Optional[str] = None
-    createdAt: Optional[Any] = None
-    businessDetails: Optional[BusinessDetailsInternal] = None
+    resolved_at: Optional[str] = None
+    closed_at: Optional[str] = None
+    created_at: Optional[Any] = None
+    business_details: Optional[BusinessDetailsInternal] = None
 
 
-class ProductInternalCreate(BaseModel):
+class ProductInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: str
     description: Optional[str] = None
     price: float
     mrp: Optional[float] = None
-    categoryId: str = "1"
-    brandId: Optional[str] = None
+    category_id: str = "1"
+    brand_id: Optional[str] = None
     images: List[str] = []
-    isActive: bool = True
-    isSystem: bool = False
-    sellerId: Optional[str] = None
+    is_active: bool = True
+    is_system: bool = False
+    seller_id: Optional[str] = None
     sku: Optional[str] = None
     category: Optional[str] = None
-    subCategory: Optional[str] = None
+    sub_category: Optional[str] = None
     brand: Optional[str] = None
-    mrpPerCase: Optional[float] = None
-    pricePerCase: Optional[float] = None
-    itemsPerCase: Optional[int] = None
-    isReturnable: Optional[bool] = None
-    createdAt: Optional[Any] = None
-    updatedAt: Optional[Any] = None
-    minimumQuantity: Optional[int] = 1
-    searchTags: Optional[List[str]] = []
-    salesCount: Optional[int] = 0
-    viewCount: Optional[int] = 0
-    isNewArrival: Optional[bool] = False
-    newArrivalUntil: Optional[str] = None
+    mrp_per_case: Optional[float] = None
+    price_per_case: Optional[float] = None
+    items_per_case: Optional[int] = None
+    is_returnable: Optional[bool] = None
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None
+    minimum_quantity: Optional[int] = 1
+    search_tags: Optional[List[str]] = []
+    sales_count: Optional[int] = 0
+    view_count: Optional[int] = 0
+    is_new_arrival: Optional[bool] = False
+    new_arrival_until: Optional[str] = None
     sellers: Optional[List[ProductSellerEntry]] = []
     stock: Optional[int] = 0
-    productId: Optional[int] = None
+    product_id: Optional[int] = None
     productIdFormatted: Optional[str] = None
     unit: Optional[str] = "pc"
     tags: Optional[List[str]] = []
     thumbnail: Optional[str] = None
     variants: Optional[List[VariantOption]] = []
-    variantAttributes: Optional[List[str]] = []
+    variant_attributes: Optional[List[str]] = []
     details: Optional[ProductDetails] = None
     videos: Optional[List[str]] = []
-    quantityPerCase: Optional[int] = None
+    quantity_per_case: Optional[int] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
     isExclusive: Optional[bool] = None
     collection: Optional[str] = None
     catalogSellerIds: Optional[List[str]] = None
 
-class ProductInternalUpdate(BaseModel):
+class ProductInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     sellers: Optional[List[ProductSellerEntry]] = None
     sku: Optional[str] = None
     category: Optional[str] = None
-    subCategory: Optional[str] = None
+    sub_category: Optional[str] = None
     brand: Optional[str] = None
-    mrpPerCase: Optional[float] = None
-    quantityPerCase: Optional[int] = None
+    mrp_per_case: Optional[float] = None
+    quantity_per_case: Optional[int] = None
     stock: Optional[int] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
     videos: Optional[List[str]] = None
     tags: Optional[List[str]] = None
-    variantAttributes: Optional[List[str]] = None
+    variant_attributes: Optional[List[str]] = None
     variants: Optional[List[VariantOption]] = None
     details: Optional[ProductDetails] = None
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
     mrp: Optional[float] = None
-    categoryId: Optional[str] = None
-    brandId: Optional[str] = None
+    category_id: Optional[str] = None
+    brand_id: Optional[str] = None
     images: Optional[List[str]] = None
-    isActive: Optional[bool] = None
-    salesCount: Optional[int] = None
-    updatedAt: Optional[Any] = None
-    sellerId: Optional[str] = None
+    is_active: Optional[bool] = None
+    sales_count: Optional[int] = None
+    updated_at: Optional[Any] = None
+    seller_id: Optional[str] = None
 
-class CategoryInternalCreate(BaseModel):
+class CategoryInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: str
     description: Optional[str] = None
     parentId: Optional[str] = None
-    isActive: bool = True
-    isSystem: bool = False
+    is_active: bool = True
+    is_system: bool = False
     images: Optional[List[str]] = []
     subCategories: Optional[List[str]] = []
-    minimumQuantity: Optional[int] = 1
-    categoryTag: Optional[str] = None
+    minimum_quantity: Optional[int] = 1
+    category_tag: Optional[str] = None
     categoryTags: Optional[List[str]] = []
     showInMobileHomepage: Optional[bool] = False
     gst: Optional[float] = None
     isReturnable: Optional[bool] = True
 
-class CategoryChildrenData(BaseModel):
+class CategoryChildrenData(CamelBaseModel):
     images: Optional[List[str]] = None
-    subCategories: Optional[List[str]] = None
-    categoryTags: Optional[List[str]] = None
+    sub_categories: Optional[List[str]] = None
+    category_tags: Optional[List[str]] = None
 
-class CategoryInternalUpdate(BaseModel):
+class CategoryInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
     parentId: Optional[str] = None
-    isActive: Optional[bool] = None
-    salesCount: Optional[int] = None
-    updatedAt: Optional[Any] = None
+    is_active: Optional[bool] = None
+    sales_count: Optional[int] = None
+    updated_at: Optional[Any] = None
     images: Optional[List[str]] = None
-    subCategories: Optional[List[str]] = None
-    minimumQuantity: Optional[int] = 1
-    categoryTag: Optional[str] = None
-    categoryTags: Optional[List[str]] = None
-    showInMobileHomepage: Optional[bool] = None
+    sub_categories: Optional[List[str]] = None
+    minimum_quantity: Optional[int] = 1
+    category_tag: Optional[str] = None
+    category_tags: Optional[List[str]] = None
+    show_in_mobile_homepage: Optional[bool] = None
     gst: Optional[float] = None
-    isReturnable: Optional[bool] = None
-    createdAt: Optional[Any] = None
+    is_returnable: Optional[bool] = None
+    created_at: Optional[Any] = None
 
 class BrandInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: str
     description: Optional[str] = None
-    isActive: bool = True
-    isSystem: bool = False
+    is_active: bool = True
+    is_system: bool = False
     logoUrl: Optional[str] = None
     showInMobileHomepage: Optional[bool] = False
 
 class BrandInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
-    salesCount: Optional[int] = None
-    updatedAt: Optional[Any] = None
+    is_active: Optional[bool] = None
+    sales_count: Optional[int] = None
+    updated_at: Optional[Any] = None
     slug: Optional[str] = None
     logoUrl: Optional[str] = None
-    showInMobileHomepage: Optional[bool] = None
+    show_in_mobile_homepage: Optional[bool] = None
 
 
-class BundleItemInternal(BaseModel):
-    productId: str
-    productName: Optional[str] = None
+class BundleItemInternal(CamelBaseModel):
+    product_id: str
+    product_name: Optional[str] = None
     quantity: int
     price: Optional[float] = None
-    discountPrice: Optional[float] = None
+    discount_price: Optional[float] = None
 
-class BundleInternalCreate(BaseModel):
+class BundleInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = None
     name: str
     items: Optional[List[BundleItemInternal]] = []
     products: Optional[List[BundleItemInternal]] = []
-    salesCount: Optional[int] = 0
+    sales_count: Optional[int] = 0
     price: float
-    isActive: bool = True
-    isSystem: bool = False
+    is_active: bool = True
+    is_system: bool = False
 
-class BundleInternalUpdate(BaseModel):
+class BundleInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = None
     name: Optional[str] = None
     items: Optional[List[BundleItemInternal]] = None
     price: Optional[float] = None
-    isActive: Optional[bool] = None
-    salesCount: Optional[int] = None
-    updatedAt: Optional[Any] = None
+    is_active: Optional[bool] = None
+    sales_count: Optional[int] = None
+    updated_at: Optional[Any] = None
 
-class ReturnRequestInternalCreate(BaseModel):
+class ReturnRequestInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(default=None, alias="_id")
-    returnId: Optional[str] = None
-    orderId: Optional[str] = None
-    userId: Optional[str] = None
+    return_id: Optional[str] = None
+    order_id: Optional[str] = None
+    user_id: Optional[str] = None
     items: Optional[List['ReturnItemSchema']] = []
-    paymentMethod: Optional[str] = None
-    upiPaymentScreenshot: Optional[str] = None
+    payment_method: Optional[str] = None
+    upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = "pending"
-    sellerId: Optional[str] = None
-    deliverySlotId: Optional[str] = None
-    deliverySlotConfigId: Optional[str] = None
-    deliverySlotDate: Optional[str] = None
-    valetId: Optional[str] = None
-    pendingValetId: Optional[str] = None
-    valetAssignedAt: Optional[str] = None
-    valetCascadeCount: Optional[int] = 0
-    valetDeclineHistory: Optional[List['ValetDeclineHistoryEntry']] = []
-    valetAcceptedAt: Optional[str] = None
-    valetDeclinedAt: Optional[str] = None
-    valetDeclineReason: Optional[str] = None
-    deliveryCharge: Optional[float] = 0.0
-    createdAt: Optional[Any] = None
-    updatedAt: Optional[Any] = None
+    seller_id: Optional[str] = None
+    delivery_slot_id: Optional[str] = None
+    delivery_slot_config_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None
+    valet_id: Optional[str] = None
+    pending_valet_id: Optional[str] = None
+    valet_assigned_at: Optional[str] = None
+    valet_cascade_count: Optional[int] = 0
+    valet_decline_history: Optional[List['ValetDeclineHistoryEntry']] = []
+    valet_accepted_at: Optional[str] = None
+    valet_declined_at: Optional[str] = None
+    valet_decline_reason: Optional[str] = None
+    delivery_charge: Optional[float] = 0.0
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None
 
-class ReturnRequestInternalUpdate(BaseModel):
+class ReturnRequestInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
-    orderId: Optional[str] = None
-    userId: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias='externalId')
+    order_id: Optional[str] = None
+    user_id: Optional[str] = None
     items: Optional[List['ReturnItemSchema']] = None
-    paymentMethod: Optional[str] = None
-    upiPaymentScreenshot: Optional[str] = None
+    payment_method: Optional[str] = None
+    upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
-    sellerId: Optional[str] = None
-    deliverySlotId: Optional[str] = None
-    deliverySlotConfigId: Optional[str] = None
-    deliverySlotDate: Optional[str] = None
-    valetId: Optional[str] = None
-    pendingValetId: Optional[str] = None
-    valetAssignedAt: Optional[str] = None
-    valetCascadeCount: Optional[int] = None
-    valetDeclineHistory: Optional[List['ValetDeclineHistoryEntry']] = None
-    valetAcceptedAt: Optional[str] = None
-    valetDeclinedAt: Optional[str] = None
-    valetDeclineReason: Optional[str] = None
-    deliveryCharge: Optional[float] = None
-    updatedAt: Optional[Any] = None
+    seller_id: Optional[str] = None
+    delivery_slot_id: Optional[str] = None
+    delivery_slot_config_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None
+    valet_id: Optional[str] = None
+    pending_valet_id: Optional[str] = None
+    valet_assigned_at: Optional[str] = None
+    valet_cascade_count: Optional[int] = None
+    valet_decline_history: Optional[List['ValetDeclineHistoryEntry']] = None
+    valet_accepted_at: Optional[str] = None
+    valet_declined_at: Optional[str] = None
+    valet_decline_reason: Optional[str] = None
+    delivery_charge: Optional[float] = None
+    updated_at: Optional[Any] = None
 
-class ReturnRequestInternal(BaseModel):
+class ReturnRequestInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
-    externalId: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(default=None, alias="_id")
-    returnId: Optional[str] = None
-    orderId: Optional[str] = None
-    userId: Optional[str] = None
+    return_id: Optional[str] = None
+    order_id: Optional[str] = None
+    user_id: Optional[str] = None
     items: Optional[List['ReturnItemSchema']] = []
-    paymentMethod: Optional[str] = None
-    upiPaymentScreenshot: Optional[str] = None
+    payment_method: Optional[str] = None
+    upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = "pending"
-    sellerId: Optional[str] = None
-    deliverySlotId: Optional[str] = None
-    deliverySlotConfigId: Optional[str] = None
-    deliverySlotDate: Optional[str] = None
-    valetId: Optional[str] = None
-    pendingValetId: Optional[str] = None
-    valetAssignedAt: Optional[str] = None
-    valetCascadeCount: Optional[int] = 0
-    valetDeclineHistory: Optional[List['ValetDeclineHistoryEntry']] = []
-    valetAcceptedAt: Optional[str] = None
-    valetDeclinedAt: Optional[str] = None
-    valetDeclineReason: Optional[str] = None
-    deliveryCharge: Optional[float] = 0.0
-    createdAt: Optional[Any] = None
-    updatedAt: Optional[Any] = None
+    seller_id: Optional[str] = None
+    delivery_slot_id: Optional[str] = None
+    delivery_slot_config_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None
+    valet_id: Optional[str] = None
+    pending_valet_id: Optional[str] = None
+    valet_assigned_at: Optional[str] = None
+    valet_cascade_count: Optional[int] = 0
+    valet_decline_history: Optional[List['ValetDeclineHistoryEntry']] = []
+    valet_accepted_at: Optional[str] = None
+    valet_declined_at: Optional[str] = None
+    valet_decline_reason: Optional[str] = None
+    delivery_charge: Optional[float] = 0.0
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None
 
 from app.models.schemas import TicketResponseItem, ProductSellerEntry, VariantOption, ReturnItemSchema, ValetDeclineHistoryEntry
 
-class CustomerSegmentFilters(BaseModel):
+class CustomerSegmentFilters(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     minOrderCount: Optional[int] = None
     maxOrderCount: Optional[int] = None
@@ -643,59 +644,59 @@ class CustomerSegmentFilters(BaseModel):
     city: Optional[str] = None
     role: Optional[str] = None
 
-class CustomerSegmentInternalCreate(BaseModel):
+class CustomerSegmentInternalCreate(CamelBaseModel):
     id: str = Field(alias="_id")
     name: str
     type: str
     userIds: List[str]
     filters: Optional[CustomerSegmentFilters] = None
-    isActive: bool = True
-    isSystem: bool = False
-    createdAt: Optional[Any] = None
-    updatedAt: Optional[Any] = None
+    is_active: bool = True
+    is_system: bool = False
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None
     lastRefreshedAt: Optional[str] = None
 
-class CustomerSegmentInternalUpdate(BaseModel):
+class CustomerSegmentInternalUpdate(CamelBaseModel):
     name: Optional[str] = None
     userIds: Optional[List[str]] = None
     filters: Optional[CustomerSegmentFilters] = None
-    isActive: Optional[bool] = None
-    updatedAt: Optional[Any] = None
+    is_active: Optional[bool] = None
+    updated_at: Optional[Any] = None
     lastRefreshedAt: Optional[str] = None
 
-class NotificationInternalCreate(BaseModel):
+class NotificationInternalCreate(CamelBaseModel):
     id: str = Field(alias="_id")
-    userId: str
+    user_id: str
     type: str
     title: str
     message: str
     metadata: Optional[NotificationMetadata] = None
-    isRead: bool = False
-    isAcknowledged: bool = False
-    createdAt: Optional[Any] = None
-    updatedAt: Optional[Any] = None
+    is_read: bool = False
+    is_acknowledged: bool = False
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None
 
-class NotificationInternalUpdate(BaseModel):
-    isRead: Optional[bool] = None
-    isAcknowledged: Optional[bool] = None
-    updatedAt: Optional[Any] = None
+class NotificationInternalUpdate(CamelBaseModel):
+    is_read: Optional[bool] = None
+    is_acknowledged: Optional[bool] = None
+    updated_at: Optional[Any] = None
 
 class NotificationFilter(BaseModel):
-    userId: Optional[str] = None
-    isRead: Optional[bool] = None
-    isAcknowledged: Optional[bool] = None
+    user_id: Optional[str] = None
+    is_read: Optional[bool] = None
+    is_acknowledged: Optional[bool] = None
     type: Optional[str] = None
     startDate: Optional[str] = None
     endDate: Optional[str] = None
 
-class NotificationInternal(BaseModel):
+class NotificationInternal(CamelBaseModel):
     id: str = Field(alias="_id")
-    userId: str
+    user_id: str
     type: str
     title: str
     message: str
-    isRead: bool
-    isAcknowledged: bool
+    is_read: bool
+    is_acknowledged: bool
     metadata: Optional[NotificationMetadata] = None
-    createdAt: Optional[Any] = None
-    updatedAt: Optional[Any] = None
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None

@@ -24,78 +24,8 @@ class MySQLBannerDAO:
 
     def _factory(self):
         return get_async_session_factory()
-
-    def _map_to_schema(self, r, children: Dict) -> BannerResponse:
-        zone_ids_raw = r._mapping["zone_ids"] if "zone_ids" in r._mapping else None
-        zone_ids = json.loads(zone_ids_raw) if zone_ids_raw else []
-        return BannerResponse(**{
-            "_id": str(r.id),
-            "title": r.title,
-            "description": r.description,
-            "imageUrl": r.image_url,
-            "linkUrl": r.link_url,
-            "displayOrder": r.display_order,
-            "startDate": r.start_date,
-            "endDate": r.end_date,
-            "isActive": bool(r.is_active) if r.is_active is not None else True,
-            "isPublished": bool(r.is_published) if r.is_published is not None else False,
-            "targetAudience": r.target_audience,
-            "position": r.position,
-            "userSegments": children["userSegments"] if "userSegments" in children else [],
-            "visibilityRules": children["visibilityRules"] if "visibilityRules" in children else [],
-            "zoneIds": zone_ids,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        })
-
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {"userSegments": [], "visibilityRules": []} for rid in ids}
-        if not ids:
-            return c_map
-        chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
-        for chunk in chunks:
-            chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
-            placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
-
-            res_us = await session.execute(
-                text(f"SELECT banner_id, segment FROM sj_banner_user_segments WHERE banner_id IN ({placeholders})"),
-                chunk_params,
-            )
-            for r in res_us.fetchall():
-                c_map[r.banner_id]["userSegments"].append(r.segment)
-
-            res_vr = await session.execute(
-                text(f"SELECT banner_id, rule FROM sj_banner_visibility_rules WHERE banner_id IN ({placeholders})"),
-                chunk_params,
-            )
-            for r in res_vr.fetchall():
-                try:
-                    c_map[r.banner_id]["visibilityRules"].append(json.loads(r.rule))
-                except (json.JSONDecodeError, TypeError):
-                    c_map[r.banner_id]["visibilityRules"].append(r.rule)
-        return c_map
-
-    async def _replace_children(self, session, bid: int, data: Dict):
-        await session.execute(text("DELETE FROM sj_banner_user_segments WHERE banner_id = :bid"), {"bid": bid})
-        await session.execute(text("DELETE FROM sj_banner_visibility_rules WHERE banner_id = :bid"), {"bid": bid})
-
-        for seg in (data.user_segments if data.user_segments is not None else []):
-            await session.execute(
-                text("INSERT INTO sj_banner_user_segments (banner_id, segment) VALUES (:bid, :seg)"),
-                {"bid": bid, "seg": str(seg)},
-            )
-
-        for rule in (data.visibility_rules if data.visibility_rules is not None else []):
-            await session.execute(
-                text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
-                {"bid": bid, "rule": json.dumps(rule.model_dump(exclude_unset=True))},
-            )
-
     async def findAll(self, query: Optional[Dict] = None) -> List[BannerResponse]:
         factory = self._factory()
-        if not factory:
-            return []
-
         where_clauses = []
         params = {}
         if query:
@@ -103,24 +33,34 @@ class MySQLBannerDAO:
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
                     params["id"] = int(v) if str(v).isdigit() else None
-                elif k == "isActive":
+                elif k == "is_active":
                     where_clauses.append("is_active = :is_active")
-                    params["is_active"] = int(bool(v))
-                elif k == "position":
-                    where_clauses.append("position = :pos")
-                    params["pos"] = str(v)
-                elif k == "targetAudience":
-                    where_clauses.append("target_audience = :ta")
-                    params["ta"] = str(v)
-
+                    params["is_active"] = 1 if v else 0
+                elif k == "is_published":
+                    where_clauses.append("is_published = :is_published")
+                    params["is_published"] = 1 if v else 0
+                elif k == "title":
+                    where_clauses.append("title = :title")
+                    params["title"] = v
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params
+                text(f"SELECT id AS _id, external_id, title, description, image_url, link_url, display_order, start_date, end_date, is_active, is_published, target_audience, position, zone_ids, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params
             )
             rows = result.fetchall()
-            c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [self._map_to_schema(r, c_map[r.id]) for r in rows]
+            c_map = await self._fetch_children(session, [r._id for r in rows])
+            
+        import json
+        out = []
+        for r in rows:
+            d = dict(r._mapping)
+            if d.get("zone_ids"):
+                d["zone_ids"] = json.loads(d["zone_ids"])
+            d.update(c_map[r._id])
+            out.append(BannerResponse.model_validate(d))
+        return out
+
 
     async def findOne(self, query: Dict) -> Optional[BannerResponse]:
         docs = await self.findAll(query)
@@ -246,8 +186,8 @@ class MySQLBannerDAO:
             # Need to pass an object with userSegments and visibilityRules for _replace_children
             from app.models.daos import BannerChildrenData
             dummy_merged = BannerChildrenData(
-                userSegments=update_data.user_segments if update_data.user_segments is not None else existing.user_segments,
-                visibilityRules=update_data.visibility_rules if update_data.visibility_rules is not None else existing.visibility_rules
+                user_segments=update_data.user_segments if update_data.user_segments is not None else existing.user_segments,
+                visibility_rules=update_data.visibility_rules if update_data.visibility_rules is not None else existing.visibility_rules
             )
             await self._replace_children(session, bid, dummy_merged)
             await session.commit()

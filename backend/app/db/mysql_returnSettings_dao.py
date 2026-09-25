@@ -35,7 +35,7 @@ class MySQLReturnSettingsDAO:
             conditions = []
             params = {}
             
-            query_map = {'returnDays': 'return_days'}
+            query_map = {'return_days': 'return_days'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLReturnSettingsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'returnDays': 'return_days'}
+            query_map = {'return_days': 'return_days'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -94,7 +94,7 @@ class MySQLReturnSettingsDAO:
 
         if data.return_days is not None:
             cols.append("return_days")
-            params["s_returnDays"] = data.return_days
+            params["s_return_days"] = data.return_days
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['returnDays'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -118,7 +118,7 @@ class MySQLReturnSettingsDAO:
 
         if data.return_days is not None:
             updates.append("return_days = :s_returnDays")
-            params["s_returnDays"] = data.return_days
+            params["s_return_days"] = data.return_days
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -158,25 +158,9 @@ class MySQLReturnSettingsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["returnDays"] = rm["return_days"]
-        for k, v in children.items():
-            out[k] = v
-            
-        return ReturnSettingsInternal(**out)
+        d = dict(r._mapping)
+        d.update(children)
+        return ReturnSettingsInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}

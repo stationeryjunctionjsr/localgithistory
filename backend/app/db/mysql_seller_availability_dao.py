@@ -1,4 +1,4 @@
-# from app.models.daos_flat import SellerAvailabilityInternalCreate
+from app.models.daos_flat import SellerAvailabilityInternalCreate
 import logging
 """
 MySQL DAO for seller availability windows.
@@ -33,13 +33,13 @@ def _to_dt(v) -> Optional[datetime]:
 
 class MySQLSellerAvailabilityDAO:
     _COLUMN_MAP = {
-        "sellerId": "seller_id",
+        "seller_id": "seller_id",
         "status": "status",
-        "startAt": "start_at",
-        "endAt": "end_at",
+        "start_at": "start_at",
+        "end_at": "end_at",
         "reason": "reason",
-        "createdBy": "created_by",
-        "cancelledAt": "cancelled_at",
+        "created_by": "created_by",
+        "cancelled_at": "cancelled_at",
     }
 
     @property
@@ -49,29 +49,8 @@ class MySQLSellerAvailabilityDAO:
     def _get_session_factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> Dict:
-        doc = {
-            "_id": str(row.id),
-            "_db_id": str(row.id),
-        }
-        if row.seller_id:
-            doc["sellerId"] = row.seller_id
-        if row.status:
-            doc["status"] = row.status
-        if row.start_at:
-            doc["startAt"] = row.start_at.isoformat()
-        if row.end_at:
-            doc["endAt"] = row.end_at.isoformat()
-        if row.reason:
-            doc["reason"] = row.reason
-        if row.created_by:
-            doc["createdBy"] = row.created_by
-        if row.cancelled_at:
-            doc["cancelledAt"] = row.cancelled_at.isoformat()
-
-        doc["createdAt"] = row.created_at.isoformat() if row.created_at else _now_iso()
-        doc["updatedAt"] = row.updated_at.isoformat() if row.updated_at else _now_iso()
-        return doc
+    def __map_to_schema(self, row) -> Any:
+        return SellerAvailability.model_validate(dict(row._mapping))
 
     def _build_where(self, query: Dict):
         where_clauses = []
@@ -96,7 +75,7 @@ class MySQLSellerAvailabilityDAO:
                 pass  # Non-existent column, ignore
         return where_clauses, params
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
         factory = self._get_session_factory()
         if not factory:
             return []
@@ -111,14 +90,14 @@ class MySQLSellerAvailabilityDAO:
             )
             return [self.__map_to_schema(r) for r in result.fetchall()]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Any]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Any]:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: SellerAvailabilityInternalCreate) -> Dict:
+    async def create(self, data: SellerAvailabilityInternalCreate) -> Any:
         factory = self._get_session_factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -127,11 +106,11 @@ class MySQLSellerAvailabilityDAO:
             "external_id": secrets.token_hex(16),
             "seller_id": str(data.seller_id or ""),
             "status": (data.status if data.status is not None else "scheduled"),
-            "start_at": _to_dt(data.startAt),
-            "end_at": _to_dt(data.endAt),
+            "start_at": _to_dt(data.start_at),
+            "end_at": _to_dt(data.end_at),
             "reason": data.reason,
             "created_by": data.created_by,
-            "cancelled_at": _to_dt(data.cancelledAt),
+            "cancelled_at": _to_dt(getattr(data, "cancelled_at", None)),
             "created_at": now,
             "updated_at": now,
         }
@@ -145,13 +124,9 @@ class MySQLSellerAvailabilityDAO:
             result = await session.execute(sql, params)
             await session.commit()
             new_id = result.lastrowid
-        created = {**data}
-        created["_id"] = str(new_id)
-        created["createdAt"] = now.isoformat()
-        created["updatedAt"] = now.isoformat()
-        return created
+        return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional[Dict]:
+    async def update(self, id: str, data: Dict) -> Optional[Any]:
         factory = self._get_session_factory()
         if not factory:
             return None
@@ -162,7 +137,7 @@ class MySQLSellerAvailabilityDAO:
         for doc_field, col in self._COLUMN_MAP.items():
             if doc_field in data:
                 set_clauses.append(f"{col} = :{col}")
-                if "At" in doc_field and doc_field != "createdBy":
+                if "_at" in doc_field and doc_field != "created_by":
                     params[col] = _to_dt(data[doc_field])
                 else:
                     params[col] = str(data[doc_field]) if data[doc_field] is not None else None

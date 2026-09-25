@@ -49,8 +49,8 @@ class MySQLSavedForLaterDAO:
             rows = result.fetchall()
         return [
             {
-                "productId": r[0],
-                "savedAt": r[1].isoformat() if r[1] and not isinstance(r[1], str) else None,
+                "product": r[0],
+                "created_at": r[1].isoformat() if r[1] and not isinstance(r[1], str) else None,
             }
             for r in rows
         ]
@@ -102,7 +102,7 @@ class MySQLSavedForLaterDAO:
                 product_id = item.product
                 if not product_id:
                     continue
-                saved_at = _to_ts(item.addedAt) or now
+                saved_at = _to_ts(item.created_at) or now
                 await session.execute(
                     text(
                         f"""
@@ -140,7 +140,7 @@ class MySQLSavedForLaterDAO:
                 product_id = item.product
                 if not product_id:
                     continue
-                saved_at = _to_ts(item.addedAt) or now
+                saved_at = _to_ts(item.created_at) or now
                 await session.execute(
                     text(
                         f"""

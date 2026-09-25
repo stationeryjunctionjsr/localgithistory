@@ -25,23 +25,11 @@ class MySQLSellerRequestDAO:
         return get_async_session_factory()
 
     def _map_row(self, r, children: Dict) -> Dict:
-        return {
-            "_id": str(r.id),
-            "externalId": r.external_id,
-            "requestNumber": r.request_number,
-            "user": r.user_id,
-            "subject": r.subject,
-            "description": r.description,
-            "category": r.category,
-            "priority": r.priority,
-            "status": r.status,
-            "attachments": (children["attachments"] if "attachments" in children else []),
-            "responses": (children["responses"] if "responses" in children else []),
-            "resolvedAt": r.resolved_at.isoformat() if r.resolved_at else None,
-            "closedAt": r.closed_at.isoformat() if r.closed_at else None,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
+        d = dict(r._mapping)
+        d["user"] = d.pop("user_id")
+        d["attachments"] = children.get("attachments", [])
+        d["responses"] = children.get("responses", [])
+        return d
 
     async def _fetch_children(self, session, req_ids: List[int]) -> Dict[int, Dict]:
         children_map = {rid: {"attachments": [], "responses": []} for rid in req_ids}
@@ -190,8 +178,8 @@ class MySQLSellerRequestDAO:
                     "category": (data.category if data.category is not None else "general"),
                     "priority": (data.priority if data.priority is not None else "medium"),
                     "status": (data.status if data.status is not None else "open"),
-                    "resolved_at": to_dt(data.resolvedAt),
-                    "closed_at": to_dt(data.closedAt),
+                    "resolved_at": to_dt(data.resolved_at),
+                    "closed_at": to_dt(data.closed_at),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -243,12 +231,12 @@ class MySQLSellerRequestDAO:
         if update_data.status is not None:
             updates.append("status = :status")
             params["status"] = update_data.status
-        if update_data.resolvedAt is not None:
+        if update_data.resolved_at is not None:
             updates.append("resolved_at = :resolved_at")
-            params["resolved_at"] = to_dt(update_data.resolvedAt)
-        if update_data.closedAt is not None:
+            params["resolved_at"] = to_dt(update_data.resolved_at)
+        if update_data.closed_at is not None:
             updates.append("closed_at = :closed_at")
-            params["closed_at"] = to_dt(update_data.closedAt)
+            params["closed_at"] = to_dt(update_data.closed_at)
             
         set_sql = ", ".join(updates)
 
@@ -269,7 +257,7 @@ class MySQLSellerRequestDAO:
                             "parent_id": params["id"],
                             "user_id": comment.user,
                             "message": comment.message,
-                            "created_at": to_dt(comment.createdAt) or now,
+                            "created_at": to_dt(getattr(comment, "created_at", None)) or now,
                         },
                     )
             await session.commit()

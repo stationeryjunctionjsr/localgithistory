@@ -35,7 +35,7 @@ class MySQLContactsDAO:
             conditions = []
             params = {}
             
-            query_map = {'email': 'email', 'description': 'description', 'isActive': 'is_active', 'displayOrder': 'display_order'}
+            query_map = {'email': 'email', 'description': 'description', 'is_active': 'is_active', 'display_order': 'display_order'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLContactsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'email': 'email', 'description': 'description', 'isActive': 'is_active', 'displayOrder': 'display_order'}
+            query_map = {'email': 'email', 'description': 'description', 'is_active': 'is_active', 'display_order': 'display_order'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -100,28 +100,28 @@ class MySQLContactsDAO:
             cols.append("description")
             params["s_description"] = data.description
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
-        if data.displayOrder is not None:
+        if data.display_order is not None:
             cols.append("display_order")
-            params["s_displayOrder"] = data.displayOrder
+            params["s_display_order"] = data.display_order
 
-        if data.socialMedia is not None:
+        if data.social_media is not None:
             cols.append("social_media")
             import json
-            params["s_socialMedia"] = json.dumps({
-                "instagram": data.socialMedia.instagram,
-                "facebook": data.socialMedia.facebook,
-                "twitter": data.socialMedia.twitter,
-                "whatsapp": data.socialMedia.whatsapp,
-                "youtube": data.socialMedia.youtube,
-                "linkedin": data.socialMedia.linkedin
+            params["s_social_media"] = json.dumps({
+                "instagram": data.social_media.instagram,
+                "facebook": data.social_media.facebook,
+                "twitter": data.social_media.twitter,
+                "whatsapp": data.social_media.whatsapp,
+                "youtube": data.social_media.youtube,
+                "linkedin": data.social_media.linkedin
             })
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['email', 'description', 'isActive', 'displayOrder', 'socialMedia'] if f"s_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['email', 'description', 'is_active', 'display_order', 'social_media'] if f"s_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -148,24 +148,24 @@ class MySQLContactsDAO:
             updates.append("description = :s_description")
             params["s_description"] = data.description
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
-        if data.displayOrder is not None:
+        if data.display_order is not None:
             updates.append("display_order = :s_displayOrder")
-            params["s_displayOrder"] = data.displayOrder
+            params["s_display_order"] = data.display_order
 
-        if data.socialMedia is not None:
+        if data.social_media is not None:
             updates.append("social_media = :s_socialMedia")
             import json
-            params["s_socialMedia"] = json.dumps({
-                "instagram": data.socialMedia.instagram,
-                "facebook": data.socialMedia.facebook,
-                "twitter": data.socialMedia.twitter,
-                "whatsapp": data.socialMedia.whatsapp,
-                "youtube": data.socialMedia.youtube,
-                "linkedin": data.socialMedia.linkedin
+            params["s_social_media"] = json.dumps({
+                "instagram": data.social_media.instagram,
+                "facebook": data.social_media.facebook,
+                "twitter": data.social_media.twitter,
+                "whatsapp": data.social_media.whatsapp,
+                "youtube": data.social_media.youtube,
+                "linkedin": data.social_media.linkedin
             })
 
         if len(updates) > 1:
@@ -210,37 +210,15 @@ class MySQLContactsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["email"] = rm["email"]
-        out["description"] = rm["description"]
-        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
-        out["displayOrder"] = rm["display_order"]
-        if "social_media" in rm and rm["social_media"]:
+        d = dict(r._mapping)
+        if d.get("social_media"):
             import json
             try:
-                parsed = json.loads(rm["social_media"])
-                if parsed:
-                    from app.models.schemas import SocialMedia
-                    out["socialMedia"] = SocialMedia(**parsed)
-            except (json.JSONDecodeError, TypeError):
+                d["social_media"] = json.loads(d["social_media"])
+            except:
                 pass
-        for k, v in children.items():
-            out[k] = v
-            
-        return ContactInternal(**out)
+        d.update(children)
+        return ContactInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}
@@ -258,14 +236,14 @@ class MySQLContactsDAO:
                 c_map[r.parent_id]["addresses"] = []
             c_map[r.parent_id]["addresses"].append(r[1])
 
-        q_phoneNumbers = text(f"SELECT parent_id, phone FROM sj_contact_phones WHERE parent_id IN ({id_list})")
-        res_phoneNumbers = await session.execute(q_phoneNumbers)
-        rows_phoneNumbers = res_phoneNumbers.fetchall()
+        q_phone_numbers = text(f"SELECT parent_id, phone FROM sj_contact_phones WHERE parent_id IN ({id_list})")
+        res_phone_numbers = await session.execute(q_phone_numbers)
+        rows_phone_numbers = res_phone_numbers.fetchall()
 
-        for r in rows_phoneNumbers:
-            if "phoneNumbers" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["phoneNumbers"] = []
-            c_map[r.parent_id]["phoneNumbers"].append(r[1])
+        for r in rows_phone_numbers:
+            if "phone_numbers" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["phone_numbers"] = []
+            c_map[r.parent_id]["phone_numbers"].append(r[1])
 
         return c_map
 
@@ -279,9 +257,9 @@ class MySQLContactsDAO:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_contact_addresses (parent_id, address) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.phoneNumbers is not None:
+        if data.phone_numbers is not None:
             await session.execute(text(f"DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.phoneNumbers or []
+            child_list = data.phone_numbers or []
 
             if child_list:
                 for item in child_list:

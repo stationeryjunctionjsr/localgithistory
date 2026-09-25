@@ -23,49 +23,45 @@ class MySQLFeatureFlagDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, r) -> Dict:
-        return {
-            "_id": str(r.id),
-            "id": r.flag_id,
-            "name": r.name,
-            "description": r.description,
-            "enabled": bool(r.enabled) if r.enabled is not None else True,
-            "category": r.category,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
+    def __map_to_schema(self, r) -> Any:
+        d = dict(r._mapping)
+        return FeatureFlag.model_validate(d)
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[FeatureFlag]:
         factory = self._factory()
         if not factory:
             return []
+            
+        where_clauses = []
+        params = {}
+        if query:
+            for k, v in query.items():
+                if k in ("_id", "id"):
+                    where_clauses.append("id = :id")
+                    params["id"] = int(v) if str(v).isdigit() else None
+                elif k == "flag_id":
+                    where_clauses.append("flag_id = :flag_id")
+                    params["flag_id"] = v
+                elif k == "name":
+                    where_clauses.append("name = :name")
+                    params["name"] = v
+                elif k == "enabled":
+                    where_clauses.append("enabled = :enabled")
+                    params["enabled"] = 1 if v else 0
+                elif k == "category":
+                    where_clauses.append("category = :category")
+                    params["category"] = v
+
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        
         async with factory() as session:
             result = await session.execute(
-                text(
-                    f"""
-                    SELECT id, flag_id, name, description, enabled, category, created_at, updated_at
-                    FROM {self.TABLE}
-                    """
-                )
+                text(f"SELECT id, flag_id, name, description, enabled, category, created_at, updated_at FROM {self.TABLE} WHERE {where_sql}")
+                , params
             )
             rows = result.fetchall()
-        docs = [self.__map_to_schema(r) for r in rows]
-        if not query:
-            return docs
-        filtered: List[Dict] = []
-        for d in docs:
-            match = True
-            for k, v in query.items():
-                if k in ("_id",):
-                    if str(d._id) != str(v):
-                        match = False
-                        break
-                elif (d[k] if k in d else None) != v:
-                    match = False
-                    break
-            if match:
-                filtered.append(d)
-        return filtered
+            
+        return [self.__map_to_schema(r) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -94,7 +90,7 @@ class MySQLFeatureFlagDAO:
         if not factory:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
-        flag_id = data.id or data.flagId or data.flag_id
+        flag_id = data.id or data.flag_id or data.flag_id
         if not flag_id:
             raise ValueError("featureFlags requires `id` (flag_id)")
         async with factory() as session:
@@ -127,7 +123,13 @@ class MySQLFeatureFlagDAO:
         existing = await self.findById(id)
         if not existing:
             return None
-        merged = {**existing, **update_data}
+        
+        flag_id = update_data.flag_id if update_data.flag_id is not None else existing.flag_id
+        name = update_data.name if update_data.name is not None else existing.name
+        description = update_data.description if update_data.description is not None else existing.description
+        enabled = update_data.enabled if update_data.enabled is not None else existing.enabled
+        category = update_data.category if update_data.category is not None else existing.category
+
         factory = self._factory()
         if not factory:
             return None
@@ -149,11 +151,11 @@ class MySQLFeatureFlagDAO:
                 ),
                 {
                     "id": fid,
-                    "flag_id": merged.id,
-                    "name": merged.name,
-                    "description": merged.description,
-                    "enabled": 1 if (merged.enabled if merged.enabled is not None else True) else None,
-                    "category": merged.category,
+                    "flag_id": flag_id,
+                    "name": name,
+                    "description": description,
+                    "enabled": 1 if (enabled if enabled is not None else True) else None,
+                    "category": category,
                     "updated_at": now,
                 },
             )

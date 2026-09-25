@@ -3,54 +3,55 @@ from datetime import datetime
 from typing import Optional, List, Any
 from pydantic import Field, AliasChoices
 from pydantic import BaseModel
+from app.models.base import CamelBaseModel
 from app.models.schemas import VariantOption, ProductSellerEntry, ProductDetails
 
-class Product(BaseModel):
+class Product(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    id: str = Field(alias="_id")
-    product_id: int = Field(alias="productId")
-    product_id_formatted: Optional[str] = Field(default=None, alias="productIdFormatted")
+    id: str 
+    product_id: int 
+    product_id_formatted: Optional[str] = None
     name: str
     description: Optional[str] = None
     sku: Optional[str] = None
     category: Optional[str] = None
-    sub_category: Optional[str] = Field(default=None, alias="subCategory")
+    sub_category: Optional[str] = None
     brand: Optional[str] = None
     mrp: Optional[float] = None
     gst: Optional[float] = None
-    mrp_per_case: Optional[float] = Field(default=None, alias="mrpPerCase")
-    quantity_per_case: Optional[int] = Field(default=None, alias="quantityPerCase")
+    mrp_per_case: Optional[float] = None
+    quantity_per_case: Optional[int] = None
     stock: Optional[int] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
     images: List[str] = []
     videos: List[str] = []
-    is_active: bool = Field(default=True, alias="isActive")
-    is_exclusive: bool = Field(default=False, alias="isExclusive")
+    is_active: bool = Field(default=True)
+    is_exclusive: bool = Field(default=False)
     collection: Optional[str] = None
     tags: List[str] = []
-    variant_attributes: List[str] = Field(default=[], alias="variantAttributes")
+    variant_attributes: List[str] = Field(default=[])
     sellers: List[ProductSellerEntry] = []
     variants: List[VariantOption] = []
     details: Optional[ProductDetails] = None
-    created_at: Optional[datetime] = Field(default=None, alias="createdAt", validation_alias=AliasChoices("createdAt", "created_at"))
-    updated_at: Optional[datetime] = Field(default=None, alias="updatedAt", validation_alias=AliasChoices("updatedAt", "updated_at"))
-    searchTags: Optional[List[str]] = None
-    resolvedCollectionNames: Optional[List[str]] = None
-    previouslyBought: Optional[bool] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    search_tags: Optional[List[str]] = None
+    resolved_collection_names: Optional[List[str]] = None
+    previously_bought: Optional[bool] = None
     
     # Discount fields added dynamically by populate_product_discounts
-    originalPrice: Optional[float] = None
+    original_price: Optional[float] = None
     price: Optional[float] = None
-    defaultDiscountPercentage: Optional[float] = None
-    discountPercentage: Optional[float] = None
-    applicableDiscounts: Optional[List['ApplicableDiscountSnippet']] = None
-    quantityTiers: Optional[List['QuantityTier']] = None
-    quantityItemType: Optional[str] = None
-    displayImage: Optional[str] = None
+    default_discount_percentage: Optional[float] = None
+    discount_percentage: Optional[float] = None
+    applicable_discounts: Optional[List['ApplicableDiscountSnippet']] = None
+    quantity_tiers: Optional[List['QuantityTier']] = None
+    quantity_item_type: Optional[str] = None
+    display_image: Optional[str] = None
 
 
-class ApplicableDiscountSnippet(BaseModel):
+class ApplicableDiscountSnippet(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
     type: Optional[str] = None
     code: Optional[str] = None

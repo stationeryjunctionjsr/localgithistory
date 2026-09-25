@@ -23,13 +23,10 @@ class MySQLWishlistDAO:
         return get_async_session_factory()
 
     def _map_to_schema(self, r, items: List[str]) -> Dict:
-        return {
-            "_id": str(r.id),
-            "user": str(r.user_id),
-            "items": [{"product": p} for p in items],
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
+        d = dict(r._mapping)
+        d["user"] = d.get("user_id")
+        d["items"] = [{"product": p} for p in items]
+        return d
 
     async def _fetch_items(self, session, ids: List[int]) -> Dict[int, List[str]]:
         c_map = {rid: [] for rid in ids}

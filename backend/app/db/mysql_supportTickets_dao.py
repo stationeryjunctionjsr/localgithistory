@@ -35,7 +35,7 @@ class MySQLSupportTicketsDAO:
             conditions = []
             params = {}
             
-            query_map = {'ticketNumber': 'ticket_number', 'user': 'user_id', 'name': 'name', 'email': 'email', 'phone': 'phone', 'company': 'company', 'subject': 'subject', 'description': 'description', 'category': 'category', 'priority': 'priority', 'status': 'status', 'assignedTo': 'assigned_to', 'resolvedAt': 'resolved_at', 'closedAt': 'closed_at'}
+            query_map = {'ticket_number': 'ticket_number', 'user': 'user_id', 'name': 'name', 'email': 'email', 'phone': 'phone', 'company': 'company', 'subject': 'subject', 'description': 'description', 'category': 'category', 'priority': 'priority', 'status': 'status', 'assigned_to': 'assigned_to', 'resolved_at': 'resolved_at', 'closed_at': 'closed_at'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLSupportTicketsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'ticketNumber': 'ticket_number', 'user': 'user_id', 'name': 'name', 'email': 'email', 'phone': 'phone', 'company': 'company', 'subject': 'subject', 'description': 'description', 'category': 'category', 'priority': 'priority', 'status': 'status', 'assignedTo': 'assigned_to', 'resolvedAt': 'resolved_at', 'closedAt': 'closed_at'}
+            query_map = {'ticket_number': 'ticket_number', 'user': 'user_id', 'name': 'name', 'email': 'email', 'phone': 'phone', 'company': 'company', 'subject': 'subject', 'description': 'description', 'category': 'category', 'priority': 'priority', 'status': 'status', 'assigned_to': 'assigned_to', 'resolved_at': 'resolved_at', 'closed_at': 'closed_at'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -92,9 +92,9 @@ class MySQLSupportTicketsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.ticketNumber is not None:
+        if data.ticket_number is not None:
             cols.append("ticket_number")
-            params["s_ticketNumber"] = data.ticketNumber
+            params["s_ticket_number"] = data.ticket_number
 
         if data.user is not None:
             cols.append("user_id")
@@ -136,20 +136,20 @@ class MySQLSupportTicketsDAO:
             cols.append("status")
             params["s_status"] = data.status
 
-        if data.assignedTo is not None:
+        if data.assigned_to is not None:
             cols.append("assigned_to")
-            params["s_assignedTo"] = data.assignedTo
+            params["s_assigned_to"] = data.assigned_to
 
-        if data.resolvedAt is not None:
+        if data.resolved_at is not None:
             cols.append("resolved_at")
-            params["s_resolvedAt"] = data.resolvedAt
+            params["s_resolved_at"] = data.resolved_at
 
-        if data.closedAt is not None:
+        if data.closed_at is not None:
             cols.append("closed_at")
-            params["s_closedAt"] = data.closedAt
+            params["s_closed_at"] = data.closed_at
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['ticketNumber', 'user', 'name', 'email', 'phone', 'company', 'subject', 'description', 'category', 'priority', 'status', 'assignedTo', 'resolvedAt', 'closedAt'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['ticket_number', 'user', 'name', 'email', 'phone', 'company', 'subject', 'description', 'category', 'priority', 'status', 'assigned_to', 'resolved_at', 'closed_at'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -168,9 +168,9 @@ class MySQLSupportTicketsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.ticketNumber is not None:
-            updates.append("ticket_number = :s_ticketNumber")
-            params["s_ticketNumber"] = data.ticketNumber
+        if data.ticket_number is not None:
+            updates.append("ticket_number = :s_ticket_number")
+            params["s_ticket_number"] = data.ticket_number
 
         if data.user is not None:
             updates.append("user_id = :s_user")
@@ -212,17 +212,17 @@ class MySQLSupportTicketsDAO:
             updates.append("status = :s_status")
             params["s_status"] = data.status
 
-        if data.assignedTo is not None:
-            updates.append("assigned_to = :s_assignedTo")
-            params["s_assignedTo"] = data.assignedTo
+        if data.assigned_to is not None:
+            updates.append("assigned_to = :s_assigned_to")
+            params["s_assigned_to"] = data.assigned_to
 
-        if data.resolvedAt is not None:
-            updates.append("resolved_at = :s_resolvedAt")
-            params["s_resolvedAt"] = data.resolvedAt
+        if data.resolved_at is not None:
+            updates.append("resolved_at = :s_resolved_at")
+            params["s_resolved_at"] = data.resolved_at
 
-        if data.closedAt is not None:
-            updates.append("closed_at = :s_closedAt")
-            params["s_closedAt"] = data.closedAt
+        if data.closed_at is not None:
+            updates.append("closed_at = :s_closed_at")
+            params["s_closed_at"] = data.closed_at
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -266,38 +266,12 @@ class MySQLSupportTicketsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["ticketNumber"] = rm["ticket_number"]
-        out["user"] = rm["user_id"]
-        out["name"] = rm["name"]
-        out["email"] = rm["email"]
-        out["phone"] = rm["phone"]
-        out["company"] = rm["company"]
-        out["subject"] = rm["subject"]
-        out["description"] = rm["description"]
-        out["category"] = rm["category"]
-        out["priority"] = rm["priority"]
-        out["status"] = rm["status"]
-        out["assignedTo"] = rm["assigned_to"]
-        out["resolvedAt"] = rm["resolved_at"]
-        out["closedAt"] = rm["closed_at"]
-        for k, v in children.items():
-            out[k] = v
-            
-        return SupportTicketInternal(**out)
+        d = dict(r._mapping)
+        if "attachments" in children:
+            d["attachments"] = children["attachments"]
+        if "responses" in children:
+            d["responses"] = children["responses"]
+        return SupportTicketInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

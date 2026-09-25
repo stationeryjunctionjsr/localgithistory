@@ -35,7 +35,7 @@ class MySQLSearchTagsDAO:
             conditions = []
             params = {}
             
-            query_map = {'tagId': 'tag_id', 'name': 'name', 'type': 'type', 'isActive': 'is_active'}
+            query_map = {'tag_id': 'tag_id', 'name': 'name', 'type': 'type', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLSearchTagsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'tagId': 'tag_id', 'name': 'name', 'type': 'type', 'isActive': 'is_active'}
+            query_map = {'tag_id': 'tag_id', 'name': 'name', 'type': 'type', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -94,7 +94,7 @@ class MySQLSearchTagsDAO:
 
         if data.tag_id is not None:
             cols.append("tag_id")
-            params["s_tagId"] = data.tag_id
+            params["s_tag_id"] = data.tag_id
 
         if data.name is not None:
             cols.append("name")
@@ -104,12 +104,12 @@ class MySQLSearchTagsDAO:
             cols.append("type")
             params["s_type"] = data.type
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['tagId', 'name', 'type', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['tag_id', 'name', 'type', 'is_active'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -130,7 +130,7 @@ class MySQLSearchTagsDAO:
 
         if data.tag_id is not None:
             updates.append("tag_id = :s_tagId")
-            params["s_tagId"] = data.tag_id
+            params["s_tag_id"] = data.tag_id
 
         if data.name is not None:
             updates.append("name = :s_name")
@@ -140,9 +140,9 @@ class MySQLSearchTagsDAO:
             updates.append("type = :s_type")
             params["s_type"] = data.type
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -194,28 +194,20 @@ class MySQLSearchTagsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["tagId"] = rm["tag_id"]
-        out["name"] = rm["name"]
-        out["type"] = rm["type"]
-        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
-        for k, v in children.items():
-            out[k] = v
-            
-        return SearchTagInternal(**out)
+        d = dict(r._mapping)
+        if "subCategories" in children:
+            d["sub_categories"] = children["subCategories"]
+        if "productIds" in children:
+            d["product_ids"] = children["productIds"]
+        if "excludedProductIds" in children:
+            d["excluded_product_ids"] = children["excludedProductIds"]
+        if "categories" in children:
+            d["categories"] = children["categories"]
+        if "brands" in children:
+            d["brands"] = children["brands"]
+        if "collections" in children:
+            d["collections"] = children["collections"]
+        return SearchTagInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

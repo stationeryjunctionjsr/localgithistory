@@ -34,24 +34,10 @@ class MySQLSessionDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_to_schema(self, r) -> Dict:
-        return {
-            "_id": str(r.id),
-            "user": str(r.user_id),
-            "userId": str(r.user_id),
-            "refreshTokenId": r.refresh_token_id,
-            "status": r.status,
-            "lastActiveAt": r.last_active_at.isoformat() if r.last_active_at else None,
-            "revokedAt": r.revoked_at.isoformat() if r.revoked_at else None,
-            "revokedReason": r.revoked_reason,
-            "device": {},
-            "isGuest": bool(r.is_guest) if r.is_guest is not None else False,
-            "comment": r.comments,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        }
+    def _map_to_schema(self, r) -> Any:
+        return Session.model_validate(dict(r._mapping))
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
         factory = self._factory()
         if not factory:
             return []
@@ -69,26 +55,26 @@ class MySQLSessionDAO:
         docs = [self._map_to_schema(r) for r in rows]
         if not query:
             return docs
-        filtered: List[Dict] = []
+        filtered: List[Any] = []
         for d in docs:
             match = True
             for k, v in query.items():
                 if k in ("_id", "id"):
-                    if str(d._id) != str(v):
+                    if str(d.id) != str(v):
                         match = False
                         break
-                elif (d[k] if k in d else None) != v:
+                elif (getattr(d, k, None) if hasattr(d, k) else None) != v:
                     match = False
                     break
             if match:
                 filtered.append(d)
         return filtered
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
+    async def findOne(self, query: Dict) -> Optional[Any]:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
+    async def findById(self, id: str) -> Optional[Any]:
         factory = self._factory()
         if not factory:
             return None
@@ -113,9 +99,9 @@ class MySQLSessionDAO:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
         external_id = secrets.token_hex(16)
-        user_id_raw = data.userId
+        user_id_raw = data.user_id
         user_id = int(user_id_raw) if str(user_id_raw or "").isdigit() else None
-        if user_id is None and data.userId is not None:
+        if user_id is None and data.user_id is not None:
             raise ValueError("Session user must be numeric id when using MySQL")
 
         async with factory() as session:
@@ -134,11 +120,11 @@ class MySQLSessionDAO:
                 {
                     "external_id": external_id,
                     "user_id": user_id,
-                    "refresh_token_id": data.refresh_tokenId,
+                    "refresh_token_id": data.refresh_token_id,
                     "status": data.status,
-                    "last_active_at": _to_ts(data.lastActiveAt),
-                    "revoked_at": _to_ts(data.revokedAt),
-                    "revoked_reason": data.revokedReason,
+                    "last_active_at": _to_ts(data.last_active_at),
+                    "revoked_at": _to_ts(data.revoked_at),
+                    "revoked_reason": data.revoked_reason,
                     "is_guest": 1 if data.is_guest else 0,
                     "comments": data.comment,
                     "created_at": now,
@@ -153,7 +139,7 @@ class MySQLSessionDAO:
             new_id = r.scalar()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'SessionInternalUpdate') -> Optional[Dict]:
+    async def update(self, id: str, update_data: 'SessionInternalUpdate') -> Optional[Any]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -169,12 +155,12 @@ class MySQLSessionDAO:
         
         # Extract fields from existing
         # existing is a Session object, which has user_id
-        final_user_id = update_data.userId if update_data.userId is not None else existing.user_id
-        final_refresh_token_id = update_data.refresh_tokenId if update_data.refresh_tokenId is not None else existing.refresh_token_id
+        final_user_id = update_data.user_id if update_data.user_id is not None else existing.user_id
+        final_refresh_token_id = update_data.refresh_token_id if update_data.refresh_token_id is not None else existing.refresh_token_id
         final_status = update_data.status if update_data.status is not None else existing.status
-        final_last_active_at = update_data.lastActiveAt if update_data.lastActiveAt is not None else (existing.last_active_at.isoformat() if existing.last_active_at else None)
-        final_revoked_at = update_data.revokedAt if update_data.revokedAt is not None else (existing.revoked_at.isoformat() if existing.revoked_at else None)
-        final_revoked_reason = update_data.revokedReason if update_data.revokedReason is not None else existing.revoked_reason
+        final_last_active_at = update_data.last_active_at if update_data.last_active_at is not None else (existing.last_active_at.isoformat() if existing.last_active_at else None)
+        final_revoked_at = update_data.revoked_at if update_data.revoked_at is not None else (existing.revoked_at.isoformat() if existing.revoked_at else None)
+        final_revoked_reason = update_data.revoked_reason if update_data.revoked_reason is not None else existing.revoked_reason
         final_is_guest = update_data.is_guest if update_data.is_guest is not None else existing.is_guest
         final_comments = update_data.comment if update_data.comment is not None else existing.comments
 

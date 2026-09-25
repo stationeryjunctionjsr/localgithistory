@@ -50,7 +50,7 @@ class MySQLCouponsDAO:
             conditions = []
             params = {}
             
-            query_map = {'code': 'code', 'discountType': 'discount_type', 'discountValue': 'discount_value', 'minOrderValue': 'min_order_value', 'maxUses': 'max_uses', 'usedCount': 'used_count', 'validFrom': 'start_date', 'validUntil': 'end_date', 'isActive': 'is_active', 'typeOfDiscount': 'type_of_discount', 'method': 'method', 'minRequirementType': 'min_requirement_type', 'minQuantityOfEligibleItems': 'min_quantity_of_eligible_items', 'maxDiscountAmount': 'max_discount_amount', 'appliesToType': 'applies_to_type'}
+            query_map = {'code': 'code', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'usage_limit': 'max_uses', 'used_count': 'used_count', 'valid_from': 'start_date', 'valid_until': 'end_date', 'is_active': 'is_active', 'type_of_discount': 'type_of_discount', 'method': 'method', 'min_requirement_type': 'min_requirement_type', 'min_quantity_of_eligible_items': 'min_quantity_of_eligible_items', 'max_discount_amount': 'max_discount_amount', 'applies_to_type': 'applies_to_type'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -75,7 +75,7 @@ class MySQLCouponsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'code': 'code', 'discountType': 'discount_type', 'discountValue': 'discount_value', 'minOrderValue': 'min_order_value', 'maxUses': 'max_uses', 'usedCount': 'used_count', 'validFrom': 'start_date', 'validUntil': 'end_date', 'isActive': 'is_active', 'typeOfDiscount': 'type_of_discount', 'method': 'method', 'minRequirementType': 'min_requirement_type', 'minQuantityOfEligibleItems': 'min_quantity_of_eligible_items', 'maxDiscountAmount': 'max_discount_amount', 'appliesToType': 'applies_to_type'}
+            query_map = {'code': 'code', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'usage_limit': 'max_uses', 'used_count': 'used_count', 'valid_from': 'start_date', 'valid_until': 'end_date', 'is_active': 'is_active', 'type_of_discount': 'type_of_discount', 'method': 'method', 'min_requirement_type': 'min_requirement_type', 'min_quantity_of_eligible_items': 'min_quantity_of_eligible_items', 'max_discount_amount': 'max_discount_amount', 'applies_to_type': 'applies_to_type'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -113,45 +113,45 @@ class MySQLCouponsDAO:
             vals.append(":s_code")
             params["s_code"] = data.code
 
-        if data.discountType is not None:
+        if data.discount_type is not None:
             cols.append("discount_type")
             vals.append(":s_discountType")
-            params["s_discountType"] = data.discountType
+            params["s_discountType"] = data.discount_type
 
-        if data.discountValue is not None:
+        if data.discount_value is not None:
             cols.append("discount_value")
             vals.append(":s_discountValue")
-            params["s_discountValue"] = data.discountValue
+            params["s_discountValue"] = data.discount_value
 
-        if data.minOrderValue is not None:
+        if data.min_purchase_amount is not None:
             cols.append("min_order_value")
             vals.append(":s_minOrderValue")
-            params["s_minOrderValue"] = data.minOrderValue
+            params["s_minOrderValue"] = data.min_purchase_amount
 
-        if data.maxUses is not None:
+        if data.usage_limit is not None:
             cols.append("max_uses")
             vals.append(":s_maxUses")
-            params["s_maxUses"] = data.maxUses
+            params["s_maxUses"] = data.usage_limit
 
-        if data.usedCount is not None:
+        if data.used_count is not None:
             cols.append("used_count")
             vals.append(":s_usedCount")
-            params["s_usedCount"] = data.usedCount
+            params["s_usedCount"] = data.used_count
 
-        if data.validFrom is not None:
+        if data.valid_from is not None:
             cols.append("start_date")
             vals.append(":s_validFrom")
-            params["s_validFrom"] = _parse_dt(data.validFrom)
+            params["s_validFrom"] = _parse_dt(data.valid_from)
 
-        if data.validUntil is not None:
+        if data.valid_until is not None:
             cols.append("end_date")
             vals.append(":s_validUntil")
-            params["s_validUntil"] = _parse_dt(data.validUntil)
+            params["s_validUntil"] = _parse_dt(data.valid_until)
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
             vals.append(":s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_isActive"] = data.is_active
 
         if data.type_of_discount is not None:
             cols.append("type_of_discount")
@@ -178,10 +178,10 @@ class MySQLCouponsDAO:
             vals.append(":s_maxDiscountAmount")
             params["s_maxDiscountAmount"] = data.max_discount_amount
 
-        if data.appliesToType is not None:
+        if data.applies_to_type is not None:
             cols.append("applies_to_type")
             vals.append(":s_appliesToType")
-            params["s_appliesToType"] = data.appliesToType
+            params["s_appliesToType"] = data.applies_to_type
 
         if data.displayId is not None:
             cols.append("display_id")
@@ -213,10 +213,10 @@ class MySQLCouponsDAO:
             vals.append(":s_coupon_mode")
             params["s_coupon_mode"] = data.coupon_mode
 
-        if data.maxUsagePerUser is not None:
+        if data.max_usage_per_user is not None:
             cols.append("max_usage_per_user")
             vals.append(":s_max_usage_per_user")
-            params["s_max_usage_per_user"] = data.maxUsagePerUser
+            params["s_max_usage_per_user"] = data.max_usage_per_user
 
         if data.userBehavior is not None:
             cols.append("user_behavior")
@@ -247,37 +247,37 @@ class MySQLCouponsDAO:
             updates.append("code = :s_code")
             params["s_code"] = data.code
 
-        if data.discountType is not None:
+        if data.discount_type is not None:
             updates.append("discount_type = :s_discountType")
-            params["s_discountType"] = data.discountType
+            params["s_discountType"] = data.discount_type
 
-        if data.discountValue is not None:
+        if data.discount_value is not None:
             updates.append("discount_value = :s_discountValue")
-            params["s_discountValue"] = data.discountValue
+            params["s_discountValue"] = data.discount_value
 
-        if data.minOrderValue is not None:
+        if data.min_purchase_amount is not None:
             updates.append("min_order_value = :s_minOrderValue")
-            params["s_minOrderValue"] = data.minOrderValue
+            params["s_minOrderValue"] = data.min_purchase_amount
 
-        if data.maxUses is not None:
+        if data.usage_limit is not None:
             updates.append("max_uses = :s_maxUses")
-            params["s_maxUses"] = data.maxUses
+            params["s_maxUses"] = data.usage_limit
 
-        if data.usedCount is not None:
+        if data.used_count is not None:
             updates.append("used_count = :s_usedCount")
-            params["s_usedCount"] = data.usedCount
+            params["s_usedCount"] = data.used_count
 
-        if data.validFrom is not None:
+        if data.valid_from is not None:
             updates.append("start_date = :s_validFrom")
-            params["s_validFrom"] = _parse_dt(data.validFrom)
+            params["s_validFrom"] = _parse_dt(data.valid_from)
 
-        if data.validUntil is not None:
+        if data.valid_until is not None:
             updates.append("end_date = :s_validUntil")
-            params["s_validUntil"] = _parse_dt(data.validUntil)
+            params["s_validUntil"] = _parse_dt(data.valid_until)
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_isActive"] = data.is_active
 
         if data.type_of_discount is not None:
             updates.append("type_of_discount = :s_typeOfDiscount")
@@ -299,9 +299,9 @@ class MySQLCouponsDAO:
             updates.append("max_discount_amount = :s_maxDiscountAmount")
             params["s_maxDiscountAmount"] = data.max_discount_amount
 
-        if data.appliesToType is not None:
+        if data.applies_to_type is not None:
             updates.append("applies_to_type = :s_appliesToType")
-            params["s_appliesToType"] = data.appliesToType
+            params["s_appliesToType"] = data.applies_to_type
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -353,41 +353,9 @@ class MySQLCouponsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["code"] = rm["code"]
-        out["discountType"] = rm["discount_type"]
-        out["discountValue"] = rm["discount_value"]
-        out["minOrderValue"] = rm["min_order_value"]
-        out["maxUses"] = rm["max_uses"]
-        out["usedCount"] = rm["used_count"]
-        start_date = rm["start_date"]
-        out["validFrom"] = start_date.isoformat() if start_date else None
-        end_date = rm["end_date"]
-        out["validUntil"] = end_date.isoformat() if end_date else None
-        out["isActive"] = rm["is_active"]
-        out["typeOfDiscount"] = rm["type_of_discount"]
-        out["method"] = rm["method"]
-        out["minRequirementType"] = rm["min_requirement_type"]
-        out["minQuantityOfEligibleItems"] = rm["min_quantity_of_eligible_items"]
-        out["maxDiscountAmount"] = rm["max_discount_amount"]
-        out["appliesToType"] = rm["applies_to_type"]
-        for k, v in children.items():
-            out[k] = v
-            
-        return CouponInternal(**out)
+        d = dict(r._mapping)
+        d.update(children)
+        return CouponInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}
@@ -401,73 +369,73 @@ class MySQLCouponsDAO:
         rows_quantityTiers = res_quantityTiers.fetchall()
 
         for r in rows_quantityTiers:
-            if "quantityTiers" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["quantityTiers"] = []
+            if "quantity_tiers" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["quantity_tiers"] = []
             obj = {}
 
-            obj["minQuantity"] = r[1]
-            obj["discountValue"] = r[2]
-            c_map[r.parent_id]["quantityTiers"].append(obj)
+            obj["min_quantity"] = r[1]
+            obj["discount_value"] = r[2]
+            c_map[r.parent_id]["quantity_tiers"].append(obj)
 
         q_applicableRoles = text(f"SELECT parent_id, role FROM sj_coupon_roles WHERE parent_id IN ({id_list})")
         res_applicableRoles = await session.execute(q_applicableRoles)
         rows_applicableRoles = res_applicableRoles.fetchall()
 
         for r in rows_applicableRoles:
-            if "applicableRoles" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["applicableRoles"] = []
-            c_map[r.parent_id]["applicableRoles"].append(r[1])
+            if "applicable_roles" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["applicable_roles"] = []
+            c_map[r.parent_id]["applicable_roles"].append(r[1])
 
         q_applicableUserIds = text(f"SELECT parent_id, user_id FROM sj_coupon_users WHERE parent_id IN ({id_list})")
         res_applicableUserIds = await session.execute(q_applicableUserIds)
         rows_applicableUserIds = res_applicableUserIds.fetchall()
 
         for r in rows_applicableUserIds:
-            if "applicableUserIds" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["applicableUserIds"] = []
-            c_map[r.parent_id]["applicableUserIds"].append(r[1])
+            if "applicable_user_ids" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["applicable_user_ids"] = []
+            c_map[r.parent_id]["applicable_user_ids"].append(r[1])
 
         q_applicableCategories = text(f"SELECT parent_id, category FROM sj_coupon_categories WHERE parent_id IN ({id_list})")
         res_applicableCategories = await session.execute(q_applicableCategories)
         rows_applicableCategories = res_applicableCategories.fetchall()
 
         for r in rows_applicableCategories:
-            if "applicableCategories" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["applicableCategories"] = []
-            c_map[r.parent_id]["applicableCategories"].append(r[1])
+            if "applicable_categories" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["applicable_categories"] = []
+            c_map[r.parent_id]["applicable_categories"].append(r[1])
 
         q_appliesToValueIds = text(f"SELECT parent_id, value_id FROM sj_coupon_applies_to_values WHERE parent_id IN ({id_list})")
         res_appliesToValueIds = await session.execute(q_appliesToValueIds)
         rows_appliesToValueIds = res_appliesToValueIds.fetchall()
 
         for r in rows_appliesToValueIds:
-            if "appliesToValueIds" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["appliesToValueIds"] = []
-            c_map[r.parent_id]["appliesToValueIds"].append(r[1])
+            if "applies_to_value_ids" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["applies_to_value_ids"] = []
+            c_map[r.parent_id]["applies_to_value_ids"].append(r[1])
 
         q_excludedProductIds = text(f"SELECT parent_id, product_id FROM sj_coupon_excluded_products WHERE parent_id IN ({id_list})")
         res_excludedProductIds = await session.execute(q_excludedProductIds)
         rows_excludedProductIds = res_excludedProductIds.fetchall()
 
         for r in rows_excludedProductIds:
-            if "excludedProductIds" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["excludedProductIds"] = []
-            c_map[r.parent_id]["excludedProductIds"].append(r[1])
+            if "excluded_product_ids" not in c_map[r.parent_id]:
+                c_map[r.parent_id]["excluded_product_ids"] = []
+            c_map[r.parent_id]["excluded_product_ids"].append(r[1])
 
         return c_map
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
 
-        if data.userUsages is not None:
+        if data.user_usages is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_user_usages WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.userUsages or []
+            child_list = data.user_usages or []
 
             if child_list:
                 for item in child_list:
                     p = {"id": row_id}
-                    p["v0"] = item.userId
-                    p["v1"] = item.usageCount
+                    p["v0"] = item.user_id
+                    p["v1"] = item.usage_count
                     await session.execute(text(f"INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :v0, :v1) ON DUPLICATE KEY UPDATE usage_count = :v1"), p)
 
         if data.quantity_tiers is not None:
@@ -478,37 +446,37 @@ class MySQLCouponsDAO:
                 for item in child_list:
                     p = {"id": row_id}
 
-                    p["v0"] = item.minQuantity
-                    p["v1"] = item.discountValue
+                    p["v0"] = item.min_quantity
+                    p["v1"] = item.discount_value
                     await session.execute(text(f"INSERT INTO sj_coupon_quantity_tiers (parent_id, min_qty, discount_value) VALUES (:id, :v0, :v1)"), p)
 
-        if data.applicableRoles is not None:
+        if data.applicable_roles is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_roles WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.applicableRoles or []
+            child_list = data.applicable_roles or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_coupon_roles (parent_id, role) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.applicableUserIds is not None:
+        if data.applicable_user_ids is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_users WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.applicableUserIds or []
+            child_list = data.applicable_user_ids or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_coupon_users (parent_id, user_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.applicableCategories is not None:
+        if data.applicable_categories is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_categories WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.applicableCategories or []
+            child_list = data.applicable_categories or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_coupon_categories (parent_id, category) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.appliesToValueIds is not None:
+        if data.applies_to_value_ids is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_applies_to_values WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.appliesToValueIds or []
+            child_list = data.applies_to_value_ids or []
 
             if child_list:
                 for item in child_list:

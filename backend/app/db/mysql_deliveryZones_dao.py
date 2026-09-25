@@ -35,7 +35,7 @@ class MySQLDeliveryZonesDAO:
             conditions = []
             params = {}
             
-            query_map = {'name': 'name', 'description': 'description', 'defaultCapacity': 'default_capacity', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'customerType': 'customer_type', 'isActive': 'is_active'}
+            query_map = {'name': 'name', 'description': 'description', 'default_capacity': 'default_capacity', 'urgent_delivery_available': 'urgent_delivery_available', 'customer_type': 'customer_type', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLDeliveryZonesDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'name': 'name', 'description': 'description', 'defaultCapacity': 'default_capacity', 'urgentDeliveryAvailable': 'urgent_delivery_available', 'customerType': 'customer_type', 'isActive': 'is_active'}
+            query_map = {'name': 'name', 'description': 'description', 'default_capacity': 'default_capacity', 'urgent_delivery_available': 'urgent_delivery_available', 'customer_type': 'customer_type', 'is_active': 'is_active'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -102,22 +102,22 @@ class MySQLDeliveryZonesDAO:
 
         if data.default_capacity is not None:
             cols.append("default_capacity")
-            params["s_defaultCapacity"] = data.default_capacity
+            params["s_default_capacity"] = data.default_capacity
 
         if data.urgent_delivery_available is not None:
             cols.append("urgent_delivery_available")
-            params["s_urgentDeliveryAvailable"] = data.urgent_delivery_available
+            params["s_urgent_delivery_available"] = data.urgent_delivery_available
 
         if data.customer_type is not None:
             cols.append("customer_type")
-            params["s_customerType"] = data.customer_type
+            params["s_customer_type"] = data.customer_type
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'defaultCapacity', 'urgentDeliveryAvailable', 'customerType', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'default_capacity', 'urgent_delivery_available', 'customer_type', 'is_active'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -146,19 +146,19 @@ class MySQLDeliveryZonesDAO:
 
         if data.default_capacity is not None:
             updates.append("default_capacity = :s_defaultCapacity")
-            params["s_defaultCapacity"] = data.default_capacity
+            params["s_default_capacity"] = data.default_capacity
 
         if data.urgent_delivery_available is not None:
             updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
-            params["s_urgentDeliveryAvailable"] = data.urgent_delivery_available
+            params["s_urgent_delivery_available"] = data.urgent_delivery_available
 
         if data.customer_type is not None:
             updates.append("customer_type = :s_customerType")
-            params["s_customerType"] = data.customer_type
+            params["s_customer_type"] = data.customer_type
 
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :s_isActive")
-            params["s_isActive"] = data.isActive
+            params["s_is_active"] = data.is_active
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -200,30 +200,9 @@ class MySQLDeliveryZonesDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["name"] = rm["name"]
-        out["description"] = rm["description"]
-        out["defaultCapacity"] = rm["default_capacity"]
-        out["urgentDeliveryAvailable"] = bool(rm["urgent_delivery_available"]) if rm["urgent_delivery_available"] is not None else None
-        out["customerType"] = rm["customer_type"]
-        out["isActive"] = bool(rm["is_active"]) if rm["is_active"] is not None else None
-        for k, v in children.items():
-            out[k] = v
-            
-        return DeliveryZoneInternal(**out)
+        d = dict(r._mapping)
+        d.update(children)
+        return DeliveryZoneInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

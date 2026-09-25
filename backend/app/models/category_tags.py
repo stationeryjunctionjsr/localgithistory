@@ -1,16 +1,17 @@
+from app.models.base import CamelBaseModel
 from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
 from pydantic import BaseModel
 
-class CategoryTags(BaseModel):
-    id: str = Field(default=None, alias='_id')
-    external_id: Optional[str] = Field(default=None, alias='external_id')
-    name: Optional[str] = Field(default=None, alias='name')
-    description: Optional[str] = Field(default=None, alias='description')
-    is_active: bool = Field(default=None, alias='isActive')
-    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
-    updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    eid: Optional[str] = Field(default=None, alias='eid')
-    c: Optional[str] = Field(default=None, alias='c')
-    u: Optional[str] = Field(default=None, alias='u')
+class CategoryTags(CamelBaseModel):
+    id: str = Field(default=None)
+    external_id: Optional[str] = Field(default=None)
+    name: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    is_active: bool = Field(default=None)
+    created_at: Optional[datetime] = Field(default=None)
+    updated_at: Optional[datetime] = Field(default=None)
+    eid: Optional[str] = Field(default=None)
+    c: Optional[str] = Field(default=None)
+    u: Optional[str] = Field(default=None)

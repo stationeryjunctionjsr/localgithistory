@@ -86,7 +86,7 @@ class MySQLTrackingDAO:
             category=r.category,
             product_ids=children["product_ids"] if "product_ids" in children else [],
             payload={},
-            cartItems=children["cartItems"] if "cartItems" in children else []
+            cartItems=children["cart_items"] if "cart_items" in children else []
         )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
@@ -104,9 +104,9 @@ class MySQLTrackingDAO:
                 chunk_params
             )
             for r in res.fetchall():
-                if "cartItems" not in c_map[r.tracking_id]:
-                    c_map[r.tracking_id]["cartItems"] = []
-                c_map[r.tracking_id]["cartItems"].append({"productId": r.product_id, "quantity": r.quantity, "price": r.price})
+                if "cart_items" not in c_map[r.tracking_id]:
+                    c_map[r.tracking_id]["cart_items"] = []
+                c_map[r.tracking_id]["cart_items"].append({"productId": r.product_id, "quantity": r.quantity, "price": r.price})
 
         for chunk in chunks:
             chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
@@ -132,8 +132,8 @@ class MySQLTrackingDAO:
         # Extract from payload if nested, to avoid stringifying array of objects
         payload = data.payload
         payload = payload.copy() if payload else {}
-        if "cartItems" in payload:
-            cart_items.extend(payload.pop("cartItems"))
+        if "cart_items" in payload:
+            cart_items.extend(payload.pop("cart_items"))
 
         for item in cart_items:
             item_dict = item
@@ -208,8 +208,8 @@ class MySQLTrackingDAO:
         payload = data.payload
 
         add_col("type", "event_type", data.type)
-        add_col("userId", "user_id", data.userId)
-        add_col("sessionId", "session_id", data.session_id)
+        add_col("user_id", "user_id", data.user_id)
+        add_col("session_id", "session_id", data.session_id)
         
         ts = data.timestamp
         if ts is not None and isinstance(ts, str):
@@ -220,15 +220,15 @@ class MySQLTrackingDAO:
                 pass
         add_col("timestamp", "event_timestamp", ts)
         
-        add_col("searchTerm", "search_term", data.search_term)
-        add_col("resultsCount", "results_count", data.results_count)
-        add_col("productId", "product_id", data.product_id)
-        add_col("productName", "product_name", data.product_name)
+        add_col("search_term", "search_term", data.search_term)
+        add_col("results_count", "results_count", data.results_count)
+        add_col("product_id", "product_id", data.product_id)
+        add_col("product_name", "product_name", data.product_name)
         add_col("segment", "segment", data.segment)
         add_col("page", "page", data.page)
         add_col("reason", "reason", data.reason)
-        add_col("cartValue", "cart_value", data.cart_value)
-        add_col("isReturning", "is_returning", data.is_returning)
+        add_col("cart_value", "cart_value", data.cart_value)
+        add_col("is_returning", "is_returning", data.is_returning)
 
         def get_payload_extra(key):
             if payload and payload.model_extra and key in payload.model_extra:
@@ -239,16 +239,16 @@ class MySQLTrackingDAO:
         add_col("source", "source", data.source if data.source is not None else get_payload_extra("source"))
         
         filter_type = data.filter_name if data.filter_name is not None else get_payload_extra("filterType")
-        add_col("filterType", "filter_type", filter_type)
+        add_col("filter_type", "filter_type", filter_type)
         
-        add_col("filterValue", "filter_value", data.filter_value if data.filter_value is not None else get_payload_extra("filterValue"))
+        add_col("filter_value", "filter_value", data.filter_value if data.filter_value is not None else get_payload_extra("filter_value"))
         add_col("campaign", "campaign", data.campaign if data.campaign is not None else get_payload_extra("campaign"))
         add_col("os", "os", data.os if data.os is not None else get_payload_extra("os"))
         add_col("browser", "browser", data.browser if data.browser is not None else get_payload_extra("browser"))
-        add_col("ipAddress", "ip_address", data.ip_address if data.ip_address is not None else get_payload_extra("ipAddress"))
-        add_col("pageViews", "page_views", data.page_views if data.page_views is not None else get_payload_extra("pageViews"))
-        add_col("orderId", "order_id", data.order_id if data.order_id is not None else get_payload_extra("orderId"))
-        add_col("orderValue", "order_value", data.order_value if data.order_value is not None else get_payload_extra("orderValue"))
+        add_col("ip_address", "ip_address", data.ip_address if data.ip_address is not None else get_payload_extra("ip_address"))
+        add_col("page_views", "page_views", data.page_views if data.page_views is not None else get_payload_extra("page_views"))
+        add_col("order_id", "order_id", data.order_id if data.order_id is not None else get_payload_extra("order_id"))
+        add_col("order_value", "order_value", data.order_value if data.order_value is not None else get_payload_extra("order_value"))
         add_col("price", "price", data.price if data.price is not None else get_payload_extra("price"))
         add_col("category", "category", data.category if data.category is not None else get_payload_extra("category"))
 

@@ -134,9 +134,9 @@ class ItemSnippet(CamelBaseModel):
     sku: Optional[str] = None
     mrpPerCase: Optional[float] = None
     quantityPerCase: Optional[int] = None
-    bundleId: Optional[str] = Field(default=None, validation_alias=AliasChoices("bundleId", "bundle_id"))
-    bundleName: Optional[str] = Field(default=None, validation_alias=AliasChoices("bundleName", "bundle_name"))
-    variantAttributes: Optional['VariantAttributes'] = Field(default=None, validation_alias=AliasChoices("variantAttributes", "variant_attributes"))
+    bundleId: Optional[str] = None
+    bundleName: Optional[str] = None
+    variantAttributes: Optional['VariantAttributes'] = None
 
 
 class VariantOption(CamelBaseModel):
@@ -255,20 +255,20 @@ class UserBase(CamelBaseModel):
     creditLimit: Optional[float] = 0
     creditUsed: Optional[float] = 0
     paymentTerms: Optional[str] = "30"
-    assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
+    assignedSalesperson: Optional[str] = None
     isSellerAdmin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
     isOnDuty: Optional[bool] = False
-    commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
+    commissionOverridePct: Optional[float] = None
     serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
     password: Optional[str] = None
     sessionId: Optional[str] = None
-    effectiveRole: Optional[str] = Field(default=None, validation_alias=AliasChoices("effectiveRole", "effective_role"))
+    effectiveRole: Optional[str] = None
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
-    bankAccountNumber: Optional[str] = Field(default=None, validation_alias=AliasChoices('bankAccountNumber', 'bank_account_number'))
-    bankIfscCode: Optional[str] = Field(default=None, validation_alias=AliasChoices('bankIfscCode', 'bank_ifsc_code'))
-    bankAccountHolder: Optional[str] = Field(default=None, validation_alias=AliasChoices('bankAccountHolder', 'bank_account_holder'))
-    bankName: Optional[str] = Field(default=None, validation_alias=AliasChoices('bankName', 'bank_name'))
+    bankAccountNumber: Optional[str] = None
+    bankIfscCode: Optional[str] = None
+    bankAccountHolder: Optional[str] = None
+    bankName: Optional[str] = None
     # Device / verification metadata — populated at registration time, None for admin-created users.
     deviceId: Optional[str] = None
     msg91Token: Optional[str] = None
@@ -319,9 +319,9 @@ class UserUpdate(CamelBaseModel):
     is_email_verified: Optional[bool] = None
     isSellerAdmin: Optional[bool] = None
     isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
+    commissionOverridePct: Optional[float] = None
     serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
+    referralCode: Optional[str] = None
     preferredLanguage: Optional[str] = None
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
@@ -333,22 +333,22 @@ class UserUpdate(CamelBaseModel):
 
 class UserResponse(UserBase):
     id: str = Field(alias="_id")
-    userId: Optional[int] = Field(default=None, validation_alias=AliasChoices("userId", "user_id"))
-    userIdFormatted: Optional[str] = Field(default=None, validation_alias=AliasChoices("userIdFormatted", "user_id_formatted"))
+    userId: Optional[int] = None
+    userIdFormatted: Optional[str] = None
     role: Optional[str] = None
-    effectiveRole: Optional[str] = Field(default=None, validation_alias=AliasChoices("effectiveRole", "effective_role"))
-    approvalStatus: Optional[str] = Field(default=None, validation_alias=AliasChoices("approvalStatus", "approval_status"))
-    isActive: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
+    effectiveRole: Optional[str] = None
+    approvalStatus: Optional[str] = None
+    is_active: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
     isDeactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
     creditLimit: float = Field(validation_alias=AliasChoices("creditLimit", "credit_limit"))
     creditUsed: float = Field(validation_alias=AliasChoices("creditUsed", "credit_used"))
-    paymentTerms: Optional[int] = Field(default=None, validation_alias=AliasChoices("paymentTerms", "payment_terms"))
-    assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
-    referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
+    paymentTerms: Optional[int] = None
+    assignedSalesperson: Optional[str] = None
+    referralCode: Optional[str] = None
     isSellerAdmin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
-    commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    commissionOverridePct: Optional[float] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -407,12 +407,12 @@ class BundleResponse(CamelBaseModel):
     name: str
     description: Optional[str] = None
     price: float
-    discountPercentage: Optional[float] = None
-    isActive: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
-    salesCount: Optional[int] = None
+    discount_percentage: Optional[float] = None
+    is_active: bool = True
+    sales_count: Optional[int] = None
     items: List[BundleItemResponse] = []
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     
     # Enriched fields
     totalMrp: Optional[float] = None
@@ -588,8 +588,8 @@ class BannerUpdate(CamelBaseModel):
 
 class BannerResponse(BannerBase):
     id: str = Field(alias="_id")
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: datetime = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: datetime = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -728,8 +728,8 @@ class ContactUpdate(CamelBaseModel):
 
 class ContactResponse(ContactBase):
     id: str = Field(alias="_id")
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -781,6 +781,7 @@ class TicketResponseItem(CamelBaseModel):
 
 
 class SupportTicketInternal(SupportTicketBase):
+    # We rely on SupportTicketBase which is CamelBaseModel
     model_config = ConfigDict(extra='forbid')
     id: str = Field(alias="_id")
     ticket_number: str
@@ -788,11 +789,11 @@ class SupportTicketInternal(SupportTicketBase):
     status: str
     assigned_to: Optional[str] = None
     responses: Optional[List[TicketResponseItemInternal]] = None
-    resolvedAt: Optional[str] = None
-    closedAt: Optional[str] = None
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
-    externalId: Optional[str] = None
+    resolved_at: Optional[str] = None
+    closed_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    external_id: Optional[str] = None
 
 
 class SupportTicketResponse(SupportTicketBase):
@@ -802,10 +803,10 @@ class SupportTicketResponse(SupportTicketBase):
     status: str
     assignedTo: Optional[UserSnippet] = None
     responses: Optional[List[TicketResponseItem]] = None
-    resolvedAt: Optional[str] = None
-    closedAt: Optional[str] = None
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    resolved_at: Optional[str] = None
+    closed_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -817,7 +818,7 @@ class DeliveryChargeTier(CamelBaseModel):
     max_order_value: Optional[float] = None
     charge: Optional[float] = None
     min_amount: Optional[float] = None
-    max_amount: Optional[Union[float, str]] = Field(default=None, validation_alias=AliasChoices("maxAmount", "max_amount", "max"))
+    max_amount: Optional[Union[float, str]] = None
 
 
 class DeliveryChargeBase(CamelBaseModel):
@@ -863,9 +864,9 @@ class DeliveryChargeUpdate(CamelBaseModel):
 
 class DeliveryChargeResponse(DeliveryChargeBase):
     id: str = Field(alias="_id")
-    locationId: Optional[int] = None
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    location_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -892,8 +893,8 @@ class DefaultDeliveryChargeCreate(DefaultDeliveryChargeBase):
 
 class DefaultDeliveryChargeResponse(DefaultDeliveryChargeBase):
     id: str = Field(alias="_id")
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -915,8 +916,8 @@ class OrderFeedbackCreate(OrderFeedbackBase):
 class OrderFeedbackResponse(OrderFeedbackBase):
     id: str = Field(alias="_id")
     userId: str
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -945,8 +946,8 @@ class CoachMarkUpdate(CamelBaseModel):
 
 class CoachMarkResponse(CoachMarkBase):
     id: str = Field(alias="_id")
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -984,8 +985,8 @@ class SearchTagUpdate(CamelBaseModel):
 
 class SearchTagResponse(SearchTagBase):
     id: str = Field(alias="_id")
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1022,8 +1023,8 @@ class CollectionUpdate(CamelBaseModel):
 
 class CollectionResponse(CollectionBase):
     id: str = Field(alias="_id")
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1127,8 +1128,8 @@ class ReturnRequestResponse(CamelBaseModel):
     valetAssignedAt: Optional[str] = None
     user: Optional[UserSnippet] = None  # populated user
     deliveryCharge: float
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
@@ -1170,8 +1171,8 @@ class ProductResponse(ProductBase):
     variations: Optional[List[VariantOption]] = None
     searchTags: Optional[List[str]] = None
     gst: Optional[float] = 0  # Evaluated from category level
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1209,8 +1210,8 @@ class SkinnyProductResponse(CamelBaseModel):
     searchTags: Optional[List[str]] = None
     gst: Optional[float] = 0
     displayImage: Optional[str] = None
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1235,7 +1236,7 @@ class QuantityTier(CamelBaseModel):
 
 # typeOfDiscount: product_discount | buy_x_get_y | total_order_discount | shipping_discount
 # method: discount_code | automatic
-# applicableUserIds: when set, only these user ids can use (Selective Retail/Business)
+# applicable_user_ids: when set, only these user ids can use (Selective Retail/Business)
 class CouponBase(CamelBaseModel):
     type_of_discount: str = (
         "product_discount"  # product_discount | buy_x_get_y | total_order_discount | shipping_discount
@@ -1245,28 +1246,28 @@ class CouponBase(CamelBaseModel):
     discount_type: DiscountType
     discount_value: float
     quantity_tiers: Optional[List[QuantityTier]] = None
-    min_purchase_amount: float = Field(default=0, validation_alias=AliasChoices("minPurchaseAmount", "min_purchase_amount", "minOrderValue", "min_order_value"))
+    min_purchase_amount: float = 0
     min_requirement_type: str = "none"  # none | min_amount | min_quantity
     min_quantity_of_eligible_items: Optional[int] = None  # when minRequirementType=min_quantity
     max_discount_amount: Optional[float] = None
     valid_from: Optional[str] = None
-    validUntil: Optional[str] = None
-    usageLimit: Optional[int] = Field(default=None, validation_alias=AliasChoices("usageLimit", "maxUses"))
-    isActive: bool = True
-    applicableRoles: List[str] = ["customer"]
-    applicableUserIds: Optional[List[str]] = None  # selective retail/business: only these users
-    applicableCategories: Optional[List[str]] = None  # deprecated
-    appliesToType: str = "all"
-    appliesToValueIds: Optional[List[str]] = None
-    excludedProductIds: Optional[List[str]] = None
-    applicableItemType: Optional[str] = None  # units | cases
-    userBehavior: Optional[str] = None
-    maxUsagePerUser: Optional[int] = None
-    buyXGetYCustomerGetsQuantity: Optional[int] = None
-    buyXGetYCustomerGetsAppliesToType: Optional[str] = None
-    buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
-    buyXGetYCustomerGetsDiscountType: Optional[str] = None
-    buyXGetYCustomerGetsDiscountValue: Optional[float] = None
+    valid_until: Optional[str] = None
+    usage_limit: Optional[int] = None
+    is_active: bool = True
+    applicable_roles: List[str] = ["customer"]
+    applicable_user_ids: Optional[List[str]] = None  # selective retail/business: only these users
+    applicable_categories: Optional[List[str]] = None  # deprecated
+    applies_to_type: str = "all"
+    applies_to_value_ids: Optional[List[str]] = None
+    excluded_product_ids: Optional[List[str]] = None
+    applicable_item_type: Optional[str] = None  # units | cases
+    user_behavior: Optional[str] = None
+    max_usage_per_user: Optional[int] = None
+    buy_x_get_y_customer_gets_quantity: Optional[int] = None
+    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = None
+    buy_x_get_y_customer_gets_applies_to_value_ids: Optional[List[str]] = None
+    buy_x_get_y_customer_gets_discount_type: Optional[str] = None
+    buy_x_get_y_customer_gets_discount_value: Optional[float] = None
     displayId: Optional[str] = None
     shippingStates: Optional[List[str]] = None
     shippingDistricts: Optional[List[str]] = None
@@ -1276,7 +1277,7 @@ class CouponBase(CamelBaseModel):
     
     @model_validator(mode='after')
     def validate_dates(self):
-        if self.validFrom and self.validUntil:
+        if self.validFrom and self.valid_until:
             from datetime import datetime, timezone
             try:
                 start_dt = datetime.fromisoformat(self.validFrom.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
@@ -1308,22 +1309,22 @@ class CouponUpdate(CamelBaseModel):
     max_discount_amount: Optional[float] = None
     valid_from: Optional[str] = None
     valid_until: Optional[str] = None
-    usageLimit: Optional[int] = Field(default=None, validation_alias=AliasChoices("usageLimit", "maxUses"))
-    isActive: Optional[bool] = None
-    applicableRoles: Optional[List[str]] = None
-    applicableUserIds: Optional[List[str]] = None
-    applicableCategories: Optional[List[str]] = None
-    appliesToType: Optional[str] = None
-    appliesToValueIds: Optional[List[str]] = None
-    excludedProductIds: Optional[List[str]] = None
-    applicableItemType: Optional[str] = None
-    userBehavior: Optional[str] = None
-    maxUsagePerUser: Optional[int] = None
-    buyXGetYCustomerGetsQuantity: Optional[int] = None
-    buyXGetYCustomerGetsAppliesToType: Optional[str] = None
-    buyXGetYCustomerGetsAppliesToValueIds: Optional[List[str]] = None
-    buyXGetYCustomerGetsDiscountType: Optional[str] = None
-    buyXGetYCustomerGetsDiscountValue: Optional[float] = None
+    usage_limit: Optional[int] = None
+    is_active: Optional[bool] = None
+    applicable_roles: Optional[List[str]] = None
+    applicable_user_ids: Optional[List[str]] = None
+    applicable_categories: Optional[List[str]] = None
+    applies_to_type: Optional[str] = None
+    applies_to_value_ids: Optional[List[str]] = None
+    excluded_product_ids: Optional[List[str]] = None
+    applicable_item_type: Optional[str] = None
+    user_behavior: Optional[str] = None
+    max_usage_per_user: Optional[int] = None
+    buy_x_get_y_customer_gets_quantity: Optional[int] = None
+    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = None
+    buy_x_get_y_customer_gets_applies_to_value_ids: Optional[List[str]] = None
+    buy_x_get_y_customer_gets_discount_type: Optional[str] = None
+    buy_x_get_y_customer_gets_discount_value: Optional[float] = None
     shippingStates: Optional[List[str]] = None
     shippingDistricts: Optional[List[str]] = None
     shippingPincodes: Optional[List[str]] = None
@@ -1333,9 +1334,9 @@ class CouponUpdate(CamelBaseModel):
 
 class CouponResponse(CouponBase):
     id: str = Field(alias="_id")
-    usedCount: Optional[int] = None
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    used_count: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
@@ -1560,7 +1561,15 @@ class AdBase(CamelBaseModel):
     meta_pixel_id: Optional[str] = None
     notes: Optional[str] = None
     launched_at: Optional[str] = None
-    stats: Optional[AdStats] = Field(default_factory=AdStats)
+    stat_impressions: Optional[int] = 0
+    stat_clicks: Optional[int] = 0
+    stat_leads: Optional[int] = 0
+    stat_purchases: Optional[int] = 0
+    stat_add_to_cart: Optional[int] = 0
+    stat_conversions: Optional[int] = 0
+    stat_conversion_value: Optional[float] = 0.0
+    stat_ctr: Optional[float] = 0.0
+    stat_cvr: Optional[float] = 0.0
 
 class AdCreate(AdBase):
     name: str
@@ -1609,7 +1618,7 @@ class CouponCreateInternal(CouponBase):
     resolution: Optional[str] = None
     force: bool = False
     displayId: Optional[str] = None
-    usedCount: int = 0
+    used_count: int = 0
 
 
 
@@ -1628,8 +1637,8 @@ class PromoStripUpdate(CamelBaseModel):
 
 class PromoStripResponse(PromoStripBase):
     id: str = Field(alias='_id')
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 

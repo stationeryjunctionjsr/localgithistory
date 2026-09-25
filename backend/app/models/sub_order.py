@@ -7,13 +7,13 @@ from app.models.base import CamelBaseModel
 
 class CouponInfo(CamelBaseModel):
     code: Optional[str] = None
-    discountType: Optional[str] = None
-    discountValue: Optional[float] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
 
 class DeliverySlotInfo(CamelBaseModel):
     date: Optional[str] = None
     time: Optional[str] = None
-    slotId: Optional[str] = None
+    slot_id: Optional[str] = None
 
 class SubOrderItem(CamelBaseModel):
     product_id: Optional[str] = Field(default=None)
@@ -22,14 +22,14 @@ class SubOrderItem(CamelBaseModel):
     price: Optional[float] = None
 
 class SubOrder(CamelBaseModel):
-    id: str = Field(default="", alias='_id')
+    id: str = Field(default="")
     external_id: Optional[str] = Field(default=None)
     sub_order_number: Optional[str] = Field(default=None)
     parent_order_id: Optional[str] = Field(default=None)
     parent_order_number: Optional[str] = Field(default=None)
     seller_id: Optional[str] = Field(default=None)
     seller_name: Optional[str] = Field(default=None)
-    user_id: Optional[str] = Field(default=None, alias='user')
+    user_id: Optional[str] = Field(default=None)
     subtotal: Optional[float] = None
     tax: Optional[float] = None
     shipping: Optional[float] = None
@@ -67,55 +67,55 @@ from pydantic import BaseModel, Field, ConfigDict
 from app.models.base import CamelBaseModel
 
 class SubOrderInternalCreate(CamelBaseModel):
-    subOrderNumber: str
-    parentOrderId: str
-    parentOrderNumber: str
-    sellerId: Optional[str] = None
-    sellerName: str = ""
+    sub_order_number: str
+    parent_order_id: str
+    parent_order_number: str
+    seller_id: Optional[str] = None
+    seller_name: str = ""
     user: str
     items: List[SubOrderItem] = Field(default_factory=list)
     subtotal: float
     tax: float
     shipping: float
-    deliveryGst: float
+    delivery_gst: float
     discount: float
     total: float
-    orderType: str = "b2c"
+    order_type: str = "b2c"
     status: str = "pending"
-    paymentMethod: str = "cod"
-    paymentStatus: str = "pending"
-    isUrgentDelivery: bool = False
-    deliverySlot: Optional[DeliverySlotInfo] = None
-    shippingAddress: Optional['Address'] = None
-    billingAddress: Optional['Address'] = None
+    payment_method: str = "cod"
+    payment_status: str = "pending"
+    is_urgent_delivery: bool = False
+    delivery_slot: Optional[DeliverySlotInfo] = None
+    shipping_address: Optional['Address'] = None
+    billing_address: Optional['Address'] = None
     notes: str = ""
-    couponCode: Optional[str] = None
-    couponInfo: Optional[CouponInfo] = None
-    assignedValet: Optional[str] = None
-    pickupStatus: str = "pending_pickup"
-    pickedUpAt: Optional[str] = None
-    shippedAt: Optional[str] = None
-    deliveredAt: Optional[str] = None
-    cancelledAt: Optional[str] = None
-    cancelledBy: Optional[str] = None
-    declineReason: Optional[str] = None
-    commissionPct: Optional[float] = None
-    commissionAmount: Optional[float] = None
-    commissionStatus: Optional[str] = None
-    createdAt: Optional[str] = None
+    coupon_code: Optional[str] = None
+    coupon_info: Optional[CouponInfo] = None
+    assigned_valet: Optional[str] = None
+    pickup_status: str = "pending_pickup"
+    picked_up_at: Optional[str] = None
+    shipped_at: Optional[str] = None
+    delivered_at: Optional[str] = None
+    cancelled_at: Optional[str] = None
+    cancelled_by: Optional[str] = None
+    decline_reason: Optional[str] = None
+    commission_pct: Optional[float] = None
+    commission_amount: Optional[float] = None
+    commission_status: Optional[str] = None
+    created_at: Optional[str] = None
 
 class SubOrderInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     status: Optional[str] = None
-    shippedAt: Optional[str] = None
-    deliveredAt: Optional[str] = None
-    cancelledAt: Optional[str] = None
-    pickupStatus: Optional[str] = None
-    pickedUpAt: Optional[str] = None
-    commissionPct: Optional[float] = None
-    commissionAmount: Optional[float] = None
-    commissionStatus: Optional[str] = None
-    assignedValet: Optional[str] = None
+    shipped_at: Optional[str] = None
+    delivered_at: Optional[str] = None
+    cancelled_at: Optional[str] = None
+    pickup_status: Optional[str] = None
+    picked_up_at: Optional[str] = None
+    commission_pct: Optional[float] = None
+    commission_amount: Optional[float] = None
+    commission_status: Optional[str] = None
+    assigned_valet: Optional[str] = None
 
 
 

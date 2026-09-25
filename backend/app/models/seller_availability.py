@@ -2,17 +2,18 @@ from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
 from pydantic import BaseModel
+from app.models.base import CamelBaseModel
 
-class SellerAvailability(BaseModel):
-    id: str = Field(default=None, alias='_id')
-    external_id: Optional[str] = Field(default=None, alias='external_id')
-    seller_id: Optional[str] = Field(default=None, alias='seller_id')
-    status: Optional[str] = Field(default=None, alias='status')
-    start_at: Optional[datetime] = Field(default=None, alias='start_at')
-    end_at: Optional[datetime] = Field(default=None, alias='end_at')
-    reason: Optional[str] = Field(default=None, alias='reason')
-    created_by: Optional[str] = Field(default=None, alias='created_by')
-    cancelled_at: Optional[datetime] = Field(default=None, alias='cancelled_at')
-    created_at: Optional[datetime] = Field(default=None, alias='created_at')
-    updated_at: Optional[datetime] = Field(default=None, alias='updated_at')
-    row_id: Optional[str] = Field(default=None, alias='row_id')
+class SellerAvailability(CamelBaseModel):
+    id: str = None
+    external_id: Optional[str] = None
+    seller_id: Optional[str] = None
+    status: Optional[str] = None
+    start_at: Optional[datetime] = None
+    end_at: Optional[datetime] = None
+    reason: Optional[str] = None
+    created_by: Optional[str] = None
+    cancelled_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    row_id: Optional[str] = None

@@ -66,68 +66,44 @@ class MySQLOrderDAO:
         return items, declines
 
     def __map_to_schema(self, r, items: List[Dict], declines: List[Dict]) -> Order:
-        return Order(**{
-            "_id": str(r.id),
-            "orderNumber": r.order_number,
-            "user": str(r.user_id),
-            "items": items,
-            "subtotal": float(r.subtotal) if r.subtotal is not None else 0.0,
-            "tax": float(r.tax) if r.tax is not None else 0.0,
-            "shipping": float(r.shipping) if r.shipping is not None else 0.0,
-            "discount": float(r.discount) if r.discount is not None else 0.0,
-            "total": float(r.total) if r.total is not None else 0.0,
-            "orderType": r.order_type,
-            "status": r.status,
-            "paymentStatus": r.payment_status,
-            "paymentMethod": r.payment_method,
-            "upiPaymentScreenshot": r.upi_payment_screenshot,
-            "shippingAddress": {
-                "name": r.ship_name,
-                "phone": r.ship_phone,
-                "street": r.ship_street,
-                "city": r.ship_city,
-                "state": r.ship_state,
-                "pincode": r.ship_pincode,
-                "address": r.ship_address,
-                "district": r.ship_district,
-                "country": r.ship_country,
-                "googleLocation": r.ship_google_location,
-                "latitude": r.ship_latitude,
-                "longitude": r.ship_longitude,
-            },
-            "billingAddress": {
-                "name": r.bill_name,
-                "phone": r.bill_phone,
-                "street": r.bill_street,
-                "city": r.bill_city,
-                "state": r.bill_state,
-                "pincode": r.bill_pincode,
-                "address": r.bill_address,
-                "district": r.bill_district,
-                "country": r.bill_country,
-                "googleLocation": r.bill_google_location,
-                "latitude": r.bill_latitude,
-                "longitude": r.bill_longitude,
-            },
-            "notes": r.notes or "",
-            "printedBill": bool(r.printed_bill) if r.printed_bill is not None else False,
-                        "assignedValet": r.assigned_valet,
-            "pendingValetId": r.pending_valet_id,
-            "valetAssignedAt": r.valet_assigned_at.isoformat() + "Z" if r.valet_assigned_at else None,
-            "valetCascadeCount": (r.valet_cascade_count if r.valet_cascade_count is not None else 0),
-            "valetDeclineHistory": declines,
-            "isUrgentDelivery": bool((r.is_urgent_delivery if r.is_urgent_delivery is not None else False)),
-            "shippedAt": r.shipped_at.isoformat() if r.shipped_at else None,
-            "deliveredAt": r.delivered_at.isoformat() if r.delivered_at else None,
-            "codPaymentReceived": bool(r.cod_payment_received) if r.cod_payment_received is not None else False,
-            "codPaymentReceivedAt": r.cod_payment_received_at.isoformat() if r.cod_payment_received_at else None,
-            "declineReason": r.decline_reason,
-            "cancelledAt": r.cancelled_at.isoformat() if r.cancelled_at else None,
-            "cancelledBy": r.cancelled_by,
-            "turnaroundHours": float(r.turnaround_hours) if r.turnaround_hours is not None else None,
-            "createdAt": r.created_at.isoformat() if r.created_at else None,
-            "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
-        })
+        d = dict(r._mapping)
+        
+        # Build nested shipping/billing structures
+        d["shipping_address"] = {
+            "name": d.pop("ship_name", None),
+            "phone": d.pop("ship_phone", None),
+            "street": d.pop("ship_street", None),
+            "city": d.pop("ship_city", None),
+            "state": d.pop("ship_state", None),
+            "pincode": d.pop("ship_pincode", None),
+            "address": d.pop("ship_address", None),
+            "district": d.pop("ship_district", None),
+            "country": d.pop("ship_country", None),
+            "google_location": d.pop("ship_google_location", None),
+            "latitude": d.pop("ship_latitude", None),
+            "longitude": d.pop("ship_longitude", None),
+        }
+        
+        d["billing_address"] = {
+            "name": d.pop("bill_name", None),
+            "phone": d.pop("bill_phone", None),
+            "street": d.pop("bill_street", None),
+            "city": d.pop("bill_city", None),
+            "state": d.pop("bill_state", None),
+            "pincode": d.pop("bill_pincode", None),
+            "address": d.pop("bill_address", None),
+            "district": d.pop("bill_district", None),
+            "country": d.pop("bill_country", None),
+            "google_location": d.pop("bill_google_location", None),
+            "latitude": d.pop("bill_latitude", None),
+            "longitude": d.pop("bill_longitude", None),
+        }
+        
+        d["items"] = items
+        d["valet_decline_history"] = declines
+        d["user"] = str(d["user_id"])
+        
+        return Order.model_validate(d)
 
     def _build_query_conditions(self, query: Optional[Dict]) -> tuple[str, Dict]:
         where_clauses = []
@@ -144,23 +120,23 @@ class MySQLOrderDAO:
                 elif k == "status":
                     where_clauses.append("status = :status")
                     params["status"] = v
-                elif k == "orderType":
+                elif k == "order_type":
                     where_clauses.append("order_type = :orderType")
-                    params["orderType"] = v
-                elif k == "paymentMethod":
+                    params["order_type"] = v
+                elif k == "payment_method":
                     where_clauses.append("payment_method = :paymentMethod")
-                    params["paymentMethod"] = v
-                elif k == "startDate":
+                    params["payment_method"] = v
+                elif k == "start_date":
                     dt = _to_ts(v)
                     if dt:
                         where_clauses.append("created_at >= :startDate")
-                        params["startDate"] = dt
-                elif k == "endDate":
+                        params["start_date"] = dt
+                elif k == "end_date":
                     dt = _to_ts(v)
                     if dt:
                         where_clauses.append("created_at <= :endDate")
-                        params["endDate"] = dt
-                elif k == "orderNumber_prefix":
+                        params["end_date"] = dt
+                elif k == "order_number_prefix":
                     if v:
                         where_clauses.append("order_number LIKE :order_prefix")
                         params["order_prefix"] = f"{v}%"
@@ -343,14 +319,14 @@ class MySQLOrderDAO:
                 {
                     "external_id": external_id,
                     "user_id": user_id,
-                    "order_number": data.orderNumber,
+                    "order_number": data.order_number,
                     "status": data.status,
                     "total": (data.total if data.total is not None else 0),
                     "subtotal": (data.subtotal if data.subtotal is not None else 0),
                     "tax": (data.tax if data.tax is not None else 0),
                     "shipping": (data.shipping if data.shipping is not None else 0),
                     "discount": (data.discount if data.discount is not None else 0),
-                    "order_type": data.orderType,
+                    "order_type": data.order_type,
                     "payment_status": data.payment_status,
                     "payment_method": data.payment_method,
                     "upi_payment_screenshot": data.upi_payment_screenshot,
@@ -379,21 +355,21 @@ class MySQLOrderDAO:
                     "bill_latitude": data.billing_address.latitude if data.billing_address else None,
                     "bill_longitude": data.billing_address.longitude if data.billing_address else None,
                     "notes": data.notes,
-                    "printed_bill": 1 if data.printedBill else 0,
+                    "printed_bill": 1 if data.printed_bill else 0,
                                         "assigned_valet": data.assigned_valet,
                     "is_urgent_delivery": 1 if data.is_urgent_delivery else 0,
                     "pending_valet_id": data.pending_valet_id,
-                    "valet_assigned_at": _to_ts(data.valetAssignedAt),
-                    "valet_cascade_count": data.valetCascadeCount or 0,
+                    "valet_assigned_at": _to_ts(data.valet_assigned_at),
+                    "valet_cascade_count": data.valet_cascade_count or 0,
                     
-                    "shipped_at": _to_ts(data.shippedAt),
-                    "delivered_at": _to_ts(data.deliveredAt),
-                    "cod_payment_received": 1 if data.codPaymentReceived else 0,
-                    "cod_payment_received_at": _to_ts(data.codPaymentReceivedAt),
-                    "decline_reason": data.declineReason,
-                    "cancelled_at": _to_ts(data.cancelledAt),
-                    "cancelled_by": data.cancelledBy,
-                    "turnaround_hours": data.turnaroundHours,
+                    "shipped_at": _to_ts(data.shipped_at),
+                    "delivered_at": _to_ts(data.delivered_at),
+                    "cod_payment_received": 1 if data.cod_payment_received else 0,
+                    "cod_payment_received_at": _to_ts(data.cod_payment_receivedAt),
+                    "decline_reason": data.decline_reason,
+                    "cancelled_at": _to_ts(data.cancelled_at),
+                    "cancelled_by": data.cancelled_by,
+                    "turnaround_hours": data.turnaround_hours,
                     "created_at": _to_ts(data.createdAt) or now,
                     "updated_at": now,
                 },
@@ -403,7 +379,7 @@ class MySQLOrderDAO:
                 {"eid": external_id},
             )
             new_id = int(r.scalar() or 0)
-            await self._replace_children(session, new_id, data.items or [], data.valetDeclineHistory or [])
+            await self._replace_children(session, new_id, data.items or [], data.valet_decline_history or [])
             await session.commit()
         return await self.findById(str(new_id))
 
@@ -462,14 +438,14 @@ class MySQLOrderDAO:
                 {
                     "id": oid,
                     "user_id": user_id,
-                    "order_number": update_data.orderNumber if update_data.orderNumber is not None else existing.order_number,
+                    "order_number": update_data.order_number if update_data.order_number is not None else existing.order_number,
                     "status": update_data.status if update_data.status is not None else existing.status,
                     "total": (update_data.total if update_data.total is not None else (existing.total if existing.total is not None else 0)),
                     "subtotal": (update_data.subtotal if update_data.subtotal is not None else (existing.subtotal if existing.subtotal is not None else 0)),
                     "tax": (update_data.tax if update_data.tax is not None else (existing.tax if existing.tax is not None else 0)),
                     "shipping": (update_data.shipping if update_data.shipping is not None else (existing.shipping if existing.shipping is not None else 0)),
                     "discount": (update_data.discount if update_data.discount is not None else (existing.discount if existing.discount is not None else 0)),
-                    "order_type": update_data.orderType if update_data.orderType is not None else existing.order_type,
+                    "order_type": update_data.order_type if update_data.order_type is not None else existing.order_type,
                     "payment_status": update_data.payment_status if update_data.payment_status is not None else existing.payment_status,
                     "payment_method": update_data.payment_method if update_data.payment_method is not None else existing.payment_method,
                     "upi_payment_screenshot": update_data.upi_payment_screenshot if update_data.upi_payment_screenshot is not None else existing.upi_payment_screenshot,
@@ -498,25 +474,25 @@ class MySQLOrderDAO:
                     "bill_latitude": (update_data.billing_address.latitude if update_data.billing_address else (existing.billing_address.latitude if existing.billing_address else None)),
                     "bill_longitude": (update_data.billing_address.longitude if update_data.billing_address else (existing.billing_address.longitude if existing.billing_address else None)),
                     "notes": update_data.notes if update_data.notes is not None else existing.notes,
-                    "printed_bill": 1 if (update_data.printedBill if update_data.printedBill is not None else existing.printed_bill) else 0,
+                    "printed_bill": 1 if (update_data.printed_bill if update_data.printed_bill is not None else existing.printed_bill) else 0,
                     "assigned_valet": update_data.assigned_valet if update_data.assigned_valet is not None else existing.assigned_valet,
                     "pending_valet_id": update_data.pending_valet_id if update_data.pending_valet_id is not None else existing.pending_valet_id,
-                    "valet_assigned_at": _to_ts(update_data.valetAssignedAt if update_data.valetAssignedAt is not None else existing.valet_assigned_at),
-                    "valet_cascade_count": update_data.valetCascadeCount if update_data.valetCascadeCount is not None else existing.valet_cascade_count or 0,
+                    "valet_assigned_at": _to_ts(update_data.valet_assigned_at if update_data.valet_assigned_at is not None else existing.valet_assigned_at),
+                    "valet_cascade_count": update_data.valet_cascade_count if update_data.valet_cascade_count is not None else existing.valet_cascade_count or 0,
                     
                     "is_urgent_delivery": 1 if (update_data.is_urgent_delivery if update_data.is_urgent_delivery is not None else existing.is_urgent_delivery) else 0,
-                    "shipped_at": _to_ts(update_data.shippedAt if update_data.shippedAt is not None else existing.shipped_at),
-                    "delivered_at": _to_ts(update_data.deliveredAt if update_data.deliveredAt is not None else existing.delivered_at),
-                    "cod_payment_received": 1 if (update_data.codPaymentReceived if update_data.codPaymentReceived is not None else existing.cod_payment_received) else 0,
-                    "cod_payment_received_at": _to_ts(update_data.codPaymentReceivedAt if update_data.codPaymentReceivedAt is not None else existing.cod_payment_received_at),
-                    "decline_reason": update_data.declineReason if update_data.declineReason is not None else existing.decline_reason,
-                    "cancelled_at": _to_ts(update_data.cancelledAt if update_data.cancelledAt is not None else existing.cancelled_at),
-                    "cancelled_by": update_data.cancelledBy if update_data.cancelledBy is not None else existing.cancelled_by,
-                    "turnaround_hours": update_data.turnaroundHours if update_data.turnaroundHours is not None else existing.turnaround_hours,
+                    "shipped_at": _to_ts(update_data.shipped_at if update_data.shipped_at is not None else existing.shipped_at),
+                    "delivered_at": _to_ts(update_data.delivered_at if update_data.delivered_at is not None else existing.delivered_at),
+                    "cod_payment_received": 1 if (update_data.cod_payment_received if update_data.cod_payment_received is not None else existing.cod_payment_received) else 0,
+                    "cod_payment_received_at": _to_ts(update_data.cod_payment_receivedAt if update_data.cod_payment_receivedAt is not None else existing.cod_payment_received_at),
+                    "decline_reason": update_data.decline_reason if update_data.decline_reason is not None else existing.decline_reason,
+                    "cancelled_at": _to_ts(update_data.cancelled_at if update_data.cancelled_at is not None else existing.cancelled_at),
+                    "cancelled_by": update_data.cancelled_by if update_data.cancelled_by is not None else existing.cancelled_by,
+                    "turnaround_hours": update_data.turnaround_hours if update_data.turnaround_hours is not None else existing.turnaround_hours,
                     "updated_at": now,
                 },
             )
-            await self._replace_children(session, oid, update_data.items if update_data.items is not None else existing.items or [], update_data.valetDeclineHistory if update_data.valetDeclineHistory is not None else existing.valet_decline_history or [])
+            await self._replace_children(session, oid, update_data.items if update_data.items is not None else existing.items or [], update_data.valet_decline_history if update_data.valet_decline_history is not None else existing.valet_decline_history or [])
             await session.commit()
         return await self.findById(id)
 

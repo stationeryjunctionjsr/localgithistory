@@ -118,8 +118,7 @@ class ProductNotificationRepository:
                     # Mark as notified
                     await self.storage.update(notif.id, ProductNotificationsInternalUpdate(status="notified"))
         except Exception as e:
-            logger.error(f"Restock notification crashed: {e}
-{traceback.format_exc()}")
+            logger.error(f"Restock notification crashed: {e}\n{traceback.format_exc()}")
 
 
 product_notification_repository = ProductNotificationRepository()

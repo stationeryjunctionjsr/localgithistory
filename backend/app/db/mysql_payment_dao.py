@@ -246,15 +246,15 @@ class MySQLPaymentDAO:
         params = {
             "external_id": external_id,
             "order_id": data.order_id,
-            "user_id": data.userId,
+            "user_id": data.user_id,
             "user_id_formatted": data.user_id_formatted,
-            "customer_name": data.customerName,
-            "order_date": _to_ts(data.orderDate) or now,
+            "customer_name": data.customer_name,
+            "order_date": _to_ts(data.order_date) or now,
             "payment_method": data.payment_method,
-            "amount_paid": data.amountPaid,
-            "amount_remaining": data.amountRemaining,
+            "amount_paid": data.amount_paid,
+            "amount_remaining": data.amount_remaining,
             "total_amount": data.total_amount,
-            "payment_id": data.paymentId,
+            "payment_id": data.payment_id,
             "created_at": now,
             "updated_at": now,
         }
@@ -278,10 +278,10 @@ class MySQLPaymentDAO:
         if new_id and payment_entries:
             async with factory() as session:
                 for idx, entry in enumerate(payment_entries):
-                    entry_id = (entry.entryId if entry.entryId is not None else idx + 1)
+                    entry_id = (entry.entry_id if entry.entry_id is not None else idx + 1)
                     amount = (entry.amount if entry.amount is not None else 0)
                     method = entry.payment_method or data.payment_method
-                    paid_at = _to_ts(entry.paidAt) or now
+                    paid_at = _to_ts(entry.paid_at) or now
                     await session.execute(
                         text(
                             f"INSERT INTO {self.ENTRIES_TABLE} (payment_id, entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) "
@@ -309,16 +309,16 @@ class MySQLPaymentDAO:
         # Since existing is a Dict and update_data is a PaymentInternalUpdate, we merge by accessing update_data fields
         # falling back to existing.
         merged = {
-            "orderId": update_data.order_id if update_data.order_id is not None else existing.order_id,
-            "userId": update_data.userId if update_data.userId is not None else existing.user_id,
-            "userIdFormatted": update_data.user_id_formatted if update_data.user_id_formatted is not None else existing.user_id_formatted,
-            "customerName": update_data.customerName if update_data.customerName is not None else existing.customer_name,
-            "orderDate": update_data.orderDate if update_data.orderDate is not None else existing.order_date,
-            "paymentMethod": update_data.payment_method if update_data.payment_method is not None else existing.payment_method,
-            "amountPaid": update_data.amountPaid if update_data.amountPaid is not None else existing.amount_paid,
-            "amountRemaining": update_data.amountRemaining if update_data.amountRemaining is not None else existing.amount_remaining,
-            "totalAmount": update_data.total_amount if update_data.total_amount is not None else existing.total_amount,
-            "paymentId": update_data.paymentId if update_data.paymentId is not None else existing.payment_id,
+            "order_id": update_data.order_id if update_data.order_id is not None else existing.order_id,
+            "user_id": update_data.user_id if update_data.user_id is not None else existing.user_id,
+            "user_id_formatted": update_data.user_id_formatted if update_data.user_id_formatted is not None else existing.user_id_formatted,
+            "customer_name": update_data.customer_name if update_data.customer_name is not None else existing.customer_name,
+            "order_date": update_data.order_date if update_data.order_date is not None else existing.order_date,
+            "payment_method": update_data.payment_method if update_data.payment_method is not None else existing.payment_method,
+            "amount_paid": update_data.amount_paid if update_data.amount_paid is not None else existing.amount_paid,
+            "amount_remaining": update_data.amount_remaining if update_data.amount_remaining is not None else existing.amount_remaining,
+            "total_amount": update_data.total_amount if update_data.total_amount is not None else existing.total_amount,
+            "payment_id": update_data.payment_id if update_data.payment_id is not None else existing.payment_id,
         }
 
         factory = self._factory()
@@ -335,16 +335,16 @@ class MySQLPaymentDAO:
                     f"payment_id=:payment_id, updated_at=:updated_at WHERE id=:id"
                 ),
                 {
-                    "order_id": merged["orderId"],
-                    "user_id": merged["userId"],
-                    "user_id_formatted": merged["userIdFormatted"],
-                    "customer_name": merged["customerName"],
-                    "order_date": _to_ts(merged["orderDate"]),
-                    "payment_method": merged["paymentMethod"],
-                    "amount_paid": merged["amountPaid"],
-                    "amount_remaining": merged["amountRemaining"],
-                    "total_amount": merged["totalAmount"],
-                    "payment_id": merged["paymentId"],
+                    "order_id": merged["order_id"],
+                    "user_id": merged["user_id"],
+                    "user_id_formatted": merged["user_id_formatted"],
+                    "customer_name": merged["customer_name"],
+                    "order_date": _to_ts(merged["order_date"]),
+                    "payment_method": merged["payment_method"],
+                    "amount_paid": merged["amount_paid"],
+                    "amount_remaining": merged["amount_remaining"],
+                    "total_amount": merged["total_amount"],
+                    "payment_id": merged["payment_id"],
                     "updated_at": now,
                     "id": pid,
                 },
@@ -354,8 +354,8 @@ class MySQLPaymentDAO:
                 await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": pid})
                 await session.commit()
                 for idx, entry in enumerate(update_data.payment_entries):
-                    entry_id = (entry.entryId if entry.entryId is not None else idx + 1)
-                    paid_at = _to_ts(entry.paidAt) or now
+                    entry_id = (entry.entry_id if entry.entry_id is not None else idx + 1)
+                    paid_at = _to_ts(entry.paid_at) or now
                     await session.execute(
                         text(
                             f"INSERT INTO {self.ENTRIES_TABLE} (payment_id, entry_id, amount, payment_method, paid_at, image, notes, verified, created_at) "
@@ -365,7 +365,7 @@ class MySQLPaymentDAO:
                             "payment_id": pid,
                             "entry_id": entry_id,
                             "amount": (entry.amount if entry.amount is not None else 0),
-                            "payment_method": entry.payment_method or merged["paymentMethod"],
+                            "payment_method": entry.payment_method or merged["payment_method"],
                             "paid_at": paid_at,
                             "image": entry.image,
                             "notes": (entry.notes if entry.notes is not None else ""),

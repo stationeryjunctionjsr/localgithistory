@@ -2,20 +2,21 @@ from datetime import datetime
 from typing import Optional, List, Any, Dict
 from pydantic import Field
 from pydantic import BaseModel
+from app.models.base import CamelBaseModel
 
-class ValetAvailability(BaseModel):
-    id: str = Field(default=None, alias='_id')
-    external_id: Optional[str] = Field(default=None, alias='externalId')
-    valet_id: Optional[str] = Field(default=None, alias='valetId')
-    date: Optional[datetime] = Field(default=None, alias='date')
-    availability_type: Optional[str] = Field(default=None, alias='availabilityType')
-    slots: Optional[List[str]] = Field(default=None, alias='slots')
-    zones: Optional[List[str]] = Field(default=None, alias='zones')
-    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
-    updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    vid: Optional[str] = Field(default=None, alias='vid')
-    s: Optional[str] = Field(default=None, alias='s')
-    z: Optional[str] = Field(default=None, alias='z')
-    eid: Optional[str] = Field(default=None, alias='eid')
-    atype: Optional[str] = Field(default=None, alias='atype')
-    up: Optional[str] = Field(default=None, alias='up')
+class ValetAvailability(CamelBaseModel):
+    id: str = None
+    external_id: Optional[str] = None
+    valet_id: Optional[str] = None
+    date: Optional[datetime] = None
+    availability_type: Optional[str] = None
+    slots: Optional[List[str]] = None
+    zones: Optional[List[str]] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    vid: Optional[str] = None
+    s: Optional[str] = None
+    z: Optional[str] = None
+    eid: Optional[str] = None
+    atype: Optional[str] = None
+    up: Optional[str] = None

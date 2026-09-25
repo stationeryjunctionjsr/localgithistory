@@ -35,7 +35,7 @@ class MySQLOrderFeedbackDAO:
             conditions = []
             params = {}
             
-            query_map = {'orderId': 'order_id', 'userId': 'user_id', 'rating': 'rating', 'comment': 'comments', 'deliveryRating': 'delivery_rating', 'deliveryComment': 'delivery_comment', 'feedbackType': 'feedback_type'}
+            query_map = {'order_id': 'order_id', 'user_id': 'user_id', 'rating': 'rating', 'comment': 'comments', 'delivery_rating': 'delivery_rating', 'delivery_comment': 'delivery_comment', 'feedback_type': 'feedback_type'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -60,7 +60,7 @@ class MySQLOrderFeedbackDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'orderId': 'order_id', 'userId': 'user_id', 'rating': 'rating', 'comment': 'comments', 'deliveryRating': 'delivery_rating', 'deliveryComment': 'delivery_comment', 'feedbackType': 'feedback_type'}
+            query_map = {'order_id': 'order_id', 'user_id': 'user_id', 'rating': 'rating', 'comment': 'comments', 'delivery_rating': 'delivery_rating', 'delivery_comment': 'delivery_comment', 'feedback_type': 'feedback_type'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -94,11 +94,11 @@ class MySQLOrderFeedbackDAO:
 
         if data.order_id is not None:
             cols.append("order_id")
-            params["s_orderId"] = data.order_id
+            params["s_order_id"] = data.order_id
 
-        if data.userId is not None:
+        if data.user_id is not None:
             cols.append("user_id")
-            params["s_userId"] = data.userId
+            params["s_user_id"] = data.user_id
 
         if data.rating is not None:
             cols.append("rating")
@@ -110,18 +110,18 @@ class MySQLOrderFeedbackDAO:
 
         if data.delivery_rating is not None:
             cols.append("delivery_rating")
-            params["s_deliveryRating"] = data.delivery_rating
+            params["s_delivery_rating"] = data.delivery_rating
 
         if data.delivery_comment is not None:
             cols.append("delivery_comment")
-            params["s_deliveryComment"] = data.delivery_comment
+            params["s_delivery_comment"] = data.delivery_comment
 
         if data.feedback_type is not None:
             cols.append("feedback_type")
-            params["s_feedbackType"] = data.feedback_type
+            params["s_feedback_type"] = data.feedback_type
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['orderId', 'userId', 'rating', 'comment', 'deliveryRating', 'deliveryComment', 'feedbackType'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['order_id', 'user_id', 'rating', 'comment', 'delivery_rating', 'delivery_comment', 'feedback_type'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -142,11 +142,11 @@ class MySQLOrderFeedbackDAO:
 
         if data.order_id is not None:
             updates.append("order_id = :s_orderId")
-            params["s_orderId"] = data.order_id
+            params["s_order_id"] = data.order_id
 
-        if data.userId is not None:
+        if data.user_id is not None:
             updates.append("user_id = :s_userId")
-            params["s_userId"] = data.userId
+            params["s_user_id"] = data.user_id
 
         if data.rating is not None:
             updates.append("rating = :s_rating")
@@ -158,15 +158,15 @@ class MySQLOrderFeedbackDAO:
 
         if data.delivery_rating is not None:
             updates.append("delivery_rating = :s_deliveryRating")
-            params["s_deliveryRating"] = data.delivery_rating
+            params["s_delivery_rating"] = data.delivery_rating
 
         if data.delivery_comment is not None:
             updates.append("delivery_comment = :s_deliveryComment")
-            params["s_deliveryComment"] = data.delivery_comment
+            params["s_delivery_comment"] = data.delivery_comment
 
         if data.feedback_type is not None:
             updates.append("feedback_type = :s_feedbackType")
-            params["s_feedbackType"] = data.feedback_type
+            params["s_feedback_type"] = data.feedback_type
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
@@ -206,31 +206,11 @@ class MySQLOrderFeedbackDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        rm = r._mapping
-        out = {
-            "_id": str(rm["id"]), 
-            "externalId": rm["external_id"]
-        }
-        
-        created_at = rm["created_at"]
-        if created_at:
-            out["createdAt"] = created_at.isoformat()
-            
-        updated_at = rm["updated_at"]
-        if updated_at:
-            out["updatedAt"] = updated_at.isoformat()
-
-        out["orderId"] = rm["order_id"]
-        out["userId"] = rm["user_id"]
-        out["rating"] = rm["rating"]
-        out["comment"] = rm["comments"]
-        out["deliveryRating"] = rm["delivery_rating"]
-        out["deliveryComment"] = rm["delivery_comment"]
-        out["feedbackType"] = rm["feedback_type"]
-        for k, v in children.items():
-            out[k] = v
-            
-        return OrderFeedbackInternal(**out)
+        d = dict(r._mapping)
+        if "comments" in d:
+            d["comment"] = d.pop("comments")
+        d.update(children)
+        return OrderFeedbackInternal.model_validate(d)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}

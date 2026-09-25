@@ -34,14 +34,14 @@ class MySQLCategoryDAO:
             "isReturnable": bool(r.is_returnable) if r.is_returnable is not None else True,
             "showInMobileHomepage": bool(r.show_in_mobile_homepage) if r.show_in_mobile_homepage is not None else False,
             "images": (children["images"] if "images" in children else []),
-            "subCategories": (children["subCategories"] if "subCategories" in children else []),
-            "categoryTags": (children["categoryTags"] if "categoryTags" in children else []),
+            "subCategories": (children["sub_categories"] if "subCategories" in children else []),
+            "categoryTags": (children["category_tags"] if "categoryTags" in children else []),
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
         }
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {"images": [], "subCategories": [], "categoryTags": []} for rid in ids}
+        c_map = {rid: {"images": [], "sub_categories": [], "category_tags": []} for rid in ids}
         if not ids:
             return c_map
         chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
@@ -63,14 +63,14 @@ class MySQLCategoryDAO:
                 chunk_params,
             )
             for r in res_sub.fetchall():
-                c_map[r.category_id]["subCategories"].append(r.sub_category)
+                c_map[r.category_id]["sub_categories"].append(r.sub_category)
 
             res_tag = await session.execute(
                 text(f"SELECT category_id, tag FROM sj_category_category_tags WHERE category_id IN ({placeholders})"),
                 chunk_params,
             )
             for r in res_tag.fetchall():
-                c_map[r.category_id]["categoryTags"].append(r.tag)
+                c_map[r.category_id]["category_tags"].append(r.tag)
         return c_map
 
     async def _replace_children(self, session, cid: int, data: Dict):
@@ -90,7 +90,7 @@ class MySQLCategoryDAO:
                 {"cid": cid, "sub": str(sub)},
             )
 
-        for tag in (data.categoryTags if data.categoryTags is not None else []):
+        for tag in (data.category_tags if data.category_tags is not None else []):
             await session.execute(
                 text("INSERT INTO sj_category_category_tags (category_id, tag) VALUES (:cid, :tag)"),
                 {"cid": cid, "tag": str(tag)},
@@ -108,13 +108,13 @@ class MySQLCategoryDAO:
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
                     params["id"] = int(v) if str(v).isdigit() else None
-                elif k == "isActive":
+                elif k == "is_active":
                     where_clauses.append("is_active = :is_active")
                     params["is_active"] = int(bool(v))
                 elif k == "name":
                     where_clauses.append("name = :name")
                     params["name"] = str(v)
-                elif k == "categoryTag":
+                elif k == "category_tag":
                     where_clauses.append("category_tag = :tag")
                     params["tag"] = str(v)
 
@@ -125,7 +125,13 @@ class MySQLCategoryDAO:
             )
             rows = result.fetchall()
             c_map = await self._fetch_children(session, [r.id for r in rows])
-        return [Category.model_validate(self.__map_to_schema(r, c_map[r.id])) for r in rows]
+        out = []
+        for r in rows:
+            d = dict(r._mapping)
+            d["id"] = str(r.id)
+            d.update(c_map[r.id])
+            out.append(Category.model_validate(d))
+        return out
 
     async def findOne(self, query: Dict) -> Optional[Category]:
         docs = await self.findAll(query)
@@ -157,12 +163,12 @@ class MySQLCategoryDAO:
                     "external_id": external_id,
                     "name": data.name,
                     "description": data.description,
-                    "is_active": int(bool(data.isActive)),
-                    "category_tag": data.categoryTag,
-                    "minimum_quantity": data.minimumQuantity,
+                    "is_active": int(bool(data.is_active)),
+                    "category_tag": data.category_tag,
+                    "minimum_quantity": data.minimum_quantity,
                     "gst": data.gst,
-                    "is_returnable": int(bool(data.isReturnable)),
-                    "show_in_mobile_homepage": int(bool(data.showInMobileHomepage)),
+                    "is_returnable": int(bool(data.is_returnable)),
+                    "show_in_mobile_homepage": int(bool(data.show_in_mobile_homepage)),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -204,12 +210,12 @@ class MySQLCategoryDAO:
                     "id": cid,
                     "name": update_data.name if update_data.name is not None else existing.name,
                     "description": update_data.description if update_data.description is not None else existing.description,
-                    "is_active": int(bool(update_data.isActive if update_data.isActive is not None else existing.is_active)),
-                    "category_tag": update_data.categoryTag if update_data.categoryTag is not None else existing.category_tag,
-                    "minimum_quantity": update_data.minimumQuantity if update_data.minimumQuantity is not None else existing.minimum_quantity,
+                    "is_active": int(bool(update_data.is_active if update_data.is_active is not None else existing.is_active)),
+                    "category_tag": update_data.category_tag if update_data.category_tag is not None else existing.category_tag,
+                    "minimum_quantity": update_data.minimum_quantity if update_data.minimum_quantity is not None else existing.minimum_quantity,
                     "gst": update_data.gst if update_data.gst is not None else existing.gst,
-                    "is_returnable": int(bool(update_data.isReturnable if update_data.isReturnable is not None else existing.is_returnable)),
-                    "show_in_mobile_homepage": int(bool(update_data.showInMobileHomepage if update_data.showInMobileHomepage is not None else existing.show_in_mobile_homepage)),
+                    "is_returnable": int(bool(update_data.is_returnable if update_data.is_returnable is not None else existing.is_returnable)),
+                    "show_in_mobile_homepage": int(bool(update_data.show_in_mobile_homepage if update_data.show_in_mobile_homepage is not None else existing.show_in_mobile_homepage)),
                     "updated_at": now,
                 },
             )
@@ -217,7 +223,7 @@ class MySQLCategoryDAO:
             dummy_merged = CategoryChildrenData(
                 images=update_data.images if update_data.images is not None else existing.images,
                 subCategories=update_data.sub_categories if update_data.sub_categories is not None else existing.sub_categories,
-                categoryTags=update_data.categoryTags if update_data.categoryTags is not None else existing.category_tags
+                categoryTags=update_data.category_tags if update_data.category_tags is not None else existing.category_tags
             )
             await self._replace_children(session, cid, dummy_merged)
             await session.commit()
