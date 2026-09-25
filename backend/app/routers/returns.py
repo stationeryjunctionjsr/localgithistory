@@ -208,9 +208,9 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
     if eligibility_reason:
         raise HTTPException(status_code=400, detail=eligibility_reason)
 
-    eligible_items_list = elig_model.eligibleItems
+    eligible_items_list = elig_model.eligible_items
     eligible_items_map = {
-        item.product_id: item.maxQuantity
+        item.product_id: item.max_quantity
         for item in (eligible_items_list or [])
     }
 
@@ -234,7 +234,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
             request_data.upi_payment_screenshot, "returns", filename_prefix="return-screenshot"
         )
 
-    delivery_charge_val = elig_model.returnDeliveryCharge or 0
+    delivery_charge_val = elig_model.return_delivery_charge or 0
     from app.models.daos import ReturnRequestInternalCreate
     created = await return_request_repository.create(
         ReturnRequestInternalCreate(

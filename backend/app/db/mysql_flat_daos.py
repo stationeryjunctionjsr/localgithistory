@@ -2420,10 +2420,10 @@ class MySQLPincodeSearchesDAO:
             cols.append("query")
             vals.append(":query")
             params["query"] = data.query
-        if data.isServiceable is not None:
+        if data.is_serviceable is not None:
             cols.append("is_serviceable")
             vals.append(":isServiceable")
-            params["isServiceable"] = 1 if data.isServiceable else 0
+            params["isServiceable"] = 1 if data.is_serviceable else 0
         if data.timestamp is not None:
             cols.append("timestamp")
             vals.append(":timestamp")
@@ -2456,9 +2456,9 @@ class MySQLPincodeSearchesDAO:
         if data.query is not None:
             updates.append("query = :query")
             params["query"] = data.query
-        if data.isServiceable is not None:
+        if data.is_serviceable is not None:
             updates.append("is_serviceable = :isServiceable")
-            params["isServiceable"] = 1 if data.isServiceable else None
+            params["isServiceable"] = 1 if data.is_serviceable else None
         if data.timestamp is not None:
             updates.append("timestamp = :timestamp")
             params["timestamp"] = data.timestamp
@@ -2715,10 +2715,10 @@ class MySQLValetPayoutSettingsDAO:
             cols.append("delivery_charge_per_order")
             vals.append(":deliveryChargePerOrder")
             params["deliveryChargePerOrder"] = data.delivery_chargePerOrder
-        if data.returnPickupChargePerOrder is not None:
+        if data.return_pickup_charge_per_order is not None:
             cols.append("return_pickup_charge_per_order")
             vals.append(":returnPickupChargePerOrder")
-            params["returnPickupChargePerOrder"] = data.returnPickupChargePerOrder
+            params["returnPickupChargePerOrder"] = data.return_pickup_charge_per_order
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2744,9 +2744,9 @@ class MySQLValetPayoutSettingsDAO:
         if data.delivery_chargePerOrder is not None:
             updates.append("delivery_charge_per_order = :deliveryChargePerOrder")
             params["deliveryChargePerOrder"] = data.delivery_chargePerOrder
-        if data.returnPickupChargePerOrder is not None:
+        if data.return_pickup_charge_per_order is not None:
             updates.append("return_pickup_charge_per_order = :returnPickupChargePerOrder")
-            params["returnPickupChargePerOrder"] = data.returnPickupChargePerOrder
+            params["returnPickupChargePerOrder"] = data.return_pickup_charge_per_order
 
         set_sql = ", ".join(updates)
         factory = self._factory()

@@ -1721,46 +1721,46 @@ class UserInternalUpdate(CamelBaseModel):
 
 # --- Shared Payload DTOs ---
 
-class AnalyticsEventPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class AnalyticsEventPayload(CamelBaseModel):
+    model_config = ConfigDict(extra="allow")
     returning: Optional[bool] = False
-    productId: Optional[str] = None
-    productName: Optional[str] = "Unknown"
+    product_id: Optional[str] = None
+    product_name: Optional[str] = "Unknown"
     source: Optional[str] = "mobile_app"
     quantity: Optional[int] = 1
     query: Optional[str] = ""
-    resultsCount: Optional[int] = 0
+    results_count: Optional[int] = 0
     reason: Optional[str] = "unknown"
-    testRunId: Optional[str] = None
+    test_run_id: Optional[str] = None
     device: Optional[str] = None
     screen: Optional[str] = None
 
 
-class AnalyticsEventCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+class AnalyticsEventCreate(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
     type: str
-    userId: Optional[str] = None
-    sessionId: Optional[str] = None
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
     source: Optional[str] = None
-    filterName: Optional[str] = None
-    filterValue: Optional[str] = None
+    filter_name: Optional[str] = None
+    filter_value: Optional[str] = None
     category: Optional[str] = None
     payload: Optional[AnalyticsEventPayload] = None
-    searchTerm: Optional[str] = None
-    resultsCount: Optional[int] = None
+    search_term: Optional[str] = None
+    results_count: Optional[int] = None
     segment: Optional[str] = None
-    productIds: Optional[List[str]] = None
-    productId: Optional[str] = None
-    productName: Optional[str] = None
+    product_ids: Optional[List[str]] = None
+    product_id: Optional[str] = None
+    product_name: Optional[str] = None
     quantity: Optional[int] = None
     price: Optional[float] = None
-    cartValue: Optional[float] = None
-    isReturning: Optional[bool] = None
-    pageViews: Optional[int] = None
+    cart_value: Optional[float] = None
+    is_returning: Optional[bool] = None
+    page_views: Optional[int] = None
     page: Optional[str] = None
     reason: Optional[str] = None
-    orderId: Optional[str] = None
-    orderValue: Optional[float] = None
+    order_id: Optional[str] = None
+    order_value: Optional[float] = None
     cartItems: Optional[List[ItemSnippet]] = None
     timestamp: Optional[str] = None
     os: Optional[str] = None
@@ -1900,67 +1900,67 @@ class DeliveryZoneResponse(CamelBaseModel):
     customer_type: Optional[str] = "retail"
 
 
-class EligibleFeedbackResponse(BaseModel):
-    eligibleOrderId: Optional[str] = None
+class EligibleFeedbackResponse(CamelBaseModel):
+    eligible_order_id: Optional[str] = None
 
 
-class ReturnEligibilityItem(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
-    productId: str
-    maxQuantity: int
+class ReturnEligibilityItem(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
+    product_id: str
+    max_quantity: int
     reason: Optional[str] = None
     name: Optional[str] = None
     price: Optional[float] = None
     image: Optional[str] = None
 
 
-class ReturnEligibilityResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
-    eligibleItems: List[ReturnEligibilityItem] = []
+class ReturnEligibilityResponse(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
+    eligible_items: List[ReturnEligibilityItem] = []
     reason: Optional[str] = None
-    returnDeliveryCharge: Optional[float] = 0.0
+    return_delivery_charge: Optional[float] = 0.0
 
 
-class UPIDetailsResponse(BaseModel):
-    upiId: Optional[str] = None
-    qrCodeUrl: Optional[str] = None
+class UPIDetailsResponse(CamelBaseModel):
+    upi_id: Optional[str] = None
+    qr_code_url: Optional[str] = None
     instructions: Optional[str] = None
     message: Optional[str] = None
 
 
-class ValetPayoutSettingsResponse(BaseModel):
-    deliveryChargePerOrder: Optional[float] = None
-    returnPickupChargePerOrder: Optional[float] = None
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+class ValetPayoutSettingsResponse(CamelBaseModel):
+    delivery_charge_per_order: Optional[float] = None
+    return_pickup_charge_per_order: Optional[float] = None
+    updated_at: Optional[datetime] = None
 
 
-class PincodeSearchResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
+class PincodeSearchResponse(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
     pincode: Optional[str] = None
-    isServiceable: Optional[bool] = None
+    is_serviceable: Optional[bool] = None
     status: Optional[str] = None
-    sellerCount: Optional[int] = 0
-    serviceableSellerIds: Optional[List[str]] = []
-    userRole: Optional[str] = "customer"
-    userId: Optional[str] = None
+    seller_count: Optional[int] = 0
+    serviceable_seller_ids: Optional[List[str]] = []
+    user_role: Optional[str] = "customer"
+    user_id: Optional[str] = None
     city: Optional[str] = None
     state: Optional[str] = None
     district: Optional[str] = None
-    searchedAt: Optional[str] = None
+    searched_at: Optional[str] = None
     date: Optional[str] = None
 
 
-class PincodeSearchStatsResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
-    totalSearches: int = 0
-    uniquePincodes: int = 0
-    uniquePincodesCount: int = 0
-    serviceableSearches: int = 0
-    unserviceableSearches: int = 0
-    topUnserviceablePincodes: List[PincodeStat] = []
-    topSearchedPincodes: List[PincodeStat] = []
-    topPincodes: List[PincodeStat] = []
+class PincodeSearchStatsResponse(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
+    total_searches: int = 0
+    unique_pincodes: int = 0
+    unique_pincodes_count: int = 0
+    serviceable_searches: int = 0
+    unserviceable_searches: int = 0
+    top_unserviceable_pincodes: List[PincodeStat] = []
+    top_searched_pincodes: List[PincodeStat] = []
+    top_pincodes: List[PincodeStat] = []
 
 
 class UploadImagesResponse(BaseModel):
@@ -1980,16 +1980,16 @@ class SearchSuggestResponse(BaseModel):
     categories: List[SearchResultItem] = []
 
 
-class PushNotificationResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
+class PushNotificationResponse(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
     title: Optional[str] = None
     message: Optional[str] = None
     link: Optional[str] = None
-    targetSegmentId: Optional[str] = None
+    target_segment_id: Optional[str] = None
     status: Optional[str] = None
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class PushAnalyticsResponse(BaseModel):

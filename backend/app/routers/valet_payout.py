@@ -37,7 +37,7 @@ class ValetPayoutSettingsModel(BaseModel):
 
     @property
     def return_pickup_charge_per_order(self) -> float:
-        return self.returnPickupChargePerOrder
+        return self.return_pickup_charge_per_order
 
     @property
     def updated_at(self) -> Optional[datetime]:
@@ -85,20 +85,20 @@ async def update_valet_payout_settings(
         settings.id,
         {
             "deliveryChargePerOrder": payload.delivery_chargePerOrder,
-            "returnPickupChargePerOrder": payload.returnPickupChargePerOrder,
+            "returnPickupChargePerOrder": payload.return_pickup_charge_per_order,
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         },
     )
     if not updated:
         return {
             "deliveryChargePerOrder": payload.delivery_chargePerOrder,
-            "returnPickupChargePerOrder": payload.returnPickupChargePerOrder,
+            "returnPickupChargePerOrder": payload.return_pickup_charge_per_order,
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
     updated_model = updated if isinstance(updated, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(updated, from_attributes=True)
     return {
         "deliveryChargePerOrder": (updated_model.delivery_chargePerOrder if updated_model.delivery_chargePerOrder is not None else 0.0),
-        "returnPickupChargePerOrder": (updated_model.returnPickupChargePerOrder if updated_model.returnPickupChargePerOrder is not None else 0.0),
+        "returnPickupChargePerOrder": (updated_model.return_pickup_charge_per_order if updated_model.return_pickup_charge_per_order is not None else 0.0),
         "updatedAt": updated_model.updatedAt,
     }
 
