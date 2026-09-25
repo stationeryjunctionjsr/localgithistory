@@ -1,3 +1,4 @@
+from app.models.base import JsonPayload
 import os
 import secrets
 import time
@@ -14,7 +15,7 @@ EMAIL_MAX_SENDS_PER_HOUR = 5  # Max 5 sends per hour
 EMAIL_SEND_WINDOW_SECONDS = 60 * 60  # 1 hour window
 
 # In-memory fallback (used when Oracle is not configured)
-email_otp_store: Dict[str, dict] = {}
+email_otp_store: Dict[str, 'JsonPayload'] = {}
 
 
 def generate_email_otp() -> str:
@@ -35,7 +36,7 @@ def send_verification_email_sync(email: str, otp_code: str) -> bool:
 # ─── Oracle DB-backed Email OTP functions ───
 
 
-async def _db_request_otp(email: str, device_key: str = "default") -> Tuple[bool, dict]:
+async def _db_request_otp(email: str, device_key: str = "default") -> Tuple[bool, 'JsonPayload']:
     from app.db.mysql_email_otp_dao import email_otp_dao
 
     email_lower = email.lower()
@@ -89,7 +90,7 @@ async def _db_request_otp(email: str, device_key: str = "default") -> Tuple[bool
 
 async def _db_verify_otp(
     email: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
-) -> dict:
+) -> 'JsonPayload':
     from app.db.mysql_email_otp_dao import email_otp_dao
 
     email_lower = email.lower()
@@ -119,7 +120,7 @@ def _prune_timestamps(timestamps: List[float], *, now: float, window_seconds: fl
     return [ts for ts in timestamps if ts >= threshold]
 
 
-def _get_email_record(email: str) -> Optional[dict]:
+def _get_email_record(email: str) -> Optional['JsonPayload']:
     record = (email_otp_store[email.lower()] if email.lower() in email_otp_store else None)
     if not record:
         return None
@@ -131,7 +132,7 @@ def _get_email_record(email: str) -> Optional[dict]:
     return record
 
 
-def _get_device_record(user_record: dict, device_key: str, *, now: float) -> Optional[dict]:
+def _get_device_record(user_record: 'JsonPayload', device_key: str, *, now: float) -> Optional['JsonPayload']:
     devices = user_record.setdefault("devices", {})
     device = (devices[device_key] if device_key in devices else None)
     if not device:
@@ -143,7 +144,7 @@ def _get_device_record(user_record: dict, device_key: str, *, now: float) -> Opt
     return device
 
 
-def _mem_request_otp(email: str, device_key: str = "default") -> Tuple[bool, dict]:
+def _mem_request_otp(email: str, device_key: str = "default") -> Tuple[bool, 'JsonPayload']:
     email_lower = email.lower()
     now = time.time()
     user_record = _get_email_record(email_lower)
@@ -208,7 +209,7 @@ def _mem_request_otp(email: str, device_key: str = "default") -> Tuple[bool, dic
 
 def _mem_verify_otp(
     email: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
-) -> dict:
+) -> 'JsonPayload':
     email_lower = email.lower()
     now = time.time()
     user_record = _get_email_record(email_lower)
@@ -236,13 +237,13 @@ def _mem_verify_otp(
 # ─── Public API ───
 
 
-async def request_email_otp_async(email: str, device_key: str = "default") -> Tuple[bool, dict]:
+async def request_email_otp_async(email: str, device_key: str = "default") -> Tuple[bool, 'JsonPayload']:
     """Async request function for email OTP."""
     return await _db_request_otp(email, device_key)
 
 
 async def verify_email_otp_async(
     email: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
-) -> dict:
+) -> 'JsonPayload':
     """Async verify function for email OTP."""
     return await _db_verify_otp(email, provided_otp, device_key, delete_on_success)

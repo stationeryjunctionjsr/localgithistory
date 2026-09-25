@@ -1,3 +1,4 @@
+from app.models.base import JsonPayload
 import os
 import secrets
 import time
@@ -18,7 +19,7 @@ MAX_SENDS_PER_HOUR = 50
 SEND_WINDOW_SECONDS = 60 * 60
 
 # In-memory fallback (used when Oracle is not configured)
-otp_store: Dict[str, dict] = {}
+otp_store: Dict[str, 'JsonPayload'] = {}
 
 
 def generate_otp() -> str:
@@ -103,7 +104,7 @@ def send_otp_via_sms(phone: str, otp: str) -> bool:
         return False
 
 
-def verify_msg91_widget_token(token: str) -> Tuple[bool, dict]:
+def verify_msg91_widget_token(token: str) -> Tuple[bool, 'JsonPayload']:
     """Verify a MSG91 Widget Access Token (JWT) with MSG91 server"""
     api_key = os.getenv("MSG91_AUTH_KEY")
     if not api_key:
@@ -126,10 +127,10 @@ def verify_msg91_widget_token(token: str) -> Tuple[bool, dict]:
         return False, {"message": "Internal verification error"}
 
 
-def extract_phone_from_msg91_payload(payload: dict) -> Optional[str]:
+def extract_phone_from_msg91_payload(payload: 'JsonPayload') -> Optional[str]:
     """Best-effort extraction of the verified phone number from MSG91 payloads."""
 
-    def _walk(value: dict) -> Optional[str]:
+    def _walk(value: 'JsonPayload') -> Optional[str]:
         if isinstance(value, dict):
             prioritized_keys = (
                 "mobile",
@@ -163,7 +164,7 @@ def extract_phone_from_msg91_payload(payload: dict) -> Optional[str]:
     return _walk(payload)
 
 
-def verify_otp_via_msg91_headless(phone: str, otp: str) -> Tuple[bool, dict]:
+def verify_otp_via_msg91_headless(phone: str, otp: str) -> Tuple[bool, 'JsonPayload']:
     """Verify a raw 4-6 digit OTP with MSG91 Headless API (fallback)"""
     api_key = os.getenv("MSG91_AUTH_KEY")
     widget_id = os.getenv("MSG91_WIDGET_ID")
@@ -192,7 +193,7 @@ def verify_otp_via_msg91_headless(phone: str, otp: str) -> Tuple[bool, dict]:
 # ─── Oracle DB-backed OTP functions ───
 
 
-async def _db_request_otp(user_key: str, device_key: str) -> Tuple[bool, dict]:
+async def _db_request_otp(user_key: str, device_key: str) -> Tuple[bool, 'JsonPayload']:
     from app.db.mysql_otp_dao import otp_dao
 
     send_count = await otp_dao.count_sends_in_window(user_key, SEND_WINDOW_SECONDS)
@@ -242,7 +243,7 @@ async def _db_request_otp(user_key: str, device_key: str) -> Tuple[bool, dict]:
 
 async def _db_verify_otp(
     user_key: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
-) -> dict:
+) -> 'JsonPayload':
     from app.db.mysql_otp_dao import otp_dao
 
     stored = await otp_dao.find_active_otp(user_key, device_key)
@@ -282,7 +283,7 @@ def _prune_timestamps(timestamps: List[float], *, now: float, window_seconds: fl
     return [ts for ts in timestamps if ts >= threshold]
 
 
-def _get_user_record(user_key: str) -> Optional[dict]:
+def _get_user_record(user_key: str) -> Optional['JsonPayload']:
     record = otp_store[user_key] if user_key in otp_store else None
     if not record:
         return None
@@ -294,7 +295,7 @@ def _get_user_record(user_key: str) -> Optional[dict]:
     return record
 
 
-def _get_device_record(user_record: dict, device_key: str, *, now: float) -> Optional[dict]:
+def _get_device_record(user_record: 'JsonPayload', device_key: str, *, now: float) -> Optional['JsonPayload']:
     devices = user_record.setdefault("devices", {})
     device = (devices[device_key] if device_key in devices else None)
     if not device:
@@ -306,7 +307,7 @@ def _get_device_record(user_record: dict, device_key: str, *, now: float) -> Opt
     return device
 
 
-def _mem_request_otp(user_key: str, device_key: str) -> Tuple[bool, dict]:
+def _mem_request_otp(user_key: str, device_key: str) -> Tuple[bool, 'JsonPayload']:
     now = time.time()
     user_record = _get_user_record(user_key)
     if not user_record:
@@ -362,7 +363,7 @@ def _mem_request_otp(user_key: str, device_key: str) -> Tuple[bool, dict]:
 
 def _mem_verify_otp(
     user_key: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
-) -> dict:
+) -> 'JsonPayload':
     now = time.time()
     user_record = _get_user_record(user_key)
     if not user_record:
@@ -400,7 +401,7 @@ def _mem_verify_otp(
 # ─── Public API (MySQL Relational DB mode) ───
 
 
-def request_otp(user_key: str, device_key: str) -> Tuple[bool, dict]:
+def request_otp(user_key: str, device_key: str) -> Tuple[bool, 'JsonPayload']:
     """
     Request (send/resend) an OTP.
     Since we are using MySQL DB, callers must await the result (use request_otp_async).
@@ -414,21 +415,21 @@ def request_otp(user_key: str, device_key: str) -> Tuple[bool, dict]:
     return asyncio.run(_db_request_otp(user_key, device_key))
 
 
-async def request_otp_async(user_key: str, device_key: str) -> Tuple[bool, dict]:
+async def request_otp_async(user_key: str, device_key: str) -> Tuple[bool, 'JsonPayload']:
     """Async version of request_otp. Use this from async route handlers."""
     return await _db_request_otp(user_key, device_key)
 
 
 def verify_otp(
     user_key: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
-) -> dict:
+) -> 'JsonPayload':
     """Verify OTP. Use verify_otp_async from async context."""
     raise RuntimeError("Use verify_otp_async in async context")
 
 
 async def verify_otp_async(
     user_key: str, provided_otp: str, device_key: str = "default", delete_on_success: bool = True
-) -> dict:
+) -> 'JsonPayload':
     """Async version of verify_otp. Use this from async route handlers."""
     return await _db_verify_otp(user_key, provided_otp, device_key, delete_on_success)
 
