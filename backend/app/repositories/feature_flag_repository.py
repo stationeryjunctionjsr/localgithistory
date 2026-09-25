@@ -25,7 +25,7 @@ class FeatureFlagRepository:
         """Find feature flag by id field (not _id)"""
         return await self.storage.find_one({"id": flag_id})
 
-    async def create(self, flag_data: Any) -> Dict:
+    async def create(self, flag_data: 'FeatureFlag') -> Dict:
         """Create a new feature flag"""
         flags = await self.find_all()
         max_id = max([int(f["_id"] if "_id" in f else 0) for f in flags], default=0)
@@ -39,7 +39,7 @@ class FeatureFlagRepository:
 
         return await self.storage.create(new_flag)
 
-    async def update(self, flag_id: str, update_data: Any) -> Optional[Dict]:
+    async def update(self, flag_id: str, update_data: 'FeatureFlag') -> Optional[Dict]:
         """Update a feature flag"""
         updated_data = {**update_data, "updatedAt": datetime.now(timezone.utc).isoformat() + "Z"}
         return await self.storage.update(flag_id, updated_data)

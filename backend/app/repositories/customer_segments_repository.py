@@ -21,12 +21,12 @@ class CustomerSegmentsRepository:
     async def get_by_id(self, segment_id: str) -> Optional[CustomerSegmentInternal]:
         return await self.storage.findById(segment_id)
 
-    async def create(self, data: Any) -> CustomerSegmentInternal:
+    async def create(self, data: 'CustomerSegmentInternalCreate') -> CustomerSegmentInternal:
         now = datetime.datetime.now(timezone.utc).isoformat()
         # timestamps are handled in DAO
         return await self.storage.create(data)
 
-    async def update(self, segment_id: str, data: Any) -> Optional[CustomerSegmentInternal]:
+    async def update(self, segment_id: str, data: 'CustomerSegmentInternalUpdate') -> Optional[CustomerSegmentInternal]:
         # timestamps are handled in DAO
         return await self.storage.update(segment_id, data)
 

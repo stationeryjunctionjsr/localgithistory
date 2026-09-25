@@ -267,7 +267,7 @@ class DeliveryChargeRepository:
             urgent_delivery_charge=None,
         )
 
-    def isChargeApplicableToRole(self, charge_data: Any, user_role: str) -> bool:
+    def isChargeApplicableToRole(self, charge_data: 'DeliveryChargeInternal', user_role: str) -> bool:
         """Check if delivery charge is applicable to the user's role"""
         if not charge_data:
             return True  # Default to applicable if no data

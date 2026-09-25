@@ -79,7 +79,7 @@ class BundleRepository:
         await self.ensure_table_exists()
         return await self.storage.findOne(query)
 
-    async def create(self, data: Any) -> Any:
+    async def create(self, data: 'BundleInternalCreate') -> 'Bundle':
         await self.ensure_table_exists()
         from app.models.daos import BundleInternalCreate
         if isinstance(data, dict):
@@ -88,7 +88,7 @@ class BundleRepository:
             internal_data = data
         return await self.storage.create(internal_data)
 
-    async def update(self, id: str, update_data: Any) -> Optional[Any]:
+    async def update(self, id: str, update_data: 'BundleInternalUpdate') -> Optional['Bundle']:
         await self.ensure_table_exists()
         from app.models.daos import BundleInternalUpdate
         if isinstance(update_data, dict):

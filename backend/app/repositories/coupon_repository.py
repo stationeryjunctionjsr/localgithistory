@@ -10,7 +10,7 @@ from app.models.schemas import BxGyEvaluationResponse, CouponValidationResponse,
 
 
 class OverlapConflictError(ValueError):
-    def __init__(self, overlap_data: Any):
+    def __init__(self, overlap_data: 'CouponOverlapData'):
         self.overlap_data = overlap_data
         super().__init__("Similar discount already exists for overlapping products")
 
@@ -414,7 +414,7 @@ class CouponRepository:
             user_behavior_cache[cache_key] = result
         return result
 
-    async def create(self, coupon_data: Any):
+    async def create(self, coupon_data: 'CouponInternalCreate'):
         method = (coupon_data.method if coupon_data.method is not None else "discount_code")
         code = coupon_data.code or ""
         if method == "discount_code" and code:
@@ -518,7 +518,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self.invalidate_cache()
         return res
 
-    async def update(self, id: str, update_data: Any):
+    async def update(self, id: str, update_data: 'CouponInternalUpdate'):
         from app.models.daos_flat import CouponInternalUpdate, CouponQuantityTierInternal
         from app.models.schemas import Coupon, CouponValidationResponse, BxGyEvaluationResponseUpdate
         
@@ -1015,7 +1015,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 continue
         return results
 
-    async def _get_affected_product_ids(self, coupon_data: Any) -> set:
+    async def _get_affected_product_ids(self, coupon_data: 'CouponInternal') -> set:
         """Expand applies_to_type/ValueIds into a set of product IDs."""
         applies_to_type = coupon_data.applies_to_type or "all"
         applies_to_value_ids = coupon_data.applies_to_value_ids or []
@@ -1094,7 +1094,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
 
         return affected
 
-    async def check_discount_overlap(self, coupon_data: Any, exclude_coupon_id: Optional[str] = None):
+    async def check_discount_overlap(self, coupon_data: 'CouponInternal', exclude_coupon_id: Optional[str] = None):
         """Identify conflicting active coupons and return affected product count."""
         if not (coupon_data.is_active if coupon_data.is_active is not None else True):
             return None

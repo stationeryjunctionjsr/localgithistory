@@ -82,11 +82,11 @@ class ReviewClassificationRepository:
         await self.ensure_table_exists()
         return await self.storage.findById(id)
 
-    async def create(self, data: Any) -> ClassificationTagResponse:
+    async def create(self, data: 'ClassificationTagsInternalCreate') -> ClassificationTagResponse:
         await self.ensure_table_exists()
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: Any) -> Optional[ClassificationTagResponse]:
+    async def update(self, id: str, update_data: 'ClassificationTagsInternalUpdate') -> Optional[ClassificationTagResponse]:
         await self.ensure_table_exists()
         return await self.storage.update(id, update_data)
 

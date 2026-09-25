@@ -12,14 +12,14 @@ class CartRepository:
     async def findByUser(self, user_id: str):
         return await self.storage.findOne({"user": user_id})
 
-    async def create(self, cart_data: Any):
+    async def create(self, cart_data: 'CartInternalCreate'):
         if not isinstance(cart_data, CartInternalCreate):
             cart = CartInternalCreate(user=cart_data.user, items=(cart_data.items if cart_data.items is not None else []))
         else:
             cart = cart_data
         return await self.storage.create(cart)
 
-    async def update(self, id: str, update_data: Any):
+    async def update(self, id: str, update_data: 'CartInternalUpdate'):
         if not isinstance(update_data, CartInternalUpdate):
             update_data = CartInternalUpdate.model_validate(update_data)
         return await self.storage.update(id, update_data)

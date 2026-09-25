@@ -18,7 +18,7 @@ class ContentRepository:
         docs = await self.storage.findAll()
         return docs[0] if docs else None
 
-    async def upsert(self, data: Any) -> Dict:
+    async def upsert(self, data: 'BaseModel') -> Dict:
         existing = await self.get()
         payload = {**data, "updatedAt": self._ts()}
         if existing:
@@ -56,7 +56,7 @@ class VersionedContentRepository(ContentRepository):
     - On first creation with no version supplied, defaults to '1.0'.
     """
 
-    async def upsert(self, data: Any) -> Dict:
+    async def upsert(self, data: 'BaseModel') -> Dict:
         existing = await self.get()
         now = self._ts()
 
@@ -111,7 +111,7 @@ class FAQRepository:
     async def find_by_id(self, section_id: str) -> Optional[Dict]:
         return await self.storage.findById(section_id)
 
-    async def create_section(self, data: Any) -> Dict:
+    async def create_section(self, data: 'FaqSectionInternalCreate') -> Dict:
         section = {
             "title": data.title,
             "icon": (data.icon if data.icon is not None else "help-circle-outline"),
@@ -122,7 +122,7 @@ class FAQRepository:
         }
         return await self.storage.create(section)
 
-    async def update_section(self, section_id: str, data: Any) -> Dict:
+    async def update_section(self, section_id: str, data: 'FaqSectionInternalUpdate') -> Dict:
         updates = {k: v for k, v in data.items() if v is not None}
         updates["updatedAt"] = self._ts()
         return await self.storage.update(section_id, updates)

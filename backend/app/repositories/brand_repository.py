@@ -28,7 +28,7 @@ class BrandRepository:
             [b for b in items if b.is_active is True], key=lambda x: (x.name or '').lower()
         )
 
-    async def create(self, data: Any) -> Brand:
+    async def create(self, data: 'BrandInternalCreate') -> Brand:
         from app.models.daos import BrandInternalCreate
         if not isinstance(data, BrandInternalCreate):
             fields = {}
@@ -44,7 +44,7 @@ class BrandRepository:
             internal_data = data
         return await self.storage.create(internal_data)
 
-    async def update(self, id: str, data: Any) -> Optional[Brand]:
+    async def update(self, id: str, data: 'BrandInternalUpdate') -> Optional[Brand]:
         from app.models.daos import BrandInternalUpdate
         if not isinstance(data, BrandInternalUpdate):
             fields = {}

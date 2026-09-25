@@ -69,11 +69,11 @@ class ProductReviewRepository:
         await self.ensure_table_exists()
         return await self.storage.findById(id)
 
-    async def create(self, data: Any) -> ProductReviewResponse:
+    async def create(self, data: 'ProductReviewsInternalCreate') -> ProductReviewResponse:
         await self.ensure_table_exists()
         return await self.storage.create(data)
 
-    async def update(self, id: str, update_data: Any) -> Optional[ProductReviewResponse]:
+    async def update(self, id: str, update_data: 'ProductReviewsInternalUpdate') -> Optional[ProductReviewResponse]:
         await self.ensure_table_exists()
         return await self.storage.update(id, update_data)
 

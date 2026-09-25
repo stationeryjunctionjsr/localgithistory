@@ -28,7 +28,7 @@ class CategoryRepository:
         categories = await self.storage.findAll({"name": name})
         return categories[0] if categories else None
 
-    async def create(self, category_data: Any) -> Category:
+    async def create(self, category_data: 'CategoryInternalCreate') -> Category:
         from app.models.daos import CategoryInternalCreate
         if not isinstance(category_data, CategoryInternalCreate):
             fields = {}
@@ -41,7 +41,7 @@ class CategoryRepository:
             category_data = CategoryInternalCreate(**fields)
         return await self.storage.create(category_data)
 
-    async def update(self, id: str, update_data: Any) -> Category:
+    async def update(self, id: str, update_data: 'CategoryInternalUpdate') -> Category:
         from app.models.daos import CategoryInternalUpdate
         # Synchronize categoryTag and categoryTags for backward compatibility
         update_dict = {}

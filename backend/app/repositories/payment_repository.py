@@ -62,7 +62,7 @@ class PaymentRepository:
     async def findByOrderId(self, order_id: str):
         return await self.storage.findAll({"orderId": order_id})
 
-    async def create(self, payment_data: Any):
+    async def create(self, payment_data: 'PaymentInternalCreate'):
         payment = {
             "orderId": payment_data["orderId"],
             "userId": payment_data["userId"] if "userId" in payment_data else None or payment_data["customerId"] if "customerId" in payment_data else None,  # Use userId instead of customerId
@@ -97,7 +97,7 @@ class PaymentRepository:
         payment_model = PaymentInternalCreate.model_validate(payment)
         return await self.storage.create(payment_model)
 
-    async def update(self, id: str, update_data: Any):
+    async def update(self, id: str, update_data: 'PaymentInternalUpdate'):
         if not isinstance(update_data, PaymentInternalUpdate):
             if isinstance(update_data, dict):
                 update_data["updatedAt"] = datetime.now(timezone.utc).isoformat()
@@ -144,7 +144,7 @@ class PaymentRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def addPaymentEntry(self, payment_id: str, entry_data: Any):
+    async def addPaymentEntry(self, payment_id: str, entry_data: 'PaymentEntryInternal'):
         payment = await self.findById(payment_id)
         if not payment:
             raise ValueError("Payment not found")
@@ -216,7 +216,7 @@ class PaymentRepository:
 
 
 
-    async def updatePaymentEntry(self, payment_id: str, entry_id: int, update_data: Any):
+    async def updatePaymentEntry(self, payment_id: str, entry_id: int, update_data: 'PaymentEntryInternal'):
         payment = await self.findById(payment_id)
         if not payment:
             raise ValueError("Payment not found")

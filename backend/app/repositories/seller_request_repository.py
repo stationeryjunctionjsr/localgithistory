@@ -59,7 +59,7 @@ class SellerRequestRepository:
 
         return await self.storage.update(id, update_data)
 
-    async def addResponse(self, request_id: str, response_data: Any):
+    async def addResponse(self, request_id: str, response_data: 'TicketResponseItemInternal'):
         request = await self.findById(request_id)
         if not request:
             raise ValueError("Request not found")

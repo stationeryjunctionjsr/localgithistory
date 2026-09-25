@@ -40,7 +40,7 @@ class ReferralRepository:
             setting.business = ReferralSegment(segment="business", discountType="percentage", discountValue=0, isActive=False)
         return setting
 
-    async def update_settings(self, update_data: Any) -> Dict:
+    async def update_settings(self, update_data: 'ReferralSettings') -> Dict:
         settings = await self.get_settings()
         return await self.storage.update(settings.id, update_data)
 

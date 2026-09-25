@@ -64,14 +64,14 @@ class OrderRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def create(self, order_data: Any):
+    async def create(self, order_data: 'OrderInternalCreate'):
         if not order_data.createdAt:
             order_data.createdAt = datetime.now(timezone.utc).isoformat()
             
         order_data.orderNumber = await self.generateOrderNumber(order_data.user_role or "")
         return await self.storage.create(order_data)
 
-    async def update(self, id: str, update_data: Any):
+    async def update(self, id: str, update_data: 'OrderInternalUpdate'):
         if update_data.status == "out_for_delivery" and update_data.shippedAt is None:
             update_data.shippedAt = datetime.now(timezone.utc).isoformat()
 

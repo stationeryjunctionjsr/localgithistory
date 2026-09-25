@@ -934,7 +934,7 @@ class ProductRepository:
         products = await self.storage.findAll({"allowed_ids": str_ids, "isActive": True})
         return await self._attach_category_gst(products)
 
-    async def create(self, product_data: Any) -> Product:
+    async def create(self, product_data: 'ProductInternalCreate') -> Product:
         from app.models.daos import ProductInternalCreate
         if isinstance(product_data, dict):
             product_data.setdefault("mrp", 0.0)
@@ -1020,7 +1020,7 @@ class ProductRepository:
         created = await self.storage.create(internal_create)
         return (await self._attach_category_gst([created]))[0]
 
-    async def update(self, id: str, update_data: Any) -> Optional[Product]:
+    async def update(self, id: str, update_data: 'ProductInternalUpdate') -> Optional[Product]:
         from app.models.daos import ProductInternalUpdate
         
         # Zero Data Stripping: Do not use model_dump or dictionary methods!

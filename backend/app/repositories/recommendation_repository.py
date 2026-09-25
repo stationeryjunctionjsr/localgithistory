@@ -176,7 +176,7 @@ def _read_trending_cache() -> Dict:
     return {}
 
 
-def _write_trending_cache(data: Any) -> None:
+def _write_trending_cache(data: 'Dict') -> None:
     """Write trending cache — disabled: JSON file cache is no longer used (Oracle is the only backend)."""
     global _trending_cache_store, _trending_cache_ts
     # _DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -202,7 +202,7 @@ def _read_customer_favourites_cache() -> Dict:
     return {}
 
 
-def _write_customer_favourites_cache(data: Any) -> None:
+def _write_customer_favourites_cache(data: 'Dict') -> None:
     """Write Customer Favourites cache — disabled: JSON file cache is no longer used (Oracle is the only backend)."""
     global _CF_CACHE_STORE, _CF_CACHE_TS
     # _DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -227,7 +227,7 @@ def _read_business_favourites_cache() -> Dict:
     return {}
 
 
-def _write_business_favourites_cache(data: Any) -> None:
+def _write_business_favourites_cache(data: 'Dict') -> None:
     """Write Business Favourites cache — disabled: JSON file cache is no longer used (Oracle is the only backend)."""
     global _BF_CACHE_STORE, _BF_CACHE_TS
     # _DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -728,7 +728,7 @@ class RecommendationRepository:
         #     logger.exception("Error loading rewards from file")
         return {"global": {s: [] for s in BANDIT_STRATEGIES}, "users": {}}
 
-    def _save_rewards(self, data: Any) -> None:
+    def _save_rewards(self, data: 'Dict') -> None:
         # Rewards file write disabled — Oracle is the only supported backend.
         # _REWARDS_PATH.parent.mkdir(parents=True, exist_ok=True)
         # _REWARDS_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")

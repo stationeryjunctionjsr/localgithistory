@@ -138,7 +138,7 @@ class UserRepository:
         created_dict = await self.storage.create(user_model)
         return created_dict
 
-    async def update(self, id: str, update_data: Any):
+    async def update(self, id: str, update_data: 'UserInternalUpdate'):
         # Don't allow updating email to an existing one
         email_val = update_data.email
         if email_val is not None:

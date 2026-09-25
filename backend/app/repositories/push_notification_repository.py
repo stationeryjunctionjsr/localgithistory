@@ -47,7 +47,7 @@ class PushNotificationRepository:
         """Get a push notification by ID"""
         return await self.storage.findById(id)
 
-    async def create(self, notification_data: Any):
+    async def create(self, notification_data: 'PushNotificationsInternalCreate'):
         """Create a new push notification"""
         notification = {
             "title": notification_data["title"] if "title" in notification_data else "",
@@ -66,7 +66,7 @@ class PushNotificationRepository:
         }
         return await self.storage.create(notification)
 
-    async def update(self, id: str, update_data: Any):
+    async def update(self, id: str, update_data: 'PushNotificationsInternalUpdate'):
         """Update a push notification"""
         update_data.updatedAt = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
