@@ -45,6 +45,8 @@ class SubOrder(BaseModel):
     coupon_code: Optional[str] = Field(default=None, alias='couponCode')
     coupon_info: Optional[CouponInfo] = Field(default=None, alias='couponInfo')
     commission_status: str = Field(default="unrealized", alias='commissionStatus')
+    commission_amount: Optional[float] = Field(default=0.0, alias='commissionAmount')
+    commission_pct: Optional[float] = Field(default=None, alias='commissionPct')
     shipping_address: Optional['Address'] = Field(default=None, alias='shippingAddress')
     billing_address: Optional['Address'] = Field(default=None, alias='billingAddress')
     pickup_status: str = Field(default="pending_pickup", alias='pickupStatus')
