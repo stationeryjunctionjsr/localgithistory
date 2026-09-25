@@ -434,7 +434,7 @@ class MySQLProductDAO:
 
         # Insert variants
         await session.execute(text("DELETE FROM sj_product_variant_attributes WHERE product_id = :pid"), {"pid": pid})
-        for attr in (data.variantAttributes if data.variantAttributes is not None else []) or []:
+        for attr in (data.variant_attributes if data.variant_attributes is not None else []) or []:
             await session.execute(
                 text("INSERT INTO sj_product_variant_attributes (product_id, attribute_name) VALUES (:pid, :attr)"),
                 {"pid": pid, "attr": str(attr)}
@@ -613,7 +613,7 @@ class MySQLProductDAO:
             videos=update_data.videos if update_data.videos is not None else existing.videos,
             sellers=update_data.sellers if update_data.sellers is not None else existing.sellers,
             details=update_data.details if update_data.details is not None else existing.details,
-            variantAttributes=update_data.variantAttributes if update_data.variantAttributes is not None else existing.variant_attributes,
+            variantAttributes=update_data.variant_attributes if update_data.variant_attributes is not None else existing.variant_attributes,
             variants=update_data.variants if update_data.variants is not None else existing.variants
         )
         factory = self._factory()

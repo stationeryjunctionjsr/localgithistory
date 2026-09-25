@@ -100,9 +100,9 @@ class MySQLPromoStripsDAO:
             cols.append("is_active")
             params["s_isActive"] = data.isActive
 
-        if data.zoneIds is not None:
+        if data.zone_ids is not None:
             cols.append("zone_ids")
-            params["s_zoneIds"] = json.dumps(data.zoneIds)
+            params["s_zoneIds"] = json.dumps(data.zone_ids)
 
         col_sql = ", ".join(cols)
         val_parts = [":eid", ":c", ":u"]
@@ -139,9 +139,9 @@ class MySQLPromoStripsDAO:
             updates.append("is_active = :s_isActive")
             params["s_isActive"] = data.isActive
 
-        if data.zoneIds is not None:
+        if data.zone_ids is not None:
             updates.append("zone_ids = :s_zoneIds")
-            params["s_zoneIds"] = json.dumps(data.zoneIds)
+            params["s_zoneIds"] = json.dumps(data.zone_ids)
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)

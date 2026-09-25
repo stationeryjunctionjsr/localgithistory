@@ -77,11 +77,11 @@ class SearchTagRepository:
             type=data.type,
             isActive=data.isActive if data.isActive is not None else True,
             categories=data.categories if data.categories is not None else [],
-            subCategories=data.subCategories if data.subCategories is not None else [],
+            subCategories=data.sub_categories if data.sub_categories is not None else [],
             brands=data.brands if data.brands is not None else [],
             collections=data.collections if data.collections is not None else [],
             productIds=data.product_ids if data.product_ids is not None else [],
-            excludedProductIds=data.excludedProductIds if data.excludedProductIds is not None else [],
+            excludedProductIds=data.excluded_product_ids if data.excluded_product_ids is not None else [],
         )
         return await self.storage.create(tag_internal)
 
@@ -99,7 +99,7 @@ class SearchTagRepository:
         if not tag:
             return None
         product_ids = list(set((tag.product_ids if tag.product_ids is not None else []) + [product_id]))
-        excluded = [pid for pid in (tag.excludedProductIds if tag.excludedProductIds is not None else []) if pid != product_id]
+        excluded = [pid for pid in (tag.excluded_product_ids if tag.excluded_product_ids is not None else []) if pid != product_id]
         return await self.update(tag_id, SearchTagInternalUpdate(productIds=product_ids, excludedProductIds=excluded))
 
     async def excludeProductId(self, tag_id: str, product_id: str) -> Optional[SearchTagInternal]:
@@ -107,7 +107,7 @@ class SearchTagRepository:
         tag = await self.findById(tag_id)
         if not tag:
             return None
-        excluded = list(set((tag.excludedProductIds if tag.excludedProductIds is not None else []) + [product_id]))
+        excluded = list(set((tag.excluded_product_ids if tag.excluded_product_ids is not None else []) + [product_id]))
         product_ids = [pid for pid in (tag.product_ids if tag.product_ids is not None else []) if pid != product_id]
         return await self.update(tag_id, SearchTagInternalUpdate(excludedProductIds=excluded, productIds=product_ids))
 

@@ -68,7 +68,7 @@ async def log_activity(
 ):
     action = body.action or body.type
     meta: ActivityMeta = body.meta or body.detail or ActivityMeta()
-    sid = body.sessionId or ((request.headers["x-session-id"] if "x-session-id" in request.headers else None) if request else None)
+    sid = body.session_id or ((request.headers["x-session-id"] if "x-session-id" in request.headers else None) if request else None)
     if not sid:
         raise HTTPException(status_code=400, detail="sessionId is required")
     if not action:
@@ -81,4 +81,4 @@ async def log_activity(
 
 @router.post("/promote", response_model=PromoteGuestResponse)
 async def promote_guest(body: PromoteGuestBody, request: Request, current_user: User = Depends(get_current_user)):
-    return await activity_repository.promote_guest_activities(body.sessionId, current_user.id)
+    return await activity_repository.promote_guest_activities(body.session_id, current_user.id)

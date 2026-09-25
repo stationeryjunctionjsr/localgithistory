@@ -36,11 +36,11 @@ class CartItemInternal(BaseModel):
 
     @property
     def selectedVariation(self) -> Optional[VariantAttributes]:
-        return self.variantAttributes
+        return self.variant_attributes
 
     @property
     def variant_attributes(self) -> Optional[VariantAttributes]:
-        return self.variantAttributes
+        return self.variant_attributes
 
 class CartInternalCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)

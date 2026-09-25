@@ -41,7 +41,7 @@ class SessionRepository:
         for field in updates.model_fields_set:
             match field:
                 case "userId": existing.user_id = updates.userId
-                case "refreshTokenId": existing.refresh_token_id = updates.refreshTokenId
+                case "refreshTokenId": existing.refresh_token_id = updates.refresh_tokenId
                 case "status": existing.status = updates.status
                 case "lastActiveAt": existing.last_active_at = updates.lastActiveAt
                 case "revokedAt": existing.revoked_at = updates.revokedAt

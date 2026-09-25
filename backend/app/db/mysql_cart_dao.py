@@ -132,14 +132,14 @@ class MySQLCartDAO:
             bundle_name = it.bundleName
             import json
             var_attrs = None
-            if it.variantAttributes:
+            if it.variant_attributes:
                 var_attrs = json.dumps({
-                    "size": it.variantAttributes.size,
-                    "color": it.variantAttributes.color,
-                    "material": it.variantAttributes.material,
-                    "style": it.variantAttributes.style,
-                    "weight": it.variantAttributes.weight,
-                    "flavor": it.variantAttributes.flavor
+                    "size": it.variant_attributes.size,
+                    "color": it.variant_attributes.color,
+                    "material": it.variant_attributes.material,
+                    "style": it.variant_attributes.style,
+                    "weight": it.variant_attributes.weight,
+                    "flavor": it.variant_attributes.flavor
                 })
 
             await session.execute(

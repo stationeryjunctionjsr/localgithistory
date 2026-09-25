@@ -112,8 +112,8 @@ class MySQLCustomerSegmentDAO:
             "is_system": data.isSystem,
             "min_avg_order_value": data.filters.minAverageOrderValue if data.filters else None,
             "max_avg_order_value": data.filters.maxAverageOrderValue if data.filters else None,
-            "start_date": data.filters.startDate if data.filters else None,
-            "end_date": data.filters.endDate if data.filters else None,
+            "start_date": data.filters.start_date if data.filters else None,
+            "end_date": data.filters.end_date if data.filters else None,
             "min_order_freq": data.filters.minOrderFrequency if data.filters else None,
             "max_order_freq": data.filters.maxOrderFrequency if data.filters else None,
             "state": data.filters.state if data.filters else None,
@@ -157,8 +157,8 @@ class MySQLCustomerSegmentDAO:
         if data.filters is not None:
             if data.filters.minAverageOrderValue is not None: updates.append("min_avg_order_value = :f1"); params["f1"] = data.filters.minAverageOrderValue
             if data.filters.maxAverageOrderValue is not None: updates.append("max_avg_order_value = :f2"); params["f2"] = data.filters.maxAverageOrderValue
-            if data.filters.startDate is not None: updates.append("start_date = :f3"); params["f3"] = data.filters.startDate
-            if data.filters.endDate is not None: updates.append("end_date = :f4"); params["f4"] = data.filters.endDate
+            if data.filters.start_date is not None: updates.append("start_date = :f3"); params["f3"] = data.filters.start_date
+            if data.filters.end_date is not None: updates.append("end_date = :f4"); params["f4"] = data.filters.end_date
             if data.filters.minOrderFrequency is not None: updates.append("min_order_freq = :f5"); params["f5"] = data.filters.minOrderFrequency
             if data.filters.maxOrderFrequency is not None: updates.append("max_order_freq = :f6"); params["f6"] = data.filters.maxOrderFrequency
             if data.filters.state is not None: updates.append("state = :f7"); params["f7"] = data.filters.state

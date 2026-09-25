@@ -155,12 +155,12 @@ async def run_segment_filter(criteria: FilterCriteria):
         joins.append("LEFT JOIN sj_orders o ON o.user = u.id")
         
         # Order Date filters
-        if criteria.startDate:
+        if criteria.start_date:
             where_clauses.append("(o.created_at >= :start_date OR o.id IS NULL)")
-            params["start_date"] = criteria.startDate.replace("Z", "+00:00")
-        if criteria.endDate:
+            params["start_date"] = criteria.start_date.replace("Z", "+00:00")
+        if criteria.end_date:
             where_clauses.append("(o.created_at <= :end_date OR o.id IS NULL)")
-            params["end_date"] = criteria.endDate.replace("Z", "+00:00")
+            params["end_date"] = criteria.end_date.replace("Z", "+00:00")
             
         # Behavior: coupon_user
         if criteria.behavior == "coupon_user":
@@ -173,9 +173,9 @@ async def run_segment_filter(criteria: FilterCriteria):
         # Ensure they haven't ordered recently
         if "LEFT JOIN sj_orders o ON o.user = u.id" not in joins:
             joins.append("LEFT JOIN sj_orders o ON o.user = u.id")
-            if criteria.endDate:
+            if criteria.end_date:
                 where_clauses.append("(o.created_at <= :end_date OR o.id IS NULL)")
-                params["end_date"] = criteria.endDate.replace("Z", "+00:00")
+                params["end_date"] = criteria.end_date.replace("Z", "+00:00")
     
     # Build query
     sql = select_clause + " " + " ".join(joins)
@@ -293,8 +293,8 @@ async def refresh_segment(segment_id: str, admin: User = Depends(require_super_a
         role=role,
         minAverageOrderValue=filters.minAverageOrderValue,
         maxAverageOrderValue=filters.maxAverageOrderValue,
-        startDate=filters.startDate,
-        endDate=filters.endDate,
+        startDate=filters.start_date,
+        endDate=filters.end_date,
         minOrderFrequency=filters.minOrderFrequency,
         maxOrderFrequency=filters.maxOrderFrequency,
         state=filters.state,

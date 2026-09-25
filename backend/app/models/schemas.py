@@ -295,29 +295,28 @@ class UserCreate(UserBase):
 SUPPORTED_LANGUAGES = {"en", "hi", "bn", "te", "mr", "ta", "gu", "kn", "ml", "pa", "or", "ur"}
 
 
-class UserUpdate(BaseModel):
+class UserUpdate(CamelBaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
-    alternatePhone: Optional[str] = None
-    companyName: Optional[str] = None
-    gstin: Optional[str] = None
+    alternate_phone: Optional[str] = None
+    company_name: Optional[str] = None
     gstin: Optional[str] = None
     address: Optional[AddressSnippet] = None
-    savedAddresses: Optional[List[AddressSnippet]] = None
-    locationLink: Optional[str] = None
-    approvalStatus: Optional[ApprovalStatus] = None
-    isActive: Optional[bool] = None
+    saved_addresses: Optional[List[AddressSnippet]] = None
+    location_link: Optional[str] = None
+    approval_status: Optional[ApprovalStatus] = None
+    is_active: Optional[bool] = None
     password: Optional[str] = None
     role: Optional[str] = None
-    isDeactivated: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
-    isEmailVerified: Optional[bool] = None
+    is_deactivated: Optional[bool] = None
+    is_seller_admin: Optional[bool] = None
+    is_on_duty: Optional[bool] = None
+    credit_limit: Optional[float] = None
+    credit_used: Optional[float] = None
+    payment_terms: Optional[str] = None
+    assigned_salesperson: Optional[str] = None
+    is_email_verified: Optional[bool] = None
     isSellerAdmin: Optional[bool] = None
     isOnDuty: Optional[bool] = None
     commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
@@ -426,25 +425,25 @@ class BundlesListResponse(BaseModel):
     bundles: List[BundleResponse]
     total: int
 
-class ProductBase(BaseModel):
+class ProductBase(CamelBaseModel):
     name: str
     sku: Optional[str] = None
     category: Optional[str] = None
-    subCategory: Optional[str] = None
+    sub_category: Optional[str] = None
     description: Optional[str] = None
     brand: Optional[str] = None
     collection: Optional[str] = None
     mrp: Optional[float] = None  # MRP per unit (retail; also used for business when selling by unit)
-    mrpPerCase: Optional[float] = None  # MRP per case (business only)
-    quantityPerCase: Optional[int] = None  # Units per case (for business case pricing and stock)
+    mrp_per_case: Optional[float] = None  # MRP per case (business only)
+    quantity_per_case: Optional[int] = None  # Units per case (for business case pricing and stock)
     stock: Optional[int] = None  # Total units (reduced by units sold or by cases * quantityPerCase)
     images: Optional[List[str]] = None  # Array of image URLs/paths
     videos: Optional[List[str]] = None  # Array of video URLs/paths
-    isActive: bool = True
-    isExclusive: bool = False
+    is_active: bool = True
+    is_exclusive: bool = False
     tags: Optional[List[str]] = Field(default=None, description="Search and categorization tags")
 
-    variantAttributes: Optional[List[str]] = Field(
+    variant_attributes: Optional[List[str]] = Field(
         default=None, description="List of variant attribute names like Color, Size"
     )
     variants: Optional[List[VariantOption]] = Field(
@@ -475,25 +474,25 @@ class ProductCreate(ProductBase):
     pass
 
 
-class ProductUpdate(BaseModel):
+class ProductUpdate(CamelBaseModel):
     name: Optional[str] = None
     sku: Optional[str] = None
     category: Optional[str] = None
-    subCategory: Optional[str] = None
+    sub_category: Optional[str] = None
     description: Optional[str] = None
     brand: Optional[str] = None
     collection: Optional[str] = None
     mrp: Optional[float] = None
-    mrpPerCase: Optional[float] = None
-    quantityPerCase: Optional[int] = None
+    mrp_per_case: Optional[float] = None
+    quantity_per_case: Optional[int] = None
     stock: Optional[int] = None
     images: Optional[List[str]] = None
     videos: Optional[List[str]] = None
-    isActive: Optional[bool] = None
-    isExclusive: Optional[bool] = None
+    is_active: Optional[bool] = None
+    is_exclusive: Optional[bool] = None
     tags: Optional[List[str]] = None
     variations: Optional[List[VariantOption]] = None
-    variantAttributes: Optional[List[str]] = None
+    variant_attributes: Optional[List[str]] = None
     variants: Optional[List[VariantOption]] = None
 
 
@@ -549,21 +548,21 @@ class SchemeResponse(CamelBaseModel):
 
 
 # Banner Schemas
-class BannerBase(BaseModel):
+class BannerBase(CamelBaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    imageUrl: str
-    displayOrder: Optional[int] = None
-    startDate: Optional[datetime] = None
-    endDate: Optional[datetime] = None
-    isActive: bool = True
-    isPublished: bool = False
-    visibilityRules: List[VisibilityRuleSnippet] = []
-    userSegments: List[str] = ["all"]
-    linkUrl: Optional[str] = None
+    image_url: str
+    display_order: Optional[int] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    is_active: bool = True
+    is_published: bool = False
+    visibility_rules: List[VisibilityRuleSnippet] = []
+    user_segments: List[str] = ["all"]
+    link_url: Optional[str] = None
     position: Optional[str] = None
-    targetAudience: Optional[str] = None
-    zoneIds: Optional[List[str]] = None
+    target_audience: Optional[str] = None
+    zone_ids: Optional[List[str]] = None
 
 
 class BannerCreate(BannerBase):
@@ -623,7 +622,7 @@ class BrandUpdate(BaseModel):
 
 
 # Auth Schemas
-class LoginRequest(BaseModel):
+class LoginRequest(CamelBaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     password: str
@@ -636,7 +635,7 @@ class LoginRequest(BaseModel):
         return self
 
 
-class RegisterRequest(BaseModel):
+class RegisterRequest(CamelBaseModel):
     # name and email are Optional at the API level to support the checkout
     # registration flow (which only requires phone + password).
     # The regular Create Account pages enforce name & email via frontend validation.
@@ -645,7 +644,7 @@ class RegisterRequest(BaseModel):
     password: str
     phone: str  # Always mandatory
     role: UserRole = UserRole.CUSTOMER  # Default to customer
-    companyName: Optional[str] = None
+    company_name: Optional[str] = None
     gstin: Optional[str] = None
     address: Optional[AddressSnippet] = None
     msg91Token: Optional[str] = None  # Token from MSG91 Widget/SDK
@@ -655,10 +654,10 @@ class RegisterRequest(BaseModel):
 
 
 
-class AuthResponse(BaseModel):
+class AuthResponse(CamelBaseModel):
     token: str
-    refreshToken: Optional[str] = None
-    sessionId: Optional[str] = None
+    refresh_token: Optional[str] = None
+    session_id: Optional[str] = None
     user: UserResponse
     message: Optional[str] = None
 
@@ -900,13 +899,13 @@ class DefaultDeliveryChargeResponse(DefaultDeliveryChargeBase):
 
 
 # Order Feedback Schemas
-class OrderFeedbackBase(BaseModel):
-    orderId: Optional[str] = None
+class OrderFeedbackBase(CamelBaseModel):
+    order_id: Optional[str] = None
     rating: int  # 1-5
     comment: Optional[str] = None
-    deliveryRating: Optional[int] = None  # 1-5
-    deliveryComment: Optional[str] = None
-    feedbackType: str = "order"  # "order" or "general"
+    delivery_rating: Optional[int] = None  # 1-5
+    delivery_comment: Optional[str] = None
+    feedback_type: str = "order"  # "order" or "general"
 
 
 class OrderFeedbackCreate(OrderFeedbackBase):
@@ -937,11 +936,11 @@ class CoachMarkCreate(CoachMarkBase):
     pass
 
 
-class CoachMarkUpdate(BaseModel):
+class CoachMarkUpdate(CamelBaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    sequenceOrder: Optional[int] = None
-    isActive: Optional[bool] = None
+    sequence_order: Optional[int] = None
+    is_active: Optional[bool] = None
 
 
 class CoachMarkResponse(CoachMarkBase):
@@ -971,16 +970,16 @@ class SearchTagCreate(SearchTagBase):
     pass
 
 
-class SearchTagUpdate(BaseModel):
+class SearchTagUpdate(CamelBaseModel):
     name: Optional[str] = None
     type: Optional[Literal["Occasion", "Intent", "Recipient"]] = None
-    isActive: Optional[bool] = None
+    is_active: Optional[bool] = None
     categories: Optional[List[str]] = None
-    subCategories: Optional[List[str]] = None
+    sub_categories: Optional[List[str]] = None
     brands: Optional[List[str]] = None
     collections: Optional[List[str]] = None
-    productIds: Optional[List[str]] = None
-    excludedProductIds: Optional[List[str]] = None
+    product_ids: Optional[List[str]] = None
+    excluded_product_ids: Optional[List[str]] = None
 
 
 class SearchTagResponse(SearchTagBase):
@@ -1009,16 +1008,16 @@ class CollectionCreate(CollectionBase):
     pass
 
 
-class CollectionUpdate(BaseModel):
+class CollectionUpdate(CamelBaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    isActive: Optional[bool] = None
-    displayOrder: Optional[int] = None
-    productIds: Optional[List[str]] = None
-    visiblePages: Optional[List[str]] = None
-    userSegments: Optional[List[str]] = None
-    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
+    image_url: Optional[str] = None
+    is_active: Optional[bool] = None
+    display_order: Optional[int] = None
+    product_ids: Optional[List[str]] = None
+    visible_pages: Optional[List[str]] = None
+    user_segments: Optional[List[str]] = None
+    visibility_rules: Optional[List[VisibilityRuleSnippet]] = None
 
 
 class CollectionResponse(CollectionBase):

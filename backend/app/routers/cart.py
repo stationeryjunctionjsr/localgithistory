@@ -96,7 +96,7 @@ async def get_cart(current_user: User = Depends(get_current_user)):
                     "outOfStock": is_out_of_stock,
                     "bundleId": item.bundleId,
                     "bundleName": item.bundleName,
-                    "variantAttributes": item.variantAttributes,
+                    "variantAttributes": item.variant_attributes,
                 }
             )
 
@@ -171,7 +171,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
             product=item.product_id,
             quantity=item.quantity,
             sellAsCase=sell_as_case,
-            variantAttributes=item.variantAttributes,
+            variantAttributes=item.variant_attributes,
         )
 
         if cart:
@@ -181,7 +181,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
                     for i in (cart.items or [])
                     if i.product == item.product_id
                     and i.sell_as_case == sell_as_case
-                    and i.variant_attributes == item.variantAttributes
+                    and i.variant_attributes == item.variant_attributes
                 ),
                 None,
             )
@@ -197,7 +197,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
                             sellAsCase=it.sellAsCase,
                             bundleId=it.bundleId,
                             bundleName=it.bundleName,
-                            variantAttributes=it.variantAttributes,
+                            variantAttributes=it.variant_attributes,
                         )
                         break
                 await cart_repository.createOrUpdate(current_user.id, items)
@@ -215,7 +215,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
         from app.repositories.tracking_repository import tracking_repository
 
         await tracking_repository.trackCartAdd(
-            current_user.id, item.product_id, item.quantity, item.sessionId
+            current_user.id, item.product_id, item.quantity, item.session_id
         )
 
         return {"message": "Item added to cart"}
@@ -288,7 +288,7 @@ async def update_cart_item(
                     sellAsCase=it.sellAsCase,
                     bundleId=it.bundleId,
                     bundleName=it.bundleName,
-                    variantAttributes=it.variantAttributes,
+                    variantAttributes=it.variant_attributes,
                 )
                 break
 

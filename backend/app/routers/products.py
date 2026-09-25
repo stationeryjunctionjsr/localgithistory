@@ -244,7 +244,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                         if not product_data.sku:
                             product_data.sku = row_sku
 
-                product_data.variantAttributes = list(variant_attributes)
+                product_data.variant_attributes = list(variant_attributes)
                 product_data.variants = variants_list
 
                 existing = None
@@ -276,10 +276,10 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                         images=product_data.images,
                         videos=product_data.videos,
                         isActive=product_data.isActive,
-                        isExclusive=product_data.isExclusive,
+                        isExclusive=product_data.is_exclusive,
                         tags=product_data.tags,
                         variations=product_data.variations,
-                        variantAttributes=product_data.variantAttributes,
+                        variantAttributes=product_data.variant_attributes,
                         variants=product_data.variants
                     )
                     await product_repository.update(existing.id, internal_data)
@@ -743,7 +743,7 @@ async def _get_public_products_cached(
         "totalCount": total_count,
         "brands": f.brands,
         "categories": f.categories,
-        "subCategories": f.subCategories,
+        "subCategories": f.sub_categories,
         "collections": f.collections,
         "usedFuzzy": used_fuzzy,
         "suggestedQuery": suggested_query,
@@ -955,7 +955,7 @@ async def get_products(
         "totalCount": total_count,
         "brands": f.brands,
         "categories": f.categories,
-        "subCategories": f.subCategories,
+        "subCategories": f.sub_categories,
         "collections": f.collections,
         "usedFuzzy": used_fuzzy,
         "suggestedQuery": suggested_query,
@@ -1038,10 +1038,10 @@ async def update_product(
             images=product_data.images,
             videos=product_data.videos,
             isActive=product_data.isActive,
-            isExclusive=product_data.isExclusive,
+            isExclusive=product_data.is_exclusive,
             tags=product_data.tags,
             variations=product_data.variations,
-            variantAttributes=product_data.variantAttributes,
+            variantAttributes=product_data.variant_attributes,
             variants=product_data.variants
         )
         product = await product_repository.update(product_id, internal_data)
@@ -1071,8 +1071,8 @@ async def bulk_update_products(update_data: BulkUpdateData, current_user: User =
         if update_data.isActive is not None:
             data.isActive = update_data.isActive
             has_updates = True
-        if update_data.isExclusive is not None:
-            data.isExclusive = update_data.isExclusive
+        if update_data.is_exclusive is not None:
+            data.is_exclusive = update_data.is_exclusive
             has_updates = True
 
         if has_updates:

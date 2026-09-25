@@ -134,7 +134,7 @@ class MySQLSessionDAO:
                 {
                     "external_id": external_id,
                     "user_id": user_id,
-                    "refresh_token_id": data.refreshTokenId,
+                    "refresh_token_id": data.refresh_tokenId,
                     "status": data.status,
                     "last_active_at": _to_ts(data.lastActiveAt),
                     "revoked_at": _to_ts(data.revokedAt),
@@ -170,7 +170,7 @@ class MySQLSessionDAO:
         # Extract fields from existing
         # existing is a Session object, which has user_id
         final_user_id = update_data.userId if update_data.userId is not None else existing.user_id
-        final_refresh_token_id = update_data.refreshTokenId if update_data.refreshTokenId is not None else existing.refresh_token_id
+        final_refresh_token_id = update_data.refresh_tokenId if update_data.refresh_tokenId is not None else existing.refresh_token_id
         final_status = update_data.status if update_data.status is not None else existing.status
         final_last_active_at = update_data.lastActiveAt if update_data.lastActiveAt is not None else (existing.last_active_at.isoformat() if existing.last_active_at else None)
         final_revoked_at = update_data.revokedAt if update_data.revokedAt is not None else (existing.revoked_at.isoformat() if existing.revoked_at else None)

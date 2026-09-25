@@ -1624,9 +1624,9 @@ async def create_order(
 
             # Build variant_combinations arg expected by decrement_stock_atomic
             variant_combos = None
-            if item.variant_attributes or item.variantAttributes:
+            if item.variant_attributes or item.variant_attributes:
                 variant_combos = [
-                    {"attributes": item.variant_attributes or item.variantAttributes, "quantity": item.quantity}]
+                    {"attributes": item.variant_attributes or item.variant_attributes, "quantity": item.quantity}]
 
             new_stock = await product_repository.decrement_stock_atomic(
                 str(item.product),

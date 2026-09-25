@@ -30,18 +30,18 @@ class CollectionRepository:
                     continue
 
             # 2. Check user segments
-            segments = col.userSegments if col.userSegments else ["all"]
+            segments = col.user_segments if col.user_segments else ["all"]
             if "all" not in segments and user_role not in segments:
                 continue
 
             # 3. Check page visibility (if a target page is requested)
             if target_page_type:
                 # Check legacy visiblePages array
-                is_visible_legacy = target_page_type in (col.visiblePages or [])
+                is_visible_legacy = target_page_type in (col.visible_pages or [])
 
                 # Check new visibilityRules
                 is_visible_rules = False
-                rules = col.visibilityRules or []
+                rules = col.visibility_rules or []
                 for rule_str in rules:
                     try:
                         rule = json.loads(rule_str) if isinstance(rule_str, str) else rule_str

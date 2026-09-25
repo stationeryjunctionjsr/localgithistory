@@ -66,7 +66,7 @@ async def create_promo_strip(data: PromoStripCreate, user: User = Depends(requir
     internal_data = PromoStripsInternalCreate(
         text=data.text,
         isActive=data.isActive if data.isActive is not None else True,
-        zoneIds=data.zoneIds,
+        zoneIds=data.zone_ids,
     )
     res = await promo_strip_repository.create(internal_data)
     cache.invalidate(_get_active_promo_strips_cached)
@@ -96,7 +96,7 @@ async def update_promo_strip(id: str, data: PromoStripUpdate, user: User = Depen
     update_data = PromoStripsInternalUpdate(
         text=data.text,
         isActive=data.isActive,
-        zoneIds=data.zoneIds,
+        zoneIds=data.zone_ids,
     )
     res = await promo_strip_repository.update(id, update_data)
     cache.invalidate(_get_active_promo_strips_cached)

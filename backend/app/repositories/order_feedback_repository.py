@@ -22,23 +22,23 @@ class OrderFeedbackRepository:
     async def create(self, feedback_data: OrderFeedbackInternalCreate) -> OrderFeedbackInternal:
         if feedback_data.rating is not None:
             feedback_data.rating = int(feedback_data.rating)
-        if feedback_data.deliveryRating is not None:
-            feedback_data.deliveryRating = int(feedback_data.deliveryRating)
+        if feedback_data.delivery_rating is not None:
+            feedback_data.delivery_rating = int(feedback_data.delivery_rating)
         
         if feedback_data.comment is None:
             feedback_data.comment = ""
-        if feedback_data.deliveryComment is None:
-            feedback_data.deliveryComment = ""
-        if feedback_data.feedbackType is None:
-            feedback_data.feedbackType = "order"
+        if feedback_data.delivery_comment is None:
+            feedback_data.delivery_comment = ""
+        if feedback_data.feedback_type is None:
+            feedback_data.feedback_type = "order"
 
         return await self.storage.create(feedback_data)
 
     async def update(self, id: str, update_data: OrderFeedbackInternalUpdate) -> OrderFeedbackInternal:
         if update_data.rating is not None:
             update_data.rating = int(update_data.rating)
-        if update_data.deliveryRating is not None:
-            update_data.deliveryRating = int(update_data.deliveryRating)
+        if update_data.delivery_rating is not None:
+            update_data.delivery_rating = int(update_data.delivery_rating)
 
         return await self.storage.update(id, update_data)
 

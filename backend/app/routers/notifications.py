@@ -50,9 +50,9 @@ async def get_notifications(
         if type:
             filters.type = type
         if startDate:
-            filters.startDate = startDate
+            filters.start_date = startDate
         if endDate:
-            filters.endDate = endDate
+            filters.end_date = endDate
 
         notifications = await notification_repository.findAll(filters)
         return notifications

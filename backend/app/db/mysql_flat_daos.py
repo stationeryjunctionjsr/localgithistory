@@ -236,18 +236,18 @@ class MySQLOrderFeedbackDAO:
             cols.append("comments")
             vals.append(":comment")
             params["comment"] = data.comment
-        if data.deliveryRating is not None:
+        if data.delivery_rating is not None:
             cols.append("delivery_rating")
             vals.append(":deliveryRating")
-            params["deliveryRating"] = data.deliveryRating
-        if data.deliveryComment is not None:
+            params["deliveryRating"] = data.delivery_rating
+        if data.delivery_comment is not None:
             cols.append("delivery_comment")
             vals.append(":deliveryComment")
-            params["deliveryComment"] = data.deliveryComment
-        if data.feedbackType is not None:
+            params["deliveryComment"] = data.delivery_comment
+        if data.feedback_type is not None:
             cols.append("feedback_type")
             vals.append(":feedbackType")
-            params["feedbackType"] = data.feedbackType
+            params["feedbackType"] = data.feedback_type
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -282,15 +282,15 @@ class MySQLOrderFeedbackDAO:
         if data.comment is not None:
             updates.append("comments = :comment")
             params["comment"] = data.comment
-        if data.deliveryRating is not None:
+        if data.delivery_rating is not None:
             updates.append("delivery_rating = :deliveryRating")
-            params["deliveryRating"] = data.deliveryRating
-        if data.deliveryComment is not None:
+            params["deliveryRating"] = data.delivery_rating
+        if data.delivery_comment is not None:
             updates.append("delivery_comment = :deliveryComment")
-            params["deliveryComment"] = data.deliveryComment
-        if data.feedbackType is not None:
+            params["deliveryComment"] = data.delivery_comment
+        if data.feedback_type is not None:
             updates.append("feedback_type = :feedbackType")
-            params["feedbackType"] = data.feedbackType
+            params["feedbackType"] = data.feedback_type
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -764,10 +764,10 @@ class MySQLCoachMarksDAO:
             cols.append("screen_name")
             vals.append(":screenName")
             params["screenName"] = data.screenName
-        if data.sequenceOrder is not None:
+        if data.sequence_order is not None:
             cols.append("sequence_order")
             vals.append(":sequenceOrder")
-            params["sequenceOrder"] = data.sequenceOrder
+            params["sequenceOrder"] = data.sequence_order
         if data.isActive is not None:
             cols.append("is_active")
             vals.append(":isActive")
@@ -806,9 +806,9 @@ class MySQLCoachMarksDAO:
         if data.screenName is not None:
             updates.append("screen_name = :screenName")
             params["screenName"] = data.screenName
-        if data.sequenceOrder is not None:
+        if data.sequence_order is not None:
             updates.append("sequence_order = :sequenceOrder")
-            params["sequenceOrder"] = data.sequenceOrder
+            params["sequenceOrder"] = data.sequence_order
         if data.isActive is not None:
             updates.append("is_active = :isActive")
             params["isActive"] = 1 if data.isActive else None
@@ -1970,10 +1970,10 @@ class MySQLAboutUsDAO:
             cols.append("version")
             vals.append(":version")
             params["version"] = data.version
-        if data.isPublished is not None:
+        if data.is_published is not None:
             cols.append("is_published")
             vals.append(":isPublished")
-            params["isPublished"] = 1 if data.isPublished else 0
+            params["isPublished"] = 1 if data.is_published else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2005,9 +2005,9 @@ class MySQLAboutUsDAO:
         if data.version is not None:
             updates.append("version = :version")
             params["version"] = data.version
-        if data.isPublished is not None:
+        if data.is_published is not None:
             updates.append("is_published = :isPublished")
-            params["isPublished"] = 1 if data.isPublished else None
+            params["isPublished"] = 1 if data.is_published else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()

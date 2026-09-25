@@ -245,10 +245,10 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
         # Set registration defaults directly on the Pydantic model.
         # user_repository.create() accepts Any — it handles both Pydantic models and dicts.
         if user_data.role == "wholesaler":
-            user_data.approvalStatus = "pending"
+            user_data.approval_status = "pending"
         else:
             user_data.role = "customer"
-            user_data.approvalStatus = "approved"
+            user_data.approval_status = "approved"
         user_data.phone = normalized_phone
 
         # Check if user already exists as guest
@@ -305,9 +305,9 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
             msg91Token=user_data.msg91Token,
             companyName=user_data.company_name,
             address=user_data.address,
-            approvalStatus=user_data.approvalStatus,
-            creditLimit=user_data.creditLimit,
-            isDeactivated=user_data.isDeactivated,
+            approvalStatus=user_data.approval_status,
+            creditLimit=user_data.credit_limit,
+            isDeactivated=user_data.is_deactivated,
             savedAddresses=[],
             isActive=True
         )
@@ -421,13 +421,13 @@ class RefreshRequest(BaseModel):
 
 @router.post("/refresh", response_model=AuthResponse)
 async def refresh_tokens(payload: RefreshRequest, request: Request, response: Response):
-    token_str = payload.refreshToken or get_refresh_token_from_request(request)
+    token_str = payload.refresh_token or get_refresh_token_from_request(request)
     if not token_str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token required")
     data = verify_refresh_token(token_str)
     claims = RefreshTokenClaims.model_validate(data)
     user_id = claims.userId
-    session_id = claims.sessionId
+    session_id = claims.session_id
     refresh_id = claims.refreshId
 
     session = await session_repository.find_by_id(session_id)
@@ -494,7 +494,7 @@ class LogoutRequest(BaseModel):
 
 @router.post("/logout", response_model=MessageResponse)
 async def logout(request: LogoutRequest, current_user: User = Depends(get_current_user)):
-    session_id = request.sessionId or current_user.session_id
+    session_id = request.session_id or current_user.session_id
     if session_id:
         await session_repository.revoke_session(session_id, "logout")
     response = JSONResponse(content={"message": "Logged out"})

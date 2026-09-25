@@ -35,11 +35,11 @@ class PromoStripRepository:
                 continue
             if zone_id:
                 # zone_id given: show global strips (no zoneIds) OR zone-matched strips
-                if s.zoneIds and zone_id not in s.zoneIds:
+                if s.zone_ids and zone_id not in s.zone_ids:
                     continue
             else:
                 # No zone_id (wholesaler / guest without pincode): show only global strips
-                if s.zoneIds:
+                if s.zone_ids:
                     continue
             result.append(s)
         return result

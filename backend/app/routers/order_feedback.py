@@ -17,7 +17,7 @@ router = APIRouter()
 @router.post("/", response_model=OrderFeedbackResponse, status_code=status.HTTP_201_CREATED)
 async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: User = Depends(get_current_user)):
     # Only validate order if it's order feedback
-    if feedback_data.feedbackType == "order":
+    if feedback_data.feedback_type == "order":
         if not feedback_data.order_id:
             raise HTTPException(status_code=400, detail="OrderId is required for order feedback")
 
@@ -43,9 +43,9 @@ async def create_feedback(feedback_data: OrderFeedbackCreate, current_user: User
             "userId": current_user.id,
             "rating": feedback_data.rating,
             "comment": feedback_data.comment or "",
-            "deliveryRating": feedback_data.deliveryRating,
-            "deliveryComment": feedback_data.deliveryComment or "",
-            "feedbackType": feedback_data.feedbackType,
+            "deliveryRating": feedback_data.delivery_rating,
+            "deliveryComment": feedback_data.delivery_comment or "",
+            "feedbackType": feedback_data.feedback_type,
         }
     )
 

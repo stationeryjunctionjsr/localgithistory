@@ -366,7 +366,7 @@ class RecommendationRepository:
             if order.status == "cancelled":
                 continue
             order_user = order.user
-            order_session = order.sessionId
+            order_session = order.session_id
             order_start = order_dt - timedelta(days=days)
             pids_in_order = set()
             for item in (order.items if order.items is not None else []):
@@ -387,7 +387,7 @@ class RecommendationRepository:
                     if order_user and s.userId == order_user:
                         linked = True
                         break
-                    if order_session and s.sessionId == order_session:
+                    if order_session and s.session_id == order_session:
                         linked = True
                         break
                 if linked:

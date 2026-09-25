@@ -41,7 +41,7 @@ async def run_events_sync_job_async():
         
         for t_dict in existing_tracking:
             t = TrackingEventDoc.model_validate(t_dict)
-            existing_keys.add((t.type, t.sessionId, t.timestamp))
+            existing_keys.add((t.type, t.session_id, t.timestamp))
 
         migrated_count = 0
         for e in events:

@@ -108,9 +108,9 @@ class MySQLCoachMarksDAO:
             cols.append("screen_name")
             params["s_screenName"] = data.screenName
 
-        if data.sequenceOrder is not None:
+        if data.sequence_order is not None:
             cols.append("sequence_order")
-            params["s_sequenceOrder"] = data.sequenceOrder
+            params["s_sequenceOrder"] = data.sequence_order
 
         if data.isActive is not None:
             cols.append("is_active")
@@ -152,9 +152,9 @@ class MySQLCoachMarksDAO:
             updates.append("screen_name = :s_screenName")
             params["s_screenName"] = data.screenName
 
-        if data.sequenceOrder is not None:
+        if data.sequence_order is not None:
             updates.append("sequence_order = :s_sequenceOrder")
-            params["s_sequenceOrder"] = data.sequenceOrder
+            params["s_sequenceOrder"] = data.sequence_order
 
         if data.isActive is not None:
             updates.append("is_active = :s_isActive")

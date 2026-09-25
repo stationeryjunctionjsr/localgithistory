@@ -121,7 +121,7 @@ async def deactivate_own_account(current_user: User = Depends(get_current_user))
 
     update_data = UserUpdate(isActive=False)
     if user.role == "wholesaler":
-        update_data.isDeactivated = True
+        update_data.is_deactivated = True
         update_data.serviceAreaZones = []
 
     updated_user = await user_repository.update(user_id, update_data)
@@ -141,8 +141,8 @@ async def update_duty_status(
     if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can update duty status")
     
-    await user_repository.update(user_id, UserUpdate(isOnDuty=data.isOnDuty))
-    return {"isOnDuty": data.isOnDuty, "message": f"You are now {'on duty' if data.isOnDuty else 'off duty'}"}
+    await user_repository.update(user_id, UserUpdate(isOnDuty=data.is_on_duty))
+    return {"isOnDuty": data.is_on_duty, "message": f"You are now {'on duty' if data.is_on_duty else 'off duty'}"}
 
 
 @router.get("/valets/available", response_model=List[UserResponse])
@@ -280,9 +280,9 @@ async def update_user_role(
     update_data = UserUpdate(role=role_data.role)
 
     if role_data.role in ["wholesaler", "valet"]:
-        update_data.approvalStatus = role_data.approvalStatus or "approved"
+        update_data.approval_status = role_data.approval_status or "approved"
     else:
-        update_data.approvalStatus = "approved"
+        update_data.approval_status = "approved"
 
     updated_user = await user_repository.update(user_id, update_data)
 
@@ -372,9 +372,9 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
     if current_user.role != "super_admin":
         # Non-super admins cannot change certain fields
         user_data.role = None
-        user_data.approvalStatus = None
+        user_data.approval_status = None
         user_data.isActive = None
-        user_data.creditLimit = None
+        user_data.credit_limit = None
 
 
     # Get existing user for validation

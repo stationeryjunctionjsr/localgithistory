@@ -84,7 +84,7 @@ class MySQLCategoryDAO:
                 {"cid": cid, "img": str(img)},
             )
 
-        for sub in (data.subCategories if data.subCategories is not None else []):
+        for sub in (data.sub_categories if data.sub_categories is not None else []):
             await session.execute(
                 text("INSERT INTO sj_category_sub_categories (category_id, sub_category) VALUES (:cid, :sub)"),
                 {"cid": cid, "sub": str(sub)},
@@ -216,7 +216,7 @@ class MySQLCategoryDAO:
             from app.models.daos import CategoryChildrenData
             dummy_merged = CategoryChildrenData(
                 images=update_data.images if update_data.images is not None else existing.images,
-                subCategories=update_data.subCategories if update_data.subCategories is not None else existing.sub_categories,
+                subCategories=update_data.sub_categories if update_data.sub_categories is not None else existing.sub_categories,
                 categoryTags=update_data.categoryTags if update_data.categoryTags is not None else existing.category_tags
             )
             await self._replace_children(session, cid, dummy_merged)

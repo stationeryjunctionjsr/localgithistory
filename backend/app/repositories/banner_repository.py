@@ -15,25 +15,25 @@ class BannerRepository:
         # Consistent preprocessing for ALL banners
         for banner in banners:
             # 1. User Segments normalization
-            if not banner.userSegments:
-                legacy_aud = (banner.targetAudience if banner.targetAudience is not None else "all")
-                banner.userSegments = [legacy_aud] if legacy_aud else ["all"]
+            if not banner.user_segments:
+                legacy_aud = (banner.target_audience if banner.target_audience is not None else "all")
+                banner.user_segments = [legacy_aud] if legacy_aud else ["all"]
 
             # 2. Rules normalization
-            if not banner.visibilityRules:
-                banner.visibilityRules = []
+            if not banner.visibility_rules:
+                banner.visibility_rules = []
 
             # 3. Always derive legacy fields for UI consistency
-            segments = banner.userSegments
-            rules = banner.visibilityRules
-            banner.targetAudience = segments[0] if segments else "all"
+            segments = banner.user_segments
+            rules = banner.visibility_rules
+            banner.target_audience = segments[0] if segments else "all"
 
             if rules and len(rules) > 0:
                 banner.position = (rules[0].pageType if rules[0].pageType else "homepage")
             
             # 4. Ensure required date fields exist for Pydantic validation
-            if not banner.startDate:
-                banner.startDate = banner.createdAt or datetime.now(timezone.utc).isoformat()
+            if not banner.start_date:
+                banner.start_date = banner.createdAt or datetime.now(timezone.utc).isoformat()
             elif not banner.position:
                 banner.position = "homepage"
 
@@ -46,12 +46,12 @@ class BannerRepository:
             banners = [b for b in banners if b.isActive == query["isActive"]]
 
         if "isPublished" in query and query["isPublished"] is not None:
-            banners = [b for b in banners if b.isPublished == query["isPublished"]]
+            banners = [b for b in banners if b.is_published == query["isPublished"]]
 
         if target_page_type:
             filtered = []
             for banner in banners:
-                segments = [str(s).lower() for s in (banner.userSegments if banner.userSegments is not None else ["all"])]
+                segments = [str(s).lower() for s in (banner.user_segments if banner.user_segments is not None else ["all"])]
 
                 # Role Check (Super Admin bypasses, otherwise check 'all' or specific role)
                 if user_role != "super_admin" and "all" not in segments and user_role not in segments:
@@ -59,7 +59,7 @@ class BannerRepository:
 
                 # Position/Rule Check
                 legacy_pos = str((banner.position if banner.position is not None else "")).lower()
-                rules = (banner.visibilityRules if banner.visibilityRules is not None else [])
+                rules = (banner.visibility_rules if banner.visibility_rules is not None else [])
                 match = False
 
                 # Standard homepage mapping
@@ -113,8 +113,8 @@ class BannerRepository:
         active_banners = []
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         for banner in banners:
-            start_date = banner.startDate
-            end_date = banner.endDate
+            start_date = banner.start_date
+            end_date = banner.end_date
 
             def parse_iso(dt_str):
                 if isinstance(dt_str, datetime):
@@ -153,16 +153,16 @@ class BannerRepository:
         if zone_id:
             active_banners = [
                 b for b in active_banners
-                if not b.zoneIds or zone_id in b.zoneIds
+                if not b.zone_ids or zone_id in b.zone_ids
             ]
 
         return active_banners
 
     async def create(self, banner_data: Any):
         # Derive legacy fields for backward compatibility and admin table visibility
-        user_segments = banner_data.userSegments if banner_data.userSegments is not None else ["all"]
-        visibility_rules = banner_data.visibilityRules if banner_data.visibilityRules is not None else []
-        start_date = banner_data.startDate
+        user_segments = banner_data.user_segments if banner_data.user_segments is not None else ["all"]
+        visibility_rules = banner_data.visibility_rules if banner_data.visibility_rules is not None else []
+        start_date = banner_data.start_date
 
         target_audience = user_segments[0] if user_segments else "all"
         position = (visibility_rules[0].pageType if visibility_rules[0].pageType else "homepage") if visibility_rules else "homepage"
@@ -173,18 +173,18 @@ class BannerRepository:
         banner_dict = {
             "title": banner_data.title if banner_data.title is not None else "",
             "description": banner_data.description if banner_data.description is not None else "",
-            "imageUrl": banner_data.imageUrl if banner_data.imageUrl is not None else "",
-            "linkUrl": banner_data.linkUrl if banner_data.linkUrl is not None else "",
+            "imageUrl": banner_data.image_url if banner_data.image_url is not None else "",
+            "linkUrl": banner_data.link_url if banner_data.link_url is not None else "",
             "displayOrder": banner_data.displayOrder if banner_data.displayOrder is not None else 0,
             "startDate": start_date,
-            "endDate": banner_data.endDate,
+            "endDate": banner_data.end_date,
             "isActive": banner_data.isActive if banner_data.isActive is not None else True,
-            "isPublished": banner_data.isPublished if banner_data.isPublished is not None else False,
+            "isPublished": banner_data.is_published if banner_data.is_published is not None else False,
             "targetAudience": target_audience,
             "userSegments": user_segments,
             "visibilityRules": visibility_rules,
             "position": position,
-            "zoneIds": banner_data.zoneIds if banner_data.zoneIds is not None else None,
+            "zoneIds": banner_data.zone_ids if banner_data.zone_ids is not None else None,
         }
 
         banner_model = BannerInternalCreate.model_validate(banner_dict)
@@ -197,18 +197,18 @@ class BannerRepository:
             match field:
                 case "title": update_dict["title"] = update_data.title
                 case "description": update_dict["description"] = update_data.description
-                case "imageUrl": update_dict["imageUrl"] = update_data.imageUrl
-                case "linkUrl": update_dict["linkUrl"] = update_data.linkUrl
+                case "imageUrl": update_dict["imageUrl"] = update_data.image_url
+                case "linkUrl": update_dict["linkUrl"] = update_data.link_url
                 case "displayOrder": update_dict["displayOrder"] = update_data.displayOrder
-                case "startDate": update_dict["startDate"] = update_data.startDate
-                case "endDate": update_dict["endDate"] = update_data.endDate
+                case "startDate": update_dict["startDate"] = update_data.start_date
+                case "endDate": update_dict["endDate"] = update_data.end_date
                 case "isActive": update_dict["isActive"] = update_data.isActive
-                case "isPublished": update_dict["isPublished"] = update_data.isPublished
-                case "targetAudience": update_dict["targetAudience"] = update_data.targetAudience
-                case "userSegments": update_dict["userSegments"] = update_data.userSegments
-                case "visibilityRules": update_dict["visibilityRules"] = update_data.visibilityRules
+                case "isPublished": update_dict["isPublished"] = update_data.is_published
+                case "targetAudience": update_dict["targetAudience"] = update_data.target_audience
+                case "userSegments": update_dict["userSegments"] = update_data.user_segments
+                case "visibilityRules": update_dict["visibilityRules"] = update_data.visibility_rules
                 case "position": update_dict["position"] = update_data.position
-                case "zoneIds": update_dict["zoneIds"] = update_data.zoneIds
+                case "zoneIds": update_dict["zoneIds"] = update_data.zone_ids
         
         if "userSegments" in update_dict:
             segments = update_dict["userSegments"]

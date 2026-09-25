@@ -261,7 +261,7 @@ async def record_event(
     
 
     payload_items.append(EventPayloadItem(key="userId", value=str(user_id) if user_id else ""))
-    payload_items.append(EventPayloadItem(key="sessionId", value=str(event.sessionId) if event.sessionId else ""))
+    payload_items.append(EventPayloadItem(key="sessionId", value=str(event.session_id) if event.session_id else ""))
     payload_items.append(EventPayloadItem(key="timestamp", value=str(event.timestamp) if event.timestamp else datetime.now(timezone.utc).isoformat()))
     if event.os:
         payload_items.append(EventPayloadItem(key="os", value=str(event.os)))
@@ -295,7 +295,7 @@ async def record_event(
 
     try:
         event_type = event.type
-        session_id = event.sessionId
+        session_id = event.session_id
         raw_payload = event.payload
         payload_obj = raw_payload or AnalyticsEventPayload()
         tracking_obj = None

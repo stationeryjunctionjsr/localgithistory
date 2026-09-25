@@ -124,13 +124,13 @@ class CouponRepository:
                 product,
                 (coupon.appliesToType if coupon.appliesToType is not None else "all"),
                 (coupon.appliesToValueIds if coupon.appliesToValueIds is not None else None),
-                (coupon.excludedProductIds if coupon.excludedProductIds is not None else None),
+                (coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None),
             )
             is_gy_eligible = await self._product_eligible_async(
                 product,
                 (coupon.buyXGetYCustomerGetsAppliesToType if coupon.buyXGetYCustomerGetsAppliesToType is not None else "all"),
                 (coupon.buyXGetYCustomerGetsAppliesToValueIds if coupon.buyXGetYCustomerGetsAppliesToValueIds is not None else None),
-                (coupon.excludedProductIds if coupon.excludedProductIds is not None else None),
+                (coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None),
             )
             for _ in range(element_qty):
                 elements.append(
@@ -171,7 +171,7 @@ class CouponRepository:
                         e["product"],
                         (c.appliesToType if c.appliesToType is not None else "all"),
                         c.appliesToValueIds,
-                        c.excludedProductIds,
+                        c.excluded_product_ids,
                     ):
                         d = (
                             (e["price"] * c.discountValue) / 100
@@ -469,7 +469,7 @@ class CouponRepository:
             applicableCategories=coupon_data.applicableCategories or [],
             appliesToType=(coupon_data.appliesToType if coupon_data.appliesToType is not None else "all"),
 appliesToValueIds=coupon_data.appliesToValueIds or [],
-            excludedProductIds=coupon_data.excludedProductIds or [],
+            excludedProductIds=coupon_data.excluded_product_ids or [],
             quantityTiers=qt_list,
             displayId=display_id,
             buyXGetYCustomerGetsAppliesToValueIds=coupon_data.buyXGetYCustomerGetsAppliesToValueIds or [],
@@ -493,12 +493,12 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                     for detail in overlap["details"]:
                         existing_coupon = await self.findById(detail["couponId"])
                         if existing_coupon:
-                            excl = set(existing_coupon.excludedProductIds or [])
+                            excl = set(existing_coupon.excluded_product_ids or [])
                             excl.update(detail["overlappingProductIds"])
                             await self.storage.update(detail["couponId"], CouponInternalUpdate(excludedProductIds=list(excl)))
                 elif resolution == "retain":
                     # Add exclusions to current coupon
-                    excl = set((coupon.excludedProductIds if coupon.excludedProductIds is not None else None) or [])
+                    excl = set((coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None) or [])
                     pids_to_exclude = set().union(*[set(d["overlappingProductIds"]) for d in overlap["details"]])
 
                     # Check if all targeted products are excluded/covered
@@ -509,7 +509,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                         )
 
                     excl.update(list(pids_to_exclude))
-                    coupon.excludedProductIds = list(excl)
+                    coupon.excluded_product_ids = list(excl)
                 else:
                     raise OverlapConflictError(overlap)
 
@@ -784,7 +784,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                     product,
                     applies_to_type,
                     applies_to_ids if applies_to_ids else None,
-                    (coupon.excludedProductIds if coupon.excludedProductIds is not None else None),
+                    (coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None),
                 ):
                     qty = (item.quantity if item.quantity is not None else 0)
                     eligible_quantity += qty
@@ -941,7 +941,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                         product,
                         applies_to_type,
                         applies_to_ids if applies_to_ids else None,
-                        (coupon.excludedProductIds if coupon.excludedProductIds is not None else None),
+                        (coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None),
                     ):
                         qty = (item.quantity if item.quantity is not None else 0)
                         eligible_quantity += qty
@@ -1017,7 +1017,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         """Expand appliesToType/ValueIds into a set of product IDs."""
         applies_to_type = coupon_data.appliesToType or "all"
         applies_to_value_ids = coupon_data.appliesToValueIds or []
-        excluded_product_ids = set(str(x) for x in (coupon_data.excludedProductIds or []))
+        excluded_product_ids = set(str(x) for x in (coupon_data.excluded_product_ids or []))
 
         from app.repositories.product_repository import product_repository
 
@@ -1116,7 +1116,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             dummy_gy_coupon = {
                 "appliesToType": gy_applies_to_type,
                 "appliesToValueIds": gy_applies_to_ids,
-                "excludedProductIds": coupon_data.excludedProductIds,
+                "excludedProductIds": coupon_data.excluded_product_ids,
             }
             gy_affected_ids = await self._get_affected_product_ids(dummy_gy_coupon)
             new_affected_ids = new_affected_ids.union(gy_affected_ids)
@@ -1140,7 +1140,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 c_dummy_gy = {
                     "appliesToType": c_gy_applies_to_type,
                     "appliesToValueIds": c_gy_applies_to_ids,
-                    "excludedProductIds": c.excludedProductIds,
+                    "excludedProductIds": c.excluded_product_ids,
                 }
                 c_gy_affected_ids = await self._get_affected_product_ids(c_dummy_gy)
                 c_affected_ids = c_affected_ids.union(c_gy_affected_ids)
@@ -1200,8 +1200,8 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         valid_discounts = []
         for c in discounts:
             try:
-                valid_from_str = c.validFrom or c.startDate
-                valid_until_str = c.validUntil or c.endDate
+                valid_from_str = c.validFrom or c.start_date
+                valid_until_str = c.validUntil or c.end_date
                 if not valid_from_str or not valid_until_str:
                     continue
                 valid_from = datetime.fromisoformat(valid_from_str.replace("Z", "+00:00"))
@@ -1272,7 +1272,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             if c.method == "automatic" and c.typeOfDiscount == "product_discount":
                 if role in (c.applicableRoles if c.applicableRoles is not None else []):
                     is_eligible = await self._product_eligible_async(
-                        product, (c.appliesToType if c.appliesToType is not None else "all"), c.appliesToValueIds, c.excludedProductIds
+                        product, (c.appliesToType if c.appliesToType is not None else "all"), c.appliesToValueIds, c.excluded_product_ids
                     )
                     if is_eligible:
                         applicable_user_ids = c.applicableUserIds or []
@@ -1342,7 +1342,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             applies = True
             if c.typeOfDiscount in ["product_discount", "buy_x_get_y"]:
                 applies = await self._product_eligible_async(
-                    product, (c.appliesToType if c.appliesToType is not None else "all"), c.appliesToValueIds, c.excludedProductIds
+                    product, (c.appliesToType if c.appliesToType is not None else "all"), c.appliesToValueIds, c.excluded_product_ids
                 )
 
             if applies:

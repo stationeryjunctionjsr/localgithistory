@@ -108,17 +108,17 @@ class MySQLOrderFeedbackDAO:
             cols.append("comments")
             params["s_comment"] = data.comment
 
-        if data.deliveryRating is not None:
+        if data.delivery_rating is not None:
             cols.append("delivery_rating")
-            params["s_deliveryRating"] = data.deliveryRating
+            params["s_deliveryRating"] = data.delivery_rating
 
-        if data.deliveryComment is not None:
+        if data.delivery_comment is not None:
             cols.append("delivery_comment")
-            params["s_deliveryComment"] = data.deliveryComment
+            params["s_deliveryComment"] = data.delivery_comment
 
-        if data.feedbackType is not None:
+        if data.feedback_type is not None:
             cols.append("feedback_type")
-            params["s_feedbackType"] = data.feedbackType
+            params["s_feedbackType"] = data.feedback_type
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['orderId', 'userId', 'rating', 'comment', 'deliveryRating', 'deliveryComment', 'feedbackType'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -156,17 +156,17 @@ class MySQLOrderFeedbackDAO:
             updates.append("comments = :s_comment")
             params["s_comment"] = data.comment
 
-        if data.deliveryRating is not None:
+        if data.delivery_rating is not None:
             updates.append("delivery_rating = :s_deliveryRating")
-            params["s_deliveryRating"] = data.deliveryRating
+            params["s_deliveryRating"] = data.delivery_rating
 
-        if data.deliveryComment is not None:
+        if data.delivery_comment is not None:
             updates.append("delivery_comment = :s_deliveryComment")
-            params["s_deliveryComment"] = data.deliveryComment
+            params["s_deliveryComment"] = data.delivery_comment
 
-        if data.feedbackType is not None:
+        if data.feedback_type is not None:
             updates.append("feedback_type = :s_feedbackType")
-            params["s_feedbackType"] = data.feedbackType
+            params["s_feedbackType"] = data.feedback_type
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)

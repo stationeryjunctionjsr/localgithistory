@@ -328,7 +328,7 @@ async def get_my_availability_windows(
         d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d, from_attributes=True)
         for d in docs
     ]
-    parsed_docs.sort(key=lambda d: (d.startAt or d.startDate or ""), reverse=True)
+    parsed_docs.sort(key=lambda d: (d.startAt or d.start_date or ""), reverse=True)
     return parsed_docs
 
 
@@ -351,7 +351,7 @@ async def get_all_seller_availability(
         d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d, from_attributes=True)
         for d in enriched
     ]
-    parsed_enriched.sort(key=lambda d: (d.startAt or d.startDate or ""), reverse=True)
+    parsed_enriched.sort(key=lambda d: (d.startAt or d.start_date or ""), reverse=True)
     return parsed_enriched
 
 

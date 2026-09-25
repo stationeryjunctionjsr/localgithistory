@@ -6,6 +6,6 @@ async def test_find():
     valets = await user_repository.findAll({'role': 'valet'})
     print(f"All valets found: {len(valets)}")
     for v in valets:
-        print(v.name, " isOnDuty:", v.isOnDuty, " email:", v.email)
+        print(v.name, " isOnDuty:", v.is_on_duty, " email:", v.email)
 
 asyncio.run(test_find())

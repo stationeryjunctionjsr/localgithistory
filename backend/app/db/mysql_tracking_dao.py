@@ -209,7 +209,7 @@ class MySQLTrackingDAO:
 
         add_col("type", "event_type", data.type)
         add_col("userId", "user_id", data.userId)
-        add_col("sessionId", "session_id", data.sessionId)
+        add_col("sessionId", "session_id", data.session_id)
         
         ts = data.timestamp
         if ts is not None and isinstance(ts, str):

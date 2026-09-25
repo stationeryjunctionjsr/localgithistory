@@ -100,9 +100,9 @@ class MySQLCollectionsDAO:
             cols.append("description")
             params["s_description"] = data.description
 
-        if data.imageUrl is not None:
+        if data.image_url is not None:
             cols.append("image_url")
-            params["s_imageUrl"] = data.imageUrl
+            params["s_imageUrl"] = data.image_url
 
         if data.isActive is not None:
             cols.append("is_active")
@@ -140,9 +140,9 @@ class MySQLCollectionsDAO:
             updates.append("description = :s_description")
             params["s_description"] = data.description
 
-        if data.imageUrl is not None:
+        if data.image_url is not None:
             updates.append("image_url = :s_imageUrl")
-            params["s_imageUrl"] = data.imageUrl
+            params["s_imageUrl"] = data.image_url
 
         if data.isActive is not None:
             updates.append("is_active = :s_isActive")
@@ -269,25 +269,25 @@ class MySQLCollectionsDAO:
 
     async def _replace_children(self, session, row_id: int, data: Any):
 
-        if data.visiblePages is not None:
+        if data.visible_pages is not None:
             await session.execute(text(f"DELETE FROM sj_collection_pages WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.visiblePages or []
+            child_list = data.visible_pages or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_collection_pages (parent_id, page) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.userSegments is not None:
+        if data.user_segments is not None:
             await session.execute(text(f"DELETE FROM sj_collection_segments WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.userSegments or []
+            child_list = data.user_segments or []
 
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_collection_segments (parent_id, segment) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.visibilityRules is not None:
+        if data.visibility_rules is not None:
             await session.execute(text(f"DELETE FROM sj_collection_rules WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.visibilityRules or []
+            child_list = data.visibility_rules or []
 
             if child_list:
                 for item in child_list:

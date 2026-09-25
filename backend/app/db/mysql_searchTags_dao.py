@@ -290,9 +290,9 @@ class MySQLSearchTagsDAO:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_categories (parent_id, category) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.subCategories is not None:
+        if data.sub_categories is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_subcats WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.subCategories or []
+            child_list = data.sub_categories or []
 
             if child_list:
                 for item in child_list:
@@ -322,9 +322,9 @@ class MySQLSearchTagsDAO:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_search_tag_products (parent_id, product_id) VALUES (:id, :v)"), {"id": row_id, "v": item})
 
-        if data.excludedProductIds is not None:
+        if data.excluded_product_ids is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_ex_products WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.excludedProductIds or []
+            child_list = data.excluded_product_ids or []
 
             if child_list:
                 for item in child_list:

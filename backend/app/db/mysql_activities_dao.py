@@ -96,9 +96,9 @@ class MySQLActivitiesDAO:
             cols.append("user_id")
             params["s_userId"] = data.userId
 
-        if data.sessionId is not None:
+        if data.session_id is not None:
             cols.append("session_id")
-            params["s_sessionId"] = data.sessionId
+            params["s_sessionId"] = data.session_id
 
         if data.action is not None:
             cols.append("action")
@@ -168,9 +168,9 @@ class MySQLActivitiesDAO:
             updates.append("user_id = :s_userId")
             params["s_userId"] = data.userId
 
-        if data.sessionId is not None:
+        if data.session_id is not None:
             updates.append("session_id = :s_sessionId")
-            params["s_sessionId"] = data.sessionId
+            params["s_sessionId"] = data.session_id
 
         if data.action is not None:
             updates.append("action = :s_action")

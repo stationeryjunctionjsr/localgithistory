@@ -395,7 +395,7 @@ class TrackingRepository:
             out.append(
                 {
                     "userId": doc.userId,
-                    "sessionId": doc.sessionId,
+                    "sessionId": doc.session_id,
                     "productIds": list(pids),
                     "timestamp": ts,
                 }

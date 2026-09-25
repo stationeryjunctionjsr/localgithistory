@@ -457,7 +457,7 @@ async def create_bundle(payload: CreateBundleRequest, current_user: User = Depen
             description=payload.description,
             price=payload.price,
             items=[BundleItemInternal(productId=i.product_id, quantity=i.quantity) for i in payload.items],
-            imageUrl=payload.imageUrl,
+            imageUrl=payload.image_url,
             isActive=payload.isActive,
             salesCount=payload.salesCount if payload.salesCount is not None else 0,
             searchTags=payload.searchTags or [],
@@ -495,8 +495,8 @@ async def update_bundle(
         if payload.items is not None:
             await _validate_bundle_items(payload.items)
             update_model.items = [BundleItemInternal(productId=i.product_id, quantity=i.quantity) for i in payload.items]
-        if payload.imageUrl is not None:
-            update_model.imageUrl = payload.imageUrl
+        if payload.image_url is not None:
+            update_model.image_url = payload.image_url
         if payload.isActive is not None:
             update_model.isActive = payload.isActive
         if payload.salesCount is not None:

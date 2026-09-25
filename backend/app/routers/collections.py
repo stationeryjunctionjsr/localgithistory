@@ -22,8 +22,8 @@ def _format_collection_response(collection):
     from app.models.schemas import VisibilityRuleSnippet, CollectionResponse
     
     parsed_rules = []
-    if collection.visibilityRules:
-        for r_str in collection.visibilityRules:
+    if collection.visibility_rules:
+        for r_str in collection.visibility_rules:
             if isinstance(r_str, str):
                 try:
                     parsed_rules.append(VisibilityRuleSnippet.model_validate_json(r_str))
@@ -33,7 +33,7 @@ def _format_collection_response(collection):
                 parsed_rules.append(VisibilityRuleSnippet.model_validate(r_str, from_attributes=True))
                 
     response = CollectionResponse.model_validate(collection, from_attributes=True)
-    response.visibilityRules = parsed_rules
+    response.visibility_rules = parsed_rules
     return response
 
 @router.get("/public", response_model=List[CollectionResponse])
@@ -114,15 +114,15 @@ async def create_collection(data: CollectionCreate, current_user: User = Depends
     internal_data = CollectionInternalCreate(
         name=data.name,
         description=data.description,
-        imageUrl=data.imageUrl,
+        imageUrl=data.image_url,
         isActive=data.isActive,
         displayOrder=data.displayOrder,
-        visiblePages=data.visiblePages,
-        userSegments=data.userSegments,
+        visiblePages=data.visible_pages,
+        userSegments=data.user_segments,
         productIds=data.product_ids
     )
-    if data.visibilityRules:
-        internal_data.visibilityRules = data.visibilityRules
+    if data.visibility_rules:
+        internal_data.visibility_rules = data.visibility_rules
         
     collection = await collection_repository.create(internal_data)
     _invalidate_collection_caches()
@@ -136,14 +136,14 @@ async def update_collection(
     internal_update = CollectionInternalUpdate()
     if 'name' in data.model_fields_set: internal_update.name = data.name
     if 'description' in data.model_fields_set: internal_update.description = data.description
-    if 'imageUrl' in data.model_fields_set: internal_update.imageUrl = data.imageUrl
+    if 'imageUrl' in data.model_fields_set: internal_update.image_url = data.image_url
     if 'isActive' in data.model_fields_set: internal_update.isActive = data.isActive
     if 'displayOrder' in data.model_fields_set: internal_update.displayOrder = data.displayOrder
-    if 'visiblePages' in data.model_fields_set: internal_update.visiblePages = data.visiblePages
-    if 'userSegments' in data.model_fields_set: internal_update.userSegments = data.userSegments
+    if 'visiblePages' in data.model_fields_set: internal_update.visible_pages = data.visible_pages
+    if 'userSegments' in data.model_fields_set: internal_update.user_segments = data.user_segments
     if 'productIds' in data.model_fields_set: internal_update.product_ids = data.product_ids
-    if data.visibilityRules is not None:
-        internal_update.visibilityRules = data.visibilityRules
+    if data.visibility_rules is not None:
+        internal_update.visibility_rules = data.visibility_rules
 
     collection = await collection_repository.update(collection_id, internal_update)
     if not collection:

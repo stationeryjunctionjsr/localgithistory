@@ -34,15 +34,15 @@ class NotificationRepository:
 
         notifications = await self.storage.findAll(db_query)
 
-        if filters.startDate:
-            start = datetime.fromisoformat(filters.startDate.replace("Z", "+00:00"))
+        if filters.start_date:
+            start = datetime.fromisoformat(filters.start_date.replace("Z", "+00:00"))
             notifications = [
                 n
                 for n in notifications
                 if n.createdAt and datetime.fromisoformat(n.createdAt.replace("Z", "+00:00")) >= start
             ]
-        if filters.endDate:
-            end = datetime.fromisoformat(filters.endDate.replace("Z", "+00:00"))
+        if filters.end_date:
+            end = datetime.fromisoformat(filters.end_date.replace("Z", "+00:00"))
             end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
             notifications = [
                 n for n in notifications if n.createdAt and datetime.fromisoformat(n.createdAt.replace("Z", "+00:00")) <= end

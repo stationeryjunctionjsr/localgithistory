@@ -50,7 +50,7 @@ class CategoryRepository:
                 case "name": update_dict["name"] = update_data.name
                 case "description": update_dict["description"] = update_data.description
                 case "images": update_dict["images"] = update_data.images
-                case "subCategories": update_dict["subCategories"] = update_data.subCategories
+                case "subCategories": update_dict["subCategories"] = update_data.sub_categories
                 case "minimumQuantity": update_dict["minimumQuantity"] = update_data.minimumQuantity
                 case "categoryTag": update_dict["categoryTag"] = update_data.categoryTag
                 case "isActive": update_dict["isActive"] = update_data.isActive

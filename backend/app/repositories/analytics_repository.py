@@ -309,7 +309,7 @@ class AnalyticsRepository:
         # 1. Sessions count (unique sessions in the date range)
         sessions_tracking = await self.tracking_storage.findAll({"type": "session"})
         sessions_tracking = self._filter_by_date_range(sessions_tracking, start_date, end_date, "timestamp")
-        session_count = len(set(s.sessionId for s in sessions_tracking if s.sessionId))
+        session_count = len(set(s.session_id for s in sessions_tracking if s.session_id))
 
         # Fallback to estimated sessions if zero tracking traffic exists
         if session_count == 0:
@@ -318,7 +318,7 @@ class AnalyticsRepository:
         # 2. Cart Additions (unique sessions adding items to cart)
         cart_add_tracking = await self.tracking_storage.findAll({"type": "cart_add"})
         cart_add_tracking = self._filter_by_date_range(cart_add_tracking, start_date, end_date, "timestamp")
-        added_to_cart_count = len(set(c.sessionId for c in cart_add_tracking if c.sessionId))
+        added_to_cart_count = len(set(c.session_id for c in cart_add_tracking if c.session_id))
 
         # Fallback if no cart additions tracked
         if added_to_cart_count == 0:
@@ -332,7 +332,7 @@ class AnalyticsRepository:
         # 3. Reached Checkout (unique sessions landing on checkout page step 1)
         checkout_tracking = await self.tracking_storage.findAll({"type": "page_view", "page": "/checkout/step1"})
         checkout_tracking = self._filter_by_date_range(checkout_tracking, start_date, end_date, "timestamp")
-        reached_checkout_count = len(set(c.sessionId for c in checkout_tracking if c.sessionId))
+        reached_checkout_count = len(set(c.session_id for c in checkout_tracking if c.session_id))
 
         # Fallback if zero tracking events exist
         if reached_checkout_count == 0:
@@ -392,7 +392,7 @@ class AnalyticsRepository:
         async def get_unique_sessions_for_page(page_path: str) -> int:
             events = await self.tracking_storage.findAll({"type": "page_view", "page": page_path})
             events = self._filter_by_date_range(events, start_date, end_date, "timestamp")
-            return len(set(e.sessionId for e in events if e.sessionId))
+            return len(set(e.session_id for e in events if e.session_id))
 
         cart_sessions = await get_unique_sessions_for_page("/customer/cart")
         step1_sessions = await get_unique_sessions_for_page("/checkout/step1")
@@ -580,7 +580,7 @@ class AnalyticsRepository:
 
         session_landing = {}
         for t in tracking:
-            sid = t.sessionId
+            sid = t.session_id
             if not sid:
                 continue
             ts = self._parse_date(t.timestamp)
@@ -731,7 +731,7 @@ class AnalyticsRepository:
         for t in all_tracking:
             if t.type != "page_view":
                 continue
-            sid = t.sessionId
+            sid = t.session_id
             if sid in session_ids:
                 page_views_by_session[sid] = (page_views_by_session[sid] if sid in page_views_by_session else 0) + 1
         page_counts = list(page_views_by_session.values())
@@ -1342,7 +1342,7 @@ class AnalyticsRepository:
         orders = self._filter_by_date_range(orders, start_date, end_date)
 
         sessions = await self.session_storage.findAll()
-        session_map = {s.sessionId: s for s in sessions}
+        session_map = {s.session_id: s for s in sessions}
 
         stats = {
             "desktop": {"deviceType": "desktop", "revenue": 0.0, "orderCount": 0},
@@ -1355,7 +1355,7 @@ class AnalyticsRepository:
             if order.status in ["cancelled", "declined"]:
                 continue
 
-            session_id = order.sessionId
+            session_id = order.session_id
             device_type = "unknown"
             if session_id and session_id in session_map:
                 s_device = session_map[session_id].device or {}
@@ -1638,7 +1638,7 @@ class AnalyticsRepository:
             ts = self._to_naive_utc(self._parse_date(s.timestamp))
             if not ts or ts < cutoff:
                 continue
-            sid = s.sessionId
+            sid = s.session_id
             if not sid:
                 continue
             active.add(sid)
@@ -1668,11 +1668,11 @@ class AnalyticsRepository:
         searches = self._filter_by_date_range(searches, start_date, end_date, "timestamp")
 
         clicks = await self.tracking_storage.findAll({"type": "product_click"})
-        clicked_sessions = {c.sessionId for c in clicks if c.sessionId}
+        clicked_sessions = {c.session_id for c in clicks if c.session_id}
 
         term_stats: dict = {}
         for s in searches:
-            sid = s.sessionId
+            sid = s.session_id
             if sid in clicked_sessions:
                 continue  # this session had a click — skip
             term = (s.searchTerm or "").strip().lower()
@@ -1703,7 +1703,7 @@ class AnalyticsRepository:
         """Percentage of sessions that searched AND placed an order."""
         searches = await self.tracking_storage.findAll({"type": "product_search"})
         searches = self._filter_by_date_range(searches, start_date, end_date, "timestamp")
-        search_sessions = {s.sessionId for s in searches if s.sessionId}
+        search_sessions = {s.session_id for s in searches if s.session_id}
 
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
@@ -1738,7 +1738,7 @@ class AnalyticsRepository:
         session_day: dict = {}  # sid -> day
         session_views: dict = {}  # sid -> count
         for pv in page_views:
-            sid = pv.sessionId
+            sid = pv.session_id
             ts = self._parse_date(pv.timestamp)
             if not sid or not ts:
                 continue

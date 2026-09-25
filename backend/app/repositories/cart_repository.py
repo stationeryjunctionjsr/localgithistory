@@ -51,7 +51,7 @@ class CartRepository:
                 i
                 for i, it in enumerate(items)
                 if it.product == item.product
-                and it.variantAttributes == item.variantAttributes
+                and it.variant_attributes == item.variant_attributes
                 and it.sellAsCase == item.sellAsCase
             ),
             None,
@@ -66,7 +66,7 @@ class CartRepository:
                 sellAsCase=old.sellAsCase,
                 bundleId=old.bundleId,
                 bundleName=old.bundleName,
-                variantAttributes=old.variantAttributes,
+                variantAttributes=old.variant_attributes,
             )
         else:
             items.append(item)

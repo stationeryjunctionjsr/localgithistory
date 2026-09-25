@@ -53,7 +53,7 @@ class ProductRepository:
     def _get_variant_search_text(self, product: Any) -> str:
         """Flatten variant attributes and combination values into searchable text."""
         parts = []
-        for attr in product.variantAttributes or []:
+        for attr in product.variant_attributes or []:
             parts.append(str(attr).lower())
         for combo in product.variantCombinations or []:
             attrs = combo.attributes or {}
@@ -859,7 +859,7 @@ class ProductRepository:
             matched_tags = []
             for tag in search_tags:
                 # Check exclusion first
-                excluded_ids = (tag.excludedProductIds if tag.excludedProductIds is not None else [])
+                excluded_ids = (tag.excluded_product_ids if tag.excluded_product_ids is not None else [])
                 if pid in excluded_ids:
                     continue
 
@@ -878,7 +878,7 @@ class ProductRepository:
 
                 # Check subcategory match
                 if not matched and p_sub_category:
-                    tag_sub_categories = (tag.subCategories if tag.subCategories is not None else [])
+                    tag_sub_categories = (tag.sub_categories if tag.sub_categories is not None else [])
                     if tag_sub_categories and p_sub_category in tag_sub_categories:
                         matched = True
 
@@ -993,12 +993,12 @@ class ProductRepository:
             videos=product_data.videos if product_data.videos is not None else [],
             thumbnail=None,
             variants=product_data.variants if product_data.variants is not None else [],
-            variantAttributes=product_data.variantAttributes if product_data.variantAttributes is not None else [],
+            variantAttributes=product_data.variant_attributes if product_data.variant_attributes is not None else [],
             details=product_data.details if product_data.details is not None else None,
             sellers=product_data.sellers if product_data.sellers is not None else [],
             rating=product_data.rating if product_data.rating is not None else None,
             reviews=product_data.reviews if product_data.reviews is not None else None,
-            isExclusive=product_data.isExclusive if product_data.isExclusive is not None else False,
+            isExclusive=product_data.is_exclusive if product_data.is_exclusive is not None else False,
             collection=product_data.collection if product_data.collection is not None else None,
             catalogSellerIds=product_data.catalogSellerIds if product_data.catalogSellerIds is not None else [],
         )
@@ -1039,7 +1039,7 @@ class ProductRepository:
             elif field_name == "reviews": val = update_data.reviews
             elif field_name == "videos": val = update_data.videos
             elif field_name == "tags": val = update_data.tags
-            elif field_name == "variantAttributes": val = update_data.variantAttributes
+            elif field_name == "variantAttributes": val = update_data.variant_attributes
             elif field_name == "variants": val = update_data.variants
             elif field_name == "details": val = update_data.details
             elif field_name == "name": val = update_data.name

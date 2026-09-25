@@ -79,13 +79,13 @@ class MySQLBannerDAO:
         await session.execute(text("DELETE FROM sj_banner_user_segments WHERE banner_id = :bid"), {"bid": bid})
         await session.execute(text("DELETE FROM sj_banner_visibility_rules WHERE banner_id = :bid"), {"bid": bid})
 
-        for seg in (data.userSegments if data.userSegments is not None else []):
+        for seg in (data.user_segments if data.user_segments is not None else []):
             await session.execute(
                 text("INSERT INTO sj_banner_user_segments (banner_id, segment) VALUES (:bid, :seg)"),
                 {"bid": bid, "seg": str(seg)},
             )
 
-        for rule in (data.visibilityRules if data.visibilityRules is not None else []):
+        for rule in (data.visibility_rules if data.visibility_rules is not None else []):
             await session.execute(
                 text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
                 {"bid": bid, "rule": json.dumps(rule.model_dump(exclude_unset=True))},
@@ -156,16 +156,16 @@ class MySQLBannerDAO:
                     "external_id": external_id,
                     "title": data.title,
                     "description": data.description,
-                    "image_url": data.imageUrl,
-                    "link_url": data.linkUrl,
+                    "image_url": data.image_url,
+                    "link_url": data.link_url,
                     "display_order": (data.displayOrder if data.displayOrder is not None else 0),
-                    "start_date": data.startDate,
-                    "end_date": data.endDate,
+                    "start_date": data.start_date,
+                    "end_date": data.end_date,
                     "is_active": int(bool((data.isActive if data.isActive is not None else True))),
-                    "is_published": int(bool((data.isPublished if data.isPublished is not None else False))),
-                    "target_audience": data.targetAudience,
+                    "is_published": int(bool((data.is_published if data.is_published is not None else False))),
+                    "target_audience": data.target_audience,
                     "position": data.position,
-                    "zone_ids": json.dumps(data.zoneIds) if data.zoneIds else None,
+                    "zone_ids": json.dumps(data.zone_ids) if data.zone_ids else None,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -190,16 +190,16 @@ class MySQLBannerDAO:
             match k:
                 case "title": val = update_data.title if update_data.title is not None else existing.title
                 case "description": val = update_data.description if update_data.description is not None else existing.description
-                case "imageUrl": val = update_data.imageUrl if update_data.imageUrl is not None else existing.image_url
-                case "linkUrl": val = update_data.linkUrl if update_data.linkUrl is not None else existing.link_url
+                case "imageUrl": val = update_data.image_url if update_data.image_url is not None else existing.image_url
+                case "linkUrl": val = update_data.link_url if update_data.link_url is not None else existing.link_url
                 case "displayOrder": val = update_data.displayOrder if update_data.displayOrder is not None else existing.display_order
-                case "startDate": val = update_data.startDate if update_data.startDate is not None else existing.start_date
-                case "endDate": val = update_data.endDate if update_data.endDate is not None else existing.end_date
+                case "startDate": val = update_data.start_date if update_data.start_date is not None else existing.start_date
+                case "endDate": val = update_data.end_date if update_data.end_date is not None else existing.end_date
                 case "isActive": val = update_data.isActive if update_data.isActive is not None else existing.is_active
-                case "isPublished": val = update_data.isPublished if update_data.isPublished is not None else existing.is_published
-                case "targetAudience": val = update_data.targetAudience if update_data.targetAudience is not None else existing.target_audience
+                case "isPublished": val = update_data.is_published if update_data.is_published is not None else existing.is_published
+                case "targetAudience": val = update_data.target_audience if update_data.target_audience is not None else existing.target_audience
                 case "position": val = update_data.position if update_data.position is not None else existing.position
-                case "zoneIds": val = update_data.zoneIds if update_data.zoneIds is not None else existing.zoneIds
+                case "zoneIds": val = update_data.zone_ids if update_data.zone_ids is not None else existing.zone_ids
             merged[k] = val
 
         factory = self._factory()
@@ -246,8 +246,8 @@ class MySQLBannerDAO:
             # Need to pass an object with userSegments and visibilityRules for _replace_children
             from app.models.daos import BannerChildrenData
             dummy_merged = BannerChildrenData(
-                userSegments=update_data.userSegments if update_data.userSegments is not None else existing.userSegments,
-                visibilityRules=update_data.visibilityRules if update_data.visibilityRules is not None else existing.visibilityRules
+                userSegments=update_data.user_segments if update_data.user_segments is not None else existing.user_segments,
+                visibilityRules=update_data.visibility_rules if update_data.visibility_rules is not None else existing.visibility_rules
             )
             await self._replace_children(session, bid, dummy_merged)
             await session.commit()

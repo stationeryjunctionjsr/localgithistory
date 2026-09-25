@@ -499,7 +499,7 @@ class TestTier4SchemaValidationAndHttp422:
             payload={"productId": "prod_456", "returning": True},
         )
         assert valid.type == "product_view"
-        assert valid.sessionId == "sess_123"
+        assert valid.session_id == "sess_123"
         assert valid.page == "/"
         assert valid.payload.get("productId") == "prod_456"
 
@@ -538,7 +538,7 @@ class TestTier4SchemaValidationAndHttp422:
         """RefreshTokenRequest requires userId, sessionId, and refreshId."""
         valid = RefreshTokenRequestSchema(userId="u1", sessionId="s1", refreshId="r1")
         assert valid.userId == "u1"
-        assert valid.sessionId == "s1"
+        assert valid.session_id == "s1"
         assert valid.refreshId == "r1"
 
         with pytest.raises(ValidationError):
