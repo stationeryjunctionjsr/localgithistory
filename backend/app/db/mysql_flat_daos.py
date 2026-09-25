@@ -224,10 +224,10 @@ class MySQLOrderFeedbackDAO:
             cols.append("order_id")
             vals.append(":orderId")
             params["orderId"] = data.order_id
-        if data.userId is not None:
+        if data.user_id is not None:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.userId
+            params["userId"] = data.user_id
         if data.rating is not None:
             cols.append("rating")
             vals.append(":rating")
@@ -273,9 +273,9 @@ class MySQLOrderFeedbackDAO:
         if data.order_id is not None:
             updates.append("order_id = :orderId")
             params["orderId"] = data.order_id
-        if data.userId is not None:
+        if data.user_id is not None:
             updates.append("user_id = :userId")
-            params["userId"] = data.userId
+            params["userId"] = data.user_id
         if data.rating is not None:
             updates.append("rating = :rating")
             params["rating"] = data.rating
@@ -1192,10 +1192,10 @@ class MySQLStockReservationsDAO:
             cols.append("product_id")
             vals.append(":productId")
             params["productId"] = data.product_id
-        if data.userId is not None:
+        if data.user_id is not None:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.userId
+            params["userId"] = data.user_id
         if data.quantity is not None:
             cols.append("quantity")
             vals.append(":quantity")
@@ -1242,7 +1242,7 @@ class MySQLStockReservationsDAO:
             updates.append("product_id = :productId")
             params["productId"] = product_id
             
-        user_id = data.userId if data.userId is not None else existing.user_id
+        user_id = data.user_id if data.user_id is not None else existing.user_id
         if user_id is not None:
             updates.append("user_id = :userId")
             params["userId"] = user_id
@@ -1369,10 +1369,10 @@ class MySQLProductNotificationsDAO:
             cols.append("product_id")
             vals.append(":productId")
             params["productId"] = data.product_id
-        if data.userId is not None:
+        if data.user_id is not None:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.userId
+            params["userId"] = data.user_id
         if data.email is not None:
             cols.append("email")
             vals.append(":email")
@@ -1410,9 +1410,9 @@ class MySQLProductNotificationsDAO:
         if data.product_id is not None:
             updates.append("product_id = :productId")
             params["productId"] = data.product_id
-        if data.userId is not None:
+        if data.user_id is not None:
             updates.append("user_id = :userId")
-            params["userId"] = data.userId
+            params["userId"] = data.user_id
         if data.email is not None:
             updates.append("email = :email")
             params["email"] = data.email
@@ -1531,10 +1531,10 @@ class MySQLProductReviewsDAO:
             cols.append("product_id")
             vals.append(":productId")
             params["productId"] = data.product_id
-        if data.userId is not None:
+        if data.user_id is not None:
             cols.append("user_id")
             vals.append(":userId")
-            params["userId"] = data.userId
+            params["userId"] = data.user_id
         if data.rating is not None:
             cols.append("rating")
             vals.append(":rating")
@@ -1572,9 +1572,9 @@ class MySQLProductReviewsDAO:
         if data.product_id is not None:
             updates.append("product_id = :productId")
             params["productId"] = data.product_id
-        if data.userId is not None:
+        if data.user_id is not None:
             updates.append("user_id = :userId")
-            params["userId"] = data.userId
+            params["userId"] = data.user_id
         if data.rating is not None:
             updates.append("rating = :rating")
             params["rating"] = data.rating

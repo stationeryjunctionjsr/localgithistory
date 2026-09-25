@@ -81,13 +81,14 @@ class StockReservationRepository:
         # Release any existing active reservation of this user for this product first
         await self.release_user_reservations(user_id, product_id)
 
-        reservation_data = {
-            "productId": str(product_id),
-            "userId": str(user_id),
-            "quantity": int(quantity),
-            "status": "active",
-            "expiresAt": expires_at.isoformat() + "Z",
-        }
+        from app.models.daos_flat import StockReservationsInternalCreate
+        reservation_data = StockReservationsInternalCreate(
+            product_id=str(product_id),
+            user_id=str(user_id),
+            quantity=int(quantity),
+            status="active",
+            expires_at=expires_at.isoformat() + "Z",
+        )
 
         created = await self.storage.create(reservation_data)
         logger.info(

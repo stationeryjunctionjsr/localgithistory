@@ -50,7 +50,7 @@ class MySQLCouponsDAO:
             conditions = []
             params = {}
             
-            query_map = {'code': 'code', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'usage_limit': 'max_uses', 'used_count': 'used_count', 'valid_from': 'start_date', 'valid_until': 'end_date', 'is_active': 'is_active', 'type_of_discount': 'type_of_discount', 'method': 'method', 'min_requirement_type': 'min_requirement_type', 'min_quantity_of_eligible_items': 'min_quantity_of_eligible_items', 'max_discount_amount': 'max_discount_amount', 'applies_to_type': 'applies_to_type'}
+            query_map = {'code': 'code', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'usage_limit': 'max_uses', 'used_count': 'used_count', 'valid_from': 'start_date', 'valid_until': 'end_date', 'is_active': 'is_active', 'isActive': 'is_active', 'type_of_discount': 'type_of_discount', 'typeOfDiscount': 'type_of_discount', 'method': 'method', 'min_requirement_type': 'min_requirement_type', 'min_quantity_of_eligible_items': 'min_quantity_of_eligible_items', 'max_discount_amount': 'max_discount_amount', 'applies_to_type': 'applies_to_type'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             
@@ -75,7 +75,7 @@ class MySQLCouponsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'code': 'code', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'usage_limit': 'max_uses', 'used_count': 'used_count', 'valid_from': 'start_date', 'valid_until': 'end_date', 'is_active': 'is_active', 'type_of_discount': 'type_of_discount', 'method': 'method', 'min_requirement_type': 'min_requirement_type', 'min_quantity_of_eligible_items': 'min_quantity_of_eligible_items', 'max_discount_amount': 'max_discount_amount', 'applies_to_type': 'applies_to_type'}
+            query_map = {'code': 'code', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'usage_limit': 'max_uses', 'used_count': 'used_count', 'valid_from': 'start_date', 'valid_until': 'end_date', 'is_active': 'is_active', 'isActive': 'is_active', 'type_of_discount': 'type_of_discount', 'typeOfDiscount': 'type_of_discount', 'method': 'method', 'min_requirement_type': 'min_requirement_type', 'min_quantity_of_eligible_items': 'min_quantity_of_eligible_items', 'max_discount_amount': 'max_discount_amount', 'applies_to_type': 'applies_to_type'}
             query_map["_id"] = "id"
             query_map["externalId"] = "external_id"
             

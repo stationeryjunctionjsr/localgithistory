@@ -562,17 +562,16 @@ class CouponUserUsageInternal(CamelBaseModel):
 
 class CouponInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
-    external_id: Optional[str] = None
+    external_id: Optional[str] = Field(None, alias="externalId")
     code: Optional[str] = None
     discount_type: Optional[str] = None
     discount_value: Optional[float] = None
-    min_purchase_amount: Optional[float] = None
-    usage_limit: Optional[int] = None
+    min_order_value: Optional[float] = Field(None, alias="min_purchase_amount")
+    max_uses: Optional[int] = Field(None, alias="usage_limit")
     used_count: Optional[int] = None
-    valid_from: Optional[str] = None
-    valid_until: Optional[str] = None
+    start_date: Optional[Any] = Field(None, alias="valid_from")
+    end_date: Optional[Any] = Field(None, alias="valid_until")
     is_active: Optional[bool] = None
     type_of_discount: Optional[str] = None
     method: Optional[str] = None
@@ -585,9 +584,9 @@ class CouponInternal(CamelBaseModel):
     display_id: Optional[str] = None
     buy_x_get_y_customer_gets_applies_to_type: Optional[str] = None
     buy_x_get_y_customer_gets_quantity: Optional[int] = None
-    buy_x_get_y_customer_gets_applies_to_value_ids: Optional[List[str]] = None
-    buy_x_get_y_customer_gets_discount_type: Optional[str] = None
-    buy_x_get_y_customer_gets_discount_value: Optional[float] = None
+    bxgy_applies_to_ids: Optional[Any] = Field(None, alias="buy_x_get_y_customer_gets_applies_to_value_ids")
+    bxgy_discount_type: Optional[str] = Field(None, alias="buy_x_get_y_customer_gets_discount_type")
+    bxgy_discount_value: Optional[float] = Field(None, alias="buy_x_get_y_customer_gets_discount_value")
     applicable_item_type: Optional[str] = None
     coupon_mode: Optional[str] = None
     max_usage_per_user: Optional[int] = None
@@ -603,8 +602,8 @@ class CouponInternal(CamelBaseModel):
     applicable_categories: Optional[List[str]] = None
     applies_to_value_ids: Optional[List[str]] = None
     excluded_product_ids: Optional[List[str]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[Any] = None
+    updated_at: Optional[Any] = None
 
 class CouponInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
