@@ -100,7 +100,7 @@ class SessionRepository:
                 try:
                     await self.storage.delete(s.id)
                 except Exception as e:
-                    logging.warning("Background task failed", exc_info=e)
+                    logging.warning("session_repository.delete_by_user: failed to delete session %r for user %r: %s", s.id, user_id, e, exc_info=e)
 
 
 session_repository = SessionRepository()

@@ -102,7 +102,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
             if order:
                 order_number = (order.order_number if order.order_number is not None else bill.order_id)
         except Exception as e:
-            logging.warning("Background task failed", exc_info=e)
+            logging.warning("payments: could not fetch order %r to resolve order_number for credit bill; will use order_id as fallback: %s", bill.order_id, e, exc_info=e)
 
         # Parse orderDate as naive UTC datetime
         order_date_raw = bill.order_date or bill.created_at

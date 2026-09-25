@@ -155,7 +155,7 @@ def _parse_order_date(raw_date: Any) -> Optional[datetime]:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("recommendation_repository._to_aware_dt: could not parse date value %r: %s", raw_date, e, exc_info=e)
         return None
 
 
@@ -988,7 +988,7 @@ class RecommendationRepository:
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt
         except Exception as e:
-            logging.warning("Background task failed", exc_info=e)
+            logging.warning("recommendation_repository._to_aware_dt: could not parse date value %r: %s", raw_date, e, exc_info=e)
             return None
 
     async def _derive_neglected_subcats(self, user_id: str, days: int) -> list:

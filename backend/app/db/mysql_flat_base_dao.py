@@ -44,7 +44,7 @@ def _to_ts(val) -> Optional[datetime]:
                 s += "+00:00"
         return datetime.fromisoformat(s)
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("_to_dt: could not parse datetime value %r: %s", val, e, exc_info=e)
         return None
 
 

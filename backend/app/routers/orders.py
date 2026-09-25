@@ -550,8 +550,7 @@ async def create_order(
                                 has_overdue = True
                                 break
                         except Exception as e:
-                            logging.warning(
-                                "Background task failed", exc_info=e)
+                            logging.warning("orders: could not parse credit bill order_date for overdue check (bill order_id=%r): %s", getattr(bill, 'order_id', '?'), e, exc_info=e)
         if has_overdue:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1855,7 +1854,7 @@ async def create_order(
                     subtotal,
                 )
             except Exception as e:
-                logging.warning("Background task failed", exc_info=e)
+                logging.warning("orders: could not fetch delivery charge for pincode %r (role=%r); order will proceed without charge: %s", order_data.shipping_address.zip_code, effective_role, e, exc_info=e)
 
             for idx, (seller_id, items_group) in enumerate(groups.items()):
                 sub_number = sub_order_repository._generate_sub_order_number(
@@ -2790,7 +2789,7 @@ async def valet_response(
         except HTTPException:
             raise
         except Exception as e:
-            logging.warning("Background task failed", exc_info=e)
+            logging.warning("orders: could not parse assigned_at for acceptance window check on order %r; skipping timeout check: %s", getattr(order, 'id', '?'), e, exc_info=e)
 
     now_iso = datetime.now(__import__(
         "datetime").timezone.utc).isoformat() + "Z"

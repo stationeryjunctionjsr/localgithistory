@@ -64,7 +64,7 @@ def _invalidate_brand_caches():
 
         cache.invalidate(get_tag_brands)
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("_invalidate_brand_caches: could not invalidate get_tag_brands cache: %s", e, exc_info=e)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=BrandResponse)

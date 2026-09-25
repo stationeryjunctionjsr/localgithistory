@@ -28,7 +28,7 @@ def _to_ts(value: Optional[str]) -> Optional[datetime]:
     try:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("mysql_order_dao._to_ts: could not parse timestamp %r: %s", value, e, exc_info=e)
         return None
 
 

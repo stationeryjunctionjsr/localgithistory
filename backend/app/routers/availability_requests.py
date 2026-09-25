@@ -187,7 +187,7 @@ async def fulfill_availability_request(
                         r_res = PushNotificationResult.model_validate(r, from_attributes=True)
                         notify_push += (r_res.deliveredCount if r_res.deliveredCount is not None else 0)
                     except Exception as e:
-                        logging.warning("Background task failed", exc_info=e)
+                        logging.warning("availability_requests: push notification failed for user %r (product %r): %s", ev_user_id, product_id, e, exc_info=e)
                 if ev_email:
                     notify_email_list.append(ev_email)
                 # Mark as notified
@@ -196,7 +196,7 @@ async def fulfill_availability_request(
                     if ev_id:
                         await tracking_storage.update(ev_id, {"notified": True})
                 except Exception as e:
-                    logging.warning("Background task failed", exc_info=e)
+                    logging.warning("availability_requests: failed to mark notify-me event %r as notified: %s", ev_id, e, exc_info=e)
         except Exception as e:
             logger.warning("Could not notify 'Notify Me' users for product %s at %s: %s", product_id, pincode, e)
 

@@ -105,7 +105,7 @@ def _invalidate_collection_caches():
 
         cache.invalidate(get_public_products)
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("_invalidate_collection_caches: could not invalidate product caches: %s", e, exc_info=e)
 
 
 @router.post("", response_model=CollectionResponse, status_code=status.HTTP_201_CREATED)

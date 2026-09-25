@@ -22,7 +22,7 @@ def _to_ts(value: Optional[str]) -> Optional[datetime]:
     try:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("mysql_session_dao._to_ts: could not parse timestamp %r: %s", value, e, exc_info=e)
         return None
 
 
@@ -236,7 +236,7 @@ class MySQLSessionDAO:
                     )
                 await session.commit()
         except Exception as e:
-            logging.warning("Background task failed", exc_info=e)  # Fire-and-forget — don't break the request on touch failure
+            logging.warning("mysql_session_dao.touch: failed to update last_active_at for session %s: %s", sid, e, exc_info=e)  # Fire-and-forget — don't break the request on touch failure
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()

@@ -27,7 +27,7 @@ def _to_dt(v) -> Optional[datetime]:
     try:
         return datetime.fromisoformat(str(v).replace("Z", ""))
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("mysql_seller_availability_dao._to_dt: could not parse datetime %r: %s", v, e, exc_info=e)
         return None
 
 

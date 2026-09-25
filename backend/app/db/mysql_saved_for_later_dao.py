@@ -25,7 +25,7 @@ def _to_ts(val):
     try:
         return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("mysql_saved_for_later_dao._to_ts: could not parse timestamp %r: %s", val, e, exc_info=e)
         return None
 
 

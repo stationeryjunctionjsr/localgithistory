@@ -79,7 +79,7 @@ class SubOrderRepository:
                     if "deliveredAt" not in commission_fields:
                         update_data.deliveredAt = datetime.now(timezone.utc).isoformat()
                 except Exception as e:
-                    logging.warning("Background task failed", exc_info=e)
+                    logging.warning("sub_order_repository.update: commission stamp failed for sub-order %r: %s", id, e, exc_info=e)
 
         return await self.storage.update(id, update_data)
 

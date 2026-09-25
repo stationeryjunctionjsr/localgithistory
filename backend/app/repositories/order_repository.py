@@ -97,7 +97,7 @@ class OrderRepository:
                     hours = (delivered_at - created_at).total_seconds() / 3600.0
                     update_data.turnaroundHours = round(hours, 2)
             except Exception as e:
-                logging.warning("Background task failed", exc_info=e)
+                logging.warning("order_repository.update: could not calculate turnaround hours for order %r (deliveredAt=%r): %s", id, update_data.deliveredAt, e, exc_info=e)
 
         if update_data.status == "shipped" and update_data.shippedAt is None:
             update_data.shippedAt = datetime.now(timezone.utc).isoformat()

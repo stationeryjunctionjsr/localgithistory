@@ -40,7 +40,7 @@ def _to_ts(val) -> Optional[datetime]:
     try:
         return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("_ensure_datetime: could not parse datetime value %r: %s", val, e, exc_info=e)
         return None
 
 

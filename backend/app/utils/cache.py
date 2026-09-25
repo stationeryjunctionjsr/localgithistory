@@ -79,7 +79,7 @@ class InMemoryTTLCache:
                     try:
                         return await asyncio.shield(self._inflight[cache_key])
                     except Exception as e:
-                        logging.warning("Background task failed", exc_info=e)  # fallthrough to fetch fresh
+                        logging.warning("cache: awaiting in-flight task for key %r failed; will fetch fresh: %s", cache_key, e, exc_info=e)  # fallthrough to fetch fresh
 
                 loop = asyncio.get_event_loop()
                 future: asyncio.Future = loop.create_future()

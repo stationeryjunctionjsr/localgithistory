@@ -83,7 +83,7 @@ class MySQLSellerRequestDAO:
                 try:
                     created_at = datetime.fromisoformat(resp["createdAt"].replace("Z", "+00:00"))
                 except Exception as e:
-                    logging.warning("Background task failed", exc_info=e)
+                    logging.warning("seller_request: could not parse response createdAt %r: %s", resp.get("createdAt"), e, exc_info=e)
             if not created_at:
                 created_at = now_utc()
             await session.execute(
@@ -155,7 +155,7 @@ class MySQLSellerRequestDAO:
             try:
                 return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
             except Exception as e:
-                logging.warning("Background task failed", exc_info=e)
+                logging.warning("seller_request.to_dt: could not parse datetime %r: %s", val, e, exc_info=e)
                 return None
 
         async with factory() as session:
@@ -207,7 +207,7 @@ class MySQLSellerRequestDAO:
             try:
                 return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
             except Exception as e:
-                logging.warning("Background task failed", exc_info=e)
+                logging.warning("seller_request.to_dt: could not parse datetime %r: %s", val, e, exc_info=e)
                 return None
 
         updates = ["updated_at = :updated_at"]

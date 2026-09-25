@@ -630,13 +630,13 @@ def _invalidate_product_caches():
 
         cache.invalidate(get_tag_brands)
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("_invalidate_product_caches: could not invalidate tag_brands cache: %s", e, exc_info=e)
     try:
         from app.repositories.coupon_repository import coupon_repository
 
         coupon_repository.invalidate_cache()
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("_invalidate_product_caches: could not invalidate coupon cache: %s", e, exc_info=e)
 
 
 

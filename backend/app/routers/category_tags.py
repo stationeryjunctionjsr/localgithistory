@@ -79,7 +79,7 @@ async def create_category_tag(tag: CategoryTagBase, current_user: dict = Depends
             cache.invalidate(get_tag_categories)
             cache.invalidate(get_tag_brands)
         except Exception as e:
-            logging.warning("Background task failed", exc_info=e)
+            logging.warning("category_tags: could not invalidate category/brand caches after tag mutation: %s", e, exc_info=e)
         return new_tag
     except HTTPException:
         raise
@@ -129,7 +129,7 @@ async def update_category_tag(
             cache.invalidate(get_tag_categories)
             cache.invalidate(get_tag_brands)
         except Exception as e:
-            logging.warning("Background task failed", exc_info=e)
+            logging.warning("category_tags: could not invalidate category/brand caches after tag mutation: %s", e, exc_info=e)
         return updated_tag
     except HTTPException:
         raise
@@ -155,7 +155,7 @@ async def hide_category_tag(tag_id: str, current_user: dict = Depends(require_su
             cache.invalidate(get_tag_categories)
             cache.invalidate(get_tag_brands)
         except Exception as e:
-            logging.warning("Background task failed", exc_info=e)
+            logging.warning("category_tags: could not invalidate category/brand caches after tag mutation: %s", e, exc_info=e)
         return {"message": "Category tag hidden successfully"}
     except HTTPException:
         raise

@@ -225,13 +225,13 @@ def _invalidate_category_caches():
 
         cache.invalidate(get_active_category_tags)
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("_invalidate_category_caches: could not invalidate category_tags cache: %s", e, exc_info=e)
     try:
         from app.repositories.coupon_repository import coupon_repository
 
         coupon_repository.invalidate_cache()
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("_invalidate_category_caches: could not invalidate coupon cache: %s", e, exc_info=e)
 
 
 @router.get("", response_model=List[Category])

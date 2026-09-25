@@ -27,7 +27,7 @@ def json_loads(value: Any) -> Any:
     except AttributeError:
         pass
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("json_loads: unexpected error reading LOB/stream value %r: %s", type(value).__name__, e, exc_info=e)
         return None
     if not isinstance(value, str):
         return value
@@ -36,5 +36,5 @@ def json_loads(value: Any) -> Any:
     try:
         return json.loads(value)
     except Exception as e:
-        logging.warning("Background task failed", exc_info=e)
+        logging.warning("json_loads: could not parse JSON string (%.80r...): %s", value, e, exc_info=e)
         return None
