@@ -179,7 +179,7 @@ class ProductRepository:
         # Fuzzy fallback if too few exact results — run in thread pool to avoid blocking the event loop
         if len(scored) < 5:
             already_matched = {p.id for p in scored}
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             fuzzy_results, suggested_query = await loop.run_in_executor(
                 None, self._fuzzy_search, products, tokens, already_matched
             )
@@ -977,30 +977,30 @@ class ProductRepository:
             description=product_data.description if product_data.description is not None else "",
             sku=sku_val,
             category=product_data.category,
-            subCategory=product_data.subCategory,
+            sub_category=product_data.sub_category,
             brand=product_data.brand,
             categoryId="1",
             brandId=None,
             price=float(product_data.mrp if product_data.mrp is not None else 0),
             mrp=float(product_data.mrp if product_data.mrp is not None else 0),
-            mrpPerCase=product_data.mrpPerCase,
-            quantityPerCase=product_data.quantityPerCase,
+            mrp_per_case=product_data.mrp_per_case,
+            quantity_per_case=product_data.quantity_per_case,
             stock=int(product_data.stock if product_data.stock is not None else 0),
             unit="pc",
-            isActive=product_data.isActive if product_data.isActive is not None else True,
+            is_active=product_data.is_active if product_data.is_active is not None else True,
             tags=product_data.tags if product_data.tags is not None else [],
             images=product_data.images if product_data.images is not None else [],
             videos=product_data.videos if product_data.videos is not None else [],
             thumbnail=None,
             variants=product_data.variants if product_data.variants is not None else [],
-            variantAttributes=product_data.variant_attributes if product_data.variant_attributes is not None else [],
+            variant_attributes=product_data.variant_attributes if product_data.variant_attributes is not None else [],
             details=product_data.details if product_data.details is not None else None,
             sellers=product_data.sellers if product_data.sellers is not None else [],
             rating=product_data.rating if product_data.rating is not None else None,
             reviews=product_data.reviews if product_data.reviews is not None else None,
-            isExclusive=product_data.is_exclusive if product_data.is_exclusive is not None else False,
+            is_exclusive=product_data.is_exclusive if product_data.is_exclusive is not None else False,
             collection=product_data.collection if product_data.collection is not None else None,
-            catalogSellerIds=product_data.catalogSellerIds if product_data.catalogSellerIds is not None else [],
+            catalog_seller_ids=product_data.catalog_seller_ids if product_data.catalog_seller_ids is not None else [],
         )
 
         if internal_create.variants:
@@ -1093,7 +1093,7 @@ class ProductRepository:
 
     async def delete(self, id: str):
         from app.models.daos import ProductInternalUpdate
-        return await self.storage.update(id, ProductInternalUpdate(isActive=False))
+        return await self.storage.update(id, ProductInternalUpdate(is_active=False))
 
     def getPriceForRole(
         self,

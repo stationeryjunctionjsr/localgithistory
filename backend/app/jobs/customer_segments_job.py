@@ -40,7 +40,7 @@ async def run_customer_segments_refresh_job():
 def run_customer_segments_refresh_job_sync():
     """Sync wrapper for the scheduler."""
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

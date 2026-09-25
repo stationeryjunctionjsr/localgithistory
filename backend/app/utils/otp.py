@@ -406,10 +406,12 @@ def request_otp(user_key: str, device_key: str) -> Tuple[bool, Dict[str, Any]]:
     Since we are using MySQL DB, callers must await the result (use request_otp_async).
     """
     import asyncio
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
+    try:
+        asyncio.get_running_loop()
         raise RuntimeError("Use request_otp_async in async context")
-    return loop.run_until_complete(_db_request_otp(user_key, device_key))
+    except RuntimeError:
+        pass
+    return asyncio.run(_db_request_otp(user_key, device_key))
 
 
 async def request_otp_async(user_key: str, device_key: str) -> Tuple[bool, Dict[str, Any]]:

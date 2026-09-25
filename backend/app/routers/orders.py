@@ -261,7 +261,7 @@ class ReferralSettingsModel(BaseModel):
     business: Optional[ReferralProgramSegmentSettings] = None
 
 
-async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
+async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     """
     Bulk populates references (user, assignedValet, products, and payment) for a list of orders.
     Optimized to minimize DB queries by fetching all needed references in bulk.
@@ -397,7 +397,7 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
     return populated
 
 
-async def populate_order(order: Any) -> Optional[PopulatedOrderResponse]:
+async def populate_order(order: Order) -> Optional[PopulatedOrderResponse]:
     """Populate a single order by reusing populate_orders"""
     if not order:
         return None
