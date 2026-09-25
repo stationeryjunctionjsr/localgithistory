@@ -584,18 +584,18 @@ async def populate_product_discounts(
 
         # Find active quantity-based coupon if any
         qty_coupon = None
-        default_min_req = default_coupon.minRequirementType
+        default_min_req = default_coupon.min_requirement_type
         if default_coupon and default_min_req == "quantity_based":
             qty_coupon = default_coupon
         else:
             for oc in other_coupons:
-                oc_min_req = oc.minRequirementType
+                oc_min_req = oc.min_requirement_type
                 if oc_min_req == "quantity_based":
                     qty_coupon = oc
                     break
 
         if qty_coupon:
-            p.quantityTiers = qty_coupon.quantityTiers or []
+            p.quantity_tiers = qty_coupon.quantity_tiers or []
             p.quantityItemType = qty_coupon.applicableItemType or "units"
 
         app_discs = []

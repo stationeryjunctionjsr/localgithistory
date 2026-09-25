@@ -1079,20 +1079,20 @@ class ReturnSettingsUpdate(CamelBaseModel):
     return_days: Optional[int] = None
 
 
-class ReturnItemSchema(BaseModel):
-    productId: str
+class ReturnItemSchema(CamelBaseModel):
+    product_id: str
     quantity: int
     reason: str
 
 
-class ReturnRequestBase(BaseModel):
-    orderId: str
+class ReturnRequestBase(CamelBaseModel):
+    order_id: str
     items: List[ReturnItemSchema]
-    sellerId: Optional[str] = None
-    deliverySlotId: Optional[str] = None
-    deliverySlotDate: Optional[str] = None
-    paymentMethod: str  # 'cod' or 'upi'
-    upiPaymentScreenshot: Optional[str] = None
+    seller_id: Optional[str] = None
+    delivery_slot_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None
+    payment_method: str  # 'cod' or 'upi'
+    upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -1100,28 +1100,28 @@ class ReturnRequestCreate(ReturnRequestBase):
     pass
 
 
-class ReturnRequestUpdate(BaseModel):
+class ReturnRequestUpdate(CamelBaseModel):
     status: Optional[ReturnRequestStatus] = None
-    valetId: Optional[str] = None
-    deliveryCharge: Optional[float] = None
+    valet_id: Optional[str] = None
+    delivery_charge: Optional[float] = None
     notes: Optional[str] = None
 
 
-class ReturnRequestResponse(BaseModel):
+class ReturnRequestResponse(CamelBaseModel):
     id: str = Field(alias="_id")
-    orderId: str
-    userId: str
+    order_id: str
+    user_id: str
     items: List[ItemSnippet]  # populated items
-    sellerId: Optional[str] = None
-    deliverySlotId: Optional[str] = None
-    deliverySlotDate: Optional[str] = None
-    paymentMethod: str
-    upiPaymentScreenshot: Optional[str] = None
+    seller_id: Optional[str] = None
+    delivery_slot_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None
+    payment_method: str
+    upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
     status: ReturnRequestStatus
-    valetId: Optional[str] = None
+    valet_id: Optional[str] = None
     valet: Optional[ValetSnippet] = None  # populated valet
-    pendingValetId: Optional[str] = None
+    pending_valet_id: Optional[str] = None
     valetDeclineHistory: Optional[List[ValetDeclineSnippet]] = None
     valetCascadeCount: Optional[int] = None
     valetAssignedAt: Optional[str] = None
@@ -1133,21 +1133,21 @@ class ReturnRequestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
-class ReturnRequest(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+class ReturnRequest(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
     id: Optional[str] = Field(None, validation_alias=AliasChoices('_id', 'id'))
-    orderId: Optional[str] = None
-    userId: Optional[str] = None
-    valetId: Optional[str] = None
-    pendingValetId: Optional[str] = None
+    order_id: Optional[str] = None
+    user_id: Optional[str] = None
+    valet_id: Optional[str] = None
+    pending_valet_id: Optional[str] = None
     status: Optional[str] = None
     items: Optional[List[ReturnItemSchema]] = []
-    paymentMethod: Optional[str] = None
-    upiPaymentScreenshot: Optional[str] = None
+    payment_method: Optional[str] = None
+    upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
-    deliveryCharge: Optional[float] = 0.0
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    delivery_charge: Optional[float] = 0.0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     sellerId: Optional[str] = None
     deliverySlotId: Optional[str] = None
     deliverySlotDate: Optional[str] = None
@@ -1178,30 +1178,30 @@ class ProductResponse(ProductBase):
 
 
 
-class RecommendationResponse(BaseModel):
-    newArrivals: List[SkinnyProductResponse] = Field(default_factory=list)
-    customerFavourites: List[SkinnyProductResponse] = Field(default_factory=list)
-    trendingNow: List[SkinnyProductResponse] = Field(default_factory=list)
+class RecommendationResponse(CamelBaseModel):
+    new_arrivals: List[SkinnyProductResponse] = Field(default_factory=list)
+    customer_favourites: List[SkinnyProductResponse] = Field(default_factory=list)
+    trending_now: List[SkinnyProductResponse] = Field(default_factory=list)
     explore: List[SkinnyProductResponse] = Field(default_factory=list)
-    wholesalerFavourites: List[SkinnyProductResponse] = Field(default_factory=list)
-    businessFavourites: List[SkinnyProductResponse] = Field(default_factory=list)
-    sectionOrder: List[str] = Field(default_factory=list)
+    wholesaler_favourites: List[SkinnyProductResponse] = Field(default_factory=list)
+    business_favourites: List[SkinnyProductResponse] = Field(default_factory=list)
+    section_order: List[str] = Field(default_factory=list)
 
-class SkinnyProductResponse(BaseModel):
+class SkinnyProductResponse(CamelBaseModel):
     id: str = Field(alias="_id")
-    productId: Optional[int] = None
-    productIdFormatted: Optional[str] = None
+    product_id: Optional[int] = None
+    product_id_formatted: Optional[str] = None
     name: str
     sku: Optional[str] = None
     category: Optional[str] = None
-    subCategory: Optional[str] = None
+    sub_category: Optional[str] = None
     brand: Optional[str] = None
     collection: Optional[str] = None
     mrp: float
-    mrpPerCase: Optional[float] = None
-    quantityPerCase: Optional[int] = None
+    mrp_per_case: Optional[float] = None
+    quantity_per_case: Optional[int] = None
     stock: Optional[int] = None
-    isActive: bool = True
+    is_active: bool = True
     tags: Optional[List[str]] = None
     price: Optional[float] = None
     originalPrice: Optional[float] = None
@@ -1216,15 +1216,15 @@ class SkinnyProductResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 
 
-class PaginatedProductResponse(BaseModel):
+class PaginatedProductResponse(CamelBaseModel):
     products: List[Union[ProductResponse, SkinnyProductResponse]]
-    totalCount: int
+    total_count: int
     brands: Optional[List[str]] = None
     categories: Optional[List[str]] = None
-    subCategories: Optional[List[str]] = None
+    sub_categories: Optional[List[str]] = None
     collections: Optional[List[str]] = None
-    usedFuzzy: Optional[bool] = False
-    suggestedQuery: Optional[str] = None
+    used_fuzzy: Optional[bool] = False
+    suggested_query: Optional[str] = None
 
 
 # Discount (Coupon) Schemas
@@ -1236,21 +1236,20 @@ class QuantityTier(BaseModel):
 # typeOfDiscount: product_discount | buy_x_get_y | total_order_discount | shipping_discount
 # method: discount_code | automatic
 # applicableUserIds: when set, only these user ids can use (Selective Retail/Business)
-class CouponBase(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-    typeOfDiscount: str = (
+class CouponBase(CamelBaseModel):
+    type_of_discount: str = (
         "product_discount"  # product_discount | buy_x_get_y | total_order_discount | shipping_discount
     )
     code: Optional[str] = None  # required when method=discount_code; null for automatic
     method: str = "discount_code"  # discount_code | automatic
-    discountType: DiscountType
-    discountValue: float
-    quantityTiers: Optional[List[QuantityTier]] = None
-    minPurchaseAmount: float = Field(default=0, validation_alias=AliasChoices("minPurchaseAmount", "minOrderValue"))
-    minRequirementType: str = "none"  # none | min_amount | min_quantity
-    minQuantityOfEligibleItems: Optional[int] = None  # when minRequirementType=min_quantity
-    maxDiscountAmount: Optional[float] = None
-    validFrom: Optional[str] = None
+    discount_type: DiscountType
+    discount_value: float
+    quantity_tiers: Optional[List[QuantityTier]] = None
+    min_purchase_amount: float = Field(default=0, validation_alias=AliasChoices("minPurchaseAmount", "min_purchase_amount", "minOrderValue", "min_order_value"))
+    min_requirement_type: str = "none"  # none | min_amount | min_quantity
+    min_quantity_of_eligible_items: Optional[int] = None  # when minRequirementType=min_quantity
+    max_discount_amount: Optional[float] = None
+    valid_from: Optional[str] = None
     validUntil: Optional[str] = None
     usageLimit: Optional[int] = Field(default=None, validation_alias=AliasChoices("usageLimit", "maxUses"))
     isActive: bool = True
@@ -1294,21 +1293,21 @@ class CouponCreate(CouponBase):
     pass
 
 
-class CouponUpdate(BaseModel):
+class CouponUpdate(CamelBaseModel):
     resolution: Optional[str] = None
     force: bool = False
-    typeOfDiscount: Optional[str] = None
+    type_of_discount: Optional[str] = None
     code: Optional[str] = None
     method: Optional[str] = None
-    discountType: Optional[DiscountType] = None
-    discountValue: Optional[float] = None
-    quantityTiers: Optional[List[QuantityTier]] = None
-    minPurchaseAmount: Optional[float] = None
-    minRequirementType: Optional[str] = None
-    minQuantityOfEligibleItems: Optional[int] = None
-    maxDiscountAmount: Optional[float] = None
-    validFrom: Optional[str] = None
-    validUntil: Optional[str] = None
+    discount_type: Optional[DiscountType] = None
+    discount_value: Optional[float] = None
+    quantity_tiers: Optional[List[QuantityTier]] = None
+    min_purchase_amount: Optional[float] = None
+    min_requirement_type: Optional[str] = None
+    min_quantity_of_eligible_items: Optional[int] = None
+    max_discount_amount: Optional[float] = None
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
     usageLimit: Optional[int] = Field(default=None, validation_alias=AliasChoices("usageLimit", "maxUses"))
     isActive: Optional[bool] = None
     applicableRoles: Optional[List[str]] = None

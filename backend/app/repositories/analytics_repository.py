@@ -163,9 +163,9 @@ class AnalyticsRepository:
             if order.discount is None:
                 raise ValueError('Order discount is None')
             total_discounts += order.discount
-            if order.deliveryCharge is None:
+            if order.delivery_charge is None:
                 raise ValueError('Order deliveryCharge is None')
-            total_shipping += order.deliveryCharge
+            total_shipping += order.delivery_charge
             if order.tax is None:
                 raise ValueError('Order tax is None')
             total_taxes += order.tax
@@ -1021,7 +1021,7 @@ class AnalyticsRepository:
                     "status": ret.status,
                     "refundValue": round(refund_value, 2),
                     "itemCount": len(items),
-                    "paymentMethod": ret.paymentMethod,
+                    "paymentMethod": ret.payment_method,
                     "createdAt": ret.createdAt,
                 }
             )
@@ -1039,7 +1039,7 @@ class AnalyticsRepository:
 
         method_stats: dict = {}
         for order in orders:
-            method = order.paymentMethod or "unknown"
+            method = order.payment_method or "unknown"
             if method not in method_stats:
                 method_stats[method] = {"orderCount": 0, "revenue": 0.0, "avgOrderValue": 0.0}
             method_stats[method]["orderCount"] += 1
@@ -1907,7 +1907,7 @@ class AnalyticsRepository:
             if order.tax is None:
                 raise ValueError('Order tax is None')
             tax = float(order.tax)
-            shipping = float(order.shipping or order.deliveryCharge or 0)
+            shipping = float(order.shipping or order.delivery_charge or 0)
             net = round(subtotal - discount + tax + shipping, 2)
 
             user = (user_map[order.user] if order.user in user_map else None)

@@ -223,15 +223,15 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
         if item.quantity > eligible_items_map[item.product_id] or item.quantity <= 0:
             raise HTTPException(status_code=400, detail=f"Invalid quantity for item {item.product_id}")
 
-    if request_data.paymentMethod == "upi" and not request_data.upiPaymentScreenshot:
+    if request_data.payment_method == "upi" and not request_data.upi_payment_screenshot:
         raise HTTPException(status_code=400, detail="UPI payment screenshot is required")
 
     screenshot_path = None
-    if request_data.paymentMethod == "upi" and request_data.upiPaymentScreenshot:
+    if request_data.payment_method == "upi" and request_data.upi_payment_screenshot:
         from app.services.oci_storage import upload_base64_image_and_return_path
 
         screenshot_path = await upload_base64_image_and_return_path(
-            request_data.upiPaymentScreenshot, "returns", filename_prefix="return-screenshot"
+            request_data.upi_payment_screenshot, "returns", filename_prefix="return-screenshot"
         )
 
     delivery_charge_val = elig_model.returnDeliveryCharge or 0
@@ -241,7 +241,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
             orderId=request_data.order_id,
             userId=current_user.id,
             items=[i for i in request_data.items],
-            paymentMethod=request_data.paymentMethod,
+            paymentMethod=request_data.payment_method,
             upiPaymentScreenshot=screenshot_path,
             notes=request_data.notes,
             status=ReturnRequestStatus.PENDING.value,
@@ -445,7 +445,7 @@ async def valet_return_response(
     if current_user.role != "super_admin":
         if current_user.role != "valet":
             raise HTTPException(status_code=403, detail="Access denied")
-        pending_valet = ret.pendingValetId or ""
+        pending_valet = ret.pending_valet_id or ""
         if str(pending_valet or "") != str(current_user.id):
             raise HTTPException(status_code=403, detail="Return is not assigned to you")
 
@@ -481,7 +481,7 @@ async def valet_return_response(
             return_id, ReturnRequestInternalUpdate(valetDeclineHistory=history, pendingValetId=None)
         )
         ret.valetDeclineHistory = history
-        ret.pendingValetId = None
+        ret.pending_valet_id = None
         
         from app.jobs.valet_timeout_job import _cascade_or_revert_return
         await _cascade_or_revert_return(ret)

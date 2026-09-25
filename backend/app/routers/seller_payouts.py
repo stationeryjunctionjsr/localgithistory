@@ -170,7 +170,7 @@ async def mark_payout_paid(
             status="admin_paid",
             adminPaidAt=now,
             adminPaidBy=str(current_user.id),
-            paymentMethod=data.paymentMethod,
+            paymentMethod=data.payment_method,
             paymentReference=data.paymentReference,
             notes=data.notes if data.notes else existing.notes
         )

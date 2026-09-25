@@ -163,20 +163,20 @@ class MySQLCouponsDAO:
             vals.append(":s_method")
             params["s_method"] = data.method
 
-        if data.minRequirementType is not None:
+        if data.min_requirement_type is not None:
             cols.append("min_requirement_type")
             vals.append(":s_minRequirementType")
-            params["s_minRequirementType"] = data.minRequirementType
+            params["s_minRequirementType"] = data.min_requirement_type
 
-        if data.minQuantityOfEligibleItems is not None:
+        if data.min_quantity_of_eligible_items is not None:
             cols.append("min_quantity_of_eligible_items")
             vals.append(":s_minQuantityOfEligibleItems")
-            params["s_minQuantityOfEligibleItems"] = data.minQuantityOfEligibleItems
+            params["s_minQuantityOfEligibleItems"] = data.min_quantity_of_eligible_items
 
-        if data.maxDiscountAmount is not None:
+        if data.max_discount_amount is not None:
             cols.append("max_discount_amount")
             vals.append(":s_maxDiscountAmount")
-            params["s_maxDiscountAmount"] = data.maxDiscountAmount
+            params["s_maxDiscountAmount"] = data.max_discount_amount
 
         if data.appliesToType is not None:
             cols.append("applies_to_type")
@@ -287,17 +287,17 @@ class MySQLCouponsDAO:
             updates.append("method = :s_method")
             params["s_method"] = data.method
 
-        if data.minRequirementType is not None:
+        if data.min_requirement_type is not None:
             updates.append("min_requirement_type = :s_minRequirementType")
-            params["s_minRequirementType"] = data.minRequirementType
+            params["s_minRequirementType"] = data.min_requirement_type
 
-        if data.minQuantityOfEligibleItems is not None:
+        if data.min_quantity_of_eligible_items is not None:
             updates.append("min_quantity_of_eligible_items = :s_minQuantityOfEligibleItems")
-            params["s_minQuantityOfEligibleItems"] = data.minQuantityOfEligibleItems
+            params["s_minQuantityOfEligibleItems"] = data.min_quantity_of_eligible_items
 
-        if data.maxDiscountAmount is not None:
+        if data.max_discount_amount is not None:
             updates.append("max_discount_amount = :s_maxDiscountAmount")
-            params["s_maxDiscountAmount"] = data.maxDiscountAmount
+            params["s_maxDiscountAmount"] = data.max_discount_amount
 
         if data.appliesToType is not None:
             updates.append("applies_to_type = :s_appliesToType")
@@ -470,9 +470,9 @@ class MySQLCouponsDAO:
                     p["v1"] = item.usageCount
                     await session.execute(text(f"INSERT INTO sj_coupon_user_usages (parent_id, user_id, usage_count) VALUES (:id, :v0, :v1) ON DUPLICATE KEY UPDATE usage_count = :v1"), p)
 
-        if data.quantityTiers is not None:
+        if data.quantity_tiers is not None:
             await session.execute(text(f"DELETE FROM sj_coupon_quantity_tiers WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.quantityTiers or []
+            child_list = data.quantity_tiers or []
 
             if child_list:
                 for item in child_list:

@@ -250,7 +250,7 @@ class MySQLPaymentDAO:
             "user_id_formatted": data.userIdFormatted,
             "customer_name": data.customerName,
             "order_date": _to_ts(data.orderDate) or now,
-            "payment_method": data.paymentMethod,
+            "payment_method": data.payment_method,
             "amount_paid": data.amountPaid,
             "amount_remaining": data.amountRemaining,
             "total_amount": data.totalAmount,
@@ -280,7 +280,7 @@ class MySQLPaymentDAO:
                 for idx, entry in enumerate(payment_entries):
                     entry_id = (entry.entryId if entry.entryId is not None else idx + 1)
                     amount = (entry.amount if entry.amount is not None else 0)
-                    method = entry.paymentMethod or data.paymentMethod
+                    method = entry.payment_method or data.payment_method
                     paid_at = _to_ts(entry.paidAt) or now
                     await session.execute(
                         text(
@@ -314,7 +314,7 @@ class MySQLPaymentDAO:
             "userIdFormatted": update_data.userIdFormatted if update_data.userIdFormatted is not None else existing.user_id_formatted,
             "customerName": update_data.customerName if update_data.customerName is not None else existing.customer_name,
             "orderDate": update_data.orderDate if update_data.orderDate is not None else existing.order_date,
-            "paymentMethod": update_data.paymentMethod if update_data.paymentMethod is not None else existing.payment_method,
+            "paymentMethod": update_data.payment_method if update_data.payment_method is not None else existing.payment_method,
             "amountPaid": update_data.amountPaid if update_data.amountPaid is not None else existing.amount_paid,
             "amountRemaining": update_data.amountRemaining if update_data.amountRemaining is not None else existing.amount_remaining,
             "totalAmount": update_data.totalAmount if update_data.totalAmount is not None else existing.total_amount,
@@ -365,7 +365,7 @@ class MySQLPaymentDAO:
                             "payment_id": pid,
                             "entry_id": entry_id,
                             "amount": (entry.amount if entry.amount is not None else 0),
-                            "payment_method": entry.paymentMethod or merged["paymentMethod"],
+                            "payment_method": entry.payment_method or merged["paymentMethod"],
                             "paid_at": paid_at,
                             "image": entry.image,
                             "notes": (entry.notes if entry.notes is not None else ""),

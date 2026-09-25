@@ -33,7 +33,7 @@ class ValetPayoutSettingsModel(BaseModel):
 
     @property
     def delivery_charge_per_order(self) -> float:
-        return self.deliveryChargePerOrder
+        return self.delivery_chargePerOrder
 
     @property
     def return_pickup_charge_per_order(self) -> float:
@@ -84,20 +84,20 @@ async def update_valet_payout_settings(
     updated = await storage.update(
         settings.id,
         {
-            "deliveryChargePerOrder": payload.deliveryChargePerOrder,
+            "deliveryChargePerOrder": payload.delivery_chargePerOrder,
             "returnPickupChargePerOrder": payload.returnPickupChargePerOrder,
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         },
     )
     if not updated:
         return {
-            "deliveryChargePerOrder": payload.deliveryChargePerOrder,
+            "deliveryChargePerOrder": payload.delivery_chargePerOrder,
             "returnPickupChargePerOrder": payload.returnPickupChargePerOrder,
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
     updated_model = updated if isinstance(updated, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(updated, from_attributes=True)
     return {
-        "deliveryChargePerOrder": (updated_model.deliveryChargePerOrder if updated_model.deliveryChargePerOrder is not None else 0.0),
+        "deliveryChargePerOrder": (updated_model.delivery_chargePerOrder if updated_model.delivery_chargePerOrder is not None else 0.0),
         "returnPickupChargePerOrder": (updated_model.returnPickupChargePerOrder if updated_model.returnPickupChargePerOrder is not None else 0.0),
         "updatedAt": updated_model.updatedAt,
     }
@@ -258,7 +258,7 @@ async def mark_valet_payout_paid(
             status="admin_paid",
             adminPaidAt=now,
             adminPaidBy=str(current_user.id),
-            paymentMethod=data.paymentMethod,
+            paymentMethod=data.payment_method,
             paymentReference=data.paymentReference,
             notes=data.notes if data.notes else existing.notes
         )

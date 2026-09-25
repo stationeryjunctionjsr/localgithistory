@@ -1157,14 +1157,14 @@ class ProductRepository:
                 # Match product eligibility using pre-calculated set
                 affected = c._affected_product_ids or set()
                 if pid in affected:
-                    if c.minRequirementType == "quantity_based" and c.quantityTiers:
+                    if c.min_requirement_type == "quantity_based" and c.quantity_tiers:
                         # Evaluate quantity tiers
                         qty_to_use = quantity
                         if role == "wholesaler" and sell_as_case:
                             if c.applicableItemType == "cases" and product.quantityPerCase:
                                 qty_to_use = quantity // product.quantityPerCase
 
-                        sorted_tiers = sorted(c.quantityTiers, key=lambda x: x["quantity"] if "quantity" in x else 0, reverse=True)
+                        sorted_tiers = sorted(c.quantity_tiers, key=lambda x: x["quantity"] if "quantity" in x else 0, reverse=True)
                         matched_pct = 0.0
                         for tier in sorted_tiers:
                             if qty_to_use >= tier["quantity"] if "quantity" in tier else 0:

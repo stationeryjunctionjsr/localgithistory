@@ -90,8 +90,8 @@ class ReturnRequestRepository:
             data.valetCascadeCount = 0
         if data.valetDeclineHistory is None:
             data.valetDeclineHistory = []
-        if data.deliveryCharge is None:
-            data.deliveryCharge = 0
+        if data.delivery_charge is None:
+            data.delivery_charge = 0
 
         return await self.storage.create(data)
 

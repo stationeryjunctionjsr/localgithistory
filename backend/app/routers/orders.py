@@ -563,7 +563,7 @@ async def create_order(
     # Validate payment method against segment feature flags
     is_wholesale = effective_role == "wholesaler"
     segment_prefix = "wholesale" if is_wholesale else "retail"
-    payment_method = order_data.paymentMethod
+    payment_method = order_data.payment_method
 
     if payment_method not in ["cod", "upi", "credit"]:
         raise HTTPException(status_code=400, detail="Invalid payment method")
@@ -676,7 +676,7 @@ async def create_order(
             0.0,
             current_user.id,
             None,
-            order_data.paymentMethod,
+            order_data.payment_method,
             cart_items=cart_items,
             product_repository=product_repository,
             shipping_address=order_data.shippingAddress,
@@ -726,7 +726,7 @@ async def create_order(
             effective_role,
             cart_items,
             product_repository,
-            order_data.paymentMethod,
+            order_data.payment_method,
             shipping_address=order_data.shippingAddress,
             shipping_charge=base_shipping,
         )
@@ -1033,7 +1033,7 @@ async def create_order(
     # ----------------------------------------------------------------
     selected_slot_info = None
     zone_urgent_available = False  # set from zone if urgent delivery is requested
-    if (order_data.deliverySlotId and order_data.deliverySlotDate) or order_data.isUrgentDelivery:
+    if (order_data.delivery_slot_id and order_data.delivery_slot_date) or order_data.isUrgentDelivery:
         import datetime as _dt
 
         import pytz
@@ -1044,11 +1044,11 @@ async def create_order(
         seg = "wholesale" if effective_role == "wholesaler" else "retail"
         zip_code = order_data.shippingAddress.effective_pincode if order_data.shippingAddress else ""
 
-        target_date = order_data.deliverySlotDate
+        target_date = order_data.delivery_slot_date
         if order_data.isUrgentDelivery and not target_date:
             ist = pytz.timezone("Asia/Kolkata")
             target_date = _dt.datetime.now(ist).date().isoformat()
-            order_data.deliverySlotDate = target_date
+            order_data.delivery_slot_date = target_date
 
         # ── Resolve zone for the shipping pincode ────────────────────────────
         order_zone_id = None
@@ -1108,7 +1108,7 @@ async def create_order(
 
                 sl_is_urgent = bool(sl.isUrgent)
                 # Match by explicit ID or match by Urgent condition
-                if order_data.isUrgentDelivery and not order_data.deliverySlotId:
+                if order_data.isUrgentDelivery and not order_data.delivery_slot_id:
                     if sl_is_urgent:
                         # Check cutoff
                         cutoff = (
@@ -1137,7 +1137,7 @@ async def create_order(
                     sl_id = sl.id
                     sl_start = sl.startTime
                     sl_end = sl.endTime
-                    if (sl_id or f"{sl_start}-{sl_end}") == order_data.deliverySlotId:
+                    if (sl_id or f"{sl_start}-{sl_end}") == order_data.delivery_slot_id:
                         matched_config = sc
                         matched_slot = sl
                         break
@@ -1145,7 +1145,7 @@ async def create_order(
                 break
 
         if not matched_slot:
-            if order_data.isUrgentDelivery and not order_data.deliverySlotId:
+            if order_data.isUrgentDelivery and not order_data.delivery_slot_id:
                 raise HTTPException(
                     status_code=400, detail="Urgent delivery is currently unavailable for your location."
                 )
@@ -1154,7 +1154,7 @@ async def create_order(
                     status_code=400, detail="Selected delivery slot is no longer available.")
 
         # Re-check capacity & cutoffs for standard slot selection
-        if not order_data.isUrgentDelivery or order_data.deliverySlotId:
+        if not order_data.isUrgentDelivery or order_data.delivery_slot_id:
             is_full_day = bool(matched_slot.isFullDay)
             if not is_full_day:
                 # Flat capacity re-check (per-zone record, no zoneCapacities sub-dict)
@@ -1370,13 +1370,13 @@ async def create_order(
     )  # subtotal already has coupon and referral discount applied, just add shipping and delivery_gst
 
     # For UPI, require payment screenshot
-    if order_data.paymentMethod == "upi":
-        if not order_data.upiPaymentScreenshot:
+    if order_data.payment_method == "upi":
+        if not order_data.upi_payment_screenshot:
             raise HTTPException(
                 status_code=400, detail="UPI payment screenshot is required")
 
     # Check credit limit for credit payment method
-    if order_data.paymentMethod == "credit":
+    if order_data.payment_method == "credit":
         # Initialize credit if not set
         if user.credit_used is None:
             await user_repository.update(current_user.id, UserInternalUpdate(creditUsed=0))
@@ -1392,11 +1392,11 @@ async def create_order(
 
     # Upload UPI screenshot to OCI if present
     screenshot_path = None
-    if order_data.paymentMethod == "upi" and order_data.upiPaymentScreenshot:
+    if order_data.payment_method == "upi" and order_data.upi_payment_screenshot:
         from app.services.oci_storage import upload_base64_image_and_return_path
 
         screenshot_path = await upload_base64_image_and_return_path(
-            order_data.upiPaymentScreenshot, "payments", filename_prefix="upi-screenshot"
+            order_data.upi_payment_screenshot, "payments", filename_prefix="upi-screenshot"
         )
 
     # Deduct credit BEFORE writing the order record.
@@ -1406,7 +1406,7 @@ async def create_order(
     # so the second of two concurrent requests will get rowcount == 0 and be rejected
     # cleanly — before an order record has been written.
     _credit_deducted = False
-    if order_data.paymentMethod == "credit":
+    if order_data.payment_method == "credit":
         success = await user_repository.add_credit_used_atomic(current_user.id, total)
         if not success:
             ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()
@@ -1432,7 +1432,7 @@ async def create_order(
     # IF A REDIS PRE-LOCK IS EVER NEEDED (e.g. to provide user-facing queue feedback):
     #
     # # _credit_deducted = False
-    # # if order_data.paymentMethod == "credit":
+    # # if order_data.payment_method == "credit":
     # #     import aioredis, os
     # #     redis = aioredis.from_url(os.environ["REDIS_URL"])
     # #     lock_key = f"sj:credit:{current_user.id}"
@@ -1482,8 +1482,8 @@ async def create_order(
             deliverySlot=selected_slot_info,
             shippingAddress=order_data.shippingAddress,
             billingAddress=order_data.billingAddress or order_data.shippingAddress,
-            paymentMethod=order_data.paymentMethod,
-            upiPaymentScreenshot=screenshot_path if order_data.paymentMethod == "upi" else None,
+            paymentMethod=order_data.payment_method,
+            upiPaymentScreenshot=screenshot_path if order_data.payment_method == "upi" else None,
             notes=f"Referral Code Applied: {applied_referral_code} | {order_data.notes or ''}".strip(
                 " |")
             if applied_referral_code
@@ -1712,12 +1712,12 @@ async def create_order(
             "userId": str(user_for_payment.user_id),
             "customerName": user_for_payment.name,
             "orderDate": order.created_at if isinstance(order.created_at, str) else str(order.created_at),
-            "paymentMethod": order_data.paymentMethod,
+            "paymentMethod": order_data.payment_method,
             "totalAmount": total,
         }
 
         # Set payment amounts and entries based on payment method
-        if order_data.paymentMethod == "upi":
+        if order_data.payment_method == "upi":
             # UPI: Paid upfront, amount remaining is 0
             payment_data["amountPaid"] = total
             payment_data["amountRemaining"] = 0
@@ -1730,7 +1730,7 @@ async def create_order(
                     "createdAt": order.created_at.isoformat() if order.created_at else None,
                 }
             ]
-        elif order_data.paymentMethod == "credit":
+        elif order_data.payment_method == "credit":
             # Credit: Not paid yet, full amount remaining, no entry until settlement
             payment_data["amountPaid"] = 0
             payment_data["amountRemaining"] = total
@@ -1779,7 +1779,7 @@ async def create_order(
     await create_order_notification(order)
 
     # Create notification for new payment (if payment method is UPI)
-    if order_data.paymentMethod == "upi":
+    if order_data.payment_method == "upi":
         await create_payment_notification(payment)
 
     # Invoice for retail customers is auto-generated on delivery (not at order placement)
@@ -1881,18 +1881,18 @@ async def create_order(
                     seller_id) in seller_delivery_map else None)
 
                 # Record the delivery slot on the sub-order (informational, no charge)
-                if sdo and sdo.deliverySlotId and sdo.deliverySlotDate:
+                if sdo and sdo.delivery_slot_id and sdo.delivery_slot_date:
                     grp_slot_info = {
                         "configId": sdo.deliverySlotConfigId,
-                        "slotId": sdo.deliverySlotId,
-                        "date": sdo.deliverySlotDate,
+                        "slotId": sdo.delivery_slot_id,
+                        "date": sdo.delivery_slot_date,
                     }
-                elif order_data.deliverySlotId and order_data.deliverySlotDate:
+                elif order_data.delivery_slot_id and order_data.delivery_slot_date:
                     # Single slot chosen for whole order — apply to all sub-orders
                     grp_slot_info = {
                         "configId": order_data.deliverySlotConfigId,
-                        "slotId": order_data.deliverySlotId,
-                        "date": order_data.deliverySlotDate,
+                        "slotId": order_data.delivery_slot_id,
+                        "date": order_data.delivery_slot_date,
                     }
 
                 grp_total = round(grp_subtotal - grp_discount, 2)
@@ -1931,8 +1931,8 @@ async def create_order(
                     "total": grp_total,
                     "orderType": order_type,
                     "status": "pending",
-                    "paymentMethod": order_data.paymentMethod,
-                    "paymentStatus": "paid" if order_data.paymentMethod == "upi" else "pending",
+                    "paymentMethod": order_data.payment_method,
+                    "paymentStatus": "paid" if order_data.payment_method == "upi" else "pending",
                     "isUrgentDelivery": grp_is_urgent,
                     "deliverySlot": grp_slot_info,
                     "shippingAddress": order_data.shippingAddress,
@@ -2658,7 +2658,7 @@ async def get_valet_pending_orders(current_user: User = Depends(get_current_user
 #             pendingValetId=None
 # ))
 #         order.valetDeclineHistory = history
-#         order.pendingValetId = None
+#         order.pending_valet_id = None
 #
 #         from app.jobs.valet_timeout_job import _cascade_or_revert
 #         await _cascade_or_revert(order)
@@ -3130,7 +3130,7 @@ async def settle_credit(
     # creditUsed is NOT reduced here — it will only be reduced when an admin
     # verifies this entry.  This is the critical security fix: previously the
     # credit balance was reduced immediately on an unverified submission.
-    payment_image = settle_data.paymentImage or settle_data.upiPaymentScreenshot
+    payment_image = settle_data.paymentImage or settle_data.upi_payment_screenshot
     await payment_repository.addPaymentEntry(
         payment.id, {"amount": settle_amount,
                      "image": payment_image, "verified": False}

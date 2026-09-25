@@ -292,7 +292,7 @@ class MySQLSubOrderDAO:
             "total": _safe_float(data.total),
             "order_type": data.orderType,
             "status": (data.status if data.status is not None else "pending"),
-            "payment_method": data.paymentMethod,
+            "payment_method": data.payment_method,
             "payment_status": (data.paymentStatus if data.paymentStatus is not None else "pending"),
             "is_urgent_delivery": 1 if data.isUrgentDelivery else 0,
             "delivery_slot_config_id": slot.configId if slot else None,

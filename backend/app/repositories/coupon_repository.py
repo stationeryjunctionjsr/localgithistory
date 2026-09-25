@@ -84,7 +84,7 @@ class CouponRepository:
         self, coupon: Any, cart_items: List[Dict], product_repository, user_role: str, user_id: str
     ) -> Any:
         applicable_item_type = (coupon.applicableItemType if coupon.applicableItemType is not None else "units")
-        x_required = int(coupon.minQuantityOfEligibleItems) if coupon.minQuantityOfEligibleItems is not None else None
+        x_required = int(coupon.min_quantity_of_eligible_items) if coupon.min_quantity_of_eligible_items is not None else None
         y_required = int(coupon.buyXGetYCustomerGetsQuantity) if coupon.buyXGetYCustomerGetsQuantity is not None else None
 
         # Batch-load all cart products upfront to avoid N+1 (one DB hit per item)
@@ -446,8 +446,8 @@ class CouponRepository:
         from app.models.daos_flat import CouponInternalCreate, CouponQuantityTierInternal
         
         qt_list = None
-        if coupon_data.quantityTiers is not None:
-            qt_list = [CouponQuantityTierInternal(minQuantity=int(t.quantity), discountValue=float(t.discount)) for t in coupon_data.quantityTiers]
+        if coupon_data.quantity_tiers is not None:
+            qt_list = [CouponQuantityTierInternal(minQuantity=int(t.quantity), discountValue=float(t.discount)) for t in coupon_data.quantity_tiers]
 
         coupon = CouponInternalCreate(
             typeOfDiscount=(coupon_data.type_of_discount if coupon_data.type_of_discount is not None else "product_discount"),
@@ -455,10 +455,10 @@ class CouponRepository:
             method=method,
             discountType=(coupon_data.discountType if coupon_data.discountType is not None else "percentage"),
             discountValue=float(coupon_data.discountValue),
-            minOrderValue=float(coupon_data.minPurchaseAmount),
-            minRequirementType=(coupon_data.minRequirementType if coupon_data.minRequirementType is not None else "none"),
-            minQuantityOfEligibleItems=int(coupon_data.minQuantityOfEligibleItems) if coupon_data.minQuantityOfEligibleItems is not None else None,
-            maxDiscountAmount=float(coupon_data.maxDiscountAmount) if coupon_data.maxDiscountAmount else None,
+            minOrderValue=float(coupon_data.min_purchase_amount),
+            minRequirementType=(coupon_data.min_requirement_type if coupon_data.min_requirement_type is not None else "none"),
+            minQuantityOfEligibleItems=int(coupon_data.min_quantity_of_eligible_items) if coupon_data.min_quantity_of_eligible_items is not None else None,
+            maxDiscountAmount=float(coupon_data.max_discount_amount) if coupon_data.max_discount_amount else None,
             validFrom=(coupon_data.validFrom if coupon_data.validFrom is not None else datetime.now(timezone.utc).isoformat()),
             validUntil=coupon_data.validUntil,
             maxUses=int(coupon_data.usageLimit) if coupon_data.usageLimit else None,
@@ -543,18 +543,18 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         if 'discountType' in update_data.model_fields_set: internal_update.discountType = update_data.discountType
         if 'discountValue' in update_data.model_fields_set: internal_update.discountValue = update_data.discountValue
         
-        if 'quantityTiers' in update_data.model_fields_set and update_data.quantityTiers is not None:
-            internal_update.quantityTiers = [CouponQuantityTierInternal(minQuantity=int(t.quantity), discountValue=float(t.discount)) for t in update_data.quantityTiers]
+        if 'quantityTiers' in update_data.model_fields_set and update_data.quantity_tiers is not None:
+            internal_update.quantity_tiers = [CouponQuantityTierInternal(minQuantity=int(t.quantity), discountValue=float(t.discount)) for t in update_data.quantity_tiers]
             
-        if 'minPurchaseAmount' in update_data.model_fields_set and update_data.minPurchaseAmount is not None:
-            internal_update.minOrderValue = float(update_data.minPurchaseAmount)
+        if 'minPurchaseAmount' in update_data.model_fields_set and update_data.min_purchase_amount is not None:
+            internal_update.minOrderValue = float(update_data.min_purchase_amount)
             
         if 'usageLimit' in update_data.model_fields_set and update_data.usageLimit is not None:
             internal_update.maxUses = int(update_data.usageLimit)
             
-        if 'minRequirementType' in update_data.model_fields_set: internal_update.minRequirementType = update_data.minRequirementType
-        if 'minQuantityOfEligibleItems' in update_data.model_fields_set: internal_update.minQuantityOfEligibleItems = update_data.minQuantityOfEligibleItems
-        if 'maxDiscountAmount' in update_data.model_fields_set: internal_update.maxDiscountAmount = update_data.maxDiscountAmount
+        if 'minRequirementType' in update_data.model_fields_set: internal_update.min_requirement_type = update_data.min_requirement_type
+        if 'minQuantityOfEligibleItems' in update_data.model_fields_set: internal_update.min_quantity_of_eligible_items = update_data.min_quantity_of_eligible_items
+        if 'maxDiscountAmount' in update_data.model_fields_set: internal_update.max_discount_amount = update_data.max_discount_amount
         if 'validFrom' in update_data.model_fields_set: internal_update.validFrom = update_data.validFrom
         if 'validUntil' in update_data.model_fields_set: internal_update.validUntil = update_data.validUntil
         if 'isActive' in update_data.model_fields_set: internal_update.isActive = update_data.isActive
@@ -806,11 +806,11 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             if applicable_categories and category and category not in applicable_categories:
                 return CouponValidationResponse(valid=False, message="Discount not applicable for this category")
 
-        min_req = (coupon.minRequirementType if coupon.minRequirementType is not None else None) or "none"
-        if min_req == "min_amount" and purchase_amount_to_use < (coupon.minPurchaseAmount if coupon.minPurchaseAmount is not None else 0):
-            return CouponValidationResponse(valid=False, message=f"Minimum purchase amount of {coupon.minPurchaseAmount} required (on eligible items)")
+        min_req = (coupon.min_requirement_type if coupon.min_requirement_type is not None else None) or "none"
+        if min_req == "min_amount" and purchase_amount_to_use < (coupon.min_purchase_amount if coupon.min_purchase_amount is not None else 0):
+            return CouponValidationResponse(valid=False, message=f"Minimum purchase amount of {coupon.min_purchase_amount} required (on eligible items)")
         if min_req == "min_quantity":
-            min_qty = (coupon.minQuantityOfEligibleItems if coupon.minQuantityOfEligibleItems is not None else None) or 0
+            min_qty = (coupon.min_quantity_of_eligible_items if coupon.min_quantity_of_eligible_items is not None else None) or 0
             if eligible_quantity < min_qty:
                 return CouponValidationResponse(valid=False, message=f"Minimum quantity of {min_qty} eligible items required (you have {eligible_quantity} eligible in cart)")
             if not cart_items and min_qty > 0:
@@ -828,16 +828,16 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         elif (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "shipping_discount":
             if coupon.discountType == "percentage":
                 discount = (shipping_charge * coupon.discountValue) / 100
-                if (coupon.maxDiscountAmount if coupon.maxDiscountAmount is not None else None):
-                    discount = min(discount, coupon.maxDiscountAmount)
+                if (coupon.max_discount_amount if coupon.max_discount_amount is not None else None):
+                    discount = min(discount, coupon.max_discount_amount)
             else:
                 discount = coupon.discountValue
             discount = min(discount, shipping_charge)
         else:
             if coupon.discountType == "percentage":
                 discount = (purchase_amount_to_use * coupon.discountValue) / 100
-                if (coupon.maxDiscountAmount if coupon.maxDiscountAmount is not None else None):
-                    discount = min(discount, coupon.maxDiscountAmount)
+                if (coupon.max_discount_amount if coupon.max_discount_amount is not None else None):
+                    discount = min(discount, coupon.max_discount_amount)
             else:
                 if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "product_discount":
                     discount = eligible_quantity * coupon.discountValue
@@ -951,11 +951,11 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                         )
                         eligible_subtotal += item_total
                         eligible_item_indices.append(idx)
-                min_req = (coupon.minRequirementType if coupon.minRequirementType is not None else None) or "none"
-                if min_req == "min_amount" and eligible_subtotal < (coupon.minPurchaseAmount if coupon.minPurchaseAmount is not None else 0):
+                min_req = (coupon.min_requirement_type if coupon.min_requirement_type is not None else None) or "none"
+                if min_req == "min_amount" and eligible_subtotal < (coupon.min_purchase_amount if coupon.min_purchase_amount is not None else 0):
                     continue
                 if min_req == "min_quantity":
-                    min_qty = int(coupon.minQuantityOfEligibleItems) if coupon.minQuantityOfEligibleItems is not None else 0
+                    min_qty = int(coupon.min_quantity_of_eligible_items) if coupon.min_quantity_of_eligible_items is not None else 0
                     if eligible_quantity < min_qty:
                         continue
                 if (coupon.maxUsagePerUser if coupon.maxUsagePerUser is not None else None):
@@ -976,16 +976,16 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 elif (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "shipping_discount":
                     if coupon.discountType == "percentage":
                         discount = (shipping_charge * coupon.discountValue) / 100
-                        if (coupon.maxDiscountAmount if coupon.maxDiscountAmount is not None else None):
-                            discount = min(discount, coupon.maxDiscountAmount)
+                        if (coupon.max_discount_amount if coupon.max_discount_amount is not None else None):
+                            discount = min(discount, coupon.max_discount_amount)
                     else:
                         discount = coupon.discountValue
                     discount = min(discount, shipping_charge)
                 else:
                     if coupon.discountType == "percentage":
                         discount = (eligible_subtotal * coupon.discountValue) / 100
-                        if (coupon.maxDiscountAmount if coupon.maxDiscountAmount is not None else None):
-                            discount = min(discount, coupon.maxDiscountAmount)
+                        if (coupon.max_discount_amount if coupon.max_discount_amount is not None else None):
+                            discount = min(discount, coupon.max_discount_amount)
                     else:
                         if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "product_discount":
                             discount = eligible_quantity * coupon.discountValue
@@ -1358,15 +1358,15 @@ def get_coupon_description(c: Any) -> str:
     disc_val = c.discountValue
 
     if type_of_disc == "product_discount":
-        if c.minRequirementType == "quantity_based" and c.quantityTiers:
-            tiers = sorted(c.quantityTiers, key=lambda x: x["quantity"])
+        if c.min_requirement_type == "quantity_based" and c.quantity_tiers:
+            tiers = sorted(c.quantity_tiers, key=lambda x: x["quantity"])
             item_lbl = (c.applicableItemType if c.applicableItemType is not None else "units")
             tier_strs = [f"Buy {t.quantity}+ {item_lbl} get {t.discount}% off" for t in tiers]
             return f"{method_lbl}: " + ", ".join(tier_strs) + " per unit."
         val_str = f"{disc_val}%" if disc_type == "percentage" else f"₹{disc_val}"
         return f"{method_lbl}: Get {val_str} off on eligible items."
     elif type_of_disc == "buy_x_get_y":
-        min_qty = c.minQuantityOfEligibleItems or 1
+        min_qty = c.min_quantity_of_eligible_items or 1
         gets_qty = c.buyXGetYCustomerGetsQuantity or 1
         gets_type = c.buyXGetYCustomerGetsDiscountType
         gets_val = c.buyXGetYCustomerGetsDiscountValue
@@ -1380,7 +1380,7 @@ def get_coupon_description(c: Any) -> str:
         return f"{method_lbl}: Buy {min_qty} unit(s) and get {gets_qty} unit(s) at {gets_desc}."
     elif type_of_disc == "total_order_discount":
         val_str = f"{disc_val}%" if disc_type == "percentage" else f"₹{disc_val}"
-        min_amt = c.minPurchaseAmount or 0
+        min_amt = c.min_purchase_amount or 0
         min_str = f" on orders above ₹{min_amt}" if min_amt > 0 else ""
         return f"{method_lbl}: Get {val_str} off total order{min_str}."
     elif type_of_disc == "shipping_discount":

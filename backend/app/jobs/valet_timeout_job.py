@@ -193,8 +193,8 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
         seller = await user_repository.findById(seller_id)
     else:
         seller = await user_repository.findOne({'role': 'super_admin'})
-    slot_id = return_req.deliverySlotId
-    slot_date = (return_req.deliverySlotDate) or dt_date.today().isoformat()
+    slot_id = return_req.delivery_slot_id
+    slot_date = (return_req.delivery_slot_date) or dt_date.today().isoformat()
     all_valets = await user_repository.findAll({'role': 'valet', 'isOnDuty': True})
     print(f"DEBUG: all_valets={len(all_valets)}")
     skip_ids: set[str] = set()
@@ -326,7 +326,7 @@ async def run_valet_timeout_job():
                 timeout_minutes = URGENT_TIMEOUT_MINUTES if is_urgent else NORMAL_TIMEOUT_MINUTES
                 deadline = assigned_at + timedelta(minutes=timeout_minutes)
                 if now >= deadline:
-                    pending_valet_id = order.pendingValetId
+                    pending_valet_id = order.pending_valet_id
                     if pending_valet_id:
                         history = list((order.valetDeclineHistory) or [])
                         if not any((d.valet_id == pending_valet_id for d in history)):
@@ -351,7 +351,7 @@ async def run_valet_timeout_job():
                 deadline = assigned_at + timedelta(minutes=NORMAL_TIMEOUT_MINUTES)
                 if now >= deadline:
                     req_id = str((ret.id) or (ret.id))
-                    pending_valet_id = ret.pendingValetId
+                    pending_valet_id = ret.pending_valet_id
                     if pending_valet_id:
                         history = list((ret.valetDeclineHistory) or [])
                         if not any((d.valet_id == pending_valet_id for d in history)):

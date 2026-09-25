@@ -2711,10 +2711,10 @@ class MySQLValetPayoutSettingsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.deliveryChargePerOrder is not None:
+        if data.delivery_chargePerOrder is not None:
             cols.append("delivery_charge_per_order")
             vals.append(":deliveryChargePerOrder")
-            params["deliveryChargePerOrder"] = data.deliveryChargePerOrder
+            params["deliveryChargePerOrder"] = data.delivery_chargePerOrder
         if data.returnPickupChargePerOrder is not None:
             cols.append("return_pickup_charge_per_order")
             vals.append(":returnPickupChargePerOrder")
@@ -2741,9 +2741,9 @@ class MySQLValetPayoutSettingsDAO:
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if data.deliveryChargePerOrder is not None:
+        if data.delivery_chargePerOrder is not None:
             updates.append("delivery_charge_per_order = :deliveryChargePerOrder")
-            params["deliveryChargePerOrder"] = data.deliveryChargePerOrder
+            params["deliveryChargePerOrder"] = data.delivery_chargePerOrder
         if data.returnPickupChargePerOrder is not None:
             updates.append("return_pickup_charge_per_order = :returnPickupChargePerOrder")
             params["returnPickupChargePerOrder"] = data.returnPickupChargePerOrder

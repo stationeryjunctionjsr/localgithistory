@@ -327,7 +327,7 @@ async def submit_credit_settlement(
         from app.services.oci_storage import upload_base64_image_and_return_path
 
         screenshot_path = await upload_base64_image_and_return_path(
-            settlement_data.upiPaymentScreenshot, "payments", filename_prefix="settlement-screenshot"
+            settlement_data.upi_payment_screenshot, "payments", filename_prefix="settlement-screenshot"
         )
 
         # Add payment entry

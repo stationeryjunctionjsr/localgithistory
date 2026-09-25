@@ -104,13 +104,13 @@ class MySQLReturnRequestsDAO:
             cols.append("user_id")
             params["s_userId"] = data.userId
 
-        if data.paymentMethod is not None:
+        if data.payment_method is not None:
             cols.append("payment_method")
-            params["s_paymentMethod"] = data.paymentMethod
+            params["s_paymentMethod"] = data.payment_method
 
-        if data.upiPaymentScreenshot is not None:
+        if data.upi_payment_screenshot is not None:
             cols.append("upi_payment_screenshot")
-            params["s_upiPaymentScreenshot"] = data.upiPaymentScreenshot
+            params["s_upiPaymentScreenshot"] = data.upi_payment_screenshot
 
         if data.notes is not None:
             cols.append("notes")
@@ -128,21 +128,21 @@ class MySQLReturnRequestsDAO:
             cols.append("seller_id")
             params["s_sellerId"] = data.sellerId
 
-        if data.deliverySlotId is not None:
+        if data.delivery_slot_id is not None:
             cols.append("delivery_slot_id")
-            params["s_deliverySlotId"] = data.deliverySlotId
+            params["s_deliverySlotId"] = data.delivery_slot_id
 
         if data.deliverySlotConfigId is not None:
             cols.append("delivery_slot_config_id")
             params["s_deliverySlotConfigId"] = data.deliverySlotConfigId
 
-        if data.deliverySlotDate is not None:
+        if data.delivery_slot_date is not None:
             cols.append("delivery_slot_date")
-            params["s_deliverySlotDate"] = data.deliverySlotDate
+            params["s_deliverySlotDate"] = data.delivery_slot_date
 
-        if data.pendingValetId is not None:
+        if data.pending_valet_id is not None:
             cols.append("pending_valet_id")
-            params["s_pendingValetId"] = data.pendingValetId
+            params["s_pendingValetId"] = data.pending_valet_id
 
         if data.valetAssignedAt is not None:
             cols.append("valet_assigned_at")
@@ -152,9 +152,9 @@ class MySQLReturnRequestsDAO:
             cols.append("valet_cascade_count")
             params["s_valetCascadeCount"] = data.valetCascadeCount
 
-        if data.deliveryCharge is not None:
+        if data.delivery_charge is not None:
             cols.append("delivery_charge")
-            params["s_deliveryCharge"] = data.deliveryCharge
+            params["s_deliveryCharge"] = data.delivery_charge
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['returnId', 'orderId', 'userId', 'paymentMethod', 'upiPaymentScreenshot', 'notes', 'status', 'valetId', 'sellerId', 'deliverySlotId', 'deliverySlotConfigId', 'deliverySlotDate', 'pendingValetId', 'valetAssignedAt', 'valetCascadeCount', 'deliveryCharge'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])

@@ -120,7 +120,7 @@ class PaymentRepository:
                     if update_data.orderDate is not None: update_dict["orderDate"] = update_data.orderDate
                 except AttributeError: pass
                 try:
-                    if update_data.paymentMethod is not None: update_dict["paymentMethod"] = update_data.paymentMethod
+                    if update_data.payment_method is not None: update_dict["paymentMethod"] = update_data.payment_method
                 except AttributeError: pass
                 try:
                     if update_data.amountPaid is not None: update_dict["amountPaid"] = update_data.amountPaid

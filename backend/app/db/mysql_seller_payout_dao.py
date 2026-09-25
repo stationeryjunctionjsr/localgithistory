@@ -177,7 +177,7 @@ class MySQLSellerPayoutDAO:
         _handle_field("periodStart", "period_start", data.periodStart, existing.periodStart, True)
         _handle_field("periodEnd", "period_end", data.periodEnd, existing.periodEnd, True)
         _handle_field("status", "status", data.status, existing.status)
-        _handle_field("paymentMethod", "payment_method", data.paymentMethod, existing.paymentMethod)
+        _handle_field("paymentMethod", "payment_method", data.payment_method, existing.payment_method)
         _handle_field("paymentReference", "payment_reference", data.paymentReference, existing.paymentReference)
         _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt, existing.adminPaidAt, True)
         _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy, existing.adminPaidBy)
