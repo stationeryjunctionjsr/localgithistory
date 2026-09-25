@@ -1243,13 +1243,13 @@ class CouponBase(BaseModel):
     discountType: DiscountType
     discountValue: float
     quantityTiers: Optional[List[QuantityTier]] = None
-    minPurchaseAmount: float = 0
+    minPurchaseAmount: float = Field(default=0, validation_alias=AliasChoices("minPurchaseAmount", "minOrderValue"))
     minRequirementType: str = "none"  # none | min_amount | min_quantity
     minQuantityOfEligibleItems: Optional[int] = None  # when minRequirementType=min_quantity
     maxDiscountAmount: Optional[float] = None
     validFrom: Optional[str] = None
     validUntil: Optional[str] = None
-    usageLimit: Optional[int] = None
+    usageLimit: Optional[int] = Field(default=None, validation_alias=AliasChoices("usageLimit", "maxUses"))
     isActive: bool = True
     applicableRoles: List[str] = ["customer"]
     applicableUserIds: Optional[List[str]] = None  # selective retail/business: only these users
@@ -1306,7 +1306,7 @@ class CouponUpdate(BaseModel):
     maxDiscountAmount: Optional[float] = None
     validFrom: Optional[str] = None
     validUntil: Optional[str] = None
-    usageLimit: Optional[int] = None
+    usageLimit: Optional[int] = Field(default=None, validation_alias=AliasChoices("usageLimit", "maxUses"))
     isActive: Optional[bool] = None
     applicableRoles: Optional[List[str]] = None
     applicableUserIds: Optional[List[str]] = None

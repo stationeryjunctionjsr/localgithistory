@@ -51,7 +51,17 @@ class MySQLWishlistDAO:
     async def _replace_items(self, session, wid: int, items: List):
         await session.execute(text("DELETE FROM sj_wishlist_items WHERE wishlist_id = :wid"), {"wid": wid})
         for item in items:
-            pid = item.product
+            pid = getattr(item, "product", None)
+            if not pid:
+                continue
+            pid = str(pid)
+            if "product=" in pid or len(pid) > 64:
+                import re
+                m = re.search(r"product='([^']+)'", pid)
+                if m:
+                    pid = m.group(1)
+                else:
+                    continue
             if pid:
                 await session.execute(
                     text("INSERT INTO sj_wishlist_items (wishlist_id, product_id) VALUES (:wid, :pid)"),

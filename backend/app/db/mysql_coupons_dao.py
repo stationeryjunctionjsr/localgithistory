@@ -8,7 +8,7 @@ from app.models.daos_flat import CouponInternal
 from app.models.daos_flat import CouponInternalCreate, CouponInternalUpdate
 
 def now_utc():
-    return datetime.now(timezone.utc)
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def _parse_dt(dt_val):
     if isinstance(dt_val, str):
