@@ -572,7 +572,7 @@ class TestTier4SchemaValidationAndHttp422:
         )
         assert addr.city == "Jamshedpur"
         assert addr.state == "Jharkhand"
-        assert addr.zipCode == "831001"
+        assert addr.zip_code == "831001"
         assert addr.street == "Main Road"
 
         with pytest.raises(ValidationError):

@@ -13,7 +13,7 @@ replacement = """        if address:
                 traceback.print_exc()
                 raise e"""
 
-text = text.replace("        if address:\n            await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 1, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), {'uid': uid, 'st': address.street, 'c': address.city, 's': address.state, 'p': address.pincode, 'ph': address.phone, 'd': address.district, 'co': address.country, 'gl': address.googleLocation, 'lat': address.latitude, 'lon': address.longitude, 'at': address.address, 'zc': getattr(address, 'zipCode', None)})", replacement)
+text = text.replace("        if address:\n            await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 1, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), {'uid': uid, 'st': address.street, 'c': address.city, 's': address.state, 'p': address.pincode, 'ph': address.phone, 'd': address.district, 'co': address.country, 'gl': address.google_location, 'lat': address.latitude, 'lon': address.longitude, 'at': address.address, 'zc': getattr(address, 'zipCode', None)})", replacement)
 
 with open('app/db/mysql_user_dao.py', 'w', encoding='utf-8') as f:
     f.write(text)

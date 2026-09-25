@@ -247,7 +247,7 @@ class MySQLPaymentDAO:
             "external_id": external_id,
             "order_id": data.order_id,
             "user_id": data.userId,
-            "user_id_formatted": data.userIdFormatted,
+            "user_id_formatted": data.user_id_formatted,
             "customer_name": data.customerName,
             "order_date": _to_ts(data.orderDate) or now,
             "payment_method": data.payment_method,
@@ -311,7 +311,7 @@ class MySQLPaymentDAO:
         merged = {
             "orderId": update_data.order_id if update_data.order_id is not None else existing.order_id,
             "userId": update_data.userId if update_data.userId is not None else existing.user_id,
-            "userIdFormatted": update_data.userIdFormatted if update_data.userIdFormatted is not None else existing.user_id_formatted,
+            "userIdFormatted": update_data.user_id_formatted if update_data.user_id_formatted is not None else existing.user_id_formatted,
             "customerName": update_data.customerName if update_data.customerName is not None else existing.customer_name,
             "orderDate": update_data.orderDate if update_data.orderDate is not None else existing.order_date,
             "paymentMethod": update_data.payment_method if update_data.payment_method is not None else existing.payment_method,

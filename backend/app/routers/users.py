@@ -600,10 +600,10 @@ async def update_my_payment_details(data: PaymentDetailsUpdate, current_user: Us
     if current_user.role not in ('wholesaler', 'valet'):
         raise HTTPException(status_code=403, detail='Only sellers and valets can update payment details')
     updated = await user_repository.update(str(current_user.id), UserUpdate(
-        upiId=data.upiId,
-        qrCodeUrl=data.qrCodeUrl,
-        bankAccountNumber=data.bankAccountNumber,
-        bankIfscCode=data.bankIfscCode,
+        upiId=data.upi_id,
+        qrCodeUrl=data.qr_code_url,
+        bankAccountNumber=data.bank_account_number,
+        bankIfscCode=data.bank_ifsc_code,
         bankAccountHolder=data.bankAccountHolder,
         bankName=data.bankName,
     ))

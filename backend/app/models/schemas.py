@@ -1379,8 +1379,8 @@ class CouponValidate(BaseModel):
 
 
 # Contact Schemas
-class Address(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+class Address(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
     address: Optional[str] = None
     street: Optional[str] = None
     name: Optional[str] = None
@@ -1388,10 +1388,10 @@ class Address(BaseModel):
     city: Optional[str] = None
     state: Optional[str] = None
     district: Optional[str] = None
-    zipCode: Optional[str] = None
+    zip_code: Optional[str] = None
     pincode: Optional[str] = None
     country: Optional[str] = "India"
-    googleLocation: Optional[str] = None
+    google_location: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
@@ -1479,15 +1479,15 @@ class Address(BaseModel):
 
 
 
-class PaginatedUsersResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+class PaginatedUsersResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
     users: List[UserResponse]
-    totalCount: int = Field(alias="totalCount")
+    total_count: int
     page: int
     limit: int
 
-class PreferencesResponse(BaseModel):
-    preferredLanguage: str
+class PreferencesResponse(CamelBaseModel):
+    preferred_language: str
 
 class DutyStatusResponse(BaseModel):
     message: str
@@ -1495,12 +1495,12 @@ class DutyStatusResponse(BaseModel):
 class MessageResponse(BaseModel):
     message: str
 
-class CartResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+class CartResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
     items: List[ItemSnippet]
     subtotal: float
-    itemCount: int = Field(alias="itemCount")
-    expiresAt: Optional[str] = Field(alias="expiresAt")
+    item_count: int
+    expires_at: Optional[str] = None
 
 class SavedForLaterResponse(BaseModel):
     items: List[ItemSnippet]
@@ -1573,23 +1573,23 @@ class AdStatusUpdate(BaseModel):
     status: str
 
 
-class AdSummaryResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    total_views: int = Field(default=0, alias="totalViews")
-    total_clicks: int = Field(default=0, alias="totalClicks")
-    active_campaigns: int = Field(default=0, alias="activeCampaigns")
-    total_spend_estimate: Optional[float] = Field(default=None, alias="totalSpendEstimate")
+class AdSummaryResponse(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
+    total_views: int = Field(default=0)
+    total_clicks: int = Field(default=0)
+    active_campaigns: int = Field(default=0)
+    total_spend_estimate: Optional[float] = Field(default=None)
     ctr: Optional[float] = None
-    total_ads: Optional[int] = Field(default=0, alias="totalAds")
-    active: Optional[int] = Field(default=0, alias="active")
-    paused: Optional[int] = Field(default=0, alias="paused")
-    draft: Optional[int] = Field(default=0, alias="draft")
-    total_impressions: Optional[int] = Field(default=0, alias="totalImpressions")
-    total_conversions: Optional[int] = Field(default=0, alias="totalConversions")
-    overall_ctr: Optional[float] = Field(default=0.0, alias="overallCtr")
+    total_ads: Optional[int] = Field(default=0)
+    active: Optional[int] = Field(default=0)
+    paused: Optional[int] = Field(default=0)
+    draft: Optional[int] = Field(default=0)
+    total_impressions: Optional[int] = Field(default=0)
+    total_conversions: Optional[int] = Field(default=0)
+    overall_ctr: Optional[float] = Field(default=0.0)
 
 
-class OrderAddress(BaseModel):
+class OrderAddress(CamelBaseModel):
     name: Optional[str] = None
     street: Optional[str] = None
     city: Optional[str] = None
@@ -1599,7 +1599,7 @@ class OrderAddress(BaseModel):
     address: Optional[str] = None
     district: Optional[str] = None
     country: Optional[str] = None
-    googleLocation: Optional[str] = None
+    google_location: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
@@ -1613,18 +1613,18 @@ class CouponCreateInternal(CouponBase):
 
 
 
-class PromoStripBase(BaseModel):
+class PromoStripBase(CamelBaseModel):
     text: str
-    isActive: Optional[bool] = True
-    zoneIds: Optional[List[str]] = None
+    is_active: Optional[bool] = True
+    zone_ids: Optional[List[str]] = None
 
 class PromoStripCreate(PromoStripBase):
     pass
 
-class PromoStripUpdate(BaseModel):
+class PromoStripUpdate(CamelBaseModel):
     text: Optional[str] = None
-    isActive: Optional[bool] = None
-    zoneIds: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+    zone_ids: Optional[List[str]] = None
 
 class PromoStripResponse(PromoStripBase):
     id: str = Field(alias='_id')
@@ -1648,36 +1648,36 @@ class PromoStripResponse(PromoStripBase):
 
 
 # --- DAO Internal Models ---
-class UserInternalCreate(BaseModel):
+class UserInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    userId: int
-    isSellerAdmin: bool = False
-    serviceAreaZones: Optional[List[str]] = None
-    savedAddresses: Optional[List[SavedAddress]] = None
-    isOnDuty: bool = False
-    commissionOverridePct: Optional[float] = Field(default=None, validation_alias=AliasChoices("commissionOverridePct", "commission_override_pct"))
-    userIdFormatted: str
+    user_id: int
+    is_seller_admin: bool = False
+    service_area_zones: Optional[List[str]] = None
+    saved_addresses: Optional[List[SavedAddress]] = None
+    is_on_duty: bool = False
+    commission_override_pct: Optional[float] = None
+    user_id_formatted: str
     name: str
     email: Optional[str] = None
     password: str
     role: str
     phone: str = ""
-    companyName: str = ""
+    company_name: str = ""
     gstin: Optional[str] = None
     address: Optional[Address] = None
-    isActive: bool = True
-    approvalStatus: str
-    isDeactivated: bool = False
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: str = "30"
-    assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
-    referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
-    isEmailVerified: bool = False
-    upiId: Optional[str] = None
-    qrCodeUrl: Optional[str] = None
-    bankAccountNumber: Optional[str] = None
-    bankIfscCode: Optional[str] = None
+    is_active: bool = True
+    approval_status: str
+    is_deactivated: bool = False
+    credit_limit: Optional[float] = None
+    credit_used: Optional[float] = None
+    payment_terms: str = "30"
+    assigned_salesperson: Optional[str] = None
+    referral_code: Optional[str] = None
+    is_email_verified: bool = False
+    upi_id: Optional[str] = None
+    qr_code_url: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_ifsc_code: Optional[str] = None
     bankAccountHolder: Optional[str] = None
     bankName: Optional[str] = None
     # Device / verification metadata captured at registration time.
@@ -1685,36 +1685,36 @@ class UserInternalCreate(BaseModel):
     deviceId: Optional[str] = None
     msg91Token: Optional[str] = None
 
-class UserInternalUpdate(BaseModel):
+class UserInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
-    userId: Optional[int] = Field(default=None, validation_alias=AliasChoices("userId", "user_id"))
-    userIdFormatted: Optional[str] = Field(default=None, validation_alias=AliasChoices("userIdFormatted", "user_id_formatted"))
+    user_id: Optional[int] = None
+    user_id_formatted: Optional[str] = None
     name: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
     role: Optional[str] = None
     phone: Optional[str] = None
-    companyName: Optional[str] = None
+    company_name: Optional[str] = None
     gstin: Optional[str] = None
     address: Optional[Address] = None
-    savedAddresses: Optional[List[Address]] = None
-    isActive: Optional[bool] = None
-    approvalStatus: Optional[str] = Field(default=None, validation_alias=AliasChoices("approvalStatus", "approval_status"))
-    isDeactivated: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    creditLimit: Optional[float] = None
-    creditUsed: Optional[float] = None
-    paymentTerms: Optional[str] = None
-    assignedSalesperson: Optional[str] = Field(default=None, validation_alias=AliasChoices("assignedSalesperson", "assigned_salesperson"))
-    referralCode: Optional[str] = Field(default=None, validation_alias=AliasChoices("referralCode", "referral_code"))
-    isEmailVerified: Optional[bool] = None
-    serviceAreaZones: Optional[List[str]] = None
-    commissionOverridePct: Optional[float] = None
-    upiId: Optional[str] = None
-    qrCodeUrl: Optional[str] = None
-    bankAccountNumber: Optional[str] = None
-    bankIfscCode: Optional[str] = None
+    saved_addresses: Optional[List[Address]] = None
+    is_active: Optional[bool] = None
+    approval_status: Optional[str] = None
+    is_deactivated: Optional[bool] = None
+    is_seller_admin: Optional[bool] = None
+    is_on_duty: Optional[bool] = None
+    credit_limit: Optional[float] = None
+    credit_used: Optional[float] = None
+    payment_terms: Optional[str] = None
+    assigned_salesperson: Optional[str] = None
+    referral_code: Optional[str] = None
+    is_email_verified: Optional[bool] = None
+    service_area_zones: Optional[List[str]] = None
+    commission_override_pct: Optional[float] = None
+    upi_id: Optional[str] = None
+    qr_code_url: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_ifsc_code: Optional[str] = None
     bankAccountHolder: Optional[str] = None
     bankName: Optional[str] = None
 

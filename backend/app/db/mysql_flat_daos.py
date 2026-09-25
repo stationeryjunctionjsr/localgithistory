@@ -1204,11 +1204,11 @@ class MySQLStockReservationsDAO:
             cols.append("status")
             vals.append(":status")
             params["status"] = data.status
-        if data.expiresAt is not None:
+        if data.expires_at is not None:
             cols.append("expires_at")
             vals.append(":expiresAt")
             # Convert 'Z' format to datetime object
-            exp = str(data.expiresAt)
+            exp = str(data.expires_at)
             if exp.endswith("Z"):
                 exp = exp[:-1]
                 if not exp.endswith("+00:00") and "+" not in exp[-6:] and "-" not in exp[-6:]:
@@ -1257,7 +1257,7 @@ class MySQLStockReservationsDAO:
             updates.append("status = :status")
             params["status"] = status
             
-        expires_at = data.expiresAt if data.expiresAt is not None else existing.expires_at
+        expires_at = data.expires_at if data.expires_at is not None else existing.expires_at
         if expires_at is not None:
             updates.append("expires_at = :expiresAt")
             params["expiresAt"] = expires_at

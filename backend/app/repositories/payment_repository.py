@@ -111,7 +111,7 @@ class PaymentRepository:
                     if update_data.userId is not None: update_dict["userId"] = update_data.userId
                 except AttributeError: pass
                 try:
-                    if update_data.userIdFormatted is not None: update_dict["userIdFormatted"] = update_data.userIdFormatted
+                    if update_data.user_id_formatted is not None: update_dict["userIdFormatted"] = update_data.user_id_formatted
                 except AttributeError: pass
                 try:
                     if update_data.customerName is not None: update_dict["customerName"] = update_data.customerName
