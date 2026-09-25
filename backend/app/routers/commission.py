@@ -220,6 +220,7 @@ async def maybe_realize_commission(sub_order: dict) -> dict:
 
     if await is_return_period_over(sub_order):
         from app.repositories.sub_order_repository import sub_order_repository
+        from app.models.daos_flat import SubOrderInternalUpdate
 
         updated = await sub_order_repository.update(sub_order.id, SubOrderInternalUpdate(commissionStatus="realized"))
         return updated if updated else updated
