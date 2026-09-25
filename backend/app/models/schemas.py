@@ -523,29 +523,29 @@ class CouponValidationResponse(BaseModel):
     itemDiscounts: Optional[Dict[int, float]] = None
     bxgyItemIndices: Optional[List[int]] = None
 
-class CouponValidateCart(BaseModel):
+class CouponValidateCart(CamelBaseModel):
     """Validate discount against cart: backend computes eligible subtotal from items."""
 
     code: str
     items: List[ItemSnippet]  # [{ productId, quantity, sellAsCase? }]
-    shippingAddress: Optional[AddressSnippet] = None
+    shipping_address: Optional[AddressSnippet] = None
 
 
 # Discount Scheme Schemas (Business Segment / wholesaler)
-class SchemeResponse(BaseModel):
+class SchemeResponse(CamelBaseModel):
     id: str = Field(alias="_id")
     name: str
     description: Optional[str] = None
-    discountType: str  # percentage | fixed
-    discountValue: float
-    minOrderValue: float = 0
-    validFrom: Optional[str] = None
-    validUntil: Optional[str] = None
-    isActive: bool = True
-    applicableRoles: List[str] = ["wholesaler"]
+    discount_type: str  # percentage | fixed
+    discount_value: float
+    min_order_value: float = 0
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    is_active: bool = True
+    applicable_roles: List[str] = ["wholesaler"]
     code: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    model_config = ConfigDict(extra='forbid')
 
 
 # Banner Schemas
@@ -598,15 +598,15 @@ class BannerResponse(BannerBase):
 
 # Brand Schemas
 
-class BrandResponse(BaseModel):
+class BrandResponse(CamelBaseModel):
     id: str = Field(alias="_id")
     name: str
     slug: str
-    logoUrl: Optional[str] = None
-    showInMobileHomepage: bool = False
-    isActive: bool = True
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    logo_url: Optional[str] = None
+    show_in_mobile_homepage: bool = False
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class BrandCreate(BaseModel):
     name: str
@@ -717,14 +717,14 @@ class ContactCreate(ContactBase):
     pass
 
 
-class ContactUpdate(BaseModel):
+class ContactUpdate(CamelBaseModel):
     addresses: Optional[List[Address]] = None
-    phoneNumbers: Optional[List[str]] = None
+    phone_numbers: Optional[List[str]] = None
     email: Optional[str] = None
     description: Optional[str] = None
-    isActive: Optional[bool] = None
-    displayOrder: Optional[int] = None
-    socialMedia: Optional[SocialMedia] = None
+    is_active: Optional[bool] = None
+    display_order: Optional[int] = None
+    social_media: Optional[SocialMedia] = None
 
 
 class ContactResponse(ContactBase):
@@ -737,7 +737,7 @@ class ContactResponse(ContactBase):
 
 
 # Support Ticket Schemas
-class SupportTicketBase(BaseModel):
+class SupportTicketBase(CamelBaseModel):
     name: str
     email: str
     phone: str
@@ -747,7 +747,7 @@ class SupportTicketBase(BaseModel):
     category: str = "general"
     priority: str = "medium"
     attachments: Optional[List[str]] = None
-    externalId: Optional[str] = Field(default=None, alias="externalId")
+    external_id: Optional[str] = None
 
 
 class SupportTicketCreate(SupportTicketBase):
@@ -765,29 +765,29 @@ class TicketResponseCreate(BaseModel):
     attachments: Optional[List[str]] = None
 
 
-class TicketResponseItemInternal(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+class TicketResponseItemInternal(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
     user: Optional[str] = None
     message: Optional[str] = None
     attachments: Optional[List[str]] = None
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    isAdminResponse: Optional[bool] = None
+    created_at: Optional[datetime] = None
+    is_admin_response: Optional[bool] = None
 
-class TicketResponseItem(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+class TicketResponseItem(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
     user: Optional[UserSnippet] = None
     message: Optional[str] = None
     attachments: Optional[List[str]] = None
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
+    created_at: Optional[datetime] = None
 
 
 class SupportTicketInternal(SupportTicketBase):
-    model_config = ConfigDict(populate_by_name=True, extra='forbid')
+    model_config = ConfigDict(extra='forbid')
     id: str = Field(alias="_id")
-    ticketNumber: str
+    ticket_number: str
     user: Optional[str] = None
     status: str
-    assignedTo: Optional[str] = None
+    assigned_to: Optional[str] = None
     responses: Optional[List[TicketResponseItemInternal]] = None
     resolvedAt: Optional[str] = None
     closedAt: Optional[str] = None
@@ -812,13 +812,13 @@ class SupportTicketResponse(SupportTicketBase):
 
 
 # Delivery Charge Schemas
-class DeliveryChargeTier(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True, from_attributes=True)
-    minOrderValue: Optional[float] = None
-    maxOrderValue: Optional[float] = None
+class DeliveryChargeTier(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
+    min_order_value: Optional[float] = None
+    max_order_value: Optional[float] = None
     charge: Optional[float] = None
-    minAmount: Optional[float] = None
-    maxAmount: Optional[Union[float, str]] = Field(default=None, validation_alias=AliasChoices("maxAmount", "max"))
+    min_amount: Optional[float] = None
+    max_amount: Optional[Union[float, str]] = Field(default=None, validation_alias=AliasChoices("maxAmount", "max_amount", "max"))
 
 
 class DeliveryChargeBase(BaseModel):
