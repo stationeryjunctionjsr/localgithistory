@@ -161,7 +161,7 @@ async def is_return_period_over(sub_order: dict) -> bool:
             return False
 
     settings = await return_settings_repository.get_settings()
-    return_days: int = int(settings.returnDays if settings.returnDays is not None else 7)
+    return_days: int = int(settings.return_days if settings.return_days is not None else 7)
     realize_at = delivered_at + timedelta(days=return_days)
 
     now = datetime.now(timezone.utc)

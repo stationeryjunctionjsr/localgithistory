@@ -22,7 +22,7 @@ class CoachMarkRepository:
     async def findByAnchorId(self, anchor_id: str) -> Optional[CoachMarkInternal]:
         marks = await self.storage.findAll()
         for mark in marks:
-            if mark.anchorId == anchor_id:
+            if mark.anchor_id == anchor_id:
                 return mark
         return None
 

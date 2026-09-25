@@ -876,14 +876,14 @@ class DeliveryTier(CamelBaseModel):
     charge: float
 
 
-class DefaultDeliveryChargeBase(BaseModel):
+class DefaultDeliveryChargeBase(CamelBaseModel):
     tiers: List[DeliveryTier]
-    applicableToWholesaler: bool = True
-    deliveryChargeGst: bool = False
-    deliveryChargeGstPercentage: float = 18.0
+    applicable_to_wholesaler: bool = True
+    delivery_charge_gst: bool = False
+    delivery_charge_gst_percentage: float = 18.0
 
-    isActive: bool = True
-    urgentDeliveryCharge: Optional[float] = None
+    is_active: bool = True
+    urgent_delivery_charge: Optional[float] = None
 
 
 class DefaultDeliveryChargeCreate(DefaultDeliveryChargeBase):
@@ -923,13 +923,13 @@ class OrderFeedbackResponse(OrderFeedbackBase):
 
 
 # Coach Mark Schemas
-class CoachMarkBase(BaseModel):
-    anchorId: str
+class CoachMarkBase(CamelBaseModel):
+    anchor_id: str
     title: str
     description: str
-    screenName: Optional[str] = None
-    sequenceOrder: Optional[int] = None
-    isActive: bool = True
+    screen_name: Optional[str] = None
+    sequence_order: Optional[int] = None
+    is_active: bool = True
 
 
 class CoachMarkCreate(CoachMarkBase):
@@ -953,17 +953,17 @@ class CoachMarkResponse(CoachMarkBase):
 
 
 # Search Tag Schemas
-class SearchTagBase(BaseModel):
-    tagId: Optional[str] = None
+class SearchTagBase(CamelBaseModel):
+    tag_id: Optional[str] = None
     name: str
     type: Literal["Occasion", "Intent", "Recipient"]
-    isActive: bool = True
+    is_active: bool = True
     categories: Optional[List[str]] = []
-    subCategories: Optional[List[str]] = []
+    sub_categories: Optional[List[str]] = []
     brands: Optional[List[str]] = []
     collections: Optional[List[str]] = []
-    productIds: Optional[List[str]] = []
-    excludedProductIds: Optional[List[str]] = []
+    product_ids: Optional[List[str]] = []
+    excluded_product_ids: Optional[List[str]] = []
 
 
 class SearchTagCreate(SearchTagBase):
@@ -992,16 +992,16 @@ class SearchTagResponse(SearchTagBase):
 
 
 # Collection Schemas
-class CollectionBase(BaseModel):
+class CollectionBase(CamelBaseModel):
     name: str
     description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    isActive: bool = True
-    displayOrder: Optional[int] = None
-    productIds: List[str] = []
-    visiblePages: List[str] = ["Home"]
-    userSegments: List[str] = ["all"]
-    visibilityRules: List[VisibilityRuleSnippet] = []
+    image_url: Optional[str] = None
+    is_active: bool = True
+    display_order: Optional[int] = None
+    product_ids: List[str] = []
+    visible_pages: List[str] = ["Home"]
+    user_segments: List[str] = ["all"]
+    visibility_rules: List[VisibilityRuleSnippet] = []
 
 
 class CollectionCreate(CollectionBase):
@@ -1030,11 +1030,11 @@ class CollectionResponse(CollectionBase):
 
 
 # Referral Schemas
-class ReferralSegmentSetting(BaseModel):
+class ReferralSegmentSetting(CamelBaseModel):
     segment: str  # "retail" or "business"
-    discountType: DiscountType = DiscountType.PERCENTAGE
-    discountValue: float = 0
-    isActive: bool = False
+    discount_type: DiscountType = DiscountType.PERCENTAGE
+    discount_value: float = 0
+    is_active: bool = False
 
 
 class ReferralSettingsResponse(BaseModel):
@@ -1046,37 +1046,37 @@ class ReferralVerifyRequest(BaseModel):
     code: str
 
 
-class ReferralVerifyResponse(BaseModel):
+class ReferralVerifyResponse(CamelBaseModel):
     valid: bool
-    discountType: DiscountType
-    discountValue: float
-    referrerName: str
+    discount_type: DiscountType
+    discount_value: float
+    referrer_name: str
 
 
-class ReferralEligibilityResponse(BaseModel):
+class ReferralEligibilityResponse(CamelBaseModel):
     eligible: bool
-    discountType: Optional[DiscountType] = None
-    discountValue: Optional[float] = None
+    discount_type: Optional[DiscountType] = None
+    discount_value: Optional[float] = None
     message: Optional[str] = None
 
 
-class ReferralPublicSchemeResponse(BaseModel):
-    isActive: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
-    discountType: DiscountType
-    discountValue: float
+class ReferralPublicSchemeResponse(CamelBaseModel):
+    is_active: bool
+    discount_type: DiscountType
+    discount_value: float
 
 
 # Return Feature Schemas
-class ReturnSettingsBase(BaseModel):
-    returnDays: int = 7
+class ReturnSettingsBase(CamelBaseModel):
+    return_days: int = 7
 
 
 class ReturnSettingsResponse(ReturnSettingsBase):
     pass
 
 
-class ReturnSettingsUpdate(BaseModel):
-    returnDays: Optional[int] = None
+class ReturnSettingsUpdate(CamelBaseModel):
+    return_days: Optional[int] = None
 
 
 class ReturnItemSchema(BaseModel):

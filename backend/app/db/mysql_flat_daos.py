@@ -80,10 +80,10 @@ class MySQLReturnSettingsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.returnDays is not None:
+        if data.return_days is not None:
             cols.append("return_days")
             vals.append(":returnDays")
-            params["returnDays"] = data.returnDays
+            params["returnDays"] = data.return_days
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -106,9 +106,9 @@ class MySQLReturnSettingsDAO:
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if data.returnDays is not None:
+        if data.return_days is not None:
             updates.append("return_days = :returnDays")
-            params["returnDays"] = data.returnDays
+            params["returnDays"] = data.return_days
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -748,10 +748,10 @@ class MySQLCoachMarksDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        if data.anchorId is not None:
+        if data.anchor_id is not None:
             cols.append("anchor_id")
             vals.append(":anchorId")
-            params["anchorId"] = data.anchorId
+            params["anchorId"] = data.anchor_id
         if data.title is not None:
             cols.append("title")
             vals.append(":title")
@@ -760,10 +760,10 @@ class MySQLCoachMarksDAO:
             cols.append("description")
             vals.append(":description")
             params["description"] = data.description
-        if data.screenName is not None:
+        if data.screen_name is not None:
             cols.append("screen_name")
             vals.append(":screenName")
-            params["screenName"] = data.screenName
+            params["screenName"] = data.screen_name
         if data.sequence_order is not None:
             cols.append("sequence_order")
             vals.append(":sequenceOrder")
@@ -794,18 +794,18 @@ class MySQLCoachMarksDAO:
         
         updates = ["updated_at = :u"]
         params = {"id": pid, "u": now}
-        if data.anchorId is not None:
+        if data.anchor_id is not None:
             updates.append("anchor_id = :anchorId")
-            params["anchorId"] = data.anchorId
+            params["anchorId"] = data.anchor_id
         if data.title is not None:
             updates.append("title = :title")
             params["title"] = data.title
         if data.description is not None:
             updates.append("description = :description")
             params["description"] = data.description
-        if data.screenName is not None:
+        if data.screen_name is not None:
             updates.append("screen_name = :screenName")
-            params["screenName"] = data.screenName
+            params["screenName"] = data.screen_name
         if data.sequence_order is not None:
             updates.append("sequence_order = :sequenceOrder")
             params["sequenceOrder"] = data.sequence_order

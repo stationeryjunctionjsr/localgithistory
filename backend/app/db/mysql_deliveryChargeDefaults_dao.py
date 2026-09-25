@@ -92,9 +92,9 @@ class MySQLDeliveryChargeDefaultsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.applicableToWholesaler is not None:
+        if data.applicable_to_wholesaler is not None:
             cols.append("applicable_to_wholesaler")
-            params["s_applicableToWholesaler"] = data.applicableToWholesaler
+            params["s_applicableToWholesaler"] = data.applicable_to_wholesaler
 
         if data.applicableToRetailer is not None:
             cols.append("applicable_to_retailer")
@@ -124,9 +124,9 @@ class MySQLDeliveryChargeDefaultsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.applicableToWholesaler is not None:
+        if data.applicable_to_wholesaler is not None:
             updates.append("applicable_to_wholesaler = :s_applicableToWholesaler")
-            params["s_applicableToWholesaler"] = data.applicableToWholesaler
+            params["s_applicableToWholesaler"] = data.applicable_to_wholesaler
 
         if data.applicableToRetailer is not None:
             updates.append("applicable_to_retailer = :s_applicableToRetailer")

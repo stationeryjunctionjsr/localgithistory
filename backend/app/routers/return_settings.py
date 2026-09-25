@@ -23,8 +23,8 @@ async def update_return_settings(settings_update: ReturnSettingsUpdate, admin=De
     """Update global return settings (Super Admin only)"""
     from app.models.daos_flat import ReturnSettingsInternalUpdate
     update_data = ReturnSettingsInternalUpdate()
-    if settings_update.returnDays is not None:
-        update_data.returnDays = settings_update.returnDays
+    if settings_update.return_days is not None:
+        update_data.return_days = settings_update.return_days
 
     updated = await return_settings_repository.update_settings(update_data)
     return updated

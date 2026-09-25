@@ -22,7 +22,7 @@ class SearchTagRepository:
 
         # First pass to find max_num
         for tag in all_tags:
-            tid = tag.tagId if tag.tagId is not None else ""
+            tid = tag.tag_id if tag.tag_id is not None else ""
             if tid.startswith("ST-"):
                 try:
                     num = int(tid.split("-")[1])
@@ -33,18 +33,18 @@ class SearchTagRepository:
 
         # Second pass to assign missing tagIds
         for tag in all_tags:
-            if not tag.tagId:
+            if not tag.tag_id:
                 max_num += 1
-                tag.tagId = f"ST-{max_num}"
+                tag.tag_id = f"ST-{max_num}"
                 updated = True
 
         if updated:
             # Persist tagId back via Oracle (per-doc update).
             for tag in all_tags:
-                if tag.id and tag.tagId:
+                if tag.id and tag.tag_id:
                     await self.storage.update(
                         tag.id,
-                        SearchTagInternalUpdate(tagId=tag.tagId)
+                        SearchTagInternalUpdate(tagId=tag.tag_id)
                     )
 
         return all_tags
@@ -57,7 +57,7 @@ class SearchTagRepository:
         all_tags = await self.storage.findAll()
         max_num = 0
         for tag in all_tags:
-            tag_id_str = tag.tagId if tag.tagId is not None else ""
+            tag_id_str = tag.tag_id if tag.tag_id is not None else ""
             if tag_id_str.startswith("ST-"):
                 try:
                     # Extract number from "ST-X"

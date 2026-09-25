@@ -92,9 +92,9 @@ class MySQLSearchTagsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.tagId is not None:
+        if data.tag_id is not None:
             cols.append("tag_id")
-            params["s_tagId"] = data.tagId
+            params["s_tagId"] = data.tag_id
 
         if data.name is not None:
             cols.append("name")
@@ -128,9 +128,9 @@ class MySQLSearchTagsDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.tagId is not None:
+        if data.tag_id is not None:
             updates.append("tag_id = :s_tagId")
-            params["s_tagId"] = data.tagId
+            params["s_tagId"] = data.tag_id
 
         if data.name is not None:
             updates.append("name = :s_name")

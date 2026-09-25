@@ -74,7 +74,7 @@ class DeliveryChargeRepository:
         ]
 
         default_charge = DeliveryChargeDefaultInternalUpdate(
-            applicableToWholesaler=default_data.applicableToWholesaler,
+            applicableToWholesaler=default_data.applicable_to_wholesaler,
             isActive=default_data.isActive,
             tiers=tiers_internal
         )
@@ -83,7 +83,7 @@ class DeliveryChargeRepository:
             return await self.default_storage.update(existing.id, default_charge)
         else:
             default_create = DeliveryChargeDefaultInternalCreate(
-                applicableToWholesaler=default_data.applicableToWholesaler,
+                applicableToWholesaler=default_data.applicable_to_wholesaler,
                 isActive=default_data.isActive,
                 tiers=tiers_internal
             )
@@ -278,7 +278,7 @@ class DeliveryChargeRepository:
 
         # For wholesalers
         if user_role == "wholesaler":
-            return charge_data.applicableToWholesaler  # Default to true if not specified
+            return charge_data.applicable_to_wholesaler  # Default to true if not specified
 
         return True
 
@@ -360,8 +360,8 @@ class DeliveryChargeRepository:
         if update_data.urgentDeliveryCharge is not None:
             update_data.urgentDeliveryCharge = float(update_data.urgentDeliveryCharge)
         # Update role applicability if provided
-        if update_data.applicableToWholesaler is not None:
-            update_data.applicableToWholesaler = bool(update_data.applicableToWholesaler)
+        if update_data.applicable_to_wholesaler is not None:
+            update_data.applicable_to_wholesaler = bool(update_data.applicable_to_wholesaler)
 
         return await self.storage.update(id, update_data)
 

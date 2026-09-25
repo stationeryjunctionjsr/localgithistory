@@ -117,7 +117,7 @@ async def check_return_eligibility(order_id: str, current_user: User = Depends(g
         delivered_at = delivered_at.replace(tzinfo=timezone.utc)
 
     settings = await return_settings_repository.get_settings()
-    return_days = settings.returnDays if settings.returnDays is not None else 7
+    return_days = settings.return_days if settings.return_days is not None else 7
 
     if datetime.now(timezone.utc) > delivered_at + timedelta(days=return_days):
         return {"eligibleItems": [], "reason": f"Return window of {return_days} days has expired"}
