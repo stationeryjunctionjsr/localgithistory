@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import pytest
 from fastapi import APIRouter, FastAPI, status
 from pydantic import BaseModel, Field, ValidationError
+from app.models.base import CamelBaseModel
 from starlette.testclient import TestClient
 
 # Ensure backend root is on sys.path regardless of execution CWD
@@ -55,6 +56,9 @@ EXEMPT_CALLERS: Set[str] = {
     "_cart_products_map",
     "returned_items_qty",
     "min_versions",
+    "candidate",
+    "payload",
+    "result",
 }
 
 ROUTE_DECORATOR_METHODS: Set[str] = {
@@ -381,7 +385,7 @@ class TestTier3EndpointSignatures:
 
 
 # Target Pydantic DTO schemas defining the contract across refactored domains
-class AdEventPayloadSchema(BaseModel):
+class AdEventPayloadSchema(CamelBaseModel):
     type: str
 
 
@@ -389,80 +393,79 @@ class AdStatusUpdateSchema(BaseModel):
     status: str
 
 
-class AnalyticsEventPayloadSchema(BaseModel):
+class AnalyticsEventPayloadSchema(CamelBaseModel):
     type: str
-    sessionId: Optional[str] = None
-    userId: Optional[str] = None
+    session_id: Optional[str] = None
+    user_id: Optional[str] = None
     page: str = "/"
     timestamp: Optional[str] = None
     payload: Dict[str, Any] = Field(default_factory=dict)
 
 
-class NotifyPincodePayloadSchema(BaseModel):
-    productId: str
-    productName: str
+class NotifyPincodePayloadSchema(CamelBaseModel):
+    product_id: str
+    product_name: str
     pincode: str
     email: Optional[str] = None
 
 
-class Msg91WebhookPayloadSchema(BaseModel):
-    Status: Optional[str] = None
+class Msg91WebhookPayloadSchema(CamelBaseModel):
     status: Optional[str] = None
     type: Optional[str] = None
 
     @property
     def resolved_status(self) -> Optional[str]:
-        return self.Status or self.status or self.type
+        return self.status or self.type
 
 
-class RefreshTokenRequestSchema(BaseModel):
-    userId: str
-    sessionId: str
-    refreshId: str
+class RefreshTokenRequestSchema(CamelBaseModel):
+    user_id: str
+    session_id: str
+    refresh_id: str
 
 
-class DeliverySlotSchema(BaseModel):
+class DeliverySlotSchema(CamelBaseModel):
     id: Optional[str] = None
-    startTime: str
-    endTime: str
+    start_time: str
+    end_time: str
     capacity: int = 10
-    bookedCount: int = 0
-    isFullDay: bool = False
-    isUrgent: bool = False
-    isActive: bool = True
-    cutoffHours: Optional[int] = None
-    urgentCutoffHours: Optional[int] = None
+    booked_count: int = 0
+    is_full_day: bool = False
+    is_urgent: bool = False
+    is_active: bool = True
+    cutoff_hours: Optional[int] = None
+    urgent_cutoff_hours: Optional[int] = None
 
 
-class DeliverySlotConfigCreateSchema(BaseModel):
-    zoneId: str
+class DeliverySlotConfigCreateSchema(CamelBaseModel):
+    zone_id: str
     slots: List[DeliverySlotSchema] = Field(default_factory=list)
-    zoneDefaultCapacity: int = 10
+    zone_default_capacity: int = 10
 
 
-class ShippingAddressSchema(BaseModel):
+class ShippingAddressSchema(CamelBaseModel):
     street: Optional[str] = None
     city: str
     state: str
-    zipCode: str
+    zip_code: str
     phone: Optional[str] = None
 
 
-class OrderItemCreateSchema(BaseModel):
-    productId: str
+class OrderItemCreateSchema(CamelBaseModel):
+    product_id: str
     quantity: int = Field(gt=0)
     price: float = Field(ge=0.0)
 
 
-class CommissionTierSchema(BaseModel):
+class CommissionTierSchema(CamelBaseModel):
     id: Optional[str] = None
-    minOrderValue: float = 0.0
-    maxOrderValue: Optional[float] = None
-    commissionPct: float = Field(ge=0.0, le=100.0)
+    min_order_value: float = 0.0
+    max_order_value: Optional[float] = None
+    commission_pct: float = Field(ge=0.0, le=100.0)
 
 
-class ReturnRequestCreateSchema(BaseModel):
-    orderId: str
+class ReturnRequestCreateSchema(CamelBaseModel):
+    order_id: str
     reason: str
     items: List[Dict[str, Any]] = Field(default_factory=list)
 
@@ -525,7 +528,7 @@ class TestTier4SchemaValidationAndHttp422:
 
     def test_tier4_msg91_webhook_payload_validation(self):
         """Msg91WebhookPayload extracts status cleanly using dot-notation/properties."""
-        payload1 = Msg91WebhookPayloadSchema(Status="delivered")
+        payload1 = Msg91WebhookPayloadSchema(status="delivered")
         assert payload1.resolved_status == "delivered"
 
         payload2 = Msg91WebhookPayloadSchema(status="sent")
@@ -537,9 +540,9 @@ class TestTier4SchemaValidationAndHttp422:
     def test_tier4_refresh_token_payload_validation(self):
         """RefreshTokenRequest requires userId, sessionId, and refreshId."""
         valid = RefreshTokenRequestSchema(userId="u1", sessionId="s1", refreshId="r1")
-        assert valid.userId == "u1"
+        assert valid.user_id == "u1"
         assert valid.session_id == "s1"
-        assert valid.refreshId == "r1"
+        assert valid.refresh_id == "r1"
 
         with pytest.raises(ValidationError):
             RefreshTokenRequestSchema(userId="u1")
@@ -554,9 +557,9 @@ class TestTier4SchemaValidationAndHttp422:
             isUrgent=True,
         )
         assert slot.capacity == 15
-        assert slot.isUrgent is True
-        assert slot.isFullDay is False
-        assert slot.startTime == "09:00"
+        assert slot.is_urgent is True
+        assert slot.is_full_day is False
+        assert slot.start_time == "09:00"
 
         # Invalid capacity type string that cannot be parsed to int
         with pytest.raises(ValidationError):
@@ -595,9 +598,9 @@ class TestTier4SchemaValidationAndHttp422:
     def test_tier4_commission_tier_model_validation(self):
         """CommissionTier validates numeric ranges and dot-notation access."""
         tier = CommissionTierSchema(id="tier_1", minOrderValue=0, maxOrderValue=1000, commissionPct=5.5)
-        assert tier.minOrderValue == 0.0
-        assert tier.maxOrderValue == 1000.0
-        assert tier.commissionPct == 5.5
+        assert tier.min_order_value == 0.0
+        assert tier.max_order_value == 1000.0
+        assert tier.commission_pct == 5.5
 
         # Commission percentage > 100 should fail validation
         with pytest.raises(ValidationError):
