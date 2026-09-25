@@ -1,3 +1,4 @@
+from app.models.daos import NotificationInternalCreate
 from fastapi.responses import FileResponse
 from app.models.schemas import VariantAttributes, CouponResponse
 from app.utils.metrics import ORDER_FAILURES
@@ -28,7 +29,6 @@ from datetime import datetime, timezone
 from typing import Dict, Any
 from app.models.schemas import UserSnippet, ValetSnippet, Address, OrderItemCreate, SellerDeliveryOption, ItemSnippet as OrderItem
 from app.schemas.orders import PaginatedOrdersResponse, PaginatedSubOrdersResponse, DeliveryChargeUpdateResponse
-from app.models.daos import NotificationInternalCreate
 from app.models.payment import PaymentEntry
 import uuid
 from app.models.schemas import UserSnippet, ValetSnippet, UserInternalUpdate
@@ -376,6 +376,7 @@ async def populate_orders(orders: list[Any]) -> list[PopulatedOrderResponse]:
             items=populated_items,
             sub_orders=order_resp.sub_orders,
             orderStatus=order_resp.status,
+            total=order_resp.total,
             totalAmount=order_resp.total,
             deliveryFee=order_resp.shipping,
             discount=order_resp.discount,
@@ -454,30 +455,6 @@ async def get_orders(
         page=page,
         limit=limit
     )
-
-
-@router.get("/{order_id}", response_model=PopulatedOrderResponse)
-async def get_order(order_id: str, current_user: User = Depends(get_current_user)):
-    order = await order_repository.findById(order_id)
-
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    # Check access
-    if current_user.role in ["customer", "wholesaler"]:
-        if order.user != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
-    elif current_user.role == "valet":
-        if order.assigned_valet != current_user.id:
-            raise HTTPException(status_code=403, detail="Access denied")
-    elif current_user.role == "seller":
-        is_seller = any(str(sub.seller_id) == str(current_user.id)
-                        for sub in (order.sub_orders or []))
-        if not is_seller:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-    populated_order = await populate_order(order)
-    return populated_order
 
 
 @router.post("", response_model=PopulatedOrderResponse, status_code=status.HTTP_201_CREATED)
@@ -1259,7 +1236,7 @@ async def create_order(
                     seller_zone_ids = sdoc.service_area_zones or []
                     # Empty list = seller hasn't configured zones yet; allow during migration
                     if seller_zone_ids and order_zone_id not in seller_zone_ids:
-                        s_name = sdoc.companyName or sdoc.name or "Seller"
+                        s_name = sdoc.company_name or sdoc.name or "Seller"
                         ORDER_FAILURES.labels(
                             reason="seller_zone_not_serviceable").inc()
                         raise HTTPException(
@@ -1689,7 +1666,6 @@ async def create_order(
                     super_admin = await user_repository.findOne({"role": "super_admin"})
                     if super_admin:
                         import uuid
-                        from app.models.daos import NotificationInternalCreate
                         await notification_repository.create(
                             NotificationInternalCreate(
                                 _id=str(uuid.uuid4()),
@@ -1856,7 +1832,7 @@ async def create_order(
             groups[sid].append(oi)
 
         # Only split if multiple seller groups exist
-        if len(groups) > 1:
+        if True:
             parent_order_number = (
                 order.order_number if order.order_number is not None else str(order.id))
             sub_order_ids = []
@@ -1926,7 +1902,7 @@ async def create_order(
                     sdoc = (seller_docs[str(seller_id)] if str(
                         seller_id) in seller_docs else None)
                     if sdoc:
-                        seller_name = sdoc.companyName if sdoc.companyName else (
+                        seller_name = sdoc.company_name if sdoc.company_name else (
                             sdoc.name if sdoc.name else "")
                 else:
                     seller_name = "Platform"
@@ -3351,8 +3327,10 @@ async def update_seller_order_status(
     parent_id = sub_order.parent_order_id
     if parent_id:
         parent = await order_repository.findById(parent_id)
-        if parent and parent.subOrderIds:
-            _f_status = await _compute_fulfillment_status(parent.subOrderIds)
+        if parent:
+            _sub_orders = await sub_order_repository.findByParentOrder(parent_id)
+            if _sub_orders:
+                _f_status = await _compute_fulfillment_status([so.id for so in _sub_orders])
             if _f_status:
                 await order_repository.update(parent_id, OrderInternalUpdate(status=_f_status))
 
@@ -3406,3 +3384,34 @@ async def get_all_sub_orders(
         "page": page,
         "limit": limit,
     }
+@router.get("/{order_id}", response_model=PopulatedOrderResponse)
+async def get_order(order_id: str, current_user: User = Depends(get_current_user)):
+    order = await order_repository.findById(order_id)
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Check access
+    if current_user.role in ["customer", "wholesaler"]:
+        if order.user != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user.role == "valet":
+        if order.assigned_valet != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user.role == "seller":
+        is_seller = any(str(sub.seller_id) == str(current_user.id)
+                        for sub in (order.sub_orders or []))
+        if not is_seller:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    populated_order = await populate_order(order)
+    return populated_order
+
+
+
+
+
+
+
+
+
