@@ -368,6 +368,7 @@ class CouponRepository:
                             if three_months_ago <= c_at <= reference_date:
                                 recent_count += 1
                         except Exception:
+                            logger.warning("Coupon eligibility: could not parse order createdAt %r; skipping.", c_at_str, exc_info=True)
                             continue
 
                     is_registered = True  # we're already in a flow with user_id
@@ -1010,6 +1011,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                     )
                 )
             except Exception:
+                logger.warning("Coupon %r failed cart calculation; skipping.", getattr(coupon, 'id', '?'), exc_info=True)
                 continue
         return results
 
@@ -1267,6 +1269,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 if not (valid_from <= now <= valid_until):
                     continue
             except Exception:
+                logger.warning("Coupon %r has unparseable validFrom/validUntil; skipping.", getattr(c, 'id', '?'), exc_info=True)
                 continue
 
             if c.method == "automatic" and c.type_of_discount == "product_discount":
@@ -1320,6 +1323,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 if not (valid_from <= now <= valid_until):
                     continue
             except Exception:
+                logger.warning("Coupon %r (step-2) has unparseable validFrom/validUntil; skipping.", getattr(c, 'id', '?'), exc_info=True)
                 continue
 
             if role not in (c.applicableRoles if c.applicableRoles is not None else []):

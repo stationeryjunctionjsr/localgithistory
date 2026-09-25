@@ -122,6 +122,7 @@ class ReportService:
                     if len(str(cell.value)) > max_length:
                         max_length = len(str(cell.value))
                 except Exception:
+                    logger.debug("Could not measure cell value length for auto-width in column %r; skipping.", column, exc_info=True)
                     continue
             ws.column_dimensions[column].width = max_length + 2
 

@@ -15,6 +15,8 @@ from app.config.database import get_async_session_factory
 from app.config.settings import settings
 from app.db.db_utils import now_utc
 
+logger = logging.getLogger(__name__)
+
 _TRACKING_SCALAR = {
     "type": "event_type",
     "userId": "user_id",
@@ -217,7 +219,7 @@ class MySQLTrackingDAO:
                 from datetime import datetime
                 ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
             except Exception:
-                pass
+                logger.warning("Tracking event has unparseable timestamp %r; storing raw string.", ts, exc_info=True)
         add_col("timestamp", "event_timestamp", ts)
         
         add_col("search_term", "search_term", data.search_term)

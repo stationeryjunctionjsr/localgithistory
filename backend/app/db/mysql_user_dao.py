@@ -55,12 +55,12 @@ class MySQLUserDAO:
         if 'referral_code' in query:
             where_clauses.append('UPPER(referral_code) = :referralCode')
             params['referral_code'] = query['referral_code'].upper()
-        if 'isSellerAdmin' in query:
+        if 'is_seller_admin' in query:
             where_clauses.append('is_seller_admin = :isSellerAdmin')
-            params['isSellerAdmin'] = 1 if query['isSellerAdmin'] else 0
-        if 'isOnDuty' in query:
+            params['is_seller_admin'] = 1 if query['is_seller_admin'] else 0
+        if 'is_on_duty' in query:
             where_clauses.append('is_on_duty = :isOnDuty')
-            params['isOnDuty'] = 1 if query['isOnDuty'] else 0
+            params['is_on_duty'] = 1 if query['is_on_duty'] else 0
         if 'approvalStatus' in query:
             where_clauses.append('approval_status = :approvalStatus')
             params['approvalStatus'] = query['approvalStatus']

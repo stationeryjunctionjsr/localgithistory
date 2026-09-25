@@ -254,10 +254,10 @@ async def record_event(
             payload_items.append(EventPayloadItem(key="resultsCount", value=str(event.payload.results_count)))
         if event.payload.reason is not None:
             payload_items.append(EventPayloadItem(key="reason", value=str(event.payload.reason)))
-        if event.payload.testRunId is not None:
-            payload_items.append(EventPayloadItem(key="testRunId", value=str(event.payload.testRunId)))
-        if event.payload.screen is not None:
-            payload_items.append(EventPayloadItem(key="screen", value=str(event.payload.screen)))
+        if getattr(event.payload, "test_run_id", getattr(event.payload, "testRunId", None)) is not None:
+            payload_items.append(EventPayloadItem(key="testRunId", value=str(getattr(event.payload, "test_run_id", getattr(event.payload, "testRunId", "")))))
+        if getattr(event.payload, "screen", None) is not None:
+            payload_items.append(EventPayloadItem(key="screen", value=str(getattr(event.payload, "screen", ""))))
     
 
     payload_items.append(EventPayloadItem(key="userId", value=str(user_id) if user_id else ""))

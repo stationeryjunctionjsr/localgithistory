@@ -15,31 +15,16 @@ class MySQLValetPayoutDAO:
         return get_async_session_factory()
 
     def _map_row(self, row) -> ValetPayoutDetailResponse:
-        return ValetPayoutDetailResponse(
-            id=str(row.id),
-            valetId=row.valet_id,
-            amount=float(row.amount) if row.amount is not None else 0.0,
-            deliveryCount=row.delivery_count if row.delivery_count is not None else 0,
-            returnCount=row.return_count if row.return_count is not None else 0,
-            periodStart=row.period_start.isoformat() + "Z" if row.period_start else None,
-            periodEnd=row.period_end.isoformat() + "Z" if row.period_end else None,
-            status=row.status if row.status else 'pending_payment',
-            paymentMethod=row.payment_method,
-            paymentReference=row.payment_reference,
-            adminPaidAt=row.admin_paid_at.isoformat() + "Z" if row.admin_paid_at else None,
-            adminPaidBy=row.admin_paid_by,
-            valetReceivedAt=row.valet_received_at.isoformat() + "Z" if row.valet_received_at else None,
-            notes=row.notes,
-            createdAt=row.created_at.isoformat() + "Z" if row.created_at else None,
-            updatedAt=row.updated_at.isoformat() + "Z" if row.updated_at else None,
-        )
+        d = dict(row._mapping)
+        d["id"] = str(d["id"])
+        return ValetPayoutDetailResponse.model_validate(d)
 
     async def findAll(self, query: Dict = None) -> List[ValetPayoutDetailResponse]:
         query = query or {}
         where_clauses = []
         params = {}
         if "valet_id" in query:
-            where_clauses.append("valet_id = :valetId")
+            where_clauses.append("valet_id = :valet_id")
             params["valet_id"] = query["valet_id"]
         if "status" in query:
             where_clauses.append("status = :status")
@@ -91,7 +76,7 @@ class MySQLValetPayoutDAO:
 
         if data.valet_id is not None:
             cols.append("valet_id")
-            vals.append(":valetId")
+            vals.append(":valet_id")
             params["valet_id"] = data.valet_id
         if data.amount is not None:
             cols.append("amount")
@@ -107,11 +92,11 @@ class MySQLValetPayoutDAO:
             params["return_count"] = data.return_count
         if data.period_start is not None:
             cols.append("period_start")
-            vals.append(":periodStart")
+            vals.append(":period_start")
             params["period_start"] = _parse_dt(data.period_start)
         if data.period_end is not None:
             cols.append("period_end")
-            vals.append(":periodEnd")
+            vals.append(":period_end")
             params["period_end"] = _parse_dt(data.period_end)
         if data.status is not None:
             cols.append("status")

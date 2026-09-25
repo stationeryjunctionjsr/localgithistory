@@ -28,7 +28,7 @@ def _format_collection_response(collection):
                 try:
                     parsed_rules.append(VisibilityRuleSnippet.model_validate_json(r_str))
                 except Exception:
-                    pass
+                    logger.warning("Collection %r has a visibility rule that could not be parsed as JSON: %r; skipping rule.", getattr(collection, 'id', '?'), r_str, exc_info=True)
             else:
                 parsed_rules.append(VisibilityRuleSnippet.model_validate(r_str, from_attributes=True))
                 

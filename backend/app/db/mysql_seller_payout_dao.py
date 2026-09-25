@@ -16,22 +16,9 @@ class MySQLSellerPayoutDAO:
         return get_async_session_factory()
 
     def _map_row(self, row) -> SellerPayoutDetailResponse:
-        return SellerPayoutDetailResponse(
-            id=str(row.id),
-            seller_id=row.seller_id,
-            amount=float(row.amount) if row.amount is not None else 0.0,
-            period_start=row.period_start.isoformat() + "Z" if row.period_start else None,
-            period_end=row.period_end.isoformat() + "Z" if row.period_end else None,
-            status=row.status if row.status else 'pending_payment',
-            payment_method=row.payment_method,
-            payment_reference=row.payment_reference,
-            admin_paid_at=row.admin_paid_at.isoformat() + "Z" if row.admin_paid_at else None,
-            admin_paid_by=row.admin_paid_by,
-            seller_received_at=row.seller_received_at.isoformat() + "Z" if row.seller_received_at else None,
-            notes=row.notes,
-            created_at=row.created_at.isoformat() + "Z" if row.created_at else None,
-            updated_at=row.updated_at.isoformat() + "Z" if row.updated_at else None,
-        )
+        d = dict(row._mapping)
+        d["id"] = str(d["id"])
+        return SellerPayoutDetailResponse.model_validate(d)
 
     async def _fetch_sub_orders(self, payout_id: str) -> List[str]:
         factory = self._factory()
@@ -60,7 +47,7 @@ class MySQLSellerPayoutDAO:
         where_clauses = []
         params = {}
         if "seller_id" in query:
-            where_clauses.append("seller_id = :sellerId")
+            where_clauses.append("seller_id = :seller_id")
             params["seller_id"] = query["seller_id"]
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
@@ -114,7 +101,7 @@ class MySQLSellerPayoutDAO:
 
         if data.seller_id is not None:
             cols.append("seller_id")
-            vals.append(":sellerId")
+            vals.append(":seller_id")
             params["seller_id"] = data.seller_id
         if data.amount is not None:
             cols.append("amount")
@@ -122,11 +109,11 @@ class MySQLSellerPayoutDAO:
             params["amount"] = data.amount
         if data.period_start is not None:
             cols.append("period_start")
-            vals.append(":periodStart")
+            vals.append(":period_start")
             params["period_start"] = _parse_dt(data.period_start)
         if data.period_end is not None:
             cols.append("period_end")
-            vals.append(":periodEnd")
+            vals.append(":period_end")
             params["period_end"] = _parse_dt(data.period_end)
         if data.notes is not None:
             cols.append("notes")

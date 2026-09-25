@@ -13,7 +13,7 @@ class User(CamelBaseModel):
     email: Optional[str] = None
     password: Optional[str] = None
     role: Optional[str] = None
-    phone: str = ""
+    phone: Optional[str] = ""
     company_name: Optional[str] = None
     gst_number: Optional[str] = None
     address: Optional['Address'] = None

@@ -1,7 +1,7 @@
-import logging
 """
 OCI Object Storage configuration. Bucket is private; use PAR/signed URLs for read access.
 """
+import logging
 
 import os
 
@@ -18,6 +18,8 @@ OCI_PRIVATE_KEY = os.environ["OCI_PRIVATE_KEY"] if "OCI_PRIVATE_KEY" in os.envir
 
 # PAR validity for read URLs (seconds). Short = lower risk; 1 hour is a reasonable default.
 OCI_PAR_EXPIRY_SECONDS = int(os.environ["OCI_PAR_EXPIRY_SECONDS"] if "OCI_PAR_EXPIRY_SECONDS" in os.environ else "3600")
+
+logger = logging.getLogger(__name__)
 
 
 def use_oci_storage() -> bool:
@@ -37,4 +39,6 @@ def use_oci_storage() -> bool:
         serialization.load_pem_private_key(key_content.encode("utf-8"), password=None)
         return True
     except Exception:
+        logger.warning("OCI private key is set but failed to parse as a valid PEM key; OCI storage disabled.", exc_info=True)
         return False
+

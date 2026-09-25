@@ -16,6 +16,7 @@ Endpoints:
   GET    /seller-availability          - View all sellers' windows (admin only)
 """
 
+import logging
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Any, Dict, List, Optional, Set
@@ -25,6 +26,8 @@ from pydantic import BaseModel, Field, validator, ConfigDict
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_current_user, require_super_admin
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 storage = get_storage("sellerAvailability")
@@ -109,6 +112,7 @@ async def is_seller_currently_unavailable(seller_id: str) -> bool:
             if start <= now <= end:
                 return True
         except Exception:
+            logger.warning("Seller availability doc %r has unparseable startAt/endAt; skipping.", getattr(doc, 'id', '?'), exc_info=True)
             continue
     return False
 
@@ -135,6 +139,7 @@ async def get_all_unavailable_seller_ids() -> Set[str]:
                 if seller_id:
                     unavailable_sellers.add(str(seller_id))
         except Exception:
+            logger.warning("Seller availability doc %r has unparseable startAt/endAt; skipping from unavailable set.", getattr(doc, 'id', '?'), exc_info=True)
             continue
 
     _unavailable_cache["data"] = unavailable_sellers
@@ -171,8 +176,10 @@ async def get_seller_unavailable_until(seller_ids: Set[str]) -> Optional[str]:
                     if latest_end is None or end > latest_end:
                         latest_end = end
             except Exception:
+                logger.warning("Seller availability doc %r has unparseable startAt/endAt; skipping from unavailable-until lookup.", getattr(doc, 'id', '?'), exc_info=True)
                 continue
     except Exception:
+        logger.warning("Failed to fetch seller availability docs for unavailable-until lookup; returning None.", exc_info=True)
         return None
 
     if latest_end is None:
@@ -252,8 +259,10 @@ async def get_zone_seller_availability_status(pincode: Optional[str] = None):
                     if sid not in result or end_str > result[sid]:
                         result[sid] = end_str
             except Exception:
+                logger.warning("Seller availability doc %r has unparseable startAt/endAt in zone-status; skipping.", getattr(doc, 'id', '?'), exc_info=True)
                 continue
     except Exception:
+        logger.warning("Failed to fetch seller availability docs for zone-status pincode=%r; returning empty.", None, exc_info=True)
         return {"unavailableSellers": {}}
 
     return {"unavailableSellers": result}
@@ -414,5 +423,6 @@ async def tick_availability_statuses(
                 await storage.update(doc_id, {"status": "ended"})
                 updated += 1
         except Exception:
+            logger.warning("tick: failed to process seller availability doc %r; skipping.", getattr(doc, 'id', '?'), exc_info=True)
             continue
     return {"updated": updated, "checked": len(docs)}

@@ -1,11 +1,14 @@
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
+import logging
 import time
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 APP_START_TIME = time.time()
 
@@ -64,6 +67,7 @@ async def check_health():
             else:
                 db_status = "unconfigured"
         except Exception:
+            logger.debug("Oracle DB health probe failed; reporting db=unreachable.", exc_info=True)
             db_status = "unreachable"
     else:
         # JSON file-based storage — check that the data directory is readable
@@ -76,6 +80,7 @@ async def check_health():
             if not data_path.exists():
                 db_status = "data_dir_missing"
         except Exception:
+            logger.debug("File storage health probe failed; reporting db=unreachable.", exc_info=True)
             db_status = "unreachable"
 
     payload = HealthResponse(

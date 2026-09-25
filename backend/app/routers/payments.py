@@ -63,6 +63,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
         try:
             terms_days = int(terms_days)
         except Exception:
+            logging.warning("User %r has non-integer payment_terms %r; defaulting to 30 days.", getattr(current_user, 'id', '?'), terms_days, exc_info=True)
             terms_days = 30
 
     # 2. Get all payments for this user
@@ -114,6 +115,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
                         .replace(tzinfo=None)
                     )
                 except Exception:
+                    logging.warning("Credit bill %r has unparseable order_date %r; defaulting to now for due-date calculation.", getattr(bill, 'id', '?'), order_date_raw, exc_info=True)
                     order_date = now
             else:
                 # It's already a datetime object

@@ -82,6 +82,11 @@ class UserRepository:
             all_ids = [u.userId for u in await self.storage.findAll() if isinstance(u.userId, int)]
             user_id = (max(all_ids) + 1) if all_ids else 1
         except Exception:
+            logger.error(
+                "Failed to fetch all user IDs to generate next userId; falling back to userId=1. "
+                "This may cause ID collisions if the storage is temporarily unavailable.",
+                exc_info=True,
+            )
             user_id = 1
         user_id_formatted = f"USER-{user_id}"
 

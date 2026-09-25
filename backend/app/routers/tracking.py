@@ -5,7 +5,9 @@ from app.models.schemas import MessageResponse, TrackBeaconRequest, TrackNotifyP
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Body, Depends, Query, Request
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel
+from app.models.base import CamelBaseModel
+from pydantic import Field, ConfigDict
 
 from app.repositories.tracking_repository import tracking_repository
 from app.utils.auth import get_optional_user, require_super_admin
@@ -34,7 +36,7 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
 
 # Tracking request models
 
-class BaseTrackingRequest(BaseModel):
+class BaseTrackingRequest(CamelBaseModel):
     campaign: Optional[str] = None
     source: Optional[str] = None
     os: Optional[str] = None
@@ -42,45 +44,45 @@ class BaseTrackingRequest(BaseModel):
     ipAddress: Optional[str] = None
 
 class TrackSearchRequest(BaseTrackingRequest):
-    searchTerm: str
-    resultsCount: int = 0
-    sessionId: Optional[str] = None
-    productIds: Optional[list] = None  # product IDs returned in search (for trending conversion)
+    search_term: str
+    results_count: int = 0
+    session_id: Optional[str] = None
+    product_ids: Optional[list] = None  # product IDs returned in search (for trending conversion)
 
 
 class TrackViewRequest(BaseTrackingRequest):
-    productId: str
-    productName: str
-    sessionId: Optional[str] = None
+    product_id: str
+    product_name: str
+    session_id: Optional[str] = None
 
 
 class TrackClickRequest(BaseTrackingRequest):
-    productId: str
-    productName: str
+    product_id: str
+    product_name: str
     source: str = "unknown"
-    sessionId: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 class TrackCartAbandonmentRequest(BaseTrackingRequest):
-    cartItems: list = []
-    cartValue: float = 0
-    sessionId: Optional[str] = None
+    cart_items: list = []
+    cart_value: float = 0
+    session_id: Optional[str] = None
 
 
 class TrackSessionRequest(BaseTrackingRequest):
-    sessionId: str
+    session_id: str
     isReturning: bool = False
 
 
 class TrackPageViewRequest(BaseTrackingRequest):
     page: str
-    sessionId: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 class TrackDropOffRequest(BaseTrackingRequest):
     page: str
     reason: str
-    sessionId: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 class TrackErrorRequest(BaseTrackingRequest):
@@ -89,7 +91,7 @@ class TrackErrorRequest(BaseTrackingRequest):
     url: Optional[str] = None
     line: Optional[int] = None
     col: Optional[int] = None
-    sessionId: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 
@@ -108,12 +110,12 @@ class ZeroResultSearchResponse(BaseModel):
     count: int
 
 class MostViewedResponse(BaseModel):
-    productId: str
-    productName: str
+    product_id: str
+    product_name: str
     count: int
 
 class ReturningUserResponse(BaseModel):
-    userId: str
+    user_id: str
     name: str
     email: str
     lastSeen: Optional[str] = None
@@ -126,17 +128,17 @@ class DropOffPointResponse(BaseModel):
 class CartAbandonmentResponse(BaseModel):
     id: Optional[str] = Field(None, alias="_id")
     type: Optional[str] = None
-    userId: Optional[str] = None
-    sessionId: Optional[str] = None
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
     timestamp: Optional[str] = None
-    cartItems: List[ItemSnippet] = []
-    cartValue: Optional[float] = 0.0
+    cart_items: List[ItemSnippet] = []
+    cart_value: Optional[float] = 0.0
     
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
 
 class MostAbandonedProductResponse(BaseModel):
-    productId: str
-    productName: str
+    product_id: str
+    product_name: str
     category: str
     abandonCount: int
     quantityAbandoned: int
@@ -152,8 +154,8 @@ async def track_beacon(
     """Accept beacon payloads (e.g. from navigator.sendBeacon on page unload)."""
     beacon_data = AnalyticsEventCreate(
         type="beacon",
-        userId=current_user.id if current_user else None,
-        sessionId=payload.session_id,
+        user_id=current_user.id if current_user else None,
+        session_id=payload.session_id,
         page=payload.page,
         timestamp=payload.timestamp,
         os=ext_os(payload, request),
@@ -222,7 +224,7 @@ async def track_cart_abandonment(
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackCartAbandonment(
-        current_user.id if current_user else None, payload.cartItems, payload.cart_value, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
+        current_user.id if current_user else None, payload.cart_items, payload.cart_value, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Cart abandonment tracked"}
 
 
@@ -285,21 +287,21 @@ async def track_frontend_error(
 
 
 class TrackCartItemRemoveRequest(BaseTrackingRequest):
-    productId: str
+    product_id: str
     quantity: int = 1
-    sessionId: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 class TrackCartItemAddRequest(BaseTrackingRequest):
-    productId: str
+    product_id: str
     quantity: int = 1
-    sessionId: Optional[str] = None
+    session_id: Optional[str] = None
 
 
 class TrackFilterClickRequest(BaseTrackingRequest):
-    filterType: str
-    filterValue: str
-    sessionId: Optional[str] = None
+    filter_type: str
+    filter_value: str
+    session_id: Optional[str] = None
 
 
 @router.post("/cart-remove", response_model=MessageResponse)
@@ -334,29 +336,29 @@ async def track_filter_click(
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackFilterClick(
-        current_user.id if current_user else None, payload.filterType, payload.filter_value, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
+        current_user.id if current_user else None, payload.filter_type, payload.filter_value, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ipAddress=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Filter click tracked"}
 
 
 @router.get("/recent", response_model=List[str])
 async def get_recent_searches(
-    sessionId: Optional[str] = None,
+    session_id: Optional[str] = None,
     limit: int = Query(5, ge=1, le=20),
     current_user: Optional[User] = Depends(get_optional_user),
     req: Request = None,
 ):
     user_id = current_user.id if current_user else None
-    return await tracking_repository.getRecentUserSearches(user_id, sessionId, limit)
+    return await tracking_repository.getRecentUserSearches(user_id, session_id, limit)
 
 
 @router.delete("/recent", response_model=MessageResponse)
 async def clear_recent_searches(
-    sessionId: Optional[str] = None,
+    session_id: Optional[str] = None,
     current_user: Optional[User] = Depends(get_optional_user),
     req: Request = None,
 ):
     user_id = current_user.id if current_user else None
-    await tracking_repository.clearRecentSearches(user_id, sessionId)
+    await tracking_repository.clearRecentSearches(user_id, session_id)
     return {"ok": True}
 
 
@@ -477,12 +479,12 @@ async def track_notify_pincode(request: Request, data: TrackNotifyPincodeRequest
     # Store the notification request
     record = AnalyticsEventCreate(
         type="notify_pincode",
-        productId=data.product_id,
-        productName=data.product_name,
-        userId=user_id,
+        product_id=data.product_id,
+        product_name=data.product_name,
+        user_id=user_id,
         filterName="email",
-        filterValue=user_email,
-        searchTerm=data.pincode,
+        filter_value=user_email,
+        search_term=data.pincode,
         browser=(request.headers["user-agent"][:500] if "user-agent" in request.headers else None),
 
         ipAddress=request.client.host if request.client else None

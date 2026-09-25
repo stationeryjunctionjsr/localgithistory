@@ -16,6 +16,8 @@ from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.config.settings import settings
 
+logger = logging.getLogger(__name__)
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -25,6 +27,7 @@ def _safe_float(v):
     try:
         return float(v) if v is not None else 0.0
     except Exception:
+        logger.warning("_safe_float: cannot convert %r to float, defaulting to 0.0", v, exc_info=True)
         return 0.0
 
 
@@ -72,117 +75,57 @@ class MySQLSubOrderDAO:
         return get_async_session_factory()
 
     def _map_to_schema(self, row, items_rows=None) -> 'SubOrder':
-        """Construct the NoSQL-style dictionary from flattened SQL columns."""
-        doc = {
-            "_id": str(row.id),
-            "_db_id": str(row.id),
-        }
-
-        # Scalars
-        if row.sub_order_number is not None:
-            doc["subOrderNumber"] = row.sub_order_number
-        if row.parent_order_id is not None:
-            doc["parentOrderId"] = row.parent_order_id
-        if row.parent_order_number is not None:
-            doc["parentOrderNumber"] = row.parent_order_number
-        if row.seller_id is not None:
-            doc["sellerId"] = row.seller_id
-        if row.seller_name is not None:
-            doc["sellerName"] = row.seller_name
-        if row.user_id is not None:
-            doc["user"] = row.user_id
-        if row.subtotal is not None:
-            doc["subtotal"] = float(row.subtotal)
-        if row.tax is not None:
-            doc["tax"] = float(row.tax)
-        if row.shipping is not None:
-            doc["shipping"] = float(row.shipping)
-        if row.delivery_gst is not None:
-            doc["deliveryGst"] = float(row.delivery_gst)
-        if row.discount is not None:
-            doc["discount"] = float(row.discount)
-        if row.total is not None:
-            doc["total"] = float(row.total)
-        if row.order_type is not None:
-            doc["orderType"] = row.order_type
-        if row.status is not None:
-            doc["status"] = row.status
-        if row.payment_method is not None:
-            doc["paymentMethod"] = row.payment_method
-        if row.payment_status is not None:
-            doc["paymentStatus"] = row.payment_status
-        if row.is_urgent_delivery is not None:
-            doc["isUrgentDelivery"] = bool(row.is_urgent_delivery)
-        if row.notes is not None:
-            doc["notes"] = row.notes
-        if row.coupon_code is not None:
-            doc["couponCode"] = row.coupon_code
-        if row.commission_status is not None:
-            doc["commissionStatus"] = row.commission_status
-        if getattr(row, 'commission_amount', None) is not None:
-            doc["commissionAmount"] = float(row.commission_amount)
-        if getattr(row, 'commission_pct', None) is not None:
-            doc["commissionPct"] = float(row.commission_pct)
-
-        # Nested Objects
-        if row.delivery_slot_config_id or row.delivery_slot_id or row.delivery_slot_date:
-            doc["deliverySlot"] = {
-                "configId": row.delivery_slot_config_id,
-                "slotId": row.delivery_slot_id,
-                "date": row.delivery_slot_date,
+        d = dict(row._mapping)
+        d["id"] = str(d["id"])
+        
+        # Flattened nested objects
+        d["delivery_slot"] = None
+        if d.get("delivery_slot_config_id") or d.get("delivery_slot_id") or d.get("delivery_slot_date"):
+            d["delivery_slot"] = {
+                "configId": d.get("delivery_slot_config_id"),
+                "slotId": d.get("delivery_slot_id"),
+                "date": d.get("delivery_slot_date"),
             }
 
-        if row.coupon_info_type or row.coupon_info_value is not None:
-            doc["couponInfo"] = {
-                "discountType": row.coupon_info_type,
-                "discountValue": float(row.coupon_info_value) if row.coupon_info_value is not None else 0,
+        d["coupon_info"] = None
+        if d.get("coupon_info_type") or d.get("coupon_info_value") is not None:
+            d["coupon_info"] = {
+                "discountType": d.get("coupon_info_type"),
+                "discountValue": float(d.get("coupon_info_value")) if d.get("coupon_info_value") is not None else 0,
             }
 
-        doc["shippingAddress"] = {
-            "name": row.shipping_name,
-            "phone": row.shipping_phone,
-            "street": row.shipping_line1,
-            "city": row.shipping_city,
-            "state": row.shipping_state,
-            "pincode": row.shipping_pincode,
+        d["shipping_address"] = {
+            "name": d.get("shipping_name"),
+            "phone": d.get("shipping_phone"),
+            "street": d.get("shipping_line1"),
+            "city": d.get("shipping_city"),
+            "state": d.get("shipping_state"),
+            "pincode": d.get("shipping_pincode"),
         }
 
-        doc["billingAddress"] = {
-            "name": row.billing_name,
-            "phone": row.billing_phone,
-            "street": row.billing_line1,
-            "city": row.billing_city,
-            "state": row.billing_state,
-            "pincode": row.billing_pincode,
+        d["billing_address"] = {
+            "name": d.get("billing_name"),
+            "phone": d.get("billing_phone"),
+            "street": d.get("billing_line1"),
+            "city": d.get("billing_city"),
+            "state": d.get("billing_state"),
+            "pincode": d.get("billing_pincode"),
         }
 
-        # Arrays
         items = []
         if items_rows:
             for it in items_rows:
-                if it.sub_order_id == row.id:
-                    items.append({"productId": it.product_id, "name": it.name, "qty": it.qty, "price": float(it.price)})
-        doc["items"] = items
+                if getattr(it, "sub_order_id", None) == row.id:
+                    items.append({
+                        "productId": it.product_id, 
+                        "name": it.name, 
+                        "qty": it.qty, 
+                        "price": float(it.price)
+                    })
+        d["items"] = items
 
-        # Dates
-        if row.delivered_at:
-            doc["deliveredAt"] = row.delivered_at.isoformat()
-        if row.dispatched_at:
-            doc["dispatchedAt"] = row.dispatched_at.isoformat()
-        if row.cancelled_at:
-            doc["cancelledAt"] = row.cancelled_at.isoformat()
-
-        # Valet pickup tracking
-        doc["pickupStatus"] = row.pickup_status if row.pickup_status else "pending_pickup"
-        doc["assignedValet"] = row.assigned_valet
-        if row.picked_up_at:
-            doc["pickedUpAt"] = row.picked_up_at.isoformat()
-
-        doc["createdAt"] = row.created_at.isoformat() if row.created_at else _now_iso()
-        doc["updatedAt"] = row.updated_at.isoformat() if row.updated_at else _now_iso()
         from app.models.sub_order import SubOrder
-        print('DOC:', doc)
-        return SubOrder(**doc)
+        return SubOrder.model_validate(d)
 
     def _build_where(self, query: Dict):
         where_clauses = []

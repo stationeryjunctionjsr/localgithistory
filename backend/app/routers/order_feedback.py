@@ -1,6 +1,7 @@
 from app.models.user import User
 from typing import Dict, Any, List
 from app.models.schemas import MessageResponse
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models.daos_flat import OrderFeedbackInternalCreate
@@ -9,6 +10,8 @@ from app.repositories.order_feedback_repository import order_feedback_repository
 from app.repositories.order_repository import order_repository
 from app.repositories.user_repository import user_repository
 from app.utils.auth import get_current_user, require_super_admin
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -94,6 +97,10 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
         if not latest_feedback_date.tzinfo:
             latest_feedback_date = latest_feedback_date.replace(tzinfo=timezone.utc)
     except Exception:
+        logger.warning(
+            "Could not parse latest feedback createdAt %r for feedback %r; defaulting to now() for eligibility window.",
+            latest_feedback.createdAt, getattr(latest_feedback, 'id', '?'), exc_info=True,
+        )
         latest_feedback_date = datetime.now(timezone.utc)
 
     next_eligible_date = latest_feedback_date + relativedelta(months=1)

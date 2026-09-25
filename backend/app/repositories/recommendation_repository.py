@@ -955,6 +955,7 @@ class RecommendationRepository:
                 self.activity_storage.findAll({"action": "recommendation_add_to_cart"}),
             )
         except Exception:
+            logger.warning("Failed to fetch activity docs for engagement scoring; returning zero scores.", exc_info=True)
             return scores
 
         for docs, weight in [

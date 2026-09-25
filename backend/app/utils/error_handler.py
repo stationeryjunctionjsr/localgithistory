@@ -49,6 +49,7 @@ class EmailLogHandler(logging.Handler):
                 try:
                     current_user = message.split("user ")[1].split("\n")[0].strip()
                 except Exception:
+                    logger.debug("Could not extract user from error message; defaulting to anonymous.", exc_info=True)
                     current_user = "anonymous"
 
             error_data["users"].add(current_user)
