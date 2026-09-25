@@ -80,7 +80,7 @@ class BannerPosition(str, Enum):
 # User Schemas
 
 class AddressSnippet(CamelBaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='ignore')
+    model_config = ConfigDict(extra='ignore')
     name: Optional[str] = None
     is_primary: Optional[bool] = None
     phone: Optional[str] = None
