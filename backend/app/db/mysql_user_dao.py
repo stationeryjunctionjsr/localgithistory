@@ -165,7 +165,7 @@ class MySQLUserDAO:
             return None
         async with factory() as session:
             try:
-                row = (await session.execute(text(f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE id = :id\n            '), {'id': int(id) if str(id).isdigit() else None})).fetchone()
+                row = (await session.execute(text(f'\n                SELECT id, external_id, user_id_formatted, name, email, password_hash,\n                       role, phone, company_name, gst_number, is_active,\n                       approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                       assigned_salesperson, is_email_verified, referral_code,\n                       is_seller_admin, is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                       bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                       created_at, updated_at\n                FROM {self.TABLE} WHERE external_id = :id_str OR id = :id_int\n            '), {'id_str': str(id), 'id_int': int(id) if str(id).isdigit() else None})).fetchone()
                 if not row:
                     return None
                 children_map = await self._fetch_children(session, [int(row.id)])
@@ -342,9 +342,9 @@ class MySQLUserDAO:
                         bank_account_number = :bank_account_number, bank_ifsc_code = :bank_ifsc_code,
                         bank_account_holder = :bank_account_holder, bank_name = :bank_name,
                         updated_at = :updated_at
-                    WHERE id = :id
+                    WHERE external_id = :id_str OR id = :id_int
                 '''), {
-                    'id': int(id) if str(id).isdigit() else None,
+                    'id_str': str(id), 'id_int': int(id) if str(id).isdigit() else None,
                     'name': name,
                     'email': email,
                     'password_hash': password_hash,
@@ -401,7 +401,7 @@ class MySQLUserDAO:
             return False
         async with factory() as session:
             try:
-                result = await session.execute(text(f'DELETE FROM {self.TABLE} WHERE id = :id'), {'id': int(id) if str(id).isdigit() else None})
+                result = await session.execute(text(f'DELETE FROM {self.TABLE} WHERE external_id = :id_str OR id = :id_int'), {'id_str': str(id), 'id_int': int(id) if str(id).isdigit() else None})
                 await session.commit()
                 return result.rowcount > 0
             except Exception as e:

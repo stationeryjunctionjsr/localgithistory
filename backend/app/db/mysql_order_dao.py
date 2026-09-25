@@ -1,3 +1,4 @@
+from app.models.schemas import ItemSnippet, ValetDeclineHistoryEntry
 from typing import Any
 import logging
 """
@@ -67,8 +68,8 @@ class MySQLOrderDAO:
 
     def __map_to_schema(self, r, items: List[Dict], declines: List[Dict]) -> Order:
         order = Order.model_validate(r)
-        order.items = items
-        order.valet_decline_history = declines
+        order.items = [ItemSnippet.model_validate(i) for i in items]
+        order.valet_decline_history = [ValetDeclineHistoryEntry.model_validate(d) for d in declines]
         return order
 
     def _build_query_conditions(self, query: Optional[Dict]) -> tuple[str, Dict]:
@@ -520,6 +521,7 @@ class MySQLOrderDAO:
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+
 
 
 
