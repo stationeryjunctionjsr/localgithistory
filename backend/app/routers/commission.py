@@ -152,10 +152,13 @@ async def is_return_period_over(sub_order: dict) -> bool:
     if not delivered_at_raw:
         return False
 
-    try:
-        delivered_at = datetime.fromisoformat(delivered_at_raw.replace("Z", "+00:00"))
-    except ValueError:
-        return False
+    if isinstance(delivered_at_raw, datetime):
+        delivered_at = delivered_at_raw
+    else:
+        try:
+            delivered_at = datetime.fromisoformat(delivered_at_raw.replace("Z", "+00:00"))
+        except ValueError:
+            return False
 
     settings = await return_settings_repository.get_settings()
     return_days: int = int(settings.returnDays if settings.returnDays is not None else 7)
@@ -212,14 +215,14 @@ async def maybe_realize_commission(sub_order: dict) -> dict:
         return sub_order
 
     # Do not realize if a return is in progress or completed for this sub-order
-    if sub_order.return_status in ("pending", "pending_valet", "assigned", "collected", "approved", "returned"):
+    if getattr(sub_order, "return_status", None) in ("pending", "pending_valet", "assigned", "collected", "approved", "returned"):
         return sub_order
 
     if await is_return_period_over(sub_order):
         from app.repositories.sub_order_repository import sub_order_repository
 
-        updated = await sub_order_repository.update(sub_order["_id"], SubOrderInternalUpdate(commissionStatus="realized"))
-        return updated if updated else {**sub_order, "commissionStatus": "realized"}
+        updated = await sub_order_repository.update(sub_order.id, SubOrderInternalUpdate(commissionStatus="realized"))
+        return updated if updated else updated
 
     return sub_order
 
@@ -420,4 +423,7 @@ async def realize_pending_commissions(
         except Exception as e:
             logger.warning("Failed to realize commission for sub-order %s: %s", so.id, e)
             errors += 1
-    return {"promoted": promoted, "errors": errors, "checked": len(candidates)}
+    return {"realized": promoted, "errors": errors, "processed": len(candidates)}
+
+
+
