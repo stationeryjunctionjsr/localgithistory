@@ -148,3 +148,22 @@ backend/seed_*.py
 /failures_log.txt
 /flake8_output.txt
 /pyflakes_*.txt
+
+# One-off backend root-level migration / fix / scratch scripts
+backend/fix_*.py
+backend/fix*.py
+backend/update_*.py
+backend/flatten_*.py
+backend/refactor_*.py
+backend/print_*.py
+backend/scratch_*.py
+backend/inspect_*.py
+backend/patch_*.py
+backend/reapply.py
+backend/wait.py
+backend/kill_db.py
+backend/list_tables.py
+backend/move_route.py
+backend/add_import.py
+backend/finish_*.py
+backend/run.py
