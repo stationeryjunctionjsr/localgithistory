@@ -1843,19 +1843,6 @@ async def create_order(
                 for sdo in order_data.sellerDeliveryOptions:
                     seller_delivery_map[sdo.seller_id] = sdo
 
-            # Fetch delivery charge data once (same pincode for all sub-orders)
-            try:
-                await delivery_charge_repository.getChargeForLocation(
-                    order_data.shipping_address.state if order_data.shipping_address.state is not None else "",
-                    order_data.shipping_address.city if order_data.shipping_address.city is not None else "",
-                    order_data.shipping_address.district if order_data.shipping_address.district is not None else "",
-                    order_data.shipping_address.zip_code if order_data.shipping_address.zip_code is not None else "",
-                    effective_role,
-                    subtotal,
-                )
-            except Exception as e:
-                logging.warning("orders: could not fetch delivery charge for pincode %r (role=%r); order will proceed without charge: %s", order_data.shipping_address.zip_code, effective_role, e, exc_info=e)
-
             for idx, (seller_id, items_group) in enumerate(groups.items()):
                 sub_number = sub_order_repository._generate_sub_order_number(
                     parent_order_number, idx)
