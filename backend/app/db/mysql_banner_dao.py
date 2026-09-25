@@ -20,8 +20,7 @@ from app.db.db_utils import now_utc
 class MySQLBannerDAO:
     @property
     def TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_banners{suffix}"
+        return "sj_banners"
 
     def _factory(self):
         return get_async_session_factory()

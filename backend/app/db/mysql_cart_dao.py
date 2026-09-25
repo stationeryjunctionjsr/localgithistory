@@ -17,13 +17,11 @@ from app.db.db_utils import now_utc
 class MySQLCartDAO:
     @property
     def TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_carts{suffix}"
+        return "sj_carts"
 
     @property
     def ITEMS_TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_cart_items{suffix}"
+        return "sj_cart_items"
 
     def _factory(self):
         return get_async_session_factory()

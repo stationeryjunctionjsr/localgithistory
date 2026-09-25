@@ -17,8 +17,7 @@ from app.db.db_utils import now_utc
 class MySQLCommissionSettingsDAO:
     @property
     def TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_commission_settings{suffix}"
+        return "sj_commission_settings"
 
     def _factory(self):
         return get_async_session_factory()

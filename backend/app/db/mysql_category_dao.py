@@ -17,8 +17,7 @@ from app.models.category import Category
 class MySQLCategoryDAO:
     @property
     def TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_categories{suffix}"
+        return "sj_categories"
 
     def _factory(self):
         return get_async_session_factory()

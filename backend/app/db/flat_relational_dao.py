@@ -67,8 +67,7 @@ class FlatRelationalDAO:
 
     @property
     def table_name(self) -> str:
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"{self._raw_table_name}{suffix}"
+        return "{self._raw_table_name}"
 
     def _factory(self):
         return get_async_session_factory()
