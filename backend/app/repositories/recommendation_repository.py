@@ -474,7 +474,7 @@ class RecommendationRepository:
                 continue
             # City filter: match against the order's delivery city (shippingAddress.city)
             if city_filter:
-                order_city = order.shippingAddress.city if order.shippingAddress is not None and order.shippingAddress.city is not None else ""
+                order_city = order.shipping_address.city if order.shipping_address is not None and order.shipping_address.city is not None else ""
                 if not order_city or order_city.strip().lower() != city_filter:
                     continue
             pids_in_order = set()
@@ -555,7 +555,7 @@ class RecommendationRepository:
                 continue
             # City filter: match against the order's delivery city (shippingAddress.city)
             if city_filter:
-                order_city = order.shippingAddress.city if order.shippingAddress is not None and order.shippingAddress.city is not None else ""
+                order_city = order.shipping_address.city if order.shipping_address is not None and order.shipping_address.city is not None else ""
                 if not order_city or order_city.strip().lower() != city_filter:
                     continue
             pids_in_order = set()
@@ -655,7 +655,7 @@ class RecommendationRepository:
             if order.status == "cancelled":
                 continue
 
-            shipping = order.shippingAddress
+            shipping = order.shipping_address
             order_state = (shipping.state if shipping and shipping.state is not None else "").strip()
             order_city = (shipping.city if shipping and shipping.city is not None else "").strip()
 

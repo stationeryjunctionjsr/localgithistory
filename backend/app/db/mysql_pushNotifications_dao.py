@@ -132,9 +132,9 @@ class MySQLPushNotificationsDAO:
             cols.append("user_behavior")
             params["s_userBehavior"] = data.userBehavior
 
-        if data.createdBy is not None:
+        if data.created_by is not None:
             cols.append("created_by")
-            params["s_createdBy"] = data.createdBy
+            params["s_createdBy"] = data.created_by
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['title', 'message', 'link', 'image', 'status', 'scheduledFor', 'deliveredCount', 'readCount', 'userSegment', 'userBehavior', 'createdBy'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
@@ -196,9 +196,9 @@ class MySQLPushNotificationsDAO:
             updates.append("user_behavior = :s_userBehavior")
             params["s_userBehavior"] = data.userBehavior
 
-        if data.createdBy is not None:
+        if data.created_by is not None:
             updates.append("created_by = :s_createdBy")
-            params["s_createdBy"] = data.createdBy
+            params["s_createdBy"] = data.created_by
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)

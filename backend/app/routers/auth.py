@@ -194,7 +194,7 @@ async def msg91_webhook(
         raise HTTPException(status_code=403, detail="Invalid webhook secret")
 
     try:
-        status_val = payload.effective_status
+        status_val = payload.status or payload.type
         logger.info("[MSG91 WEBHOOK] OTP status update status=%s", status_val)
         # Add your database logging here if needed!
         return {"status": "success", "message": "Webhook received"}

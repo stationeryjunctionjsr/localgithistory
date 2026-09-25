@@ -80,8 +80,8 @@ class OrderRepository:
                 update_data.deliveredAt = datetime.now(timezone.utc).isoformat()
             order = await self.findById(id)
             if order and order.payment_method == "cod":
-                if update_data.paymentStatus is None:
-                    update_data.paymentStatus = "paid"
+                if update_data.payment_status is None:
+                    update_data.payment_status = "paid"
                 if update_data.codPaymentReceived is None:
                     update_data.codPaymentReceived = True
                 if update_data.codPaymentReceivedAt is None:

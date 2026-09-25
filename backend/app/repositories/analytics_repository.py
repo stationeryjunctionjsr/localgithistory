@@ -1171,7 +1171,7 @@ class AnalyticsRepository:
 
         coupon_stats: dict = {}
         for order in orders:
-            code = order.couponCode
+            code = order.coupon_code
             if not code:
                 continue
             if code not in coupon_stats:
@@ -1209,7 +1209,7 @@ class AnalyticsRepository:
             if order.status not in ["delivered", "completed", "shipped", "dispatched"]:
                 continue
 
-            shipping = order.shippingAddress or {}
+            shipping = order.shipping_address or {}
             city = shipping.city
             state = shipping.state
 
@@ -2092,7 +2092,7 @@ class AnalyticsRepository:
             if order.discount is None:
                 raise ValueError('Order discount is None')
             discount = float(order.discount)
-            if discount == 0 and not order.couponCode:
+            if discount == 0 and not order.coupon_code:
                 continue  # skip orders with no discount at all
 
             coupon_info = order.couponInfo or {}
@@ -2105,7 +2105,7 @@ class AnalyticsRepository:
                     "orderId": order.id,
                     "orderNumber": order.orderNumber,
                     "customerName": user.name,
-                    "couponCode": order.couponCode or "—",
+                    "couponCode": order.coupon_code or "—",
                     "discountType": coupon_info.discountType,
                     "discountValue": coupon_info.discountValue,
                     "grossSales": round(gross, 2),

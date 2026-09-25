@@ -63,7 +63,7 @@ async def validate_coupon_with_cart(body: CouponValidateCart, current_user: User
         None,
         cart_items=cart_items,
         product_repository=product_repository,
-        shipping_address=body.shippingAddress,
+        shipping_address=body.shipping_address,
     )
     if not validation.valid:
         raise HTTPException(status_code=400, detail=validation.message)

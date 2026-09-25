@@ -691,7 +691,7 @@ class ContactBase(CamelBaseModel):
             raise ValueError("Maximum 2 addresses allowed")
         return v
 
-    @field_validator("phoneNumbers")
+    @field_validator("phone_numbers")
     @classmethod
     def validate_phone_numbers(cls, v):
         if v and len(v) > 3:
@@ -1228,7 +1228,7 @@ class PaginatedProductResponse(CamelBaseModel):
 
 
 # Discount (Coupon) Schemas
-class QuantityTier(BaseModel):
+class QuantityTier(CamelBaseModel):
     quantity: int
     discount: float
 
@@ -1522,7 +1522,7 @@ class VerifyMsg91TokenResponse(BaseModel):
     token: Optional[str] = None
 
 
-class AdStats(BaseModel):
+class AdStats(CamelBaseModel):
     impressions: Optional[int] = 0
     clicks: Optional[int] = 0
     leads: Optional[int] = 0
@@ -1533,7 +1533,7 @@ class AdStats(BaseModel):
     ctr: Optional[float] = 0.0
     cvr: Optional[float] = 0.0
 
-class AdBase(BaseModel):
+class AdBase(CamelBaseModel):
     name: Optional[str] = None
     platform: Optional[str] = None
     objective: Optional[str] = None
@@ -1774,15 +1774,10 @@ class AnalyticsEventCreate(CamelBaseModel):
     deviceAppVersion: Optional[str] = None
 
 
-class Msg91WebhookPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+class Msg91WebhookPayload(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
     status: Optional[str] = None
-    Status: Optional[str] = None
     type: Optional[str] = None
-
-    @property
-    def effective_status(self) -> Optional[str]:
-        return self.Status or self.status or self.type
 
 
 class TrackBeaconRequest(CamelBaseModel):
@@ -1997,8 +1992,8 @@ class PushAnalyticsResponse(BaseModel):
     clicked: int = 0
 
 
-class VapidKeyResponse(BaseModel):
-    publicKey: str
+class VapidKeyResponse(CamelBaseModel):
+    public_key: str
 
 
 class SellerRequestCreate(BaseModel):
@@ -2014,8 +2009,8 @@ class SellerRequestResponseCreate(BaseModel):
     attachments: Optional[List[str]] = None
 
 
-class SellerRequestResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
+class SellerRequestResponse(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
     subject: Optional[str] = None
     description: Optional[str] = None
@@ -2025,8 +2020,8 @@ class SellerRequestResponse(BaseModel):
     user: Optional[UserSnippet] = None
     attachments: Optional[List[str]] = None
     responses: Optional[List[TicketResponseItem]] = None
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class UploadQRResponse(BaseModel):
@@ -2045,20 +2040,20 @@ class ValetEarningsResponse(BaseModel):
 
 
 
-class ActivityCreate(BaseModel):
-    userId: Optional[str] = None
+class ActivityCreate(CamelBaseModel):
+    user_id: Optional[str] = None
     action: Optional[str] = None
-    entityType: Optional[str] = None
-    entityId: Optional[str] = None
-    sessionId: Optional[str] = None
+    entity_type: Optional[str] = None
+    entity_id: Optional[str] = None
+    session_id: Optional[str] = None
     metadata: Optional[ActivityMetadata] = None
 
-class ActivityUpdate(BaseModel):
-    userId: Optional[str] = None
+class ActivityUpdate(CamelBaseModel):
+    user_id: Optional[str] = None
     action: Optional[str] = None
-    entityType: Optional[str] = None
-    entityId: Optional[str] = None
-    sessionId: Optional[str] = None
+    entity_type: Optional[str] = None
+    entity_id: Optional[str] = None
+    session_id: Optional[str] = None
     metadata: Optional[ActivityMetadata] = None
 
 class ActivityResponse(ActivityCreate):
@@ -2081,142 +2076,142 @@ class PaymentSnippet(BaseModel):
     entries: List['PaymentEntry'] = []
 
 
-class PopulatedOrderItemResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+class PopulatedOrderItemResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
     product: Optional['Product'] = None
     quantity: Optional[int] = None
     price: Optional[float] = None
-    stockStatus: Optional[str] = None
-    taxRate: Optional[float] = None
-    taxAmount: Optional[float] = None
+    stock_status: Optional[str] = None
+    tax_rate: Optional[float] = None
+    tax_amount: Optional[float] = None
 
 
-class PopulatedOrderResponse(BaseModel):
+class PopulatedOrderResponse(CamelBaseModel):
     """Fully-populated order returned by GET /orders endpoints.
 
     Every field that orders.py passes into this constructor is declared here.
     extra='forbid' ensures nothing is silently dropped.
     """
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+    model_config = ConfigDict(extra='forbid')
 
     id: Optional[str] = Field(default=None, alias="_id")
-    orderId: Optional[str] = None
+    order_id: Optional[str] = None
     status: Optional[str] = None
-    orderStatus: Optional[str] = None    # router alias for status
+    order_status: Optional[str] = None    # router alias for status
 
     user: Optional[UserSnippet] = None
-    assignedValet: Optional[ValetSnippet] = None
+    assigned_valet: Optional[ValetSnippet] = None
     payment: Optional[PaymentSnippet] = None
-    paymentEntries: Optional[List['PaymentEntry']] = None
+    payment_entries: Optional[List['PaymentEntry']] = None
     items: Optional[List[PopulatedOrderItemResponse]] = None
 
     # Financial summary
-    subTotal: Optional[float] = None
-    shippingCharge: Optional[float] = None
+    sub_total: Optional[float] = None
+    shipping_charge: Optional[float] = None
     total: Optional[float] = None
-    totalAmount: Optional[float] = None   # router alias for total
-    deliveryFee: Optional[float] = None   # router alias for shipping
+    total_amount: Optional[float] = None   # router alias for total
+    delivery_fee: Optional[float] = None   # router alias for shipping
     discount: Optional[float] = None
-    couponCode: Optional[str] = None      # populated when Order model stores it
+    coupon_code: Optional[str] = None      # populated when Order model stores it
 
     # Payment
-    paymentMethod: Optional[str] = None
-    paymentStatus: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_status: Optional[str] = None
 
     # Addresses
-    shippingAddress: Optional[Address] = None
-    billingAddress: Optional[Address] = None
+    shipping_address: Optional[Address] = None
+    billing_address: Optional[Address] = None
     address: Optional[Address] = None         # router alias for shippingAddress
 
     # Notes
     notes: Optional[str] = None
-    orderNotes: Optional[str] = None      # router alias for notes
-    adminNotes: Optional[str] = None      # populated when Order model stores it
-    valetNotes: Optional[str] = None      # populated when Order model stores it
+    order_notes: Optional[str] = None      # router alias for notes
+    admin_notes: Optional[str] = None      # populated when Order model stores it
+    valet_notes: Optional[str] = None      # populated when Order model stores it
 
     # Zone
-    zoneId: Optional[str] = None          # populated when Order model stores it
+    zone_id: Optional[str] = None          # populated when Order model stores it
 
     # Sub-orders
-    sub_orders: Optional[List['SubOrder']] = Field(default=None, alias="subOrders")
+    sub_orders: Optional[List['SubOrder']] = None
 
     # Timestamps
-    createdAt: Optional[datetime] = None
-    updatedAt: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
-class PaymentDetailsResponse(BaseModel):
-    upiId: Optional[str] = None
-    qrCodeUrl: Optional[str] = None
-    bankAccountNumber: Optional[str] = None
-    bankIfscCode: Optional[str] = None
-    bankAccountHolder: Optional[str] = None
-    bankName: Optional[str] = None
+class PaymentDetailsResponse(CamelBaseModel):
+    upi_id: Optional[str] = None
+    qr_code_url: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_ifsc_code: Optional[str] = None
+    bank_account_holder: Optional[str] = None
+    bank_name: Optional[str] = None
 
-class SellerPayoutDetailResponse(BaseModel):
+class SellerPayoutDetailResponse(CamelBaseModel):
     id: str
-    sellerId: str
-    sellerName: Optional[str] = None
+    seller_id: str
+    seller_name: Optional[str] = None
     amount: float
-    periodStart: Optional[str] = None
-    periodEnd: Optional[str] = None
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
     status: str
-    paymentMethod: Optional[str] = None
-    paymentReference: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
     notes: Optional[str] = None
-    subOrderIds: List[str] = []
-    createdBy: Optional[str] = None
-    adminPaidAt: Optional[str] = None
-    adminPaidBy: Optional[str] = None
-    sellerReceivedAt: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    sub_order_ids: List[str] = []
+    created_by: Optional[str] = None
+    admin_paid_at: Optional[str] = None
+    admin_paid_by: Optional[str] = None
+    seller_received_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
     # Seller payment details (shown to admin at payout time)
-    sellerUpiId: Optional[str] = None
-    sellerQrCodeUrl: Optional[str] = None
-    sellerBankAccountNumber: Optional[str] = None
-    sellerBankIfscCode: Optional[str] = None
-    sellerBankAccountHolder: Optional[str] = None
-    sellerBankName: Optional[str] = None
+    seller_upi_id: Optional[str] = None
+    seller_qr_code_url: Optional[str] = None
+    seller_bank_account_number: Optional[str] = None
+    seller_bank_ifsc_code: Optional[str] = None
+    seller_bank_account_holder: Optional[str] = None
+    seller_bank_name: Optional[str] = None
 
-class ValetPayoutCreate(BaseModel):
-    valetId: str
+class ValetPayoutCreate(CamelBaseModel):
+    valet_id: str
     amount: float = Field(..., ge=0)
-    deliveryCount: int = Field(default=0, ge=0)
-    returnCount: int = Field(default=0, ge=0)
-    periodStart: Optional[str] = None
-    periodEnd: Optional[str] = None
+    delivery_count: int = Field(default=0, ge=0)
+    return_count: int = Field(default=0, ge=0)
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
     notes: Optional[str] = None
 
-class ValetPayoutDetailResponse(BaseModel):
+class ValetPayoutDetailResponse(CamelBaseModel):
     id: str
-    valetId: str
-    valetName: Optional[str] = None
-    valetPhone: Optional[str] = None
+    valet_id: str
+    valet_name: Optional[str] = None
+    valet_phone: Optional[str] = None
     amount: float
-    deliveryCount: int = 0
-    returnCount: int = 0
-    periodStart: Optional[str] = None
-    periodEnd: Optional[str] = None
+    delivery_count: int = 0
+    return_count: int = 0
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
     status: str
-    paymentMethod: Optional[str] = None
-    paymentReference: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
     notes: Optional[str] = None
-    adminPaidAt: Optional[str] = None
-    adminPaidBy: Optional[str] = None
-    valetReceivedAt: Optional[str] = None
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    admin_paid_at: Optional[str] = None
+    admin_paid_by: Optional[str] = None
+    valet_received_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
     # Valet payment details
-    valetUpiId: Optional[str] = None
-    valetQrCodeUrl: Optional[str] = None
-    valetBankAccountNumber: Optional[str] = None
-    valetBankIfscCode: Optional[str] = None
-    valetBankAccountHolder: Optional[str] = None
-    valetBankName: Optional[str] = None
+    valet_upi_id: Optional[str] = None
+    valet_qr_code_url: Optional[str] = None
+    valet_bank_account_number: Optional[str] = None
+    valet_bank_ifsc_code: Optional[str] = None
+    valet_bank_account_holder: Optional[str] = None
+    valet_bank_name: Optional[str] = None
 
-class MarkPaidRequest(BaseModel):
-    paymentMethod: str  # 'upi', 'bank_transfer', 'cash'
-    paymentReference: Optional[str] = None
+class MarkPaidRequest(CamelBaseModel):
+    payment_method: str  # 'upi', 'bank_transfer', 'cash'
+    payment_reference: Optional[str] = None
     notes: Optional[str] = None
 
 UserResponse.model_rebuild()

@@ -98,8 +98,8 @@ async def test_orders_optimization_logic():
     assert len(populated) == 1
     assert populated[0].user.name == "TEST_ORDER_OPT_User"
     assert populated[0].items[0].product.name == "TEST_ORDER_OPT_Product"
-    assert populated[0].paymentEntries is not None and len(populated[0].paymentEntries) == 1
-    assert populated[0].paymentEntries[0].amount == 200.0
+    assert populated[0].payment_entries is not None and len(populated[0].payment_entries) == 1
+    assert populated[0].payment_entries[0].amount == 200.0
 
     # 4. Test populate_order single wrapper
     print("CALLING POPULATE ORDER SINGLE")

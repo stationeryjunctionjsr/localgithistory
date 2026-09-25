@@ -64,14 +64,14 @@ old_handle = '''        def _handle_field(api_k, db_k, new_val, is_date=False):
 
         _handle_field("sellerId", "seller_id", data.seller_id)
         _handle_field("amount", "amount", data.amount)
-        _handle_field("periodStart", "period_start", data.periodStart, True)
-        _handle_field("periodEnd", "period_end", data.periodEnd, True)
+        _handle_field("periodStart", "period_start", data.period_start, True)
+        _handle_field("periodEnd", "period_end", data.period_end, True)
         _handle_field("status", "status", data.status)
         _handle_field("paymentMethod", "payment_method", data.payment_method)
-        _handle_field("paymentReference", "payment_reference", data.paymentReference)
-        _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt, True)
-        _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy)
-        _handle_field("sellerReceivedAt", "seller_received_at", data.sellerReceivedAt, True)
+        _handle_field("paymentReference", "payment_reference", data.payment_reference)
+        _handle_field("adminPaidAt", "admin_paid_at", data.admin_paid_at, True)
+        _handle_field("adminPaidBy", "admin_paid_by", data.admin_paid_by)
+        _handle_field("sellerReceivedAt", "seller_received_at", data.seller_received_at, True)
         _handle_field("notes", "notes", data.notes)'''
 
 new_handle = '''        def _handle_field(api_k, db_k, new_val, existing_val, is_date=False):
@@ -85,14 +85,14 @@ new_handle = '''        def _handle_field(api_k, db_k, new_val, existing_val, is
 
         _handle_field("sellerId", "seller_id", data.seller_id, existing.seller_id)
         _handle_field("amount", "amount", data.amount, existing.amount)
-        _handle_field("periodStart", "period_start", data.periodStart, existing.periodStart, True)
-        _handle_field("periodEnd", "period_end", data.periodEnd, existing.periodEnd, True)
+        _handle_field("periodStart", "period_start", data.period_start, existing.period_start, True)
+        _handle_field("periodEnd", "period_end", data.period_end, existing.period_end, True)
         _handle_field("status", "status", data.status, existing.status)
         _handle_field("paymentMethod", "payment_method", data.payment_method, existing.payment_method)
-        _handle_field("paymentReference", "payment_reference", data.paymentReference, existing.paymentReference)
-        _handle_field("adminPaidAt", "admin_paid_at", data.adminPaidAt, existing.adminPaidAt, True)
-        _handle_field("adminPaidBy", "admin_paid_by", data.adminPaidBy, existing.adminPaidBy)
-        _handle_field("sellerReceivedAt", "seller_received_at", data.sellerReceivedAt, existing.sellerReceivedAt, True)
+        _handle_field("paymentReference", "payment_reference", data.payment_reference, existing.payment_reference)
+        _handle_field("adminPaidAt", "admin_paid_at", data.admin_paid_at, existing.admin_paid_at, True)
+        _handle_field("adminPaidBy", "admin_paid_by", data.admin_paid_by, existing.admin_paid_by)
+        _handle_field("sellerReceivedAt", "seller_received_at", data.seller_received_at, existing.seller_received_at, True)
         _handle_field("notes", "notes", data.notes, existing.notes)'''
 
 text = text.replace(old_handle, new_handle)

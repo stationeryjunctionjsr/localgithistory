@@ -130,7 +130,7 @@ class MySQLSellerAvailabilityDAO:
             "start_at": _to_dt(data.startAt),
             "end_at": _to_dt(data.endAt),
             "reason": data.reason,
-            "created_by": data.createdBy,
+            "created_by": data.created_by,
             "cancelled_at": _to_dt(data.cancelledAt),
             "created_at": now,
             "updated_at": now,

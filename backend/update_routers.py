@@ -19,14 +19,14 @@ old_enrich = '''async def _enrich_with_valet(doc: dict) -> dict:
 new_enrich = '''async def _enrich_with_valet(doc: ValetPayoutDetailResponse) -> ValetPayoutDetailResponse:
     valet = await user_repository.findById(doc.valet_id)
     if valet:
-        doc.valetName = valet.name
-        doc.valetPhone = valet.phone
-        doc.valetUpiId = valet.upi_id
-        doc.valetQrCodeUrl = valet.qr_code_url
-        doc.valetBankAccountNumber = valet.bank_account_number
-        doc.valetBankIfscCode = valet.bank_ifsc_code
-        doc.valetBankAccountHolder = valet.bank_account_holder
-        doc.valetBankName = valet.bank_name
+        doc.valet_name = valet.name
+        doc.valet_phone = valet.phone
+        doc.valet_upi_id = valet.upi_id
+        doc.valet_qr_code_url = valet.qr_code_url
+        doc.valet_bank_account_number = valet.bank_account_number
+        doc.valet_bank_ifsc_code = valet.bank_ifsc_code
+        doc.valet_bank_account_holder = valet.bank_account_holder
+        doc.valet_bank_name = valet.bank_name
     return doc'''
     
 text = text.replace(old_enrich, new_enrich)
@@ -56,13 +56,13 @@ old_senrich = '''async def _enrich_with_seller(doc: dict) -> dict:
 new_senrich = '''async def _enrich_with_seller(doc: SellerPayoutDetailResponse) -> SellerPayoutDetailResponse:
     seller = await user_repository.findById(doc.seller_id)
     if seller:
-        doc.sellerName = seller.company_name or seller.name or ""
-        doc.sellerUpiId = seller.upi_id
-        doc.sellerQrCodeUrl = seller.qr_code_url
-        doc.sellerBankAccountNumber = seller.bank_account_number
-        doc.sellerBankIfscCode = seller.bank_ifsc_code
-        doc.sellerBankAccountHolder = seller.bank_account_holder
-        doc.sellerBankName = seller.bank_name
+        doc.seller_name = seller.company_name or seller.name or ""
+        doc.seller_upi_id = seller.upi_id
+        doc.seller_qr_code_url = seller.qr_code_url
+        doc.seller_bank_account_number = seller.bank_account_number
+        doc.seller_bank_ifsc_code = seller.bank_ifsc_code
+        doc.seller_bank_account_holder = seller.bank_account_holder
+        doc.seller_bank_name = seller.bank_name
     return doc'''
 
 stext = stext.replace(old_senrich, new_senrich)

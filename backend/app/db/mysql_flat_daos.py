@@ -582,10 +582,10 @@ class MySQLPushNotificationsDAO:
             cols.append("user_behavior")
             vals.append(":userBehavior")
             params["userBehavior"] = data.userBehavior
-        if data.createdBy is not None:
+        if data.created_by is not None:
             cols.append("created_by")
             vals.append(":createdBy")
-            params["createdBy"] = data.createdBy
+            params["createdBy"] = data.created_by
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -638,9 +638,9 @@ class MySQLPushNotificationsDAO:
         if data.userBehavior is not None:
             updates.append("user_behavior = :userBehavior")
             params["userBehavior"] = data.userBehavior
-        if data.createdBy is not None:
+        if data.created_by is not None:
             updates.append("created_by = :createdBy")
-            params["createdBy"] = data.createdBy
+            params["createdBy"] = data.created_by
 
         set_sql = ", ".join(updates)
         factory = self._factory()

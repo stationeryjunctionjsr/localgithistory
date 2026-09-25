@@ -242,7 +242,7 @@ class MySQLPaymentDAO:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
         external_id = secrets.token_hex(16)
-        payment_entries = data.paymentEntries or []
+        payment_entries = data.payment_entries or []
         params = {
             "external_id": external_id,
             "order_id": data.order_id,
@@ -253,7 +253,7 @@ class MySQLPaymentDAO:
             "payment_method": data.payment_method,
             "amount_paid": data.amountPaid,
             "amount_remaining": data.amountRemaining,
-            "total_amount": data.totalAmount,
+            "total_amount": data.total_amount,
             "payment_id": data.paymentId,
             "created_at": now,
             "updated_at": now,
@@ -317,7 +317,7 @@ class MySQLPaymentDAO:
             "paymentMethod": update_data.payment_method if update_data.payment_method is not None else existing.payment_method,
             "amountPaid": update_data.amountPaid if update_data.amountPaid is not None else existing.amount_paid,
             "amountRemaining": update_data.amountRemaining if update_data.amountRemaining is not None else existing.amount_remaining,
-            "totalAmount": update_data.totalAmount if update_data.totalAmount is not None else existing.total_amount,
+            "totalAmount": update_data.total_amount if update_data.total_amount is not None else existing.total_amount,
             "paymentId": update_data.paymentId if update_data.paymentId is not None else existing.payment_id,
         }
 
@@ -350,10 +350,10 @@ class MySQLPaymentDAO:
                 },
             )
             await session.commit()
-            if update_data.paymentEntries is not None:
+            if update_data.payment_entries is not None:
                 await session.execute(text(f"DELETE FROM {self.ENTRIES_TABLE} WHERE payment_id = :id"), {"id": pid})
                 await session.commit()
-                for idx, entry in enumerate(update_data.paymentEntries):
+                for idx, entry in enumerate(update_data.payment_entries):
                     entry_id = (entry.entryId if entry.entryId is not None else idx + 1)
                     paid_at = _to_ts(entry.paidAt) or now
                     await session.execute(

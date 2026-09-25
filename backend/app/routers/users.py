@@ -604,8 +604,8 @@ async def update_my_payment_details(data: PaymentDetailsUpdate, current_user: Us
         qrCodeUrl=data.qr_code_url,
         bankAccountNumber=data.bank_account_number,
         bankIfscCode=data.bank_ifsc_code,
-        bankAccountHolder=data.bankAccountHolder,
-        bankName=data.bankName,
+        bankAccountHolder=data.bank_account_holder,
+        bankName=data.bank_name,
     ))
     return updated
 

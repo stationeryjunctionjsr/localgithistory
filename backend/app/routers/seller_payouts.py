@@ -56,13 +56,13 @@ class SellerPayoutSummaryResponse(BaseModel):
 async def _enrich_with_seller(doc: SellerPayoutDetailResponse) -> SellerPayoutDetailResponse:
     seller = await user_repository.findById(doc.seller_id)
     if seller:
-        doc.sellerName = seller.company_name or seller.name or ""
-        doc.sellerUpiId = seller.upi_id
-        doc.sellerQrCodeUrl = seller.qr_code_url
-        doc.sellerBankAccountNumber = seller.bank_account_number
-        doc.sellerBankIfscCode = seller.bank_ifsc_code
-        doc.sellerBankAccountHolder = seller.bank_account_holder
-        doc.sellerBankName = seller.bank_name
+        doc.seller_name = seller.company_name or seller.name or ""
+        doc.seller_upi_id = seller.upi_id
+        doc.seller_qr_code_url = seller.qr_code_url
+        doc.seller_bank_account_number = seller.bank_account_number
+        doc.seller_bank_ifsc_code = seller.bank_ifsc_code
+        doc.seller_bank_account_holder = seller.bank_account_holder
+        doc.seller_bank_name = seller.bank_name
     return doc
 
 @router.get("", response_model=List[SellerPayoutDetailResponse])
@@ -98,22 +98,22 @@ async def create_seller_payout(
         SellerPayoutInternalCreate(
             sellerId=data.seller_id,
             amount=data.amount,
-            periodStart=data.periodStart,
-            periodEnd=data.periodEnd,
+            periodStart=data.period_start,
+            periodEnd=data.period_end,
             status=data.status or "pending_payment",
             notes=data.notes,
-            subOrderIds=data.subOrderIds or []
+            subOrderIds=data.sub_order_ids or []
         )
     )
 
-    for so_id in data.subOrderIds or []:
+    for so_id in data.sub_order_ids or []:
         try:
             await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid"))
         except Exception as e:
             logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
 
     await _enrich_with_seller(created)
-    created.createdBy = str(current_user.id)
+    created.created_by = str(current_user.id)
     return created
 
 @router.post("/settle-all/{seller_id}", response_model=SellerPayoutDetailResponse, status_code=201)
@@ -150,7 +150,7 @@ async def settle_all_seller_payouts(
             logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
 
     await _enrich_with_seller(created)
-    created.createdBy = str(current_user.id)
+    created.created_by = str(current_user.id)
     return created
 
 @router.post("/{payout_id}/mark-paid", response_model=SellerPayoutDetailResponse)
@@ -171,7 +171,7 @@ async def mark_payout_paid(
             adminPaidAt=now,
             adminPaidBy=str(current_user.id),
             paymentMethod=data.payment_method,
-            paymentReference=data.paymentReference,
+            paymentReference=data.payment_reference,
             notes=data.notes if data.notes else existing.notes
         )
     )
@@ -225,7 +225,7 @@ async def get_all_seller_payout_summaries(
     results = await asyncio.gather(*tasks)
 
     for i, seller in enumerate(sellers):
-        results[i].sellerName = seller.company_name or seller.name or "Unknown"
+        results[i].seller_name = seller.company_name or seller.name or "Unknown"
 
     return results
 

@@ -182,14 +182,14 @@ async def get_valet_earnings_by_id(
 async def _enrich_with_valet(doc: ValetPayoutDetailResponse) -> ValetPayoutDetailResponse:
     valet = await user_repository.findById(doc.valet_id)
     if valet:
-        doc.valetName = valet.name
-        doc.valetPhone = valet.phone
-        doc.valetUpiId = valet.upi_id
-        doc.valetQrCodeUrl = valet.qr_code_url
-        doc.valetBankAccountNumber = valet.bank_account_number
-        doc.valetBankIfscCode = valet.bank_ifsc_code
-        doc.valetBankAccountHolder = valet.bank_account_holder
-        doc.valetBankName = valet.bank_name
+        doc.valet_name = valet.name
+        doc.valet_phone = valet.phone
+        doc.valet_upi_id = valet.upi_id
+        doc.valet_qr_code_url = valet.qr_code_url
+        doc.valet_bank_account_number = valet.bank_account_number
+        doc.valet_bank_ifsc_code = valet.bank_ifsc_code
+        doc.valet_bank_account_holder = valet.bank_account_holder
+        doc.valet_bank_name = valet.bank_name
     return doc
 
 
@@ -205,10 +205,10 @@ async def create_valet_payout(
     created = await valet_payout_dao.create(ValetPayoutInternalCreate(
         valetId=data.valet_id,
         amount=data.amount,
-        deliveryCount=data.deliveryCount,
-        returnCount=data.returnCount,
-        periodStart=data.periodStart,
-        periodEnd=data.periodEnd,
+        deliveryCount=data.delivery_count,
+        returnCount=data.return_count,
+        periodStart=data.period_start,
+        periodEnd=data.period_end,
         status='pending_payment',
         notes=data.notes
     ))
@@ -259,7 +259,7 @@ async def mark_valet_payout_paid(
             adminPaidAt=now,
             adminPaidBy=str(current_user.id),
             paymentMethod=data.payment_method,
-            paymentReference=data.paymentReference,
+            paymentReference=data.payment_reference,
             notes=data.notes if data.notes else existing.notes
         )
     )

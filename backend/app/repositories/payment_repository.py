@@ -129,13 +129,13 @@ class PaymentRepository:
                     if update_data.amountRemaining is not None: update_dict["amountRemaining"] = update_data.amountRemaining
                 except AttributeError: pass
                 try:
-                    if update_data.totalAmount is not None: update_dict["totalAmount"] = update_data.totalAmount
+                    if update_data.total_amount is not None: update_dict["totalAmount"] = update_data.total_amount
                 except AttributeError: pass
                 try:
                     if update_data.paymentId is not None: update_dict["paymentId"] = update_data.paymentId
                 except AttributeError: pass
                 try:
-                    if update_data.paymentEntries is not None: update_dict["paymentEntries"] = update_data.paymentEntries
+                    if update_data.payment_entries is not None: update_dict["paymentEntries"] = update_data.payment_entries
                 except AttributeError: pass
                 update_dict["updatedAt"] = datetime.now(timezone.utc).isoformat()
                 update_data = PaymentInternalUpdate.model_validate(update_dict)

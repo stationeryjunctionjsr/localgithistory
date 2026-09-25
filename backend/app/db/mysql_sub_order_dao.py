@@ -273,8 +273,8 @@ class MySQLSubOrderDAO:
 
         slot = data.deliverySlot
         c_info = data.couponInfo
-        s_addr = data.shippingAddress
-        b_addr = data.billingAddress
+        s_addr = data.shipping_address
+        b_addr = data.billing_address
 
         params = {
             "external_id": secrets.token_hex(16),
@@ -282,7 +282,7 @@ class MySQLSubOrderDAO:
             "parent_order_id": str(data.parentOrderId or ""),
             "parent_order_number": (data.parentOrderNumber if data.parentOrderNumber is not None else ""),
             "seller_id": str(data.seller_id or "") or None,
-            "seller_name": data.sellerName,
+            "seller_name": data.seller_name,
             "user_id": str(data.user or ""),
             "subtotal": _safe_float(data.subtotal),
             "tax": _safe_float(data.tax),
@@ -293,13 +293,13 @@ class MySQLSubOrderDAO:
             "order_type": data.orderType,
             "status": (data.status if data.status is not None else "pending"),
             "payment_method": data.payment_method,
-            "payment_status": (data.paymentStatus if data.paymentStatus is not None else "pending"),
+            "payment_status": (data.payment_status if data.payment_status is not None else "pending"),
             "is_urgent_delivery": 1 if data.is_urgent_delivery else 0,
             "delivery_slot_config_id": slot.configId if slot else None,
             "delivery_slot_id": slot.slotId if slot else None,
             "delivery_slot_date": slot.date if slot else None,
             "notes": data.notes,
-            "coupon_code": data.couponCode,
+            "coupon_code": data.coupon_code,
             "coupon_info_type": c_info.discountType if c_info else None,
             "coupon_info_value": _safe_float(c_info.discountValue) if c_info else None,
             "commission_status": (data.commissionStatus if data.commissionStatus is not None else "unrealized"),
@@ -317,7 +317,7 @@ class MySQLSubOrderDAO:
             "billing_pincode": b_addr.pincode if b_addr else None,
             # Valet pickup tracking
             "pickup_status": (data.pickupStatus if data.pickupStatus is not None else "pending_pickup"),
-            "assigned_valet": data.assignedValet,
+            "assigned_valet": data.assigned_valet,
             "created_at": now,
             "updated_at": now,
         }
@@ -417,9 +417,9 @@ class MySQLSubOrderDAO:
         if data.commissionStatus is not None:
             set_clauses.append("commission_status = :commission_status")
             params["commission_status"] = data.commissionStatus
-        if data.assignedValet is not None:
+        if data.assigned_valet is not None:
             set_clauses.append("assigned_valet = :assigned_valet")
-            params["assigned_valet"] = data.assignedValet
+            params["assigned_valet"] = data.assigned_valet
 
         if len(set_clauses) > 1:
             sql = text(f"UPDATE {self.table_name} SET {', '.join(set_clauses)} WHERE id = :row_id")

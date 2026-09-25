@@ -136,10 +136,10 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
     all_active_orders = []
     for st in BUSY_STATUSES:
         st_orders = await order_repository.findAll({'status': st})
-        all_active_orders.extend([o for o in st_orders if str(o.assignedValet or '') in available_valet_ids])
+        all_active_orders.extend([o for o in st_orders if str(o.assigned_valet or '') in available_valet_ids])
     order_count_by_valet: dict[str, int] = {}
     for o in all_active_orders:
-        vid = str(o.assignedValet or "")
+        vid = str(o.assigned_valet or "")
         order_count_by_valet[vid] = (order_count_by_valet[vid] if vid in order_count_by_valet else 0) + 1
     scored = []
     for v in available_valets:
@@ -247,10 +247,10 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
     all_active_orders = []
     for st in BUSY_STATUSES:
         st_orders = await order_repository.findAll({'status': st})
-        all_active_orders.extend([o for o in st_orders if str(o.assignedValet or '') in available_valet_ids])
+        all_active_orders.extend([o for o in st_orders if str(o.assigned_valet or '') in available_valet_ids])
     order_count_by_valet: dict[str, int] = {}
     for o in all_active_orders:
-        vid = str(o.assignedValet or "")
+        vid = str(o.assigned_valet or "")
         order_count_by_valet[vid] = (order_count_by_valet[vid] if vid in order_count_by_valet else 0) + 1
     all_active_returns = []
     for st in ACTIVE_RETURN_STATUSES:

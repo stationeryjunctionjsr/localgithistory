@@ -622,12 +622,12 @@ async def create_order(
             )
 
     base_shipping = 0.0
-    if order_data.shippingAddress:
+    if order_data.shipping_address:
         try:
-            state = order_data.shippingAddress.state or ""
-            city = order_data.shippingAddress.city or ""
-            district = order_data.shippingAddress.district or ""
-            zip_code = order_data.shippingAddress.effective_pincode
+            state = order_data.shipping_address.state or ""
+            city = order_data.shipping_address.city or ""
+            district = order_data.shipping_address.district or ""
+            zip_code = order_data.shipping_address.effective_pincode
 
             from app.repositories.delivery_charge_repository import delivery_charge_repository
 
@@ -666,12 +666,12 @@ async def create_order(
     item_discounts = None
     is_override = False
 
-    if order_data.couponCode:
+    if order_data.coupon_code:
         from app.repositories.coupon_repository import coupon_repository
 
         role_for_coupon = effective_role
         validation_raw = await coupon_repository.validateCoupon(
-            order_data.couponCode,
+            order_data.coupon_code,
             role_for_coupon,
             0.0,
             current_user.id,
@@ -679,7 +679,7 @@ async def create_order(
             order_data.payment_method,
             cart_items=cart_items,
             product_repository=product_repository,
-            shipping_address=order_data.shippingAddress,
+            shipping_address=order_data.shipping_address,
             shipping_charge=base_shipping,
         )
         validation = (
@@ -727,7 +727,7 @@ async def create_order(
             cart_items,
             product_repository,
             order_data.payment_method,
-            shipping_address=order_data.shippingAddress,
+            shipping_address=order_data.shipping_address,
             shipping_charge=base_shipping,
         )
         if auto_list:
@@ -908,8 +908,8 @@ async def create_order(
 
     # Resolve customer delivery pincode for seller routing
     _customer_pincode = (
-        (order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zip_code or order_data.shippingAddress.pincode or "")
-        if order_data.shippingAddress
+        (order_data.shipping_address.effective_pincode or order_data.shipping_address.zip_code or order_data.shipping_address.pincode or "")
+        if order_data.shipping_address
         else ""
     )
     _pincode_seller_ids = set()
@@ -1042,7 +1042,7 @@ async def create_order(
 
         slot_storage = _get_storage("deliverySlots")
         seg = "wholesale" if effective_role == "wholesaler" else "retail"
-        zip_code = order_data.shippingAddress.effective_pincode if order_data.shippingAddress else ""
+        zip_code = order_data.shipping_address.effective_pincode if order_data.shipping_address else ""
 
         target_date = order_data.delivery_slot_date
         if order_data.is_urgent_delivery and not target_date:
@@ -1208,9 +1208,9 @@ async def create_order(
             order_data.is_urgent_delivery = True
 
     # Check pincode serviceability before proceeding
-    if order_data.shippingAddress and (order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zip_code):
+    if order_data.shipping_address and (order_data.shipping_address.effective_pincode or order_data.shipping_address.zip_code):
         shipping_zip = str(
-            order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zip_code).strip()
+            order_data.shipping_address.effective_pincode or order_data.shipping_address.zip_code).strip()
         is_serviceable = await delivery_charge_repository.isPincodeServiceable(shipping_zip, effective_role)
 
         if not is_serviceable:
@@ -1259,12 +1259,12 @@ async def create_order(
     shipping = 0.0
     min_cart_value_for_free = 0.0
 
-    if order_data.shippingAddress:
+    if order_data.shipping_address:
         try:
-            state = order_data.shippingAddress.state if order_data.shippingAddress.state is not None else ""
-            city = order_data.shippingAddress.city if order_data.shippingAddress.city is not None else ""
-            district = order_data.shippingAddress.district if order_data.shippingAddress.district is not None else ""
-            zip_code = order_data.shippingAddress.zip_code if order_data.shippingAddress.zip_code is not None else ""
+            state = order_data.shipping_address.state if order_data.shipping_address.state is not None else ""
+            city = order_data.shipping_address.city if order_data.shipping_address.city is not None else ""
+            district = order_data.shipping_address.district if order_data.shipping_address.district is not None else ""
+            zip_code = order_data.shipping_address.zip_code if order_data.shipping_address.zip_code is not None else ""
 
             # Calculate total before shipping for tiered charge calculation
             # Use subtotal (after coupon, includes GST)
@@ -1480,8 +1480,8 @@ async def create_order(
             isUrgentDelivery=order_data.is_urgent_delivery if effective_role in (
                 "customer", "wholesaler") else False,
             deliverySlot=selected_slot_info,
-            shippingAddress=order_data.shippingAddress,
-            billingAddress=order_data.billingAddress or order_data.shippingAddress,
+            shippingAddress=order_data.shipping_address,
+            billingAddress=order_data.billing_address or order_data.shipping_address,
             paymentMethod=order_data.payment_method,
             upiPaymentScreenshot=screenshot_path if order_data.payment_method == "upi" else None,
             notes=f"Referral Code Applied: {applied_referral_code} | {order_data.notes or ''}".strip(
@@ -1788,9 +1788,9 @@ async def create_order(
     await cart_repository.clearCart(current_user.id)
 
     # Save address to user's profile
-    await user_repository.addSavedAddress(current_user.id, order_data.shippingAddress)
+    await user_repository.addSavedAddress(current_user.id, order_data.shipping_address)
     # Update current address to the one just used
-    await user_repository.update(current_user.id, UserInternalUpdate(address=order_data.shippingAddress))
+    await user_repository.update(current_user.id, UserInternalUpdate(address=order_data.shipping_address))
 
     populated_order = await populate_order(order)
     email = populated_order.user.email if (
@@ -1846,10 +1846,10 @@ async def create_order(
             # Fetch delivery charge data once (same pincode for all sub-orders)
             try:
                 await delivery_charge_repository.getChargeForLocation(
-                    order_data.shippingAddress.state if order_data.shippingAddress.state is not None else "",
-                    order_data.shippingAddress.city if order_data.shippingAddress.city is not None else "",
-                    order_data.shippingAddress.district if order_data.shippingAddress.district is not None else "",
-                    order_data.shippingAddress.zip_code if order_data.shippingAddress.zip_code is not None else "",
+                    order_data.shipping_address.state if order_data.shipping_address.state is not None else "",
+                    order_data.shipping_address.city if order_data.shipping_address.city is not None else "",
+                    order_data.shipping_address.district if order_data.shipping_address.district is not None else "",
+                    order_data.shipping_address.zip_code if order_data.shipping_address.zip_code is not None else "",
                     effective_role,
                     subtotal,
                 )
@@ -1935,8 +1935,8 @@ async def create_order(
                     "paymentStatus": "paid" if order_data.payment_method == "upi" else "pending",
                     "isUrgentDelivery": grp_is_urgent,
                     "deliverySlot": grp_slot_info,
-                    "shippingAddress": order_data.shippingAddress,
-                    "billingAddress": order_data.billingAddress or order_data.shippingAddress,
+                    "shippingAddress": order_data.shipping_address,
+                    "billingAddress": order_data.billing_address or order_data.shipping_address,
                     "notes": order_data.notes or "",
                     "couponCode": coupon_code,
                     "couponInfo": coupon_info,
@@ -2191,7 +2191,7 @@ async def update_order_status(
         if order.payment_method == "cod":
             from datetime import datetime
 
-            update_data.paymentStatus = "paid"
+            update_data.payment_status = "paid"
             update_data.codPaymentReceived = True
             update_data.codPaymentReceivedAt = datetime.now(
                 __import__("datetime").timezone.utc).isoformat()
@@ -2204,7 +2204,7 @@ async def update_order_status(
         # Increment deliveredCount on the slot
 
         if order.payment_method == "cod" and "paymentStatus" not in update_data:
-            update_data.paymentStatus = "paid"
+            update_data.payment_status = "paid"
             update_data.codPaymentReceived = True
             update_data.codPaymentReceivedAt = datetime.now(
                 __import__("datetime").timezone.utc).isoformat()
@@ -2242,7 +2242,7 @@ async def update_order_status(
                             "_id": updated_payment_with_entry.id,
                             "paymentId": updated_payment_with_entry.paymentId,
                             "orderId": updated_payment_with_entry.order_id,
-                            "totalAmount": (order.total if order.total is not None else payment.totalAmount),
+                            "totalAmount": (order.total if order.total is not None else payment.total_amount),
                             "paymentMethod": "cod",
                             "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
                         }
@@ -2277,7 +2277,7 @@ async def update_order_status(
                         "_id": new_payment.id,
                         "paymentId": new_payment.paymentId,
                         "orderId": new_payment.order_id,
-                        "totalAmount": new_payment.totalAmount,
+                        "totalAmount": new_payment.total_amount,
                         "paymentMethod": "cod",
                         "createdAt": datetime.now(__import__("datetime").timezone.utc).isoformat() + "Z",
                     }
@@ -2329,7 +2329,7 @@ async def update_order_status(
     if status_data.status in ("cancelled", "delivered"):
         from datetime import datetime as _dt
 
-        sub_ids = updated_order.subOrderIds if updated_order.subOrderIds else []
+        sub_ids = updated_order.sub_order_ids if updated_order.sub_order_ids else []
         for _so_id in sub_ids:
             _so = await sub_order_repository.findById(_so_id)
             if not _so:
@@ -2359,13 +2359,13 @@ async def update_order_status(
                 await sub_order_repository.update(_so_id, SubOrderInternalUpdate(**_cascade))
 
     # Recompute parent fulfillmentStatus from all sub-orders
-    sub_ids = updated_order.subOrderIds if updated_order.subOrderIds else []
+    sub_ids = updated_order.sub_order_ids if updated_order.sub_order_ids else []
 
     # Recompute overall fulfillment status based on sub-orders
     _f_status = await _compute_fulfillment_status(sub_ids)
     if _f_status and _f_status != updated_order.status:
         updated_order = await order_repository.update(order_id, OrderInternalUpdate(status=_f_status))
-        sub_ids = updated_order.subOrderIds if updated_order.subOrderIds else []
+        sub_ids = updated_order.sub_order_ids if updated_order.sub_order_ids else []
 
     # Send status change email notification
     populated_order = await populate_order(updated_order)
