@@ -108,13 +108,16 @@ class MySQLCategoryDAO:
                 if k in ("_id", "id"):
                     where_clauses.append("id = :id")
                     params["id"] = int(v) if str(v).isdigit() else None
-                elif k == "is_active":
+                elif k in ("is_active", "isActive"):
                     where_clauses.append("is_active = :is_active")
                     params["is_active"] = int(bool(v))
+                elif k in ("is_returnable", "isReturnable"):
+                    where_clauses.append("is_returnable = :is_returnable")
+                    params["is_returnable"] = int(bool(v))
                 elif k == "name":
                     where_clauses.append("name = :name")
                     params["name"] = str(v)
-                elif k == "category_tag":
+                elif k in ("category_tag", "categoryTag"):
                     where_clauses.append("category_tag = :tag")
                     params["tag"] = str(v)
 
@@ -237,5 +240,7 @@ class MySQLCategoryDAO:
             )
             await session.commit()
             return result.rowcount > 0
+
+
 
 

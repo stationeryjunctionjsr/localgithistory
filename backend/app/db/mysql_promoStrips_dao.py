@@ -84,7 +84,7 @@ class MySQLPromoStripsDAO:
             
             return [self._map_to_schema(r, children_map[int(r.id)] if int(r.id) in children_map else {}) for r in rows]
 
-    async def create(self, data: Any) -> 'PromoStripsInternal':
+    async def create(self, data: 'PromoStripsInternalCreate') -> 'PromoStripsInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -126,7 +126,7 @@ class MySQLPromoStripsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> 'PromoStripsInternal':
+    async def update(self, id: str, update_data: 'PromoStripsInternalUpdate') -> 'PromoStripsInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -193,6 +193,6 @@ class MySQLPromoStripsDAO:
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}
         
-    async def _replace_children(self, session, row_id: int, data: Any):
+    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
         pass
 

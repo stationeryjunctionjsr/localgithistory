@@ -1,13 +1,13 @@
 from app.models.schemas import AddressSnippet as Address, CartItem, OrderItem, VisibilityRule
 from datetime import datetime
 from typing import Optional, List, Any, Dict
-from pydantic import Field
+from pydantic import Field, AliasChoices
 from pydantic import BaseModel
 from app.models.base import CamelBaseModel
 
 class User(CamelBaseModel):
-    id: str 
-    user_id: int 
+    id: str = Field(validation_alias=AliasChoices("external_id", "id", "_id")) 
+    user_id: int = Field(validation_alias=AliasChoices("id", "user_id")) 
     user_id_formatted: Optional[str] = None
     name: Optional[str] = None
     email: Optional[str] = None
@@ -44,4 +44,6 @@ class User(CamelBaseModel):
     max_concurrent_orders: Optional[int] = None
 
 User.model_rebuild()
+
+
 

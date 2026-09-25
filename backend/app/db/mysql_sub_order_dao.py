@@ -282,7 +282,7 @@ class MySQLSubOrderDAO:
         except:
             return None
 
-    async def update(self, id: str, data: 'SubOrderInternalUpdate') -> Optional['SubOrder']:
+    async def update(self, id: str, update_data: 'SubOrderInternalUpdate') -> Optional['SubOrder']:
         factory = self._get_session_factory()
         if not factory:
             return None

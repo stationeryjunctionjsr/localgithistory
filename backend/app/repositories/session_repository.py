@@ -82,7 +82,7 @@ class SessionRepository:
         last_active = session.last_active_at
         if last_active:
             try:
-                dt = datetime.fromisoformat(last_active.replace("Z", "+00:00"))
+                dt = last_active if isinstance(last_active, datetime) else datetime.fromisoformat(last_active.replace("Z", "+00:00"))
                 if datetime.now(timezone.utc) - dt > timedelta(days=max_inactive_days):
                     return await self.revoke_session(session.id, "inactive")
             except Exception as e:

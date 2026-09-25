@@ -26,7 +26,7 @@ class MySQLProductDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_product(self, r, children: Any) -> Product:
+    def _row_to_product(self, r, children: Dict[str, Any]) -> Product:
         return Product(
             id=str(r.id),
             product_id=r.id,
@@ -55,7 +55,7 @@ class MySQLProductDAO:
             updated_at=r.updated_at
         )
 
-    def _build_query_conditions(self, query: Any) -> tuple[str, str, Dict]:
+    def _build_query_conditions(self, query: Dict[str, Any]) -> tuple[str, str, Dict]:
         where_clauses = []
         params = {}
         join_sql = ""
@@ -172,7 +172,7 @@ class MySQLProductDAO:
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         return join_sql, where_sql, params
 
-    async def _fetch_children_for_products(self, session, pids: List[int]) -> Any:
+    async def _fetch_children_for_products(self, session, pids: List[int]) -> Dict[int, Dict[str, Any]]:
         children_map = {
             pid: {"images": [], "videos": [], "tags": [], "variantAttributes": [], "variants": [], "details": {}, "sellers": []}
             for pid in pids
@@ -348,7 +348,7 @@ class MySQLProductDAO:
 
         return [self._row_to_product(r, children_map[int(r.id)]) for r in rows], total_count
 
-    async def get_facets(self, query: Any) -> Any:
+    async def get_facets(self, query: Dict[str, Any]) -> Dict[str, Any]:
         factory = self._factory()
         if not factory:
             return {"brands": [], "categories": [], "subCategories": []}
@@ -377,7 +377,7 @@ class MySQLProductDAO:
         facets["subCategories"].sort()
         return facets
 
-    async def findAll(self, query: Optional[Any] = None) -> List[Product]:
+    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List[Product]:
         factory = self._factory()
         if not factory:
             return []
@@ -396,7 +396,7 @@ class MySQLProductDAO:
             children_map = await self._fetch_children_for_products(session, [int(r.id) for r in rows])
         return [self._row_to_product(r, children_map[int(r.id)]) for r in rows]
 
-    async def findOne(self, query: Any) -> Optional[Product]:
+    async def findOne(self, query: Dict[str, Any]) -> Optional[Product]:
         if set(query.keys()) in ({"_id"}, {"id"}):
             return await self.findById((query["_id"] if "_id" in query else None) or (query["id"] if "id" in query else None))
         docs = await self.findAll(query)
@@ -423,7 +423,7 @@ class MySQLProductDAO:
             children_map = await self._fetch_children_for_products(session, [pid])
         return self._row_to_product(row, children_map[pid])
 
-    async def _replace_children(self, session, pid: int, data: Any):
+    async def _replace_children(self, session, pid: int, data: 'CamelBaseModel'):
         # Delete old
         await session.execute(text("DELETE FROM sj_product_images WHERE product_id = :pid"), {"pid": pid})
         await session.execute(text("DELETE FROM sj_product_videos WHERE product_id = :pid"), {"pid": pid})
@@ -539,7 +539,7 @@ class MySQLProductDAO:
         # ),
         # {"cid": combo_id, "k": attr_name, "v": attr_value},
         # )
-    async def create(self, data: 'ProductInternalCreate') -> Any:
+    async def create(self, data: 'ProductInternalCreate') -> 'Product':
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -658,7 +658,7 @@ class MySQLProductDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Any) -> Any:
+    async def deleteMany(self, query: Dict[str, Any]) -> Dict[str, Any]:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
@@ -666,7 +666,7 @@ class MySQLProductDAO:
                 deleted += 1
         return {"deletedCount": deleted}
 
-    async def count(self, query: Optional[Any] = None) -> int:
+    async def count(self, query: Optional[Dict[str, Any]] = None) -> int:
         return len(await self.findAll(query))
 
     find_all = findAll

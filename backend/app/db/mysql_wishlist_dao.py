@@ -2,7 +2,7 @@
 MySQL DAO for sj_wishlists. Fully relational.
 """
 
-InternalCreate, WishlistInternalUpdate
+from app.models.daos import WishlistInternalCreate, WishlistInternalUpdate
 import secrets
 from typing import Dict
 from app.models.wishlist import Wishlist, List, Optional

@@ -119,7 +119,7 @@ class MySQLCustomerSegmentDAO:
         await self._save_user_ids(external_id, user_ids)
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: CustomerSegmentInternalUpdate) -> CustomerSegmentInternal:
+    async def update(self, id: str, update_data: CustomerSegmentInternalUpdate) -> CustomerSegmentInternal:
         pk = int(id) if str(id).isdigit() else None
         if pk is None: return None
         

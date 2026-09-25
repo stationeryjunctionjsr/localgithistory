@@ -152,7 +152,7 @@ class MySQLAdDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> Optional['Ad']:
+    async def update(self, id: str, update_data: 'AdInternalUpdate') -> Optional['Ad']:
         existing = await self.findById(id)
         if not existing:
             return None

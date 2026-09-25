@@ -84,7 +84,7 @@ class MySQLSearchTagsDAO:
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: Any) -> 'SearchTagInternal':
+    async def create(self, data: 'SearchTagInternalCreate') -> 'SearchTagInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -123,7 +123,7 @@ class MySQLSearchTagsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> 'SearchTagInternal':
+    async def update(self, id: str, update_data: 'SearchTagInternalUpdate') -> 'SearchTagInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -272,7 +272,7 @@ class MySQLSearchTagsDAO:
 
         return c_map
 
-    async def _replace_children(self, session, row_id: int, data: Any):
+    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 
         if data.categories is not None:
             await session.execute(text(f"DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": row_id})

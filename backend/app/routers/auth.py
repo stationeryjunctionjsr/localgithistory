@@ -319,7 +319,7 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
         # Create session and tokens
         device = parse_device(request, default_type="web")
         refresh_id = str(uuid4())
-        session = await session_repository.create_session(user.id, device, refresh_id)
+        session = await session_repository.create_session(str(user.user_id), device, refresh_id)
 
         access_token = create_access_token(user.id, session.id)
         refresh_token = create_refresh_token(user.id, session.id, refresh_id)
@@ -385,7 +385,7 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
     device = parse_device(request, default_type="web")
     refresh_id = str(uuid4())
     # create session
-    session = await session_repository.create_session(user.id, device, refresh_id)
+    session = await session_repository.create_session(str(user.user_id), device, refresh_id)
     # revoke other sessions is disabled to allow signing into and remaining active on multiple devices
     # await session_repository.revoke_other_sessions(user.id, exclude_session_id=session.id)
 
@@ -603,3 +603,4 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     user_response = UserResponse.model_validate(current_user, from_attributes=True)
     user_response.effectiveRole = effective_role
     return user_response
+

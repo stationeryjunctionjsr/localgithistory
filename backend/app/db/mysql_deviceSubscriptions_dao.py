@@ -84,7 +84,7 @@ class MySQLDeviceSubscriptionsDAO:
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: Any) -> 'DeviceSubscriptionInternal':
+    async def create(self, data: 'DeviceSubscriptionInternalCreate') -> 'DeviceSubscriptionInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -119,7 +119,7 @@ class MySQLDeviceSubscriptionsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> 'DeviceSubscriptionInternal':
+    async def update(self, id: str, update_data: 'DeviceSubscriptionInternalUpdate') -> 'DeviceSubscriptionInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -214,7 +214,7 @@ class MySQLDeviceSubscriptionsDAO:
 
         return c_map
 
-    async def _replace_children(self, session, row_id: int, data: Any):
+    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 
         if data.keys is not None:
             await session.execute(text(f"DELETE FROM sj_device_keys WHERE parent_id = :id"), {"id": row_id})

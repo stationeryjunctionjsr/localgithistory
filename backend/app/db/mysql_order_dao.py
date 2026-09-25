@@ -251,7 +251,7 @@ class MySQLOrderDAO:
                 {"order_id": order_id, "vid": str((d.valet_id if d.valet_id is not None else "")), "r": d.reason}
             )
 
-    async def create(self, data: Any) -> Order:
+    async def create(self, data: 'OrderInternalCreate') -> Order:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -349,7 +349,7 @@ class MySQLOrderDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Any) -> Optional[Order]:
+    async def update(self, id: str, update_data: 'OrderInternalUpdate') -> Optional[Order]:
         existing = await self.findById(id)
         if not existing:
             return None

@@ -294,7 +294,7 @@ class MySQLUserDAO:
             except Exception as e:
                 await session.rollback()
                 raise e
-    async def update(self, id: str, update_data: Any) -> Optional[User]:
+    async def update(self, id: str, update_data: 'UserInternalUpdate') -> Optional[User]:
         existing = await self.findById(id)
         if not existing:
             return None

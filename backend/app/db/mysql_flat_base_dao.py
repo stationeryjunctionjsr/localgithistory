@@ -75,7 +75,7 @@ class MySQLFlatBaseDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, r) -> Any:
+    def __map_to_schema(self, r) -> 'FlatBaseInternal':
         out = {"_id": str(r.id)}
         rev = {v: k for k, v in self.scalar_map.items()}
         for col, api_key in rev.items():
@@ -106,7 +106,7 @@ class MySQLFlatBaseDAO:
                 cls = None
         return cls(**out) if cls else out
 
-    def _doc_to_params(self, data: Any, now: datetime) -> Any:
+    def _doc_to_params(self, data: 'CamelBaseModel', now: datetime) -> Dict[str, Any]:
         params = {"created_at": now, "updated_at": now}
         if self.has_external_id:
             params["external_id"] = secrets.token_hex(16)
@@ -139,7 +139,7 @@ class MySQLFlatBaseDAO:
         # Use dict.fromkeys for uniqueness, then quote
         return [_q(c) for c in dict.fromkeys(cols)]
 
-    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List['FlatBaseInternal']:
         factory = self._factory()
         if not factory:
             return []
@@ -171,11 +171,11 @@ class MySQLFlatBaseDAO:
             rows = result.fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Any]:
+    async def findOne(self, query: Dict) -> Optional['FlatBaseInternal']:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['FlatBaseInternal']:
         factory = self._factory()
         if not factory:
             return None
@@ -189,7 +189,7 @@ class MySQLFlatBaseDAO:
             row = result.fetchone()
         return self.__map_to_schema(row) if row else None
 
-    async def create(self, data: Any) -> Any:
+    async def create(self, data: 'FlatBaseInternalCreate') -> 'FlatBaseInternal':
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -224,7 +224,7 @@ class MySQLFlatBaseDAO:
             raise RuntimeError("Could not obtain new row id after insert")
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: Any) -> Optional[Any]:
+    async def update(self, id: str, update_data: 'FlatBaseInternalUpdate') -> Optional['FlatBaseInternal']:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -284,7 +284,7 @@ class MySQLFlatBaseDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> Any:
+    async def deleteMany(self, query: Dict[str, Any]) -> Dict[str, Any]:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:
@@ -375,5 +375,6 @@ class MySQLFlatBaseDAO:
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+
 
 

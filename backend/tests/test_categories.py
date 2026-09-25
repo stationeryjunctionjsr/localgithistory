@@ -17,9 +17,9 @@ def override_admin():
 @pytest.mark.asyncio
 async def test_category_crud_workflow(client: AsyncClient):
     # Pre-test cleanup: delete category if it already exists
-    existing = await category_repository.findByName("Test Category Returnable")
-    if existing:
-        await category_repository.storage.delete(existing.id)
+    existing_all = await category_repository.storage.findAll({"name": "Test Category Returnable"})
+    for e in existing_all:
+        await category_repository.storage.delete(e.id)
 
     # 1. Create Category
     payload = {
@@ -56,7 +56,7 @@ async def test_category_crud_workflow(client: AsyncClient):
     response = await client.get("/api/categories/public")
     assert response.status_code == 200
     public_list = response.json()
-    matched_cat = next((c for c in public_list if c["_id"] == category_id), None)
+    matched_cat = next((c for c in public_list if c.get("id", c.get("_id")) == category_id), None)
     assert matched_cat is not None
     assert matched_cat["gst"] == 18.0
     assert matched_cat["isReturnable"] is False
@@ -64,5 +64,7 @@ async def test_category_crud_workflow(client: AsyncClient):
     # 5. Clean up
     response = await client.delete(f"/api/categories/{category_id}")
     assert response.status_code == 200
+
+
 
 

@@ -137,7 +137,7 @@ class MySQLValetPayoutDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ValetPayoutInternalUpdate) -> Optional[ValetPayoutDetailResponse]:
+    async def update(self, id: str, update_data: ValetPayoutInternalUpdate) -> Optional[ValetPayoutDetailResponse]:
         existing = await self.findById(id)
         if not existing:
             return None

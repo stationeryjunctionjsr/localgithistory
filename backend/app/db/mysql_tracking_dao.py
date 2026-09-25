@@ -123,7 +123,7 @@ class MySQLTrackingDAO:
 
         return c_map
 
-    async def _replace_children(self, session, tid: int, data: 'Any'):
+    async def _replace_children(self, session, tid: int, data: 'CamelBaseModel'):
         await session.execute(text("DELETE FROM sj_tracking_products WHERE tracking_id = :tid"), {"tid": tid})
         await session.execute(text("DELETE FROM sj_tracking_cart_items WHERE tracking_id = :tid"), {"tid": tid})
 
@@ -156,7 +156,7 @@ class MySQLTrackingDAO:
                     {"tid": tid, "pid": str(pid)},
                 )
 
-    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> Any:
+    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List['AnalyticsEvent']:
         factory = self._factory()
         if not factory:
             return []
@@ -185,14 +185,14 @@ class MySQLTrackingDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
 
-    async def findOne(self, query: Any) -> Any:
+    async def findOne(self, query: Dict[str, Any]) -> Optional['AnalyticsEvent']:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Any:
+    async def findById(self, id: str) -> Optional['AnalyticsEvent']:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: 'Any') -> Any:
+    async def create(self, data: 'AnalyticsEventCreate') -> 'AnalyticsEvent':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -238,21 +238,21 @@ class MySQLTrackingDAO:
             return None
 
         # we use python hasattr instead of getattr to enforce the rule
-        add_col("source", "source", data.source if data.source is not None else get_payload_extra("source"))
+        add_col("source", "source", getattr(data, "source", None) if getattr(data, "source", None) is not None else get_payload_extra("source"))
         
-        filter_type = data.filter_name if data.filter_name is not None else get_payload_extra("filterType")
+        filter_type = getattr(data, "filter_name", None) if getattr(data, "filter_name", None) is not None else get_payload_extra("filterType")
         add_col("filter_type", "filter_type", filter_type)
         
-        add_col("filter_value", "filter_value", data.filter_value if data.filter_value is not None else get_payload_extra("filter_value"))
-        add_col("campaign", "campaign", data.campaign if data.campaign is not None else get_payload_extra("campaign"))
-        add_col("os", "os", data.os if data.os is not None else get_payload_extra("os"))
-        add_col("browser", "browser", data.browser if data.browser is not None else get_payload_extra("browser"))
-        add_col("ip_address", "ip_address", data.ip_address if data.ip_address is not None else get_payload_extra("ip_address"))
-        add_col("page_views", "page_views", data.page_views if data.page_views is not None else get_payload_extra("page_views"))
-        add_col("order_id", "order_id", data.order_id if data.order_id is not None else get_payload_extra("order_id"))
-        add_col("order_value", "order_value", data.order_value if data.order_value is not None else get_payload_extra("order_value"))
-        add_col("price", "price", data.price if data.price is not None else get_payload_extra("price"))
-        add_col("category", "category", data.category if data.category is not None else get_payload_extra("category"))
+        add_col("filter_value", "filter_value", getattr(data, "filter_value", None) if getattr(data, "filter_value", None) is not None else get_payload_extra("filter_value"))
+        add_col("campaign", "campaign", getattr(data, "campaign", None) if getattr(data, "campaign", None) is not None else get_payload_extra("campaign"))
+        add_col("os", "os", getattr(data, "os", None) if getattr(data, "os", None) is not None else get_payload_extra("os"))
+        add_col("browser", "browser", getattr(data, "browser", None) if getattr(data, "browser", None) is not None else get_payload_extra("browser"))
+        add_col("ip_address", "ip_address", getattr(data, "ip_address", None) if getattr(data, "ip_address", None) is not None else get_payload_extra("ip_address"))
+        add_col("page_views", "page_views", getattr(data, "page_views", None) if getattr(data, "page_views", None) is not None else get_payload_extra("page_views"))
+        add_col("order_id", "order_id", getattr(data, "order_id", None) if getattr(data, "order_id", None) is not None else get_payload_extra("order_id"))
+        add_col("order_value", "order_value", getattr(data, "order_value", None) if getattr(data, "order_value", None) is not None else get_payload_extra("order_value"))
+        add_col("price", "price", getattr(data, "price", None) if getattr(data, "price", None) is not None else get_payload_extra("price"))
+        add_col("category", "category", getattr(data, "category", None) if getattr(data, "category", None) is not None else get_payload_extra("category"))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in extracted_keys])
@@ -269,7 +269,7 @@ class MySQLTrackingDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: 'Any') -> Any:
+    async def update(self, id: str, data: 'AnalyticsEventUpdate') -> Optional['AnalyticsEvent']:
         # Pydantic update pattern strictly without dicts
         existing = await self.findById(id)
         if not existing:
@@ -287,7 +287,7 @@ class MySQLTrackingDAO:
             await session.commit()
             return res.rowcount > 0
 
-    async def deleteMany(self, query: Any) -> int:
+    async def deleteMany(self, query: Dict[str, Any]) -> int:
         from sqlalchemy import text
 
         factory = self._factory()
@@ -305,3 +305,4 @@ class MySQLTrackingDAO:
             res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE {where_sql}"), params)
             await session.commit()
             return res.rowcount
+

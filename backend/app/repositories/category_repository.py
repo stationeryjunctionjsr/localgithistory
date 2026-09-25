@@ -42,8 +42,8 @@ class CategoryRepository:
                 match f:
                     case "name": fields["name"] = category_data.name
                     case "description": fields["description"] = category_data.description
-                    case "parentId": fields["parentId"] = category_data.parentId
-                    case "isActive": fields["isActive"] = category_data.isActive
+                    case "parentId" | "parent_id": fields["parentId"] = category_data.parentId
+                    case "isActive" | "is_active": fields["isActive"] = category_data.isActive
             category_data = CategoryInternalCreate(**fields)
         return await self.storage.create(category_data)
 
@@ -58,14 +58,14 @@ class CategoryRepository:
                 case "name": update_dict["name"] = update_data.name
                 case "description": update_dict["description"] = update_data.description
                 case "images": update_dict["images"] = update_data.images
-                case "subCategories": update_dict["subCategories"] = update_data.sub_categories
-                case "minimumQuantity": update_dict["minimumQuantity"] = update_data.minimum_quantity
-                case "categoryTag": update_dict["categoryTag"] = update_data.category_tag
-                case "isActive": update_dict["isActive"] = update_data.is_active
-                case "showInMobileHomepage": update_dict["showInMobileHomepage"] = update_data.show_in_mobile_homepage
+                case "subCategories" | "sub_categories": update_dict["subCategories"] = update_data.sub_categories
+                case "minimumQuantity" | "minimum_quantity": update_dict["minimumQuantity"] = update_data.minimum_quantity
+                case "categoryTag" | "category_tag": update_dict["categoryTag"] = update_data.category_tag
+                case "isActive" | "is_active": update_dict["isActive"] = update_data.is_active
+                case "showInMobileHomepage" | "show_in_mobile_homepage": update_dict["showInMobileHomepage"] = update_data.show_in_mobile_homepage
                 case "gst": update_dict["gst"] = update_data.gst
-                case "isReturnable": update_dict["isReturnable"] = update_data.is_returnable
-                case "parentId": update_dict["parentId"] = update_data.parent_id
+                case "isReturnable" | "is_returnable": update_dict["isReturnable"] = update_data.is_returnable
+                case "parentId" | "parent_id": update_dict["parentId"] = update_data.parent_id
         if "categoryTag" in update_dict:
             tag = update_dict["categoryTag"]
             update_dict["categoryTags"] = [tag] if tag else []
@@ -86,6 +86,7 @@ class CategoryRepository:
 
 
 category_repository = CategoryRepository()
+
 
 
 

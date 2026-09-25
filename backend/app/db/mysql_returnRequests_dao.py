@@ -84,7 +84,7 @@ class MySQLReturnRequestsDAO:
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: Any) -> 'ReturnRequestInternal':
+    async def create(self, data: 'ReturnRequestInternalCreate') -> 'ReturnRequestInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -171,7 +171,7 @@ class MySQLReturnRequestsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> 'ReturnRequestInternal':
+    async def update(self, id: str, update_data: 'ReturnRequestInternalUpdate') -> 'ReturnRequestInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -283,7 +283,7 @@ class MySQLReturnRequestsDAO:
 
         return c_map
 
-    async def _replace_children(self, session, row_id: int, data: Any):
+    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
         fields = data.model_fields_set if hasattr(data, 'model_fields_set') else set(dir(data))
         
         if 'items' in fields:

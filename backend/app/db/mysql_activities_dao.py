@@ -84,7 +84,7 @@ class MySQLActivitiesDAO:
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: Any) -> 'ActivityInternal':
+    async def create(self, data: 'ActivitiesInternalCreate') -> 'ActivityInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -159,7 +159,7 @@ class MySQLActivitiesDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> 'ActivityInternal':
+    async def update(self, id: str, update_data: 'ActivitiesInternalUpdate') -> 'ActivityInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -284,7 +284,7 @@ class MySQLActivitiesDAO:
 
         return c_map
 
-    async def _replace_children(self, session, row_id: int, data: Any):
+    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 
         if data.meta is not None:
             await session.execute(text(f"DELETE FROM sj_activity_meta WHERE parent_id = :id"), {"id": row_id})

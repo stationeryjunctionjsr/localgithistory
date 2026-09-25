@@ -51,7 +51,7 @@ class MySQLReturnSettingsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Any:
+    async def findOne(self, query: Dict) -> 'ReturnSettingsInternal':
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -59,7 +59,7 @@ class MySQLReturnSettingsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Any:
+    async def findById(self, id: str) -> 'ReturnSettingsInternal':
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -96,7 +96,7 @@ class MySQLReturnSettingsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ReturnSettingsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: ReturnSettingsInternalUpdate) -> Optional['ReturnSettingsInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -260,7 +260,7 @@ class MySQLOrderFeedbackDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: OrderFeedbackInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: OrderFeedbackInternalUpdate) -> Optional['OrderFeedbackInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -399,7 +399,7 @@ class MySQLPromoStripsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: PromoStripsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: PromoStripsInternalUpdate) -> Optional['PromoStripsInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -513,7 +513,7 @@ class MySQLPushNotificationsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Any:
+    async def findOne(self, query: Dict) -> 'PushNotificationsInternal':
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -521,7 +521,7 @@ class MySQLPushNotificationsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Any:
+    async def findById(self, id: str) -> 'PushNotificationsInternal':
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -598,7 +598,7 @@ class MySQLPushNotificationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: PushNotificationsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: PushNotificationsInternalUpdate) -> Optional['PushNotificationsInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -719,7 +719,7 @@ class MySQLCoachMarksDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Any:
+    async def findOne(self, query: Dict) -> 'CoachMarksInternal':
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -727,7 +727,7 @@ class MySQLCoachMarksDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Any:
+    async def findById(self, id: str) -> 'CoachMarksInternal':
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -784,7 +784,7 @@ class MySQLCoachMarksDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: CoachMarksInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: CoachMarksInternalUpdate) -> Optional['CoachMarksInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -840,7 +840,7 @@ class MySQLCategoryTagsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> Any:
+    def __map_to_schema(self, row) -> 'CategoryTagsInternal':
         return CategoryTagResponse(
             _id=str(row.id),
             id=row.id,
@@ -898,7 +898,7 @@ class MySQLCategoryTagsDAO:
             ).fetchone()
         return self.__map_to_schema(row) if row else None
 
-    async def create(self, data: CategoryTagsInternalCreate) -> Any:
+    async def create(self, data: CategoryTagsInternalCreate) -> 'CategoryTagsInternal':
 
         factory = self._factory()
         now = now_utc()
@@ -931,7 +931,7 @@ class MySQLCategoryTagsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: CategoryTagsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: CategoryTagsInternalUpdate) -> Optional['CategoryTagsInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -1018,7 +1018,7 @@ class MySQLGoogle_reviewsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Any:
+    async def findOne(self, query: Dict) -> 'Google_reviewsInternal':
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1026,7 +1026,7 @@ class MySQLGoogle_reviewsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Any:
+    async def findById(self, id: str) -> 'Google_reviewsInternal':
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1227,7 +1227,7 @@ class MySQLStockReservationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> Optional[StockReservation]:
+    async def update(self, id: str, data: 'StockReservationsInternalUpdate') -> Optional[StockReservation]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -1336,7 +1336,7 @@ class MySQLProductNotificationsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Any:
+    async def findOne(self, query: Dict) -> 'ProductNotificationsInternal':
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1344,7 +1344,7 @@ class MySQLProductNotificationsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Any:
+    async def findById(self, id: str) -> 'ProductNotificationsInternal':
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1397,7 +1397,7 @@ class MySQLProductNotificationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ProductNotificationsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: ProductNotificationsInternalUpdate) -> Optional['ProductNotificationsInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -1559,7 +1559,7 @@ class MySQLProductReviewsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ProductReviewsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: ProductReviewsInternalUpdate) -> Optional['ProductReviewsInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -1695,7 +1695,7 @@ class MySQLClassificationTagsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ClassificationTagsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: ClassificationTagsInternalUpdate) -> Optional['ClassificationTagsInternal']:
 
 
         existing = await self.findById(id)
@@ -1839,7 +1839,7 @@ class MySQLReviewClassificationsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: ReviewClassificationsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: ReviewClassificationsInternalUpdate) -> Optional['ReviewClassificationsInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -1929,7 +1929,7 @@ class MySQLAboutUsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Any]:
+    async def findOne(self, query: Dict) -> Optional['AboutUsInternal']:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -1937,7 +1937,7 @@ class MySQLAboutUsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['AboutUsInternal']:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1949,7 +1949,7 @@ class MySQLAboutUsDAO:
             ).fetchone()
         return self.__map_to_schema(row) if row else None
 
-    async def create(self, data: AboutUsInternalCreate) -> Any:
+    async def create(self, data: AboutUsInternalCreate) -> 'AboutUsInternal':
 
         factory = self._factory()
         now = now_utc()
@@ -1986,7 +1986,7 @@ class MySQLAboutUsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: AboutUsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: AboutUsInternalUpdate) -> Optional['AboutUsInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -2076,7 +2076,7 @@ class MySQLPrivacyPolicyDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Any]:
+    async def findOne(self, query: Dict) -> Optional['PrivacyPolicyInternal']:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2084,7 +2084,7 @@ class MySQLPrivacyPolicyDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['PrivacyPolicyInternal']:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -2096,7 +2096,7 @@ class MySQLPrivacyPolicyDAO:
             ).fetchone()
         return self.__map_to_schema(row) if row else None
 
-    async def create(self, data: PrivacyPolicyInternalCreate) -> Any:
+    async def create(self, data: PrivacyPolicyInternalCreate) -> 'PrivacyPolicyInternal':
 
         factory = self._factory()
         now = now_utc()
@@ -2133,7 +2133,7 @@ class MySQLPrivacyPolicyDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: PrivacyPolicyInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: PrivacyPolicyInternalUpdate) -> Optional['PrivacyPolicyInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -2290,7 +2290,7 @@ class MySQLAvailabilityRequestsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: AvailabilityRequestsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: AvailabilityRequestsInternalUpdate) -> Optional['AvailabilityRequestsInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -2383,7 +2383,7 @@ class MySQLPincodeSearchesDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Any]:
+    async def findOne(self, query: Dict) -> Optional['PincodeSearchesInternal']:
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2391,7 +2391,7 @@ class MySQLPincodeSearchesDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['PincodeSearchesInternal']:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -2403,7 +2403,7 @@ class MySQLPincodeSearchesDAO:
             ).fetchone()
         return self.__map_to_schema(row) if row else None
 
-    async def create(self, data: PincodeSearchesInternalCreate) -> Any:
+    async def create(self, data: PincodeSearchesInternalCreate) -> 'PincodeSearchesInternal':
 
         factory = self._factory()
         now = now_utc()
@@ -2440,7 +2440,7 @@ class MySQLPincodeSearchesDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: PincodeSearchesInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: PincodeSearchesInternalUpdate) -> Optional['PincodeSearchesInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -2490,7 +2490,7 @@ class MySQLSystemSettingsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> Any:
+    def __map_to_schema(self, row) -> 'SystemSettingsInternal':
         return SystemSettingsResponse(
             _id=str(row.id),
             id=row.id,
@@ -2556,7 +2556,7 @@ class MySQLSystemSettingsDAO:
             ).fetchone()
         return self.__map_to_schema(row) if row else None
 
-    async def create(self, data: SystemSettingsInternalCreate) -> Any:
+    async def create(self, data: SystemSettingsInternalCreate) -> 'SystemSettingsInternal':
 
         factory = self._factory()
         now = now_utc()
@@ -2597,7 +2597,7 @@ class MySQLSystemSettingsDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: SystemSettingsInternalUpdate) -> Optional[Any]:
+    async def update(self, id: str, data: SystemSettingsInternalUpdate) -> Optional['SystemSettingsInternal']:
 
         existing = await self.findById(id)
         if not existing:
@@ -2682,7 +2682,7 @@ class MySQLValetPayoutSettingsDAO:
             ).fetchall()
         return [self.__map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> Any:
+    async def findOne(self, query: Dict) -> 'ValetPayoutSettingsInternal':
         if "_id" in query:
             return await self.findById(query["_id"])
         if "id" in query:
@@ -2690,7 +2690,7 @@ class MySQLValetPayoutSettingsDAO:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Any:
+    async def findById(self, id: str) -> 'ValetPayoutSettingsInternal':
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:

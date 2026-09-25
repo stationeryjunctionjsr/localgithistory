@@ -9,7 +9,7 @@ async def cleanup_categories():
         categories = await category_repository.storage.findAll()
         for cat in categories:
             if cat.get("name", "").startswith("TEST_CAT_OPT_"):
-                await category_repository.storage.delete(cat["_id"])
+                await category_repository.storage.delete(cat.id)
     except Exception:
         pass
 
@@ -18,12 +18,12 @@ async def cleanup_categories():
 async def test_category_optimizations():
     # 1. Create test categories
     from app.models.daos import CategoryInternalCreate
-    existing1 = await category_repository.findByName("TEST_CAT_OPT_Pen")
-    if existing1:
-        await category_repository.storage.delete(existing1.id)
-    existing2 = await category_repository.findByName("TEST_CAT_OPT_Paper")
-    if existing2:
-        await category_repository.storage.delete(existing2.id)
+    existing1s = await category_repository.storage.findAll({"name": "TEST_CAT_OPT_Pen"})
+    for e in existing1s:
+        await category_repository.storage.delete(e.id)
+    existing2s = await category_repository.storage.findAll({"name": "TEST_CAT_OPT_Paper"})
+    for e in existing2s:
+        await category_repository.storage.delete(e.id)
     c1 = await category_repository.create(CategoryInternalCreate(
             name="TEST_CAT_OPT_Pen",
             description="Category for pens",
@@ -55,20 +55,23 @@ async def test_category_optimizations():
     # 4. Test filtering on other fields at DB level
     # Filter by isActive
     active_cats = await category_repository.storage.findAll({"isActive": True})
-    active_cats = [c for c in active_cats if c["name"].startswith("TEST_CAT_OPT_")]
+    active_cats = [c for c in active_cats if c.name.startswith("TEST_CAT_OPT_")]
     assert len(active_cats) == 1
-    assert active_cats[0]["name"] == "TEST_CAT_OPT_Pen"
+    assert active_cats[0].name == "TEST_CAT_OPT_Pen"
 
     inactive_cats = await category_repository.storage.findAll({"isActive": False})
-    inactive_cats = [c for c in inactive_cats if c["name"].startswith("TEST_CAT_OPT_")]
+    inactive_cats = [c for c in inactive_cats if c.name.startswith("TEST_CAT_OPT_")]
     assert len(inactive_cats) == 1
-    assert inactive_cats[0]["name"] == "TEST_CAT_OPT_Paper"
+    assert inactive_cats[0].name == "TEST_CAT_OPT_Paper"
 
     # Filter by isReturnable
     returnable_cats = await category_repository.storage.findAll({"isReturnable": True})
-    returnable_cats = [c for c in returnable_cats if c["name"].startswith("TEST_CAT_OPT_")]
+    returnable_cats = [c for c in returnable_cats if c.name.startswith("TEST_CAT_OPT_")]
     assert len(returnable_cats) == 1
-    assert returnable_cats[0]["name"] == "TEST_CAT_OPT_Pen"
+    assert returnable_cats[0].name == "TEST_CAT_OPT_Pen"
+
+
+
 
 
 

@@ -31,7 +31,7 @@ class DynamicRelationalDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, r, children: Dict) -> Any:
+    def __map_to_schema(self, r, children: Dict) -> 'DynamicRelationalInternal':
         # Strictly enforce direct access without .get or hasattr fallbacks where possible
         rm = r._mapping
         
@@ -100,7 +100,7 @@ class DynamicRelationalDAO:
                         c_map[row.parent_id][api_key].append(obj)
         return c_map
 
-    async def _replace_children(self, session, p_id: int, data: Any):
+    async def _replace_children(self, session, p_id: int, data: 'CamelBaseModel'):
         for api_key, c_conf in self.config["child_tables"].items():
             child_table = c_conf[0]
             db_cols = c_conf[1]
@@ -139,7 +139,7 @@ class DynamicRelationalDAO:
                         params[f"v{i}"] = str(val_i)
                     await session.execute(sql, params)
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict] = None) -> List['DynamicRelationalInternal']:
         factory = self._factory()
         if not factory:
             return []
@@ -160,14 +160,14 @@ class DynamicRelationalDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [self.__map_to_schema(r, c_map[r.id]) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Any]:
+    async def findOne(self, query: Dict) -> Optional['DynamicRelationalInternal']:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['DynamicRelationalInternal']:
         return await self.findOne({"_id": id})
 
-    async def create(self, data: Any) -> Any:
+    async def create(self, data: 'DynamicRelationalInternalCreate') -> 'DynamicRelationalInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -195,7 +195,7 @@ class DynamicRelationalDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> Optional[Any]:
+    async def update(self, id: str, data: 'DynamicRelationalInternalUpdate') -> Optional['DynamicRelationalInternal']:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -362,6 +362,7 @@ TABLES_CONFIG = {
 GENERATED_DAOS = {}
 for t, conf in TABLES_CONFIG.items():
     GENERATED_DAOS[conf["api_name"]] = DynamicRelationalDAO(t, conf)
+
 
 
 

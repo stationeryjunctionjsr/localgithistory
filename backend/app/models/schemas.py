@@ -1770,6 +1770,17 @@ class AnalyticsEventCreate(CamelBaseModel):
     cart_value: Optional[float] = None
     is_returning: Optional[bool] = None
     page_views: Optional[int] = None
+    device_type: Optional[str] = None
+    device_os_version: Optional[str] = None
+    device_model: Optional[str] = None
+    device: Optional[str] = None
+    device_app_version: Optional[str] = None
+    browser: Optional[str] = None
+    os: Optional[str] = None
+    campaign: Optional[str] = None
+    ip_address: Optional[str] = None
+    order_id: Optional[str] = None
+    order_value: Optional[float] = None
     page: Optional[str] = None
     reason: Optional[str] = None
     order_id: Optional[str] = None
@@ -2237,3 +2248,5 @@ PaymentSnippet.model_rebuild()
 PopulatedOrderItemResponse.model_rebuild()
 PopulatedOrderResponse.model_rebuild()
 BundleItemResponse.model_rebuild()
+
+

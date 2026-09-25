@@ -72,7 +72,7 @@ class FlatRelationalDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_to_schema(self, r) -> Any:
+    def _map_to_schema(self, r) -> 'CamelBaseModel':
         out = {"_id": str(r.id)}
         rev = {v: k for k, v in self.scalar_map.items()}
         for col, api_key in rev.items():
@@ -336,5 +336,6 @@ class FlatRelationalDAO:
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+
 
 

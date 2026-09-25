@@ -84,7 +84,7 @@ class MySQLCollectionsDAO:
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: Any) -> 'CollectionInternal':
+    async def create(self, data: 'CollectionsInternalCreate') -> 'CollectionInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -127,7 +127,7 @@ class MySQLCollectionsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> 'CollectionInternal':
+    async def update(self, id: str, update_data: 'CollectionsInternalUpdate') -> 'CollectionInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -248,7 +248,7 @@ class MySQLCollectionsDAO:
 
         return c_map
 
-    async def _replace_children(self, session, row_id: int, data: Any):
+    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
 
         if data.visible_pages is not None:
             await session.execute(text(f"DELETE FROM sj_collection_pages WHERE parent_id = :id"), {"id": row_id})

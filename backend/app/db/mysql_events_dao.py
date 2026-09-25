@@ -43,7 +43,7 @@ class MySQLEventsDAO:
         params = {}
         
         if "event_type" in query:
-            where_clauses.append("event_type = :eventType")
+            where_clauses.append("event_type = :event_type")
             params["event_type"] = query["event_type"]
             
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
@@ -153,7 +153,7 @@ class MySQLEventsDAO:
         
         if getattr(data, "event_type", None) is not None:
             cols.append("event_type")
-            vals.append(":eventType")
+            vals.append(":event_type")
             params["event_type"] = data.event_type
             
         # Map flat payload items if payload exists
@@ -202,7 +202,7 @@ class MySQLEventsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: EventUpdate) -> Optional[EventResponse]:
+    async def update(self, id: str, update_data: EventUpdate) -> Optional[EventResponse]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -214,7 +214,7 @@ class MySQLEventsDAO:
         params = {"id": pid, "u": now}
         
         if data.event_type is not None:
-            updates.append("event_type = :eventType")
+            updates.append("event_type = :event_type")
             params["event_type"] = data.event_type
             
         set_sql = ", ".join(updates)
@@ -242,3 +242,5 @@ class MySQLEventsDAO:
             )
             await session.commit()
             return res.rowcount > 0
+
+

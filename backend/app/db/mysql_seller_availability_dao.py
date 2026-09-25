@@ -126,7 +126,7 @@ class MySQLSellerAvailabilityDAO:
             new_id = result.lastrowid
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Dict) -> Optional['SellerAvailability']:
+    async def update(self, id: str, update_data: Dict) -> Optional['SellerAvailability']:
         factory = self._get_session_factory()
         if not factory:
             return None

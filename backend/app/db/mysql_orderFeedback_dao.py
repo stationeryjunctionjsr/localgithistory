@@ -84,7 +84,7 @@ class MySQLOrderFeedbackDAO:
             
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: Any) -> 'OrderFeedbackInternal':
+    async def create(self, data: 'OrderFeedbackInternalCreate') -> 'OrderFeedbackInternal':
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -135,7 +135,7 @@ class MySQLOrderFeedbackDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, data: Any) -> 'OrderFeedbackInternal':
+    async def update(self, id: str, update_data: 'OrderFeedbackInternalUpdate') -> 'OrderFeedbackInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -216,6 +216,6 @@ class MySQLOrderFeedbackDAO:
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}
         
-    async def _replace_children(self, session, row_id: int, data: Any):
+    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
         pass
 

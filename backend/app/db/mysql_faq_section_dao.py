@@ -64,7 +64,7 @@ class MySQLFaqSectionDAO(MySQLFlatBaseDAO):
             created["items"] = await self._fetch_items(created["external_id"])
         return created
 
-    async def update(self, id: str, data: Dict) -> Dict:
+    async def update(self, id: str, update_data: Dict) -> Dict:
         items = None
         if "items" in data:
             items = data.pop("items")
