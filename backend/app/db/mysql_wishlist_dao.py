@@ -27,7 +27,7 @@ class MySQLWishlistDAO:
         return {
             "_id": str(r.id),
             "user": str(r.user_id),
-            "items": items,
+            "items": [{"product": p} for p in items],
             "createdAt": r.created_at.isoformat() if r.created_at else None,
             "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
         }
@@ -178,3 +178,4 @@ class MySQLWishlistDAO:
                 await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :wid"), {"wid": wid})
             await session.commit()
         return len(wids)
+

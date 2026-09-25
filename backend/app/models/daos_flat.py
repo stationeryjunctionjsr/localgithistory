@@ -577,7 +577,7 @@ class CouponInternal(BaseModel):
     method: Optional[str] = None
     minRequirementType: Optional[str] = None
     minQuantityOfEligibleItems: Optional[int] = None
-    minPurchaseAmount: Optional[float] = None
+    
     maxDiscountAmount: Optional[float] = None
     appliesToType: Optional[str] = None
     
@@ -621,7 +621,7 @@ class CouponInternalCreate(BaseModel):
     method: Optional[str] = None
     minRequirementType: Optional[str] = None
     minQuantityOfEligibleItems: Optional[int] = None
-    minPurchaseAmount: Optional[float] = None
+    
     maxDiscountAmount: Optional[float] = None
     appliesToType: Optional[str] = None
     
@@ -663,7 +663,7 @@ class CouponInternalUpdate(BaseModel):
     method: Optional[str] = None
     minRequirementType: Optional[str] = None
     minQuantityOfEligibleItems: Optional[int] = None
-    minPurchaseAmount: Optional[float] = None
+    
     maxDiscountAmount: Optional[float] = None
     appliesToType: Optional[str] = None
     
@@ -1144,3 +1144,4 @@ class SellerAvailabilityInternalCreate(BaseModel):
     isFullDay: Optional[bool] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
+

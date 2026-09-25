@@ -510,6 +510,7 @@ class CouponValidationDetail(BaseModel):
     id: Optional[str] = None
     method: Optional[str] = None
     couponMode: Optional[str] = "override"
+    typeOfDiscount: Optional[str] = None
 
 
 class CouponValidationResponse(BaseModel):
