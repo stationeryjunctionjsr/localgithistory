@@ -21,8 +21,7 @@ from app.models.product import Product
 class MySQLProductDAO:
     @property
     def TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_products{suffix}"
+        return "sj_products"
 
     def _factory(self):
         return get_async_session_factory()

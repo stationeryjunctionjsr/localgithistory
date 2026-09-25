@@ -66,13 +66,11 @@ def _payment__map_to_schema(r, entries: List[PaymentEntry]) -> Payment:
 class MySQLPaymentDAO:
     @property
     def PAYMENTS_TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_payments{suffix}"
+        return "sj_payments"
 
     @property
     def ENTRIES_TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_payment_entries{suffix}"
+        return "sj_payment_entries"
 
     def _factory(self):
         return get_async_session_factory()

@@ -35,13 +35,11 @@ def _to_ts(value: Optional[str]) -> Optional[datetime]:
 class MySQLOrderDAO:
     @property
     def TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_orders{suffix}"
+        return "sj_orders"
 
     @property
     def ITEMS_TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_order_items{suffix}"
+        return "sj_order_items"
 
     def _factory(self):
         return get_async_session_factory()
