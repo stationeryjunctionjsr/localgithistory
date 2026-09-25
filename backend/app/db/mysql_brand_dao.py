@@ -61,7 +61,7 @@ class MySQLBrandDAO:
             )
             rows = result.fetchall()
             
-        return [BrandResponse.model_validate(r._mapping) for r in rows]
+        return [BrandResponse.model_validate(r) for r in rows]
 
 
     async def findOne(self, query: Dict) -> Optional[BrandResponse]:
@@ -83,7 +83,7 @@ class MySQLBrandDAO:
                 {"id": bid},
             )
             row = result.fetchone()
-        return BrandResponse.model_validate(row._mapping) if row else None
+        return BrandResponse.model_validate(row) if row else None
 
 
     async def create(self, data: 'BrandInternalCreate') -> BrandResponse:

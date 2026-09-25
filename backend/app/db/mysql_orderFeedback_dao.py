@@ -206,14 +206,16 @@ class MySQLOrderFeedbackDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        d = dict(r._mapping)
-        if "comments" in d:
-            d["comment"] = d.pop("comments")
-        d.update(children)
-        return OrderFeedbackInternal.model_validate(d)
+        obj = OrderFeedbackInternal.model_validate(r)
+        if getattr(r, "comments", None):
+            obj.comment = getattr(r, "comments", None)
+        for k, v in children.items():
+            setattr(obj, k, v)
+        return obj
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}
         
     async def _replace_children(self, session, row_id: int, data: Any):
         pass
+

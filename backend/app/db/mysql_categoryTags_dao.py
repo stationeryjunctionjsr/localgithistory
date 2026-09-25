@@ -174,9 +174,7 @@ class MySQLCategoryTagsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        d = dict(r._mapping)
-        # CategoryTagInternal has alias='_id' for 'id', so we ensure id is present
-        return CategoryTagInternal.model_validate(d)
+        return CategoryTagInternal.model_validate(r)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}

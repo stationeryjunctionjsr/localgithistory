@@ -24,12 +24,12 @@ class MySQLSellerRequestDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_row(self, r, children: Dict) -> Dict:
-        d = dict(r._mapping)
-        d["user"] = d.pop("user_id")
-        d["attachments"] = children.get("attachments", [])
-        d["responses"] = children.get("responses", [])
-        return d
+    def _map_row(self, r, children: Dict) -> SellerRequest:
+        sr = SellerRequest.model_validate(r)
+        sr.user = getattr(r, "user_id", None)
+        sr.attachments = children.get("attachments", [])
+        sr.responses = children.get("responses", [])
+        return sr
 
     async def _fetch_children(self, session, req_ids: List[int]) -> Dict[int, Dict]:
         children_map = {rid: {"attachments": [], "responses": []} for rid in req_ids}
@@ -132,7 +132,7 @@ class MySQLSellerRequestDAO:
             )
             rows = result.fetchall()
             children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-        return [SellerRequest.model_validate(self._map_row(r, children_map[int(r.id)]) ) for r in rows]
+        return [self._map_row(r, children_map[int(r.id)]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -284,3 +284,4 @@ class MySQLSellerRequestDAO:
 
     async def count(self, query: Optional[Dict] = None) -> int:
         return len(await self.findAll(query))
+

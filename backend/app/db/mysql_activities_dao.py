@@ -256,10 +256,10 @@ class MySQLActivitiesDAO:
         return {"deletedCount": deleted}
     def _map_to_schema(self, r, children: Dict) -> Any:
         from app.models.daos import ActivityInternal
-        rm = dict(r._mapping)
+        obj = ActivityInternal.model_validate(r)
         if "meta" in children:
-            rm["meta"] = children["meta"]
-        return ActivityInternal.model_validate(rm)
+            obj.meta = children["meta"]
+        return obj
 
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:

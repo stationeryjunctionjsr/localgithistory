@@ -102,10 +102,9 @@ class MySQLCartDAO:
 
         out = []
         for r in rows:
-            d = dict(r._mapping)
-            d["user"] = str(d["user_id"])
-            d["items"] = items_map[r.external_id]
-            out.append(Cart.model_validate(d))
+            cart = Cart.model_validate(r)
+            cart.items = items_map[r.external_id]
+            out.append(cart)
         return out
 
     async def findOne(self, query: Dict) -> Optional[Any]:
@@ -273,3 +272,4 @@ class MySQLCartDAO:
         async with factory() as session:
             result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE} WHERE {where_sql}"), params)
             return result.scalar() or 0
+

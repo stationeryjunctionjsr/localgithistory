@@ -15,9 +15,7 @@ class MySQLValetPayoutDAO:
         return get_async_session_factory()
 
     def _map_row(self, row) -> ValetPayoutDetailResponse:
-        d = dict(row._mapping)
-        d["id"] = str(d["id"])
-        return ValetPayoutDetailResponse.model_validate(d)
+        return ValetPayoutDetailResponse.model_validate(row)
 
     async def findAll(self, query: Dict = None) -> List[ValetPayoutDetailResponse]:
         query = query or {}
@@ -207,5 +205,6 @@ def _parse_dt(dt_val):
         except ValueError:
             pass
     return dt_val
+
 
 

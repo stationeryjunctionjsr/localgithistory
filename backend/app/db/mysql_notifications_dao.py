@@ -199,12 +199,13 @@ class MySQLNotificationsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        d = dict(r._mapping)
+        obj = NotificationInternal.model_validate(r)
         if "data" in children:
-            d["metadata"] = children["data"]
+            obj.metadata = children["data"]
         else:
-            d.update(children)
-        return NotificationInternal.model_validate(d)
+            for k, v in children.items():
+                setattr(obj, k, v)
+        return obj
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}
@@ -234,3 +235,4 @@ class MySQLNotificationsDAO:
                 child_dict = child_list.model_dump() if hasattr(child_list, "model_dump") else child_list
             for k, v in (child_dict.items() if isinstance(child_dict, dict) else []):
                     await session.execute(text(f"INSERT INTO sj_notification_data (parent_id, data_key, data_value) VALUES (:id, :k, :v)"), {"id": row_id, "k": k, "v": v})
+

@@ -14,22 +14,22 @@ class MySQLCustomerSegmentDAO:
         return get_async_session_factory()
 
     def _map_to_schema(self, r, user_ids: List[str]) -> CustomerSegmentInternal:
-        d = dict(r._mapping)
-        d["user_ids"] = user_ids
-        d["filters"] = {
-            "min_average_order_value": d.pop("min_avg_order_value", None),
-            "max_average_order_value": d.pop("max_avg_order_value", None),
-            "start_date": d.pop("start_date", None),
-            "end_date": d.pop("end_date", None),
-            "min_order_frequency": d.pop("min_order_freq", None),
-            "max_order_frequency": d.pop("max_order_freq", None),
-            "state": d.pop("state", None),
-            "district": d.pop("district", None),
-            "app_user": d.pop("app_user", None),
-            "behavior": d.pop("behavior", None),
-            "role": d.pop("role", None),
+        c = CustomerSegmentInternal.model_validate(r)
+        c.user_ids = user_ids
+        c.filters = {
+            "min_average_order_value": getattr(r, "min_avg_order_value", None),
+            "max_average_order_value": getattr(r, "max_avg_order_value", None),
+            "start_date": getattr(r, "start_date", None),
+            "end_date": getattr(r, "end_date", None),
+            "min_order_frequency": getattr(r, "min_order_freq", None),
+            "max_order_frequency": getattr(r, "max_order_freq", None),
+            "state": getattr(r, "state", None),
+            "district": getattr(r, "district", None),
+            "app_user": getattr(r, "app_user", None),
+            "behavior": getattr(r, "behavior", None),
+            "role": getattr(r, "role", None),
         }
-        return CustomerSegmentInternal.model_validate(d)
+        return c
 
     async def _fetch_user_ids(self, segment_id: str) -> List[str]:
         SessionLocal = self._factory()
@@ -171,3 +171,4 @@ class MySQLCustomerSegmentDAO:
 
     async def deleteMany(self, query: Dict) -> Any:
         return {"deletedCount": 0}
+

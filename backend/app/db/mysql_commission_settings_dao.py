@@ -70,10 +70,9 @@ class MySQLCommissionSettingsDAO:
 
         out = []
         for r in rows:
-            d = dict(r._mapping)
-            d["id"] = str(r.id)
-            d["tiers"] = children_map[r.id]
-            out.append(CommissionSettings.model_validate(d))
+            cs = CommissionSettings.model_validate(r)
+            cs.tiers = children_map[r.id]
+            out.append(cs)
         return out
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
@@ -161,3 +160,4 @@ class MySQLCommissionSettingsDAO:
             )
             await session.commit()
             return result.rowcount > 0
+

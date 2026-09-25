@@ -66,12 +66,10 @@ class MySQLOrderDAO:
         return items, declines
 
     def __map_to_schema(self, r, items: List[Dict], declines: List[Dict]) -> Order:
-        d = dict(r._mapping)
-        d["id"] = str(d["id"])
-        
-        d["items"] = items
-        d["valet_decline_history"] = declines
-        return Order.model_validate(d)
+        order = Order.model_validate(r)
+        order.items = items
+        order.valet_decline_history = declines
+        return order
 
     def _build_query_conditions(self, query: Optional[Dict]) -> tuple[str, Dict]:
         where_clauses = []
@@ -522,6 +520,7 @@ class MySQLOrderDAO:
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+
 
 
 

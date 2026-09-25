@@ -161,9 +161,10 @@ class MySQLDeliverySlotsDAO:
         return await self.findById(id)
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        d = dict(r._mapping)
-        d.update(children)
-        return DeliverySlotConfigInternal.model_validate(d)
+        obj = DeliverySlotConfigInternal.model_validate(r)
+        for k, v in children.items():
+            setattr(obj, k, v)
+        return obj
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

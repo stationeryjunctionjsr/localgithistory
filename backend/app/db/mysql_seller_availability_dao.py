@@ -50,7 +50,7 @@ class MySQLSellerAvailabilityDAO:
         return get_async_session_factory()
 
     def __map_to_schema(self, row) -> Any:
-        return SellerAvailability.model_validate(dict(row._mapping))
+        return SellerAvailability.model_validate(row)
 
     def _build_where(self, query: Dict):
         where_clauses = []

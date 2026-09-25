@@ -24,8 +24,7 @@ class MySQLFeatureFlagDAO:
         return get_async_session_factory()
 
     def __map_to_schema(self, r) -> Any:
-        d = dict(r._mapping)
-        return FeatureFlag.model_validate(d)
+        return FeatureFlag.model_validate(r)
 
     async def findAll(self, query: Optional[Dict] = None) -> List[FeatureFlag]:
         factory = self._factory()
@@ -190,3 +189,4 @@ class MySQLFeatureFlagDAO:
     find_all = findAll
     find_by_id = findById
     find_one = findOne
+

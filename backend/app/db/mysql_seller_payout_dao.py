@@ -16,9 +16,7 @@ class MySQLSellerPayoutDAO:
         return get_async_session_factory()
 
     def _map_row(self, row) -> SellerPayoutDetailResponse:
-        d = dict(row._mapping)
-        d["id"] = str(d["id"])
-        return SellerPayoutDetailResponse.model_validate(d)
+        return SellerPayoutDetailResponse.model_validate(row)
 
     async def _fetch_sub_orders(self, payout_id: str) -> List[str]:
         factory = self._factory()
@@ -209,5 +207,6 @@ def _parse_dt(dt_val):
         except ValueError:
             pass
     return dt_val
+
 
 

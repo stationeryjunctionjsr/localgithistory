@@ -127,10 +127,10 @@ class MySQLCategoryDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         out = []
         for r in rows:
-            d = dict(r._mapping)
-            d["id"] = str(r.id)
-            d.update(c_map[r.id])
-            out.append(Category.model_validate(d))
+            cat = Category.model_validate(r)
+            for k, v in c_map[r.id].items():
+                setattr(cat, k, v)
+            out.append(cat)
         return out
 
     async def findOne(self, query: Dict) -> Optional[Category]:
@@ -237,3 +237,5 @@ class MySQLCategoryDAO:
             )
             await session.commit()
             return result.rowcount > 0
+
+

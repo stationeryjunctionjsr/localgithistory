@@ -2,7 +2,7 @@
 MySQL DAO for sj_wishlists. Fully relational.
 """
 
-from app.models.daos import WishlistInternalCreate, WishlistInternalUpdate
+InternalCreate, WishlistInternalUpdate
 import secrets
 from typing import Dict
 from app.models.wishlist import Wishlist, List, Optional
@@ -22,11 +22,12 @@ class MySQLWishlistDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_to_schema(self, r, items: List[str]) -> Dict:
-        d = dict(r._mapping)
-        d["user"] = d.get("user_id")
-        d["items"] = [{"product": p} for p in items]
-        return d
+    def _map_to_schema(self, r, items: List[str]) -> "Wishlist":
+        
+        w = Wishlist.model_validate(r)
+        w.user = getattr(r, "user_id", None)
+        w.items = [{"product": p} for p in items]
+        return w
 
     async def _fetch_items(self, session, ids: List[int]) -> Dict[int, List[str]]:
         c_map = {rid: [] for rid in ids}
@@ -90,7 +91,7 @@ class MySQLWishlistDAO:
             )
             rows = result.fetchall()
             items_map = await self._fetch_items(session, [r.id for r in rows])
-        return [Wishlist.model_validate(self._map_to_schema(r, items_map[r.id]) ) for r in rows]
+        return [self._map_to_schema(r, items_map[r.id]) for r in rows]
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
         docs = await self.findAll(query)
@@ -174,4 +175,5 @@ class MySQLWishlistDAO:
                 await session.execute(text(f"DELETE FROM {self.TABLE} WHERE id = :wid"), {"wid": wid})
             await session.commit()
         return len(wids)
+
 

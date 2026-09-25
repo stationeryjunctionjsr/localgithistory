@@ -15,51 +15,7 @@ class MySQLAdDAO:
         return get_async_session_factory()
 
     def _map_to_schema(self, row) -> Ad:
-        return Ad(**self._map_to_schema_raw(row))
-    def _map_to_schema_raw(self, row) -> dict:
-        return {
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "name": row.name,
-            "platform": row.platform,
-            "objective": row.objective,
-            "status": row.status,
-            "budget_daily": row.budget_daily,
-            "budget_total": row.budget_total,
-            "currency": row.currency,
-            "start_date": row.start_date.isoformat() if row.start_date else None,
-            "end_date": row.end_date.isoformat() if row.end_date else None,
-            "target_url": row.target_url,
-            "headline": row.headline,
-            "description": row.description,
-            "image_url": row.image_url,
-            "google_campaign_id": row.google_campaign_id,
-            "google_ad_group_id": row.google_ad_group_id,
-            "meta_campaign_id": row.meta_campaign_id,
-            "meta_ad_set_id": row.meta_ad_set_id,
-            "utm_source": row.utm_source,
-            "utm_medium": row.utm_medium,
-            "utm_campaign": row.utm_campaign,
-            "google_conversion_id": row.google_conversion_id,
-            "google_conversion_label": row.google_conversion_label,
-            "meta_pixel_id": row.meta_pixel_id,
-            "notes": row.notes,
-            "stats": {
-                "impressions": row.impressions,
-                "clicks": row.clicks,
-                "leads": row.leads,
-                "purchases": row.purchases,
-                "add_to_cart": row.add_to_cart,
-                "conversions": row.conversions,
-                "conversion_value": row.conversion_value,
-                "ctr": float(row.ctr) if row.ctr else 0.0,
-                "cvr": float(row.cvr) if row.cvr else 0.0,
-            },
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-            "launchedAt": row.launched_at.isoformat() if row.launched_at else None,
-        }
+        return Ad.model_validate(row)
     async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
         factory = self._factory()
         if not factory:
@@ -98,7 +54,7 @@ class MySQLAdDAO:
             )
             rows = result.fetchall()
             
-        return [Ad.model_validate(r._mapping) for r in rows]
+        return [Ad.model_validate(r) for r in rows]
 
 
     async def findOne(self, query: Dict) -> Optional[Dict]:
@@ -119,7 +75,7 @@ class MySQLAdDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return Ad.model_validate(self._map_to_schema(row)) if row else None
+        return self._map_to_schema(row) if row else None
 
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
@@ -252,3 +208,5 @@ class MySQLAdDAO:
                 await session.commit()
                 
         return await self.findById(id)
+
+

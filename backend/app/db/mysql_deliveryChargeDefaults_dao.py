@@ -176,9 +176,10 @@ class MySQLDeliveryChargeDefaultsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        d = dict(r._mapping)
-        d.update(children)
-        return DeliveryChargeDefaultInternal.model_validate(d)
+        obj = DeliveryChargeDefaultInternal.model_validate(r)
+        for k, v in children.items():
+            setattr(obj, k, v)
+        return obj
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

@@ -75,9 +75,8 @@ class MySQLSubOrderDAO:
         return get_async_session_factory()
 
     def _map_to_schema(self, row, items_rows=None) -> 'SubOrder':
-        d = dict(row._mapping)
-        d["id"] = str(d["id"])
-
+        from app.models.sub_order import SubOrder
+        sub = SubOrder.model_validate(row)
         items = []
         if items_rows:
             for it in items_rows:
@@ -88,10 +87,8 @@ class MySQLSubOrderDAO:
                         "qty": it.qty, 
                         "price": float(it.price)
                     })
-        d["items"] = items
-
-        from app.models.sub_order import SubOrder
-        return SubOrder.model_validate(d)
+        sub.items = items
+        return sub
 
     def _build_where(self, query: Dict):
         where_clauses = []
@@ -340,6 +337,7 @@ class MySQLSubOrderDAO:
             result = await session.execute(text(f"DELETE FROM {self.table_name} WHERE id = :id"), {"id": int(id)})
             await session.commit()
             return result.rowcount > 0
+
 
 
 

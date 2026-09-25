@@ -210,15 +210,16 @@ class MySQLContactsDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        d = dict(r._mapping)
-        if d.get("social_media"):
-            import json
+        import json
+        c = ContactInternal.model_validate(r)
+        if getattr(r, "social_media", None):
             try:
-                d["social_media"] = json.loads(d["social_media"])
+                c.social_media = json.loads(r.social_media)
             except:
                 pass
-        d.update(children)
-        return ContactInternal.model_validate(d)
+        for k, v in children.items():
+            setattr(c, k, v)
+        return c
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}
@@ -264,3 +265,4 @@ class MySQLContactsDAO:
             if child_list:
                 for item in child_list:
                     await session.execute(text(f"INSERT INTO sj_contact_phones (parent_id, phone) VALUES (:id, :v)"), {"id": row_id, "v": item})
+

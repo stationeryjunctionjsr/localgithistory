@@ -35,7 +35,7 @@ class MySQLSessionDAO:
         return get_async_session_factory()
 
     def _map_to_schema(self, r) -> Any:
-        return Session.model_validate(dict(r._mapping))
+        return Session.model_validate(r)
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
         factory = self._factory()
@@ -91,7 +91,7 @@ class MySQLSessionDAO:
                 {"id": sid},
             )
             row = result.fetchone()
-        return Session.model_validate(self._map_to_schema(row)) if row else None
+        return self._map_to_schema(row) if row else None
 
     async def create(self, data: 'SessionInternalCreate') -> Dict:
         factory = self._factory()

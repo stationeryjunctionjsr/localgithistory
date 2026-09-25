@@ -10,26 +10,24 @@ from app.config.database import get_async_session_factory
 from app.config.settings import settings
 
 def _map_to_schema(r, children: Dict) -> User:
-    d = dict(r._mapping)
-    all_addresses = children.get('addresses', [])
-    d['address'] = next((a for a in all_addresses if a.get('isPrimary')), None)
-    d['saved_addresses'] = [a for a in all_addresses if not a.get('isPrimary')]
-    d['service_area_zones'] = children.get('zones', [])
+    u = User.model_validate(r)
+    all_addresses = children.get("addresses", [])
+    u.address = next((a for a in all_addresses if a.get("isPrimary")), None)
+    u.saved_addresses = [a for a in all_addresses if not a.get("isPrimary")]
+    u.service_area_zones = children.get("zones", [])
     
-    d['user_id'] = d.get('id')
-    if not d.get('user_id_formatted'):
-        d['user_id_formatted'] = f'USER-{d["id"]}' if d.get('id') else None
+    u.user_id = getattr(r, "id", None)
+    if not u.user_id_formatted and u.user_id:
+        u.user_id_formatted = f"USER-{r.id}"
     
-    d['password'] = d.pop('password_hash', None)
-    d['gst_number'] = d.pop('gst_number', None)
-
-    # Convert payment_terms string net_30 to int
-    pt = d.get('payment_terms')
+    u.password = getattr(r, "password_hash", None)
+    
+    pt = getattr(r, "payment_terms", None)
     if pt:
-        pt_str = str(pt).replace('net_', '')
-        d['payment_terms'] = int(pt_str) if pt_str.isdigit() else None
+        pt_str = str(pt).replace("net_", "")
+        u.payment_terms = int(pt_str) if pt_str.isdigit() else None
         
-    return User.model_validate(d)
+    return u
 
 class MySQLUserDAO:
 

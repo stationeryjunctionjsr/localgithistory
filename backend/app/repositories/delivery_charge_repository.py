@@ -5,7 +5,7 @@ from typing import Dict, Optional
 from app.db.storage_factory import get_storage
 
 
-class delivery_chargeRepository:
+class DeliveryChargeRepository:
     def __init__(self):
         self.storage = get_storage("delivery_charges")
         self.default_storage = get_storage("DeliveryChargeDefaults")
@@ -382,6 +382,6 @@ class delivery_chargeRepository:
         return None
 
 
-delivery_charge_repository = delivery_chargeRepository()
+delivery_charge_repository = DeliveryChargeRepository()
 
 

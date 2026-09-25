@@ -198,8 +198,7 @@ class MySQLCoachMarksDAO:
         return {"deletedCount": deleted}
 
     def _map_to_schema(self, r, children: Dict) -> Any:
-        d = dict(r._mapping)
-        return CoachMarkInternal.model_validate(d)
+        return CoachMarkInternal.model_validate(r)
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}
