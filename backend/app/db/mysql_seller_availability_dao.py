@@ -44,8 +44,7 @@ class MySQLSellerAvailabilityDAO:
 
     @property
     def table_name(self) -> str:
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_seller_availability{suffix}"
+        return "sj_seller_availability"
 
     def _get_session_factory(self):
         return get_async_session_factory()

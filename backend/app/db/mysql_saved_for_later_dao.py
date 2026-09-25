@@ -32,8 +32,7 @@ def _to_ts(val):
 class MySQLSavedForLaterDAO:
     @property
     def TABLE(self) -> str:
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_saved_for_later{suffix}"
+        return "sj_saved_for_later"
 
     def _factory(self):
         return get_async_session_factory()

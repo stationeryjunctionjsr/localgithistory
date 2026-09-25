@@ -29,8 +29,7 @@ def _row_to_segment(r) -> Dict:
 class MySQLReferralSettingsDAO:
     @property
     def TABLE(self) -> str:
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_referral_settings{suffix}"
+        return "sj_referral_settings"
 
     def _factory(self):
         return get_async_session_factory()
