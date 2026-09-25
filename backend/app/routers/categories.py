@@ -317,13 +317,13 @@ async def create_category(category: CategoryBase, current_user: User = Depends(r
             name=category.name.strip(),
             description=category.description or "",
             images=category.images or [],
-            subCategories=category.sub_categories or [],
-            minimumQuantity=category.minimumQuantity or 0,
-            categoryTag=category.categoryTag or "",
-            isActive=category.isActive,
-            showInMobileHomepage=category.showInMobileHomepage,
+            sub_categories=category.sub_categories or [],
+            minimum_quantity=category.minimum_quantity or 0,
+            category_tag=category.category_tag or "",
+            is_active=category.is_active,
+            show_in_mobile_homepage=category.show_in_mobile_homepage,
             gst=category.gst,
-            isReturnable=category.isReturnable,
+            is_returnable=category.is_returnable,
         )
 
         new_category = await category_repository.create(category_data)

@@ -449,17 +449,17 @@ class CategoryInternalCreate(CamelBaseModel):
     external_id: Optional[str] = Field(None, alias='externalId')
     name: str
     description: Optional[str] = None
-    parentId: Optional[str] = None
+    parent_id: Optional[str] = None
     is_active: bool = True
     is_system: bool = False
     images: Optional[List[str]] = []
-    subCategories: Optional[List[str]] = []
+    sub_categories: Optional[List[str]] = []
     minimum_quantity: Optional[int] = 1
     category_tag: Optional[str] = None
-    categoryTags: Optional[List[str]] = []
-    showInMobileHomepage: Optional[bool] = False
+    category_tags: Optional[List[str]] = []
+    show_in_mobile_homepage: Optional[bool] = False
     gst: Optional[float] = None
-    isReturnable: Optional[bool] = True
+    is_returnable: Optional[bool] = True
 
 class CategoryChildrenData(CamelBaseModel):
     images: Optional[List[str]] = None
@@ -471,7 +471,7 @@ class CategoryInternalUpdate(CamelBaseModel):
     external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
     description: Optional[str] = None
-    parentId: Optional[str] = None
+    parent_id: Optional[str] = None
     is_active: Optional[bool] = None
     sales_count: Optional[int] = None
     updated_at: Optional[Any] = None
