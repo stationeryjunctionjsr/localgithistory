@@ -702,8 +702,10 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             return CouponValidationResponse(valid=False, message="Discount is not active")
 
         now = datetime.now(timezone.utc)
-        valid_from = datetime.fromisoformat(coupon.validFrom.replace("Z", "+00:00"))
-        valid_until = datetime.fromisoformat(coupon.validUntil.replace("Z", "+00:00"))
+        valid_from = datetime.fromisoformat(coupon.validFrom.replace('Z', '+00:00'))
+                if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
+                valid_until = datetime.fromisoformat(coupon.validUntil.replace('Z', '+00:00'))
+                if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
 
         if now < valid_from:
             return CouponValidationResponse(valid=False, message="Discount is not yet valid")
@@ -875,8 +877,10 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             try:
                 if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "product_discount":
                     continue
-                valid_from = datetime.fromisoformat(coupon.validFrom.replace("Z", "+00:00"))
-                valid_until = datetime.fromisoformat(coupon.validUntil.replace("Z", "+00:00"))
+                valid_from = datetime.fromisoformat(coupon.validFrom.replace('Z', '+00:00'))
+                if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
+                valid_until = datetime.fromisoformat(coupon.validUntil.replace('Z', '+00:00'))
+                if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
                 if now < valid_from or now > valid_until:
                     continue
                 if coupon.maxUses and (coupon.usedCount if coupon.usedCount is not None else 0) >= coupon.maxUses:
@@ -1245,8 +1249,10 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         # Step 1: Find the default highest automatic product discount
         for c in all_coupons:
             try:
-                valid_from = datetime.fromisoformat(c.validFrom.replace("Z", "+00:00")).replace(tzinfo=None)
-                valid_until = datetime.fromisoformat(c.validUntil.replace("Z", "+00:00")).replace(tzinfo=None)
+                valid_from = datetime.fromisoformat(c.validFrom.replace('Z', '+00:00'))
+                if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
+                valid_until = datetime.fromisoformat(c.validUntil.replace('Z', '+00:00'))
+                if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
                 if not (valid_from <= now <= valid_until):
                     continue
             except Exception:
@@ -1296,8 +1302,10 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 continue
 
             try:
-                valid_from = datetime.fromisoformat(c.validFrom.replace("Z", "+00:00")).replace(tzinfo=None)
-                valid_until = datetime.fromisoformat(c.validUntil.replace("Z", "+00:00")).replace(tzinfo=None)
+                valid_from = datetime.fromisoformat(c.validFrom.replace('Z', '+00:00'))
+                if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
+                valid_until = datetime.fromisoformat(c.validUntil.replace('Z', '+00:00'))
+                if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
                 if not (valid_from <= now <= valid_until):
                     continue
             except Exception:
