@@ -139,7 +139,7 @@ def get_recommendation_config() -> Dict:
     return _load_config()
 
 
-def _parse_order_date(raw_date: Any) -> Optional[datetime]:
+def _parse_order_date(raw_date: str) -> Optional[datetime]:
     """Helper to safely parse order creation date for time-decay weighting."""
     if not raw_date:
         return None
@@ -772,7 +772,7 @@ class RecommendationRepository:
         return out
 
     def _total_personal_rewards(
-        self, rewards_by_strategy: Any[str, List[float]], strategies: Optional[List[str]] = None
+        self, rewards_by_strategy: Dict[str, List[float]], strategies: Optional[List[str]] = None
     ) -> int:
         strategies = strategies or BANDIT_STRATEGIES
         return sum(len(rewards_by_strategy[s] if s in rewards_by_strategy else []) for s in strategies)

@@ -106,7 +106,7 @@ class MySQLFlatBaseDAO:
                 cls = None
         return cls(**out) if cls else out
 
-    def _doc_to_params(self, data: 'CamelBaseModel', now: datetime) -> Dict[str, Any]:
+    def _doc_to_params(self, data: 'CamelBaseModel', now: datetime) -> dict:
         params = {"created_at": now, "updated_at": now}
         if self.has_external_id:
             params["external_id"] = secrets.token_hex(16)
@@ -284,7 +284,7 @@ class MySQLFlatBaseDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict[str, Any]) -> Dict[str, Any]:
+    async def deleteMany(self, query: dict) -> dict:
         docs = await self.findAll(query)
         deleted = 0
         for d in docs:

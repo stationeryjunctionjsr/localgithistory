@@ -48,7 +48,8 @@ class MySQLCartDAO:
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
-            result = await session.execute(
+            result = print(f'\n[DEBUG] MySQLCartDAO.create: user_id_raw={user_id_raw}, uid={uid}')
+            await session.execute(
                 text(
                     f"SELECT id, external_id, user_id, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"
                 ),
@@ -174,13 +175,13 @@ class MySQLCartDAO:
                     INSERT INTO {self.TABLE} (
                         external_id, user_id, created_at, updated_at
                     ) VALUES (
-                        :external_id, :user_id, :created_at, :updated_at
+                        :external_id, COALESCE(:user_id, (SELECT id FROM sj_users WHERE external_id = :user_id_raw)), :created_at, :updated_at
                     )
                     """
                 ),
                 {
                     "external_id": external_id,
-                    "user_id": uid,
+                    "user_id": uid, "user_id_raw": user_id_raw,
                     "created_at": now,
                     "updated_at": now,
                 },

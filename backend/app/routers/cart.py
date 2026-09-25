@@ -6,6 +6,7 @@ from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from app.models.base import CamelBaseModel
 
 from app.repositories.cart_repository import cart_repository
 from app.repositories.product_repository import product_repository
@@ -15,19 +16,19 @@ from app.utils.logger import logger
 router = APIRouter()
 
 
-class CartItemRequest(BaseModel):
-    productId: str
+class CartItemRequest(CamelBaseModel):
+    product_id: str
     quantity: int  # Always in units (for cases: quantity = cases * quantityPerCase)
-    sellAsCase: bool = False  # Business only: price by case (MRP per case)
-    sessionId: Optional[str] = None
-    variantAttributes: Optional[Dict[str, str]] = None
+    sell_as_case: bool = False  # Business only: price by case (MRP per case)
+    session_id: Optional[str] = None
+    variant_attributes: Optional[Dict[str, str]] = None
 
 
-class SaveForLaterRequest(BaseModel):
-    productId: str
+class SaveForLaterRequest(CamelBaseModel):
+    product_id: str
 
 
-class CartItemUpdateRequest(BaseModel):
+class CartItemUpdateRequest(CamelBaseModel):
     quantity: int
 
 

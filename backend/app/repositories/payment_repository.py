@@ -60,7 +60,7 @@ class PaymentRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def findOne(self, query: Any):
+    async def findOne(self, query: dict):
         return await self.storage.findOne(query)
 
     async def findByOrderId(self, order_id: str):

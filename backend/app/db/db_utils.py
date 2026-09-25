@@ -13,13 +13,13 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def json_dumps(value: Any) -> Optional[str]:
+def json_dumps(value: dict) -> Optional[str]:
     if value is None:
         return None
     return json.dumps(value, default=str)
 
 
-def json_loads(value: Any) -> Any:
+def json_loads(value: dict) -> dict:
     if value is None:
         return None
     try:

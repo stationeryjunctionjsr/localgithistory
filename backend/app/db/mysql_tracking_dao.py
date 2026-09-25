@@ -185,7 +185,7 @@ class MySQLTrackingDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
 
-    async def findOne(self, query: Dict[str, Any]) -> Optional['AnalyticsEvent']:
+    async def findOne(self, query: dict) -> Optional['AnalyticsEvent']:
         docs = await self.findAll(query)
         return docs[0] if docs else None
 
@@ -287,7 +287,7 @@ class MySQLTrackingDAO:
             await session.commit()
             return res.rowcount > 0
 
-    async def deleteMany(self, query: Dict[str, Any]) -> int:
+    async def deleteMany(self, query: dict) -> int:
         from sqlalchemy import text
 
         factory = self._factory()

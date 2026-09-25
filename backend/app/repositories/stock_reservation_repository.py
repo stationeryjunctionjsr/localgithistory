@@ -57,7 +57,7 @@ class StockReservationRepository:
 
         return total
 
-    async def get_user_reservations(self, user_id: str) -> List[Any]:
+    async def get_user_reservations(self, user_id: str) -> List['StockReservationInternal']:
         """Returns all active, non-expired reservations for a user."""
         await self.ensure_table_exists()
         all_res = await self.storage.findAll({"userId": str(user_id), "status": "active"})
@@ -71,7 +71,7 @@ class StockReservationRepository:
 
         return active_res
 
-    async def reserve_stock(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> Any:
+    async def reserve_stock(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> dict:
         """Creates or updates a reservation for a product and user."""
         await self.ensure_table_exists()
 

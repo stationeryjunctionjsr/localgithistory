@@ -14,7 +14,7 @@ class ActivityRepository:
         session_id: str,
         action: str,
         meta: Dict,
-        device: Any,
+        device: dict,
         comment: Optional[str] = None,
         is_guest: bool = False,
     ):

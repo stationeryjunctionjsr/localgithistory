@@ -179,7 +179,7 @@ async def get_tag_categories(tag_name: str):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.get("/public/tags/{tag_name}/brands", response_model=List[Any])
+@router.get("/public/tags/{tag_name}/brands", response_model=List[str])
 @cache.ttl_cache(ttl=300.0)
 async def get_tag_brands(tag_name: str):
     """Get brands associated with a specific tag via categories and products"""

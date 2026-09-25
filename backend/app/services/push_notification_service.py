@@ -33,7 +33,7 @@ class PushNotificationService:
         self.vapid_email = os.getenv("VAPID_EMAIL", "mailto:your-email@example.com")
         self.expo_push_url = "https://exp.host/--/api/v2/push/send"
 
-    def _send_expo_push(self, expo_tokens: list, notification: Any) -> int:
+    def _send_expo_push(self, expo_tokens: list, notification: 'PushNotification') -> int:
         """Send push notifications to Expo mobile devices in batches of 100."""
         if not expo_tokens or not HTTP_AVAILABLE:
             return 0
@@ -214,7 +214,7 @@ class PushNotificationService:
             logger.error("Error in sending targeted push: %s", str(e), exc_info=True)
             raise
 
-    async def send_to_user(self, user_id: str, notification: Any):
+    async def send_to_user(self, user_id: str, notification: 'PushNotification'):
         """Send push notification to a specific user's devices"""
         try:
             devices = await push_notification_repository.getDeviceSubscriptionsByUser(user_id)
@@ -258,9 +258,9 @@ class PushNotificationService:
     async def is_user_targeted(
         self,
         user_id: str,
-        notification: Any,
-        user: Optional[Any] = None,
-        user_orders: Optional[List[Any]] = None,
+        notification: 'PushNotification',
+        user: Optional['User'] = None,
+        user_orders: Optional[List['Order']] = None,
         reference_date: Optional[datetime] = None,
     ) -> bool:
         """Check if a specific user satisfies the targeting criteria of a notification."""

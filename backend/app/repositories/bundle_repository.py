@@ -72,15 +72,15 @@ class BundleRepository:
             except Exception as e:
                 logger.error("Error ensuring %s exists: %s", table_name_upper, str(e))
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Any]:
+    async def findAll(self, query: Optional[Dict] = None) -> List['BundleInternal']:
         await self.ensure_table_exists()
         return await self.storage.findAll(query)
 
-    async def findById(self, id: str) -> Optional[Any]:
+    async def findById(self, id: str) -> Optional['BundleInternal']:
         await self.ensure_table_exists()
         return await self.storage.findById(id)
 
-    async def findOne(self, query: Any) -> Optional[Any]:
+    async def findOne(self, query: dict) -> Optional['BundleInternal']:
         await self.ensure_table_exists()
         return await self.storage.findOne(query)
 
@@ -107,12 +107,12 @@ class BundleRepository:
         await self.ensure_table_exists()
         return await self.storage.delete(id)
 
-    async def get_active_bundles(self) -> List[Any]:
+    async def get_active_bundles(self) -> List['BundleInternal']:
         """Return only active (published) bundles."""
         all_bundles = await self.findAll()
         return [b for b in all_bundles if (b.is_active if b.is_active is not None else True)]
 
-    async def get_bundles_containing_product(self, product_id: str) -> List[Any]:
+    async def get_bundles_containing_product(self, product_id: str) -> List['BundleInternal']:
         """Return all active bundles that include a given product_id."""
         all_bundles = await self.get_active_bundles()
         result = []

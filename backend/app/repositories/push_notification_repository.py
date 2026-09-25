@@ -79,7 +79,7 @@ class PushNotificationRepository:
         """Delete a push notification"""
         return await self.storage.delete(id)
 
-    async def updateStats(self, id: str, stats: Any, userId: Optional[str] = None):
+    async def updateStats(self, id: str, stats: dict, userId: Optional[str] = None):
         """Update delivery/read statistics for a notification"""
         notification = await self.findById(id)
         if notification:

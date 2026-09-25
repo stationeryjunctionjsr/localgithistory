@@ -349,7 +349,7 @@ async def get_all_seller_availability(
     current_user: User = Depends(require_super_admin),
 ):
     """Admin: view all sellers' availability windows."""
-    query: Dict[str, Any] = {}
+    query: dict = {}
     if sellerId:
         query["sellerId"] = sellerId
     if status:

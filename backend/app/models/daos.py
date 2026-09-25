@@ -49,7 +49,7 @@ class PaymentEntryInternal(CamelBaseModel):
     image: Optional[str] = None
     notes: Optional[str] = None
     verified: Optional[bool] = False
-    created_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
 
 class PaymentInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -65,8 +65,8 @@ class PaymentInternalCreate(CamelBaseModel):
     total_amount: Optional[float] = 0.0
     payment_id: Optional[str] = None
     payment_entries: Optional[List[PaymentEntryInternal]] = []
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class PaymentInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -82,8 +82,8 @@ class PaymentInternalUpdate(CamelBaseModel):
     total_amount: Optional[float] = None
     payment_id: Optional[str] = None
     payment_entries: Optional[List[PaymentEntryInternal]] = None
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class VisibilityRuleInternal(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -121,7 +121,7 @@ class BannerInternalUpdate(BaseModel):
     endDate: Optional[datetime] = None
     is_active: Optional[bool] = None
     sales_count: Optional[int] = None
-    updated_at: Optional[Any] = None
+    updated_at: Optional[datetime] = None
     isPublished: Optional[bool] = None
     targetAudience: Optional[str] = None
     user_segments: Optional[List[str]] = None
@@ -239,8 +239,8 @@ class SessionInternalCreate(CamelBaseModel):
     ip_address: Optional[str] = None
     refresh_token_id: Optional[str] = None
     status: Optional[str] = None
-    last_active_at: Optional[Any] = None
-    revoked_at: Optional[Any] = None
+    last_active_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
     revoked_reason: Optional[str] = None
     device: Optional[DeviceSnippet] = None
     is_guest: Optional[bool] = None
@@ -248,12 +248,12 @@ class SessionInternalCreate(CamelBaseModel):
     id: Optional[str] = None
     user_id: Optional[str] = None
     refresh_token_id: Optional[str] = None
-    last_active_at: Optional[Any] = None
-    revoked_at: Optional[Any] = None
+    last_active_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
     revoked_reason: Optional[str] = None
     is_guest: Optional[bool] = None
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class SessionInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
@@ -264,17 +264,17 @@ class SessionInternalUpdate(CamelBaseModel):
     ip_address: Optional[str] = None
     is_active: Optional[bool] = None
     sales_count: Optional[int] = None
-    updated_at: Optional[Any] = None
+    updated_at: Optional[datetime] = None
     refresh_token_id: Optional[str] = None
     status: Optional[str] = None
-    last_active_at: Optional[Any] = None
-    revoked_at: Optional[Any] = None
+    last_active_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
     revoked_reason: Optional[str] = None
     device: Optional[DeviceSnippet] = None
     is_guest: Optional[bool] = None
     comment: Optional[str] = None
     id_: Optional[str] = Field(default=None, alias="_id")
-    created_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
     external_id: Optional[str] = None
     comments: Optional[str] = None
     eid: Optional[str] = None
@@ -284,12 +284,12 @@ class SessionInternalUpdate(CamelBaseModel):
     id: Optional[str] = None
     user_id: Optional[str] = None
     refresh_token_id: Optional[str] = None
-    last_active_at: Optional[Any] = None
-    revoked_at: Optional[Any] = None
+    last_active_at: Optional[datetime] = None
+    revoked_at: Optional[datetime] = None
     revoked_reason: Optional[str] = None
     is_guest: Optional[bool] = None
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class WishlistItemInternal(CamelBaseModel):
@@ -346,7 +346,7 @@ class SellerRequestInternalCreate(CamelBaseModel):
     responses: Optional[List['TicketResponseItem']] = None
     resolved_at: Optional[str] = None
     closed_at: Optional[str] = None
-    created_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
     business_details: Optional[BusinessDetailsInternal] = None
 
 class SellerRequestInternalUpdate(CamelBaseModel):
@@ -363,7 +363,7 @@ class SellerRequestInternalUpdate(CamelBaseModel):
     responses: Optional[List['TicketResponseItem']] = None
     resolved_at: Optional[str] = None
     closed_at: Optional[str] = None
-    created_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
     business_details: Optional[BusinessDetailsInternal] = None
 
 
@@ -388,8 +388,8 @@ class ProductInternalCreate(CamelBaseModel):
     price_per_case: Optional[float] = None
     items_per_case: Optional[int] = None
     is_returnable: Optional[bool] = None
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     minimum_quantity: Optional[int] = 1
     search_tags: Optional[List[str]] = []
     sales_count: Optional[int] = 0
@@ -441,7 +441,7 @@ class ProductInternalUpdate(CamelBaseModel):
     images: Optional[List[str]] = None
     is_active: Optional[bool] = None
     sales_count: Optional[int] = None
-    updated_at: Optional[Any] = None
+    updated_at: Optional[datetime] = None
     seller_id: Optional[str] = None
 
 class CategoryInternalCreate(CamelBaseModel):
@@ -474,7 +474,7 @@ class CategoryInternalUpdate(CamelBaseModel):
     parent_id: Optional[str] = None
     is_active: Optional[bool] = None
     sales_count: Optional[int] = None
-    updated_at: Optional[Any] = None
+    updated_at: Optional[datetime] = None
     images: Optional[List[str]] = None
     sub_categories: Optional[List[str]] = None
     minimum_quantity: Optional[int] = 1
@@ -483,7 +483,7 @@ class CategoryInternalUpdate(CamelBaseModel):
     show_in_mobile_homepage: Optional[bool] = None
     gst: Optional[float] = None
     is_returnable: Optional[bool] = None
-    created_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
 
 class BrandInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -502,7 +502,7 @@ class BrandInternalUpdate(BaseModel):
     description: Optional[str] = None
     is_active: Optional[bool] = None
     sales_count: Optional[int] = None
-    updated_at: Optional[Any] = None
+    updated_at: Optional[datetime] = None
     slug: Optional[str] = None
     logoUrl: Optional[str] = None
     show_in_mobile_homepage: Optional[bool] = None
@@ -534,7 +534,7 @@ class BundleInternalUpdate(CamelBaseModel):
     price: Optional[float] = None
     is_active: Optional[bool] = None
     sales_count: Optional[int] = None
-    updated_at: Optional[Any] = None
+    updated_at: Optional[datetime] = None
 
 class ReturnRequestInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
@@ -561,8 +561,8 @@ class ReturnRequestInternalCreate(CamelBaseModel):
     valet_declined_at: Optional[str] = None
     valet_decline_reason: Optional[str] = None
     delivery_charge: Optional[float] = 0.0
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class ReturnRequestInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True, from_attributes=True)
@@ -587,7 +587,7 @@ class ReturnRequestInternalUpdate(CamelBaseModel):
     valet_declined_at: Optional[str] = None
     valet_decline_reason: Optional[str] = None
     delivery_charge: Optional[float] = None
-    updated_at: Optional[Any] = None
+    updated_at: Optional[datetime] = None
 
 class ReturnRequestInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
@@ -614,8 +614,8 @@ class ReturnRequestInternal(CamelBaseModel):
     valet_declined_at: Optional[str] = None
     valet_decline_reason: Optional[str] = None
     delivery_charge: Optional[float] = 0.0
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 from app.models.schemas import TicketResponseItem, ProductSellerEntry, VariantOption, ReturnItemSchema, ValetDeclineHistoryEntry
 
@@ -636,8 +636,8 @@ class CustomerSegmentInternalCreate(CamelBaseModel):
     filters: Optional[CustomerSegmentFilters] = None
     is_active: bool = True
     is_system: bool = False
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     lastRefreshedAt: Optional[str] = None
 
 class CustomerSegmentInternalUpdate(CamelBaseModel):
@@ -645,7 +645,7 @@ class CustomerSegmentInternalUpdate(CamelBaseModel):
     userIds: Optional[List[str]] = None
     filters: Optional[CustomerSegmentFilters] = None
     is_active: Optional[bool] = None
-    updated_at: Optional[Any] = None
+    updated_at: Optional[datetime] = None
     lastRefreshedAt: Optional[str] = None
 
 class NotificationInternalCreate(CamelBaseModel):
@@ -657,13 +657,13 @@ class NotificationInternalCreate(CamelBaseModel):
     metadata: Optional[NotificationMetadata] = None
     is_read: bool = False
     is_acknowledged: bool = False
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class NotificationInternalUpdate(CamelBaseModel):
     is_read: Optional[bool] = None
     is_acknowledged: Optional[bool] = None
-    updated_at: Optional[Any] = None
+    updated_at: Optional[datetime] = None
 
 class NotificationFilter(BaseModel):
     user_id: Optional[str] = None
@@ -682,5 +682,5 @@ class NotificationInternal(CamelBaseModel):
     is_read: bool
     is_acknowledged: bool
     metadata: Optional[NotificationMetadata] = None
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

@@ -39,7 +39,7 @@ class CartRepository:
             create_data = CartInternalCreate(user=user_id, items=items or [])
             return await self.create(create_data)
 
-    async def addItem(self, user_id: str, item: Any):
+    async def addItem(self, user_id: str, item: 'CartItemInternal'):
         cart = await self.findByUser(user_id)
         if not cart:
             return await self.createOrUpdate(user_id, [item])

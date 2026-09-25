@@ -175,7 +175,7 @@ async def get_all_availability(
     current_user: User = Depends(require_super_admin_or_seller),
 ):
     """Return valets' availability. Super Admin sees all. Sellers see valets in their service area."""
-    query: Dict[str, Any] = {}
+    query: dict = {}
     if date:
         query["date"] = date
     if valetId:

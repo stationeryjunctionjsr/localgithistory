@@ -140,7 +140,7 @@ async def get_delivery_slots(
     zoneId: Optional[str] = Query(None),
     current_user: User = Depends(require_super_admin),
 ):
-    query: Dict[str, Any] = {}
+    query: dict = {}
     if segment:
         query["segment"] = segment
     if date:

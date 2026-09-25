@@ -25,7 +25,7 @@ class UserRepository:
         data = await self.storage.findById(id)
         return data
 
-    async def findOne(self, query: Any) -> Optional[User]:
+    async def findOne(self, query: dict) -> Optional[User]:
         data = await self.storage.findOne(query)
         return data
 
@@ -167,7 +167,7 @@ class UserRepository:
     async def delete(self, id: str):
         return await self.storage.delete(id)
 
-    async def addSavedAddress(self, user_id: str, address: Any):
+    async def addSavedAddress(self, user_id: str, address: 'SavedAddress'):
         """Add a new address to user's saved addresses list uniquely."""
         user = await self.findById(user_id)
         if not user:
@@ -192,7 +192,7 @@ class UserRepository:
 
         return saved_addresses
 
-    def compare_password(self, user: Any, candidate_password: str) -> bool:
+    def compare_password(self, user: 'User', candidate_password: str) -> bool:
         if not user or not user.password:
             logger.warning(
                 "compare_password: User or password missing, userId=%s, hasPassword=%s",

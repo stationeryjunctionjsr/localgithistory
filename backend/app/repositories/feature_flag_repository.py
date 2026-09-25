@@ -21,7 +21,7 @@ class FeatureFlagRepository:
         """Find feature flag by _id"""
         return await self.storage.find_by_id(flag_id)
 
-    async def find_one(self, query: Any) -> Optional[Dict]:
+    async def find_one(self, query: dict) -> Optional[Dict]:
         """Find one feature flag matching query"""
         return await self.storage.find_one(query)
 

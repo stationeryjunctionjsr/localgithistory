@@ -54,7 +54,7 @@ class MySQLPromoStripsDAO:
             children_map = await self._fetch_children(session, [int(row.id)]) if False else {}
             return self._map_to_schema(row, children_map[int(row.id)] if int(row.id) in children_map else {})
             
-    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List['PromoStripsInternal']:
+    async def findAll(self, query: Optional[dict] = None) -> List['PromoStripsInternal']:
         query = query or {}
         async with self._factory()() as session:
             sql = f"SELECT * FROM {self.TABLE}"

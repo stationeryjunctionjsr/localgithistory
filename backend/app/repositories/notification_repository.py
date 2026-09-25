@@ -20,7 +20,7 @@ class NotificationRepository:
         """Get current timestamp in ISO format with IST timezone"""
         return datetime.now(IST).isoformat()
 
-    async def findAll(self, filters: Any = None) -> List[NotificationInternal]:
+    async def findAll(self, filters: dict = None) -> List[NotificationInternal]:
         if filters is None:
             from app.models.daos import NotificationFilter
             filters = NotificationFilter()

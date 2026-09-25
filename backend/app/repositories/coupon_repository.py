@@ -86,8 +86,8 @@ class CouponRepository:
         return (self._collections_map[str(cid)] if str(cid) in self._collections_map else None)
 
     async def _calculate_bxgy_discount(
-        self, coupon: Any, cart_items: List[Dict], product_repository, user_role: str, user_id: str
-    ) -> Any:
+        self, coupon: 'CouponInternal', cart_items: List[Dict], product_repository, user_role: str, user_id: str
+    ) -> Dict:
         applicable_item_type = (coupon.applicable_item_type if coupon.applicable_item_type is not None else "units")
         x_required = int(coupon.min_quantity_of_eligible_items) if coupon.min_quantity_of_eligible_items is not None else None
         y_required = int(coupon.buy_x_get_y_customer_gets_quantity) if coupon.buy_x_get_y_customer_gets_quantity is not None else None
@@ -248,7 +248,7 @@ class CouponRepository:
 
     async def _product_eligible_async(
         self,
-        product: Any,
+        product: 'ProductInternal',
         applies_to_type: str,
         applies_to_value_ids: Optional[List[str]],
         excluded_product_ids: Optional[List[str]] = None,
@@ -296,7 +296,7 @@ class CouponRepository:
 
     async def _bundle_eligible_async(
         self,
-        bundle: Any,
+        bundle: 'BundleInternal',
         applies_to_type: str,
         applies_to_value_ids: Optional[List[str]],
         excluded_product_ids: Optional[List[str]] = None,
@@ -876,7 +876,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         payment_method: Optional[str] = None,
         shipping_address: Optional[Dict] = None,
         shipping_charge: float = 0.0,
-    ) -> List[Any]:
+    ) -> List['CouponInternal']:
         """Find active automatic discounts that match user and cart. Returns list of { coupon, discount, eligibleItemIndices }."""
         now = datetime.now(timezone.utc)
         all_coupons = await self.storage.findAll({"method": "automatic", "is_active": True})
@@ -1174,7 +1174,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             return CouponValidationResponse(valid=True, totalOverlappingProducts=total_overlapping_products, details=overlaps)
         return None
 
-    async def get_active_coupons(self) -> List[Any]:
+    async def get_active_coupons(self) -> List['CouponInternal']:
         """Get all active coupons with a short 60s cache"""
         now = datetime.now(timezone.utc)
 
@@ -1190,7 +1190,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self._active_coupons_cache_time = now
         return active_coupons
 
-    async def get_active_automatic_product_discounts(self) -> List[Any]:
+    async def get_active_automatic_product_discounts(self) -> List['CouponInternal']:
         """Get all active automatic product discounts with short caching"""
         now = datetime.now(timezone.utc)
         if (
@@ -1231,7 +1231,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self._active_automatic_discounts_cache_time = now
         return valid_discounts
 
-    async def get_applicable_automatic_product_discounts(self, role: str, user_id: Optional[str] = None) -> List[Any]:
+    async def get_applicable_automatic_product_discounts(self, role: str, user_id: Optional[str] = None) -> List['CouponInternal']:
         discounts = await self.get_active_automatic_product_discounts()
         applicable = []
         for c in discounts:
@@ -1250,12 +1250,12 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
 
     async def get_applicable_discounts_for_product(
         self,
-        product: Any,
+        product: 'ProductInternal',
         role: str,
         user_id: Optional[str] = None,
         all_coupons: Optional[List[Dict]] = None,
         user_behavior_cache: Optional[Dict] = None,
-    ) -> List[Any]:
+    ) -> List['CouponInternal']:
         """Find other active discounts applicable to this product, excluding the default highest automatic product discount"""
         if all_coupons is None:
             all_coupons = await self.get_active_coupons()
@@ -1360,7 +1360,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         return applicable
 
 
-def get_coupon_description(c: Any) -> str:
+def get_coupon_description(c: 'CouponInternal') -> str:
     method_lbl = "Use code " + c.code if c.method == "discount_code" and c.code else "Automatic offer"
     type_of_disc = c.type_of_discount
     disc_type = c.discount_type

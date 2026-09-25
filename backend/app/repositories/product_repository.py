@@ -54,7 +54,7 @@ class ProductRepository:
         "description": 1,
     }
 
-    def _get_variant_search_text(self, product: Any) -> str:
+    def _get_variant_search_text(self, product: 'ProductInternal') -> str:
         """Flatten variant attributes and combination values into searchable text."""
         parts = []
         for attr in product.variant_attributes or []:
@@ -71,7 +71,7 @@ class ProductRepository:
                 parts.append(str(int(p_val)))
         return " ".join(parts)
 
-    def _extract_price_text(self, product: Any) -> str:
+    def _extract_price_text(self, product: 'ProductInternal') -> str:
         """Collect text representations of all prices for a product (MRP, case MRP, variant prices)."""
         parts = []
         if product.mrp is not None:
@@ -88,7 +88,7 @@ class ProductRepository:
                 pass
         return " ".join(parts).lower()
 
-    def _score_product(self, product: Any, tokens: List[str]) -> float:
+    def _score_product(self, product: 'ProductInternal', tokens: List[str]) -> float:
         """Score a product against search tokens using weighted field matching.
         Supports text matching, price matching, and price range expression matching."""
         score = 0.0
@@ -482,7 +482,7 @@ class ProductRepository:
                 products = []
 
         # Apply availability filter: when set, only show available or only stock out
-        def _is_in_stock(p: Any) -> bool:
+        def _is_in_stock(p: 'ProductInternal') -> bool:
             stock = p.stock
             if stock is None:
                 return False
@@ -539,7 +539,7 @@ class ProductRepository:
         return products
 
     async def get_catalog(
-        self, query: Any, skip: int = 0, limit: int = 50, sort: str = "newest", include_facets: bool = True
+        self, query: Dict, skip: int = 0, limit: int = 50, sort: str = "newest", include_facets: bool = True
     ):
         """Orchestrates server-side pagination by calling the DAO."""
         dao_query = query.copy()
@@ -1101,7 +1101,7 @@ class ProductRepository:
 
     def getPriceForRole(
         self,
-        product: Any,
+        product: 'ProductInternal',
         role: str,
         quantity: int = 1,
         selected_attributes: Optional[Dict] = None,
@@ -1203,7 +1203,7 @@ class ProductRepository:
 
     def calculateTotalPrice(
         self,
-        product: Any,
+        product: 'ProductInternal',
         role: str,
         quantity: int,
         selected_attributes: Optional[Dict] = None,

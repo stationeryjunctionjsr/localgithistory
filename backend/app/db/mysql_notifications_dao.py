@@ -53,7 +53,7 @@ class MySQLNotificationsDAO:
             children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
-    async def findAll(self, query: Optional[Dict[str, Any]] = None) -> List['NotificationInternal']:
+    async def findAll(self, query: Optional[dict] = None) -> List['NotificationInternal']:
         query = query or {}
         async with self._factory()() as session:
             sql = f"SELECT * FROM {self.TABLE}"

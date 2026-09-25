@@ -131,7 +131,7 @@ _MYSQL_DAO_COLLECTIONS = {
 }
 
 
-def get_storage(collection_name: str) -> Any:
+def get_storage(collection_name: str) -> object:
     """
     Returns a storage object that implements: findAll, findById, findOne, create, update, delete.
     Use this in repositories instead of instantiating FileStorage directly.

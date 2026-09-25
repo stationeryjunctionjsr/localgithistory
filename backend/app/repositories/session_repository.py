@@ -11,7 +11,7 @@ class SessionRepository:
     def __init__(self):
         self.storage = get_storage("sessions")
 
-    async def create_session(self, user_id: Optional[str], device: Any, refresh_token_id: str) -> Dict:
+    async def create_session(self, user_id: Optional[str], device: dict, refresh_token_id: str) -> Dict:
         data = SessionInternalCreate(
             userId=user_id,
             refreshTokenId=refresh_token_id,
@@ -31,7 +31,7 @@ class SessionRepository:
     async def find_by_id(self, session_id: str) -> Optional[Dict]:
         return await self.storage.findById(session_id)
 
-    async def update_session(self, session_id: str, updates: SessionInternalUpdate) -> Optional[Any]:
+    async def update_session(self, session_id: str, updates: SessionInternalUpdate) -> Optional['Session']:
         existing = await self.storage.findById(session_id)
         if not existing:
             return None
@@ -51,12 +51,12 @@ class SessionRepository:
 
         return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing))
 
-    async def revoke_session(self, session_id: str, reason: str) -> Optional[Any]:
+    async def revoke_session(self, session_id: str, reason: str) -> Optional['Session']:
         return await self.update_session(
             session_id, SessionInternalUpdate(status="revoked", revokedReason=reason, revokedAt=datetime.now(timezone.utc).isoformat())
         )
 
-    async def revoke_other_sessions(self, user_id: str, exclude_session_id: Optional[str] = None) -> List[Any]:
+    async def revoke_other_sessions(self, user_id: str, exclude_session_id: Optional[str] = None) -> List['Session']:
         sessions = await self.storage.findAll()
         updated = []
         for s in sessions:
@@ -78,7 +78,7 @@ class SessionRepository:
                 updates.device = device
             await self.update_session(session_id, updates)
 
-    async def check_inactivity_and_revoke(self, session: Any, max_inactive_days: int) -> Dict:
+    async def check_inactivity_and_revoke(self, session: 'Session', max_inactive_days: int) -> Dict:
         last_active = session.last_active_at
         if last_active:
             try:

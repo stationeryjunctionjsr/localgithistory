@@ -763,7 +763,7 @@ class AnalyticsRepository:
             "sessionOrderRate": session_order_rate,
         }
 
-    async def record_event(self, event: Any) -> Dict:
+    async def record_event(self, event: 'AnalyticsEventRequest') -> Dict:
         """Record an analytics event"""
         return await self.event_storage.create(event)
 

@@ -28,7 +28,7 @@ class PincodeSearchRepository:
         city: Optional[str] = None,
         state: Optional[str] = None,
         district: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict]:
         """Log a pincode search event into the database with timestamp and serviceability details."""
         try:
             now_ist = datetime.now(IST).isoformat()
@@ -59,7 +59,7 @@ class PincodeSearchRepository:
         search: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict:
         """Fetch paginated pincode search logs with optional filters."""
         try:
             all_records = await self.storage.findAll() or []
@@ -112,7 +112,7 @@ class PincodeSearchRepository:
             "pages": pages,
         }
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict:
         """Get summary analytics on pincode searches for Super Admin."""
         try:
             all_records = await self.storage.findAll() or []
@@ -131,8 +131,8 @@ class PincodeSearchRepository:
         unique_pins = set()
         serviceable_count = 0
         unserviceable_count = 0
-        unserviceable_freq: Dict[str, Dict[str, Any]] = {}
-        overall_freq: Dict[str, Dict[str, Any]] = {}
+        unserviceable_freq: Dict[str, dict] = {}
+        overall_freq: Dict[str, dict] = {}
 
         for r in all_records:
             pin = str((r.pincode if r.pincode is not None else "")).strip()

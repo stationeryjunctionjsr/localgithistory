@@ -18,7 +18,7 @@ class ReportService:
     def __init__(self):
         pass
 
-    async def _read_tracking_data(self, start_date: Optional[datetime] = None, limit: int = 50000) -> List[Any]:
+    async def _read_tracking_data(self, start_date: Optional[datetime] = None, limit: int = 50000) -> List['TrackingEvent']:
         """Read tracking events from the MySQL tracking table with a safety limit."""
         try:
             from app.db.storage_factory import get_storage

@@ -71,7 +71,7 @@ async def list_seller_payouts(
     seller_id: Optional[str] = Query(None),
     current_user: User = Depends(require_super_admin_or_seller)):
     storage = _payout_storage()
-    query: Dict[str, Any] = {}
+    query: dict = {}
     if is_seller_admin(current_user):
         query["sellerId"] = str(current_user.id)
     elif seller_id:

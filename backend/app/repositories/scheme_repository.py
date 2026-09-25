@@ -19,7 +19,7 @@ class SchemeRepository:
         """Return active schemes targeted at business/wholesaler users."""
         return await self.storage.findAll({"isActive": True})
 
-    async def findOne(self, query: Any) -> Optional[SchemeInternal]:
+    async def findOne(self, query: dict) -> Optional[SchemeInternal]:
         return await self.storage.findOne(query)
 
 

@@ -159,7 +159,7 @@ class TrackingRepository:
             )
         )
 
-    async def trackCartAbandonment(self, user_id: Optional[str], cart_items: List[Any], cart_value: Optional[float], session_id: Optional[str] = None, **kwargs):
+    async def trackCartAbandonment(self, user_id: Optional[str], cart_items: List['CartItemInternal'], cart_value: Optional[float], session_id: Optional[str] = None, **kwargs):
         return await self.create(
             AnalyticsEventCreate(type="cart_abandonment", userId=user_id, **kwargs, cartItems=cart_items, cartValue=cart_value, sessionId=session_id)
         )

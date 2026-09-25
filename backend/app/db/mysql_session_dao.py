@@ -55,7 +55,7 @@ class MySQLSessionDAO:
         docs = [self._map_to_schema(r) for r in rows]
         if not query:
             return docs
-        filtered: List[Any] = []
+        filtered: list = []
         for d in docs:
             match = True
             for k, v in query.items():

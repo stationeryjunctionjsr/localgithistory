@@ -28,7 +28,7 @@ from typing import Any, Callable, Dict, Optional
 class _CacheEntry:
     __slots__ = ("value", "expires_at")
 
-    def __init__(self, value: Any, ttl: float):
+    def __init__(self, value: 'T', ttl: float):
         self.value = value
         self.expires_at = time.monotonic() + ttl
 
@@ -114,14 +114,14 @@ class InMemoryTTLCache:
             key = key_or_func
             self._store.pop(key, None)
 
-    def get(self, key: str) -> Any:
+    def get(self, key: str) -> 'T':
         """Return cached value or None if missing/expired."""
         entry = self._store[key] if key in self._store else None
         if entry and time.monotonic() < entry.expires_at:
             return entry.value
         return None
 
-    def set(self, key: str, value: Any, ttl: float = 30.0) -> None:
+    def set(self, key: str, value: 'T', ttl: float = 30.0) -> None:
         """Manually set a cache entry."""
         self._store[key] = _CacheEntry(value, ttl)
 

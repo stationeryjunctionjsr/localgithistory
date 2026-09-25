@@ -28,7 +28,7 @@ class GoogleReviewRepository:
 
         return Google_reviewsInternal(rating=0.0, reviewCount="0", lastUpdated="", method="")
 
-    async def fetch_via_api(self) -> Any:
+    async def fetch_via_api(self) -> dict:
         """Fetch rating and review count using official Google Places API (New)"""
         if not self.api_key:
             return None
@@ -65,7 +65,7 @@ class GoogleReviewRepository:
             logger.error("Google API call failed: %s", str(e), exc_info=True)
             return None
 
-    async def fetch_and_update(self) -> Any:
+    async def fetch_and_update(self) -> dict:
         """Attempt to fetch from Google (API or Scrape) and update storage"""
 
         # 1. Try Official API first

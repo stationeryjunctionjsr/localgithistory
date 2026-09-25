@@ -26,14 +26,14 @@ class EmailService:
         admin_emails_raw = os.getenv("ADMIN_EMAILS", self.smtp_user)
         self.admin_emails = [email.strip() for email in admin_emails_raw.split(",")] if admin_emails_raw else []
 
-    def _resolve_to_emails(self, to_emails: Any) -> list[str]:
+    def _resolve_to_emails(self, to_emails: 'Union[str, List[str]]') -> list[str]:
         if not to_emails:
             return self.admin_emails
         if isinstance(to_emails, str):
             return [to_emails.strip()]
         return [str(email).strip() for email in to_emails if email]
 
-    def send_email(self, to_emails: Any, subject: str, body: str, html_body: str = None) -> bool:
+    def send_email(self, to_emails: 'Union[str, List[str]]', subject: str, body: str, html_body: str = None) -> bool:
         """Sends an HTML or plain-text email to one or more recipients."""
         from app.utils.logger import logger
 
@@ -72,7 +72,7 @@ class EmailService:
             logger.error("Failed to send email: %s", str(e), exc_info=True)
             return False
 
-    def send_email_with_attachment(self, to_emails: Any, subject: str, body: str, attachment_path: str):
+    def send_email_with_attachment(self, to_emails: 'Union[str, List[str]]', subject: str, body: str, attachment_path: str):
         """Sends an email with an attachment to one or more recipients."""
         from app.utils.logger import logger
 
@@ -118,7 +118,7 @@ class EmailService:
             logger.error("Failed to send email with attachment: %s", str(e), exc_info=True)
             return False
 
-    def send_error_alert(self, subject: str, body: str, to_emails: Any = None):
+    def send_error_alert(self, subject: str, body: str, to_emails: 'Union[str, List[str]]' = None):
         """Simple text-only email for system alerts to one or more recipients."""
         from app.utils.logger import logger
         

@@ -206,7 +206,7 @@ async def get_favourites_page(
 
     product_storage = _get_storage("products")
     all_products = await product_storage.findAll({"isActive": True})
-    product_map: Any = {p.id: p for p in all_products if p.id}
+    product_map: dict = {p.id: p for p in all_products if p.id}
 
     # Collect filter option lists from the full ranked set (before product-level filters)
     categories_seen: set = set()
