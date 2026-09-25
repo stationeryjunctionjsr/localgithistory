@@ -215,7 +215,7 @@ async def maybe_realize_commission(sub_order: dict) -> dict:
         return sub_order
 
     # Do not realize if a return is in progress or completed for this sub-order
-    if getattr(sub_order, "return_status", None) in ("pending", "pending_valet", "assigned", "collected", "approved", "returned"):
+    if sub_order.return_status in ("pending", "pending_valet", "assigned", "collected", "approved", "returned"):
         return sub_order
 
     if await is_return_period_over(sub_order):

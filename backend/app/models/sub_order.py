@@ -49,6 +49,7 @@ class SubOrder(BaseModel):
     billing_address: Optional['Address'] = Field(default=None, alias='billingAddress')
     pickup_status: str = Field(default="pending_pickup", alias='pickupStatus')
     assigned_valet: Optional[str] = Field(default=None, alias='assignedValet')
+    return_status: Optional[str] = Field(default=None, alias='returnStatus')
     items: List[SubOrderItem] = []
     
     # Dates
