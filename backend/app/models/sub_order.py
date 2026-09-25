@@ -105,7 +105,7 @@ class SubOrderInternalCreate(CamelBaseModel):
     createdAt: Optional[str] = None
 
 class SubOrderInternalUpdate(CamelBaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, from_attributes=True, extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid')
     status: Optional[str] = None
     shippedAt: Optional[str] = None
     deliveredAt: Optional[str] = None
