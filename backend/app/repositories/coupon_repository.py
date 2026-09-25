@@ -450,7 +450,7 @@ class CouponRepository:
             qt_list = [CouponQuantityTierInternal(minQuantity=int(t.quantity), discountValue=float(t.discount)) for t in coupon_data.quantityTiers]
 
         coupon = CouponInternalCreate(
-            typeOfDiscount=(coupon_data.typeOfDiscount if coupon_data.typeOfDiscount is not None else "product_discount"),
+            typeOfDiscount=(coupon_data.type_of_discount if coupon_data.type_of_discount is not None else "product_discount"),
             code=code,
             method=method,
             discountType=(coupon_data.discountType if coupon_data.discountType is not None else "percentage"),
@@ -476,7 +476,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             buyXGetYCustomerGetsDiscountType=coupon_data.buyXGetYCustomerGetsDiscountType,
             buyXGetYCustomerGetsDiscountValue=float(coupon_data.buyXGetYCustomerGetsDiscountValue) if coupon_data.buyXGetYCustomerGetsDiscountValue is not None else None,
             applicableItemType=coupon_data.applicableItemType or "units",
-            couponMode=coupon_data.couponMode or "override",
+            couponMode=coupon_data.coupon_mode or "override",
             maxUsagePerUser=int(coupon_data.maxUsagePerUser) if coupon_data.maxUsagePerUser else None,
             userBehavior=coupon_data.userBehavior,
         )
@@ -537,7 +537,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         internal_update = CouponInternalUpdate()
         
         # Map fields explicitly
-        if 'typeOfDiscount' in update_data.model_fields_set: internal_update.typeOfDiscount = update_data.typeOfDiscount
+        if 'typeOfDiscount' in update_data.model_fields_set: internal_update.type_of_discount = update_data.type_of_discount
         if 'code' in update_data.model_fields_set: internal_update.code = update_data.code
         if 'method' in update_data.model_fields_set: internal_update.method = update_data.method
         if 'discountType' in update_data.model_fields_set: internal_update.discountType = update_data.discountType
@@ -748,7 +748,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         ):
             return CouponValidationResponse(valid=False, message=f"Discount not applicable for {payment_method.upper()} payment method")
 
-        if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
+        if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "shipping_discount":
             if not shipping_address:
                 # Try to get from user
                 from app.repositories.user_repository import user_repository
@@ -789,7 +789,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                     qty = (item.quantity if item.quantity is not None else 0)
                     eligible_quantity += qty
                     sell_as_case = (item.sellAsCase if item.sellAsCase is not None else False)
-                    ignore_auto = (coupon.method if coupon.method is not None else None) == "discount_code" and (coupon.couponMode if coupon.couponMode is not None else None) == "override"
+                    ignore_auto = (coupon.method if coupon.method is not None else None) == "discount_code" and (coupon.coupon_mode if coupon.coupon_mode is not None else None) == "override"
                     item_total = product_repository.calculateTotalPrice(
                         product,
                         user_role,
@@ -820,12 +820,12 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         discount = 0.0
         item_discounts = None
         bxgy_item_indices = None
-        if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "buy_x_get_y" and cart_items and product_repository:
+        if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "buy_x_get_y" and cart_items and product_repository:
             bxgy_res = await self._calculate_bxgy_discount(coupon, cart_items, product_repository, user_role, user_id)
             discount = bxgy_res.discount
             item_discounts = bxgy_res.item_discounts
             bxgy_item_indices = bxgy_res.bxgy_item_indices
-        elif (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
+        elif (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "shipping_discount":
             if coupon.discountType == "percentage":
                 discount = (shipping_charge * coupon.discountValue) / 100
                 if (coupon.maxDiscountAmount if coupon.maxDiscountAmount is not None else None):
@@ -839,7 +839,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 if (coupon.maxDiscountAmount if coupon.maxDiscountAmount is not None else None):
                     discount = min(discount, coupon.maxDiscountAmount)
             else:
-                if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "product_discount":
+                if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "product_discount":
                     discount = eligible_quantity * coupon.discountValue
                 else:
                     discount = coupon.discountValue
@@ -852,8 +852,8 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 discountValue=coupon.discountValue,
                 id=str(coupon.id) if coupon.id else None,
                 method=coupon.method,
-                couponMode=coupon.couponMode or "override",
-                typeOfDiscount=coupon.typeOfDiscount
+                couponMode=coupon.coupon_mode or "override",
+                typeOfDiscount=coupon.type_of_discount
             ),
             discount=round(discount, 2),
             eligibleItemIndices=eligible_item_indices,
@@ -877,7 +877,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         results = []
         for coupon in all_coupons:
             try:
-                if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "product_discount":
+                if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "product_discount":
                     continue
                 valid_from = datetime.fromisoformat(coupon.validFrom.replace('Z', '+00:00'))
                 if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
@@ -909,7 +909,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                     ]:
                         continue
 
-                if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
+                if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "shipping_discount":
                     addr = shipping_address
                     if not addr:
                         from app.repositories.user_repository import user_repository
@@ -966,14 +966,14 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 discount = 0.0
                 item_discounts = None
                 bxgy_item_indices = None
-                if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "buy_x_get_y":
+                if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "buy_x_get_y":
                     bxgy_res = await self._calculate_bxgy_discount(
                         coupon, cart_items, product_repository, user_role, user_id
                     )
                     discount = bxgy_res.discount
                     item_discounts = bxgy_res.item_discounts
                     bxgy_item_indices = bxgy_res.bxgy_item_indices
-                elif (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "shipping_discount":
+                elif (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "shipping_discount":
                     if coupon.discountType == "percentage":
                         discount = (shipping_charge * coupon.discountValue) / 100
                         if (coupon.maxDiscountAmount if coupon.maxDiscountAmount is not None else None):
@@ -987,7 +987,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                         if (coupon.maxDiscountAmount if coupon.maxDiscountAmount is not None else None):
                             discount = min(discount, coupon.maxDiscountAmount)
                     else:
-                        if (coupon.typeOfDiscount if coupon.typeOfDiscount is not None else None) == "product_discount":
+                        if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "product_discount":
                             discount = eligible_quantity * coupon.discountValue
                         else:
                             discount = coupon.discountValue
@@ -1000,8 +1000,8 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                             discountValue=coupon.discountValue,
                             id=str(coupon.id) if coupon.id else None,
                             method=coupon.method,
-                            couponMode=coupon.couponMode or "override",
-                            typeOfDiscount=coupon.typeOfDiscount
+                            couponMode=coupon.coupon_mode or "override",
+                            typeOfDiscount=coupon.type_of_discount
                         ),
                         discount=round(discount, 2),
                         eligibleItemIndices=eligible_item_indices,
@@ -1108,7 +1108,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
         ]
 
         new_affected_ids = await self._get_affected_product_ids(coupon_data)
-        type_of_discount = coupon_data.typeOfDiscount or "product_discount"
+        type_of_discount = coupon_data.type_of_discount or "product_discount"
 
         if type_of_discount == "buy_x_get_y":
             gy_applies_to_type = (coupon_data.buyXGetYCustomerGetsAppliesToType if coupon_data.buyXGetYCustomerGetsAppliesToType is not None else "all")
@@ -1128,7 +1128,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
 
         overlaps = []
         for c in conflicting_candidates:
-            c_type = c.typeOfDiscount or "product_discount"
+            c_type = c.type_of_discount or "product_discount"
             if c_type != type_of_discount:
                 continue
 
@@ -1269,7 +1269,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
             except Exception:
                 continue
 
-            if c.method == "automatic" and c.typeOfDiscount == "product_discount":
+            if c.method == "automatic" and c.type_of_discount == "product_discount":
                 if role in (c.applicableRoles if c.applicableRoles is not None else []):
                     is_eligible = await self._product_eligible_async(
                         product, (c.appliesToType if c.appliesToType is not None else "all"), c.appliesToValueIds, c.excluded_product_ids
@@ -1340,7 +1340,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 continue
 
             applies = True
-            if c.typeOfDiscount in ["product_discount", "buy_x_get_y"]:
+            if c.type_of_discount in ["product_discount", "buy_x_get_y"]:
                 applies = await self._product_eligible_async(
                     product, (c.appliesToType if c.appliesToType is not None else "all"), c.appliesToValueIds, c.excluded_product_ids
                 )
@@ -1353,7 +1353,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
 
 def get_coupon_description(c: Any) -> str:
     method_lbl = "Use code " + c.code if c.method == "discount_code" and c.code else "Automatic offer"
-    type_of_disc = c.typeOfDiscount
+    type_of_disc = c.type_of_discount
     disc_type = c.discountType
     disc_val = c.discountValue
 

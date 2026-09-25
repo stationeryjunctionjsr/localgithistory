@@ -602,7 +602,7 @@ async def populate_product_discounts(
         if default_coupon and default_min_req == "quantity_based":
             app_discs.append(
                 {
-                    "type": default_coupon.typeOfDiscount,
+                    "type": default_coupon.type_of_discount,
                     "code": default_coupon.code,
                     "description": get_coupon_description(default_coupon),
                 }
@@ -611,7 +611,7 @@ async def populate_product_discounts(
         for oc in other_coupons:
             app_discs.append(
                 {
-                    "type": oc.typeOfDiscount,
+                    "type": oc.type_of_discount,
                     "code": oc.code,
                     "description": get_coupon_description(oc),
                 }

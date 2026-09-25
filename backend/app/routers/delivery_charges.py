@@ -161,7 +161,7 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
 
     # ── Zone metadata (urgent delivery flag + customerType + seller IDs) ───────
     zone = await get_zone_for_pincode(pincode)
-    platform_urgent = bool((zone.urgentDeliveryAvailable if zone.urgentDeliveryAvailable is not None else False)) if zone else False
+    platform_urgent = bool((zone.urgent_delivery_available if zone.urgent_delivery_available is not None else False)) if zone else False
     zone_customer_type = (zone.customerType if zone.customerType is not None else "retail") if zone else "retail"
 
     is_wholesaler = (userRole == "wholesaler")
@@ -284,8 +284,8 @@ async def create_delivery_charge(charge_data: DeliveryChargeCreate, current_user
     if len(charge_data.pincode) != 6 or not charge_data.pincode.isdigit():
         raise HTTPException(status_code=400, detail="Pincode must be 6 digits")
         
-    if not charge_data.serviceableForCustomer:
-        charge_data.urgentDeliveryAvailable = False
+    if not charge_data.serviceable_for_customer:
+        charge_data.urgent_delivery_available = False
 
     # Check for duplicate pincode
     existing = await delivery_charge_repository.findByPincode(charge_data.pincode)
@@ -325,9 +325,9 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
     for raw_row in csv_reader:
         try:
             row = CsvDeliveryChargeRow.model_validate(raw_row)
-            serviceable_for_customer = (row.serviceableForCustomer if row.serviceableForCustomer is not None else "true").lower() == "true"
-            serviceable_for_wholesaler = (row.serviceableForWholesaler if row.serviceableForWholesaler is not None else "false").lower() == "true"
-            urgent_delivery_available = (row.urgentDeliveryAvailable if row.urgentDeliveryAvailable is not None else "false").lower() == "true"
+            serviceable_for_customer = (row.serviceable_for_customer if row.serviceable_for_customer is not None else "true").lower() == "true"
+            serviceable_for_wholesaler = (row.serviceable_for_wholesaler if row.serviceable_for_wholesaler is not None else "false").lower() == "true"
+            urgent_delivery_available = (row.urgent_delivery_available if row.urgent_delivery_available is not None else "false").lower() == "true"
 
             # Based on the retail serviceable yes or no, the urgent delivery values will be set.
             if not serviceable_for_customer:
@@ -348,7 +348,7 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
                 city=city_val,
                 district=district_val,
                 charge=float(row.charge if row.charge is not None else 0),
-                minCartValue=float(row.minCartValue if row.minCartValue is not None else 0),
+                minCartValue=float(row.min_cart_value if row.min_cart_value is not None else 0),
                 isActive=(row.isActive if row.isActive is not None else "true").lower() == "true",
                 serviceableForCustomer=serviceable_for_customer,
                 serviceableForWholesaler=serviceable_for_wholesaler,
@@ -377,8 +377,8 @@ async def update_delivery_charge(
     # and then checked isinstance(update_dict, dict) which was always False, so
     # urgentDeliveryAvailable was never cleared when serviceableForCustomer was False.
     # Fix: check the attribute directly on the Pydantic model.
-    if charge_data.serviceableForCustomer is False:
-        charge_data.urgentDeliveryAvailable = False
+    if charge_data.serviceable_for_customer is False:
+        charge_data.urgent_delivery_available = False
 
     internal_update = DeliveryChargeInternalUpdate.model_validate(charge_data, from_attributes=True)
     charge = await delivery_charge_repository.update(charge_id, internal_update)

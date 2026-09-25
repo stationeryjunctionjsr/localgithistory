@@ -213,7 +213,7 @@ class CouponDetailModel(BaseModel):
 
     @property
     def type_of_discount(self) -> Optional[str]:
-        return self.typeOfDiscount
+        return self.type_of_discount
 
 
 class ItemDiscountEntry(BaseModel):
@@ -641,7 +641,7 @@ async def create_order(
                 charge_amount = float(
                     delivery_charge_data.charge if delivery_charge_data.charge is not None else 0.0)
                 min_cart_value_for_free = float(
-                    delivery_charge_data.minCartValue if delivery_charge_data.minCartValue is not None else 0.0)
+                    delivery_charge_data.min_cart_value if delivery_charge_data.min_cart_value is not None else 0.0)
                 is_applicable = (
                     delivery_charge_data.isApplicableToRole
                     if delivery_charge_data.isApplicableToRole is not None
@@ -697,19 +697,19 @@ async def create_order(
         val_code = val_c.code
         coupon_code = val_code or ("AUTO-" + (applied_coupon_id or "")[:8])
         coupon_discount = validation.discount
-        eligible_item_indices = validation.eligibleItemIndices
+        eligible_item_indices = validation.eligible_item_indices
         item_discounts = validation.item_discounts
         bxgy_item_indices = validation.bxgy_item_indices
 
         c_obj = val_c
         c_method = c_obj.method
-        c_mode = c_obj.couponMode
+        c_mode = c_obj.coupon_mode
         if c_method == "discount_code" and c_mode == "override":
             is_override = True
 
         val_disc_type = val_c.discountType
         val_disc_val = val_c.discountValue
-        val_type_of_disc = val_c.typeOfDiscount
+        val_type_of_disc = val_c.type_of_discount
         coupon_info = {
             "code": coupon_code,
             "discountType": val_disc_type,
@@ -741,7 +741,7 @@ async def create_order(
                 best_raw
             )
             coupon_discount = best.discount if best.discount is not None else 0.0
-            eligible_item_indices = best.eligibleItemIndices
+            eligible_item_indices = best.eligible_item_indices
             item_discounts = best.item_discounts
             bxgy_item_indices = best.bxgy_item_indices
             c_raw = best.coupon
@@ -755,7 +755,7 @@ async def create_order(
                 "discountType": c.discountType,
                 "discountValue": c.discountValue,
                 "discountAmount": coupon_discount,
-                "typeOfDiscount": c.typeOfDiscount,
+                "typeOfDiscount": c.type_of_discount,
             }
 
     # Calculate totals with GST (after coupon discount)
@@ -1058,7 +1058,7 @@ async def create_order(
             if _zone_doc:
                 # Use MySQL _id (as string) — consistent with zone_seller_cache key
                 order_zone_id = str(_zone_doc.id)
-                zone_urgent_available = bool(_zone_doc.urgentDeliveryAvailable)
+                zone_urgent_available = bool(_zone_doc.urgent_delivery_available)
 
         # ── Resolve slot config: zone-specific first, then "default" fallback ─
         # New design: one config record per zone per date (zoneId field).
@@ -1280,7 +1280,7 @@ async def create_order(
 
             if delivery_charge_data:
                 charge_amount = delivery_charge_data.charge if delivery_charge_data.charge is not None else 0
-                min_cart_value_for_free = delivery_charge_data.minCartValue if delivery_charge_data.minCartValue is not None else 0
+                min_cart_value_for_free = delivery_charge_data.min_cart_value if delivery_charge_data.min_cart_value is not None else 0
 
                 # Apply delivery charge only if:
                 # 1. It's applicable to the user's role

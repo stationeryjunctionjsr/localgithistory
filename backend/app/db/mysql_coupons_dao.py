@@ -153,10 +153,10 @@ class MySQLCouponsDAO:
             vals.append(":s_isActive")
             params["s_isActive"] = data.isActive
 
-        if data.typeOfDiscount is not None:
+        if data.type_of_discount is not None:
             cols.append("type_of_discount")
             vals.append(":s_typeOfDiscount")
-            params["s_typeOfDiscount"] = data.typeOfDiscount
+            params["s_typeOfDiscount"] = data.type_of_discount
 
         if data.method is not None:
             cols.append("method")
@@ -208,10 +208,10 @@ class MySQLCouponsDAO:
             vals.append(":s_applicable_item_type")
             params["s_applicable_item_type"] = data.applicableItemType
 
-        if data.couponMode is not None:
+        if data.coupon_mode is not None:
             cols.append("coupon_mode")
             vals.append(":s_coupon_mode")
-            params["s_coupon_mode"] = data.couponMode
+            params["s_coupon_mode"] = data.coupon_mode
 
         if data.maxUsagePerUser is not None:
             cols.append("max_usage_per_user")
@@ -279,9 +279,9 @@ class MySQLCouponsDAO:
             updates.append("is_active = :s_isActive")
             params["s_isActive"] = data.isActive
 
-        if data.typeOfDiscount is not None:
+        if data.type_of_discount is not None:
             updates.append("type_of_discount = :s_typeOfDiscount")
-            params["s_typeOfDiscount"] = data.typeOfDiscount
+            params["s_typeOfDiscount"] = data.type_of_discount
 
         if data.method is not None:
             updates.append("method = :s_method")

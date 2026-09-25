@@ -47,11 +47,11 @@ class DeliveryChargeRepository:
 
         # Check serviceability based on user role
         if user_role == "customer" or not user_role:
-            return charge.serviceableForCustomer is True
+            return charge.serviceable_for_customer is True
         elif user_role == "wholesaler":
-            return charge.serviceableForWholesaler is True
+            return charge.serviceable_for_wholesaler is True
         # All other roles (e.g. customer) use customer serviceability
-        return charge.serviceableForCustomer is True
+        return charge.serviceable_for_customer is True
 
     async def getDefaultCharge(self) -> Optional[DeliveryChargeDefaultInternal]:
         defaults = await self.default_storage.findAll()
@@ -112,14 +112,14 @@ class DeliveryChargeRepository:
 
         if pincode_charge:
             # Check if default charge is applied
-            if pincode_charge.applyDefaultCharge:
+            if pincode_charge.apply_default_charge:
                 default_charge = await self.getDefaultCharge()
 
                 urgent_charge = None
                 urgent_avail = False
                 if default_charge:
                     urgent_charge = default_charge.urgentDeliveryCharge
-                    # urgent_avail = default_charge.urgentDeliveryAvailable
+                    # urgent_avail = default_charge.urgent_delivery_available
                     urgent_avail = False
 
                 if default_charge and default_charge.isActive:
@@ -161,7 +161,7 @@ class DeliveryChargeRepository:
                         urgentDeliveryCharge=urgent_charge,
                     )
             else:
-                # urgent_avail = pincode_charge.urgentDeliveryAvailable
+                # urgent_avail = pincode_charge.urgent_delivery_available
                 urgent_avail = False
                 # Use pincode-specific tiers or charge
                 if pincode_charge.tiers and len(pincode_charge.tiers) > 0:
@@ -181,7 +181,7 @@ class DeliveryChargeRepository:
                     from app.routers.delivery_charges import LocationChargeResponse
                     return LocationChargeResponse(
                         charge=pincode_charge.charge or 0,
-                        minCartValue=pincode_charge.minCartValue or 0,
+                        minCartValue=pincode_charge.min_cart_value or 0,
                         source="pincode",
                         deliveryCharge=pincode_charge.charge if pincode_charge else None,
                         isApplicableToRole=True,
@@ -195,13 +195,13 @@ class DeliveryChargeRepository:
         if city_charge:
             # Check role applicability for city-specific charge
             is_applicable = self.isChargeApplicableToRole(city_charge, user_role)
-            # urgent_avail = city_charge.urgentDeliveryAvailable
+            # urgent_avail = city_charge.urgent_delivery_available
             urgent_avail = False
 
             from app.routers.delivery_charges import LocationChargeResponse
             return LocationChargeResponse(
                 charge=city_charge.charge if is_applicable else 0,
-                minCartValue=city_charge.minCartValue or 0,
+                minCartValue=city_charge.min_cart_value or 0,
                 source="city",
                 deliveryCharge=city_charge.charge if city_charge else None,
                 isApplicableToRole=is_applicable,
@@ -213,7 +213,7 @@ class DeliveryChargeRepository:
         default_charge = await self.getDefaultCharge()
         if default_charge and default_charge.isActive:
             is_applicable = self.isChargeApplicableToRole(default_charge, user_role)
-            # urgent_avail = default_charge.urgentDeliveryAvailable
+            # urgent_avail = default_charge.urgent_delivery_available
             urgent_avail = False
             urgent_charge = default_charge.urgentDeliveryCharge
             
@@ -326,11 +326,11 @@ class DeliveryChargeRepository:
         all_charges = await self.storage.findAll()
         max_id = 0
         for charge in all_charges:
-            if charge.locationId and isinstance(charge.locationId, int):
-                max_id = max(max_id, charge.locationId)
+            if charge.location_id and isinstance(charge.location_id, int):
+                max_id = max(max_id, charge.location_id)
         location_id = max_id + 1
 
-        apply_default = charge_data.applyDefaultCharge
+        apply_default = charge_data.apply_default_charge
 
         charge_internal = DeliveryChargeInternalCreate(
             locationId=location_id,
@@ -340,10 +340,10 @@ class DeliveryChargeRepository:
             district=charge_data.district,
             applyDefaultCharge=apply_default,
             charge=None if apply_default else (float(charge_data.charge) if charge_data.charge is not None else None),
-            minCartValue=None if apply_default else (float(charge_data.minCartValue) if charge_data.minCartValue is not None else None),
+            minCartValue=None if apply_default else (float(charge_data.min_cart_value) if charge_data.min_cart_value is not None else None),
             tiers=None if apply_default else charge_data.tiers,
-            serviceableForCustomer=charge_data.serviceableForCustomer is True,
-            serviceableForWholesaler=charge_data.serviceableForWholesaler is True,
+            serviceableForCustomer=charge_data.serviceable_for_customer is True,
+            serviceableForWholesaler=charge_data.serviceable_for_wholesaler is True,
             isActive=charge_data.isActive,
             description=charge_data.description,
             urgentDeliveryAvailable=False,
@@ -355,8 +355,8 @@ class DeliveryChargeRepository:
     async def update(self, id: str, update_data: DeliveryChargeInternalUpdate) -> DeliveryChargeInternal:
         if update_data.charge is not None:
             update_data.charge = float(update_data.charge)
-        if update_data.minCartValue is not None:
-            update_data.minCartValue = float(update_data.minCartValue)
+        if update_data.min_cart_value is not None:
+            update_data.min_cart_value = float(update_data.min_cart_value)
         if update_data.urgentDeliveryCharge is not None:
             update_data.urgentDeliveryCharge = float(update_data.urgentDeliveryCharge)
         # Update role applicability if provided

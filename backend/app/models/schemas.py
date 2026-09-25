@@ -503,24 +503,24 @@ class BxGyEvaluationResponse(CamelBaseModel):
     bxgy_item_indices: Optional[List[int]] = None
 
 
-class CouponValidationDetail(BaseModel):
+class CouponValidationDetail(CamelBaseModel):
     code: str
-    discountType: str
-    discountValue: float
+    discount_type: str
+    discount_value: float
     id: Optional[str] = None
     method: Optional[str] = None
-    couponMode: Optional[str] = "override"
-    typeOfDiscount: Optional[str] = None
+    coupon_mode: Optional[str] = "override"
+    type_of_discount: Optional[str] = None
 
 
-class CouponValidationResponse(BaseModel):
+class CouponValidationResponse(CamelBaseModel):
     valid: bool
     coupon: Optional[CouponValidationDetail] = None
     discount: float = 0.0
     message: Optional[str] = None
-    eligibleItemIndices: Optional[List[int]] = None
-    itemDiscounts: Optional[Dict[int, float]] = None
-    bxgyItemIndices: Optional[List[int]] = None
+    eligible_item_indices: Optional[List[int]] = None
+    item_discounts: Optional[Dict[int, float]] = None
+    bxgy_item_indices: Optional[List[int]] = None
 
 class CouponValidateCart(CamelBaseModel):
     """Validate discount against cart: backend computes eligible subtotal from items."""
@@ -569,21 +569,21 @@ class BannerCreate(BannerBase):
     pass
 
 
-class BannerUpdate(BaseModel):
+class BannerUpdate(CamelBaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    displayOrder: Optional[int] = None
-    startDate: Optional[datetime] = None
-    endDate: Optional[datetime] = None
-    isActive: Optional[bool] = None
-    isPublished: Optional[bool] = None
-    visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
-    userSegments: Optional[List[str]] = None
-    linkUrl: Optional[str] = None
+    image_url: Optional[str] = None
+    display_order: Optional[int] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    is_active: Optional[bool] = None
+    is_published: Optional[bool] = None
+    visibility_rules: Optional[List[VisibilityRuleSnippet]] = None
+    user_segments: Optional[List[str]] = None
+    link_url: Optional[str] = None
     position: Optional[str] = None
-    targetAudience: Optional[str] = None
-    zoneIds: Optional[List[str]] = None
+    target_audience: Optional[str] = None
+    zone_ids: Optional[List[str]] = None
 
 
 class BannerResponse(BannerBase):
@@ -607,18 +607,18 @@ class BrandResponse(CamelBaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-class BrandCreate(BaseModel):
+class BrandCreate(CamelBaseModel):
     name: str
-    logoUrl: Optional[str] = ""
-    showInMobileHomepage: bool = False
-    isActive: Optional[bool] = True
+    logo_url: Optional[str] = ""
+    show_in_mobile_homepage: bool = False
+    is_active: Optional[bool] = True
 
 
-class BrandUpdate(BaseModel):
+class BrandUpdate(CamelBaseModel):
     name: Optional[str] = None
-    logoUrl: Optional[str] = None
-    showInMobileHomepage: Optional[bool] = None
-    isActive: Optional[bool] = None
+    logo_url: Optional[str] = None
+    show_in_mobile_homepage: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 
 # Auth Schemas
@@ -675,14 +675,14 @@ class SocialMedia(BaseModel):
     linkedin: Optional[str] = None
 
 
-class ContactBase(BaseModel):
+class ContactBase(CamelBaseModel):
     addresses: Optional[List[Address]] = None  # Up to 2 addresses
-    phoneNumbers: Optional[List[str]] = None  # Up to 3 phone numbers
+    phone_numbers: Optional[List[str]] = None  # Up to 3 phone numbers
     email: Optional[str] = None
     description: Optional[str] = None
-    isActive: bool = True
-    displayOrder: Optional[int] = None
-    socialMedia: Optional[SocialMedia] = None
+    is_active: bool = True
+    display_order: Optional[int] = None
+    social_media: Optional[SocialMedia] = None
 
     @field_validator("addresses")
     @classmethod
@@ -753,10 +753,10 @@ class SupportTicketCreate(SupportTicketBase):
     pass
 
 
-class SupportTicketUpdate(BaseModel):
+class SupportTicketUpdate(CamelBaseModel):
     status: Optional[str] = None  # open, in_progress, resolved, closed
     priority: Optional[str] = None
-    assignedTo: Optional[str] = None
+    assigned_to: Optional[str] = None
 
 
 class TicketResponseCreate(BaseModel):
@@ -820,22 +820,22 @@ class DeliveryChargeTier(CamelBaseModel):
     max_amount: Optional[Union[float, str]] = Field(default=None, validation_alias=AliasChoices("maxAmount", "max_amount", "max"))
 
 
-class DeliveryChargeBase(BaseModel):
+class DeliveryChargeBase(CamelBaseModel):
     pincode: str
     state: str
     city: Optional[str] = ""
     district: str
     charge: Optional[float] = None
-    minCartValue: Optional[float] = None
-    applyDefaultCharge: Optional[bool] = False
+    min_cart_value: Optional[float] = None
+    apply_default_charge: Optional[bool] = False
     tiers: Optional[List[DeliveryChargeTier]] = None
-    serviceableForCustomer: Optional[bool] = False
+    serviceable_for_customer: Optional[bool] = False
 
-    serviceableForWholesaler: Optional[bool] = False
-    isActive: Optional[bool] = True
+    serviceable_for_wholesaler: Optional[bool] = False
+    is_active: Optional[bool] = True
     description: Optional[str] = None
-    locationId: Optional[int] = None  # Unique ID for state-district-city (for backward compatibility)
-    urgentDeliveryAvailable: Optional[bool] = False
+    location_id: Optional[int] = None  # Unique ID for state-district-city (for backward compatibility)
+    urgent_delivery_available: Optional[bool] = False
     urgentDeliveryCharge: Optional[float] = None
 
 
@@ -843,21 +843,21 @@ class DeliveryChargeCreate(DeliveryChargeBase):
     pass
 
 
-class DeliveryChargeUpdate(BaseModel):
+class DeliveryChargeUpdate(CamelBaseModel):
     pincode: Optional[str] = None
     state: Optional[str] = None
     city: Optional[str] = None
     district: Optional[str] = None
     charge: Optional[float] = None
-    minCartValue: Optional[float] = None
-    applyDefaultCharge: Optional[bool] = None
+    min_cart_value: Optional[float] = None
+    apply_default_charge: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTier]] = None
-    serviceableForCustomer: Optional[bool] = None
+    serviceable_for_customer: Optional[bool] = None
 
-    serviceableForWholesaler: Optional[bool] = None
-    isActive: Optional[bool] = None
+    serviceable_for_wholesaler: Optional[bool] = None
+    is_active: Optional[bool] = None
     description: Optional[str] = None
-    urgentDeliveryAvailable: Optional[bool] = None
+    urgent_delivery_available: Optional[bool] = None
     urgentDeliveryCharge: Optional[float] = None
 
 
@@ -871,8 +871,8 @@ class DeliveryChargeResponse(DeliveryChargeBase):
 
 
 # Default Delivery Charge Schema
-class DeliveryTier(BaseModel):
-    maxAmount: Union[float, str]  # Can be a number or "Infinity"
+class DeliveryTier(CamelBaseModel):
+    max_amount: Union[float, str]  # Can be a number or "Infinity"
     charge: float
 
 

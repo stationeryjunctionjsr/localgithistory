@@ -92,9 +92,9 @@ class MySQLDeliveryChargesDAO:
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
-        if data.locationId is not None:
+        if data.location_id is not None:
             cols.append("location_id")
-            params["s_locationId"] = data.locationId
+            params["s_locationId"] = data.location_id
 
         if data.pincode is not None:
             cols.append("pincode")
@@ -112,25 +112,25 @@ class MySQLDeliveryChargesDAO:
             cols.append("district")
             params["s_district"] = data.district
 
-        if data.applyDefaultCharge is not None:
+        if data.apply_default_charge is not None:
             cols.append("apply_default_charge")
-            params["s_applyDefaultCharge"] = data.applyDefaultCharge
+            params["s_applyDefaultCharge"] = data.apply_default_charge
 
         if data.charge is not None:
             cols.append("charge")
             params["s_charge"] = data.charge
 
-        if data.minCartValue is not None:
+        if data.min_cart_value is not None:
             cols.append("min_cart_value")
-            params["s_minCartValue"] = data.minCartValue
+            params["s_minCartValue"] = data.min_cart_value
 
-        if data.serviceableForCustomer is not None:
+        if data.serviceable_for_customer is not None:
             cols.append("serviceable_for_customer")
-            params["s_serviceableForCustomer"] = data.serviceableForCustomer
+            params["s_serviceableForCustomer"] = data.serviceable_for_customer
 
-        if data.serviceableForWholesaler is not None:
+        if data.serviceable_for_wholesaler is not None:
             cols.append("serviceable_for_wholesaler")
-            params["s_serviceableForWholesaler"] = data.serviceableForWholesaler
+            params["s_serviceableForWholesaler"] = data.serviceable_for_wholesaler
 
         if data.isActive is not None:
             cols.append("is_active")
@@ -140,9 +140,9 @@ class MySQLDeliveryChargesDAO:
             cols.append("description")
             params["s_description"] = data.description
 
-        if data.urgentDeliveryAvailable is not None:
+        if data.urgent_delivery_available is not None:
             cols.append("urgent_delivery_available")
-            params["s_urgentDeliveryAvailable"] = data.urgentDeliveryAvailable
+            params["s_urgentDeliveryAvailable"] = data.urgent_delivery_available
 
         if data.urgentDeliveryCharge is not None:
             cols.append("urgent_delivery_charge")
@@ -168,9 +168,9 @@ class MySQLDeliveryChargesDAO:
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.locationId is not None:
+        if data.location_id is not None:
             updates.append("location_id = :s_locationId")
-            params["s_locationId"] = data.locationId
+            params["s_locationId"] = data.location_id
 
         if data.pincode is not None:
             updates.append("pincode = :s_pincode")
@@ -188,25 +188,25 @@ class MySQLDeliveryChargesDAO:
             updates.append("district = :s_district")
             params["s_district"] = data.district
 
-        if data.applyDefaultCharge is not None:
+        if data.apply_default_charge is not None:
             updates.append("apply_default_charge = :s_applyDefaultCharge")
-            params["s_applyDefaultCharge"] = data.applyDefaultCharge
+            params["s_applyDefaultCharge"] = data.apply_default_charge
 
         if data.charge is not None:
             updates.append("charge = :s_charge")
             params["s_charge"] = data.charge
 
-        if data.minCartValue is not None:
+        if data.min_cart_value is not None:
             updates.append("min_cart_value = :s_minCartValue")
-            params["s_minCartValue"] = data.minCartValue
+            params["s_minCartValue"] = data.min_cart_value
 
-        if data.serviceableForCustomer is not None:
+        if data.serviceable_for_customer is not None:
             updates.append("serviceable_for_customer = :s_serviceableForCustomer")
-            params["s_serviceableForCustomer"] = data.serviceableForCustomer
+            params["s_serviceableForCustomer"] = data.serviceable_for_customer
 
-        if data.serviceableForWholesaler is not None:
+        if data.serviceable_for_wholesaler is not None:
             updates.append("serviceable_for_wholesaler = :s_serviceableForWholesaler")
-            params["s_serviceableForWholesaler"] = data.serviceableForWholesaler
+            params["s_serviceableForWholesaler"] = data.serviceable_for_wholesaler
 
         if data.isActive is not None:
             updates.append("is_active = :s_isActive")
@@ -216,9 +216,9 @@ class MySQLDeliveryChargesDAO:
             updates.append("description = :s_description")
             params["s_description"] = data.description
 
-        if data.urgentDeliveryAvailable is not None:
+        if data.urgent_delivery_available is not None:
             updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
-            params["s_urgentDeliveryAvailable"] = data.urgentDeliveryAvailable
+            params["s_urgentDeliveryAvailable"] = data.urgent_delivery_available
 
         if data.urgentDeliveryCharge is not None:
             updates.append("urgent_delivery_charge = :s_urgentDeliveryCharge")

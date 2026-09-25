@@ -104,9 +104,9 @@ class MySQLDeliveryZonesDAO:
             cols.append("default_capacity")
             params["s_defaultCapacity"] = data.defaultCapacity
 
-        if data.urgentDeliveryAvailable is not None:
+        if data.urgent_delivery_available is not None:
             cols.append("urgent_delivery_available")
-            params["s_urgentDeliveryAvailable"] = data.urgentDeliveryAvailable
+            params["s_urgentDeliveryAvailable"] = data.urgent_delivery_available
 
         if data.customerType is not None:
             cols.append("customer_type")
@@ -148,9 +148,9 @@ class MySQLDeliveryZonesDAO:
             updates.append("default_capacity = :s_defaultCapacity")
             params["s_defaultCapacity"] = data.defaultCapacity
 
-        if data.urgentDeliveryAvailable is not None:
+        if data.urgent_delivery_available is not None:
             updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
-            params["s_urgentDeliveryAvailable"] = data.urgentDeliveryAvailable
+            params["s_urgentDeliveryAvailable"] = data.urgent_delivery_available
 
         if data.customerType is not None:
             updates.append("customer_type = :s_customerType")
