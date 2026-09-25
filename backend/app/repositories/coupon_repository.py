@@ -703,9 +703,9 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
 
         now = datetime.now(timezone.utc)
         valid_from = datetime.fromisoformat(coupon.validFrom.replace('Z', '+00:00'))
-                if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
-                valid_until = datetime.fromisoformat(coupon.validUntil.replace('Z', '+00:00'))
-                if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
+        if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
+        valid_until = datetime.fromisoformat(coupon.validUntil.replace('Z', '+00:00'))
+        if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
 
         if now < valid_from:
             return CouponValidationResponse(valid=False, message="Discount is not yet valid")
@@ -851,7 +851,8 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 discountType=coupon.discountType,
                 discountValue=coupon.discountValue,
                 id=str(coupon.id) if coupon.id else None,
-                method=coupon.method
+                method=coupon.method,
+                couponMode=coupon.couponMode or "override"
             ),
             discount=round(discount, 2),
             eligibleItemIndices=eligible_item_indices,
