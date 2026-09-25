@@ -26,7 +26,7 @@ def _now_iso() -> str:
 def _safe_float(v):
     try:
         return float(v) if v is not None else 0.0
-    except Exception:
+    except (ValueError, TypeError):
         logger.warning("_safe_float: cannot convert %r to float, defaulting to 0.0", v, exc_info=True)
         return 0.0
 
@@ -77,47 +77,13 @@ class MySQLSubOrderDAO:
     def _map_to_schema(self, row, items_rows=None) -> 'SubOrder':
         d = dict(row._mapping)
         d["id"] = str(d["id"])
-        
-        # Flattened nested objects
-        d["delivery_slot"] = None
-        if d.get("delivery_slot_config_id") or d.get("delivery_slot_id") or d.get("delivery_slot_date"):
-            d["delivery_slot"] = {
-                "configId": d.get("delivery_slot_config_id"),
-                "slotId": d.get("delivery_slot_id"),
-                "date": d.get("delivery_slot_date"),
-            }
-
-        d["coupon_info"] = None
-        if d.get("coupon_info_type") or d.get("coupon_info_value") is not None:
-            d["coupon_info"] = {
-                "discountType": d.get("coupon_info_type"),
-                "discountValue": float(d.get("coupon_info_value")) if d.get("coupon_info_value") is not None else 0,
-            }
-
-        d["shipping_address"] = {
-            "name": d.get("shipping_name"),
-            "phone": d.get("shipping_phone"),
-            "street": d.get("shipping_line1"),
-            "city": d.get("shipping_city"),
-            "state": d.get("shipping_state"),
-            "pincode": d.get("shipping_pincode"),
-        }
-
-        d["billing_address"] = {
-            "name": d.get("billing_name"),
-            "phone": d.get("billing_phone"),
-            "street": d.get("billing_line1"),
-            "city": d.get("billing_city"),
-            "state": d.get("billing_state"),
-            "pincode": d.get("billing_pincode"),
-        }
 
         items = []
         if items_rows:
             for it in items_rows:
                 if getattr(it, "sub_order_id", None) == row.id:
                     items.append({
-                        "productId": it.product_id, 
+                        "product_id": it.product_id, 
                         "name": it.name, 
                         "qty": it.qty, 
                         "price": float(it.price)
@@ -214,53 +180,47 @@ class MySQLSubOrderDAO:
             raise RuntimeError("MySQL not configured")
         now = datetime.now(timezone.utc)
 
-        slot = data.delivery_slot
-        c_info = data.coupon_info
-        s_addr = data.shipping_address
-        b_addr = data.billing_address
-
         params = {
-            "external_id": secrets.token_hex(16),
-            "sub_order_number": (data.sub_order_number if data.sub_order_number is not None else ""),
-            "parent_order_id": str(data.parent_order_id or ""),
-            "parent_order_number": (data.parent_order_number if data.parent_order_number is not None else ""),
-            "seller_id": str(data.seller_id or "") or None,
+            "external_id": getattr(data, "external_id", None),
+            "sub_order_number": data.sub_order_number,
+            "parent_order_id": int(data.parent_order_id) if str(data.parent_order_id).isdigit() else None,
+            "parent_order_number": data.parent_order_number,
+            "seller_id": int(data.seller_id) if data.seller_id and str(data.seller_id).isdigit() else None,
             "seller_name": data.seller_name,
-            "user_id": str(data.user_id or ""),
-            "subtotal": _safe_float(data.subtotal),
-            "tax": _safe_float(data.tax),
-            "shipping": _safe_float(data.shipping),
-            "delivery_gst": _safe_float(data.delivery_gst),
-            "discount": _safe_float(data.discount),
-            "total": _safe_float(data.total),
+            "user_id": int(data.user) if data.user and str(data.user).isdigit() else None,
+            "subtotal": float(data.subtotal),
+            "tax": float(data.tax),
+            "shipping": float(data.shipping),
+            "delivery_gst": float(data.delivery_gst),
+            "discount": float(data.discount),
+            "total": float(data.total),
             "order_type": data.order_type,
-            "status": (data.status if data.status is not None else "pending"),
+            "status": data.status,
             "payment_method": data.payment_method,
-            "payment_status": (data.payment_status if data.payment_status is not None else "pending"),
-            "is_urgent_delivery": 1 if data.is_urgent_delivery else 0,
-            "delivery_slot_config_id": slot.config_id if slot else None,
-            "delivery_slot_id": slot.slot_id if slot else None,
-            "delivery_slot_date": slot.date if slot else None,
-            "notes": data.notes,
-            "coupon_code": data.coupon_code,
-            "coupon_info_type": c_info.discount_type if c_info else None,
-            "coupon_info_value": _safe_float(c_info.discount_value) if c_info else None,
-            "commission_status": (data.commission_status if data.commission_status is not None else "unrealized"),
-            "shipping_name": s_addr.name if s_addr else None,
-            "shipping_phone": s_addr.phone if s_addr else None,
-            "shipping_line1": (s_addr.street or s_addr.address) if s_addr else None,
-            "shipping_city": s_addr.city if s_addr else None,
-            "shipping_state": s_addr.state if s_addr else None,
-            "shipping_pincode": s_addr.pincode if s_addr else None,
-            "billing_name": b_addr.name if b_addr else None,
-            "billing_phone": b_addr.phone if b_addr else None,
-            "billing_line1": (b_addr.street or b_addr.address) if b_addr else None,
-            "billing_city": b_addr.city if b_addr else None,
-            "billing_state": b_addr.state if b_addr else None,
-            "billing_pincode": b_addr.pincode if b_addr else None,
-            # Valet pickup tracking
+            "payment_status": data.payment_status,
+            "is_urgent_delivery": data.is_urgent_delivery,
+            "delivery_slot_config_id": data.delivery_slot_config_id,
+            "delivery_slot_id": data.delivery_slot_id,
+            "delivery_slot_date": data.delivery_slot_date,
+            "notes": getattr(data, "notes", None),
+            "coupon_code": getattr(data, "coupon_code", None),
+            "coupon_info_type": getattr(data, "coupon_info_type", None),
+            "coupon_info_value": getattr(data, "coupon_info_value", None),
+            "commission_status": data.commission_status if data.commission_status else "unrealized",
+            "shipping_name": getattr(data, "shipping_name", None),
+            "shipping_phone": getattr(data, "shipping_phone", None),
+            "shipping_line1": getattr(data, "shipping_line1", None),
+            "shipping_city": getattr(data, "shipping_city", None),
+            "shipping_state": getattr(data, "shipping_state", None),
+            "shipping_pincode": getattr(data, "shipping_pincode", None),
+            "billing_name": getattr(data, "billing_name", None),
+            "billing_phone": getattr(data, "billing_phone", None),
+            "billing_line1": getattr(data, "billing_line1", None),
+            "billing_city": getattr(data, "billing_city", None),
+            "billing_state": getattr(data, "billing_state", None),
+            "billing_pincode": getattr(data, "billing_pincode", None),
             "pickup_status": (data.pickup_status if data.pickup_status is not None else "pending_pickup"),
-            "assigned_valet": data.assigned_valet,
+            "assigned_valet": getattr(data, "assigned_valet", None),
             "created_at": now,
             "updated_at": now,
         }

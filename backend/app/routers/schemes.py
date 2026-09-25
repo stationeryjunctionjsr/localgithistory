@@ -40,8 +40,8 @@ async def get_schemes(current_user: User = Depends(require_wholesaler)):
                 end_dt = datetime.fromisoformat(valid_until.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
                 if now > end_dt:
                     continue
-            except Exception as e:
-                logging.warning("Background task failed", exc_info=e)
+            except (ValueError, TypeError) as e:
+                logging.warning("Coupon %r has unparseable valid_until %r; including it anyway.", getattr(c, 'id', '?'), valid_until)
         business_coupons.append(c)
 
     # Sort by createdAt descending
@@ -83,8 +83,8 @@ async def get_applicable_schemes(product_id: str, current_user: User = Depends(r
                 end_dt = datetime.fromisoformat(valid_until.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
                 if now > end_dt:
                     continue
-            except Exception as e:
-                logging.warning("Background task failed", exc_info=e)
+            except (ValueError, TypeError) as e:
+                logging.warning("Coupon %r has unparseable valid_until %r; including it anyway.", getattr(c, 'id', '?'), valid_until)
         business_coupons.append(c)
 
     applicable_offers = []
@@ -136,8 +136,8 @@ async def get_applicable_bundle_schemes(bundle_id: str, current_user: User = Dep
                 end_dt = datetime.fromisoformat(valid_until.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
                 if now > end_dt:
                     continue
-            except Exception as e:
-                logging.warning("Background task failed", exc_info=e)
+            except (ValueError, TypeError) as e:
+                logging.warning("Coupon %r has unparseable valid_until %r; including it anyway.", getattr(c, 'id', '?'), valid_until)
         business_coupons.append(c)
 
     applicable_offers = []

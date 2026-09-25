@@ -111,7 +111,7 @@ async def is_seller_currently_unavailable(seller_id: str) -> bool:
             end = datetime.fromisoformat(doc.endAt.replace("Z", ""))
             if start <= now <= end:
                 return True
-        except Exception:
+        except (ValueError, AttributeError):
             logger.warning("Seller availability doc %r has unparseable startAt/endAt; skipping.", getattr(doc, 'id', '?'), exc_info=True)
             continue
     return False
@@ -138,7 +138,7 @@ async def get_all_unavailable_seller_ids() -> Set[str]:
                 seller_id = doc.seller_id
                 if seller_id:
                     unavailable_sellers.add(str(seller_id))
-        except Exception:
+        except (ValueError, AttributeError):
             logger.warning("Seller availability doc %r has unparseable startAt/endAt; skipping from unavailable set.", getattr(doc, 'id', '?'), exc_info=True)
             continue
 
@@ -175,7 +175,7 @@ async def get_seller_unavailable_until(seller_ids: Set[str]) -> Optional[str]:
                 if start <= current_utc <= end:
                     if latest_end is None or end > latest_end:
                         latest_end = end
-            except Exception:
+            except (ValueError, AttributeError):
                 logger.warning("Seller availability doc %r has unparseable startAt/endAt; skipping from unavailable-until lookup.", getattr(doc, 'id', '?'), exc_info=True)
                 continue
     except Exception:
@@ -258,7 +258,7 @@ async def get_zone_seller_availability_status(pincode: Optional[str] = None):
                     # Keep the latest endAt if there are multiple windows
                     if sid not in result or end_str > result[sid]:
                         result[sid] = end_str
-            except Exception:
+            except (ValueError, AttributeError):
                 logger.warning("Seller availability doc %r has unparseable startAt/endAt in zone-status; skipping.", getattr(doc, 'id', '?'), exc_info=True)
                 continue
     except Exception:

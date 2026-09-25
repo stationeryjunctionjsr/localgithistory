@@ -1,5 +1,8 @@
 from app.models.user import User
+import logging
 from fastapi import APIRouter, Depends, HTTPException
+
+logger = logging.getLogger(__name__)
 from typing import Optional
 
 from app.models.schemas import (
@@ -57,11 +60,11 @@ async def check_referral_eligibility(current_user: User = Depends(get_current_us
             "discountType": retail_settings.discount_type,
             "discountValue": retail_settings.discount_value,
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        from app.utils.logger import logger
-
-        logger.error(f"Error checking referral eligibility: {e}", exc_info=True)
-        return {"eligible": False, "message": "An error occurred while checking eligibility"}
+        logger.error("Error checking referral eligibility for user %s: %s", getattr(current_user, 'id', '?'), str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while checking referral eligibility")
 
 
 @router.post("/verify", response_model=ReferralVerifyResponse)

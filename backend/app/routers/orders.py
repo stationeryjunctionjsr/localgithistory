@@ -508,7 +508,7 @@ async def create_order(
         else:
             try:
                 terms_days = int(terms_days)
-            except Exception:
+            except (ValueError, TypeError):
                 logger.warning("Wholesaler user %r has non-integer payment_terms %r; defaulting to 30 days.", getattr(user, 'id', '?'), terms_days, exc_info=True)
                 terms_days = 30
 

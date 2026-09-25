@@ -367,7 +367,7 @@ class CouponRepository:
                                 c_at = c_at.replace(tzinfo=None)
                             if three_months_ago <= c_at <= reference_date:
                                 recent_count += 1
-                        except Exception:
+                        except (ValueError, TypeError, AttributeError):
                             logger.warning("Coupon eligibility: could not parse order createdAt %r; skipping.", c_at_str, exc_info=True)
                             continue
 
@@ -1268,7 +1268,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
                 if not (valid_from <= now <= valid_until):
                     continue
-            except Exception:
+            except (ValueError, TypeError, AttributeError):
                 logger.warning("Coupon %r has unparseable validFrom/validUntil; skipping.", getattr(c, 'id', '?'), exc_info=True)
                 continue
 
@@ -1322,7 +1322,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
                 if not (valid_from <= now <= valid_until):
                     continue
-            except Exception:
+            except (ValueError, TypeError, AttributeError):
                 logger.warning("Coupon %r (step-2) has unparseable validFrom/validUntil; skipping.", getattr(c, 'id', '?'), exc_info=True)
                 continue
 

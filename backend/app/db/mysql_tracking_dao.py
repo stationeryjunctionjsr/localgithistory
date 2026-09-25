@@ -218,7 +218,7 @@ class MySQLTrackingDAO:
             try:
                 from datetime import datetime
                 ts = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-            except Exception:
+            except (ValueError, TypeError):
                 logger.warning("Tracking event has unparseable timestamp %r; storing raw string.", ts, exc_info=True)
         add_col("timestamp", "event_timestamp", ts)
         

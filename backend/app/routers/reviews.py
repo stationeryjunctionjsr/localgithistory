@@ -153,7 +153,7 @@ async def admin_approve_review(review_id: str, current_user: User = Depends(requ
                     product_id, ProductInternalUpdate(rating=round(avg_rating, 2), reviews=len(all_approved))
                 )
     except Exception as e:
-        logger.error("Failed to update product aggregated rating: %s", str(e))
+        logger.error("Failed to update product aggregated rating after review approval (review %s): %s", review_id, str(e), exc_info=True)
 
     return {"message": "Review approved successfully", "review": updated}
 
@@ -180,7 +180,7 @@ async def admin_remove_review(review_id: str, current_user: User = Depends(requi
             else:
                 await product_repository.update(product_id, ProductInternalUpdate(rating=None, reviews=0))
     except Exception as e:
-        logger.error("Failed to update product aggregated rating: %s", str(e))
+        logger.error("Failed to update product aggregated rating after review removal (review %s): %s", review_id, str(e), exc_info=True)
 
     return {"message": "Review removed successfully", "review": updated}
 

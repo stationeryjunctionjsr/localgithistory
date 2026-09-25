@@ -102,37 +102,37 @@ class UserRepository:
         email_val = email.lower() if email else None
 
         user_model = UserInternalCreate(
-            userId=user_id,
-            userIdFormatted=user_id_formatted,
+            user_id=user_id,
+            user_id_formatted=user_id_formatted,
             name=name,
             email=email_val,
             password=hashed_password,
             role=role,
             phone=(user_data.phone if user_data.phone is not None else ""),
-            companyName=(user_data.company_name if user_data.company_name is not None else ""),
+            company_name=(user_data.company_name if user_data.company_name is not None else ""),
             address=(user_data.address if user_data.address is not None else {}),
-            savedAddresses=(user_data.saved_addresses if user_data.saved_addresses is not None else []),
-            isActive=(user_data.isActive if user_data.isActive is not None else True),
-            approvalStatus=(user_data.approval_status if user_data.approval_status is not None else approval_status),
-            isDeactivated=(user_data.is_deactivated if user_data.is_deactivated is not None else False),
-            creditLimit=(user_data.credit_limit if user_data.credit_limit is not None else 0),
-            creditUsed=(user_data.credit_used if user_data.credit_used is not None else 0),
-            paymentTerms=(user_data.payment_terms if user_data.payment_terms is not None else "30"),
-            assignedSalesperson=user_data.assigned_salesperson,
-            referralCode=referral_code,
-            isEmailVerified=(user_data.is_email_verified if user_data.is_email_verified is not None else False),
-            isOnDuty=getattr(user_data, 'isOnDuty', False),
-            isSellerAdmin=getattr(user_data, 'isSellerAdmin', False),
-            serviceAreaZones=getattr(user_data, 'serviceAreaZones', []),
-            commissionOverridePct=getattr(user_data, 'commissionOverridePct', None),
-            upiId=getattr(user_data, 'upiId', None),
-            qrCodeUrl=getattr(user_data, 'qrCodeUrl', None),
+            saved_addresses=(user_data.saved_addresses if getattr(user_data, "saved_addresses", None) is not None else []),
+            is_active=(user_data.is_active if getattr(user_data, "is_active", None) is not None else True),
+            approval_status=(user_data.approval_status if getattr(user_data, "approval_status", None) is not None else approval_status),
+            is_deactivated=(user_data.is_deactivated if getattr(user_data, "is_deactivated", None) is not None else False),
+            credit_limit=(user_data.credit_limit if getattr(user_data, "credit_limit", None) is not None else 0),
+            credit_used=(user_data.credit_used if getattr(user_data, "credit_used", None) is not None else 0),
+            payment_terms=(user_data.payment_terms if getattr(user_data, "payment_terms", None) is not None else "30"),
+            assigned_salesperson=getattr(user_data, "assigned_salesperson", None),
+            referral_code=referral_code,
+            is_email_verified=(user_data.is_email_verified if getattr(user_data, "is_email_verified", None) is not None else False),
+            is_on_duty=getattr(user_data, 'is_on_duty', False),
+            is_seller_admin=getattr(user_data, 'is_seller_admin', False),
+            service_area_zones=getattr(user_data, 'service_area_zones', []),
+            commission_override_pct=getattr(user_data, 'commission_override_pct', None),
+            upi_id=getattr(user_data, 'upi_id', None),
+            qr_code_url=getattr(user_data, 'qr_code_url', None),
             gstin=getattr(user_data, 'gstin', None),
-            deviceId=user_data.deviceId,
-            msg91Token=user_data.msg91Token,
         )
 
-        if user_model.address and user_model.address not in user_model.saved_addresses:
+        if getattr(user_model, "address", None) and user_model.address not in (getattr(user_model, "saved_addresses", []) or []):
+            if user_model.saved_addresses is None:
+                user_model.saved_addresses = []
             user_model.saved_addresses.append(user_model.address)
 
         created_dict = await self.storage.create(user_model)

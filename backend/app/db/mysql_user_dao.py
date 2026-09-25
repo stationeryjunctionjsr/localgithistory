@@ -237,39 +237,39 @@ class MySQLUserDAO:
                 await session.execute(text(f'\n                INSERT INTO {self.TABLE} (\n                    external_id, user_id_formatted, name, email, password_hash, role, phone, company_name, gst_number,\n                    is_active, approval_status, is_deactivated, credit_limit, credit_used, payment_terms,\n                    assigned_salesperson, is_email_verified, referral_code, is_seller_admin,\n                    is_on_duty, commission_override_pct, upi_id, qr_code_url,\n                    bank_account_number, bank_ifsc_code, bank_account_holder, bank_name,\n                    created_at, updated_at\n                ) VALUES (\n                    :external_id, :user_id_formatted, :name, :email, :password_hash, :role, :phone, :company_name, :gst_number,\n                    :is_active, :approval_status, :is_deactivated, :credit_limit, :credit_used, :payment_terms,\n                    :assigned_salesperson, :is_email_verified, :referral_code, :is_seller_admin,\n                    :is_on_duty, :commission_override_pct, :upi_id, :qr_code_url,\n                    :bank_account_number, :bank_ifsc_code, :bank_account_holder, :bank_name,\n                    :created_at, :updated_at\n                )\n            '), {'external_id': external_id, 'user_id_formatted': user_id_formatted, 'name': data.name or 'Customer', 'email': data.email, 'password_hash': data.password, 'role': data.role if data.role is not None else 'customer', 'phone': data.phone or None, 'company_name': data.company_name, 'gst_number': data.gstin, 'is_active': 1 if (data.is_active if data.is_active is not None else True) else 0, 'approval_status': data.approval_status if data.approval_status is not None else 'approved', 'is_deactivated': 1 if data.is_deactivated else 0, 'credit_limit': data.credit_limit if data.credit_limit is not None else 0, 'credit_used': data.credit_used if data.credit_used is not None else 0, 'payment_terms': str(data.payment_terms if data.payment_terms is not None else '30'), 'assigned_salesperson': data.assigned_salesperson, 'is_email_verified': 1 if (data.is_email_verified if data.is_email_verified is not None else False) else 0, 'referral_code': data.referral_code, 'is_seller_admin': 1 if data.is_seller_admin else 0, 'is_on_duty': 1 if data.is_on_duty else 0, 'commission_override_pct': data.commission_override_pct, 'upi_id': data.upi_id, 'qr_code_url': data.qr_code_url, 'bank_account_number': data.bank_account_number, 'bank_ifsc_code': data.bank_ifsc_code, 'bank_account_holder': data.bank_account_holder, 'bank_name': data.bank_name, 'created_at': now, 'updated_at': now})
                 new_id = (await session.execute(text(f'SELECT id FROM {self.TABLE} WHERE external_id = :eid'), {'eid': external_id})).scalar()
                 temp_user = User(
-                    _id=str(new_id),
-                    userId=new_id,
-                    userIdFormatted=user_id_formatted,
+                    id=str(new_id),
+                    user_id=new_id,
+                    user_id_formatted=user_id_formatted,
                     name=data.name,
                     email=data.email,
                     password=data.password,
                     role=data.role,
                     phone=data.phone,
-                    companyName=data.company_name,
+                    company_name=data.company_name,
                     gstin=data.gstin,
                     address=data.address,
-                    savedAddresses=data.saved_addresses if data.saved_addresses else [],
-                    isActive=data.is_active if data.is_active is not None else True,
-                    approvalStatus=data.approval_status if data.approval_status is not None else 'approved',
-                    isDeactivated=data.is_deactivated if data.is_deactivated is not None else False,
-                    creditLimit=data.credit_limit if data.credit_limit is not None else 0.0,
-                    creditUsed=data.credit_used if data.credit_used is not None else 0.0,
-                    paymentTerms=data.payment_terms,
-                    assignedSalesperson=data.assigned_salesperson,
-                    isEmailVerified=data.is_email_verified if data.is_email_verified is not None else False,
-                    referralCode=data.referral_code,
-                    isSellerAdmin=data.is_seller_admin if data.is_seller_admin is not None else False,
-                    serviceAreaZones=data.serviceAreaZones if data.serviceAreaZones else [],
-                    isOnDuty=data.is_on_duty if data.is_on_duty is not None else False,
-                    commissionOverridePct=data.commission_override_pct,
-                    upiId=data.upi_id,
-                    qrCodeUrl=data.qr_code_url,
-                    bankAccountNumber=data.bank_account_number,
-                    bankIfscCode=data.bank_ifsc_code,
-                    bankAccountHolder=data.bank_account_holder,
-                    bankName=data.bank_name,
-                    createdAt=now,
-                    updatedAt=now
+                    saved_addresses=data.saved_addresses if data.saved_addresses else [],
+                    is_active=data.is_active if data.is_active is not None else True,
+                    approval_status=data.approval_status if data.approval_status is not None else 'approved',
+                    is_deactivated=data.is_deactivated if data.is_deactivated is not None else False,
+                    credit_limit=data.credit_limit if data.credit_limit is not None else 0.0,
+                    credit_used=data.credit_used if data.credit_used is not None else 0.0,
+                    payment_terms=data.payment_terms,
+                    assigned_salesperson=data.assigned_salesperson,
+                    is_email_verified=data.is_email_verified if data.is_email_verified is not None else False,
+                    referral_code=data.referral_code,
+                    is_seller_admin=data.is_seller_admin if data.is_seller_admin is not None else False,
+                    service_area_zones=data.service_area_zones if data.service_area_zones else [],
+                    is_on_duty=data.is_on_duty if data.is_on_duty is not None else False,
+                    commission_override_pct=data.commission_override_pct,
+                    upi_id=data.upi_id,
+                    qr_code_url=data.qr_code_url,
+                    bank_account_number=data.bank_account_number,
+                    bank_ifsc_code=data.bank_ifsc_code,
+                    bank_account_holder=data.bank_account_holder,
+                    bank_name=data.bank_name,
+                    created_at=now,
+                    updated_at=now
                 )
                 await self._replace_children(session, new_id, temp_user)
                 await session.commit()
@@ -385,9 +385,9 @@ class MySQLUserDAO:
                     fields_set = update_data.model_fields_set
                     if "address" in fields_set:
                         existing.address = update_data.address
-                    if "savedAddresses" in fields_set:
+                    if "saved_addresses" in fields_set:
                         existing.saved_addresses = update_data.saved_addresses
-                    if "serviceAreaZones" in fields_set:
+                    if "service_area_zones" in fields_set:
                         existing.service_area_zones = update_data.service_area_zones
                             
                     await self._replace_children(session, int(id) if str(id).isdigit() else None, existing)

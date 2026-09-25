@@ -124,7 +124,7 @@ async def get_recommendations(
                     
                     city = (raw_city or "").strip() or None
             except Exception:
-                logger.warning("Could not resolve city for wholesaler %s", user_id)
+                logger.warning("Could not resolve city for wholesaler %s", user_id, exc_info=True)
 
         # Authenticated user path: cache per-user (and per-city for wholesalers) for 180 seconds
         city_key = city or "all"

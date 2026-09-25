@@ -110,7 +110,7 @@ async def create_seller_payout(
         try:
             await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid"))
         except Exception as e:
-            logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
+            logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e, exc_info=True)
 
     await _enrich_with_seller(created)
     created.created_by = str(current_user.id)
@@ -147,7 +147,7 @@ async def settle_all_seller_payouts(
         try:
             await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid"))
         except Exception as e:
-            logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
+            logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e, exc_info=True)
 
     await _enrich_with_seller(created)
     created.created_by = str(current_user.id)

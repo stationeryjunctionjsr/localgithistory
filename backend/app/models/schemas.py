@@ -265,10 +265,10 @@ class UserBase(CamelBaseModel):
     effectiveRole: Optional[str] = None
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
-    bankAccountNumber: Optional[str] = None
-    bankIfscCode: Optional[str] = None
-    bankAccountHolder: Optional[str] = None
-    bankName: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_ifsc_code: Optional[str] = None
+    bank_account_holder: Optional[str] = None
+    bank_name: Optional[str] = None
     # Device / verification metadata — populated at registration time, None for admin-created users.
     deviceId: Optional[str] = None
     msg91Token: Optional[str] = None
@@ -325,10 +325,10 @@ class UserUpdate(CamelBaseModel):
     preferredLanguage: Optional[str] = None
     upiId: Optional[str] = None
     qrCodeUrl: Optional[str] = None
-    bankAccountNumber: Optional[str] = None
-    bankIfscCode: Optional[str] = None
-    bankAccountHolder: Optional[str] = None
-    bankName: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_ifsc_code: Optional[str] = None
+    bank_account_holder: Optional[str] = None
+    bank_name: Optional[str] = None
 
 
 class UserResponse(UserBase):
@@ -1687,8 +1687,8 @@ class UserInternalCreate(CamelBaseModel):
     qr_code_url: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc_code: Optional[str] = None
-    bankAccountHolder: Optional[str] = None
-    bankName: Optional[str] = None
+    bank_account_holder: Optional[str] = None
+    bank_name: Optional[str] = None
     # Device / verification metadata captured at registration time.
     # otp is intentionally excluded — it is verified and deleted before create() is called.
     deviceId: Optional[str] = None
@@ -1724,8 +1724,8 @@ class UserInternalUpdate(CamelBaseModel):
     qr_code_url: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc_code: Optional[str] = None
-    bankAccountHolder: Optional[str] = None
-    bankName: Optional[str] = None
+    bank_account_holder: Optional[str] = None
+    bank_name: Optional[str] = None
 
 
 # --- Shared Payload DTOs ---

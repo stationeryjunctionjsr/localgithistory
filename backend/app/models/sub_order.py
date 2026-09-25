@@ -41,15 +41,28 @@ class SubOrder(CamelBaseModel):
     payment_method: Optional[str] = Field(default=None)
     payment_status: str = Field(default="pending")
     is_urgent_delivery: bool = Field(default=False)
-    delivery_slot: Optional[DeliverySlotInfo] = Field(default=None)
+    delivery_slot_config_id: Optional[str] = None
+    delivery_slot_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None
     notes: Optional[str] = None
     coupon_code: Optional[str] = Field(default=None)
-    coupon_info: Optional[CouponInfo] = Field(default=None)
+    coupon_info_type: Optional[str] = None
+    coupon_info_value: Optional[float] = None
     commission_status: str = Field(default="unrealized")
     commission_amount: Optional[float] = Field(default=0.0)
     commission_pct: Optional[float] = Field(default=None)
-    shipping_address: Optional['Address'] = Field(default=None)
-    billing_address: Optional['Address'] = Field(default=None)
+    shipping_name: Optional[str] = None
+    shipping_phone: Optional[str] = None
+    shipping_line1: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_state: Optional[str] = None
+    shipping_pincode: Optional[str] = None
+    billing_name: Optional[str] = None
+    billing_phone: Optional[str] = None
+    billing_line1: Optional[str] = None
+    billing_city: Optional[str] = None
+    billing_state: Optional[str] = None
+    billing_pincode: Optional[str] = None
     pickup_status: str = Field(default="pending_pickup")
     assigned_valet: Optional[str] = Field(default=None)
     return_status: Optional[str] = Field(default=None)

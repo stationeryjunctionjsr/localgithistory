@@ -40,7 +40,7 @@ class EmailLogHandler(logging.Handler):
             error_data = notified_errors_data[error_hash] if error_hash in notified_errors_data else None
 
             if not error_data:
-                error_data = {"last_sent": None, "users": set(), "created_at": now}
+                error_data = {"last_sent": None, "users": set(), "created_at": now, "occurrences": 0}
                 notified_errors_data[error_hash] = error_data
 
             # Track affected users if available in message
@@ -53,14 +53,16 @@ class EmailLogHandler(logging.Handler):
                     current_user = "anonymous"
 
             error_data["users"].add(current_user)
+            error_data["occurrences"] = error_data.get("occurrences", 0) + 1
 
             # --- Evaluation & Throttling ---
             last_sent = error_data["last_sent"]
             user_count = len(error_data["users"])
+            occurrence_count = error_data["occurrences"]
             is_resource_alert = "System Resource Alert" in message
 
-            # 1. Check Threshold (5 unique users, except resources)
-            if not is_resource_alert and user_count < 5:
+            # 1. Check Threshold: fire if 5+ unique users OR 20+ occurrences (catches single-user bursts)
+            if not is_resource_alert and user_count < 5 and occurrence_count < 20:
                 return
 
             # 2. Check Throttling (once per 6 hours)
@@ -77,6 +79,7 @@ class EmailLogHandler(logging.Handler):
                 f"Level: {record.levelname}\n"
                 f"Time: {now.strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"Module: {record.module}\n"
+                f"Occurrences (since last alert): {occurrence_count}\n"
                 f"Affected Users (since last alert): {user_count}\n\n"
                 f"Message:\n{message}"
             )
@@ -86,8 +89,9 @@ class EmailLogHandler(logging.Handler):
 
             if email_service.send_error_alert(subject, body):
                 error_data["last_sent"] = now
-                # IMPORTANT: Reset users count for the next batch after sending
+                # IMPORTANT: Reset users and occurrence count for the next batch after sending
                 error_data["users"].clear()
+                error_data["occurrences"] = 0
 
         except Exception as e:
             # Fallback to console if everything fails
