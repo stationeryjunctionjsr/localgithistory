@@ -30,7 +30,7 @@ def setup_logging():
     if logger.handlers:
         return logger
 
-    from pythonjsonlogger import jsonlogger
+    from pythonjsonlogger import json as jsonlogger
 
     # Formatter: Structured JSON logging — includes request_id for correlation
     formatter = jsonlogger.JsonFormatter(

@@ -7,6 +7,10 @@ from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="slowapi")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="circuitbreaker")
 
 # Load environment variables first before importing settings and logger
 load_dotenv()
