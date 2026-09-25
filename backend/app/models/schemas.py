@@ -97,32 +97,32 @@ class AddressSnippet(CamelBaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
-class UserSnippet(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+class UserSnippet(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
     id: Optional[str] = Field(None, alias="_id")
-    userId: Optional[int] = Field(default=None, validation_alias=AliasChoices("userId", "user_id"))
-    userIdFormatted: Optional[str] = Field(default=None, validation_alias=AliasChoices("userIdFormatted", "user_id_formatted"))
+    user_id: Optional[int] = None
+    user_id_formatted: Optional[str] = None
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     role: Optional[str] = None
-    companyName: Optional[str] = Field(default=None, validation_alias=AliasChoices("companyName", "company_name"))
+    company_name: Optional[str] = None
 
-class ProductSellerEntry(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
-    sellerId: str
+class ProductSellerEntry(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
+    seller_id: str
     stock: int = 0
-    isActive: bool = False
-    requestStatus: str = "pending"
+    is_active: bool = False
+    request_status: str = "pending"
     notes: Optional[str] = None
 
-class ItemSnippet(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+class ItemSnippet(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
     id: Optional[str] = Field(default=None, alias="_id")
-    productId: Optional[str] = Field(default=None, validation_alias=AliasChoices("productId", "product_id"))
+    product_id: Optional[str] = None
     product: Optional[str] = None
     quantity: Optional[int] = None
-    sellAsCase: Optional[bool] = None
+    sell_as_case: Optional[bool] = None
     price: Optional[float] = None
     mrp: Optional[float] = None
     name: Optional[str] = None
@@ -130,7 +130,7 @@ class ItemSnippet(BaseModel):
     images: Optional[list] = None
     status: Optional[str] = None
     subtotal: Optional[float] = None
-    outOfStock: Optional[bool] = None
+    out_of_stock: Optional[bool] = None
     sku: Optional[str] = None
     mrpPerCase: Optional[float] = None
     quantityPerCase: Optional[int] = None
@@ -148,18 +148,18 @@ class VariantOption(BaseModel):
     attributes: Optional[VariantAttributes] = None
     price: Optional[float] = None
 
-class VisibilityRuleSnippet(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
-    pageType: Optional[str] = None
-    pageIds: Optional[List[str]] = None
+class VisibilityRuleSnippet(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
+    page_type: Optional[str] = None
+    page_ids: Optional[List[str]] = None
 
 # Aliases for models and snippets
 CartItem = ItemSnippet
 OrderItem = ItemSnippet
 VisibilityRule = VisibilityRuleSnippet
 
-class ValetSnippet(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+class ValetSnippet(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
     phone: Optional[str] = None
@@ -355,7 +355,7 @@ class UserResponse(UserBase):
 
 
 # Product Variation Schema
-class ProductVariation(BaseModel):
+class ProductVariation(CamelBaseModel):
     name: str  # Variation name (e.g., "Color", "Size", "Pages")
     type: str  # Variation type (e.g., "color", "size", "pages", "quantity")
     options: List[VariantOption]  # List of options with value, price, stock, etc.
@@ -364,22 +364,22 @@ class ProductVariation(BaseModel):
 
 # Product Schemas
 
-class ProductReviewResponse(BaseModel):
+class ProductReviewResponse(CamelBaseModel):
     id: str = Field(alias="_id")
-    productId: str
-    userId: str
+    product_id: str
+    user_id: str
     rating: int
-    reviewText: Optional[str] = None
+    review_text: Optional[str] = None
     status: str
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
-class ClassificationTagResponse(BaseModel):
+class ClassificationTagResponse(CamelBaseModel):
     id: str = Field(alias="_id")
     name: str
-    isActive: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    is_active: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class ReviewActionResponse(BaseModel):
     message: str
@@ -390,19 +390,19 @@ class ClassificationActionResponse(BaseModel):
     classification: ClassificationTagResponse
 
 
-class BundleItemResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
-    productId: str
-    productName: Optional[str] = None
+class BundleItemResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
+    product_id: str
+    product_name: Optional[str] = None
     quantity: int
     image: Optional[str] = None
     price: Optional[float] = None
-    discountPrice: Optional[float] = None
+    discount_price: Optional[float] = None
     product: Optional['Product'] = None
-    lineMrp: Optional[float] = None
+    line_mrp: Optional[float] = None
 
-class BundleResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+class BundleResponse(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
     external_id: Optional[str] = None
     id: str = Field(alias="_id")
     name: str
