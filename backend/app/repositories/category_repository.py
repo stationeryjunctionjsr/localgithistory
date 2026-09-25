@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from typing import TYPE_CHECKING, Dict, List, Optional, Any
 from app.models.category import Category
 # Note: Router defines CategoryBase and CategoryUpdate inline, Any
 from app.models.category import Category
@@ -8,6 +8,10 @@ from app.models.category import Category
 # Note: Router defines CategoryBase and CategoryUpdate inline
 
 from app.db.storage_factory import get_storage
+
+if TYPE_CHECKING:
+    from app.models.daos import CategoryInternalCreate, CategoryInternalUpdate
+    
 
 
 class CategoryRepository:

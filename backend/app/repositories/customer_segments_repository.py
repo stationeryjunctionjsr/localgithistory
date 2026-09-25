@@ -1,4 +1,4 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 import datetime
 from datetime import timezone
 import uuid
@@ -6,6 +6,10 @@ from typing import List, Optional
 from app.models.daos_flat import CustomerSegmentInternal
 
 from app.db.storage_factory import get_storage
+
+if TYPE_CHECKING:
+    from app.models.daos import CustomerSegmentInternalCreate, CustomerSegmentInternalUpdate
+    
 
 
 class CustomerSegmentsRepository:

@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Any
+from typing import TYPE_CHECKING, Dict, List, Optional, Any
 from app.models.brand import Brand
 from app.models.schemas import BrandCreate, BrandUpdate, Any
 from app.models.brand import Brand
@@ -7,6 +7,10 @@ from app.models.brand import Brand
 from app.models.schemas import BrandCreate, BrandUpdate
 
 from app.db.storage_factory import get_storage
+
+if TYPE_CHECKING:
+    from app.models.daos import BrandInternalCreate, BrandInternalUpdate
+    
 
 
 class BrandRepository:

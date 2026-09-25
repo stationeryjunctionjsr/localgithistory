@@ -1,9 +1,13 @@
 from app.models.daos import NotificationInternal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
+
+if TYPE_CHECKING:
+    from app.models.daos import NotificationInternalCreate, NotificationInternalUpdate
+    
 
 IST = timezone(timedelta(hours=5, minutes=30))
 

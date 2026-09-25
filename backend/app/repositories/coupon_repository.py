@@ -1,12 +1,17 @@
 from app.models.schemas import CouponUpdate
 from app.models.daos_flat import CouponInternalUpdate
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
 from app.models.schemas import BxGyEvaluationResponse, CouponValidationResponse, CouponValidationDetail
+
+if TYPE_CHECKING:
+    from app.models.daos import CouponInternalCreate, CouponInternalUpdate, CouponInternal
+    from app.models.schemas import CouponOverlapData
+
 
 
 class OverlapConflictError(ValueError):

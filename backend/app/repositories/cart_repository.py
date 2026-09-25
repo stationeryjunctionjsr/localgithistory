@@ -1,5 +1,5 @@
 from app.models.saved_for_later import SavedForLater, SavedForLaterItem
-from typing import Dict, Any
+from typing import TYPE_CHECKING, Dict, Any
 from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
 
 from app.db.storage_factory import get_storage
@@ -107,5 +107,9 @@ class CartRepository:
 
 
 from datetime import datetime, timezone
+
+if TYPE_CHECKING:
+    from app.models.daos import CartInternalCreate, CartInternalUpdate
+    
 
 cart_repository = CartRepository()

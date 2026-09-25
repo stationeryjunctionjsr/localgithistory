@@ -1,7 +1,11 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from typing import Dict
 
 from app.db.storage_factory import get_storage
+
+if TYPE_CHECKING:
+        from app.models.schemas import ReferralSettings
+
 
 
 class ReferralRepository:

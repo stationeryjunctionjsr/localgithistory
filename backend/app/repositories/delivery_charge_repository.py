@@ -1,8 +1,12 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from app.models.daos_flat import DeliveryChargeInternal, DeliveryChargeDefaultInternal, DeliveryChargeInternalCreate, DeliveryChargeInternalUpdate, DeliveryChargeDefaultInternalCreate, DeliveryChargeDefaultInternalUpdate, DeliveryChargeTierInternal
 from typing import Dict, Optional
 
 from app.db.storage_factory import get_storage
+
+if TYPE_CHECKING:
+    from app.models.daos import DeliveryChargeInternal
+    
 
 
 class DeliveryChargeRepository:

@@ -1,8 +1,12 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from app.db.storage_factory import get_storage
+
+if TYPE_CHECKING:
+        from app.models.schemas import FeatureFlag
+
 
 
 class FeatureFlagRepository:

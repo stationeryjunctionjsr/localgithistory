@@ -1,5 +1,5 @@
 from app.models.user import User
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserUpdate, UserCreate
 from typing import Dict, Optional
 
@@ -7,6 +7,10 @@ from app.db.storage_factory import get_storage
 from app.utils.auth import get_password_hash, verify_password
 from app.utils.logger import logger
 from app.utils.referral import get_unique_referral_code
+
+if TYPE_CHECKING:
+    from app.models.daos import UserInternalUpdate
+    
 
 
 class UserRepository:

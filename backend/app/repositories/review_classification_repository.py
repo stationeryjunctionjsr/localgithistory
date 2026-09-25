@@ -1,12 +1,16 @@
 import asyncio
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import TYPE_CHECKING, Dict, List, Optional, Any
 from app.models.schemas import ClassificationTagResponse
 from sqlalchemy import text
 
 from app.db.storage_factory import get_storage
 from app.config.database import use_oracle, is_oracle, get_async_session_factory
 from app.utils.logger import logger
+
+if TYPE_CHECKING:
+    from app.models.daos import ClassificationTagsInternalCreate, ClassificationTagsInternalUpdate
+    
 
 
 class ReviewClassificationRepository:

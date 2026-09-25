@@ -1,4 +1,4 @@
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -7,6 +7,11 @@ from sqlalchemy import text
 from app.config.database import get_async_session_factory, use_oracle, is_oracle
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
+
+if TYPE_CHECKING:
+    from app.models.daos import BundleInternalCreate, BundleInternalUpdate
+    from app.models.schemas import Bundle
+
 
 
 class BundleRepository:

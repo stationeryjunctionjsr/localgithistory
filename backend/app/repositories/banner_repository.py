@@ -1,8 +1,12 @@
 from datetime import datetime, timezone
-from typing import Dict, Optional, Any
+from typing import TYPE_CHECKING, Dict, Optional, Any
 from app.models.daos import BannerInternalCreate, BannerInternalUpdate
 
 from app.db.storage_factory import get_storage
+
+if TYPE_CHECKING:
+    from app.models.daos import BannerInternalCreate, BannerInternalUpdate
+    
 
 
 class BannerRepository:
