@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Any, List, Literal, Optional, Union, Dict
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices, RootModel
+from app.models.base import CamelBaseModel
 
 
 class UserRole(str, Enum):
@@ -78,10 +79,10 @@ class BannerPosition(str, Enum):
 
 # User Schemas
 
-class AddressSnippet(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
+class AddressSnippet(CamelBaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='ignore')
     name: Optional[str] = None
-    isPrimary: Optional[bool] = None
+    is_primary: Optional[bool] = None
     phone: Optional[str] = None
     address: Optional[str] = None
     street: Optional[str] = None
@@ -90,9 +91,9 @@ class AddressSnippet(BaseModel):
     district: Optional[str] = None
     country: Optional[str] = "India"
     pincode: Optional[str] = None
-    zipCode: Optional[str] = None
-    locationLink: Optional[str] = None
-    googleLocation: Optional[str] = None
+    zip_code: Optional[str] = None
+    location_link: Optional[str] = None
+    google_location: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
