@@ -17,8 +17,7 @@ class MySQLDeliveryZonesDAO:
     @property
     def TABLE(self):
         from app.config.settings import settings
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"{self.table_name}{suffix}"
+        return "{self.table_name}"
 
     def _factory(self):
         return get_async_session_factory()

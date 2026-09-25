@@ -17,13 +17,11 @@ from app.db.db_utils import now_utc
 class MySQLEmailOtpDAO:
     @property
     def TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_email_otps{suffix}"
+        return "sj_email_otps"
 
     @property
     def SEND_LOG_TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_email_otp_send_log{suffix}"
+        return "sj_email_otp_send_log"
 
     def _factory(self):
         return get_async_session_factory()
