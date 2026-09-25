@@ -57,7 +57,7 @@ def _is_fresh(expiry: float) -> bool:
 
 def _cache_zone(zone) -> frozenset:
     """Kept for backward compatibility — not used in new flow."""
-    seller_ids = frozenset(str(s) for s in (zone.sellerIds or []))
+    seller_ids = frozenset(str(s) for s in (zone.seller_ids or []))
     return seller_ids
 
 

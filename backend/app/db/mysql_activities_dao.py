@@ -108,9 +108,9 @@ class MySQLActivitiesDAO:
             cols.append("comments")
             params["s_comment"] = data.comment
 
-        if data.isGuest is not None:
+        if data.is_guest is not None:
             cols.append("is_guest")
-            params["s_isGuest"] = data.isGuest
+            params["s_isGuest"] = data.is_guest
 
         if data.user_agent is not None:
             cols.append("user_agent")
@@ -180,9 +180,9 @@ class MySQLActivitiesDAO:
             updates.append("comments = :s_comment")
             params["s_comment"] = data.comment
 
-        if data.isGuest is not None:
+        if data.is_guest is not None:
             updates.append("is_guest = :s_isGuest")
-            params["s_isGuest"] = data.isGuest
+            params["s_isGuest"] = data.is_guest
 
         if data.user_agent is not None:
             updates.append("user_agent = :s_userAgent")

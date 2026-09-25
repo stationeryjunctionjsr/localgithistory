@@ -315,7 +315,7 @@ class ProductRepository:
                     "description": p.description,
                     # Seller IDs for pincode-based availability filtering in autocomplete
                     "sellerIds": [
-                        str(s.sellerId)
+                        str(s.seller_id)
                         for s in (p.sellers or [])
                         if s.isActive
                         and (s.stock or 0) > 0
@@ -324,7 +324,7 @@ class ProductRepository:
                     # Seller IDs for catalogue filtering (mega menu, brands, collections).
                     # Includes out-of-stock items so they still appear in navigation.
                     "catalogSellerIds": [
-                        str(s.sellerId)
+                        str(s.seller_id)
                         for s in (p.sellers or [])
                         if s.isActive
                         and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"
@@ -1050,7 +1050,7 @@ class ProductRepository:
             elif field_name == "brandId": val = update_data.brandId
             elif field_name == "images": val = update_data.images
             elif field_name == "isActive": val = update_data.isActive
-            elif field_name == "sellerId": val = update_data.sellerId
+            elif field_name == "sellerId": val = update_data.seller_id
 
             if field_name in ["mrp", "mrpPerCase"] and val is not None:
                 val = float(val)

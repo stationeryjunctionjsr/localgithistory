@@ -65,7 +65,7 @@ async def _find_next_available_valet(order, skip_valet_ids: list) -> dict | None
     sub_orders = await sub_order_repository.findByParentOrder(str(order.id))
     if sub_orders:
         for so in sub_orders:
-            so_seller_id = so.sellerId
+            so_seller_id = so.seller_id
             if so_seller_id:
                 so_seller = await user_repository.findById(so_seller_id)
             else:
@@ -179,14 +179,14 @@ async def _find_next_available_valet_for_return(return_req, skip_valet_ids: list
             customer_pincode = str(user.address.pincode) if user.address and user.address.pincode else ''
     if not customer_pincode:
         return None
-    seller_id = return_req.sellerId
+    seller_id = return_req.seller_id
     if not seller_id:
         items = (return_req.items) or []
         if items:
             p_id = items[0].product_id
             prod = await product_repository.findById(p_id) if p_id else None
             if prod:
-                seller_id = prod.sellers[0].sellerId if prod.sellers else None
+                seller_id = prod.sellers[0].seller_id if prod.sellers else None
         if not seller_id:
             seller_id = order.seller_id
     if seller_id:

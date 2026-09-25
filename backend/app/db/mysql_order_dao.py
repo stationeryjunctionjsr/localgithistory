@@ -381,7 +381,7 @@ class MySQLOrderDAO:
                     "notes": data.notes,
                     "printed_bill": 1 if data.printedBill else 0,
                                         "assigned_valet": data.assignedValet,
-                    "is_urgent_delivery": 1 if data.isUrgentDelivery else 0,
+                    "is_urgent_delivery": 1 if data.is_urgent_delivery else 0,
                     "pending_valet_id": data.pending_valet_id,
                     "valet_assigned_at": _to_ts(data.valetAssignedAt),
                     "valet_cascade_count": data.valetCascadeCount or 0,
@@ -504,7 +504,7 @@ class MySQLOrderDAO:
                     "valet_assigned_at": _to_ts(update_data.valetAssignedAt if update_data.valetAssignedAt is not None else existing.valet_assigned_at),
                     "valet_cascade_count": update_data.valetCascadeCount if update_data.valetCascadeCount is not None else existing.valet_cascade_count or 0,
                     
-                    "is_urgent_delivery": 1 if (update_data.isUrgentDelivery if update_data.isUrgentDelivery is not None else existing.is_urgent_delivery) else 0,
+                    "is_urgent_delivery": 1 if (update_data.is_urgent_delivery if update_data.is_urgent_delivery is not None else existing.is_urgent_delivery) else 0,
                     "shipped_at": _to_ts(update_data.shippedAt if update_data.shippedAt is not None else existing.shipped_at),
                     "delivered_at": _to_ts(update_data.deliveredAt if update_data.deliveredAt is not None else existing.delivered_at),
                     "cod_payment_received": 1 if (update_data.codPaymentReceived if update_data.codPaymentReceived is not None else existing.cod_payment_received) else 0,

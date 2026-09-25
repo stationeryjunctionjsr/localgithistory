@@ -56,8 +56,8 @@ class ReportService:
 
         for search in search_events:
             session_id = search.session_id
-            search_term = search.searchTerm or ""
-            results_count = search.resultsCount or 0
+            search_term = search.search_term or ""
+            results_count = search.results_count or 0
             product_ids = search.product_ids or []
             search_time = search.timestamp
 

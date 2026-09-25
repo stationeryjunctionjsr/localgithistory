@@ -47,7 +47,7 @@ class SessionRepository:
                 case "revokedAt": existing.revoked_at = updates.revokedAt
                 case "revokedReason": existing.revoked_reason = updates.revokedReason
                 case "device": existing.device = updates.device
-                case "isGuest": existing.is_guest = updates.isGuest
+                case "isGuest": existing.is_guest = updates.is_guest
 
         return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing))
 

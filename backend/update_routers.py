@@ -54,7 +54,7 @@ old_senrich = '''async def _enrich_with_seller(doc: dict) -> dict:
     return doc'''
     
 new_senrich = '''async def _enrich_with_seller(doc: SellerPayoutDetailResponse) -> SellerPayoutDetailResponse:
-    seller = await user_repository.findById(doc.sellerId)
+    seller = await user_repository.findById(doc.seller_id)
     if seller:
         doc.sellerName = seller.company_name or seller.name or ""
         doc.sellerUpiId = seller.upi_id
@@ -67,7 +67,7 @@ new_senrich = '''async def _enrich_with_seller(doc: SellerPayoutDetailResponse) 
 
 stext = stext.replace(old_senrich, new_senrich)
 stext = stext.replace('existing.get("notes")', 'existing.notes')
-stext = stext.replace('existing.get("sellerId")', 'existing.sellerId')
+stext = stext.replace('existing.get("sellerId")', 'existing.seller_id')
 
 with open('app/routers/seller_payouts.py', 'w', encoding='utf-8') as f:
     f.write(stext)

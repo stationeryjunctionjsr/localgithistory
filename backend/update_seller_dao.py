@@ -62,7 +62,7 @@ old_handle = '''        def _handle_field(api_k, db_k, new_val, is_date=False):
                     updates.append(f"{db_k} = :{api_k}")
                     params[api_k] = _parse_dt(fallback_val) if is_date else fallback_val
 
-        _handle_field("sellerId", "seller_id", data.sellerId)
+        _handle_field("sellerId", "seller_id", data.seller_id)
         _handle_field("amount", "amount", data.amount)
         _handle_field("periodStart", "period_start", data.periodStart, True)
         _handle_field("periodEnd", "period_end", data.periodEnd, True)
@@ -83,7 +83,7 @@ new_handle = '''        def _handle_field(api_k, db_k, new_val, existing_val, is
                     updates.append(f"{db_k} = :{api_k}")
                     params[api_k] = _parse_dt(existing_val) if is_date else existing_val
 
-        _handle_field("sellerId", "seller_id", data.sellerId, existing.sellerId)
+        _handle_field("sellerId", "seller_id", data.seller_id, existing.seller_id)
         _handle_field("amount", "amount", data.amount, existing.amount)
         _handle_field("periodStart", "period_start", data.periodStart, existing.periodStart, True)
         _handle_field("periodEnd", "period_end", data.periodEnd, existing.periodEnd, True)

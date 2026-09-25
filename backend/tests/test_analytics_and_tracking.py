@@ -160,21 +160,21 @@ async def test_web_tracking_endpoints(client: AsyncClient):
 
     # Validate specific fields of some stored events
     search_record = next(r for r in records if r.type == "product_search")
-    assert search_record.searchTerm == "fountain pen"
-    assert search_record.resultsCount == 10
+    assert search_record.search_term == "fountain pen"
+    assert search_record.results_count == 10
 
     view_record = next(r for r in records if r.type == "product_view")
     assert view_record.product_id == product_id
-    assert view_record.productName == product_name
+    assert view_record.product_name == product_name
 
     click_record = next(r for r in records if r.type == "product_click")
     assert click_record.source == "homepage_banner"
 
     abandon_record = next(r for r in records if r.type == "cart_abandonment")
-    assert abandon_record.cartValue == 998.0
+    assert abandon_record.cart_value == 998.0
 
     session_record = next(r for r in records if r.type == "session")
-    assert session_record.isReturning is True
+    assert session_record.is_returning is True
 
     # Cleanup test tracking events
     await tracking_repository.storage.deleteMany({"sessionId": session_id})
@@ -262,12 +262,12 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
 
     # Verify specific details of replicated records
     rep_search = next(r for r in tracking_records if r.type == "product_search")
-    assert rep_search.searchTerm == "notebook"
-    assert rep_search.resultsCount == 5
+    assert rep_search.search_term == "notebook"
+    assert rep_search.results_count == 5
 
     rep_view = next(r for r in tracking_records if r.type == "product_view")
     assert rep_view.product_id == product_id
-    assert rep_view.productName == product_name
+    assert rep_view.product_name == product_name
 
     rep_checkout = next(r for r in tracking_records if r.type == "page_view" and r.page == "/checkout/step1")
     assert rep_checkout is not None

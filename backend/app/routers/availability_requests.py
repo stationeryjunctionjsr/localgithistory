@@ -57,12 +57,12 @@ async def create_availability_request(
     Can be submitted by authenticated users or guests (providing name/email).
     """
     user_id = current_user.id if current_user else None
-    user_name = (current_user.name if current_user else None) or data.userName
-    user_email = (current_user.email if current_user else None) or data.userEmail
+    user_name = (current_user.name if current_user else None) or data.user_name
+    user_email = (current_user.email if current_user else None) or data.user_email
 
     record = {
         "productId": data.product_id,
-        "productName": data.productName,
+        "productName": data.product_name,
         "pincode": data.pincode.strip(),
         "userId": user_id,
         "userName": user_name,
@@ -131,10 +131,10 @@ async def fulfill_availability_request(
     )
 
     product_id = req.product_id
-    product_name = (req.productName if req.productName is not None else "Your requested product")
+    product_name = (req.product_name if req.product_name is not None else "Your requested product")
     pincode = req.pincode
     user_id = req.userId
-    user_email = req.userEmail
+    user_email = req.user_email
 
     from app.models.push_notifications import PushNotifications
     notification_payload = PushNotifications(

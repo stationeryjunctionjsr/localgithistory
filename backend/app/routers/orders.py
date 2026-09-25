@@ -53,7 +53,7 @@ router = APIRouter()
 
 def _resolve_product_seller_id(product: Product, serviceable_seller_ids: list[str] = None) -> str:
     if product.sellers:
-        return product.sellers[0].sellerId
+        return product.sellers[0].seller_id
     # Product has no seller_id field — sellers list is the sole source
     return None
 
@@ -425,7 +425,7 @@ async def get_orders(
     elif current_user.role == "valet":
         query["assignedValet"] = str(current_user.id)
     elif current_user.role == "seller":
-        query["subOrders.sellerId"] = str(current_user.id)
+        query["subOrders.seller_id"] = str(current_user.id)
     # Super admin sees all orders; optionally filter by assignedValet
     elif current_user.role == "super_admin" and assignedValet:
         query["assignedValet"] = assignedValet
@@ -1033,7 +1033,7 @@ async def create_order(
     # ----------------------------------------------------------------
     selected_slot_info = None
     zone_urgent_available = False  # set from zone if urgent delivery is requested
-    if (order_data.delivery_slot_id and order_data.delivery_slot_date) or order_data.isUrgentDelivery:
+    if (order_data.delivery_slot_id and order_data.delivery_slot_date) or order_data.is_urgent_delivery:
         import datetime as _dt
 
         import pytz
@@ -1045,7 +1045,7 @@ async def create_order(
         zip_code = order_data.shippingAddress.effective_pincode if order_data.shippingAddress else ""
 
         target_date = order_data.delivery_slot_date
-        if order_data.isUrgentDelivery and not target_date:
+        if order_data.is_urgent_delivery and not target_date:
             ist = pytz.timezone("Asia/Kolkata")
             target_date = _dt.datetime.now(ist).date().isoformat()
             order_data.delivery_slot_date = target_date
@@ -1108,7 +1108,7 @@ async def create_order(
 
                 sl_is_urgent = bool(sl.isUrgent)
                 # Match by explicit ID or match by Urgent condition
-                if order_data.isUrgentDelivery and not order_data.delivery_slot_id:
+                if order_data.is_urgent_delivery and not order_data.delivery_slot_id:
                     if sl_is_urgent:
                         # Check cutoff
                         cutoff = (
@@ -1145,7 +1145,7 @@ async def create_order(
                 break
 
         if not matched_slot:
-            if order_data.isUrgentDelivery and not order_data.delivery_slot_id:
+            if order_data.is_urgent_delivery and not order_data.delivery_slot_id:
                 raise HTTPException(
                     status_code=400, detail="Urgent delivery is currently unavailable for your location."
                 )
@@ -1154,7 +1154,7 @@ async def create_order(
                     status_code=400, detail="Selected delivery slot is no longer available.")
 
         # Re-check capacity & cutoffs for standard slot selection
-        if not order_data.isUrgentDelivery or order_data.delivery_slot_id:
+        if not order_data.is_urgent_delivery or order_data.delivery_slot_id:
             is_full_day = bool(matched_slot.isFullDay)
             if not is_full_day:
                 # Flat capacity re-check (per-zone record, no zoneCapacities sub-dict)
@@ -1205,7 +1205,7 @@ async def create_order(
         }
 
         if selected_slot_info["isUrgent"]:
-            order_data.isUrgentDelivery = True
+            order_data.is_urgent_delivery = True
 
     # Check pincode serviceability before proceeding
     if order_data.shippingAddress and (order_data.shippingAddress.effective_pincode or order_data.shippingAddress.zip_code):
@@ -1229,7 +1229,7 @@ async def create_order(
 
         if order_zone_id:
             seller_ids_in_order = {
-                item.sellerId for item in order_items if item.sellerId}
+                item.seller_id for item in order_items if item.seller_id}
             for sid in seller_ids_in_order:
                 sdoc = await user_repository.findById(sid)
                 if sdoc:
@@ -1286,7 +1286,7 @@ async def create_order(
                 # 1. It's applicable to the user's role
                 # 2. Total before shipping is less than minimum for free delivery
                 if delivery_charge_data.isApplicableToRole if delivery_charge_data.isApplicableToRole is not None else True:
-                    if order_data.isUrgentDelivery and effective_role in ("customer", "wholesaler"):
+                    if order_data.is_urgent_delivery and effective_role in ("customer", "wholesaler"):
                         if zone_urgent_available:
                             # Urgent delivery is determined by the zone's urgentDeliveryAvailable flag.
                             # The cart is treated as a single unit — all items are either
@@ -1305,11 +1305,11 @@ async def create_order(
                             # If no minimum for free delivery, always apply charge
                             shipping = float(charge_amount)
                         # else shipping remains 0 (free delivery)
-                elif order_data.isUrgentDelivery:
+                elif order_data.is_urgent_delivery:
                     raise HTTPException(
                         status_code=400, detail="Urgent delivery is not available for your customer type"
                     )
-            elif order_data.isUrgentDelivery:
+            elif order_data.is_urgent_delivery:
                 raise HTTPException(
                     status_code=400, detail="Urgent delivery is not available for this location")
         except (KeyError, ValueError, TypeError) as e:
@@ -1462,8 +1462,8 @@ async def create_order(
                     product=str(i.product),
                     quantity=i.quantity,
                     price=i.price,
-                    name=i.productName,
-                    sellAsCase=i.sellAsCase,
+                    name=i.product_name,
+                    sellAsCase=i.sell_as_case,
                 )
                 for i in order_items
             ],
@@ -1477,7 +1477,7 @@ async def create_order(
             couponInfo=coupon_info,
             total=total,
             orderType=order_type,
-            isUrgentDelivery=order_data.isUrgentDelivery if effective_role in (
+            isUrgentDelivery=order_data.is_urgent_delivery if effective_role in (
                 "customer", "wholesaler") else False,
             deliverySlot=selected_slot_info,
             shippingAddress=order_data.shippingAddress,
@@ -1811,12 +1811,12 @@ async def create_order(
 
         # Fallback to super_admin for legacy products (H6)
         for oi in order_items:
-            if not oi.sellerId and super_admin_id:
-                oi.sellerId = super_admin_id
+            if not oi.seller_id and super_admin_id:
+                oi.seller_id = super_admin_id
 
         # Build a lookup of sellerId -> seller user doc (for name)
         seller_ids_in_order = {
-            item.sellerId for item in order_items if item.sellerId}
+            item.seller_id for item in order_items if item.seller_id}
         seller_docs = {}
         for sid in seller_ids_in_order:
             sdoc = await user_repository.findById(sid)
@@ -1828,7 +1828,7 @@ async def create_order(
 
         groups = defaultdict(list)
         for oi in order_items:
-            sid = oi.sellerId
+            sid = oi.seller_id
             groups[sid].append(oi)
 
         # Only split if multiple seller groups exist
@@ -1841,7 +1841,7 @@ async def create_order(
             seller_delivery_map = {}
             if order_data.sellerDeliveryOptions:
                 for sdo in order_data.sellerDeliveryOptions:
-                    seller_delivery_map[sdo.sellerId] = sdo
+                    seller_delivery_map[sdo.seller_id] = sdo
 
             # Fetch delivery charge data once (same pincode for all sub-orders)
             try:
@@ -1875,7 +1875,7 @@ async def create_order(
                 grp_delivery_gst = 0.0
                 grp_slot_info = None
                 # Inherit urgent flag from the parent order request
-                grp_is_urgent = bool(order_data.isUrgentDelivery)
+                grp_is_urgent = bool(order_data.is_urgent_delivery)
 
                 sdo = (seller_delivery_map[str(seller_id)] if seller_id and str(
                     seller_id) in seller_delivery_map else None)
@@ -1883,14 +1883,14 @@ async def create_order(
                 # Record the delivery slot on the sub-order (informational, no charge)
                 if sdo and sdo.delivery_slot_id and sdo.delivery_slot_date:
                     grp_slot_info = {
-                        "configId": sdo.deliverySlotConfigId,
+                        "configId": sdo.delivery_slot_config_id,
                         "slotId": sdo.delivery_slot_id,
                         "date": sdo.delivery_slot_date,
                     }
                 elif order_data.delivery_slot_id and order_data.delivery_slot_date:
                     # Single slot chosen for whole order — apply to all sub-orders
                     grp_slot_info = {
-                        "configId": order_data.deliverySlotConfigId,
+                        "configId": order_data.delivery_slot_config_id,
                         "slotId": order_data.delivery_slot_id,
                         "date": order_data.delivery_slot_date,
                     }
@@ -1917,7 +1917,7 @@ async def create_order(
                     "items": [
                         SubOrderItem(
                             productId=str(i.product),
-                            name=i.productName,
+                            name=i.product_name,
                             qty=i.quantity,
                             price=i.price,
                         )
@@ -2825,7 +2825,7 @@ async def valet_response(
                     _so_id, SubOrderInternalUpdate(assignedValet=valet_id,
                                                    pickupStatus="pending_pickup",),
                 )
-                _seller_id = _so.sellerId
+                _seller_id = _so.seller_id
                 if _seller_id and _seller_id not in notified_sellers:
                     notified_sellers.add(_seller_id)
                     try:

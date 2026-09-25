@@ -600,7 +600,7 @@ class AnalyticsRepository:
         sessions = await self.session_storage.findAll()
 
         user_map = {u.id: u for u in users}
-        valid_sessions = [s for s in sessions if not s.isGuest]
+        valid_sessions = [s for s in sessions if not s.is_guest]
 
         user_durations = defaultdict(list)
         user_session_counts = defaultdict(int)
@@ -683,7 +683,7 @@ class AnalyticsRepository:
         reg_naive = self._to_naive_utc(registration_dt) if registration_dt else None
         all_sessions = await self.session_storage.findAll()
         # Non-guest sessions for this user; optionally since registration
-        sessions = [s for s in all_sessions if s.userId == user_id and not s.isGuest]
+        sessions = [s for s in all_sessions if s.userId == user_id and not s.is_guest]
         if reg_naive is not None:
             sessions = [
                 s
@@ -1541,7 +1541,7 @@ class AnalyticsRepository:
             # Group items by bundleId in this order
             order_bundles = defaultdict(list)
             for item in items:
-                b_id = item.bundleId
+                b_id = item.bundle_id
                 if b_id:
                     order_bundles[b_id].append(item)
                     
@@ -1675,13 +1675,13 @@ class AnalyticsRepository:
             sid = s.session_id
             if sid in clicked_sessions:
                 continue  # this session had a click — skip
-            term = (s.searchTerm or "").strip().lower()
+            term = (s.search_term or "").strip().lower()
             if not term:
                 continue
             if term not in term_stats:
                 term_stats[term] = {"searchCount": 0, "totalResults": 0}
             term_stats[term]["searchCount"] += 1
-            term_stats[term]["totalResults"] += s.resultsCount
+            term_stats[term]["totalResults"] += s.results_count
 
         result = [
             {
@@ -1891,7 +1891,7 @@ class AnalyticsRepository:
         orders = self._filter_by_date_range(orders, start_date, end_date)
 
         if seller_id:
-            orders = [o for o in orders if str(o.sellerId) == str(seller_id)]
+            orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
 
         users = await self.user_storage.findAll()
         user_map = {u.id: u for u in users}
@@ -1942,7 +1942,7 @@ class AnalyticsRepository:
         orders = self._filter_by_date_range(orders, start_date, end_date)
 
         if seller_id:
-            orders = [o for o in orders if str(o.sellerId) == str(seller_id)]
+            orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
 
         heat: dict = {}
         for order in orders:
@@ -1983,7 +1983,7 @@ class AnalyticsRepository:
         products = await self.product_storage.findAll()
 
         if seller_id:
-            products = [p for p in products if str(p.sellerId) == str(seller_id)]
+            products = [p for p in products if str(p.seller_id) == str(seller_id)]
 
         product_map = {p.id: p for p in products}
 
@@ -2082,7 +2082,7 @@ class AnalyticsRepository:
         orders = self._filter_by_date_range(orders, start_date, end_date)
 
         if seller_id:
-            orders = [o for o in orders if str(o.sellerId) == str(seller_id)]
+            orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
 
         users = await self.user_storage.findAll()
         user_map = {u.id: u for u in users}
@@ -2131,7 +2131,7 @@ class AnalyticsRepository:
 
         products = await self.product_storage.findAll()
         if seller_id:
-            products = [p for p in products if str(p.sellerId) == str(seller_id)]
+            products = [p for p in products if str(p.seller_id) == str(seller_id)]
 
         product_map = {str(p.id): p for p in products}
 

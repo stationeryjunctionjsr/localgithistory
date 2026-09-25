@@ -54,7 +54,7 @@ class SellerPayoutSummaryResponse(BaseModel):
 
 
 async def _enrich_with_seller(doc: SellerPayoutDetailResponse) -> SellerPayoutDetailResponse:
-    seller = await user_repository.findById(doc.sellerId)
+    seller = await user_repository.findById(doc.seller_id)
     if seller:
         doc.sellerName = seller.company_name or seller.name or ""
         doc.sellerUpiId = seller.upi_id
@@ -88,7 +88,7 @@ async def list_seller_payouts(
 async def create_seller_payout(
     data: SellerPayoutCreate,
     current_user: User = Depends(require_super_admin)):
-    seller = await user_repository.findById(data.sellerId)
+    seller = await user_repository.findById(data.seller_id)
     if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
 
@@ -96,7 +96,7 @@ async def create_seller_payout(
     storage = _payout_storage()
     created = await storage.create(
         SellerPayoutInternalCreate(
-            sellerId=data.sellerId,
+            sellerId=data.seller_id,
             amount=data.amount,
             periodStart=data.periodStart,
             periodEnd=data.periodEnd,
@@ -188,7 +188,7 @@ async def mark_payout_received(
     if not existing:
         raise HTTPException(status_code=404, detail="Payout not found")
         
-    if is_seller_admin(current_user) and existing.sellerId != str(current_user.id):
+    if is_seller_admin(current_user) and existing.seller_id != str(current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized to update this payout")
         
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")

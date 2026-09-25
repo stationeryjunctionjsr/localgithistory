@@ -1785,65 +1785,55 @@ class Msg91WebhookPayload(BaseModel):
         return self.Status or self.status or self.type
 
 
-class TrackBeaconRequest(BaseModel):
+class TrackBeaconRequest(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
     event: Optional[str] = None
     page: Optional[str] = None
-    sessionId: Optional[str] = None
+    session_id: Optional[str] = None
     timestamp: Optional[str] = None
-    userId: Optional[str] = None
+    user_id: Optional[str] = None
 
 
-class TrackNotifyPincodeRequest(BaseModel):
-    productId: str
+class TrackNotifyPincodeRequest(CamelBaseModel):
+    product_id: str
     pincode: str
-    productName: Optional[str] = "Unknown"
+    product_name: Optional[str] = "Unknown"
     email: Optional[str] = None
 
 
-class OrderItemCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    productId: Optional[str] = Field(None, alias="product_id")
+class OrderItemCreate(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
+    product_id: Optional[str] = None
     product: Optional[str] = None
     quantity: int = 1
-    sellAsCase: Optional[bool] = Field(False, alias="sell_as_case")
+    sell_as_case: Optional[bool] = False
     price: Optional[float] = None
-    selectedVariation: Optional[VariantAttributes] = None
-    bundleId: Optional[str] = Field(None, alias="bundle_id")
-    bundleName: Optional[str] = Field(None, alias="bundle_name")
+    selected_variation: Optional[VariantAttributes] = None
+    bundle_id: Optional[str] = None
+    bundle_name: Optional[str] = None
 
-    @property
-    def product_id(self) -> Optional[str]:
-        return self.productId or self.product
-
-    @property
-    def sell_as_case(self) -> bool:
-        return bool(self.sellAsCase)
-
-    @property
-    def bundle_id(self) -> Optional[str]:
-        return self.bundleId
-
-    @property
-    def bundle_name(self) -> Optional[str]:
-        return self.bundleName
+    @model_validator(mode="after")
+    def resolve_aliases(self) -> 'OrderItemCreate':
+        if not self.product_id and self.product:
+            self.product_id = self.product
+        return self
 
     @property
     def variant_attributes(self) -> Optional[VariantAttributes]:
-        return self.selectedVariation
+        return self.selected_variation
 
     @property
     def variantAttributes(self) -> Optional[VariantAttributes]:
-        return self.selectedVariation
+        return self.selected_variation
 
 
-class SellerDeliveryOption(BaseModel):
+class SellerDeliveryOption(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
-    sellerId: str
-    deliverySlotId: Optional[str] = None
-    deliverySlotDate: Optional[str] = None
-    deliverySlotConfigId: Optional[str] = None
-    isUrgentDelivery: Optional[bool] = False
+    seller_id: str
+    delivery_slot_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None
+    delivery_slot_config_id: Optional[str] = None
+    is_urgent_delivery: Optional[bool] = False
 
 
 class PushSubscriptionKeys(BaseModel):
@@ -1852,40 +1842,40 @@ class PushSubscriptionKeys(BaseModel):
     auth: str
 
 
-class PushSubscription(BaseModel):
+class PushSubscription(CamelBaseModel):
     model_config = ConfigDict(extra="forbid")
     endpoint: str
-    expirationTime: Optional[float] = None
+    expiration_time: Optional[float] = None
     keys: PushSubscriptionKeys
 
 
 # --- Router Response and Request DTOs ---
 
-class ActivityLogResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+class ActivityLogResponse(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
-    userId: Optional[str] = None
-    sessionId: Optional[str] = None
+    user_id: Optional[str] = None
+    session_id: Optional[str] = None
     action: Optional[str] = None
     meta: Optional[ActivityMetadata] = None
-    isGuest: Optional[bool] = None
+    is_guest: Optional[bool] = None
 
 
 class PromoteGuestResponse(BaseModel):
     updated: int
 
 
-class AvailabilityRequestResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
+class AvailabilityRequestResponse(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
-    external_id: Optional[str] = Field(None, alias="externalId")
-    productId: Optional[str] = None
-    productName: Optional[str] = None
+    external_id: Optional[str] = None
+    product_id: Optional[str] = None
+    product_name: Optional[str] = None
     pincode: Optional[str] = None
-    userName: Optional[str] = None
-    userEmail: Optional[str] = None
-    createdAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("createdAt", "created_at"))
-    updatedAt: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("updatedAt", "updated_at"))
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class AvailabilityRequestListResponse(BaseModel):
@@ -1896,18 +1886,18 @@ class AvailabilityRequestListResponse(BaseModel):
     limit: int = 50
 
 
-class DeliveryZoneResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
+class DeliveryZoneResponse(CamelBaseModel):
+    model_config = ConfigDict(extra="forbid")
     id: Optional[str] = Field(None, alias="_id")
     name: Optional[str] = None
-    zoneId: Optional[str] = None
-    zoneName: Optional[str] = None
+    zone_id: Optional[str] = None
+    zone_name: Optional[str] = None
     description: Optional[str] = None
     pincodes: Optional[List[str]] = None
-    defaultCapacity: Optional[int] = None
-    urgentDeliveryAvailable: Optional[bool] = False
-    isActive: Optional[bool] = True
-    customerType: Optional[str] = "retail"
+    default_capacity: Optional[int] = None
+    urgent_delivery_available: Optional[bool] = False
+    is_active: Optional[bool] = True
+    customer_type: Optional[str] = "retail"
 
 
 class EligibleFeedbackResponse(BaseModel):

@@ -127,9 +127,9 @@ class MySQLCartDAO:
             if not pid_raw:
                 continue
             qty = (it.quantity if it.quantity is not None else 0) or 0
-            sell_as_case = 1 if it.sellAsCase else 0
-            bundle_id = it.bundleId
-            bundle_name = it.bundleName
+            sell_as_case = 1 if it.sell_as_case else 0
+            bundle_id = it.bundle_id
+            bundle_name = it.bundle_name
             import json
             var_attrs = None
             if it.variant_attributes:

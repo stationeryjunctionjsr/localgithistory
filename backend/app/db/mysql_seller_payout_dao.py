@@ -112,10 +112,10 @@ class MySQLSellerPayoutDAO:
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
 
-        if data.sellerId is not None:
+        if data.seller_id is not None:
             cols.append("seller_id")
             vals.append(":sellerId")
-            params["sellerId"] = data.sellerId
+            params["sellerId"] = data.seller_id
         if data.amount is not None:
             cols.append("amount")
             vals.append(":amount")
@@ -172,7 +172,7 @@ class MySQLSellerPayoutDAO:
                     updates.append(f"{db_k} = :{api_k}")
                     params[api_k] = _parse_dt(existing_val) if is_date else existing_val
 
-        _handle_field("sellerId", "seller_id", data.sellerId, existing.sellerId)
+        _handle_field("sellerId", "seller_id", data.seller_id, existing.seller_id)
         _handle_field("amount", "amount", data.amount, existing.amount)
         _handle_field("periodStart", "period_start", data.periodStart, existing.periodStart, True)
         _handle_field("periodEnd", "period_end", data.periodEnd, existing.periodEnd, True)

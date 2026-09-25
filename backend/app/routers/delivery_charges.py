@@ -162,7 +162,7 @@ async def check_serviceability(pincode: str = Query(...), userRole: Optional[str
     # ── Zone metadata (urgent delivery flag + customerType + seller IDs) ───────
     zone = await get_zone_for_pincode(pincode)
     platform_urgent = bool((zone.urgent_delivery_available if zone.urgent_delivery_available is not None else False)) if zone else False
-    zone_customer_type = (zone.customerType if zone.customerType is not None else "retail") if zone else "retail"
+    zone_customer_type = (zone.customer_type if zone.customer_type is not None else "retail") if zone else "retail"
 
     is_wholesaler = (userRole == "wholesaler")
 

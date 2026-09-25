@@ -104,10 +104,10 @@ async def run_events_sync_job_async():
                 doc["page"] = e.page
             elif event_type == "product_view":
                 doc["productId"] = payload.product_id
-                doc["productName"] = payload.productName
+                doc["productName"] = payload.product_name
             elif event_type == "product_click":
                 doc["productId"] = payload.product_id
-                doc["productName"] = payload.productName
+                doc["productName"] = payload.product_name
                 doc["source"] = payload.source
             elif event_type == "add_to_cart":
                 doc["productId"] = payload.product_id
@@ -117,7 +117,7 @@ async def run_events_sync_job_async():
                 doc["quantity"] = payload.quantity
             elif event_type == "search":
                 doc["searchTerm"] = payload.query
-                doc["resultsCount"] = payload.resultsCount
+                doc["resultsCount"] = payload.results_count
                 doc["segment"] = "customer"
             elif event_type == "add_to_wishlist":
                 doc["productId"] = payload.product_id

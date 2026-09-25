@@ -515,7 +515,7 @@ class TestTier4SchemaValidationAndHttp422:
             email="user@test.com",
         )
         assert valid.product_id == "p100"
-        assert valid.productName == "Pen Set"
+        assert valid.product_name == "Pen Set"
         assert valid.pincode == "831001"
         assert valid.email == "user@test.com"
 

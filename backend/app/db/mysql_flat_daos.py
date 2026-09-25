@@ -2262,22 +2262,22 @@ class MySQLAvailabilityRequestsDAO:
             cols.append("product_id")
             vals.append(":productId")
             params["productId"] = data.product_id
-        if data.productName is not None:
+        if data.product_name is not None:
             cols.append("product_name")
             vals.append(":productName")
-            params["productName"] = data.productName
+            params["productName"] = data.product_name
         if data.pincode is not None:
             cols.append("pincode")
             vals.append(":pincode")
             params["pincode"] = data.pincode
-        if data.userName is not None:
+        if data.user_name is not None:
             cols.append("user_name")
             vals.append(":userName")
-            params["userName"] = data.userName
-        if data.userEmail is not None:
+            params["userName"] = data.user_name
+        if data.user_email is not None:
             cols.append("user_email")
             vals.append(":userEmail")
-            params["userEmail"] = data.userEmail
+            params["userEmail"] = data.user_email
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2303,18 +2303,18 @@ class MySQLAvailabilityRequestsDAO:
         if data.product_id is not None:
             updates.append("product_id = :productId")
             params["productId"] = data.product_id
-        if data.productName is not None:
+        if data.product_name is not None:
             updates.append("product_name = :productName")
-            params["productName"] = data.productName
+            params["productName"] = data.product_name
         if data.pincode is not None:
             updates.append("pincode = :pincode")
             params["pincode"] = data.pincode
-        if data.userName is not None:
+        if data.user_name is not None:
             updates.append("user_name = :userName")
-            params["userName"] = data.userName
-        if data.userEmail is not None:
+            params["userName"] = data.user_name
+        if data.user_email is not None:
             updates.append("user_email = :userEmail")
-            params["userEmail"] = data.userEmail
+            params["userEmail"] = data.user_email
 
         set_sql = ", ".join(updates)
         factory = self._factory()

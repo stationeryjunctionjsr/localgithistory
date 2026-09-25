@@ -24,15 +24,15 @@ class CartItemInternal(BaseModel):
 
     @property
     def bundle_id(self) -> Optional[str]:
-        return self.bundleId
+        return self.bundle_id
 
     @property
     def sell_as_case(self) -> Optional[bool]:
-        return self.sellAsCase
+        return self.sell_as_case
 
     @property
     def bundle_name(self) -> Optional[str]:
-        return self.bundleName
+        return self.bundle_name
 
     @property
     def selectedVariation(self) -> Optional[VariantAttributes]:

@@ -104,7 +104,7 @@ class CouponRepository:
             qty = int(item.quantity) if item.quantity is not None else 0
             if qty <= 0:
                 continue
-            sell_as_case = (item.sellAsCase if item.sellAsCase is not None else False)
+            sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
             qty_per_case = int(product.quantityPerCase) if product.quantityPerCase is not None else 1
 
             item_total_price = product_repository.calculateTotalPrice(
@@ -788,7 +788,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                 ):
                     qty = (item.quantity if item.quantity is not None else 0)
                     eligible_quantity += qty
-                    sell_as_case = (item.sellAsCase if item.sellAsCase is not None else False)
+                    sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
                     ignore_auto = (coupon.method if coupon.method is not None else None) == "discount_code" and (coupon.coupon_mode if coupon.coupon_mode is not None else None) == "override"
                     item_total = product_repository.calculateTotalPrice(
                         product,
@@ -945,7 +945,7 @@ appliesToValueIds=coupon_data.appliesToValueIds or [],
                     ):
                         qty = (item.quantity if item.quantity is not None else 0)
                         eligible_quantity += qty
-                        sell_as_case = (item.sellAsCase if item.sellAsCase is not None else False)
+                        sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
                         item_total = product_repository.calculateTotalPrice(
                             product, user_role, qty, sell_as_case=sell_as_case, user_id=user_id
                         )

@@ -506,7 +506,7 @@ class MySQLProductDAO:
         await session.execute(text("DELETE FROM sj_product_sellers WHERE product_id = :pid_ext"), {"pid_ext": f"PDT-{pid}"})
         for seller in (data.sellers if data.sellers is not None else []):
             # seller might be a dict if it came from merged_dict or it might be ProductSellerEntry
-            s_id = seller.sellerId
+            s_id = seller.seller_id
             s_stock = seller.stock
             s_active = seller.isActive
             s_status = seller.requestStatus

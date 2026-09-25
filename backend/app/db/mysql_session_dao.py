@@ -139,7 +139,7 @@ class MySQLSessionDAO:
                     "last_active_at": _to_ts(data.lastActiveAt),
                     "revoked_at": _to_ts(data.revokedAt),
                     "revoked_reason": data.revokedReason,
-                    "is_guest": 1 if data.isGuest else 0,
+                    "is_guest": 1 if data.is_guest else 0,
                     "comments": data.comment,
                     "created_at": now,
                     "updated_at": now,
@@ -175,7 +175,7 @@ class MySQLSessionDAO:
         final_last_active_at = update_data.lastActiveAt if update_data.lastActiveAt is not None else (existing.last_active_at.isoformat() if existing.last_active_at else None)
         final_revoked_at = update_data.revokedAt if update_data.revokedAt is not None else (existing.revoked_at.isoformat() if existing.revoked_at else None)
         final_revoked_reason = update_data.revokedReason if update_data.revokedReason is not None else existing.revoked_reason
-        final_is_guest = update_data.isGuest if update_data.isGuest is not None else existing.is_guest
+        final_is_guest = update_data.is_guest if update_data.is_guest is not None else existing.is_guest
         final_comments = update_data.comment if update_data.comment is not None else existing.comments
 
         user_id = int(final_user_id) if str(final_user_id or "").isdigit() else None

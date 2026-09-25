@@ -124,17 +124,17 @@ class MySQLReturnRequestsDAO:
             cols.append("valet_id")
             params["s_valetId"] = data.valet_id
 
-        if data.sellerId is not None:
+        if data.seller_id is not None:
             cols.append("seller_id")
-            params["s_sellerId"] = data.sellerId
+            params["s_sellerId"] = data.seller_id
 
         if data.delivery_slot_id is not None:
             cols.append("delivery_slot_id")
             params["s_deliverySlotId"] = data.delivery_slot_id
 
-        if data.deliverySlotConfigId is not None:
+        if data.delivery_slot_config_id is not None:
             cols.append("delivery_slot_config_id")
-            params["s_deliverySlotConfigId"] = data.deliverySlotConfigId
+            params["s_deliverySlotConfigId"] = data.delivery_slot_config_id
 
         if data.delivery_slot_date is not None:
             cols.append("delivery_slot_date")

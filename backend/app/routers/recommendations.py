@@ -350,8 +350,8 @@ async def track_recommendation_event(
     meta = {"slot": body.slot}
     if body.product_id:
         meta["productId"] = body.product_id
-    if body.productName:
-        meta["productName"] = body.productName
+    if body.product_name:
+        meta["productName"] = body.product_name
     device = parse_device(request, default_type="web")
     user_id = current_user.id if current_user else None
     is_guest = user_id is None

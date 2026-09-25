@@ -94,8 +94,8 @@ async def get_cart(current_user: User = Depends(get_current_user)):
                     "price": price,
                     "subtotal": subtotal,
                     "outOfStock": is_out_of_stock,
-                    "bundleId": item.bundleId,
-                    "bundleName": item.bundleName,
+                    "bundleId": item.bundle_id,
+                    "bundleName": item.bundle_name,
                     "variantAttributes": item.variant_attributes,
                 }
             )
@@ -149,7 +149,7 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-        sell_as_case = (item.sellAsCase if item.sellAsCase is not None else False)
+        sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
 
         # Business ordering by case: quantity must be multiple of quantityPerCase
         if sell_as_case and role == "wholesaler":
@@ -194,9 +194,9 @@ async def add_to_cart(item: CartItemRequest, current_user: User = Depends(get_cu
                             product=it.product,
                             quantity=new_quantity,
                             price=it.price,
-                            sellAsCase=it.sellAsCase,
-                            bundleId=it.bundleId,
-                            bundleName=it.bundleName,
+                            sellAsCase=it.sell_as_case,
+                            bundleId=it.bundle_id,
+                            bundleName=it.bundle_name,
                             variantAttributes=it.variant_attributes,
                         )
                         break
@@ -285,9 +285,9 @@ async def update_cart_item(
                     product=it.product,
                     quantity=quantity,
                     price=it.price,
-                    sellAsCase=it.sellAsCase,
-                    bundleId=it.bundleId,
-                    bundleName=it.bundleName,
+                    sellAsCase=it.sell_as_case,
+                    bundleId=it.bundle_id,
+                    bundleName=it.bundle_name,
                     variantAttributes=it.variant_attributes,
                 )
                 break

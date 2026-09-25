@@ -191,7 +191,7 @@ class TrackingRepository:
                 continue
 
             pid = v.product_id
-            name = v.productName if v.productName is not None else "Unknown"
+            name = v.product_name if v.product_name is not None else "Unknown"
             if pid:
                 if pid not in product_counts:
                     product_counts[pid] = {
@@ -351,10 +351,10 @@ class TrackingRepository:
         seen = set()
         unique_searches = []
         for s in all_searches:
-            term = (s.searchTerm if s.searchTerm is not None else "").strip().lower()
+            term = (s.search_term if s.search_term is not None else "").strip().lower()
             if term and term not in seen:
                 seen.add(term)
-                unique_searches.append(s.searchTerm)
+                unique_searches.append(s.search_term)
                 if len(unique_searches) >= limit:
                     break
 
@@ -417,13 +417,13 @@ class TrackingRepository:
 
         search_stats = {}
         for track in filtered_tracking:
-            term = track.searchTerm or ""
+            term = track.search_term or ""
             term = term.lower()
             if term:
                 if term not in search_stats:
                     search_stats[term] = {"count": 0, "total_results": 0}
                 search_stats[term]["count"] += 1
-                search_stats[term]["total_results"] += track.resultsCount or 0
+                search_stats[term]["total_results"] += track.results_count or 0
 
         sorted_searches = sorted(search_stats.items(
         ), key=lambda x: x[1]["count"], reverse=True)[:limit]
@@ -455,8 +455,8 @@ class TrackingRepository:
 
         search_stats = {}
         for track in filtered_tracking:
-            if (track.resultsCount or 0) == 0:
-                term = (track.searchTerm or "").lower()
+            if (track.results_count or 0) == 0:
+                term = (track.search_term or "").lower()
                 if term:
                     if term not in search_stats:
                         search_stats[term] = {"count": 0}
@@ -494,7 +494,7 @@ class TrackingRepository:
                 if product_id not in view_counts:
                     view_counts[product_id] = {
                         "productId": product_id,
-                        "productName": (track.productName or "Unknown"),
+                        "productName": (track.product_name or "Unknown"),
                         "count": 0,
                     }
                 view_counts[product_id]["count"] += 1

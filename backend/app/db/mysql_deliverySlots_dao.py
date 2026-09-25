@@ -103,9 +103,9 @@ class MySQLDeliverySlotsDAO:
             cols.append("date")
             params["s_date"] = data.date
 
-        if data.zoneId is not None:
+        if data.zone_id is not None:
             cols.append("zone_id")
-            params["s_zoneId"] = data.zoneId
+            params["s_zoneId"] = data.zone_id
 
         if data.isActive is not None:
             cols.append("is_active")
@@ -139,9 +139,9 @@ class MySQLDeliverySlotsDAO:
             updates.append("date = :s_date")
             params["s_date"] = data.date
 
-        if data.zoneId is not None:
+        if data.zone_id is not None:
             updates.append("zone_id = :s_zoneId")
-            params["s_zoneId"] = data.zoneId
+            params["s_zoneId"] = data.zone_id
 
         if data.isActive is not None:
             updates.append("is_active = :s_isActive")

@@ -242,16 +242,16 @@ async def record_event(
             payload_items.append(EventPayloadItem(key="returning", value=str(event.payload.returning)))
         if event.payload.product_id is not None:
             payload_items.append(EventPayloadItem(key="productId", value=str(event.payload.product_id)))
-        if event.payload.productName is not None:
-            payload_items.append(EventPayloadItem(key="productName", value=str(event.payload.productName)))
+        if event.payload.product_name is not None:
+            payload_items.append(EventPayloadItem(key="productName", value=str(event.payload.product_name)))
         if event.payload.source is not None:
             payload_items.append(EventPayloadItem(key="source", value=str(event.payload.source)))
         if event.payload.quantity is not None:
             payload_items.append(EventPayloadItem(key="quantity", value=str(event.payload.quantity)))
         if event.payload.query is not None:
             payload_items.append(EventPayloadItem(key="query", value=str(event.payload.query)))
-        if event.payload.resultsCount is not None:
-            payload_items.append(EventPayloadItem(key="resultsCount", value=str(event.payload.resultsCount)))
+        if event.payload.results_count is not None:
+            payload_items.append(EventPayloadItem(key="resultsCount", value=str(event.payload.results_count)))
         if event.payload.reason is not None:
             payload_items.append(EventPayloadItem(key="reason", value=str(event.payload.reason)))
         if event.payload.testRunId is not None:
@@ -337,12 +337,12 @@ async def record_event(
                 tracking_obj = await tracking_repository.trackPageView(user_id, page, session_id, **kwargs)
             elif event_type == "product_view":
                 product_id = payload_obj.product_id
-                product_name = payload_obj.productName if payload_obj.productName is not None else "Unknown"
+                product_name = payload_obj.product_name if payload_obj.product_name is not None else "Unknown"
                 if product_id:
                     tracking_obj = await tracking_repository.trackProductView(user_id, product_id, product_name, session_id, **kwargs)
             elif event_type == "product_click":
                 product_id = payload_obj.product_id
-                product_name = payload_obj.productName if payload_obj.productName is not None else "Unknown"
+                product_name = payload_obj.product_name if payload_obj.product_name is not None else "Unknown"
                 p_source = payload_obj.source if payload_obj.source is not None else (final_source or "mobile_app")
                 if product_id:
                     tracking_obj = await tracking_repository.trackProductClick(user_id, product_id, product_name, session_id, **{**kwargs, "source": p_source})
@@ -358,7 +358,7 @@ async def record_event(
                     tracking_obj = await tracking_repository.trackCartItemRemove(user_id, product_id, quantity, session_id, **kwargs)
             elif event_type == "search":
                 query = payload_obj.query if payload_obj.query is not None else ""
-                results_count = payload_obj.resultsCount if payload_obj.resultsCount is not None else 0
+                results_count = payload_obj.results_count if payload_obj.results_count is not None else 0
                 tracking_obj = await tracking_repository.trackSearch(user_id, query, results_count, session_id, segment="customer", **kwargs)
             elif event_type == "add_to_wishlist":
 

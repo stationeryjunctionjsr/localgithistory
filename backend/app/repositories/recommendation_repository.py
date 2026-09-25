@@ -1064,7 +1064,7 @@ class RecommendationRepository:
             return True  # no zone filter
         sellers = product.sellers or []
         return any(
-            str(s.sellerId) in seller_id_set
+            str(s.seller_id) in seller_id_set
             and s.isActive
             and (s.stock or 0) > 0
             and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"

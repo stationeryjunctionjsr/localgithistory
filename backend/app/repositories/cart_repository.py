@@ -52,7 +52,7 @@ class CartRepository:
                 for i, it in enumerate(items)
                 if it.product == item.product
                 and it.variant_attributes == item.variant_attributes
-                and it.sellAsCase == item.sellAsCase
+                and it.sell_as_case == item.sell_as_case
             ),
             None,
         )
@@ -63,9 +63,9 @@ class CartRepository:
                 product=old.product,
                 quantity=(old.quantity if old.quantity is not None else 0) + (item.quantity if item.quantity is not None else 0),
                 price=item.price,
-                sellAsCase=old.sellAsCase,
-                bundleId=old.bundleId,
-                bundleName=old.bundleName,
+                sellAsCase=old.sell_as_case,
+                bundleId=old.bundle_id,
+                bundleName=old.bundle_name,
                 variantAttributes=old.variant_attributes,
             )
         else:

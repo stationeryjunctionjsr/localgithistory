@@ -100,17 +100,17 @@ class MySQLDeliveryZonesDAO:
             cols.append("description")
             params["s_description"] = data.description
 
-        if data.defaultCapacity is not None:
+        if data.default_capacity is not None:
             cols.append("default_capacity")
-            params["s_defaultCapacity"] = data.defaultCapacity
+            params["s_defaultCapacity"] = data.default_capacity
 
         if data.urgent_delivery_available is not None:
             cols.append("urgent_delivery_available")
             params["s_urgentDeliveryAvailable"] = data.urgent_delivery_available
 
-        if data.customerType is not None:
+        if data.customer_type is not None:
             cols.append("customer_type")
-            params["s_customerType"] = data.customerType
+            params["s_customerType"] = data.customer_type
 
         if data.isActive is not None:
             cols.append("is_active")
@@ -144,17 +144,17 @@ class MySQLDeliveryZonesDAO:
             updates.append("description = :s_description")
             params["s_description"] = data.description
 
-        if data.defaultCapacity is not None:
+        if data.default_capacity is not None:
             updates.append("default_capacity = :s_defaultCapacity")
-            params["s_defaultCapacity"] = data.defaultCapacity
+            params["s_defaultCapacity"] = data.default_capacity
 
         if data.urgent_delivery_available is not None:
             updates.append("urgent_delivery_available = :s_urgentDeliveryAvailable")
             params["s_urgentDeliveryAvailable"] = data.urgent_delivery_available
 
-        if data.customerType is not None:
+        if data.customer_type is not None:
             updates.append("customer_type = :s_customerType")
-            params["s_customerType"] = data.customerType
+            params["s_customerType"] = data.customer_type
 
         if data.isActive is not None:
             updates.append("is_active = :s_isActive")
