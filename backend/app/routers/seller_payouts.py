@@ -69,8 +69,7 @@ async def _enrich_with_seller(doc: SellerPayoutDetailResponse) -> SellerPayoutDe
 @router.get("/", response_model=List[SellerPayoutDetailResponse])
 async def list_seller_payouts(
     seller_id: Optional[str] = Query(None),
-    current_user: User = Depends(require_super_admin_or_seller),
-):
+    current_user: User = Depends(require_super_admin_or_seller)):
     storage = _payout_storage()
     query: Dict[str, Any] = {}
     if is_seller_admin(current_user):
@@ -88,8 +87,7 @@ async def list_seller_payouts(
 @router.post("/", response_model=SellerPayoutDetailResponse, status_code=201)
 async def create_seller_payout(
     data: SellerPayoutCreate,
-    current_user: User = Depends(require_super_admin),
-):
+    current_user: User = Depends(require_super_admin)):
     seller = await user_repository.findById(data.sellerId)
     if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
@@ -110,7 +108,7 @@ async def create_seller_payout(
 
     for so_id in data.subOrderIds or []:
         try:
-            await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid", commissionPaidAt=now))
+            await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid"))
         except Exception as e:
             logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
 
@@ -121,8 +119,7 @@ async def create_seller_payout(
 @router.post("/settle-all/{seller_id}", response_model=SellerPayoutDetailResponse, status_code=201)
 async def settle_all_seller_payouts(
     seller_id: str,
-    current_user: User = Depends(require_super_admin),
-):
+    current_user: User = Depends(require_super_admin)):
     seller = await user_repository.findById(seller_id)
     if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
@@ -148,7 +145,7 @@ async def settle_all_seller_payouts(
 
     for so_id in sub_order_ids:
         try:
-            await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid", commissionPaidAt=now))
+            await sub_order_repository.update(so_id, SubOrderInternalUpdate(commissionStatus="paid"))
         except Exception as e:
             logger.warning("Failed to mark sub-order %s as commission paid: %s", so_id, e)
 
@@ -160,8 +157,7 @@ async def settle_all_seller_payouts(
 async def mark_payout_paid(
     payout_id: str,
     data: MarkPaidRequest,
-    current_user: User = Depends(require_super_admin),
-):
+    current_user: User = Depends(require_super_admin)):
     storage = _payout_storage()
     existing = await storage.findById(payout_id)
     if not existing:
@@ -186,8 +182,7 @@ async def mark_payout_paid(
 @router.post("/{payout_id}/mark-received", response_model=SellerPayoutDetailResponse)
 async def mark_payout_received(
     payout_id: str,
-    current_user: User = Depends(require_super_admin_or_seller),
-):
+    current_user: User = Depends(require_super_admin_or_seller)):
     storage = _payout_storage()
     existing = await storage.findById(payout_id)
     if not existing:
@@ -210,8 +205,7 @@ async def mark_payout_received(
 
 @router.get("/my-summary", response_model=SellerPayoutSummaryResponse)
 async def get_my_seller_payout_summary(
-    current_user: User = Depends(get_current_user),
-):
+    current_user: User = Depends(get_current_user)):
     if not is_seller_admin(current_user):
         raise HTTPException(status_code=403, detail="Only sellers can access this endpoint")
     return await _get_seller_summary(str(current_user.id))
@@ -219,14 +213,12 @@ async def get_my_seller_payout_summary(
 @router.get("/summary/{seller_id}", response_model=SellerPayoutSummaryResponse)
 async def get_seller_payout_summary(
     seller_id: str,
-    current_user: User = Depends(require_super_admin),
-):
+    current_user: User = Depends(require_super_admin)):
     return await _get_seller_summary(seller_id)
 
 @router.get("/summaries", response_model=List[SellerPayoutSummaryResponse])
 async def get_all_seller_payout_summaries(
-    current_user: User = Depends(require_super_admin),
-):
+    current_user: User = Depends(require_super_admin)):
     import asyncio
     sellers = await user_repository.findAll({"role": "wholesaler", "isSellerAdmin": True})
     tasks = [_get_seller_summary(str(seller.id)) for seller in sellers]
@@ -268,5 +260,4 @@ async def _get_seller_summary(seller_id: str) -> SellerPayoutSummaryResponse:
         totalPayoutUnrealized=payout_unrealized,
         totalValueRealized=round(val_realized, 2),
         totalTaxRealized=round(tax_realized, 2),
-        subOrderCount=len(sub_orders),
-    )
+        subOrderCount=len(sub_orders))

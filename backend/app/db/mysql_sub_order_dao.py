@@ -119,6 +119,10 @@ class MySQLSubOrderDAO:
             doc["couponCode"] = row.coupon_code
         if row.commission_status is not None:
             doc["commissionStatus"] = row.commission_status
+        if getattr(row, 'commission_amount', None) is not None:
+            doc["commissionAmount"] = float(row.commission_amount)
+        if getattr(row, 'commission_pct', None) is not None:
+            doc["commissionPct"] = float(row.commission_pct)
 
         # Nested Objects
         if row.delivery_slot_config_id or row.delivery_slot_id or row.delivery_slot_date:
