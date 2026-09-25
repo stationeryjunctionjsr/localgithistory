@@ -7,7 +7,7 @@ from app.models.schemas import (
 from datetime import datetime
 
 class CartItemInternal(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     product: Optional[str] = None
     quantity: Optional[int] = 0
@@ -43,19 +43,19 @@ class CartItemInternal(BaseModel):
         return self.variantAttributes
 
 class CartInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     items: Optional[List[CartItemInternal]] = []
 
 class CartInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     items: Optional[List[CartItemInternal]] = None
 
 class PaymentEntryInternal(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     entryId: Optional[int] = None
     amount: Optional[float] = 0.0
@@ -67,7 +67,7 @@ class PaymentEntryInternal(BaseModel):
     createdAt: Optional[Any] = None
 
 class PaymentInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     orderId: Optional[str] = None
     userId: Optional[str] = None
@@ -84,7 +84,7 @@ class PaymentInternalCreate(BaseModel):
     updatedAt: Optional[Any] = None
 
 class PaymentInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     orderId: Optional[str] = None
     userId: Optional[str] = None
@@ -101,13 +101,13 @@ class PaymentInternalUpdate(BaseModel):
     updatedAt: Optional[Any] = None
 
 class VisibilityRuleInternal(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     pageType: Optional[str] = None
     pageIds: Optional[List[str]] = None
 
 class BannerInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     title: Optional[str] = None
     description: Optional[str] = None
@@ -149,7 +149,7 @@ class BannerChildrenData(BaseModel):
     visibilityRules: Optional[List[VisibilityRuleSnippet]] = None
 
 class SellerPayoutInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     sellerId: Optional[str] = None
     amount: Optional[float] = 0.0
@@ -165,7 +165,7 @@ class SellerPayoutInternalCreate(BaseModel):
     subOrderIds: Optional[List[str]] = []
 
 class SellerPayoutInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     sellerId: Optional[str] = None
     amount: Optional[float] = None
@@ -181,7 +181,7 @@ class SellerPayoutInternalUpdate(BaseModel):
     subOrderIds: Optional[List[str]] = None
 
 class ValetPayoutInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     valetId: Optional[str] = None
     amount: Optional[float] = 0.0
     deliveryCount: Optional[int] = 0
@@ -197,7 +197,7 @@ class ValetPayoutInternalCreate(BaseModel):
     valetReceivedAt: Optional[str] = None
 
 class ValetPayoutInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     valetId: Optional[str] = None
     amount: Optional[float] = None
     deliveryCount: Optional[int] = None
@@ -213,7 +213,7 @@ class ValetPayoutInternalUpdate(BaseModel):
     valetReceivedAt: Optional[str] = None
 
 class ValetAvailabilityInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     valetId: Optional[str] = None
     date: Optional[str] = None
@@ -222,7 +222,7 @@ class ValetAvailabilityInternalCreate(BaseModel):
     zones: Optional[List[str]] = []
 
 class ValetAvailabilityInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     valetId: Optional[str] = None
     date: Optional[str] = None
@@ -231,7 +231,7 @@ class ValetAvailabilityInternalUpdate(BaseModel):
     zones: Optional[List[str]] = None
 
 class DeviceSnippet(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     type: Optional[str] = None
     os: Optional[str] = None
     osVersion: Optional[str] = None
@@ -246,7 +246,7 @@ class DeviceSnippet(BaseModel):
     fcmToken: Optional[str] = None
 
 class SessionInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     userId: Optional[str] = None
@@ -308,7 +308,7 @@ class SessionInternalUpdate(BaseModel):
 
 
 class WishlistItemInternal(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     id_: Optional[str] = Field(default=None, alias="_id")
     product: str
@@ -316,26 +316,26 @@ class WishlistItemInternal(BaseModel):
     addedAt: Optional[str] = None
 
 class WishlistInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     user: str
     items: Optional[List[WishlistItemInternal]] = []
 
 class WishlistInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     user: Optional[str] = None
     items: Optional[List[WishlistItemInternal]] = None
 
 class TrackingInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     orderId: str
     status: str
     details: Optional[str] = None
 
 class TrackingInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     orderId: Optional[str] = None
     status: Optional[str] = None
@@ -348,7 +348,7 @@ class BusinessDetailsInternal(BaseModel):
     address: Optional[str] = None
 
 class SellerRequestInternalCreate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     requestNumber: Optional[str] = None
     user: str
@@ -365,7 +365,7 @@ class SellerRequestInternalCreate(BaseModel):
     businessDetails: Optional[BusinessDetailsInternal] = None
 
 class SellerRequestInternalUpdate(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     requestNumber: Optional[str] = None
     user: Optional[str] = None
@@ -605,7 +605,7 @@ class ReturnRequestInternalUpdate(BaseModel):
     updatedAt: Optional[Any] = None
 
 class ReturnRequestInternal(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     externalId: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(default=None, alias="_id")
     returnId: Optional[str] = None
@@ -635,7 +635,7 @@ class ReturnRequestInternal(BaseModel):
 from app.models.schemas import TicketResponseItem, ProductSellerEntry, VariantOption, ReturnItemSchema, ValetDeclineHistoryEntry
 
 class CustomerSegmentFilters(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     minOrderCount: Optional[int] = None
     maxOrderCount: Optional[int] = None
     minOrderValue: Optional[float] = None
