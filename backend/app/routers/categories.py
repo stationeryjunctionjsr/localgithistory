@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+from app.models.base import CamelBaseModel
 from app.repositories.category_repository import CategoryRepository
 from app.utils.auth import require_super_admin, get_optional_user
 from app.utils.cache import cache
@@ -16,30 +17,30 @@ router = APIRouter()
 category_repository = CategoryRepository()
 
 
-class CategoryBase(BaseModel):
+class CategoryBase(CamelBaseModel):
     name: str = Field(..., min_length=1)
     description: Optional[str] = None
     images: Optional[List[str]] = None
-    subCategories: Optional[List[str]] = None
-    minimumQuantity: int = Field(default=0, ge=0)  # Minimum quantity required for category
-    categoryTag: Optional[str] = None
-    isActive: bool = True
-    showInMobileHomepage: bool = False
+    sub_categories: Optional[List[str]] = None
+    minimum_quantity: int = Field(default=0, ge=0)  # Minimum quantity required for category
+    category_tag: Optional[str] = None
+    is_active: bool = True
+    show_in_mobile_homepage: bool = False
     gst: float = Field(default=0, ge=0, le=100)
-    isReturnable: bool = False
+    is_returnable: bool = False
 
 
-class CategoryUpdate(BaseModel):
+class CategoryUpdate(CamelBaseModel):
     name: Optional[str] = Field(None, min_length=1)
     description: Optional[str] = None
     images: Optional[List[str]] = None
-    subCategories: Optional[List[str]] = None
-    minimumQuantity: Optional[int] = Field(None, ge=0)
-    categoryTag: Optional[str] = None
-    isActive: Optional[bool] = None
-    showInMobileHomepage: Optional[bool] = None
+    sub_categories: Optional[List[str]] = None
+    minimum_quantity: Optional[int] = Field(None, ge=0)
+    category_tag: Optional[str] = None
+    is_active: Optional[bool] = None
+    show_in_mobile_homepage: Optional[bool] = None
     gst: Optional[float] = Field(None, ge=0, le=100)
-    isReturnable: Optional[bool] = None
+    is_returnable: Optional[bool] = None
 
 
 @cache.ttl_cache(ttl=300.0)

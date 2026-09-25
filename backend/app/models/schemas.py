@@ -1277,11 +1277,11 @@ class CouponBase(CamelBaseModel):
     
     @model_validator(mode='after')
     def validate_dates(self):
-        if self.validFrom and self.valid_until:
+        if self.valid_from and self.valid_until:
             from datetime import datetime, timezone
             try:
-                start_dt = datetime.fromisoformat(self.validFrom.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
-                end_dt = datetime.fromisoformat(self.validUntil.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
+                start_dt = datetime.fromisoformat(self.valid_from.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
+                end_dt = datetime.fromisoformat(self.valid_until.replace("Z", "+00:00")).replace(tzinfo=timezone.utc)
                 if start_dt > end_dt:
                     raise ValueError("validUntil must be after validFrom")
             except ValueError as e:

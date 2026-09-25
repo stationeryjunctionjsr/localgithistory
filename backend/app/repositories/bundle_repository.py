@@ -82,15 +82,8 @@ class BundleRepository:
     async def create(self, data: Any) -> Any:
         await self.ensure_table_exists()
         from app.models.daos import BundleInternalCreate
-        if not isinstance(data, BundleInternalCreate):
-            fields = {}
-            for f in data.model_fields_set:
-                match f:
-                    case "name": fields["name"] = data.name
-                    case "items": fields["items"] = data.items
-                    case "price": fields["price"] = data.price
-                    case "isActive": fields["isActive"] = data.isActive
-            internal_data = BundleInternalCreate(**fields)
+        if isinstance(data, dict):
+            internal_data = BundleInternalCreate(**data)
         else:
             internal_data = data
         return await self.storage.create(internal_data)
@@ -98,18 +91,11 @@ class BundleRepository:
     async def update(self, id: str, update_data: Any) -> Optional[Any]:
         await self.ensure_table_exists()
         from app.models.daos import BundleInternalUpdate
-        if not isinstance(update_data, BundleInternalUpdate):
-            fields = {}
-            for f in update_data.model_fields_set:
-                match f:
-                    case "name": fields["name"] = update_data.name
-                    case "items": fields["items"] = update_data.items
-                    case "price": fields["price"] = update_data.price
-                    case "isActive": fields["isActive"] = update_data.isActive
-            internal_data = BundleInternalUpdate(**fields)
+        if isinstance(update_data, dict):
+            internal_data = BundleInternalUpdate(**update_data)
         else:
             internal_data = update_data
-        internal_data.updatedAt = datetime.now(timezone.utc).isoformat()
+        internal_data.updated_at = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, internal_data)
 
     async def delete(self, id: str) -> bool:
@@ -119,7 +105,7 @@ class BundleRepository:
     async def get_active_bundles(self) -> List[Any]:
         """Return only active (published) bundles."""
         all_bundles = await self.findAll()
-        return [b for b in all_bundles if (b.isActive if b.isActive is not None else True)]
+        return [b for b in all_bundles if (b.is_active if b.is_active is not None else True)]
 
     async def get_bundles_containing_product(self, product_id: str) -> List[Any]:
         """Return all active bundles that include a given product_id."""

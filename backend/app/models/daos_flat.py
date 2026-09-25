@@ -824,7 +824,7 @@ class Google_reviewsInternalUpdate(BaseModel):
 class StockReservationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     external_id: Optional[str] = Field(None, alias='externalId')
-    expiresAt: Optional[str] = None
+    expires_at: Optional[str] = None
     product_id: Optional[str] = None
     quantity: Optional[int] = None
     status: Optional[str] = None
@@ -833,7 +833,7 @@ class StockReservationsInternalCreate(BaseModel):
 class StockReservationsInternalUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     external_id: Optional[str] = Field(None, alias='externalId')
-    expiresAt: Optional[str] = None
+    expires_at: Optional[str] = None
     product_id: Optional[str] = None
     quantity: Optional[int] = None
     status: Optional[str] = None

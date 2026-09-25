@@ -31,7 +31,7 @@ async def populate_ticket(ticket_data):
     ticket = SupportTicketInternal.model_validate(ticket_data, from_attributes=True)
 
     user = await user_repository.findById(ticket.user) if ticket.user else None
-    assigned_to = await user_repository.findById(ticket.assignedTo) if ticket.assignedTo else None
+    assigned_to = await user_repository.findById(ticket.assigned_to) if ticket.assigned_to else None
 
     # Populate response users
     populated_responses = []
@@ -84,13 +84,13 @@ async def populate_ticket(ticket_data):
         category=ticket.category,
         priority=ticket.priority,
         attachments=ticket.attachments,
-        ticketNumber=ticket.ticketNumber,
+        ticketNumber=ticket.ticket_number,
         status=ticket.status,
-        resolvedAt=ticket.resolvedAt,
-        closedAt=ticket.closedAt,
-        createdAt=ticket.createdAt,
-        updatedAt=ticket.updatedAt,
-        externalId=ticket.externalId,
+        resolvedAt=ticket.resolved_at,
+        closedAt=ticket.closed_at,
+        createdAt=ticket.created_at,
+        updatedAt=ticket.updated_at,
+        externalId=ticket.external_id,
         user=final_user,
         assignedTo=final_assigned_to,
         responses=populated_responses

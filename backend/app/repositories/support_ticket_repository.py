@@ -29,7 +29,7 @@ class SupportTicketRepository:
             tickets = [t for t in tickets if t.priority == query["priority"]]
 
         # Sort by creation date (newest first)
-        tickets.sort(key=lambda x: x.createdAt, reverse=True)
+        tickets.sort(key=lambda x: x.created_at, reverse=True)
 
         return tickets
 
@@ -37,10 +37,10 @@ class SupportTicketRepository:
         return await self.storage.findById(id)
 
     async def create(self, ticket_data: SupportTicketInternalCreate) -> SupportTicketInternal:
-        if not ticket_data.ticketNumber:
-            ticket_data.ticketNumber = self.generateTicketNumber()
-        if not ticket_data.createdAt:
-            ticket_data.createdAt = datetime.now(timezone.utc).isoformat()
+        if not ticket_data.ticket_number:
+            ticket_data.ticket_number = self.generateTicketNumber()
+        if not ticket_data.created_at:
+            ticket_data.created_at = datetime.now(timezone.utc).isoformat()
         
         return await self.storage.create(ticket_data)
 

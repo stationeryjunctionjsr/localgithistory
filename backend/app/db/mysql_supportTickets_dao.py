@@ -267,6 +267,9 @@ class MySQLSupportTicketsDAO:
 
     def _map_to_schema(self, r, children: Dict) -> Any:
         d = dict(r._mapping)
+        if "user_id" in d:
+            val = d.pop("user_id")
+            d["user"] = str(val) if val is not None else None
         if "attachments" in children:
             d["attachments"] = children["attachments"]
         if "responses" in children:

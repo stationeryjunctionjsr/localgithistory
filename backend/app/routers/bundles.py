@@ -3,6 +3,7 @@ from app.models.schemas import BundleItemResponse, MessageResponse, BundleRespon
 from app.models.daos import BundleInternalCreate, BundleInternalUpdate, BundleItemInternal
 from typing import Dict, Any, List
 from pydantic import BaseModel, Field, AliasChoices
+from app.models.base import CamelBaseModel
 
 
 
@@ -45,41 +46,41 @@ router = APIRouter()
 # ─── Pydantic schemas ─────────────────────────────────────────────────────────
 
 
-class BundleItemSchema(BaseModel):
-    productId: str
+class BundleItemSchema(CamelBaseModel):
+    product_id: str
     quantity: int  # quantity of that product included in one bundle
 
 
-class CreateBundleRequest(BaseModel):
+class CreateBundleRequest(CamelBaseModel):
     name: str
     description: Optional[str] = None
     price: float
     items: List[BundleItemSchema] = Field(..., validation_alias=AliasChoices("items", "products"))
-    imageUrl: Optional[str] = None
+    image_url: Optional[str] = None
     images: Optional[List[str]] = None
-    displayImage: Optional[str] = None
-    isActive: bool = True
-    salesCount: Optional[int] = 0
+    display_image: Optional[str] = None
+    is_active: bool = True
+    sales_count: Optional[int] = 0
     category: Optional[str] = None
-    subCategory: Optional[str] = None
+    sub_category: Optional[str] = None
     brand: Optional[str] = None
-    searchTags: Optional[List[str]] = None
+    search_tags: Optional[List[str]] = None
 
 
-class UpdateBundleRequest(BaseModel):
+class UpdateBundleRequest(CamelBaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
     items: Optional[List[BundleItemSchema]] = Field(None, validation_alias=AliasChoices("items", "products"))
-    imageUrl: Optional[str] = None
+    image_url: Optional[str] = None
     images: Optional[List[str]] = None
-    displayImage: Optional[str] = None
-    isActive: Optional[bool] = None
-    salesCount: Optional[int] = None
+    display_image: Optional[str] = None
+    is_active: Optional[bool] = None
+    sales_count: Optional[int] = None
     category: Optional[str] = None
-    subCategory: Optional[str] = None
+    sub_category: Optional[str] = None
     brand: Optional[str] = None
-    searchTags: Optional[List[str]] = None
+    search_tags: Optional[List[str]] = None
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -142,18 +143,18 @@ async def _enrich_bundle(bundle) -> BundleResponse:
         name=bundle.name,
         description=bundle.description,
         price=bundle.price,
-        discountPercentage=bundle.discountPercentage,
-        isActive=bundle.isActive,
-        salesCount=bundle.salesCount,
+        discount_percentage=bundle.discount_percentage if hasattr(bundle, 'discount_percentage') else None,
+        is_active=bundle.is_active,
+        sales_count=bundle.sales_count,
         items=enriched_items,
-        createdAt=bundle.createdAt,
-        updatedAt=bundle.updatedAt,
+        created_at=bundle.created_at if hasattr(bundle, 'created_at') else None,
+        updated_at=bundle.updated_at if hasattr(bundle, 'updated_at') else None,
         external_id=bundle.external_id,
-        totalMrp=round(total_mrp, 2),
+        total_mrp=round(total_mrp, 2),
         savings=round(total_mrp - bundle_price, 2),
-        savingsPercent=round((total_mrp - bundle_price) / total_mrp * 100, 1) if total_mrp else 0,
-        isAvailable=fully_available,
-        displayImage=display_img,
+        savings_percent=round((total_mrp - bundle_price) / total_mrp * 100, 1) if total_mrp else 0,
+        is_available=fully_available,
+        display_image=display_img,
     )
 
 
@@ -298,7 +299,7 @@ async def list_bundles_for_product(product_id: str):
             except Exception as e:
                 logger.warning("Could not enrich bundle %s: %s", b.id, e)
         # Sort by salesCount descending
-        enriched.sort(key=lambda x: x.salesCount or 0, reverse=True)
+        enriched.sort(key=lambda x: x.sales_count or 0, reverse=True)
         return enriched
     except Exception as e:
         logger.error("Error fetching bundles for product %s: %s", product_id, str(e), exc_info=True)
@@ -331,7 +332,7 @@ async def get_bundle(bundle_id: str):
         bundle = await bundle_repository.findById(bundle_id)
         if not bundle:
             raise HTTPException(status_code=404, detail="Bundle not found")
-        if not bundle.isActive:
+        if not bundle.is_active:
             raise HTTPException(status_code=404, detail="Bundle not found")
         return await _enrich_bundle(bundle)
     except HTTPException:
@@ -354,7 +355,7 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
         from app.repositories.wishlist_repository import wishlist_repository
 
         bundle = await bundle_repository.findById(bundle_id)
-        if not bundle or not bundle.isActive:
+        if not bundle or not bundle.is_active:
             raise HTTPException(status_code=404, detail="Bundle not found")
 
         user_id = current_user.id
@@ -384,12 +385,12 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
 
             from app.models.daos import CartItemInternal
             new_item = CartItemInternal(
-                id=str(uuid.uuid4()),
+                external_id=str(uuid.uuid4()),
                 product=pid,
                 quantity=qty,
-                sellAsCase=False,
-                bundleId=bundle_id,
-                bundleName=bundle.name,
+                sell_as_case=False,
+                bundle_id=bundle_id,
+                bundle_name=bundle.name,
             )
 
             if cart:
@@ -400,7 +401,7 @@ async def add_bundle_to_cart(bundle_id: str, current_user: User = Depends(get_cu
                 if existing:
                     items = (cart.items or [])
                     for i, it in enumerate(items):
-                        if it.id == existing.id:
+                        if it.product == existing.product and it.bundle_id == existing.bundle_id:
                             if qty is None:
                                 raise ValueError("Data Integrity Error: Bundle item missing quantity")
                             items[i].quantity = existing.quantity + qty
@@ -456,11 +457,11 @@ async def create_bundle(payload: CreateBundleRequest, current_user: User = Depen
             name=payload.name.strip(),
             description=payload.description,
             price=payload.price,
-            items=[BundleItemInternal(productId=i.product_id, quantity=i.quantity) for i in payload.items],
-            imageUrl=payload.image_url,
-            isActive=payload.isActive,
-            salesCount=payload.salesCount if payload.salesCount is not None else 0,
-            searchTags=payload.searchTags or [],
+            items=[BundleItemInternal(product_id=i.product_id, quantity=i.quantity) for i in payload.items],
+            image_url=payload.image_url,
+            is_active=payload.is_active,
+            sales_count=payload.sales_count if payload.sales_count is not None else 0,
+            search_tags=payload.search_tags or [],
         )
         created = await bundle_repository.create(bundle_model)
         return {"message": "Bundle created", "bundle": created}
@@ -494,15 +495,15 @@ async def update_bundle(
             update_model.price = payload.price
         if payload.items is not None:
             await _validate_bundle_items(payload.items)
-            update_model.items = [BundleItemInternal(productId=i.product_id, quantity=i.quantity) for i in payload.items]
+            update_model.items = [BundleItemInternal(product_id=i.product_id, quantity=i.quantity) for i in payload.items]
         if payload.image_url is not None:
             update_model.image_url = payload.image_url
-        if payload.isActive is not None:
-            update_model.isActive = payload.isActive
-        if payload.salesCount is not None:
-            update_model.salesCount = payload.salesCount
-        if payload.searchTags is not None:
-            update_model.searchTags = payload.searchTags
+        if payload.is_active is not None:
+            update_model.is_active = payload.is_active
+        if payload.sales_count is not None:
+            update_model.sales_count = payload.sales_count
+        if payload.search_tags is not None:
+            update_model.search_tags = payload.search_tags
 
         updated = await bundle_repository.update(bundle_id, update_model)
         return {"message": "Bundle updated", "bundle": updated}

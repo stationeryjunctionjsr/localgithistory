@@ -24,23 +24,7 @@ class CartItemInternal(CamelBaseModel):
         return self.product
 
     @property
-    def bundle_id(self) -> Optional[str]:
-        return self.bundle_id
-
-    @property
-    def sell_as_case(self) -> Optional[bool]:
-        return self.sell_as_case
-
-    @property
-    def bundle_name(self) -> Optional[str]:
-        return self.bundle_name
-
-    @property
     def selectedVariation(self) -> Optional[VariantAttributes]:
-        return self.variant_attributes
-
-    @property
-    def variant_attributes(self) -> Optional[VariantAttributes]:
         return self.variant_attributes
 
 class CartInternalCreate(CamelBaseModel):
@@ -255,8 +239,8 @@ class SessionInternalCreate(CamelBaseModel):
     ip_address: Optional[str] = None
     refresh_token_id: Optional[str] = None
     status: Optional[str] = None
-    last_active_at: Optional[str] = None
-    revoked_at: Optional[str] = None
+    last_active_at: Optional[Any] = None
+    revoked_at: Optional[Any] = None
     revoked_reason: Optional[str] = None
     device: Optional[DeviceSnippet] = None
     is_guest: Optional[bool] = None
@@ -264,8 +248,8 @@ class SessionInternalCreate(CamelBaseModel):
     id: Optional[str] = None
     user_id: Optional[str] = None
     refresh_token_id: Optional[str] = None
-    last_active_at: Optional[str] = None
-    revoked_at: Optional[str] = None
+    last_active_at: Optional[Any] = None
+    revoked_at: Optional[Any] = None
     revoked_reason: Optional[str] = None
     is_guest: Optional[bool] = None
     created_at: Optional[Any] = None
@@ -283,8 +267,8 @@ class SessionInternalUpdate(CamelBaseModel):
     updated_at: Optional[Any] = None
     refresh_token_id: Optional[str] = None
     status: Optional[str] = None
-    last_active_at: Optional[str] = None
-    revoked_at: Optional[str] = None
+    last_active_at: Optional[Any] = None
+    revoked_at: Optional[Any] = None
     revoked_reason: Optional[str] = None
     device: Optional[DeviceSnippet] = None
     is_guest: Optional[bool] = None
@@ -300,8 +284,8 @@ class SessionInternalUpdate(CamelBaseModel):
     id: Optional[str] = None
     user_id: Optional[str] = None
     refresh_token_id: Optional[str] = None
-    last_active_at: Optional[str] = None
-    revoked_at: Optional[str] = None
+    last_active_at: Optional[Any] = None
+    revoked_at: Optional[Any] = None
     revoked_reason: Optional[str] = None
     is_guest: Optional[bool] = None
     created_at: Optional[Any] = None
@@ -426,9 +410,9 @@ class ProductInternalCreate(CamelBaseModel):
     quantity_per_case: Optional[int] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
-    isExclusive: Optional[bool] = None
+    is_exclusive: Optional[bool] = None
     collection: Optional[str] = None
-    catalogSellerIds: Optional[List[str]] = None
+    catalog_seller_ids: Optional[List[str]] = None
 
 class ProductInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
