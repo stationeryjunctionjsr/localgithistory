@@ -1,3 +1,4 @@
+from app.models.daos_flat import DeliveryChargeInternal, DeliveryChargeDefaultInternal, DeliveryChargeTierInternal
 """
 Comprehensive tests for Delivery Zones, Delivery Charges, Delivery Slots,
 and Checkout (serviceability + order placement) flows.
@@ -74,42 +75,42 @@ class TestDeliveryChargeRepository:
             MockTier("Infinity", 0),
         ]
         result = self.repo.calculateTieredCharge(tiers, order_amount=300)
-        assert result["charge"] == 60.0
-        assert result["tier"] is not None
+        assert result.charge == 60.0
+        assert result.appliedTier is not None
 
     # ── A2 ──────────────────────────────────────────────────────────────────
     def test_calculate_tiered_charge_infinity_tier(self):
         """Order above all finite thresholds falls into Infinity tier (free shipping)."""
         tiers = [
-            {"maxAmount": 500, "charge": 60},
-            {"maxAmount": "Infinity", "charge": 0},
+            MagicMock(max=500, charge=60),
+            MagicMock(max="Infinity", charge=0),
         ]
         result = self.repo.calculateTieredCharge(tiers, order_amount=1500)
-        assert result["charge"] == 0.0
+        assert result.charge == 0.0
 
     # ── A3 ──────────────────────────────────────────────────────────────────
     def test_calculate_tiered_charge_empty(self):
         """Empty tiers list returns zero charge."""
         result = self.repo.calculateTieredCharge([], order_amount=500)
-        assert result["charge"] == 0
-        assert result["tier"] is None
+        assert result.charge == 0
+        assert result.appliedTier is None
 
     # ── A4 ──────────────────────────────────────────────────────────────────
     def test_calculate_tiered_charge_boundary(self):
         """order_amount exactly equal to maxAmount picks the NEXT tier (strict <)."""
         tiers = [
-            {"maxAmount": 500, "charge": 60},
-            {"maxAmount": "Infinity", "charge": 0},
+            MagicMock(max=500, charge=60),
+            MagicMock(max="Infinity", charge=0),
         ]
         # order_amount = 500 is NOT < 500, so it falls to the Infinity tier
         result = self.repo.calculateTieredCharge(tiers, order_amount=500)
-        assert result["charge"] == 0.0
+        assert result.charge == 0.0
 
     # ── A5 ──────────────────────────────────────────────────────────────────
     def test_is_charge_applicable_to_role(self):
         """Customer always applicable; wholesaler respects applicableToWholesaler flag."""
-        charge_for_all = {"applicableToWholesaler": True}
-        charge_retail_only = {"applicableToWholesaler": False}
+        charge_for_all = MagicMock(applicableToWholesaler=True)
+        charge_retail_only = MagicMock(applicableToWholesaler=False)
 
         assert self.repo.isChargeApplicableToRole(charge_for_all, "customer") is True
         assert self.repo.isChargeApplicableToRole(charge_retail_only, "customer") is True
@@ -122,18 +123,18 @@ class TestDeliveryChargeRepository:
     @pytest.mark.asyncio
     async def test_is_pincode_serviceable_customer(self):
         """isPincodeServiceable returns correct flag based on serviceableForCustomer field."""
-        mock_charge_serviceable = {
-            "pincode": "110001",
-            "isActive": True,
-            "serviceableForCustomer": True,
-            "serviceableForWholesaler": False,
-        }
-        mock_charge_not_serviceable = {
-            "pincode": "110002",
-            "isActive": True,
-            "serviceableForCustomer": False,
-            "serviceableForWholesaler": True,
-        }
+        mock_charge_serviceable = MagicMock(
+            pincode="110001",
+            isActive=True,
+            serviceableForCustomer=True,
+            serviceableForWholesaler=False,
+        )
+        mock_charge_not_serviceable = MagicMock(
+            pincode="110002",
+            isActive=True,
+            serviceableForCustomer=False,
+            serviceableForWholesaler=True,
+        )
 
         with patch.object(self.repo, "findByPincode", new_callable=AsyncMock) as mock_find:
             mock_find.return_value = mock_charge_serviceable
@@ -394,23 +395,23 @@ async def test_get_available_slots_cutoff_filter():
 
     # Build a slot that was due 5 hours ago (cutoffHours=0 but slot end in the past)
     past_time = (_dt.datetime.now() - _dt.timedelta(hours=2)).strftime("%H:%M")
-    mock_config = {
-        "_id": "cfg_1",
-        "zoneId": "zone_test",
-        "slots": [
-            {
-                "id": "s1",
-                "startTime": past_time,
-                "endTime": past_time,
-                "isActive": True,
-                "isUrgent": False,
-                "capacity": 10,
-                "bookedCount": 0,
-                "cutoffHours": 3,  # 3 h before start → slot is definitely past cutoff
-            }
+    mock_config = MagicMock(
+        id="cfg_1",
+        zoneId="zone_test",
+        slots=[
+            MagicMock(
+                id="s1",
+                startTime=past_time,
+                endTime=past_time,
+                isActive=True,
+                isUrgent=False,
+                capacity=10,
+                bookedCount=0,
+                cutoffHours=3,
+            )
         ],
-        "isActive": True,
-    }
+        isActive=True,
+    )
 
     with patch("app.routers.delivery_slots._resolve_zone_config", new_callable=AsyncMock) as mock_resolve:
         mock_resolve.return_value = mock_config
@@ -435,23 +436,23 @@ async def test_get_available_slots_capacity_full():
 
     # Slot with capacity=1 and bookedCount=1 → full
     future_time = (_dt.datetime.now() + _dt.timedelta(hours=4)).strftime("%H:%M")
-    mock_config = {
-        "_id": "cfg_2",
-        "zoneId": "zone_test",
-        "slots": [
-            {
-                "id": "s2",
-                "startTime": future_time,
-                "endTime": future_time,
-                "isActive": True,
-                "isUrgent": False,
-                "capacity": 1,
-                "bookedCount": 1,  # fully booked
-                "cutoffHours": None,
-            }
+    mock_config = MagicMock(
+        id="cfg_2",
+        zoneId="zone_test",
+        slots=[
+            MagicMock(
+                id="s2",
+                startTime=future_time,
+                endTime=future_time,
+                isActive=True,
+                isUrgent=False,
+                capacity=1,
+                bookedCount=1,
+                cutoffHours=None,
+            )
         ],
-        "isActive": True,
-    }
+        isActive=True,
+    )
 
     with patch("app.routers.delivery_slots._resolve_zone_config", new_callable=AsyncMock) as mock_resolve:
         mock_resolve.return_value = mock_config
@@ -475,23 +476,23 @@ async def test_get_available_slots_valid_slot_included():
     # A slot 2 hours from now that ends within 24 hours — should pass all filters
     start = (_dt.datetime.now() + _dt.timedelta(hours=1)).strftime("%H:%M")
     end = (_dt.datetime.now() + _dt.timedelta(hours=2)).strftime("%H:%M")
-    mock_config = {
-        "_id": "cfg_3",
-        "zoneId": "zone_test",
-        "slots": [
-            {
-                "id": "s3",
-                "startTime": start,
-                "endTime": end,
-                "isActive": True,
-                "isUrgent": False,
-                "capacity": 5,
-                "bookedCount": 0,
-                "cutoffHours": None,
-            }
+    mock_config = MagicMock(
+        id="cfg_3",
+        zoneId="zone_test",
+        slots=[
+            MagicMock(
+                id="s3",
+                startTime=start,
+                endTime=end,
+                isActive=True,
+                isUrgent=False,
+                capacity=5,
+                bookedCount=0,
+                cutoffHours=None,
+            )
         ],
-        "isActive": True,
-    }
+        isActive=True,
+    )
 
     with patch("app.routers.delivery_slots._resolve_zone_config", new_callable=AsyncMock) as mock_resolve:
         mock_resolve.return_value = mock_config
@@ -556,7 +557,7 @@ async def test_delivery_charge_gst_calculation():
     with patch.object(repo, "findByPincode", new_callable=AsyncMock) as mock_find, \
          patch.object(repo, "getDefaultCharge", new_callable=AsyncMock) as mock_default:
 
-        mock_find.return_value = {
+        mock_find.return_value = DeliveryChargeInternal(**{
             "pincode": "831001",
             "isActive": True,
             "serviceableForCustomer": True,
@@ -564,12 +565,12 @@ async def test_delivery_charge_gst_calculation():
             "charge": 100.0,
             "minCartValue": 0.0,
             "tiers": [],
-        }
-        mock_default.return_value = {
+        })
+        mock_default.return_value = DeliveryChargeDefaultInternal(**{
             "isActive": True,
-            "deliveryChargeGst": True,
-            "deliveryChargeGstPercentage": 18.0,
-        }
+            
+            
+        })
 
         result = await repo.getChargeForLocation(
             state="Jharkhand",
@@ -580,8 +581,8 @@ async def test_delivery_charge_gst_calculation():
             order_amount=200,
         )
 
-    assert result["charge"] == 100.0
-    assert result["source"] == "pincode"
+    assert result.charge == 100.0
+    assert result.source == "pincode"
 
 
 @pytest.mark.asyncio
@@ -595,13 +596,7 @@ async def test_delivery_charge_wholesaler_not_applicable():
 
         mock_find.return_value = None  # no pincode-specific charge
         mock_loc.return_value = None   # no city-level charge
-        mock_default.return_value = {
-            "isActive": True,
-            "applicableToWholesaler": False,
-            "tiers": [{"maxAmount": "Infinity", "charge": 80}],
-            "deliveryChargeGst": False,
-            "urgentDeliveryCharge": None,
-        }
+        mock_default.return_value = DeliveryChargeDefaultInternal(isActive=True, applicableToWholesaler=False, tiers=[{"max": "Infinity", "charge": 80}])
 
         result = await repo.getChargeForLocation(
             state="Jharkhand",
@@ -612,8 +607,8 @@ async def test_delivery_charge_wholesaler_not_applicable():
             order_amount=300,
         )
 
-    assert result["isApplicableToRole"] is False
-    assert result["charge"] == 0
+    assert result.isApplicableToRole is False
+    assert result.charge == 0
 
 
 @pytest.mark.asyncio
@@ -622,9 +617,9 @@ async def test_delivery_charge_tiered_applied():
     repo = DeliveryChargeRepository()
 
     tiers = [
-        {"maxAmount": 500, "charge": 80},
-        {"maxAmount": 1000, "charge": 50},
-        {"maxAmount": "Infinity", "charge": 0},
+        {"max": 500, "charge": 80},
+        {"max": 1000, "charge": 50},
+        {"max": "Infinity", "charge": 0},
     ]
 
     with patch.object(repo, "findByPincode", new_callable=AsyncMock) as mock_find, \
@@ -633,21 +628,21 @@ async def test_delivery_charge_tiered_applied():
 
         mock_find.return_value = None
         mock_loc.return_value = None  # no city-level charge → falls to default
-        mock_default.return_value = {
+        mock_default.return_value = DeliveryChargeDefaultInternal(**{
             "isActive": True,
             "applicableToWholesaler": True,
             "tiers": tiers,
-            "deliveryChargeGst": False,
-            "urgentDeliveryCharge": None,
-        }
+            
+            
+        })
 
         result_low = await repo.getChargeForLocation("S", "C", "D", None, "customer", 200)
         result_mid = await repo.getChargeForLocation("S", "C", "D", None, "customer", 750)
         result_free = await repo.getChargeForLocation("S", "C", "D", None, "customer", 1500)
 
-    assert result_low["charge"] == 80.0, "Order 200 should be in 80-charge tier"
-    assert result_mid["charge"] == 50.0, "Order 750 should be in 50-charge tier"
-    assert result_free["charge"] == 0.0, "Order 1500 should be in free tier"
+    assert result_low.charge == 80.0, "Order 200 should be in 80-charge tier"
+    assert result_mid.charge == 50.0, "Order 750 should be in 50-charge tier"
+    assert result_free.charge == 0.0, "Order 1500 should be in free tier"
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -806,7 +801,7 @@ async def test_check_pincode_conflicts_no_conflict():
     with patch("app.routers.delivery_zones.get_storage") as mock_storage_factory:
         mock_storage = MagicMock()
         mock_storage.findAll = AsyncMock(return_value=[
-            {"_id": "z1", "name": "Zone A", "pincodes": ["110001", "110002"]},
+            MagicMock(id="z1", name="Zone A", pincodes=["110001", "110002"]),
         ])
         mock_storage_factory.return_value = mock_storage
 
@@ -823,7 +818,7 @@ async def test_check_pincode_conflicts_detected():
     with patch("app.routers.delivery_zones.get_storage") as mock_storage_factory:
         mock_storage = MagicMock()
         mock_storage.findAll = AsyncMock(return_value=[
-            {"_id": "z1", "name": "Zone A", "pincodes": ["110001", "831001"]},
+            MagicMock(id="z1", name="Zone A", pincodes=["110001", "831001"]),
         ])
         mock_storage_factory.return_value = mock_storage
 
