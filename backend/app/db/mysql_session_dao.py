@@ -29,8 +29,7 @@ def _to_ts(value: Optional[str]) -> Optional[datetime]:
 class MySQLSessionDAO:
     @property
     def TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_sessions{suffix}"
+        return "sj_sessions"
 
     def _factory(self):
         return get_async_session_factory()

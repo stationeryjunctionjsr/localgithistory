@@ -29,10 +29,9 @@ class ReviewClassificationRepository:
             return
         from app.config.settings import settings
 
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        table_name_upper = f"SJ_CLASSIFICATION_TAGS{suffix}".upper()
-        table_name_lower = f"sj_classification_tags{suffix}".lower()
-        constraint_name_lower = f"uq_class_tags_external{suffix}".lower()
+        table_name_upper = f"SJ_CLASSIFICATION_TAGS".upper()
+        table_name_lower = f"sj_classification_tags".lower()
+        constraint_name_lower = f"uq_class_tags_external".lower()
 
         factory = get_async_session_factory()
         if not factory:

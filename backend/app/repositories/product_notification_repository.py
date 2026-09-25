@@ -28,10 +28,9 @@ class ProductNotificationRepository:
         if not use_oracle() or not is_oracle():
             self._initialized = True
             return
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        table_name_upper = f"SJ_PRODUCT_NOTIFICATIONS{suffix}".upper()
-        table_name_lower = f"sj_product_notifications{suffix}".lower()
-        constraint_name_lower = f"uq_prod_notif_external{suffix}".lower()
+        table_name_upper = f"SJ_PRODUCT_NOTIFICATIONS".upper()
+        table_name_lower = f"sj_product_notifications".lower()
+        constraint_name_lower = f"uq_prod_notif_external".lower()
 
         factory = get_async_session_factory()
         if not factory:

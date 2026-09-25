@@ -62,13 +62,11 @@ class MySQLSubOrderDAO:
 
     @property
     def table_name(self) -> str:
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_sub_orders{suffix}"
+        return "sj_sub_orders"
 
     @property
     def items_table_name(self) -> str:
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_sub_order_items{suffix}"
+        return "sj_sub_order_items"
 
     def _get_session_factory(self):
         return get_async_session_factory()
@@ -139,7 +137,7 @@ class MySQLSubOrderDAO:
         doc["shippingAddress"] = {
             "name": row.shipping_name,
             "phone": row.shipping_phone,
-            "line1": row.shipping_line1,
+            "street": row.shipping_line1,
             "city": row.shipping_city,
             "state": row.shipping_state,
             "pincode": row.shipping_pincode,
@@ -148,7 +146,7 @@ class MySQLSubOrderDAO:
         doc["billingAddress"] = {
             "name": row.billing_name,
             "phone": row.billing_phone,
-            "line1": row.billing_line1,
+            "street": row.billing_line1,
             "city": row.billing_city,
             "state": row.billing_state,
             "pincode": row.billing_pincode,
@@ -179,6 +177,7 @@ class MySQLSubOrderDAO:
         doc["createdAt"] = row.created_at.isoformat() if row.created_at else _now_iso()
         doc["updatedAt"] = row.updated_at.isoformat() if row.updated_at else _now_iso()
         from app.models.sub_order import SubOrder
+        print('DOC:', doc)
         return SubOrder(**doc)
 
     def _build_where(self, query: Dict):
@@ -302,13 +301,13 @@ class MySQLSubOrderDAO:
             "commission_status": (data.commissionStatus if data.commissionStatus is not None else "unrealized"),
             "shipping_name": s_addr.name if s_addr else None,
             "shipping_phone": s_addr.phone if s_addr else None,
-            "shipping_line1": s_addr.line1 if s_addr else None,
+            "shipping_line1": (s_addr.street or s_addr.address) if s_addr else None,
             "shipping_city": s_addr.city if s_addr else None,
             "shipping_state": s_addr.state if s_addr else None,
             "shipping_pincode": s_addr.pincode if s_addr else None,
             "billing_name": b_addr.name if b_addr else None,
             "billing_phone": b_addr.phone if b_addr else None,
-            "billing_line1": b_addr.line1 if b_addr else None,
+            "billing_line1": (b_addr.street or b_addr.address) if b_addr else None,
             "billing_city": b_addr.city if b_addr else None,
             "billing_state": b_addr.state if b_addr else None,
             "billing_pincode": b_addr.pincode if b_addr else None,
@@ -359,7 +358,7 @@ class MySQLSubOrderDAO:
                     item_sql,
                     {
                         "sub_order_id": new_id,
-                        "product_id": (item.productId if item.productId is not None else ""),
+                        "product_id": (item.product_id if item.product_id is not None else ""),
                         "name": (item.name if item.name is not None else ""),
                         "qty": int(item.qty or 0),
                         "price": _safe_float(item.price),
@@ -369,6 +368,15 @@ class MySQLSubOrderDAO:
             await session.commit()
 
         return await self.findById(str(new_id))
+
+    def _parse_dt(self, dt_val):
+        if not dt_val: return None
+        from datetime import datetime
+        if isinstance(dt_val, datetime): return dt_val
+        try:
+            return datetime.fromisoformat(dt_val.replace('Z', '+00:00'))
+        except:
+            return None
 
     async def update(self, id: str, data: 'SubOrderInternalUpdate') -> Optional['SubOrder']:
         factory = self._get_session_factory()
@@ -383,19 +391,19 @@ class MySQLSubOrderDAO:
             params["status"] = data.status
         if data.shippedAt is not None:
             set_clauses.append("dispatched_at = :dispatched_at")
-            params["dispatched_at"] = data.shippedAt
+            params["dispatched_at"] = self._parse_dt(data.shippedAt)
         if data.deliveredAt is not None:
             set_clauses.append("delivered_at = :delivered_at")
-            params["delivered_at"] = data.deliveredAt
+            params["delivered_at"] = self._parse_dt(data.deliveredAt)
         if data.cancelledAt is not None:
             set_clauses.append("cancelled_at = :cancelled_at")
-            params["cancelled_at"] = data.cancelledAt
+            params["cancelled_at"] = self._parse_dt(data.cancelledAt)
         if data.pickupStatus is not None:
             set_clauses.append("pickup_status = :pickup_status")
             params["pickup_status"] = data.pickupStatus
         if data.pickedUpAt is not None:
             set_clauses.append("picked_up_at = :picked_up_at")
-            params["picked_up_at"] = data.pickedUpAt
+            params["picked_up_at"] = self._parse_dt(data.pickedUpAt)
         if data.commissionPct is not None:
             set_clauses.append("commission_pct = :commission_pct")
             params["commission_pct"] = data.commissionPct
@@ -425,3 +433,8 @@ class MySQLSubOrderDAO:
             result = await session.execute(text(f"DELETE FROM {self.table_name} WHERE id = :id"), {"id": int(id)})
             await session.commit()
             return result.rowcount > 0
+
+
+
+
+

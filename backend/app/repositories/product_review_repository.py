@@ -28,10 +28,9 @@ class ProductReviewRepository:
             return
         from app.config.settings import settings
 
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        table_name_upper = f"SJ_PRODUCT_REVIEWS{suffix}".upper()
-        table_name_lower = f"sj_product_reviews{suffix}".lower()
-        constraint_name_lower = f"uq_prod_review_external{suffix}".lower()
+        table_name_upper = f"SJ_PRODUCT_REVIEWS".upper()
+        table_name_lower = f"sj_product_reviews".lower()
+        constraint_name_lower = f"uq_prod_review_external".lower()
 
         factory = get_async_session_factory()
         if not factory:

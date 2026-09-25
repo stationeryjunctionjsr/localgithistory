@@ -17,8 +17,7 @@ from app.db.db_utils import now_utc
 class MySQLWishlistDAO:
     @property
     def TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_wishlists{suffix}"
+        return "sj_wishlists"
 
     def _factory(self):
         return get_async_session_factory()

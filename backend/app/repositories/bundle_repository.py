@@ -34,10 +34,9 @@ class BundleRepository:
             return
         from app.config.settings import settings
 
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        table_name_upper = f"SJ_BUNDLES{suffix}".upper()
-        table_name_lower = f"sj_bundles{suffix}".lower()
-        constraint_name_lower = f"uq_sj_bundles_external{suffix}".lower()
+        table_name_upper = f"SJ_BUNDLES".upper()
+        table_name_lower = f"sj_bundles".lower()
+        constraint_name_lower = f"uq_sj_bundles_external".lower()
 
         factory = get_async_session_factory()
         if not factory:

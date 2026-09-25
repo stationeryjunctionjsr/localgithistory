@@ -47,8 +47,7 @@ _TRACKING_SCALAR = {
 class MySQLTrackingDAO:
     @property
     def TABLE(self):
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        return f"sj_tracking{suffix}"
+        return "sj_tracking"
 
     def _factory(self):
         return get_async_session_factory()

@@ -34,8 +34,7 @@ class MySQLUserDAO:
 
     @property
     def TABLE(self):
-        suffix = settings.table_suffix if settings.table_suffix is not None else ''
-        return f'sj_users{suffix}'
+        return 'sj_users'
 
     def _factory(self):
         return get_async_session_factory()

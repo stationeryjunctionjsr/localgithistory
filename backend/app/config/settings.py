@@ -28,7 +28,6 @@ class Settings(BaseSettings):
     # ── Database ──────────────────────────────────────────────────────────────
     database_url: str = ""  # Oracle connection string; empty = use JSON file storage
     mongodb_uri: str = ""
-    table_suffix: str = ""
 
     # ── OCI Object Storage ────────────────────────────────────────────────────
     oci_bucket_name: str = ""

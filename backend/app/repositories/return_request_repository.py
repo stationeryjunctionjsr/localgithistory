@@ -28,8 +28,7 @@ class ReturnRequestRepository:
         if not factory:
             self._columns_checked = True
             return
-        suffix = (settings.table_suffix if settings.table_suffix is not None else "")
-        table_name = f"sj_return_requests{suffix}"
+        table_name = f"sj_return_requests"
         columns_to_add = [
             ("seller_id", "VARCHAR(64) NULL"),
             ("delivery_slot_id", "VARCHAR(64) NULL"),
