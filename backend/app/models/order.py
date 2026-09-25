@@ -23,9 +23,10 @@ class OrderAddress(CamelBaseModel):
 class Order(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
     session_id: Optional[str] = None
+    external_id: Optional[str] = None
     id: str = Field(default="", validation_alias=AliasChoices("_id", "id"))
     order_number: Optional[str] = None
-    user: Optional[str] = None
+    user: Optional[str] = Field(None, alias='user_id')
     status: Optional[str] = None
     total: Optional[float] = None
     subtotal: Optional[float] = None
@@ -43,12 +44,24 @@ class Order(CamelBaseModel):
     ship_city: Optional[str] = None
     ship_state: Optional[str] = None
     ship_pincode: Optional[str] = None
+    ship_address: Optional[str] = None
+    ship_district: Optional[str] = None
+    ship_country: Optional[str] = None
+    ship_google_location: Optional[str] = None
+    ship_latitude: Optional[float] = None
+    ship_longitude: Optional[float] = None
     bill_name: Optional[str] = None
     bill_phone: Optional[str] = None
     bill_street: Optional[str] = None
     bill_city: Optional[str] = None
     bill_state: Optional[str] = None
     bill_pincode: Optional[str] = None
+    bill_address: Optional[str] = None
+    bill_district: Optional[str] = None
+    bill_country: Optional[str] = None
+    bill_google_location: Optional[str] = None
+    bill_latitude: Optional[float] = None
+    bill_longitude: Optional[float] = None
     notes: Optional[str] = None
     printed_bill: bool = Field(default=False)
     assigned_valet: Optional[str] = None
@@ -81,6 +94,7 @@ class OrderInternalCreate(CamelBaseModel):
     user_role: Optional[str] = None
     user: str
     session_id: Optional[str] = None
+    external_id: Optional[str] = None
     items: List['OrderItem'] = Field(default_factory=list)
     subtotal: float
     tax: float
@@ -98,12 +112,24 @@ class OrderInternalCreate(CamelBaseModel):
     ship_city: Optional[str] = None
     ship_state: Optional[str] = None
     ship_pincode: Optional[str] = None
+    ship_address: Optional[str] = None
+    ship_district: Optional[str] = None
+    ship_country: Optional[str] = None
+    ship_google_location: Optional[str] = None
+    ship_latitude: Optional[float] = None
+    ship_longitude: Optional[float] = None
     bill_name: Optional[str] = None
     bill_phone: Optional[str] = None
     bill_street: Optional[str] = None
     bill_city: Optional[str] = None
     bill_state: Optional[str] = None
     bill_pincode: Optional[str] = None
+    bill_address: Optional[str] = None
+    bill_district: Optional[str] = None
+    bill_country: Optional[str] = None
+    bill_google_location: Optional[str] = None
+    bill_latitude: Optional[float] = None
+    bill_longitude: Optional[float] = None
     notes: str = ""
     printed_bill: bool = False
     assigned_valet: Optional[str] = None
@@ -133,7 +159,7 @@ class OrderInternalCreate(CamelBaseModel):
 
 class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
 
-    user: Optional[str] = None
+    user: Optional[str] = Field(None, alias='user_id')
     order_number: Optional[str] = None
     subtotal: Optional[float] = None
     tax: Optional[float] = None
@@ -147,12 +173,24 @@ class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
     ship_city: Optional[str] = None
     ship_state: Optional[str] = None
     ship_pincode: Optional[str] = None
+    ship_address: Optional[str] = None
+    ship_district: Optional[str] = None
+    ship_country: Optional[str] = None
+    ship_google_location: Optional[str] = None
+    ship_latitude: Optional[float] = None
+    ship_longitude: Optional[float] = None
     bill_name: Optional[str] = None
     bill_phone: Optional[str] = None
     bill_street: Optional[str] = None
     bill_city: Optional[str] = None
     bill_state: Optional[str] = None
     bill_pincode: Optional[str] = None
+    bill_address: Optional[str] = None
+    bill_district: Optional[str] = None
+    bill_country: Optional[str] = None
+    bill_google_location: Optional[str] = None
+    bill_latitude: Optional[float] = None
+    bill_longitude: Optional[float] = None
     notes: Optional[str] = None
     printed_bill: Optional[bool] = None
     is_urgent_delivery: Optional[bool] = None

@@ -41,6 +41,7 @@ from app.models.daos import BundleInternalUpdate
 from app.models.sub_order import SubOrder, SubOrderInternalCreate, SubOrderInternalUpdate, SubOrderItem
 from app.models.product import Product
 from pydantic import BaseModel, ConfigDict, Field
+from app.models.base import CamelBaseModel
 
 
 class GenerateInvoiceResponse(BaseModel):
@@ -121,26 +122,26 @@ async def create_payment_notification(payment):
 
 
 # Helper schemas for order creation
-class OrderCreateRequest(BaseModel):
-    shippingAddress: Address
-    billingAddress: Optional[Address] = None
-    paymentMethod: str = "cod"  # 'cod', 'upi', or 'credit'
-    upiPaymentScreenshot: Optional[str] = None
+class OrderCreateRequest(CamelBaseModel):
+    shipping_address: Address
+    billing_address: Optional[Address] = None
+    payment_method: str = "cod"  # 'cod', 'upi', or 'credit'
+    upi_payment_screenshot: Optional[str] = None
     notes: Optional[str] = None
-    couponCode: Optional[str] = None  # Coupon code to apply
-    referralCode: Optional[str] = None  # Referral code to apply
+    coupon_code: Optional[str] = None  # Coupon code to apply
+    referral_code: Optional[str] = None  # Referral code to apply
     discount: Optional[float] = 0
-    printedBill: Optional[bool] = False
+    printed_bill: Optional[bool] = False
     # [{productId, quantity}] - optional, if not provided uses user's cart
     items: Optional[List[OrderItemCreate]] = None
-    isUrgentDelivery: Optional[bool] = False
-    deliverySlotId: Optional[str] = None  # slot.id within a slot config
+    is_urgent_delivery: Optional[bool] = False
+    delivery_slot_id: Optional[str] = None  # slot.id within a slot config
     # _id of the DeliverySlotConfig doc
-    deliverySlotConfigId: Optional[str] = None
-    deliverySlotDate: Optional[str] = None  # ISO date string e.g. "2026-07-15"
+    delivery_slot_config_id: Optional[str] = None
+    delivery_slot_date: Optional[str] = None  # ISO date string e.g. "2026-07-15"
     # Per-seller delivery options for split-cart orders
     # [{sellerId, isUrgentDelivery, deliverySlotId, deliverySlotConfigId, deliverySlotDate}]
-    sellerDeliveryOptions: Optional[List[SellerDeliveryOption]] = None
+    seller_delivery_options: Optional[List[SellerDeliveryOption]] = None
 
 
 class CalculatedOrderItem(BaseModel):
@@ -184,13 +185,13 @@ class ConfirmPickupRequest(BaseModel):
     notes: Optional[str] = None
 
 
-class LocationDeliveryCharge(BaseModel):
+class LocationDeliveryCharge(CamelBaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     charge: float = 0.0
-    minCartValue: float = 0.0
-    isApplicableToRole: bool = True
-    urgentDeliveryCharge: Optional[float] = None
-    urgentDeliveryAvailable: Optional[bool] = False
+    min_cart_value: float = 0.0
+    is_applicable_to_role: bool = True
+    urgent_delivery_charge: Optional[float] = None
+    urgent_delivery_available: Optional[bool] = False
 
 
 class CouponDetailModel(BaseModel):
@@ -643,8 +644,8 @@ async def create_order(
                 min_cart_value_for_free = float(
                     delivery_charge_data.min_cart_value if delivery_charge_data.min_cart_value is not None else 0.0)
                 is_applicable = (
-                    delivery_charge_data.isApplicableToRole
-                    if delivery_charge_data.isApplicableToRole is not None
+                    delivery_charge_data.is_applicable_to_role
+                    if delivery_charge_data.is_applicable_to_role is not None
                     else True
                 )
                 if is_applicable:
@@ -1285,13 +1286,13 @@ async def create_order(
                 # Apply delivery charge only if:
                 # 1. It's applicable to the user's role
                 # 2. Total before shipping is less than minimum for free delivery
-                if delivery_charge_data.isApplicableToRole if delivery_charge_data.isApplicableToRole is not None else True:
+                if delivery_charge_data.is_applicable_to_role if delivery_charge_data.is_applicable_to_role is not None else True:
                     if order_data.is_urgent_delivery and effective_role in ("customer", "wholesaler"):
                         if zone_urgent_available:
-                            # Urgent delivery is determined by the zone's urgentDeliveryAvailable flag.
+                            # Urgent delivery is determined by the zone's urgent_delivery_available flag.
                             # The cart is treated as a single unit — all items are either
                             # urgent or standard. No per-seller validation needed here.
-                            urgent_charge = delivery_charge_data.urgentDeliveryCharge
+                            urgent_charge = delivery_charge_data.urgent_delivery_charge
                             shipping = float(
                                 urgent_charge) if urgent_charge is not None else 0.0
                         else:
@@ -1488,7 +1489,7 @@ async def create_order(
                 " |")
             if applied_referral_code
             else (order_data.notes or ""),
-            printedBill=order_data.printedBill,
+            printedBill=order_data.printed_bill,
             idempotencyKey=idempotency_key,
         )
     )
@@ -1839,8 +1840,8 @@ async def create_order(
 
             # Build per-seller delivery option lookup from request
             seller_delivery_map = {}
-            if order_data.sellerDeliveryOptions:
-                for sdo in order_data.sellerDeliveryOptions:
+            if order_data.seller_delivery_options:
+                for sdo in order_data.seller_delivery_options:
                     seller_delivery_map[sdo.seller_id] = sdo
 
             for idx, (seller_id, items_group) in enumerate(groups.items()):

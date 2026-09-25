@@ -411,6 +411,10 @@ class BundleResponse(CamelBaseModel):
     is_active: bool = True
     sales_count: Optional[int] = None
     items: List[BundleItemResponse] = []
+    total_mrp: Optional[float] = None
+    savings_percent: Optional[float] = None
+    is_available: Optional[bool] = None
+    display_image: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
@@ -1398,7 +1402,7 @@ class Address(CamelBaseModel):
 
     @property
     def effective_pincode(self) -> Optional[str]:
-        return self.pincode or self.zipCode
+        return self.pincode or self.zip_code
 
 
 

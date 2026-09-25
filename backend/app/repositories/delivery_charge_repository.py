@@ -5,10 +5,10 @@ from typing import Dict, Optional
 from app.db.storage_factory import get_storage
 
 
-class DeliveryChargeRepository:
+class delivery_chargeRepository:
     def __init__(self):
-        self.storage = get_storage("deliveryCharges")
-        self.default_storage = get_storage("deliveryChargeDefaults")
+        self.storage = get_storage("delivery_charges")
+        self.default_storage = get_storage("DeliveryChargeDefaults")
 
     async def findAll(self, query: Optional[Dict] = None) -> list[DeliveryChargeInternal]:
         return await self.storage.findAll(query or {})
@@ -21,7 +21,7 @@ class DeliveryChargeRepository:
         all_charges = await self.storage.findAll()
         for dc in all_charges:
             if (
-                dc.isActive
+                dc.is_active
                 and (dc.state or "").lower() == (state or "").lower()
                 and (dc.city or "").lower() == (city or "").lower()
                 and (dc.district or "").lower() == (district or "").lower()
@@ -34,7 +34,7 @@ class DeliveryChargeRepository:
         """Find pincode-specific charge"""
         all_charges = await self.storage.findAll()
         for dc in all_charges:
-            if dc.isActive and dc.pincode and str(dc.pincode) == str(pincode):
+            if dc.is_active and dc.pincode and str(dc.pincode) == str(pincode):
                 return dc
         return None
 
@@ -57,7 +57,7 @@ class DeliveryChargeRepository:
         defaults = await self.default_storage.findAll()
         return defaults[0] if defaults else None
 
-    async def setDefaultCharge(self, default_data: DeliveryChargeDefaultInternalCreate) -> DeliveryChargeDefaultInternal:
+    async def setdefault_charge(self, default_data: DeliveryChargeDefaultInternalCreate) -> DeliveryChargeDefaultInternal:
         existing = await self.getDefaultCharge()
 
         # Validate tiers
@@ -75,7 +75,7 @@ class DeliveryChargeRepository:
 
         default_charge = DeliveryChargeDefaultInternalUpdate(
             applicableToWholesaler=default_data.applicable_to_wholesaler,
-            isActive=default_data.isActive,
+            is_active=default_data.is_active,
             tiers=tiers_internal
         )
 
@@ -84,12 +84,12 @@ class DeliveryChargeRepository:
         else:
             default_create = DeliveryChargeDefaultInternalCreate(
                 applicableToWholesaler=default_data.applicable_to_wholesaler,
-                isActive=default_data.isActive,
+                is_active=default_data.is_active,
                 tiers=tiers_internal
             )
             return await self.default_storage.create(default_create)
 
-    async def deleteDefaultCharge(self):
+    async def deletedefault_charge(self):
         """Delete the default delivery charge"""
         existing = await self.getDefaultCharge()
         if not existing:
@@ -118,22 +118,22 @@ class DeliveryChargeRepository:
                 urgent_charge = None
                 urgent_avail = False
                 if default_charge:
-                    urgent_charge = default_charge.urgentDeliveryCharge
+                    urgent_charge = default_charge.urgent_delivery_charge
                     # urgent_avail = default_charge.urgent_delivery_available
                     urgent_avail = False
 
-                if default_charge and default_charge.isActive:
+                if default_charge and default_charge.is_active:
                     is_applicable = self.isChargeApplicableToRole(default_charge, user_role)
                     if not is_applicable:
                         from app.routers.delivery_charges import LocationChargeResponse
                         return LocationChargeResponse(
                             charge=0,
-                            minCartValue=0,
+                            min_cart_value=0,
                             source="pincode-default",
-                            deliveryCharge=default_charge.charge if default_charge else None,
+                            delivery_charge=default_charge.charge if default_charge else None,
                             isApplicableToRole=False,
                             urgentDeliveryAvailable=urgent_avail,
-                            urgentDeliveryCharge=urgent_charge,
+                            urgent_delivery_charge=urgent_charge,
                         )
 
                     if default_charge.tiers and len(default_charge.tiers) > 0:
@@ -141,24 +141,24 @@ class DeliveryChargeRepository:
                         from app.routers.delivery_charges import LocationChargeResponse
                         return LocationChargeResponse(
                             charge=tier_charge["charge"],
-                            minCartValue=tier_charge["minCartValue"],
+                            min_cart_value=tier_charge["min_cart_value"],
                             source="pincode-default-tiered",
-                            deliveryCharge=default_charge.charge if default_charge else None,
+                            delivery_charge=default_charge.charge if default_charge else None,
                             isApplicableToRole=True,
                             appliedTier=tier_charge["tier"],
                             urgentDeliveryAvailable=urgent_avail,
-                            urgentDeliveryCharge=urgent_charge,
+                            urgent_delivery_charge=urgent_charge,
                         )
 
                     from app.routers.delivery_charges import LocationChargeResponse
                     return LocationChargeResponse(
                         charge=0,
-                        minCartValue=0,
+                        min_cart_value=0,
                         source="pincode-default-no-tiers",
-                        deliveryCharge=default_charge.charge if default_charge else None,
+                        delivery_charge=default_charge.charge if default_charge else None,
                         isApplicableToRole=True,
                         urgentDeliveryAvailable=urgent_avail,
-                        urgentDeliveryCharge=urgent_charge,
+                        urgent_delivery_charge=urgent_charge,
                     )
             else:
                 # urgent_avail = pincode_charge.urgent_delivery_available
@@ -169,24 +169,24 @@ class DeliveryChargeRepository:
                     from app.routers.delivery_charges import LocationChargeResponse
                     return LocationChargeResponse(
                         charge=tier_charge["charge"],
-                        minCartValue=tier_charge["minCartValue"],
+                        min_cart_value=tier_charge["min_cart_value"],
                         source="pincode-tiered",
-                        deliveryCharge=pincode_charge.charge if pincode_charge else None,
+                        delivery_charge=pincode_charge.charge if pincode_charge else None,
                         isApplicableToRole=True,
                         appliedTier=tier_charge["tier"],
                         urgentDeliveryAvailable=urgent_avail,
-                        urgentDeliveryCharge=pincode_charge.urgentDeliveryCharge,
+                        urgent_delivery_charge=pincode_charge.urgent_delivery_charge,
                     )
                 else:
                     from app.routers.delivery_charges import LocationChargeResponse
                     return LocationChargeResponse(
                         charge=pincode_charge.charge or 0,
-                        minCartValue=pincode_charge.min_cart_value or 0,
+                        min_cart_value=pincode_charge.min_cart_value or 0,
                         source="pincode",
-                        deliveryCharge=pincode_charge.charge if pincode_charge else None,
+                        delivery_charge=pincode_charge.charge if pincode_charge else None,
                         isApplicableToRole=True,
                         urgentDeliveryAvailable=urgent_avail,
-                        urgentDeliveryCharge=pincode_charge.urgentDeliveryCharge,
+                        urgent_delivery_charge=pincode_charge.urgent_delivery_charge,
                     )
 
         # Fallback to city-specific charge (for backward compatibility)
@@ -201,32 +201,32 @@ class DeliveryChargeRepository:
             from app.routers.delivery_charges import LocationChargeResponse
             return LocationChargeResponse(
                 charge=city_charge.charge if is_applicable else 0,
-                minCartValue=city_charge.min_cart_value or 0,
+                min_cart_value=city_charge.min_cart_value or 0,
                 source="city",
-                deliveryCharge=city_charge.charge if city_charge else None,
+                delivery_charge=city_charge.charge if city_charge else None,
                 isApplicableToRole=is_applicable,
                 urgentDeliveryAvailable=urgent_avail,
-                urgentDeliveryCharge=city_charge.urgentDeliveryCharge,
+                urgent_delivery_charge=city_charge.urgent_delivery_charge,
             )
 
         # Use default if available
         default_charge = await self.getDefaultCharge()
-        if default_charge and default_charge.isActive:
+        if default_charge and default_charge.is_active:
             is_applicable = self.isChargeApplicableToRole(default_charge, user_role)
             # urgent_avail = default_charge.urgent_delivery_available
             urgent_avail = False
-            urgent_charge = default_charge.urgentDeliveryCharge
+            urgent_charge = default_charge.urgent_delivery_charge
             
             if not is_applicable:
                 from app.routers.delivery_charges import LocationChargeResponse
                 return LocationChargeResponse(
                     charge=0,
-                    minCartValue=0,
+                    min_cart_value=0,
                     source="default",
-                    deliveryCharge=default_charge.charge if default_charge else None,
+                    delivery_charge=default_charge.charge if default_charge else None,
                     isApplicableToRole=False,
                     urgentDeliveryAvailable=urgent_avail,
-                    urgentDeliveryCharge=urgent_charge,
+                    urgent_delivery_charge=urgent_charge,
                 )
 
             # Default charges are always tiered (no single charge fallback)
@@ -235,36 +235,36 @@ class DeliveryChargeRepository:
                 from app.routers.delivery_charges import LocationChargeResponse
                 return LocationChargeResponse(
                     charge=tier_charge["charge"],
-                    minCartValue=tier_charge["minCartValue"],
+                    min_cart_value=tier_charge["min_cart_value"],
                     source="default-tiered",
-                    deliveryCharge=default_charge.charge if default_charge else None,
+                    delivery_charge=default_charge.charge if default_charge else None,
                     isApplicableToRole=True,
                     appliedTier=tier_charge["tier"],
                     urgentDeliveryAvailable=urgent_avail,
-                    urgentDeliveryCharge=urgent_charge,
+                    urgent_delivery_charge=urgent_charge,
                 )
 
             # If no tiers configured, no delivery charge
             from app.routers.delivery_charges import LocationChargeResponse
             return LocationChargeResponse(
                 charge=0,
-                minCartValue=0,
+                min_cart_value=0,
                 source="default-no-tiers",
-                deliveryCharge=default_charge.charge if default_charge else None,
+                delivery_charge=default_charge.charge if default_charge else None,
                 isApplicableToRole=True,
                 urgentDeliveryAvailable=urgent_avail,
-                urgentDeliveryCharge=urgent_charge,
+                urgent_delivery_charge=urgent_charge,
             )
 
         from app.routers.delivery_charges import LocationChargeResponse
         return LocationChargeResponse(
             charge=0,
-            minCartValue=0,
+            min_cart_value=0,
             source="none",
-            deliveryCharge=None,
+            delivery_charge=None,
             isApplicableToRole=True,
             urgentDeliveryAvailable=False,
-            urgentDeliveryCharge=None,
+            urgent_delivery_charge=None,
         )
 
     def isChargeApplicableToRole(self, charge_data: Any, user_role: str) -> bool:
@@ -285,7 +285,7 @@ class DeliveryChargeRepository:
     def calculateTieredCharge(self, tiers: list, order_amount: float) -> Dict:
         """Calculate delivery charge based on tiered structure"""
         if not tiers or len(tiers) == 0:
-            return {"charge": 0, "minCartValue": 0, "tier": None}
+            return {"charge": 0, "min_cart_value": 0, "tier": None}
 
         # Sort tiers by maxAmount ascending
         def get_max_amount(tier):
@@ -303,7 +303,7 @@ class DeliveryChargeRepository:
             if order_amount < max_amount:
                 return {
                     "charge": float(tier.charge),
-                    "minCartValue": max_amount if max_amount != float("inf") else 0,
+                    "min_cart_value": max_amount if max_amount != float("inf") else 0,
                     "tier": tier,
                 }
 
@@ -311,7 +311,7 @@ class DeliveryChargeRepository:
         last_tier = sorted_tiers[-1]
         return {
             "charge": float(last_tier.charge),
-            "minCartValue": get_max_amount(last_tier) if get_max_amount(last_tier) != float("inf") else 0,
+            "min_cart_value": get_max_amount(last_tier) if get_max_amount(last_tier) != float("inf") else 0,
             "tier": last_tier,
         }
 
@@ -338,16 +338,16 @@ class DeliveryChargeRepository:
             state=charge_data.state,
             city=charge_data.city,
             district=charge_data.district,
-            applyDefaultCharge=apply_default,
+            applydefault_charge=apply_default,
             charge=None if apply_default else (float(charge_data.charge) if charge_data.charge is not None else None),
-            minCartValue=None if apply_default else (float(charge_data.min_cart_value) if charge_data.min_cart_value is not None else None),
+            min_cart_value=None if apply_default else (float(charge_data.min_cart_value) if charge_data.min_cart_value is not None else None),
             tiers=None if apply_default else charge_data.tiers,
-            serviceableForCustomer=charge_data.serviceable_for_customer is True,
-            serviceableForWholesaler=charge_data.serviceable_for_wholesaler is True,
-            isActive=charge_data.isActive,
+            serviceable_for_customer=charge_data.serviceable_for_customer is True,
+            serviceable_for_wholesaler=charge_data.serviceable_for_wholesaler is True,
+            is_active=charge_data.is_active,
             description=charge_data.description,
             urgentDeliveryAvailable=False,
-            urgentDeliveryCharge=float(charge_data.urgentDeliveryCharge) if charge_data.urgentDeliveryCharge is not None else None,
+            urgent_delivery_charge=float(charge_data.urgent_delivery_charge) if charge_data.urgent_delivery_charge is not None else None,
         )
 
         return await self.storage.create(charge_internal)
@@ -357,8 +357,8 @@ class DeliveryChargeRepository:
             update_data.charge = float(update_data.charge)
         if update_data.min_cart_value is not None:
             update_data.min_cart_value = float(update_data.min_cart_value)
-        if update_data.urgentDeliveryCharge is not None:
-            update_data.urgentDeliveryCharge = float(update_data.urgentDeliveryCharge)
+        if update_data.urgent_delivery_charge is not None:
+            update_data.urgent_delivery_charge = float(update_data.urgent_delivery_charge)
         # Update role applicability if provided
         if update_data.applicable_to_wholesaler is not None:
             update_data.applicable_to_wholesaler = bool(update_data.applicable_to_wholesaler)
@@ -375,13 +375,13 @@ class DeliveryChargeRepository:
 
         # Try to get default charge
         default_charge = await self.getDefaultCharge()
-        if default_charge and default_charge.isActive:
-            return {"charge": default_charge.defaultCharge, "isActive": True}
+        if default_charge and default_charge.is_active:
+            return {"charge": default_charge.default_charge, "is_active": True}
 
         # If no default charge, return None (will be treated as 0 in order creation)
         return None
 
 
-delivery_charge_repository = DeliveryChargeRepository()
+delivery_charge_repository = delivery_chargeRepository()
 
 

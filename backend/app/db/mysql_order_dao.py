@@ -68,7 +68,7 @@ class MySQLOrderDAO:
     def __map_to_schema(self, r, items: List[Dict], declines: List[Dict]) -> Order:
         d = dict(r._mapping)
         d["id"] = str(d["id"])
-        d["user"] = str(d["user_id"])
+        
         d["items"] = items
         d["valet_decline_history"] = declines
         return Order.model_validate(d)

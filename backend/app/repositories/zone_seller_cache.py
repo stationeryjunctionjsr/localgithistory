@@ -64,7 +64,7 @@ def _cache_zone(zone) -> frozenset:
 async def _fetch_all_zones() -> list:
     """Fetch all active zones from storage."""
     storage = get_storage("deliveryZones")
-    return await storage.findAll({"isActive": True})
+    return await storage.findAll({"is_active": True})
 
 
 async def _get_sellers_for_zone(zone_external_id: str) -> frozenset:

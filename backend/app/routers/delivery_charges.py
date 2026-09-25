@@ -19,16 +19,17 @@ from app.repositories.delivery_charge_repository import delivery_charge_reposito
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache
 from pydantic import BaseModel, ConfigDict, Field
+from app.models.base import CamelBaseModel
 
-class LocationChargeResponse(BaseModel):
+class LocationChargeResponse(CamelBaseModel):
     charge: float = 0.0
-    minCartValue: float = 0.0
+    min_cart_value: float = 0.0
     source: str = ""
-    deliveryCharge: Optional[float] = None
-    isApplicableToRole: bool = True
-    appliedTier: Optional[DeliveryChargeTier] = None
-    urgentDeliveryAvailable: bool = False
-    urgentDeliveryCharge: Optional[float] = None
+    delivery_charge: Optional[float] = None
+    is_applicable_to_role: bool = True
+    applied_tier: Optional[DeliveryChargeTier] = None
+    urgent_delivery_available: bool = False
+    urgentdelivery_charge: Optional[float] = None
     gstPercentage: float = 0.0
     gstAmount: float = 0.0
     totalCharge: float = 0.0
@@ -47,7 +48,7 @@ class ServiceabilityResponse(BaseModel):
     serviceableSellers: List[ServiceableSeller] = []
     slotBookingAvailable: bool = False
     availableDates: List[str] = []
-    urgentDeliveryAvailable: bool = False
+    urgent_delivery_available: bool = False
 
 class UploadCsvResponse(BaseModel):
     message: str
@@ -61,12 +62,12 @@ class CsvDeliveryChargeRow(BaseModel):
     city: Optional[str] = None
     district: Optional[str] = None
     charge: Optional[float] = 0.0
-    minCartValue: Optional[float] = Field(0.0, alias="min_cart_value")
+    min_cart_value: Optional[float] = Field(0.0, alias="min_cart_value")
     isActive: Optional[str] = Field("true", alias="is_active")
     serviceableForCustomer: Optional[str] = Field("true", alias="serviceable_for_customer")
     serviceableForWholesaler: Optional[str] = Field("false", alias="serviceable_for_wholesaler")
-    urgentDeliveryAvailable: Optional[str] = Field("false", alias="urgent_delivery_available")
-    urgentDeliveryCharge: Optional[str] = Field(None, alias="urgent_delivery_charge")
+    urgent_delivery_available: Optional[str] = Field("false", alias="urgent_delivery_available")
+    urgentdelivery_charge: Optional[str] = Field(None, alias="urgent_delivery_charge")
 
 
 router = APIRouter()

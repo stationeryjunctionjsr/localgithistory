@@ -10,8 +10,8 @@ class ReturnSettingsInternal(CamelBaseModel):
     external_id: Optional[str] = Field(None, alias='externalId')
     id: Optional[str] = Field(None, alias="_id")
     return_days: Optional[int] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class ReturnSettingsInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -37,8 +37,8 @@ class SchemeInternal(CamelBaseModel):
     is_active: Optional[bool] = None
     code: Optional[str] = None
     applicable_roles: Optional[List[str]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class SchemeInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -78,8 +78,8 @@ class ContactInternal(CamelBaseModel):
     display_order: Optional[int] = None
     addresses: Optional[List[str]] = None
     phone_numbers: Optional[List[str]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     social_media: Optional[SocialMedia] = None
 
 class ContactInternalCreate(CamelBaseModel):
@@ -115,8 +115,8 @@ class OrderFeedbackInternal(CamelBaseModel):
     order_id: Optional[str] = None
     rating: Optional[int] = None
     user_id: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class OrderFeedbackInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -146,8 +146,8 @@ class PromoStripsInternal(CamelBaseModel):
     id: Optional[str] = Field(None, alias="_id")
     is_active: Optional[bool] = None
     text: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     zone_ids: Optional[List[str]] = None
 
 class DeviceKeyInternal(CamelBaseModel):
@@ -164,8 +164,8 @@ class DeviceSubscriptionInternal(CamelBaseModel):
     endpoint: Optional[str] = None
     expo_token: Optional[str] = None
     keys: Optional[List[DeviceKeyInternal]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class DeviceSubscriptionInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -195,10 +195,10 @@ class CollectionInternal(CamelBaseModel):
     display_order: Optional[int] = None
     visible_pages: Optional[List[str]] = None
     user_segments: Optional[List[str]] = None
-    visibilityRules: Optional[List[Any]] = None
+    visibility_rules: Optional[List[Any]] = None
     product_ids: Optional[List[str]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class CollectionInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -211,7 +211,7 @@ class CollectionInternalCreate(CamelBaseModel):
     display_order: Optional[int] = None
     visible_pages: Optional[List[str]] = None
     user_segments: Optional[List[str]] = None
-    visibilityRules: Optional[List[Any]] = None
+    visibility_rules: Optional[List[Any]] = None
     product_ids: Optional[List[str]] = None
 
 class CollectionInternalUpdate(CamelBaseModel):
@@ -225,7 +225,7 @@ class CollectionInternalUpdate(CamelBaseModel):
     display_order: Optional[int] = None
     visible_pages: Optional[List[str]] = None
     user_segments: Optional[List[str]] = None
-    visibilityRules: Optional[List[Any]] = None
+    visibility_rules: Optional[List[Any]] = None
     product_ids: Optional[List[str]] = None
 
 class SearchTagInternal(CamelBaseModel):
@@ -242,8 +242,8 @@ class SearchTagInternal(CamelBaseModel):
     collections: Optional[List[str]] = None
     product_ids: Optional[List[str]] = None
     excluded_product_ids: Optional[List[str]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class SearchTagInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -283,8 +283,8 @@ class CoachMarkInternal(CamelBaseModel):
     screen_name: Optional[str] = None
     sequence_order: Optional[int] = None
     is_active: Optional[bool] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class CoachMarkInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -313,8 +313,8 @@ class CategoryTagInternal(CamelBaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class CategoryTagInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -356,8 +356,8 @@ class DeliveryChargeInternal(CamelBaseModel):
     urgent_delivery_available: Optional[bool] = None
     urgent_delivery_charge: Optional[float] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class DeliveryChargeInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -408,8 +408,8 @@ class DeliveryChargeDefaultInternal(CamelBaseModel):
     urgent_delivery_charge: Optional[float] = None
     is_active: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class DeliveryChargeDefaultInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -444,8 +444,8 @@ class DeliveryZoneInternal(CamelBaseModel):
     customer_type: Optional[str] = None
     is_active: Optional[bool] = None
     pincodes: Optional[List[str]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class DeliveryZoneInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -492,8 +492,8 @@ class DeliverySlotConfigInternal(CamelBaseModel):
     zone_id: Optional[str] = None
     is_active: Optional[bool] = None
     slots: Optional[List[DeliverySlotInternal]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class DeliverySlotConfigInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -512,7 +512,7 @@ class DeliverySlotConfigInternalUpdate(CamelBaseModel):
     zone_id: Optional[str] = None
     is_active: Optional[bool] = None
     slots: Optional[List[DeliverySlotInternal]] = None
-    updated_at: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
 class CustomerSegmentInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
@@ -526,8 +526,8 @@ class CustomerSegmentInternal(CamelBaseModel):
     is_system: Optional[bool] = None
     filters: Optional[CustomerSegmentFilters] = None
     user_ids: Optional[List[str]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class CustomerSegmentInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -548,7 +548,7 @@ class CustomerSegmentInternalUpdate(CamelBaseModel):
     is_active: Optional[bool] = None
     filters: Optional[CustomerSegmentFilters] = None
     user_ids: Optional[List[str]] = None
-    updated_at: Optional[str] = None
+    updated_at: Optional[datetime] = None
 
 class CouponQuantityTierInternal(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -720,8 +720,8 @@ class PushNotificationsInternal(CamelBaseModel):
     created_by: Optional[str] = None
     targetedUserIds: Optional[List[str]] = None
     readByUserIds: Optional[List[str]] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class PushNotificationsInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -801,8 +801,8 @@ class Google_reviewsInternal(BaseModel):
     method: Optional[str] = None
     rating: Optional[float] = None
     reviewCount: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 class Google_reviewsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -1021,7 +1021,7 @@ class SupportTicketInternalCreate(CamelBaseModel):
     responses: Optional[List[TicketResponseItemInternal]] = None
     resolved_at: Optional[str] = None
     closed_at: Optional[str] = None
-    created_at: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 class SupportTicketInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -1068,8 +1068,8 @@ class ActivityInternal(CamelBaseModel):
     os: Optional[str] = None
     os_version: Optional[str] = None
     device_type: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     meta: Optional[List[ActivityMetaInternal]] = None
 
 class ReturnRequestItemInternal(CamelBaseModel):
@@ -1099,8 +1099,8 @@ class ReturnRequestInternal(CamelBaseModel):
     valet_assigned_at: Optional[str] = None
     valet_cascade_count: Optional[int] = None
     delivery_charge: Optional[float] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     items: Optional[List[ReturnRequestItemInternal]] = None
     valet_decline_history: Optional[List[ReturnRequestValetDeclineInternal]] = None
     notes: Optional[str] = None
@@ -1143,6 +1143,6 @@ class SellerAvailabilityInternalCreate(CamelBaseModel):
     start_at: Optional[str] = None
     end_at: Optional[str] = None
     is_full_day: Optional[bool] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 

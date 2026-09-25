@@ -212,9 +212,9 @@ class ProductRepository:
 
             fields_text = {
                 "name": (p.name or "").lower(),
-                "searchTags": " ".join(p.searchTags or []).lower(),
+                "searchTags": " ".join(p.search_tags or []).lower(),
                 "category": (p.category or "").lower(),
-                "collections": " ".join(p.resolvedCollectionNames or []).lower(),
+                "collections": " ".join(p.resolved_collection_names or []).lower(),
                 "brand": (p.brand or "").lower(),
                 "variantAttributes": self._get_variant_search_text(p),
             }
@@ -304,11 +304,11 @@ class ProductRepository:
                     "_id": p.id,
                     "name": p.name,
                     "sku": p.sku,
-                    "searchTags": p.searchTags,
+                    "searchTags": p.search_tags,
                     "category": p.category,
                     "categoryTag": getattr(p, "categoryTag", getattr(p, "category_tag", None)),
                     "subCategory": p.sub_category,
-                    "resolvedCollectionNames": p.resolvedCollectionNames,
+                    "resolvedCollectionNames": p.resolved_collection_names,
                     "brand": p.brand,
                     "variantAttributes": p.variant_attributes,
                     "variantCombinations": getattr(p, "variantCombinations", getattr(p, "variant_combinations", None)),
@@ -792,7 +792,7 @@ class ProductRepository:
                 final_tags.append("trending")
             p.tags = final_tags
             # Mark products the logged-in user has previously bought (all-time, not time-limited)
-            p.previouslyBought = bool(user_id and str(pid) in user_ordered_pids)
+            p.previously_bought = bool(user_id and str(pid) in user_ordered_pids)
 
         return products
 
@@ -904,8 +904,8 @@ class ProductRepository:
                 if matched:
                     matched_tags.append((tag.name if tag.name is not None else ""))
 
-            p.searchTags = matched_tags
-            p.resolvedCollectionNames = product_collection_names[pid] if pid in product_collection_names else []
+            p.search_tags = matched_tags
+            p.resolved_collection_names = product_collection_names[pid] if pid in product_collection_names else []
 
         return products
 
@@ -1147,10 +1147,10 @@ class ProductRepository:
             pid = str((product.id if product.id is not None else ""))
             for c in active_discounts:
                 # Match role
-                if role not in (c.applicableRoles if c.applicableRoles is not None else []):
+                if role not in (c.applicable_roles if c.applicable_roles is not None else []):
                     continue
                 # Match user_id
-                applicable_user_ids = c.applicableUserIds or []
+                applicable_user_ids = c.applicable_user_ids or []
                 if applicable_user_ids:
                     if not user_id or str(user_id) not in [str(x) for x in applicable_user_ids]:
                         continue
@@ -1161,7 +1161,7 @@ class ProductRepository:
                         # Evaluate quantity tiers
                         qty_to_use = quantity
                         if role == "wholesaler" and sell_as_case:
-                            if c.applicableItemType == "cases" and product.quantityPerCase:
+                            if c.applicable_item_type == "cases" and product.quantityPerCase:
                                 qty_to_use = quantity // product.quantityPerCase
 
                         sorted_tiers = sorted(c.quantity_tiers, key=lambda x: x["quantity"] if "quantity" in x else 0, reverse=True)
@@ -1175,8 +1175,8 @@ class ProductRepository:
                         c_discount_type = "percentage"
                     else:
                         pct = 0.0
-                        val = float(c.discountValue or 0)
-                        c_discount_type = c.discountType
+                        val = float(c.discount_value or 0)
+                        c_discount_type = c.discount_type
                         if c_discount_type == "percentage":
                             pct = val
                         elif c_discount_type == "fixed":

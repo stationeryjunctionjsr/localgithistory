@@ -23,10 +23,10 @@ class CollectionRepository:
         for col in collections:
             # 1. Check isActive
             if "isActive" in query and query["isActive"] is not None:
-                if col.isActive != query["isActive"]:
+                if col.is_active != query["isActive"]:
                     continue
             else:
-                if not (col.isActive if col.isActive is not None else True):
+                if not (col.is_active if col.is_active is not None else True):
                     continue
 
             # 2. Check user segments
@@ -69,8 +69,8 @@ class CollectionRepository:
 
         collections = filtered
 
-        # Sort by displayOrder
-        collections.sort(key=lambda x: x.displayOrder if x.displayOrder is not None else 0)
+        # Sort by display_order
+        collections.sort(key=lambda x: x.display_order if x.display_order is not None else 0)
 
         return collections
 
