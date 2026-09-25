@@ -108,7 +108,7 @@ class MySQLSavedForLaterDAO:
                     text(
                         f"""
                         INSERT INTO {self.TABLE} (external_id, user_id, product_id, saved_at, created_at, updated_at)
-                        VALUES (UUID(), :user_id, :product_id, :saved_at, :created_at, :updated_at)
+                        VALUES (REPLACE(UUID(), '-', ''), :user_id, :product_id, :saved_at, :created_at, :updated_at)
                         """
                     ),
                     {
