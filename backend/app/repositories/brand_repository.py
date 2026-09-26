@@ -33,36 +33,10 @@ class BrandRepository:
         )
 
     async def create(self, data: 'BrandInternalCreate') -> Brand:
-        from app.models.daos import BrandInternalCreate
-        if not isinstance(data, BrandInternalCreate):
-            fields = {}
-            for f in data.model_fields_set:
-                match f:
-                    case "name": fields["name"] = data.name
-                    case "description": fields["description"] = data.description
-                    case "isActive": fields["isActive"] = data.is_active
-                    case "logoUrl": fields["logoUrl"] = data.logoUrl
-                    case "showInMobileHomepage": fields["showInMobileHomepage"] = data.showInMobileHomepage
-            internal_data = BrandInternalCreate.model_validate(fields)
-        else:
-            internal_data = data
-        return await self.storage.create(internal_data)
+        return await self.storage.create(data)
 
     async def update(self, id: str, data: 'BrandInternalUpdate') -> Optional[Brand]:
-        from app.models.daos import BrandInternalUpdate
-        if not isinstance(data, BrandInternalUpdate):
-            fields = {}
-            for f in data.model_fields_set:
-                match f:
-                    case "name": fields["name"] = data.name
-                    case "description": fields["description"] = data.description
-                    case "isActive": fields["isActive"] = data.is_active
-                    case "logoUrl": fields["logoUrl"] = data.logoUrl
-                    case "showInMobileHomepage": fields["showInMobileHomepage"] = data.showInMobileHomepage
-            internal_data = BrandInternalUpdate.model_validate(fields)
-        else:
-            internal_data = data
-        return await self.storage.update(id, internal_data)
+        return await self.storage.update(id, data)
 
     async def delete(self, id: str) -> bool:
         return await self.storage.delete(id)

@@ -33,51 +33,18 @@ class CategoryRepository:
         return categories[0] if categories else None
 
     async def create(self, category_data: 'CategoryInternalCreate') -> Category:
-        from app.models.daos import CategoryInternalCreate
-        if isinstance(category_data, dict):
-            category_data = CategoryInternalCreate.model_validate(category_data)
-        elif not isinstance(category_data, CategoryInternalCreate):
-            fields = {}
-            for f in getattr(category_data, "model_fields_set", []):
-                match f:
-                    case "name": fields["name"] = category_data.name
-                    case "description": fields["description"] = category_data.description
-                    case "parentId" | "parent_id": fields["parentId"] = category_data.parentId
-                    case "isActive" | "is_active": fields["isActive"] = category_data.is_active
-            category_data = CategoryInternalCreate.model_validate(fields)
         return await self.storage.create(category_data)
 
     async def update(self, id: str, update_data: 'CategoryInternalUpdate') -> Category:
-        from app.models.daos import CategoryInternalUpdate
         # Synchronize categoryTag and categoryTags for backward compatibility
-        if isinstance(update_data, dict):
-            update_data = CategoryInternalUpdate.model_validate(update_data)
-        update_dict = {}
-        for field in getattr(update_data, "model_fields_set", update_data.__dict__.keys() if hasattr(update_data, "__dict__") else []):
-            match field:
-                case "name": update_dict["name"] = update_data.name
-                case "description": update_dict["description"] = update_data.description
-                case "images": update_dict["images"] = update_data.images
-                case "subCategories" | "sub_categories": update_dict["subCategories"] = update_data.sub_categories
-                case "minimumQuantity" | "minimum_quantity": update_dict["minimumQuantity"] = update_data.minimum_quantity
-                case "categoryTag" | "category_tag": update_dict["categoryTag"] = update_data.category_tag
-                case "isActive" | "is_active": update_dict["isActive"] = update_data.is_active
-                case "showInMobileHomepage" | "show_in_mobile_homepage": update_dict["showInMobileHomepage"] = update_data.show_in_mobile_homepage
-                case "gst": update_dict["gst"] = update_data.gst
-                case "isReturnable" | "is_returnable": update_dict["isReturnable"] = update_data.is_returnable
-                case "parentId" | "parent_id": update_dict["parentId"] = update_data.parent_id
-        if "categoryTag" in update_dict:
-            tag = update_dict["categoryTag"]
-            update_dict["categoryTags"] = [tag] if tag else []
-        elif "categoryTags" in update_dict:
-            tags = update_dict["categoryTags"]
-            update_dict["categoryTag"] = tags[0] if isinstance(tags, list) and tags else ""
-
-        updates = {**update_dict, "updatedAt": self._get_timestamp()}
-        print("UPDATE_DATA:", type(update_data), update_data)
-        print("UPDATES:", updates)
-        internal_update = CategoryInternalUpdate.model_validate(updates)
-        return await self.storage.update(id, internal_update)
+        if 'category_tag' in update_data.model_fields_set:
+            tag = update_data.category_tag
+            update_data.category_tags = [tag] if tag else []
+        elif 'category_tags' in update_data.model_fields_set:
+            tags = update_data.category_tags
+            update_data.category_tag = tags[0] if tags else ""
+            
+        return await self.storage.update(id, update_data)
 
     async def delete(self, id: str) -> Category:
         # Soft delete - set isActive to false

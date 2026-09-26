@@ -86,22 +86,12 @@ class BundleRepository:
 
     async def create(self, data: 'BundleInternalCreate') -> 'Bundle':
         await self.ensure_table_exists()
-        from app.models.daos import BundleInternalCreate
-        if isinstance(data, dict):
-            internal_data = BundleInternalCreate.model_validate(data)
-        else:
-            internal_data = data
-        return await self.storage.create(internal_data)
+        return await self.storage.create(data)
 
     async def update(self, id: str, update_data: 'BundleInternalUpdate') -> Optional['Bundle']:
         await self.ensure_table_exists()
-        from app.models.daos import BundleInternalUpdate
-        if isinstance(update_data, dict):
-            internal_data = BundleInternalUpdate.model_validate(update_data)
-        else:
-            internal_data = update_data
-        internal_data.updated_at = datetime.now(timezone.utc).isoformat()
-        return await self.storage.update(id, internal_data)
+        update_data.updated_at = datetime.now(timezone.utc).isoformat()
+        return await self.storage.update(id, update_data)
 
     async def delete(self, id: str) -> bool:
         await self.ensure_table_exists()

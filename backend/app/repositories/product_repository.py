@@ -940,11 +940,9 @@ class ProductRepository:
 
     async def create(self, product_data: 'ProductInternalCreate') -> Product:
         from app.models.daos import ProductInternalCreate
-        if isinstance(product_data, dict):
-            product_data.setdefault("mrp", 0.0)
-            product_data.setdefault("price", 0.0)
-            product_data.setdefault("category", "Uncategorized")
-            product_data = ProductInternalCreate.model_validate(product_data)
+        if product_data.mrp is None: product_data.mrp = 0.0
+        if product_data.price is None: product_data.price = 0.0
+        if not product_data.category: product_data.category = "Uncategorized"
         # Use DB-native MAX(id) instead of loading all products into memory
         try:
             factory_fn = self.storage._factory()
@@ -1025,52 +1023,17 @@ class ProductRepository:
         return (await self._attach_category_gst([created]))[0]
 
     async def update(self, id: str, update_data: 'ProductInternalUpdate') -> Optional[Product]:
-        from app.models.daos import ProductInternalUpdate
         
-        # Zero Data Stripping: Do not use model_dump or dictionary methods!
-        update_fields = {}
-        for field_name in update_data.model_fields_set:
-            val = None
-            if field_name == "sellers": val = update_data.sellers
-            elif field_name == "sku": val = update_data.sku
-            elif field_name == "category": val = update_data.category
-            elif field_name == "subCategory": val = update_data.subCategory
-            elif field_name == "brand": val = update_data.brand
-            elif field_name == "mrpPerCase": val = update_data.mrpPerCase
-            elif field_name == "quantityPerCase": val = update_data.quantityPerCase
-            elif field_name == "stock": val = update_data.stock
-            elif field_name == "rating": val = update_data.rating
-            elif field_name == "reviews": val = update_data.reviews
-            elif field_name == "videos": val = update_data.videos
-            elif field_name == "tags": val = update_data.tags
-            elif field_name == "variantAttributes": val = update_data.variant_attributes
-            elif field_name == "variants": val = update_data.variants
-            elif field_name == "details": val = update_data.details
-            elif field_name == "name": val = update_data.name
-            elif field_name == "description": val = update_data.description
-            elif field_name == "price": val = update_data.price
-            elif field_name == "mrp": val = update_data.mrp
-            elif field_name == "categoryId": val = update_data.categoryId
-            elif field_name == "brandId": val = update_data.brand_id
-            elif field_name == "images": val = update_data.images
-            elif field_name == "isActive": val = update_data.is_active
-            elif field_name == "sellerId": val = update_data.seller_id
-
-            if field_name in ["mrp", "mrpPerCase"] and val is not None:
-                val = float(val)
-            elif field_name in ["quantityPerCase", "stock"] and val is not None:
-                val = int(val)
-            update_fields[field_name] = val
-
-        if "sku" in update_fields:
-            existing = await self.findBySku(update_fields["sku"])
+        if 'sku' in update_data.model_fields_set:
+            existing = await self.findBySku(update_data.sku)
             if existing and str(existing.id) != str(id):
                 raise ValueError("SKU already in use")
 
-        if "variantCombinations" in update_fields:
-            existing_product = await self.storage.findById(id)
-            sku_val = update_fields["sku"] if "sku" in update_fields else existing_product.sku
-            for combo in update_fields['variantCombinations']:
+        existing_product = await self.storage.findById(id)
+
+        if 'variant_combinations' in update_data.model_fields_set:
+            sku_val = update_data.sku if 'sku' in update_data.model_fields_set else existing_product.sku
+            for combo in update_data.variant_combinations:
                 combo_sku = combo.sku
                 combo_attrs = combo.attributes if combo.attributes is not None else {}
                 if not combo_sku or combo_sku.startswith("NEW-"):
@@ -1078,15 +1041,13 @@ class ProductRepository:
                         f"{sku_val}-{'-'.join(str(v).replace(' ', '') for v in combo_attrs.values())}"
                     )
                     combo.sku = combo_sku
-        
-        existing_product = await self.storage.findById(id)
-        internal_update = ProductInternalUpdate.model_validate(update_fields)
-        updated = await self.storage.update(id, internal_update)
+
+        updated = await self.storage.update(id, update_data)
         
         # Trigger restock notifications if stock increased from 0
-        if "stock" in update_fields and existing_product:
+        if 'stock' in update_data.model_fields_set and existing_product:
             old_stock = existing_product.stock or 0
-            new_stock = update_fields["stock"] or 0
+            new_stock = update_data.stock or 0
             if old_stock == 0 and new_stock > 0:
                 from app.repositories.product_notification_repository import product_notification_repository
                 import asyncio
