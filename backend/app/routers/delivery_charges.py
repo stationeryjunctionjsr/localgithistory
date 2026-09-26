@@ -350,7 +350,7 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
                 district=district_val,
                 charge=float(row.charge if row.charge is not None else 0),
                 minCartValue=float(row.min_cart_value if row.min_cart_value is not None else 0),
-                isActive=(row.isActive if row.isActive is not None else "true").lower() == "true",
+                isActive=(row.is_active if row.is_active is not None else "true").lower() == "true",
                 serviceableForCustomer=serviceable_for_customer,
                 serviceableForWholesaler=serviceable_for_wholesaler,
                 urgentDeliveryAvailable=urgent_delivery_available,

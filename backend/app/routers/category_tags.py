@@ -69,7 +69,7 @@ async def create_category_tag(tag: CategoryTagBase, current_user: dict = Depends
         if existing_tag:
             raise HTTPException(status_code=400, detail="Category tag with this name already exists")
 
-        tag_data = CategoryTagInternalCreate(name=tag.name.strip(), description=tag.description, isActive=tag.isActive)
+        tag_data = CategoryTagInternalCreate(name=tag.name.strip(), description=tag.description, isActive=tag.is_active)
         new_tag = await category_tag_repository.create(tag_data)
         cache.invalidate(get_active_category_tags)
         try:
@@ -113,8 +113,8 @@ async def update_category_tag(
             update_data.description = tag_update.description
             has_updates = True
 
-        if tag_update.isActive is not None:
-            update_data.isActive = tag_update.isActive
+        if tag_update.is_active is not None:
+            update_data.is_active = tag_update.is_active
             has_updates = True
 
         if not has_updates:

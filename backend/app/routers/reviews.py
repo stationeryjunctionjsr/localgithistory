@@ -235,8 +235,8 @@ async def admin_update_classification(
         existing.name = name
         has_updates = True
 
-    if class_data.isActive is not None:
-        existing.isActive = class_data.isActive
+    if class_data.is_active is not None:
+        existing.is_active = class_data.is_active
         has_updates = True
 
     if not has_updates:

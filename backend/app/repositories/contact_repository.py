@@ -26,8 +26,8 @@ class ContactRepository:
             contact_data.email = ""
         if contact_data.description is None:
             contact_data.description = ""
-        if contact_data.isActive is None:
-            contact_data.isActive = True
+        if contact_data.is_active is None:
+            contact_data.is_active = True
         if contact_data.displayOrder is None:
             contact_data.displayOrder = 0
 

@@ -978,7 +978,7 @@ class RecommendationRepository:
         return scores
 
     def _parse_created_at(self, doc) -> Optional[datetime]:
-        raw = doc.createdAt
+        raw = doc.created_at
             
         if not raw:
             return None
@@ -1066,7 +1066,7 @@ class RecommendationRepository:
         sellers = product.sellers or []
         return any(
             str(s.seller_id) in seller_id_set
-            and s.isActive
+            and s.is_active
             and (s.stock or 0) > 0
             and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"
             for s in sellers

@@ -28,8 +28,8 @@ class CategoryTagRepository:
         return None
 
     async def create(self, tag_data: CategoryTagInternalCreate) -> CategoryTagInternal:
-        if tag_data.isActive is None:
-            tag_data.isActive = True
+        if tag_data.is_active is None:
+            tag_data.is_active = True
         return await self.storage.create(tag_data)
 
     async def update(self, id: str, update_data: CategoryTagInternalUpdate) -> CategoryTagInternal:

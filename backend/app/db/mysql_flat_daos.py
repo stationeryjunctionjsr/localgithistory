@@ -383,10 +383,10 @@ class MySQLPromoStripsDAO:
             cols.append("text")
             vals.append(":text")
             params["text"] = data.text
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data.isActive else 0
+            params["isActive"] = 1 if data.is_active else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -412,9 +412,9 @@ class MySQLPromoStripsDAO:
         if data.text is not None:
             updates.append("text = :text")
             params["text"] = data.text
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if data.isActive else None
+            params["isActive"] = 1 if data.is_active else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -768,10 +768,10 @@ class MySQLCoachMarksDAO:
             cols.append("sequence_order")
             vals.append(":sequenceOrder")
             params["sequenceOrder"] = data.sequence_order
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data.isActive else 0
+            params["isActive"] = 1 if data.is_active else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -809,9 +809,9 @@ class MySQLCoachMarksDAO:
         if data.sequence_order is not None:
             updates.append("sequence_order = :sequenceOrder")
             params["sequenceOrder"] = data.sequence_order
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if data.isActive else None
+            params["isActive"] = 1 if data.is_active else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -915,10 +915,10 @@ class MySQLCategoryTagsDAO:
             cols.append("description")
             vals.append(":description")
             params["description"] = data.description
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data.isActive else 0
+            params["isActive"] = 1 if data.is_active else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -947,9 +947,9 @@ class MySQLCategoryTagsDAO:
         if data.description is not None:
             updates.append("description = :description")
             params["description"] = data.description
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if data.isActive else None
+            params["isActive"] = 1 if data.is_active else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -1679,10 +1679,10 @@ class MySQLClassificationTagsDAO:
             cols.append("name")
             vals.append(":name")
             params["name"] = data.name
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data.isActive else 0
+            params["isActive"] = 1 if data.is_active else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -1709,9 +1709,9 @@ class MySQLClassificationTagsDAO:
         if data.name is not None:
             updates.append("name = :name")
             params["name"] = data.name
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if data.isActive else None
+            params["isActive"] = 1 if data.is_active else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()
@@ -2117,10 +2117,10 @@ class MySQLPrivacyPolicyDAO:
             cols.append("effective_date")
             vals.append(":effectiveDate")
             params["effectiveDate"] = data.effectiveDate
-        if data.isActive is not None:
+        if data.is_active is not None:
             cols.append("is_active")
             vals.append(":isActive")
-            params["isActive"] = 1 if data.isActive else 0
+            params["isActive"] = 1 if data.is_active else 0
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)
@@ -2152,9 +2152,9 @@ class MySQLPrivacyPolicyDAO:
         if data.effectiveDate is not None:
             updates.append("effective_date = :effectiveDate")
             params["effectiveDate"] = data.effectiveDate
-        if data.isActive is not None:
+        if data.is_active is not None:
             updates.append("is_active = :isActive")
-            params["isActive"] = 1 if data.isActive else None
+            params["isActive"] = 1 if data.is_active else None
 
         set_sql = ", ".join(updates)
         factory = self._factory()

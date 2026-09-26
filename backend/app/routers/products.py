@@ -196,7 +196,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                     mrpPerCase=mrp_per_case,
                     quantityPerCase=qty_per_case,
                     stock=0,
-                    isActive=(main_row.isActive or "true").lower() in ["true", "1", "yes"],
+                    isActive=(main_row.is_active or "true").lower() in ["true", "1", "yes"],
                     images=[img.strip() for img in (main_row.images or "").split(",") if img.strip()] if main_row.images else [],
                     videos=[vid.strip() for vid in (main_row.videos or "").split(",") if vid.strip()] if main_row.videos else [],
                     variantAttributes=[],
@@ -275,7 +275,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                         stock=product_data.stock,
                         images=product_data.images,
                         videos=product_data.videos,
-                        isActive=product_data.isActive,
+                        isActive=product_data.is_active,
                         isExclusive=product_data.is_exclusive,
                         tags=product_data.tags,
                         variations=product_data.variations,
@@ -1037,7 +1037,7 @@ async def update_product(
             stock=product_data.stock,
             images=product_data.images,
             videos=product_data.videos,
-            isActive=product_data.isActive,
+            isActive=product_data.is_active,
             isExclusive=product_data.is_exclusive,
             tags=product_data.tags,
             variations=product_data.variations,
@@ -1068,8 +1068,8 @@ async def bulk_update_products(update_data: BulkUpdateData, current_user: User =
     for product_id in update_data.ids:
         data = ProductInternalUpdate()
         has_updates = False
-        if update_data.isActive is not None:
-            data.isActive = update_data.isActive
+        if update_data.is_active is not None:
+            data.is_active = update_data.is_active
             has_updates = True
         if update_data.is_exclusive is not None:
             data.is_exclusive = update_data.is_exclusive
@@ -1324,8 +1324,8 @@ async def update_my_seller_entry(
         
     if data.stock is not None:
         existing_entry.stock = data.stock
-    if data.isActive is not None:
-        existing_entry.isActive = data.isActive
+    if data.is_active is not None:
+        existing_entry.is_active = data.is_active
         
     update_data = ProductInternalUpdate(sellers=sellers_list)
     updated = await product_repository.update(product_id, update_data)
@@ -1377,7 +1377,7 @@ async def approve_seller_request(
                             detail=f"Zone overlap detected. Seller '{other_user.company_name or other_user.name}' is already selling this product in zone(s): {overlap_zones}. You must remove or deactivate the 1st seller before approving the 2nd seller."
                         )
                         
-        target_entry.isActive = True
+        target_entry.is_active = True
         
     target_entry.requestStatus = new_status
     if data and data.notes:

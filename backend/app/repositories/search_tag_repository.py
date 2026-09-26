@@ -75,7 +75,7 @@ class SearchTagRepository:
             tagId=new_tag_id,
             name=data.name,
             type=data.type,
-            isActive=data.isActive if data.isActive is not None else True,
+            isActive=data.is_active if data.is_active is not None else True,
             categories=data.categories if data.categories is not None else [],
             subCategories=data.sub_categories if data.sub_categories is not None else [],
             brands=data.brands if data.brands is not None else [],
@@ -91,7 +91,7 @@ class SearchTagRepository:
     async def findAllActive(self) -> List[SearchTagInternal]:
         """Return only active search tags"""
         all_tags = await self.findAll()
-        return [t for t in all_tags if (t.isActive if t.isActive is not None else True)]
+        return [t for t in all_tags if (t.is_active if t.is_active is not None else True)]
 
     async def addProductId(self, tag_id: str, product_id: str) -> Optional[SearchTagInternal]:
         """Add a product ID to the tag's productIds and remove from excludedProductIds if present"""

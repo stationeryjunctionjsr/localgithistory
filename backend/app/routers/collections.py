@@ -115,7 +115,7 @@ async def create_collection(data: CollectionCreate, current_user: User = Depends
         name=data.name,
         description=data.description,
         imageUrl=data.image_url,
-        isActive=data.isActive,
+        isActive=data.is_active,
         displayOrder=data.displayOrder,
         visiblePages=data.visible_pages,
         userSegments=data.user_segments,
@@ -137,7 +137,7 @@ async def update_collection(
     if 'name' in data.model_fields_set: internal_update.name = data.name
     if 'description' in data.model_fields_set: internal_update.description = data.description
     if 'imageUrl' in data.model_fields_set: internal_update.image_url = data.image_url
-    if 'isActive' in data.model_fields_set: internal_update.isActive = data.isActive
+    if 'isActive' in data.model_fields_set: internal_update.is_active = data.is_active
     if 'displayOrder' in data.model_fields_set: internal_update.displayOrder = data.displayOrder
     if 'visiblePages' in data.model_fields_set: internal_update.visible_pages = data.visible_pages
     if 'userSegments' in data.model_fields_set: internal_update.user_segments = data.user_segments

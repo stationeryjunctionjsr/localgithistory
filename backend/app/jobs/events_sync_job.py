@@ -48,7 +48,7 @@ async def run_events_sync_job_async():
             event_type = e.eventType
             session_id = None
             user_id = None
-            timestamp = e.createdAt.isoformat() if e.createdAt else None
+            timestamp = e.created_at.isoformat() if e.created_at else None
             payload_dict = {}
             for item in (e.payload or []):
                 if item.key == 'sessionId': session_id = item.value

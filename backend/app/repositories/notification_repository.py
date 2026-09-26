@@ -43,16 +43,16 @@ class NotificationRepository:
             notifications = [
                 n
                 for n in notifications
-                if n.createdAt and datetime.fromisoformat(n.createdAt.replace("Z", "+00:00")) >= start
+                if n.created_at and datetime.fromisoformat(n.created_at.replace("Z", "+00:00")) >= start
             ]
         if filters.end_date:
             end = datetime.fromisoformat(filters.end_date.replace("Z", "+00:00"))
             end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
             notifications = [
-                n for n in notifications if n.createdAt and datetime.fromisoformat(n.createdAt.replace("Z", "+00:00")) <= end
+                n for n in notifications if n.created_at and datetime.fromisoformat(n.created_at.replace("Z", "+00:00")) <= end
             ]
 
-        sorted_notifs = sorted(notifications, key=lambda x: x.createdAt or "", reverse=True)
+        sorted_notifs = sorted(notifications, key=lambda x: x.created_at or "", reverse=True)
         return [NotificationInternal(**n) if isinstance(n, dict) else NotificationInternal.model_validate(n, from_attributes=True) for n in sorted_notifs]
 
     async def findById(self, id: str) -> Optional[NotificationInternal]:
@@ -79,7 +79,7 @@ class NotificationRepository:
         return NotificationInternal(**result) if isinstance(result, dict) else NotificationInternal.model_validate(result, from_attributes=True)
 
     async def update(self, id: str, update_data: 'NotificationInternalUpdate') -> NotificationInternal:
-        update_data.updatedAt = self._get_timestamp()
+        update_data.updated_at = self._get_timestamp()
         result = await self.storage.update(id, update_data)
         return NotificationInternal(**result) if isinstance(result, dict) else NotificationInternal.model_validate(result, from_attributes=True)
 

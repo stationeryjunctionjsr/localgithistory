@@ -11,7 +11,7 @@ Data model (seller-declared zones):
     Sellers declare which zones they service via sj_seller_zones.zone_id.
     To find sellers for a pincode:
       1. Resolve pincode -> zone (via zone.pincodes[])
-      2. Read zone.externalId
+      2. Read zone.external_id
       3. Query sj_seller_zones WHERE zone_id = <externalId>
 
 Cache behaviour

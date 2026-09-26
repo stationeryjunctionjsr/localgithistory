@@ -72,7 +72,7 @@ class PushNotificationRepository:
 
     async def update(self, id: str, update_data: 'PushNotificationsInternalUpdate'):
         """Update a push notification"""
-        update_data.updatedAt = datetime.now(timezone.utc).isoformat()
+        update_data.updated_at = datetime.now(timezone.utc).isoformat()
         return await self.storage.update(id, update_data)
 
     async def delete(self, id: str):

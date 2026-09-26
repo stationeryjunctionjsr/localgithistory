@@ -273,7 +273,7 @@ class PushNotificationService:
                 reference_date = datetime.fromisoformat(reference_date_str.replace("Z", "+00:00"))
             else:
                 reference_date = datetime.fromisoformat(
-                    (notification.createdAt or datetime.now().isoformat()).replace("Z", "+00:00")
+                    (notification.created_at or datetime.now().isoformat()).replace("Z", "+00:00")
                 )
 
         if not user:
@@ -306,7 +306,7 @@ class PushNotificationService:
                         user_orders = []
                         for order in all_orders:
                             try:
-                                o_date = datetime.fromisoformat(order.createdAt.replace("Z", "+00:00"))
+                                o_date = datetime.fromisoformat(order.created_at.replace("Z", "+00:00"))
                                 if o_date <= reference_date:
                                     user_orders.append(order)
                             except Exception as exc:
@@ -332,7 +332,7 @@ class PushNotificationService:
                             o
                             for o in user_orders
                             if three_months_ago
-                            <= datetime.fromisoformat(o.createdAt.replace("Z", "+00:00"))
+                            <= datetime.fromisoformat(o.created_at.replace("Z", "+00:00"))
                             <= reference_date
                         ]
                         if len(recent_orders) >= 12:
@@ -344,7 +344,7 @@ class PushNotificationService:
                             o
                             for o in user_orders
                             if three_months_ago
-                            <= datetime.fromisoformat(o.createdAt.replace("Z", "+00:00"))
+                            <= datetime.fromisoformat(o.created_at.replace("Z", "+00:00"))
                             <= reference_date
                         ]
                         if 3 < len(recent_orders) <= 9:

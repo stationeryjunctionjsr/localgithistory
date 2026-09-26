@@ -85,7 +85,7 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
 
     # User HAS given feedback
     # Get the latest feedback
-    feedbacks.sort(key=lambda x: (x.createdAt or ""), reverse=True)
+    feedbacks.sort(key=lambda x: (x.created_at or ""), reverse=True)
     latest_feedback = feedbacks[0]
     from datetime import datetime, timezone
 
@@ -93,13 +93,13 @@ async def get_eligible_feedback_order(current_user: User = Depends(get_current_u
     from dateutil.relativedelta import relativedelta
 
     try:
-        latest_feedback_date = parser.parse(latest_feedback.createdAt) if isinstance(latest_feedback.createdAt, str) else latest_feedback.createdAt
+        latest_feedback_date = parser.parse(latest_feedback.created_at) if isinstance(latest_feedback.created_at, str) else latest_feedback.created_at
         if not latest_feedback_date.tzinfo:
             latest_feedback_date = latest_feedback_date.replace(tzinfo=timezone.utc)
     except Exception:
         logger.warning(
             "Could not parse latest feedback createdAt %r for feedback %r; defaulting to now() for eligibility window.",
-            latest_feedback.createdAt, getattr(latest_feedback, 'id', '?'), exc_info=True,
+            latest_feedback.created_at, getattr(latest_feedback, 'id', '?'), exc_info=True,
         )
         latest_feedback_date = datetime.now(timezone.utc)
 
@@ -144,6 +144,6 @@ async def get_all_feedback(current_user: User = Depends(require_super_admin)):
                 f.user = {"name": (user.name if user.name is not None else "Unknown"), "email": (user.email or "")}
 
     # sort by createdAt descending
-    feedbacks.sort(key=lambda x: (x.createdAt or ""), reverse=True)
+    feedbacks.sort(key=lambda x: (x.created_at or ""), reverse=True)
 
     return feedbacks

@@ -321,7 +321,7 @@ class ProductRepository:
                     "sellerIds": [
                         str(s.seller_id)
                         for s in (p.sellers or [])
-                        if s.isActive
+                        if s.is_active
                         and (s.stock or 0) > 0
                         and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"
                     ],
@@ -330,7 +330,7 @@ class ProductRepository:
                     "catalogSellerIds": [
                         str(s.seller_id)
                         for s in (p.sellers or [])
-                        if s.isActive
+                        if s.is_active
                         and (s.requestStatus if s.requestStatus is not None else "approved") == "approved"
                     ],
                     "displayImage": p.display_image or (p.images[0] if p.images else None),
@@ -1051,9 +1051,9 @@ class ProductRepository:
             elif field_name == "price": val = update_data.price
             elif field_name == "mrp": val = update_data.mrp
             elif field_name == "categoryId": val = update_data.categoryId
-            elif field_name == "brandId": val = update_data.brandId
+            elif field_name == "brandId": val = update_data.brand_id
             elif field_name == "images": val = update_data.images
-            elif field_name == "isActive": val = update_data.isActive
+            elif field_name == "isActive": val = update_data.is_active
             elif field_name == "sellerId": val = update_data.seller_id
 
             if field_name in ["mrp", "mrpPerCase"] and val is not None:

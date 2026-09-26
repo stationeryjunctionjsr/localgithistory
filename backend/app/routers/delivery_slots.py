@@ -177,7 +177,7 @@ async def get_available_slots(
     slots = config.slots
     for slot in slots:
         logger.debug(f"get_available_slots: evaluating slot id={slot.id}")
-        if not (slot.isActive if slot.isActive is not None else True):
+        if not (slot.is_active if slot.is_active is not None else True):
             continue
 
         is_full_day = bool(slot.isFullDay)
@@ -206,7 +206,7 @@ async def get_available_slots(
 
         if not is_full_day:
             cap = int(slot.capacity) if slot.capacity is not None else config.zoneDefaultCapacity
-            booked = int(slot.bookedCount or 0)
+            booked = int(slot.booked_count or 0)
             if cap is not None and booked >= cap:
                 logger.debug(f"get_available_slots: slot skipped — at capacity")
                 continue
@@ -266,7 +266,7 @@ async def get_dates_with_slots(
         has_valid_slot = False
         slots = config.slots
         for slot in slots:
-            if not (slot.isActive if slot.isActive is not None else True):
+            if not (slot.is_active if slot.is_active is not None else True):
                 continue
 
             is_full_day = bool(slot.isFullDay)
@@ -296,7 +296,7 @@ async def get_dates_with_slots(
             # Capacity check with zone fallback
             if not is_full_day:
                 cap = int(slot.capacity) if slot.capacity is not None else config.zoneDefaultCapacity
-                booked = int(slot.bookedCount or 0)
+                booked = int(slot.booked_count or 0)
                 if cap is not None and (cap - booked) <= 0:
                     continue
 
@@ -338,10 +338,10 @@ async def book_slot(
         current_slot_id = slot.id or f"{slot.startTime}-{slot.endTime}"
         if current_slot_id == slot_id:
             cap = int(slot.capacity) if slot.capacity is not None else cfg.zoneDefaultCapacity
-            booked = int(slot.bookedCount or 0)
+            booked = int(slot.booked_count or 0)
             if cap is not None and booked >= cap:
                 raise HTTPException(status_code=409, detail="Slot is fully booked")
-            slot.bookedCount = booked + 1
+            slot.booked_count = booked + 1
             updated = True
             booked_slot = slot
             break
@@ -390,7 +390,7 @@ async def create_delivery_slot_config(
             date=config.date,
             zoneId=zone_id,
             slots=[DeliverySlotInternal.model_validate(s, from_attributes=True) for s in slots_with_capacity],
-            isActive=config.isActive
+            isActive=config.is_active
         )
 
         # Check for existing config for this date/segment/zone

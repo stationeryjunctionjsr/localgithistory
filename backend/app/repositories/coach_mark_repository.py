@@ -27,8 +27,8 @@ class CoachMarkRepository:
         return None
 
     async def create(self, data: CoachMarkInternalCreate) -> CoachMarkInternal:
-        if data.isActive is None:
-            data.isActive = True
+        if data.is_active is None:
+            data.is_active = True
         return await self.storage.create(data)
 
     async def update(self, id: str, update_data: CoachMarkInternalUpdate) -> CoachMarkInternal:

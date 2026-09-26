@@ -43,7 +43,7 @@ class CategoryRepository:
                     case "name": fields["name"] = category_data.name
                     case "description": fields["description"] = category_data.description
                     case "parentId" | "parent_id": fields["parentId"] = category_data.parentId
-                    case "isActive" | "is_active": fields["isActive"] = category_data.isActive
+                    case "isActive" | "is_active": fields["isActive"] = category_data.is_active
             category_data = CategoryInternalCreate(**fields)
         return await self.storage.create(category_data)
 

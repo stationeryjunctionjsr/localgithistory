@@ -41,7 +41,7 @@ class ValetPayoutSettingsModel(BaseModel):
 
     @property
     def updated_at(self) -> Optional[datetime]:
-        return self.updatedAt
+        return self.updated_at
 
 
 async def _get_settings() -> ValetPayoutSettingsModel:
@@ -99,7 +99,7 @@ async def update_valet_payout_settings(
     return {
         "deliveryChargePerOrder": (updated_model.delivery_chargePerOrder if updated_model.delivery_chargePerOrder is not None else 0.0),
         "returnPickupChargePerOrder": (updated_model.return_pickup_charge_per_order if updated_model.return_pickup_charge_per_order is not None else 0.0),
-        "updatedAt": updated_model.updatedAt,
+        "updatedAt": updated_model.updated_at,
     }
 
 

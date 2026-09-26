@@ -23,7 +23,7 @@ class ContentRepository:
         payload = {**data, "updatedAt": self._ts()}
         if existing:
             return await self.storage.update(existing.id, payload)
-        payload.createdAt = self._ts()
+        payload.created_at = self._ts()
         return await self.storage.create(payload)
 
 
@@ -93,7 +93,7 @@ class VersionedContentRepository(ContentRepository):
         if existing:
             return await self.storage.update(existing.id, payload)
 
-        payload.createdAt = now
+        payload.created_at = now
         return await self.storage.create(payload)
 
 

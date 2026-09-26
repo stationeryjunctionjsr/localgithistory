@@ -37,7 +37,7 @@ class BannerRepository:
             
             # 4. Ensure required date fields exist for Pydantic validation
             if not banner.start_date:
-                banner.start_date = banner.createdAt or datetime.now(timezone.utc).isoformat()
+                banner.start_date = banner.created_at or datetime.now(timezone.utc).isoformat()
             elif not banner.position:
                 banner.position = "homepage"
 
@@ -47,7 +47,7 @@ class BannerRepository:
         target_page_id = query["pageId"] if "pageId" in query else None
 
         if "isActive" in query and query["isActive"] is not None:
-            banners = [b for b in banners if b.isActive == query["isActive"]]
+            banners = [b for b in banners if b.is_active == query["isActive"]]
 
         if "isPublished" in query and query["isPublished"] is not None:
             banners = [b for b in banners if b.is_published == query["isPublished"]]
@@ -182,7 +182,7 @@ class BannerRepository:
             "displayOrder": banner_data.displayOrder if banner_data.displayOrder is not None else 0,
             "startDate": start_date,
             "endDate": banner_data.end_date,
-            "isActive": banner_data.isActive if banner_data.isActive is not None else True,
+            "isActive": banner_data.is_active if banner_data.is_active is not None else True,
             "isPublished": banner_data.is_published if banner_data.is_published is not None else False,
             "targetAudience": target_audience,
             "userSegments": user_segments,
@@ -206,7 +206,7 @@ class BannerRepository:
                 case "displayOrder": update_dict["displayOrder"] = update_data.displayOrder
                 case "startDate": update_dict["startDate"] = update_data.start_date
                 case "endDate": update_dict["endDate"] = update_data.end_date
-                case "isActive": update_dict["isActive"] = update_data.isActive
+                case "isActive": update_dict["isActive"] = update_data.is_active
                 case "isPublished": update_dict["isPublished"] = update_data.is_published
                 case "targetAudience": update_dict["targetAudience"] = update_data.target_audience
                 case "userSegments": update_dict["userSegments"] = update_data.user_segments

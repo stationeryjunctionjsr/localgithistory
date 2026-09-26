@@ -294,7 +294,7 @@ async def get_recommendation_metrics(days: int = 30, current_user: User = Depend
         try:
             activities = await storage.findAll({"action": action})
             for doc in activities:
-                created = doc.createdAt or ""
+                created = doc.created_at or ""
                 if created < cutoff:
                     continue
                 meta_list = doc.meta or []

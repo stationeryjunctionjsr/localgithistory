@@ -31,7 +31,7 @@ class PromoStripRepository:
         strips = await self.storage.findAll()
         result = []
         for s in strips:
-            if not (s.isActive if s.isActive is not None else True):
+            if not (s.is_active if s.is_active is not None else True):
                 continue
             if zone_id:
                 # zone_id given: show global strips (no zoneIds) OR zone-matched strips
@@ -45,8 +45,8 @@ class PromoStripRepository:
         return result
 
     async def create(self, data: PromoStripsInternalCreate) -> PromoStripsInternal:
-        if data.isActive is None:
-            data.isActive = True
+        if data.is_active is None:
+            data.is_active = True
         return await self.storage.create(data)
 
     async def update(self, id: str, update_data: PromoStripsInternalUpdate) -> PromoStripsInternal:

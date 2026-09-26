@@ -144,7 +144,7 @@ class PaymentRepository:
                 update_dict["updatedAt"] = datetime.now(timezone.utc).isoformat()
                 update_data = PaymentInternalUpdate.model_validate(update_dict)
         else:
-            update_data.updatedAt = datetime.now(timezone.utc).isoformat()
+            update_data.updated_at = datetime.now(timezone.utc).isoformat()
 
         return await self.storage.update(id, update_data)
 

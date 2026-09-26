@@ -32,7 +32,7 @@ class SellerRequestRepository:
             requests = [r for r in requests if r.requestNumber == query["requestNumber"]]
 
         # Sort by creation date (newest first)
-        requests.sort(key=lambda x: x.createdAt if x.createdAt else "", reverse=True)
+        requests.sort(key=lambda x: x.created_at if x.created_at else "", reverse=True)
 
         return requests
 
@@ -41,7 +41,7 @@ class SellerRequestRepository:
 
     async def create(self, request_data: SellerRequestInternalCreate):
         request_data.requestNumber = self.generateRequestNumber()
-        request_data.createdAt = datetime.now(timezone.utc).isoformat()
+        request_data.created_at = datetime.now(timezone.utc).isoformat()
         if request_data.category is None:
             request_data.category = "general"
         if request_data.priority is None:

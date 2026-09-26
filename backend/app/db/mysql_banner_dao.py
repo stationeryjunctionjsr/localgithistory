@@ -99,7 +99,7 @@ class MySQLBannerDAO:
                     "display_order": (data.displayOrder if data.displayOrder is not None else 0),
                     "start_date": data.start_date,
                     "end_date": data.end_date,
-                    "is_active": int(bool((data.isActive if data.isActive is not None else True))),
+                    "is_active": int(bool((data.is_active if data.is_active is not None else True))),
                     "is_published": int(bool((data.is_published if data.is_published is not None else False))),
                     "target_audience": data.target_audience,
                     "position": data.position,
@@ -133,7 +133,7 @@ class MySQLBannerDAO:
                 case "displayOrder": val = update_data.displayOrder if update_data.displayOrder is not None else existing.display_order
                 case "startDate": val = update_data.start_date if update_data.start_date is not None else existing.start_date
                 case "endDate": val = update_data.end_date if update_data.end_date is not None else existing.end_date
-                case "isActive": val = update_data.isActive if update_data.isActive is not None else existing.is_active
+                case "isActive": val = update_data.is_active if update_data.is_active is not None else existing.is_active
                 case "isPublished": val = update_data.is_published if update_data.is_published is not None else existing.is_published
                 case "targetAudience": val = update_data.target_audience if update_data.target_audience is not None else existing.target_audience
                 case "position": val = update_data.position if update_data.position is not None else existing.position

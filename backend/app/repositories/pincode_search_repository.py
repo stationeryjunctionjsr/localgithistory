@@ -68,7 +68,7 @@ class PincodeSearchRepository:
             return {"items": [], "total": 0, "page": page, "limit": limit, "pages": 0}
 
         # Sort newest first
-        all_records.sort(key=lambda r: r.searched_at or r.createdAt or "", reverse=True)
+        all_records.sort(key=lambda r: r.searched_at or r.created_at or "", reverse=True)
 
         filtered = []
         for r in all_records:
@@ -86,12 +86,12 @@ class PincodeSearchRepository:
                     continue
 
             if start_date:
-                dt_str = r.searched_at or r.createdAt or ""
+                dt_str = r.searched_at or r.created_at or ""
                 if dt_str and dt_str < start_date:
                     continue
 
             if end_date:
-                dt_str = r.searched_at or r.createdAt or ""
+                dt_str = r.searched_at or r.created_at or ""
                 if dt_str and dt_str > end_date:
                     continue
 

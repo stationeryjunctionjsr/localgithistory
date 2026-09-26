@@ -242,7 +242,7 @@ class ReferralProgramSegmentSettings(BaseModel):
 
     @property
     def is_active(self) -> bool:
-        return self.isActive
+        return self.is_active
 
     @property
     def discount_type(self) -> str:
@@ -1101,7 +1101,7 @@ async def create_order(
         for sc in slot_configs:
             sc_slots = sc.slots or []
             for sl in sc_slots:
-                sl_is_active = sl.isActive
+                sl_is_active = sl.is_active
                 if not (sl_is_active if sl_is_active is not None else True):
                     continue
 
@@ -1111,7 +1111,7 @@ async def create_order(
                 _cap = sl.capacity
                 if _cap is None:
                     _cap = sc.zoneDefaultCapacity
-                _booked = (sl.bookedCount) or 0
+                _booked = (sl.booked_count) or 0
                 if _cap is not None and _booked >= int(_cap):
                     continue  # Slot full
 
@@ -1170,7 +1170,7 @@ async def create_order(
                 _cap = matched_slot.capacity
                 if _cap is None:
                     _cap = matched_config.zoneDefaultCapacity
-                _booked = (matched_slot.bookedCount) or 0
+                _booked = (matched_slot.booked_count) or 0
                 if _cap is not None and _booked >= int(_cap):
                     raise HTTPException(
                         status_code=400, detail="Selected delivery slot is fully booked.")

@@ -373,7 +373,7 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
         # Non-super admins cannot change certain fields
         user_data.role = None
         user_data.approval_status = None
-        user_data.isActive = None
+        user_data.is_active = None
         user_data.credit_limit = None
 
 

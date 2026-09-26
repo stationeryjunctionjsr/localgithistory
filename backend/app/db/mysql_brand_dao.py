@@ -106,7 +106,7 @@ class MySQLBrandDAO:
                     "slug": data.name.lower().replace(" ", "-") if data.name else "",
                     "image_url": data.logoUrl,
                     "show_in_mobile_homepage": 1 if data.showInMobileHomepage else 0,
-                    "is_active": 1 if (data.isActive if data.isActive is not None else True) else 0,
+                    "is_active": 1 if (data.is_active if data.is_active is not None else True) else 0,
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -153,9 +153,9 @@ class MySQLBrandDAO:
             updates.append("show_in_mobile_homepage = :show_in_mobile_homepage")
             params["show_in_mobile_homepage"] = 1 if update_data.showInMobileHomepage else 0
             
-        if update_data.isActive is not None:
+        if update_data.is_active is not None:
             updates.append("is_active = :is_active")
-            params["is_active"] = 1 if update_data.isActive else 0
+            params["is_active"] = 1 if update_data.is_active else 0
 
         set_sql = ", ".join(updates)
 

@@ -40,7 +40,7 @@ class BrandRepository:
                 match f:
                     case "name": fields["name"] = data.name
                     case "description": fields["description"] = data.description
-                    case "isActive": fields["isActive"] = data.isActive
+                    case "isActive": fields["isActive"] = data.is_active
                     case "logoUrl": fields["logoUrl"] = data.logoUrl
                     case "showInMobileHomepage": fields["showInMobileHomepage"] = data.showInMobileHomepage
             internal_data = BrandInternalCreate(**fields)
@@ -56,7 +56,7 @@ class BrandRepository:
                 match f:
                     case "name": fields["name"] = data.name
                     case "description": fields["description"] = data.description
-                    case "isActive": fields["isActive"] = data.isActive
+                    case "isActive": fields["isActive"] = data.is_active
                     case "logoUrl": fields["logoUrl"] = data.logoUrl
                     case "showInMobileHomepage": fields["showInMobileHomepage"] = data.showInMobileHomepage
             internal_data = BrandInternalUpdate(**fields)

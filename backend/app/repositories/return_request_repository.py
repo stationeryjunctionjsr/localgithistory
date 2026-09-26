@@ -72,7 +72,7 @@ class ReturnRequestRepository:
     async def findAll(self, query: Optional[Dict] = None) -> List[ReturnRequestInternal]:
         requests = await self.storage.findAll(query)
         if not query:
-            requests.sort(key=lambda x: x.createdAt or "", reverse=True)
+            requests.sort(key=lambda x: x.created_at or "", reverse=True)
         return requests
 
     async def findById(self, id: str) -> Optional[ReturnRequestInternal]:

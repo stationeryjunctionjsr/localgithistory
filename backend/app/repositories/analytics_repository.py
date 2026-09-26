@@ -53,7 +53,7 @@ class AnalyticsRepository:
         filtered = []
         for item in items:
             if date_field == "createdAt":
-                item_date = self._parse_date(item.createdAt if item.createdAt is not None else "")
+                item_date = self._parse_date(item.created_at if item.created_at is not None else "")
             elif date_field == "timestamp":
                 item_date = self._parse_date(item.timestamp if item.timestamp is not None else "")
             else:
@@ -116,7 +116,7 @@ class AnalyticsRepository:
         sales_by_period = {}
 
         for order in orders:
-            order_date = self._parse_date(order.createdAt)
+            order_date = self._parse_date(order.created_at)
             if not order_date:
                 continue
 
@@ -203,7 +203,7 @@ class AnalyticsRepository:
         orders_by_period = defaultdict(OrderPeriodStats)
 
         for order in orders:
-            order_date = self._parse_date(order.createdAt)
+            order_date = self._parse_date(order.created_at)
             if not order_date:
                 continue
 
@@ -529,7 +529,7 @@ class AnalyticsRepository:
             if not user_id:
                 continue
 
-            order_date = self._parse_date(order.createdAt)
+            order_date = self._parse_date(order.created_at)
             if not order_date:
                 continue
 
@@ -549,7 +549,7 @@ class AnalyticsRepository:
                 if order.user != user_id:
                     continue
 
-                order_date = self._parse_date(order.createdAt)
+                order_date = self._parse_date(order.created_at)
                 if not order_date:
                     continue
 
@@ -609,7 +609,7 @@ class AnalyticsRepository:
             if not uid:
                 continue
             user_session_counts[uid] += 1
-            start_dt = self._parse_date(s.createdAt)
+            start_dt = self._parse_date(s.created_at)
             end_dt = self._parse_date(s.revokedAt or s.lastActiveAt)
             if not start_dt:
                 continue
@@ -688,8 +688,8 @@ class AnalyticsRepository:
             sessions = [
                 s
                 for s in sessions
-                if self._to_naive_utc(self._parse_date(s.createdAt)) is not None
-                and self._to_naive_utc(self._parse_date(s.createdAt)) >= reg_naive
+                if self._to_naive_utc(self._parse_date(s.created_at)) is not None
+                and self._to_naive_utc(self._parse_date(s.created_at)) >= reg_naive
             ]
 
         total_sessions = len(sessions)
@@ -698,7 +698,7 @@ class AnalyticsRepository:
         # 1) Average session time (all devices): end = revokedAt or lastActiveAt, start = createdAt
         session_durations_sec = []
         for s in sessions:
-            start_dt = self._to_naive_utc(self._parse_date(s.createdAt))
+            start_dt = self._to_naive_utc(self._parse_date(s.created_at))
             end_dt = self._to_naive_utc(self._parse_date(s.revokedAt or s.lastActiveAt))
             if not start_dt:
                 continue
@@ -713,13 +713,13 @@ class AnalyticsRepository:
 
         # 2) Average days between two consecutive sessions
         sorted_sessions = sorted(
-            [s for s in sessions if s.createdAt],
-            key=lambda s: s.createdAt,
+            [s for s in sessions if s.created_at],
+            key=lambda s: s.created_at,
         )
         gaps_days = []
         for i in range(len(sorted_sessions) - 1):
-            d1 = self._to_naive_utc(self._parse_date(sorted_sessions[i].createdAt))
-            d2 = self._to_naive_utc(self._parse_date(sorted_sessions[i + 1].createdAt))
+            d1 = self._to_naive_utc(self._parse_date(sorted_sessions[i].created_at))
+            d2 = self._to_naive_utc(self._parse_date(sorted_sessions[i + 1].created_at))
             if d1 and d2:
                 gaps_days.append((d2 - d1).total_seconds() / 86400.0)
         average_days_between_sessions = round(sum(gaps_days) / len(gaps_days), 2) if gaps_days else None
@@ -744,7 +744,7 @@ class AnalyticsRepository:
             if o.user != user_id:
                 continue
             if reg_naive is not None:
-                o_dt = self._to_naive_utc(self._parse_date(o.createdAt))
+                o_dt = self._to_naive_utc(self._parse_date(o.created_at))
                 if not o_dt or o_dt < reg_naive:
                     continue
             orders_for_user.append(o)
@@ -851,7 +851,7 @@ class AnalyticsRepository:
             aov = round(total_revenue / total_orders, 2) if total_orders > 0 else 0
 
             # 2. Average orders in a month (Overall frequency sejak awal)
-            order_dates = [self._to_naive_utc(self._parse_date(o.createdAt)) for o in u_orders]
+            order_dates = [self._to_naive_utc(self._parse_date(o.created_at)) for o in u_orders]
             order_dates = [d for d in order_dates if d]
 
             avg_orders_per_month = 0
@@ -889,7 +889,7 @@ class AnalyticsRepository:
         # Filter by date
         filtered_tracking = []
         for t in all_tracking:
-            ts = self._parse_date(t.timestamp or t.createdAt)
+            ts = self._parse_date(t.timestamp or t.created_at)
             if start_date and ts and ts < start_date:
                 continue
             if end_date and ts and ts > end_date:
@@ -1000,7 +1000,7 @@ class AnalyticsRepository:
 
         result = []
         for ret in all_returns:
-            created = self._parse_date(ret.createdAt)
+            created = self._parse_date(ret.created_at)
             if start_date and created and created < start_date:
                 continue
             if end_date and created and created > end_date:
@@ -1022,7 +1022,7 @@ class AnalyticsRepository:
                     "refundValue": round(refund_value, 2),
                     "itemCount": len(items),
                     "paymentMethod": ret.payment_method,
-                    "createdAt": ret.createdAt,
+                    "createdAt": ret.created_at,
                 }
             )
 
@@ -1134,8 +1134,8 @@ class AnalyticsRepository:
             if status not in TERMINAL_STATUSES:
                 continue
 
-            created_dt = self._to_naive_utc(self._parse_date(order.createdAt))
-            updated_dt = self._to_naive_utc(self._parse_date(order.updatedAt))
+            created_dt = self._to_naive_utc(self._parse_date(order.created_at))
+            updated_dt = self._to_naive_utc(self._parse_date(order.updated_at))
 
             if not created_dt or not updated_dt:
                 continue
@@ -1154,7 +1154,7 @@ class AnalyticsRepository:
                     "fulfillmentHours": delta_hours,
                     "fulfillmentDays": round(delta_hours / 24, 1),
                     "orderTotal": order.total,
-                    "createdAt": order.createdAt,
+                    "createdAt": order.created_at,
                 }
             )
 
@@ -1389,7 +1389,7 @@ class AnalyticsRepository:
 
         product_returns = {}
         for req in returns:
-            created = self._parse_date(req.createdAt)
+            created = self._parse_date(req.created_at)
             if start_date and created and created < start_date:
                 continue
             if end_date and created and created > end_date:
@@ -1525,7 +1525,7 @@ class AnalyticsRepository:
         orders = await self.order_storage.find({"status": "completed"})
         for order in orders:
             items = order.items
-            order_date = order.createdAt
+            order_date = order.created_at
             month_key = None
             if order_date:
                 # parse date
@@ -1581,7 +1581,7 @@ class AnalyticsRepository:
                 "bundleId": b_id,
                 "name": b.name,
                 "price": b.price,
-                "isActive": b.isActive,
+                "isActive": b.is_active,
                 "orderCount": data.order_count,
                 "copiesSold": data.copies_sold,
                 "totalRevenue": round(data.revenue, 2),
@@ -1787,7 +1787,7 @@ class AnalyticsRepository:
             uid = order.user
             if not uid:
                 continue
-            dt = self._to_naive_utc(self._parse_date(order.createdAt))
+            dt = self._to_naive_utc(self._parse_date(order.created_at))
             if not dt:
                 continue
             if uid not in stats:
@@ -1922,7 +1922,7 @@ class AnalyticsRepository:
                     "shipping": round(shipping, 2),
                     "netSales": net,
                     "status": order.status,
-                    "createdAt": order.createdAt,
+                    "createdAt": order.created_at,
                 }
             )
 
@@ -1946,7 +1946,7 @@ class AnalyticsRepository:
 
         heat: dict = {}
         for order in orders:
-            dt = self._parse_date(order.createdAt)
+            dt = self._parse_date(order.created_at)
             if not dt:
                 continue
             key = (dt.weekday(), dt.hour)
@@ -1990,7 +1990,7 @@ class AnalyticsRepository:
         # Units sold per product in the last 30 days
         units_sold: dict = defaultdict(int)
         for order in orders:
-            dt = self._to_naive_utc(self._parse_date(order.createdAt))
+            dt = self._to_naive_utc(self._parse_date(order.created_at))
             if not dt or dt < window_start:
                 continue
             for item in order.items:
@@ -2112,7 +2112,7 @@ class AnalyticsRepository:
                     "discountApplied": round(discount, 2),
                     "netAfterDiscount": net,
                     "discountPct": round(discount / gross * 100, 1) if gross > 0 else 0.0,
-                    "createdAt": order.createdAt,
+                    "createdAt": order.created_at,
                 }
             )
 
