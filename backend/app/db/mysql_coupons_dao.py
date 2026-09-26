@@ -183,30 +183,40 @@ class MySQLCouponsDAO:
             vals.append(":s_appliesToType")
             params["s_appliesToType"] = data.applies_to_type
 
-        if data.displayId is not None:
+        if data.display_id is not None:
             cols.append("display_id")
             vals.append(":s_displayId")
-            params["s_displayId"] = data.displayId
+            params["s_displayId"] = data.display_id
 
-        if data.buyXGetYCustomerGetsAppliesToValueIds is not None:
+        if data.buy_x_get_y_customer_gets_quantity is not None:
+            cols.append("bxgy_customer_gets_quantity")
+            vals.append(":s_bxgy_customer_gets_quantity")
+            params["s_bxgy_customer_gets_quantity"] = data.buy_x_get_y_customer_gets_quantity
+
+        if data.buy_x_get_y_customer_gets_applies_to_type is not None:
+            cols.append("bxgy_customer_gets_applies_to_type")
+            vals.append(":s_bxgy_customer_gets_applies_to_type")
+            params["s_bxgy_customer_gets_applies_to_type"] = data.buy_x_get_y_customer_gets_applies_to_type
+
+        if data.buy_x_get_y_customer_gets_applies_to_value_ids is not None:
             cols.append("bxgy_applies_to_ids")
             vals.append(":s_bxgy_applies_to_ids")
-            params["s_bxgy_applies_to_ids"] = json.dumps(data.buyXGetYCustomerGetsAppliesToValueIds)
+            params["s_bxgy_applies_to_ids"] = json.dumps(data.buy_x_get_y_customer_gets_applies_to_value_ids)
 
-        if data.buyXGetYCustomerGetsDiscountType is not None:
+        if data.buy_x_get_y_customer_gets_discount_type is not None:
             cols.append("bxgy_discount_type")
             vals.append(":s_bxgy_discount_type")
-            params["s_bxgy_discount_type"] = data.buyXGetYCustomerGetsDiscountType
+            params["s_bxgy_discount_type"] = data.buy_x_get_y_customer_gets_discount_type
 
-        if data.buyXGetYCustomerGetsDiscountValue is not None:
+        if data.buy_x_get_y_customer_gets_discount_value is not None:
             cols.append("bxgy_discount_value")
             vals.append(":s_bxgy_discount_value")
-            params["s_bxgy_discount_value"] = data.buyXGetYCustomerGetsDiscountValue
+            params["s_bxgy_discount_value"] = data.buy_x_get_y_customer_gets_discount_value
 
-        if data.applicableItemType is not None:
+        if data.applicable_item_type is not None:
             cols.append("applicable_item_type")
             vals.append(":s_applicable_item_type")
-            params["s_applicable_item_type"] = data.applicableItemType
+            params["s_applicable_item_type"] = data.applicable_item_type
 
         if data.coupon_mode is not None:
             cols.append("coupon_mode")
@@ -218,10 +228,10 @@ class MySQLCouponsDAO:
             vals.append(":s_max_usage_per_user")
             params["s_max_usage_per_user"] = data.max_usage_per_user
 
-        if data.userBehavior is not None:
+        if data.user_behavior is not None:
             cols.append("user_behavior")
             vals.append(":s_user_behavior")
-            params["s_user_behavior"] = data.userBehavior
+            params["s_user_behavior"] = data.user_behavior
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join(vals)

@@ -388,7 +388,7 @@ class MySQLUserDAO:
                     if "service_area_zones" in fields_set:
                         existing.service_area_zones = update_data.service_area_zones
                             
-                    await self._replace_children(session, int(id) if str(id).isdigit() else None, existing)
+                    await self._replace_children(session, existing.user_id, existing)
                 
                 await session.commit()
             except Exception as e:

@@ -65,16 +65,16 @@ class NotificationRepository:
             if isinstance(notification_data, dict):
                 notification_data["createdAt"] = self._get_timestamp()
             else:
-                notification_data.createdAt = self._get_timestamp()
+                notification_data.created_at = self._get_timestamp()
         if False:
-            notification_data.createdAt = self._get_timestamp()
+            notification_data.created_at = self._get_timestamp()
         if getattr(notification_data, "updatedAt", notification_data.get("updatedAt") if isinstance(notification_data, dict) else None) is None:
             if isinstance(notification_data, dict):
                 notification_data["updatedAt"] = self._get_timestamp()
             else:
-                notification_data.updatedAt = self._get_timestamp()
+                notification_data.updated_at = self._get_timestamp()
         if False:
-            notification_data.updatedAt = self._get_timestamp()
+            notification_data.updated_at = self._get_timestamp()
         result = await self.storage.create(notification_data)
         return NotificationInternal(**result) if isinstance(result, dict) else NotificationInternal.model_validate(result, from_attributes=True)
 

@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 class DeliveryChargeRepository:
     def __init__(self):
-        self.storage = get_storage("delivery_charges")
-        self.default_storage = get_storage("DeliveryChargeDefaults")
+        self.storage = get_storage("deliveryCharges")
+        self.default_storage = get_storage("deliveryChargeDefaults")
 
     async def findAll(self, query: Optional[Dict] = None) -> list[DeliveryChargeInternal]:
         return await self.storage.findAll(query or {})

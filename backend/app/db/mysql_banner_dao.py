@@ -49,7 +49,6 @@ class MySQLBannerDAO:
                 text(f"SELECT id AS _id, external_id, title, description, image_url, link_url, display_order, start_date, end_date, is_active, is_published, target_audience, position, zone_ids, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params
             )
             rows = result.fetchall()
-            c_map = await self._fetch_children(session, [r._id for r in rows])
             
         import json
         out = []
@@ -57,7 +56,6 @@ class MySQLBannerDAO:
             d = dict(r._mapping)
             if d.get("zone_ids"):
                 d["zone_ids"] = json.loads(d["zone_ids"])
-            d.update(c_map[r._id])
             out.append(BannerResponse.model_validate(d))
         return out
 

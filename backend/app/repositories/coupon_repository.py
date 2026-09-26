@@ -93,7 +93,7 @@ class CouponRepository:
         y_required = int(coupon.buy_x_get_y_customer_gets_quantity) if coupon.buy_x_get_y_customer_gets_quantity is not None else None
 
         # Batch-load all cart products upfront to avoid N+1 (one DB hit per item)
-        cart_pids = [str(item.product or item.product_id) for item in cart_items if item.product or item.product_id]
+        cart_pids = [str((getattr(item, 'product', None) or getattr(item, 'product_id', None)) if not isinstance(item, dict) else (item.get('product') or item.get('product_id'))) for item in cart_items if ((getattr(item, 'product', None) or getattr(item, 'product_id', None)) if not isinstance(item, dict) else (item.get('product') or item.get('product_id')))]
         if cart_pids:
             products_list = await product_repository.findAll({"allowed_ids": cart_pids})
             product_map = {str(p.id): p for p in products_list if p.id}
@@ -102,15 +102,15 @@ class CouponRepository:
 
         elements = []
         for idx, item in enumerate(cart_items):
-            pid = str(item.product or item.product_id)
+            pid = str((getattr(item, 'product', None) or getattr(item, 'product_id', None)) if not isinstance(item, dict) else (item.get('product') or item.get('product_id')))
             product = (product_map[pid] if pid in product_map else None)
             if not product:
                 continue
-            qty = int(item.quantity) if item.quantity is not None else 0
+            qty = int((item.quantity if getattr(item, 'quantity', None) is not None else 0) if not isinstance(item, dict) else (item.get('quantity') or 0))
             if qty <= 0:
                 continue
-            sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
-            qty_per_case = int(product.quantityPerCase) if product.quantityPerCase is not None else 1
+            sell_as_case = (getattr(item, 'sell_as_case', False) if not isinstance(item, dict) else item.get('sell_as_case', False))
+            qty_per_case = int(product.quantity_per_case) if product.quantity_per_case is not None else 1
 
             item_total_price = product_repository.calculateTotalPrice(
                 product, user_role, qty, sell_as_case=sell_as_case, user_id=user_id, ignore_auto_discount=True
@@ -133,8 +133,8 @@ class CouponRepository:
             )
             is_gy_eligible = await self._product_eligible_async(
                 product,
-                (coupon.buyXGetYCustomerGetsapplies_to_type if coupon.buyXGetYCustomerGetsapplies_to_type is not None else "all"),
-                (coupon.buyXGetYCustomerGetsapplies_to_value_ids if coupon.buyXGetYCustomerGetsapplies_to_value_ids is not None else None),
+                (coupon.buy_x_get_y_customer_gets_applies_to_type if coupon.buy_x_get_y_customer_gets_applies_to_type is not None else "all"),
+                (coupon.bxgy_applies_to_ids if coupon.bxgy_applies_to_ids is not None else None),
                 (coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None),
             )
             for _ in range(element_qty):
@@ -187,8 +187,8 @@ class CouponRepository:
                             max_d = min(d, e["price"])
                 best_auto_per_product[pid] = max_d
 
-        gy_discount_type = (coupon.buyXGetYCustomerGetsdiscount_type if coupon.buyXGetYCustomerGetsdiscount_type is not None else "percentage")
-        gy_discount_value = float(coupon.buy_x_get_y_customer_gets_discount_value) if coupon.buy_x_get_y_customer_gets_discount_value is not None else 0.0
+        gy_discount_type = (coupon.bxgy_discount_type if coupon.bxgy_discount_type is not None else "percentage")
+        gy_discount_value = float(coupon.bxgy_discount_value) if coupon.bxgy_discount_value is not None else 0.0
 
         gy_discount_amount = 0.0
         gy_element_discounts = []
@@ -345,8 +345,8 @@ class CouponRepository:
                     from app.repositories.customer_segments_repository import customer_segments_repository
 
                     segment = await customer_segments_repository.get_by_id(segment_id)
-                    if segment and segment.userIds:
-                        if str(user_id) in [str(x) for x in segment.userIds]:
+                    if segment and segment.user_ids:
+                        if str(user_id) in [str(x) for x in segment.user_ids]:
                             matched_any = True
                             break
                 else:
@@ -419,7 +419,7 @@ class CouponRepository:
             user_behavior_cache[cache_key] = result
         return result
 
-    async def create(self, coupon_data: 'CouponInternalCreate'):
+    async def create(self, coupon_data: 'CouponCreateInternal'):
         method = (coupon_data.method if coupon_data.method is not None else "discount_code")
         code = coupon_data.code or ""
         if method == "discount_code" and code:
@@ -461,29 +461,31 @@ class CouponRepository:
             method=method,
             discount_type=(coupon_data.discount_type if coupon_data.discount_type is not None else "percentage"),
             discount_value=float(coupon_data.discount_value),
-            min_order_value=float(coupon_data.min_purchase_amount),
-            minRequirementType=(coupon_data.min_requirement_type if coupon_data.min_requirement_type is not None else "none"),
-            minQuantityOfEligibleItems=int(coupon_data.min_quantity_of_eligible_items) if coupon_data.min_quantity_of_eligible_items is not None else None,
-            max_discountAmount=float(coupon_data.max_discount_amount) if coupon_data.max_discount_amount else None,
+            min_purchase_amount=float(coupon_data.min_purchase_amount) if coupon_data.min_purchase_amount is not None else 0.0,
+            min_requirement_type=(coupon_data.min_requirement_type if coupon_data.min_requirement_type is not None else "none"),
+            min_quantity_of_eligible_items=int(coupon_data.min_quantity_of_eligible_items) if coupon_data.min_quantity_of_eligible_items is not None else None,
+            max_discount_amount=float(coupon_data.max_discount_amount) if coupon_data.max_discount_amount else None,
             valid_from=(coupon_data.valid_from if coupon_data.valid_from is not None else datetime.now(timezone.utc).isoformat()),
             valid_until=coupon_data.valid_until,
-            maxUses=int(coupon_data.usage_limit) if coupon_data.usage_limit else None,
-            usedCount=0,
+            usage_limit=int(coupon_data.usage_limit) if coupon_data.usage_limit else None,
+            used_count=0,
             is_active=(coupon_data.is_active if coupon_data.is_active is not None else True),
             applicable_roles=(coupon_data.applicable_roles if coupon_data.applicable_roles is not None else ["customer"]),
             applicable_user_ids=coupon_data.applicable_user_ids or [],
-            applicableCategories=coupon_data.applicableCategories or [],
+            applicable_categories=coupon_data.applicable_categories or [],
             applies_to_type=(coupon_data.applies_to_type if coupon_data.applies_to_type is not None else "all"),
 applies_to_value_ids=coupon_data.applies_to_value_ids or [],
-            excludedProductIds=coupon_data.excluded_product_ids or [],
-            quantityTiers=qt_list,
-            displayId=display_id,
-            buyXGetYCustomerGetsapplies_to_value_ids=coupon_data.buyXGetYCustomerGetsapplies_to_value_ids or [],
-            buyXGetYCustomerGetsdiscount_type=coupon_data.buyXGetYCustomerGetsdiscount_type,
+            excluded_product_ids=coupon_data.excluded_product_ids or [],
+            quantity_tiers=qt_list,
+            display_id=display_id,
+            buy_x_get_y_customer_gets_quantity=coupon_data.buy_x_get_y_customer_gets_quantity,
+            buy_x_get_y_customer_gets_applies_to_type=coupon_data.buy_x_get_y_customer_gets_applies_to_type,
+            buy_x_get_y_customer_gets_applies_to_value_ids=coupon_data.buy_x_get_y_customer_gets_applies_to_value_ids or [],
+            buy_x_get_y_customer_gets_discount_type=coupon_data.buy_x_get_y_customer_gets_discount_type,
             buy_x_get_y_customer_gets_discount_value=float(coupon_data.buy_x_get_y_customer_gets_discount_value) if coupon_data.buy_x_get_y_customer_gets_discount_value is not None else None,
             applicable_item_type=coupon_data.applicable_item_type or "units",
-            couponMode=coupon_data.coupon_mode or "override",
-            maxUsagePerUser=int(coupon_data.maxUsagePerUser) if coupon_data.maxUsagePerUser else None,
+            coupon_mode=coupon_data.couponMode or "override",
+            max_usage_per_user=int(coupon_data.max_usage_per_user) if coupon_data.max_usage_per_user else None,
             user_behavior=coupon_data.user_behavior,
         )
 
@@ -501,7 +503,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                         if existing_coupon:
                             excl = set(existing_coupon.excluded_product_ids or [])
                             excl.update(detail["overlappingProductIds"])
-                            await self.storage.update(detail["couponId"], CouponInternalUpdate(excludedProductIds=list(excl)))
+                            await self.storage.update(detail["couponId"], CouponInternalUpdate(excluded_product_ids=list(excl)))
                 elif resolution == "retain":
                     # Add exclusions to current coupon
                     excl = set((coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None) or [])
@@ -556,7 +558,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             internal_update.min_order_value = float(update_data.min_purchase_amount)
             
         if 'usage_limit' in update_data.model_fields_set and update_data.usage_limit is not None:
-            internal_update.maxUses = int(update_data.usage_limit)
+            internal_update.max_uses = int(update_data.usage_limit)
             
         if 'minRequirementType' in update_data.model_fields_set: internal_update.min_requirement_type = update_data.min_requirement_type
         if 'minQuantityOfEligibleItems' in update_data.model_fields_set: internal_update.min_quantity_of_eligible_items = update_data.min_quantity_of_eligible_items
@@ -599,8 +601,8 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             coupon = await self.findById(id)
             if not coupon:
                 return None
-            new_count = (coupon.usedCount if coupon.usedCount is not None else 0) + 1
-            res = await self.storage.update(id, CouponInternalUpdate(usedCount=new_count))
+            new_count = (coupon.used_count if coupon.used_count is not None else 0) + 1
+            res = await self.storage.update(id, CouponInternalUpdate(used_count=new_count))
             self.invalidate_cache()
             return res
 
@@ -719,14 +721,14 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         if now > valid_until:
             return CouponValidationResponse(valid=False, message="Discount has expired")
 
-        if (coupon.maxUses if coupon.maxUses is not None else None) and (coupon.usedCount if coupon.usedCount is not None else 0) >= coupon.maxUses:
+        if (coupon.max_uses if coupon.max_uses is not None else None) and (coupon.used_count if coupon.used_count is not None else 0) >= coupon.max_uses:
             return CouponValidationResponse(valid=False, message="Discount usage limit reached")
 
-        if (coupon.maxUsagePerUser if coupon.maxUsagePerUser is not None else None):
-            user_usages = coupon.userUsages or []
-            usage_count = next((u.usageCount for u in user_usages if u.userId == user_id), 0)
-            if usage_count >= coupon.maxUsagePerUser:
-                return CouponValidationResponse(valid=False, message=f"You have reached the maximum usage limit ({coupon.maxUsagePerUser}) for this discount")
+        if (coupon.max_usage_per_user if coupon.max_usage_per_user is not None else None):
+            user_usages = coupon.user_usages or []
+            usage_count = next((u.usage_count for u in user_usages if u.user_id == user_id), 0)
+            if usage_count >= coupon.max_usage_per_user:
+                return CouponValidationResponse(valid=False, message=f"You have reached the maximum usage limit ({coupon.max_usage_per_user}) for this discount")
 
         if user_role not in (coupon.applicable_roles if coupon.applicable_roles is not None else []):
             return CouponValidationResponse(valid=False, message="Discount not applicable for your role")
@@ -746,7 +748,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             if not (matches_selective or matches_behavior):
                 return CouponValidationResponse(valid=False, message="Discount not applicable for your account")
 
-        applicable_payment_methods = coupon.applicablePaymentMethods
+        applicable_payment_methods = coupon.applicable_payment_methods
         if (
             applicable_payment_methods is not None
             and payment_method
@@ -767,7 +769,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 pincode = (shipping_address["zipCode"] if "zipCode" in shipping_address else None) or (shipping_address["pincode"] if "pincode" in shipping_address else None)
                 if not pincode:
                     return CouponValidationResponse(valid=False, message="Shipping address must include a pincode for this discount.")
-                allowed_pincodes = (coupon.shippingPincodes if coupon.shippingPincodes is not None else None) or []
+                allowed_pincodes = (coupon.shipping_pincodes if coupon.shipping_pincodes is not None else None) or []
                 if allowed_pincodes and str(pincode).strip() not in [str(p).strip() for p in allowed_pincodes]:
                     return CouponValidationResponse(valid=False, message=f"This shipping discount is not applicable for pincode {pincode}.")
             else:
@@ -783,7 +785,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             applies_to_ids = (coupon.applies_to_value_ids if coupon.applies_to_value_ids is not None else None) or []
             eligible_subtotal = 0.0
             for idx, item in enumerate(cart_items):
-                product = await product_repository.findById(item.product or item.product_id)
+                product = await product_repository.findById((getattr(item, 'product', None) or getattr(item, 'product_id', None)) if not isinstance(item, dict) else (item.get('product') or item.get('product_id')))
                 if not product:
                     continue
                 if await self._product_eligible_async(
@@ -792,9 +794,9 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                     applies_to_ids if applies_to_ids else None,
                     (coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None),
                 ):
-                    qty = (item.quantity if item.quantity is not None else 0)
+                    qty = ((item.quantity if item.quantity is not None else 0) if not isinstance(item, dict) else (item.get('quantity', 0) or 0))
                     eligible_quantity += qty
-                    sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
+                    sell_as_case = (getattr(item, 'sell_as_case', False) if not isinstance(item, dict) else item.get('sell_as_case', False))
                     ignore_auto = (coupon.method if coupon.method is not None else None) == "discount_code" and (coupon.coupon_mode if coupon.coupon_mode is not None else None) == "override"
                     item_total = product_repository.calculateTotalPrice(
                         product,
@@ -858,7 +860,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 discount_value=coupon.discount_value,
                 id=str(coupon.id) if coupon.id else None,
                 method=coupon.method,
-                couponMode=coupon.coupon_mode or "override",
+                coupon_mode=coupon.coupon_mode or "override",
                 type_of_discount=coupon.type_of_discount
             ),
             discount=round(discount, 2),
@@ -891,7 +893,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
                 if now < valid_from or now > valid_until:
                     continue
-                if coupon.maxUses and (coupon.usedCount if coupon.usedCount is not None else 0) >= coupon.maxUses:
+                if coupon.max_uses and (coupon.used_count if coupon.used_count is not None else 0) >= coupon.max_uses:
                     continue
                 if user_role not in (coupon.applicable_roles if coupon.applicable_roles is not None else []):
                     continue
@@ -909,7 +911,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                     if not (matches_selective or matches_behavior):
                         continue
                 if payment_method:
-                    applicable_payment_methods = coupon.applicablePaymentMethods
+                    applicable_payment_methods = coupon.applicable_payment_methods
                     if applicable_payment_methods is not None and payment_method.lower() not in [
                         m.lower() for m in applicable_payment_methods
                     ]:
@@ -928,7 +930,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                         pincode = (addr["zipCode"] if "zipCode" in addr else None) or (addr["pincode"] if "pincode" in addr else None)
                         if not pincode:
                             continue
-                        allowed_pincodes = (coupon.shippingPincodes if coupon.shippingPincodes is not None else None) or []
+                        allowed_pincodes = (coupon.shipping_pincodes if coupon.shipping_pincodes is not None else None) or []
                         if allowed_pincodes and str(pincode).strip() not in [str(p).strip() for p in allowed_pincodes]:
                             continue
                     else:
@@ -940,7 +942,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 eligible_quantity = 0
                 eligible_item_indices = []
                 for idx, item in enumerate(cart_items):
-                    product = await product_repository.findById(item.product or item.product_id)
+                    product = await product_repository.findById((getattr(item, 'product', None) or getattr(item, 'product_id', None)) if not isinstance(item, dict) else (item.get('product') or item.get('product_id')))
                     if not product:
                         continue
                     if await self._product_eligible_async(
@@ -949,9 +951,9 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                         applies_to_ids if applies_to_ids else None,
                         (coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None),
                     ):
-                        qty = (item.quantity if item.quantity is not None else 0)
+                        qty = ((item.quantity if item.quantity is not None else 0) if not isinstance(item, dict) else (item.get('quantity', 0) or 0))
                         eligible_quantity += qty
-                        sell_as_case = (item.sell_as_case if item.sell_as_case is not None else False)
+                        sell_as_case = (getattr(item, 'sell_as_case', False) if not isinstance(item, dict) else item.get('sell_as_case', False))
                         item_total = product_repository.calculateTotalPrice(
                             product, user_role, qty, sell_as_case=sell_as_case, user_id=user_id
                         )
@@ -964,10 +966,10 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                     min_qty = int(coupon.min_quantity_of_eligible_items) if coupon.min_quantity_of_eligible_items is not None else 0
                     if eligible_quantity < min_qty:
                         continue
-                if (coupon.maxUsagePerUser if coupon.maxUsagePerUser is not None else None):
-                    user_usages = coupon.userUsages or []
-                    usage_count = next((u.usageCount for u in user_usages if u.userId == user_id), 0)
-                    if usage_count >= coupon.maxUsagePerUser:
+                if (coupon.max_usage_per_user if coupon.max_usage_per_user is not None else None):
+                    user_usages = coupon.user_usages or []
+                    usage_count = next((u.usage_count for u in user_usages if u.user_id == user_id), 0)
+                    if usage_count >= coupon.max_usage_per_user:
                         continue
                 discount = 0.0
                 item_discounts = None
@@ -1006,7 +1008,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                             discount_value=coupon.discount_value,
                             id=str(coupon.id) if coupon.id else None,
                             method=coupon.method,
-                            couponMode=coupon.coupon_mode or "override",
+                            coupon_mode=coupon.coupon_mode or "override",
                             type_of_discount=coupon.type_of_discount
                         ),
                         discount=round(discount, 2),
@@ -1100,6 +1102,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         return affected
 
     async def check_discount_overlap(self, coupon_data: 'CouponInternal', exclude_coupon_id: Optional[str] = None):
+        from app.models.daos_flat import CouponInternalCreate
         """Identify conflicting active coupons and return affected product count."""
         if not (coupon_data.is_active if coupon_data.is_active is not None else True):
             return None
@@ -1118,13 +1121,13 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         type_of_discount = coupon_data.type_of_discount or "product_discount"
 
         if type_of_discount == "buy_x_get_y":
-            gy_applies_to_type = (coupon_data.buyXGetYCustomerGetsapplies_to_type if coupon_data.buyXGetYCustomerGetsapplies_to_type is not None else "all")
-            gy_applies_to_ids = coupon_data.buyXGetYCustomerGetsapplies_to_value_ids or []
-            dummy_gy_coupon = {
-                "applies_to_type": gy_applies_to_type,
-                "applies_to_value_ids": gy_applies_to_ids,
-                "excludedProductIds": coupon_data.excluded_product_ids,
-            }
+            gy_applies_to_type = (coupon_data.buy_x_get_y_customer_gets_applies_to_type if coupon_data.buy_x_get_y_customer_gets_applies_to_type is not None else "all")
+            gy_applies_to_ids = coupon_data.buy_x_get_y_customer_gets_applies_to_value_ids or []
+            dummy_gy_coupon = CouponInternalCreate(
+                applies_to_type=gy_applies_to_type,
+                applies_to_value_ids=gy_applies_to_ids,
+                excluded_product_ids=coupon_data.excluded_product_ids,
+            )
             gy_affected_ids = await self._get_affected_product_ids(dummy_gy_coupon)
             new_affected_ids = new_affected_ids.union(gy_affected_ids)
 
@@ -1142,13 +1145,13 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             is_bxgy = type_of_discount == "buy_x_get_y"
             c_affected_ids = await self._get_affected_product_ids(c)
             if is_bxgy:
-                c_gy_applies_to_type = (c.buyXGetYCustomerGetsapplies_to_type if c.buyXGetYCustomerGetsapplies_to_type is not None else "all")
-                c_gy_applies_to_ids = c.buyXGetYCustomerGetsapplies_to_value_ids or []
-                c_dummy_gy = {
-                    "applies_to_type": c_gy_applies_to_type,
-                    "applies_to_value_ids": c_gy_applies_to_ids,
-                    "excludedProductIds": c.excluded_product_ids,
-                }
+                c_gy_applies_to_type = (c.buy_x_get_y_customer_gets_applies_to_type if c.buy_x_get_y_customer_gets_applies_to_type is not None else "all")
+                c_gy_applies_to_ids = c.buy_x_get_y_customer_gets_applies_to_value_ids or []
+                c_dummy_gy = CouponInternalCreate(
+                    applies_to_type=c_gy_applies_to_type,
+                    applies_to_value_ids=c_gy_applies_to_ids,
+                    excluded_product_ids=c.excluded_product_ids,
+                )
                 c_gy_affected_ids = await self._get_affected_product_ids(c_dummy_gy)
                 c_affected_ids = c_affected_ids.union(c_gy_affected_ids)
             else:
@@ -1377,7 +1380,7 @@ def get_coupon_description(c: 'CouponInternal') -> str:
     elif type_of_disc == "buy_x_get_y":
         min_qty = c.min_quantity_of_eligible_items or 1
         gets_qty = c.buy_x_get_y_customer_gets_quantity or 1
-        gets_type = c.buyXGetYCustomerGetsdiscount_type
+        gets_type = c.buy_x_get_y_customer_gets_discount_type
         gets_val = c.buy_x_get_y_customer_gets_discount_value
 
         gets_desc = "Free"

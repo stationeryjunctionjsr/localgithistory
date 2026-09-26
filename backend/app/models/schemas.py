@@ -255,16 +255,16 @@ class UserBase(CamelBaseModel):
     creditLimit: Optional[float] = 0
     creditUsed: Optional[float] = 0
     paymentTerms: Optional[str] = "30"
-    assignedSalesperson: Optional[str] = None
-    isSellerAdmin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
+    assigned_salesperson: Optional[str] = None
+    is_seller_admin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
     isOnDuty: Optional[bool] = False
-    commissionOverridePct: Optional[float] = None
+    commission_override_pct: Optional[float] = None
     serviceAreaZones: Optional[List[str]] = Field(default_factory=list)
     password: Optional[str] = None
     sessionId: Optional[str] = None
     effectiveRole: Optional[str] = None
-    upiId: Optional[str] = None
-    qrCodeUrl: Optional[str] = None
+    upi_id: Optional[str] = None
+    qr_code_url: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc_code: Optional[str] = None
     bank_account_holder: Optional[str] = None
@@ -317,14 +317,12 @@ class UserUpdate(CamelBaseModel):
     payment_terms: Optional[str] = None
     assigned_salesperson: Optional[str] = None
     is_email_verified: Optional[bool] = None
-    isSellerAdmin: Optional[bool] = None
-    isOnDuty: Optional[bool] = None
-    commissionOverridePct: Optional[float] = None
-    serviceAreaZones: Optional[List[str]] = None
-    referralCode: Optional[str] = None
-    preferredLanguage: Optional[str] = None
-    upiId: Optional[str] = None
-    qrCodeUrl: Optional[str] = None
+    commission_override_pct: Optional[float] = None
+    service_area_zones: Optional[List[str]] = None
+    referral_code: Optional[str] = None
+    preferred_language: Optional[str] = None
+    upi_id: Optional[str] = None
+    qr_code_url: Optional[str] = None
     bank_account_number: Optional[str] = None
     bank_ifsc_code: Optional[str] = None
     bank_account_holder: Optional[str] = None
@@ -333,20 +331,20 @@ class UserUpdate(CamelBaseModel):
 
 class UserResponse(UserBase):
     id: str = Field(alias="_id")
-    userId: Optional[int] = None
-    userIdFormatted: Optional[str] = None
+    user_id: Optional[int] = None
+    user_id_formatted: Optional[str] = None
     role: Optional[str] = None
     effectiveRole: Optional[str] = None
     approvalStatus: Optional[str] = None
     is_active: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
     isDeactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
-    creditLimit: float = Field(validation_alias=AliasChoices("creditLimit", "credit_limit"))
-    creditUsed: float = Field(validation_alias=AliasChoices("creditUsed", "credit_used"))
-    paymentTerms: Optional[int] = None
-    assignedSalesperson: Optional[str] = None
-    referralCode: Optional[str] = None
-    isSellerAdmin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
-    commissionOverridePct: Optional[float] = None
+    credit_limit: float = Field(validation_alias=AliasChoices("creditLimit", "credit_limit"))
+    credit_used: float = Field(validation_alias=AliasChoices("creditUsed", "credit_used"))
+    payment_terms: Optional[int] = None
+    assigned_salesperson: Optional[str] = None
+    referral_code: Optional[str] = None
+    is_seller_admin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
+    commission_override_pct: Optional[float] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

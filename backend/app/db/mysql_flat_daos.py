@@ -981,13 +981,13 @@ class MySQLGoogle_reviewsDAO:
     def __map_to_schema(self, row) -> Google_reviewsInternal:
         return Google_reviewsInternal(
             id=str(row.id),
-            externalId=row.external_id,
+            external_id=row.external_id,
             rating=row.rating,
             reviewCount=str(row.review_count) if row.review_count is not None else None,
             lastUpdated=row.last_updated,
             method=row.method,
-            createdAt=row.created_at.isoformat() if row.created_at else None,
-            updatedAt=row.updated_at.isoformat() if row.updated_at else None,
+            created_at=row.created_at.isoformat() if row.created_at else None,
+            updated_at=row.updated_at.isoformat() if row.updated_at else None,
         )
 
     async def findAll(self, query: Optional[Dict] = None) -> List[Google_reviewsInternal]:

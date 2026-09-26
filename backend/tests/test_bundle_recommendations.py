@@ -106,7 +106,7 @@ async def test_bundle_purchase_increments_sales_count(client: AsyncClient, user_
 
     # 4. Fetch the bundle again and verify salesCount incremented to 11
     updated_bundle = await bundle_repository.findById(bid)
-    assert updated_bundle["salesCount"] == 11
+    assert updated_bundle.sales_count == 11
 
     # 5. Cleanup
     if order_id:

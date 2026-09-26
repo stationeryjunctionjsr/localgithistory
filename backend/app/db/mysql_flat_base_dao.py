@@ -237,12 +237,31 @@ class MySQLFlatBaseDAO:
         set_parts = ["updated_at = :updated_at"]
         
         if isinstance(update_data, dict):
-            params = self._doc_to_params(update_data, now)
-            for k in params:
-                if k not in ("id", "external_id", "created_at"):
-                    p = _param(k)
-                    set_parts.append(f"{_q(k)} = :{p}")
-                    bind_params[p] = params[k]
+            for api_key, val in update_data.items():
+                if api_key in self.scalar_map:
+                    col = self.scalar_map[api_key]
+                else:
+                    col = api_key
+                
+                if col in ("id", "external_id", "created_at"):
+                    continue
+                    
+                if api_key in self.bool_api_keys and isinstance(val, bool):
+                    db_val = 1 if val else 0
+                elif isinstance(val, str) and (
+                    col.endswith("_at")
+                    or col.endswith("_updated")
+                    or col.endswith("_on")
+                    or "date" in col.lower()
+                    or "timestamp" in col
+                ):
+                    db_val = _to_ts(val) or val
+                else:
+                    db_val = val
+                    
+                p = _param(col)
+                set_parts.append(f"{_q(col)} = :{p}")
+                bind_params[p] = db_val
         else:
             for k, v in update_data:
                 if k in update_data.model_fields_set:

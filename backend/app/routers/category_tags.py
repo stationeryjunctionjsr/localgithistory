@@ -52,7 +52,7 @@ async def get_active_category_tags():
     """Get active category tags (public endpoint)"""
     try:
         tags = await category_tag_repository.findAll()
-        active_tags = [tag for tag in tags if tag.isActive is not False]
+        active_tags = [tag for tag in tags if tag.is_active is not False]
         return active_tags
     except Exception as e:
         logger.error("Unexpected error: %s", str(e), exc_info=True)

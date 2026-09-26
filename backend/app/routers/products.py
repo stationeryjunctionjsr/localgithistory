@@ -781,7 +781,7 @@ async def get_public_products(
             "totalCount": 0,
             "brands": [],
             "categories": [],
-            "subCategories": {},
+            "subCategories": [],
             "collections": [],
             "usedFuzzy": False,
             "suggestedQuery": None,

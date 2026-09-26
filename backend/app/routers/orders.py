@@ -147,14 +147,12 @@ class OrderCreateRequest(CamelBaseModel):
 class CalculatedOrderItem(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     product: Optional[str] = None
-    sellerId: Optional[str] = None
-    productName: Optional[str] = None
+    seller_id: Optional[str] = None
+    product_name: Optional[str] = None
     quantity: int = 1
-    sellAsCase: Optional[bool] = False
+    sell_as_case: Optional[bool] = False
     price: float = 0.0
-    priceBeforeCoupon: float = 0.0
-    couponDiscount: float = 0.0
-    referralDiscount: float = 0.0
+    price_before_coupon: float = 0.0
     coupon_discount: float = 0.0
     referral_discount: float = 0.0
     subtotal: float = 0.0
@@ -384,8 +382,20 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
             couponCode=None,
             paymentMethod=order_resp.payment_method,
             paymentStatus=order_resp.payment_status,
-            address=Address.model_validate(
-                order_resp.shipping_address, from_attributes=True) if order_resp.shipping_address else None,
+            address=Address(
+                name=order_resp.ship_name,
+                street=order_resp.ship_street,
+                city=order_resp.ship_city,
+                state=order_resp.ship_state,
+                pincode=order_resp.ship_pincode,
+                phone=order_resp.ship_phone,
+                district=order_resp.ship_district,
+                country=order_resp.ship_country,
+                google_location=order_resp.ship_google_location,
+                latitude=order_resp.ship_latitude,
+                longitude=order_resp.ship_longitude,
+                address=order_resp.ship_address
+            ) if order_resp.ship_city or order_resp.ship_street else None,
             createdAt=order_resp.created_at,
             updatedAt=order_resp.updated_at,
             zoneId=None,
@@ -977,16 +987,14 @@ async def create_order(
         order_items.append(
             CalculatedOrderItem(
                 product=str(product.id),
-                sellerId=_resolve_product_seller_id(
+                seller_id=_resolve_product_seller_id(
                     product, _pincode_seller_ids),
-                productName=product.name,
+                product_name=product.name,
                 quantity=quantity,
-                sellAsCase=sell_as_case,
+                sell_as_case=sell_as_case,
                 price=effective_price,
-                priceBeforeCoupon=round(item_total_before_coupon, 2),
-                couponDiscount=round(item_coupon_discount, 2),
+                price_before_coupon=round(item_total_before_coupon, 2),
                 coupon_discount=round(item_coupon_discount, 2),
-                referralDiscount=round(item_referral_discount, 2),
                 referral_discount=round(item_referral_discount, 2),
                 subtotal=round(final_item_total, 2),
                 singleUnitPrice=round(single_unit_price, 2),
@@ -1464,7 +1472,7 @@ async def create_order(
                     quantity=i.quantity,
                     price=i.price,
                     name=i.product_name,
-                    sellAsCase=i.sell_as_case,
+                    sell_as_case=i.sell_as_case,
                 )
                 for i in order_items
             ],
@@ -1610,9 +1618,9 @@ async def create_order(
                         copies = max(
                             1, (ref_item.quantity if ref_item.quantity is not None else spec_qty) // spec_qty)
                     # Bundle.salesCount is a declared Pydantic field
-                    sales_c = bundle.salesCount if bundle.salesCount is not None else 0
+                    sales_c = bundle.sales_count if bundle.sales_count is not None else 0
                     new_sales = sales_c + copies
-                    await bundle_repository.update(b_id, BundleInternalUpdate(salesCount=new_sales))
+                    await bundle_repository.update(b_id, BundleInternalUpdate(sales_count=new_sales))
         except Exception as e:
             logger.error("Failed to increment bundle salesCount: %s",
                          str(e), exc_info=True)
@@ -1804,7 +1812,7 @@ async def create_order(
     # Sub-order creation: split by seller
     # Only create sub-orders when the cart contains products from
     # more than one seller (including the platform / super-admin as
-    # a seller bucket with sellerId=None).
+    # a seller bucket with seller_id=None).
     # ────────────────────────────────────────────────────────────────
     try:
         super_admin_doc = await user_repository.findOne({"role": "super_admin"})
@@ -3327,7 +3335,7 @@ async def update_seller_order_status(
 
 @router.get("/admin/sub-orders", response_model=PaginatedSubOrdersResponse)
 async def get_all_sub_orders(
-    sellerId: Optional[str] = None,
+    seller_id: Optional[str] = None,
     status: Optional[str] = None,
     commissionStatus: Optional[str] = None,
     startDate: Optional[str] = None,

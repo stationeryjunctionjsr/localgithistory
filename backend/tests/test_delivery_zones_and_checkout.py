@@ -125,13 +125,13 @@ class TestDeliveryChargeRepository:
         """isPincodeServiceable returns correct flag based on serviceableForCustomer field."""
         mock_charge_serviceable = MagicMock(
             pincode="110001",
-            isActive=True,
+            is_active=True,
             serviceableForCustomer=True,
             serviceableForWholesaler=False,
         )
         mock_charge_not_serviceable = MagicMock(
             pincode="110002",
-            isActive=True,
+            is_active=True,
             serviceableForCustomer=False,
             serviceableForWholesaler=True,
         )
@@ -209,7 +209,7 @@ async def test_check_serviceability_urgent_flag_propagated():
     from app.routers.delivery_charges import check_serviceability
 
     from app.models.schemas import DeliveryZoneResponse
-    mock_zone = DeliveryZoneResponse(id="zone_test", urgentDeliveryAvailable=True, customerType="retail", name="Zone", isActive=True, pincodes=[],)
+    mock_zone = DeliveryZoneResponse(id="zone_test", urgentDeliveryAvailable=True, customerType="retail", name="Zone", is_active=True, pincodes=[],)
 
     repo_path = "app.routers.delivery_charges.delivery_charge_repository"
     # get_zone_for_pincode and get_storage are imported inside the function body,
@@ -393,24 +393,24 @@ async def test_get_available_slots_cutoff_filter():
     import datetime as _dt
     from app.routers.delivery_slots import _resolve_zone_config
 
-    # Build a slot that was due 5 hours ago (cutoffHours=0 but slot end in the past)
+    # Build a slot that was due 5 hours ago (cutoff_hours=0 but slot end in the past)
     past_time = (_dt.datetime.now() - _dt.timedelta(hours=2)).strftime("%H:%M")
     mock_config = MagicMock(
         id="cfg_1",
-        zoneId="zone_test",
+        zone_id="zone_test",
         slots=[
             MagicMock(
                 id="s1",
-                startTime=past_time,
-                endTime=past_time,
-                isActive=True,
-                isUrgent=False,
+                start_time=past_time,
+                end_time=past_time,
+                is_active=True,
+                is_urgent=False,
                 capacity=10,
-                bookedCount=0,
-                cutoffHours=3,
+                booked_count=0,
+                cutoff_hours=3,
             )
         ],
-        isActive=True,
+        is_active=True,
     )
 
     with patch("app.routers.delivery_slots._resolve_zone_config", new_callable=AsyncMock) as mock_resolve:
@@ -434,24 +434,24 @@ async def test_get_available_slots_capacity_full():
     import datetime as _dt
     from app.routers.delivery_slots import _resolve_zone_config
 
-    # Slot with capacity=1 and bookedCount=1 → full
+    # Slot with capacity=1 and booked_count=1 → full
     future_time = (_dt.datetime.now() + _dt.timedelta(hours=4)).strftime("%H:%M")
     mock_config = MagicMock(
         id="cfg_2",
-        zoneId="zone_test",
+        zone_id="zone_test",
         slots=[
             MagicMock(
                 id="s2",
-                startTime=future_time,
-                endTime=future_time,
-                isActive=True,
-                isUrgent=False,
+                start_time=future_time,
+                end_time=future_time,
+                is_active=True,
+                is_urgent=False,
                 capacity=1,
-                bookedCount=1,
-                cutoffHours=None,
+                booked_count=1,
+                cutoff_hours=None,
             )
         ],
-        isActive=True,
+        is_active=True,
     )
 
     with patch("app.routers.delivery_slots._resolve_zone_config", new_callable=AsyncMock) as mock_resolve:
@@ -478,20 +478,20 @@ async def test_get_available_slots_valid_slot_included():
     end = (_dt.datetime.now() + _dt.timedelta(hours=2)).strftime("%H:%M")
     mock_config = MagicMock(
         id="cfg_3",
-        zoneId="zone_test",
+        zone_id="zone_test",
         slots=[
             MagicMock(
                 id="s3",
-                startTime=start,
-                endTime=end,
-                isActive=True,
-                isUrgent=False,
+                start_time=start,
+                end_time=end,
+                is_active=True,
+                is_urgent=False,
                 capacity=5,
-                bookedCount=0,
-                cutoffHours=None,
+                booked_count=0,
+                cutoff_hours=None,
             )
         ],
-        isActive=True,
+        is_active=True,
     )
 
     with patch("app.routers.delivery_slots._resolve_zone_config", new_callable=AsyncMock) as mock_resolve:
@@ -512,12 +512,12 @@ async def test_get_available_slots_valid_slot_included():
 
 
 @pytest.mark.asyncio
-async def test_book_slot_not_found():
+async def test_book_slot_not_found(user_auth: dict):
     """E6 – Booking a slot in a non-existent config returns 404."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post(
             "/api/delivery-slots/nonexistent_config_id/book-slot",
-            params={"slot_id": "slot_123"},
+            params={"slot_id": "slot_123"}, headers=user_auth,
         )
     assert resp.status_code == 404
 
@@ -596,7 +596,7 @@ async def test_delivery_charge_wholesaler_not_applicable():
 
         mock_find.return_value = None  # no pincode-specific charge
         mock_loc.return_value = None   # no city-level charge
-        mock_default.return_value = DeliveryChargeDefaultInternal(isActive=True, applicableToWholesaler=False, tiers=[{"max": "Infinity", "charge": 80}])
+        mock_default.return_value = DeliveryChargeDefaultInternal(is_active=True, applicableToWholesaler=False, tiers=[{"max": "Infinity", "charge": 80}])
 
         result = await repo.getChargeForLocation(
             state="Jharkhand",
@@ -607,7 +607,7 @@ async def test_delivery_charge_wholesaler_not_applicable():
             order_amount=300,
         )
 
-    assert result.isApplicableToRole is False
+    assert result.is_applicable_to_role is False
     assert result.charge == 0
 
 
@@ -674,7 +674,7 @@ async def test_get_zone_for_pincode_found():
         id="z1",
         name="Test Zone",
         pincodes=["831001"],
-        isActive=True,
+        is_active=True,
        
     )
 

@@ -46,20 +46,20 @@ def _entry__map_to_schema(entry_id, amount, payment_method, paid_at, image, note
 
 def _payment__map_to_schema(r, entries: List[PaymentEntry]) -> Payment:
     return Payment(**{
-        "_id": str(r.id),
-        "orderId": r.order_id,
+        "id": str(r.id),
+        "order_id": r.order_id,
         "userId": r.user_id,
         "userIdFormatted": r.user_id_formatted,
         "customerName": r.customer_name,
         "orderDate": r.order_date.isoformat() if r.order_date else None,
-        "paymentMethod": r.payment_method,
+        "payment_method": r.payment_method,
         "amountPaid": float(r.amount_paid) if r.amount_paid is not None else None,
         "amountRemaining": float(r.amount_remaining) if r.amount_remaining is not None else None,
         "totalAmount": float(r.total_amount) if r.total_amount is not None else None,
         "paymentId": r.payment_id,
         "paymentEntries": entries,
-        "createdAt": r.created_at.isoformat() if r.created_at else None,
-        "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+        "updated_at": r.updated_at.isoformat() if r.updated_at else None,
     })
 
 

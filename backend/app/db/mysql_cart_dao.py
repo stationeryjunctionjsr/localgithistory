@@ -40,8 +40,9 @@ class MySQLCartDAO:
                     where_clauses.append("id = :id")
                     params["id"] = int(v) if str(v).isdigit() else None
                 elif k in ("user", "user_id"):
-                    where_clauses.append("user_id = :user_id")
-                    params["user_id"] = int(v) if str(v).isdigit() else None
+                    where_clauses.append("user_id = COALESCE(:user_id_int, (SELECT id FROM sj_users WHERE external_id = :user_id_str))")
+                    params["user_id_int"] = int(v) if str(v).isdigit() else None
+                    params["user_id_str"] = str(v)
                 elif k == "external_id":
                     where_clauses.append("external_id = :external_id")
                     params["external_id"] = str(v)
@@ -90,14 +91,14 @@ class MySQLCartDAO:
                         except (json.JSONDecodeError, TypeError, ValueError):
                             pass
                     items_map[ir.cart_id].append(
-                        {
-                            "product": str(ir.product_id),
-                            "quantity": int(ir.quantity),
-                            "sell_as_case": bool(ir.sell_as_case),
-                            "bundle_id": str(ir.bundle_id) if ir.bundle_id else None,
-                            "bundle_name": str(ir.bundle_name) if ir.bundle_name else None,
-                            "variant_attributes": variant_attrs
-                        }
+                        CartItemInternal(
+                            product=str(ir.product_id),
+                            quantity=int(ir.quantity),
+                            sell_as_case=bool(ir.sell_as_case),
+                            bundle_id=str(ir.bundle_id) if ir.bundle_id else None,
+                            bundle_name=str(ir.bundle_name) if ir.bundle_name else None,
+                            variant_attributes=variant_attrs
+                        )
                     )
 
         out = []
@@ -265,8 +266,9 @@ class MySQLCartDAO:
                     where_clauses.append("id = :id")
                     params["id"] = int(v) if str(v).isdigit() else None
                 elif k == "user":
-                    where_clauses.append("user_id = :uid")
-                    params["uid"] = int(v) if str(v).isdigit() else None
+                    where_clauses.append("user_id = COALESCE(:uid_int, (SELECT id FROM sj_users WHERE external_id = :uid_str))")
+                    params["uid_int"] = int(v) if str(v).isdigit() else None
+                    params["uid_str"] = str(v)
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:

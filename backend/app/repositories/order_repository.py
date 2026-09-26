@@ -69,10 +69,10 @@ class OrderRepository:
         return await self.storage.findById(id)
 
     async def create(self, order_data: 'OrderInternalCreate'):
-        if not order_data.createdAt:
-            order_data.createdAt = datetime.now(timezone.utc).isoformat()
+        if not order_data.created_at:
+            order_data.created_at = datetime.now(timezone.utc).isoformat()
             
-        order_data.orderNumber = await self.generateOrderNumber(order_data.user_role or "")
+        order_data.order_number = await self.generateOrderNumber(order_data.user_role or "")
         return await self.storage.create(order_data)
 
     async def update(self, id: str, update_data: 'OrderInternalUpdate'):

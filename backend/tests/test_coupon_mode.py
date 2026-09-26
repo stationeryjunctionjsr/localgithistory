@@ -13,11 +13,11 @@ async def test_coupon_override_and_stacking():
 
     existing_override = await coupon_repository.findByCode("OVERRIDE10")
     if existing_override:
-        await coupon_repository.storage.delete(existing_override["_id"])
+        await coupon_repository.storage.delete(existing_override.id)
 
     existing_extra = await coupon_repository.findByCode("EXTRA10")
     if existing_extra:
-        await coupon_repository.storage.delete(existing_extra["_id"])
+        await coupon_repository.storage.delete(existing_extra.id)
 
     # 1. Create a test product
     product_data = {
@@ -48,11 +48,7 @@ async def test_coupon_override_and_stacking():
     auto_coupon = await coupon_repository.create(CouponCreateInternal(**auto_discount_data))
     print("Created auto coupon:", auto_coupon)
 
-    from sqlalchemy import text
-    factory = coupon_repository.storage._factory()
-    async with factory() as session:
-        result = await session.execute(text(f"SELECT id, extra_data FROM sj_coupons WHERE id={auto_coupon.id if hasattr(auto_coupon, "id") else auto_coupon["_id"]}"))
-        print("Raw SQL row:", result.fetchone())
+    
 
     # 3. Create an override coupon code (10% off)
     override_coupon_data = {
@@ -70,7 +66,7 @@ async def test_coupon_override_and_stacking():
         "appliesToValueIds": [product_id],
         "force": True,
     }
-    override_coupon = await coupon_repository.create(override_coupon_data)
+    override_coupon = await coupon_repository.create(CouponCreateInternal(**override_coupon_data))
 
     # 4. Create an extra/stacking coupon code (10% off)
     extra_coupon_data = {
@@ -88,7 +84,7 @@ async def test_coupon_override_and_stacking():
         "appliesToValueIds": [product_id],
         "force": True,
     }
-    extra_coupon = await coupon_repository.create(extra_coupon_data)
+    extra_coupon = await coupon_repository.create(CouponCreateInternal(**extra_coupon_data))
 
     try:
         # Force reload active automatic product discounts cache
@@ -99,7 +95,7 @@ async def test_coupon_override_and_stacking():
         print("Auto discounts found:", len(discounts))
         print("Auto coupon id:", product_id)
         for c in discounts:
-            print("Discount:", c.get("method"), c.get("isActive"), c.get("typeOfDiscount"), c.get("appliesToValueIds"))
+            print("Discount:", c.method, c.is_active, c.type_of_discount, c.applies_to_value_ids)
 
         # Normal price calculation should apply the 15% automatic discount -> 85.0
         price_normal = product_repository.getPriceForRole(product, "customer", quantity=1)
@@ -114,8 +110,8 @@ async def test_coupon_override_and_stacking():
             cart_items=[{"product": product_id, "quantity": 1}],
             product_repository=product_repository,
         )
-        assert validation_override["valid"] is True
-        assert validation_override["discount"] == 10.0
+        assert validation_override.valid is True
+        assert validation_override.discount == 10.0
 
         # EXTRA coupon code stacks on top of 15% automatic discount (price is 85.0) and applies 10% -> 8.5 discount.
         validation_extra = await coupon_repository.validateCoupon(
@@ -126,14 +122,14 @@ async def test_coupon_override_and_stacking():
             cart_items=[{"product": product_id, "quantity": 1}],
             product_repository=product_repository,
         )
-        assert validation_extra["valid"] is True
-        assert validation_extra["discount"] == 8.5
+        assert validation_extra.valid is True
+        assert validation_extra.discount == 8.5
 
     finally:
         # Cleanup db
         await product_repository.storage.delete(product.id if hasattr(product, "id") else product["_id"])
-        await coupon_repository.storage.delete(auto_coupon["_id"])
-        await coupon_repository.storage.delete(override_coupon["_id"])
-        await coupon_repository.storage.delete(extra_coupon["_id"])
+        await coupon_repository.storage.delete(auto_coupon.id)
+        await coupon_repository.storage.delete(override_coupon.id)
+        await coupon_repository.storage.delete(extra_coupon.id)
         coupon_repository._active_automatic_discounts_cache = None
         coupon_repository._active_automatic_discounts_cache_time = None

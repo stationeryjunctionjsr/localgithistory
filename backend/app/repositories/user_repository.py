@@ -83,7 +83,7 @@ class UserRepository:
         # than count-based allocation which silently produces duplicates when rows
         # are deleted and re-added.
         try:
-            all_ids = [u.userId for u in await self.storage.findAll() if isinstance(u.userId, int)]
+            all_ids = [u.user_id for u in await self.storage.findAll() if isinstance(u.user_id, int)]
             user_id = (max(all_ids) + 1) if all_ids else 1
         except Exception:
             logger.error(

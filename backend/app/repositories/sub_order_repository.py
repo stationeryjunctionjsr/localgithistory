@@ -19,8 +19,8 @@ class SubOrderRepository:
         return f"{parent_order_number}-{suffix}"
 
     async def create(self, data: SubOrderInternalCreate) -> 'SubOrder':
-        if not data.createdAt:
-            data.createdAt = datetime.now(timezone.utc).isoformat()
+        if not data.created_at:
+            data.created_at = datetime.now(timezone.utc).isoformat()
         return await self.storage.create(data)
 
     async def findAll(

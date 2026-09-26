@@ -258,9 +258,13 @@ class MySQLOrderDAO:
             raise RuntimeError("MySQL not configured")
         now = now_utc()
         external_id = secrets.token_hex(16)
-        user_id = int(data.user) if str((data.user if data.user is not None else "")).isdigit() else None
-        if user_id is None:
-            raise ValueError("Order user must be numeric id when using MySQL")
+        user_val = str(data.user) if data.user is not None else ""
+        if user_val and not user_val.isdigit():
+            user_id_subquery = f"(SELECT id FROM sj_users WHERE external_id = :uid)"
+            uid_param = user_val
+        else:
+            user_id_subquery = ":uid"
+            uid_param = int(user_val) if user_val else None
 
         async with factory() as session:
             await session.execute(
@@ -274,7 +278,7 @@ class MySQLOrderDAO:
                         decline_reason, cancelled_at, cancelled_by, turnaround_hours,
                         created_at, updated_at
                     ) VALUES (
-                        :external_id, :user_id, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
+                        :external_id, {user_id_subquery}, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
                         :order_type, :payment_status, :payment_method, :upi_payment_screenshot,
                         :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :ship_address, :ship_district, :ship_country, :ship_google_location, :ship_latitude, :ship_longitude, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :bill_address, :bill_district, :bill_country, :bill_google_location, :bill_latitude, :bill_longitude, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :is_urgent_delivery,
                                                 :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
@@ -285,7 +289,7 @@ class MySQLOrderDAO:
                 ),
                 {
                     "external_id": external_id,
-                    "user_id": user_id,
+                    "uid": uid_param,
                     "order_number": data.order_number,
                     "status": data.status,
                     "total": (data.total if data.total is not None else 0),
@@ -332,12 +336,12 @@ class MySQLOrderDAO:
                     "shipped_at": _to_ts(data.shipped_at),
                     "delivered_at": _to_ts(data.delivered_at),
                     "cod_payment_received": 1 if data.cod_payment_received else 0,
-                    "cod_payment_received_at": _to_ts(data.cod_payment_receivedAt),
+                    "cod_payment_received_at": _to_ts(data.cod_payment_received_at),
                     "decline_reason": data.decline_reason,
                     "cancelled_at": _to_ts(data.cancelled_at),
                     "cancelled_by": data.cancelled_by,
                     "turnaround_hours": data.turnaround_hours,
-                    "created_at": _to_ts(data.createdAt) or now,
+                    "created_at": _to_ts(data.created_at) or now,
                     "updated_at": now,
                 },
             )
@@ -360,16 +364,20 @@ class MySQLOrderDAO:
         now = now_utc()
         oid = int(id) if str(id).isdigit() else None
         raw_user_id = update_data.user if update_data.user is not None else existing.user
-        user_id = int(raw_user_id) if str(raw_user_id).isdigit() else None
-        if user_id is None:
-            return None
+        user_val = str(raw_user_id) if raw_user_id is not None else ""
+        if user_val and not user_val.isdigit():
+            user_id_subquery = f"(SELECT id FROM sj_users WHERE external_id = :uid)"
+            uid_param = user_val
+        else:
+            user_id_subquery = ":uid"
+            uid_param = int(user_val) if user_val else None
 
         async with factory() as session:
             await session.execute(
                 text(
                     f"""
                     UPDATE {self.TABLE} SET
-                        user_id = :user_id,
+                        user_id = {user_id_subquery},
                         order_number = :order_number,
                         status = :status,
                         total = :total,
@@ -404,7 +412,7 @@ class MySQLOrderDAO:
                 ),
                 {
                     "id": oid,
-                    "user_id": user_id,
+                    "uid": uid_param,
                     "order_number": update_data.order_number if update_data.order_number is not None else existing.order_number,
                     "status": update_data.status if update_data.status is not None else existing.status,
                     "total": (update_data.total if update_data.total is not None else (existing.total if existing.total is not None else 0)),
@@ -451,7 +459,7 @@ class MySQLOrderDAO:
                     "shipped_at": _to_ts(update_data.shipped_at if update_data.shipped_at is not None else existing.shipped_at),
                     "delivered_at": _to_ts(update_data.delivered_at if update_data.delivered_at is not None else existing.delivered_at),
                     "cod_payment_received": 1 if (update_data.cod_payment_received if update_data.cod_payment_received is not None else existing.cod_payment_received) else 0,
-                    "cod_payment_received_at": _to_ts(update_data.cod_payment_receivedAt if update_data.cod_payment_receivedAt is not None else existing.cod_payment_received_at),
+                    "cod_payment_received_at": _to_ts(update_data.cod_payment_received_at if update_data.cod_payment_received_at is not None else existing.cod_payment_received_at),
                     "decline_reason": update_data.decline_reason if update_data.decline_reason is not None else existing.decline_reason,
                     "cancelled_at": _to_ts(update_data.cancelled_at if update_data.cancelled_at is not None else existing.cancelled_at),
                     "cancelled_by": update_data.cancelled_by if update_data.cancelled_by is not None else existing.cancelled_by,

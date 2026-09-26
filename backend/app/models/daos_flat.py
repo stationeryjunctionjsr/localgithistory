@@ -1,5 +1,5 @@
 from app.models.base import CamelBaseModel
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Any, Optional, Dict, List
 from datetime import datetime
 from app.models.schemas import TicketResponseItemInternal, SocialMedia
@@ -582,8 +582,8 @@ class CouponInternal(CamelBaseModel):
     applies_to_type: Optional[str] = None
     
     display_id: Optional[str] = None
-    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = None
-    buy_x_get_y_customer_gets_quantity: Optional[int] = None
+    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = Field(None, alias="bxgy_customer_gets_applies_to_type")
+    buy_x_get_y_customer_gets_quantity: Optional[int] = Field(None, alias="bxgy_customer_gets_quantity")
     bxgy_applies_to_ids: Optional[List[str]] = Field(None, alias="buy_x_get_y_customer_gets_applies_to_value_ids")
     bxgy_discount_type: Optional[str] = Field(None, alias="buy_x_get_y_customer_gets_discount_type")
     bxgy_discount_value: Optional[float] = Field(None, alias="buy_x_get_y_customer_gets_discount_value")
@@ -595,6 +595,18 @@ class CouponInternal(CamelBaseModel):
 
     
     quantity_tiers: Optional[List[CouponQuantityTierInternal]] = None
+
+    @field_validator('applies_to_ids', 'bxgy_applies_to_ids', 'bxgy_customer_gets_applies_to_ids', mode='before', check_fields=False)
+    @classmethod
+    def parse_json_lists(cls, v):
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except Exception:
+                return []
+        return v
+
     applicable_roles: Optional[List[str]] = None
     applicable_user_ids: Optional[List[str]] = None
     applicable_payment_methods: Optional[List[str]] = None
@@ -626,8 +638,8 @@ class CouponInternalCreate(CamelBaseModel):
     applies_to_type: Optional[str] = None
     
     display_id: Optional[str] = None
-    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = None
-    buy_x_get_y_customer_gets_quantity: Optional[int] = None
+    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = Field(None, alias="bxgy_customer_gets_applies_to_type")
+    buy_x_get_y_customer_gets_quantity: Optional[int] = Field(None, alias="bxgy_customer_gets_quantity")
     buy_x_get_y_customer_gets_applies_to_value_ids: Optional[List[str]] = None
     buy_x_get_y_customer_gets_discount_type: Optional[str] = None
     buy_x_get_y_customer_gets_discount_value: Optional[float] = None
@@ -639,6 +651,18 @@ class CouponInternalCreate(CamelBaseModel):
 
     
     quantity_tiers: Optional[List[CouponQuantityTierInternal]] = None
+
+    @field_validator('applies_to_ids', 'bxgy_applies_to_ids', 'bxgy_customer_gets_applies_to_ids', mode='before', check_fields=False)
+    @classmethod
+    def parse_json_lists(cls, v):
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except Exception:
+                return []
+        return v
+
     applicable_roles: Optional[List[str]] = None
     applicable_user_ids: Optional[List[str]] = None
     applicable_payment_methods: Optional[List[str]] = None
@@ -668,8 +692,8 @@ class CouponInternalUpdate(CamelBaseModel):
     applies_to_type: Optional[str] = None
     
     display_id: Optional[str] = None
-    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = None
-    buy_x_get_y_customer_gets_quantity: Optional[int] = None
+    buy_x_get_y_customer_gets_applies_to_type: Optional[str] = Field(None, alias="bxgy_customer_gets_applies_to_type")
+    buy_x_get_y_customer_gets_quantity: Optional[int] = Field(None, alias="bxgy_customer_gets_quantity")
     buy_x_get_y_customer_gets_applies_to_value_ids: Optional[List[str]] = None
     buy_x_get_y_customer_gets_discount_type: Optional[str] = None
     buy_x_get_y_customer_gets_discount_value: Optional[float] = None
@@ -681,6 +705,18 @@ class CouponInternalUpdate(CamelBaseModel):
 
     
     quantity_tiers: Optional[List[CouponQuantityTierInternal]] = None
+
+    @field_validator('applies_to_ids', 'bxgy_applies_to_ids', 'bxgy_customer_gets_applies_to_ids', mode='before', check_fields=False)
+    @classmethod
+    def parse_json_lists(cls, v):
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except Exception:
+                return []
+        return v
+
     applicable_roles: Optional[List[str]] = None
     applicable_user_ids: Optional[List[str]] = None
     applicable_payment_methods: Optional[List[str]] = None
