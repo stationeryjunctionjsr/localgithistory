@@ -1938,7 +1938,7 @@ async def create_order(
                     "couponInfo": coupon_info,
                     "createdAt": order.created_at.isoformat() if order.created_at else None,
                 }
-                sub = await sub_order_repository.create(SubOrderInternalCreate(**sub_order_data))
+                sub = await sub_order_repository.create(SubOrderInternalCreate.model_validate(sub_order_data))
                 sub_order_ids.append(str(sub.id))
 
                 # Notify the seller about their new sub-order (if it's a seller admin, not platform)
@@ -2318,7 +2318,7 @@ async def update_order_status(
                 {"paymentStatus": "cancelled", "amountRemaining": 0},
             )
 
-    updated_order = await order_repository.update(order_id, OrderInternalUpdate(**update_data))
+    updated_order = await order_repository.update(order_id, OrderInternalUpdate.model_validate(update_data))
     populated_order = await populate_order(updated_order)
 
     # ── C5: Cascade terminal status from parent to sub-orders ─────────────────
@@ -2352,7 +2352,7 @@ async def update_order_status(
                 except Exception as _ce:
                     logger.warning(
                         "Commission stamp failed for sub-order %s: %s", _so_id, _ce)
-                await sub_order_repository.update(_so_id, SubOrderInternalUpdate(**_cascade))
+                await sub_order_repository.update(_so_id, SubOrderInternalUpdate.model_validate(_cascade))
 
     # Recompute parent fulfillmentStatus from all sub-orders
     sub_ids = updated_order.sub_order_ids if updated_order.sub_order_ids else []
@@ -3248,7 +3248,7 @@ async def get_seller_orders(
         query["status"] = status
     skip = (page - 1) * limit
     sub_orders = await sub_order_repository.findBySeller(seller_id, query, skip=skip, limit=limit)
-    total = await sub_order_repository.count({"sellerId": seller_id, **query})
+    total = await sub_order_repository.count({"seller_id": seller_id, **query})
     return {
         "subOrders": sub_orders,
         "totalCount": total,

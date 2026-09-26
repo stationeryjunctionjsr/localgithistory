@@ -944,7 +944,7 @@ class ProductRepository:
             product_data.setdefault("mrp", 0.0)
             product_data.setdefault("price", 0.0)
             product_data.setdefault("category", "Uncategorized")
-            product_data = ProductInternalCreate(**product_data)
+            product_data = ProductInternalCreate.model_validate(product_data)
         # Use DB-native MAX(id) instead of loading all products into memory
         try:
             factory_fn = self.storage._factory()
@@ -1080,7 +1080,7 @@ class ProductRepository:
                     combo.sku = combo_sku
         
         existing_product = await self.storage.findById(id)
-        internal_update = ProductInternalUpdate(**update_fields)
+        internal_update = ProductInternalUpdate.model_validate(update_fields)
         updated = await self.storage.update(id, internal_update)
         
         # Trigger restock notifications if stock increased from 0

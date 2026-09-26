@@ -43,7 +43,7 @@ class BrandRepository:
                     case "isActive": fields["isActive"] = data.is_active
                     case "logoUrl": fields["logoUrl"] = data.logoUrl
                     case "showInMobileHomepage": fields["showInMobileHomepage"] = data.showInMobileHomepage
-            internal_data = BrandInternalCreate(**fields)
+            internal_data = BrandInternalCreate.model_validate(fields)
         else:
             internal_data = data
         return await self.storage.create(internal_data)
@@ -59,7 +59,7 @@ class BrandRepository:
                     case "isActive": fields["isActive"] = data.is_active
                     case "logoUrl": fields["logoUrl"] = data.logoUrl
                     case "showInMobileHomepage": fields["showInMobileHomepage"] = data.showInMobileHomepage
-            internal_data = BrandInternalUpdate(**fields)
+            internal_data = BrandInternalUpdate.model_validate(fields)
         else:
             internal_data = data
         return await self.storage.update(id, internal_data)

@@ -118,7 +118,13 @@ async def send_otp(data: SendOTPRequest, request: Request):
                 )
 
         ok, raw_payload = await request_otp_async(normalized_phone, device_key)
-        payload = OTPResponsePayload(**raw_payload)
+        payload = OTPResponsePayload(
+            message=raw_payload.get("message"),
+            retry_after_seconds=raw_payload.get("retry_after_seconds"),
+            otp=raw_payload.get("otp"),
+            resend_available_in_seconds=raw_payload.get("resend_available_in_seconds"),
+            sent=raw_payload.get("sent", False)
+        )
         if not ok:
             # Enforce per-user hourly send rate limit (across devices)
             err_msg = payload.message or "Too many requests"
@@ -168,7 +174,10 @@ async def verify_otp_endpoint(data: VerifyOTPRequest, request: Request):
         device_key = (data.deviceId or "default").strip() or "default"
         logger.info(f"[VERIFY-OTP] phone=***{normalized_phone[-4:]} device_key={device_key}")
         raw_result = await verify_otp_async(normalized_phone, data.otp, device_key=device_key, delete_on_success=False)
-        result = OTPVerifyResultPayload(**raw_result)
+        result = OTPVerifyResultPayload(
+            valid=raw_result.get("valid", False),
+            message=raw_result.get("message", "")
+        )
         logger.info(f"[VERIFY-OTP] result={result}")
         if not result.valid:
             raise HTTPException(status_code=400, detail=result.message)
@@ -284,7 +293,10 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
             raw_otp_result = await verify_otp_async(
                 normalized_phone, user_data.otp, device_key=device_key, delete_on_success=False
             )
-            otp_result = OTPVerifyResultPayload(**raw_otp_result)
+            otp_result = OTPVerifyResultPayload(
+                valid=raw_otp_result.get("valid", False),
+                message=raw_otp_result.get("message", "")
+            )
             otp_valid = otp_result.valid
             logger.info(f"[REGISTER] OTP verify result: valid={otp_valid}")
             if not otp_valid:
@@ -537,7 +549,10 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):
         else:
             device_key = (data.deviceId or "default").strip() or "default"
             raw_otp_result = await verify_otp_async(normalized_phone, data.otp, device_key=device_key)
-            otp_result = OTPVerifyResultPayload(**raw_otp_result)
+            otp_result = OTPVerifyResultPayload(
+                valid=raw_otp_result.get("valid", False),
+                message=raw_otp_result.get("message", "")
+            )
             otp_valid = otp_result.valid
             if not otp_valid:
                 err_msg = otp_result.message

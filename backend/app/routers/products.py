@@ -134,7 +134,7 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
         grouped_products = {}
         for idx, r in enumerate(csv_data):
             row_num = idx + 2
-            row_obj = CSVProductRow(**r, row_number=row_num)
+            row_obj = CSVProductRow.model_validate({**r, "row_number": row_num})
             name = (row_obj.name or "").strip()
 
             if not name:

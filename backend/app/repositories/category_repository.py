@@ -35,7 +35,7 @@ class CategoryRepository:
     async def create(self, category_data: 'CategoryInternalCreate') -> Category:
         from app.models.daos import CategoryInternalCreate
         if isinstance(category_data, dict):
-            category_data = CategoryInternalCreate(**category_data)
+            category_data = CategoryInternalCreate.model_validate(category_data)
         elif not isinstance(category_data, CategoryInternalCreate):
             fields = {}
             for f in getattr(category_data, "model_fields_set", []):
@@ -44,14 +44,14 @@ class CategoryRepository:
                     case "description": fields["description"] = category_data.description
                     case "parentId" | "parent_id": fields["parentId"] = category_data.parentId
                     case "isActive" | "is_active": fields["isActive"] = category_data.is_active
-            category_data = CategoryInternalCreate(**fields)
+            category_data = CategoryInternalCreate.model_validate(fields)
         return await self.storage.create(category_data)
 
     async def update(self, id: str, update_data: 'CategoryInternalUpdate') -> Category:
         from app.models.daos import CategoryInternalUpdate
         # Synchronize categoryTag and categoryTags for backward compatibility
         if isinstance(update_data, dict):
-            update_data = CategoryInternalUpdate(**update_data)
+            update_data = CategoryInternalUpdate.model_validate(update_data)
         update_dict = {}
         for field in getattr(update_data, "model_fields_set", update_data.__dict__.keys() if hasattr(update_data, "__dict__") else []):
             match field:

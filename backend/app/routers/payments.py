@@ -246,7 +246,7 @@ async def get_payments(
     for payment in payments:
         order = (order_map[str(payment.order_id)] if str(payment.order_id) in order_map else None)
         enhanced_payments.append({
-            **payment,
+            **(payment.model_dump() if hasattr(payment, "model_dump") else payment.dict() if hasattr(payment, "dict") else payment),
             "orderNumber": order.order_number if order else payment.order_id,
         })
 
