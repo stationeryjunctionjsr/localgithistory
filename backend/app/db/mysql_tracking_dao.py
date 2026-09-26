@@ -38,6 +38,7 @@ _TRACKING_SCALAR = {
     "os": "os",
     "browser": "browser",
     "ipAddress": "ip_address",
+    "pageViews": "page_views",
     "orderId": "order_id",
     "orderValue": "order_value",
     "price": "price",
@@ -80,6 +81,7 @@ class MySQLTrackingDAO:
             os=r.os,
             browser=r.browser,
             ipAddress=r.ip_address,
+            pageViews=int(r.page_views) if r.page_views is not None else None,
             orderId=r.order_id,
             orderValue=float(r.order_value) if r.order_value is not None else None,
             price=float(r.price) if r.price is not None else None,
@@ -217,8 +219,9 @@ class MySQLTrackingDAO:
         add_col("os", "os", data.os if data.os is not None else get_payload_extra("os"))
         add_col("browser", "browser", data.browser if data.browser is not None else get_payload_extra("browser"))
         add_col("ip_address", "ip_address", data.ip_address if data.ip_address is not None else get_payload_extra("ip_address"))
-        add_col("order_id", "order_id", data.order_id if data.order_id is not None else get_payload_extra("order_id"))
-        add_col("order_value", "order_value", data.order_value if data.order_value is not None else get_payload_extra("order_value"))
+        add_col("page_views", "page_views", data.page_views if data.page_views is not None else get_payload_extra("page_views"))
+        add_col("order_id", "order_id", data.order_id if hasattr(data, 'order_id') and data.order_id is not None else get_payload_extra("order_id"))
+        add_col("order_value", "order_value", data.order_value if hasattr(data, 'order_value') and data.order_value is not None else get_payload_extra("order_value"))
         add_col("price", "price", data.price if data.price is not None else get_payload_extra("price"))
         add_col("category", "category", data.category if data.category is not None else get_payload_extra("category"))
 
