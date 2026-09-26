@@ -111,7 +111,7 @@ class MySQLFlatBaseDAO:
         if self.has_external_id:
             params["external_id"] = secrets.token_hex(16)
         for api_key, col in self.scalar_map.items():
-            val = getattr(data, api_key, None) if not isinstance(data, dict) else data.get(api_key)
+            val = getattr(data, api_key, None)
             if val is None:
                 params[col] = None
                 continue

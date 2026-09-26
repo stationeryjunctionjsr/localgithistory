@@ -1768,7 +1768,6 @@ class AnalyticsEventCreate(CamelBaseModel):
     price: Optional[float] = None
     cart_value: Optional[float] = None
     is_returning: Optional[bool] = None
-    page_views: Optional[int] = None
     device_type: Optional[str] = None
     device_os_version: Optional[str] = None
     device_model: Optional[str] = None
