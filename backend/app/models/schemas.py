@@ -590,6 +590,7 @@ class BannerUpdate(CamelBaseModel):
 
 class BannerResponse(BannerBase):
     id: str = Field(alias="_id")
+    external_id: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: datetime = Field(validation_alias=AliasChoices("updatedAt", "updated_at"))
     user: Optional[UserSnippet] = None
