@@ -182,18 +182,18 @@ async def test_web_tracking_endpoints(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
-    """Verify that mobile events logged to /api/analytics/events are logged to the events database and replicated to tracking."""
+    """Verify that mobile events logged to /api/analytics/events are written directly to sj_tracking."""
     session_id = f"session_mobile_{uuid.uuid4().hex[:8]}"
     product_id = "prod_mobile_test_456"
     product_name = "Mobile Test Product"
 
     mobile_events = [
-        {"type": "session_start", "sessionId": session_id, "payload": {"returning": True, "testRunId": session_id}},
-        {"type": "page_view", "sessionId": session_id, "page": "/mobile/home", "payload": {"testRunId": session_id}},
+        {"type": "session_start", "sessionId": session_id, "payload": {"returning": True}},
+        {"type": "page_view", "sessionId": session_id, "page": "/mobile/home", "payload": {}},
         {
             "type": "product_view",
             "sessionId": session_id,
-            "payload": {"productId": product_id, "productName": product_name, "testRunId": session_id},
+            "payload": {"productId": product_id, "productName": product_name},
         },
         {
             "type": "product_click",
@@ -202,32 +202,31 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
                 "productId": product_id,
                 "productName": product_name,
                 "source": "search_results",
-                "testRunId": session_id,
             },
         },
         {
             "type": "add_to_cart",
             "sessionId": session_id,
-            "payload": {"productId": product_id, "quantity": 3, "testRunId": session_id},
+            "payload": {"productId": product_id, "quantity": 3},
         },
         {
             "type": "remove_from_cart",
             "sessionId": session_id,
-            "payload": {"productId": product_id, "quantity": 1, "testRunId": session_id},
+            "payload": {"productId": product_id, "quantity": 1},
         },
         {
             "type": "search",
             "sessionId": session_id,
-            "payload": {"query": "notebook", "resultsCount": 5, "testRunId": session_id},
+            "payload": {"query": "notebook", "resultsCount": 5},
         },
         {
             "type": "add_to_wishlist",
             "sessionId": session_id,
-            "payload": {"productId": product_id, "testRunId": session_id},
+            "payload": {"productId": product_id},
         },
-        {"type": "begin_checkout", "sessionId": session_id, "payload": {"testRunId": session_id}},
-        {"type": "purchase", "sessionId": session_id, "payload": {"testRunId": session_id}},
-        {"type": "session_end", "sessionId": session_id, "payload": {"reason": "app_closed", "testRunId": session_id}},
+        {"type": "begin_checkout", "sessionId": session_id, "payload": {}},
+        {"type": "purchase", "sessionId": session_id, "payload": {}},
+        {"type": "session_end", "sessionId": session_id, "payload": {"reason": "app_closed"}},
     ]
 
     for ev in mobile_events:
@@ -235,32 +234,24 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
         assert res.status_code == 200
         assert res.json().get("status") == "ok"
 
-    # Verify logging in the events database
-    all_event_records = await analytics_repository.event_storage.findAll()
-    event_records = [r for r in all_event_records if has_test_run_id(r.payload, session_id)]
-    assert len(event_records) == len(mobile_events)
-
-    # Verify replication/syncing in the tracking database
+    # All mobile events now write directly to sj_tracking — verify they are there
     tracking_records = await tracking_repository.storage.findAll({"sessionId": session_id})
-    # begin_checkout translates to page_view (/checkout/step1)
-    # purchase translates to page_view (/checkout/complete)
-    # so we should have tracking records populated
     assert len(tracking_records) > 0
 
     track_types = [r.type for r in tracking_records]
 
     # Verify expected event mappings
-    assert "session" in track_types  # session_start -> session
-    assert "page_view" in track_types  # page_view -> page_view
-    assert "product_view" in track_types  # product_view -> product_view
-    assert "product_click" in track_types  # product_click -> product_click
-    assert "cart_add" in track_types  # add_to_cart -> cart_add
-    assert "cart_item_remove" in track_types  # remove_from_cart -> cart_item_remove
-    assert "product_search" in track_types  # search -> product_search
-    assert "wishlist_add" in track_types  # add_to_wishlist -> wishlist_add
-    assert "session_end" in track_types  # session_end -> session_end
+    assert "session" in track_types          # session_start -> session
+    assert "page_view" in track_types        # page_view -> page_view
+    assert "product_view" in track_types     # product_view -> product_view
+    assert "product_click" in track_types    # product_click -> product_click
+    assert "cart_add" in track_types         # add_to_cart -> cart_add
+    assert "cart_item_remove" in track_types # remove_from_cart -> cart_item_remove
+    assert "product_search" in track_types   # search -> product_search
+    assert "wishlist_add" in track_types     # add_to_wishlist -> wishlist_add
+    assert "session_end" in track_types      # session_end -> session_end
 
-    # Verify specific details of replicated records
+    # Verify specific details
     rep_search = next(r for r in tracking_records if r.type == "product_search")
     assert rep_search.search_term == "notebook"
     assert rep_search.results_count == 5
@@ -275,9 +266,7 @@ async def test_mobile_analytics_logging_and_sync(client: AsyncClient):
     rep_purchase = next(r for r in tracking_records if r.type == "page_view" and r.page == "/checkout/complete")
     assert rep_purchase is not None
 
-    # Cleanup (since we can't query clob directly, find our specific record IDs to delete)
-    for r in event_records:
-        await analytics_repository.event_storage.delete(r.id)
+    # Cleanup
     await tracking_repository.storage.deleteMany({"sessionId": session_id})
 
 
@@ -338,7 +327,3 @@ async def test_analytics_reports_incorporate_events(client: AsyncClient, admin_a
 
     # Cleanup
     await tracking_repository.storage.deleteMany({"sessionId": session_id})
-    all_events = await analytics_repository.event_storage.findAll()
-    for ev in all_events:
-        if has_test_run_id(ev.payload, session_id):
-            await analytics_repository.event_storage.delete(ev.id)

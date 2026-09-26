@@ -11,7 +11,7 @@ from app.models.analytics_schemas import (
     DiscountsAuditResponse, ProductsPctSoldResponse, BundlePerformanceReportResponse,
     SalesByChannelDetailedResponse, AllReportsSummaryResponse
 )
-from app.db.mysql_events_dao import EventCreate, EventPayloadItem
+
 from app.models.user import User
 from app.models.schemas import MessageResponse, AnalyticsEventCreate, AnalyticsEventPayload
 from datetime import datetime, timezone
@@ -229,78 +229,18 @@ async def record_event(
     event: AnalyticsEventCreate = Body(..., description="Analytics event payload"),
     user_info: Optional[User] = Depends(get_optional_user),
 ):
-    """Record a client-side analytics event (web/mobile). Auth is optional; will attach user if token provided."""
+    """Record a client-side analytics event (web/mobile). Writes directly to sj_tracking."""
 
     if not event.type:
         raise HTTPException(status_code=400, detail="Event type is required")
 
     user_id = str(user_info.id) if user_info else None
 
-    payload_items = []
-    if event.payload:
-        if event.payload.returning is not None:
-            payload_items.append(EventPayloadItem(key="returning", value=str(event.payload.returning)))
-        if event.payload.product_id is not None:
-            payload_items.append(EventPayloadItem(key="productId", value=str(event.payload.product_id)))
-        if event.payload.product_name is not None:
-            payload_items.append(EventPayloadItem(key="productName", value=str(event.payload.product_name)))
-        if event.payload.source is not None:
-            payload_items.append(EventPayloadItem(key="source", value=str(event.payload.source)))
-        if event.payload.quantity is not None:
-            payload_items.append(EventPayloadItem(key="quantity", value=str(event.payload.quantity)))
-        if event.payload.query is not None:
-            payload_items.append(EventPayloadItem(key="query", value=str(event.payload.query)))
-        if event.payload.results_count is not None:
-            payload_items.append(EventPayloadItem(key="resultsCount", value=str(event.payload.results_count)))
-        if event.payload.reason is not None:
-            payload_items.append(EventPayloadItem(key="reason", value=str(event.payload.reason)))
-        if getattr(event.payload, "test_run_id", getattr(event.payload, "testRunId", None)) is not None:
-            payload_items.append(EventPayloadItem(key="testRunId", value=str(getattr(event.payload, "test_run_id", getattr(event.payload, "testRunId", "")))))
-        if getattr(event.payload, "screen", None) is not None:
-            payload_items.append(EventPayloadItem(key="screen", value=str(getattr(event.payload, "screen", ""))))
-    
-
-    payload_items.append(EventPayloadItem(key="userId", value=str(user_id) if user_id else ""))
-    payload_items.append(EventPayloadItem(key="sessionId", value=str(event.session_id) if event.session_id else ""))
-    payload_items.append(EventPayloadItem(key="timestamp", value=str(event.timestamp) if event.timestamp else datetime.now(timezone.utc).isoformat()))
-    if event.os:
-        payload_items.append(EventPayloadItem(key="os", value=str(event.os)))
-    if event.browser:
-        payload_items.append(EventPayloadItem(key="browser", value=str(event.browser)))
-    if event.campaign:
-        payload_items.append(EventPayloadItem(key="campaign", value=str(event.campaign)))
-    if event.ip_address:
-        payload_items.append(EventPayloadItem(key="ipAddress", value=str(event.ip_address)))
-    elif request.client and request.client.host:
-        payload_items.append(EventPayloadItem(key="ipAddress", value=str(request.client.host)))
-
-
-
-    if event.device:
-        payload_items.append(EventPayloadItem(key="device_model", value=str(event.device)))
-
-
-
-    try:
-        if event.page:
-            payload_items.append(EventPayloadItem(key="page", value=str(event.page)))
-    except AttributeError:
-        pass
-
-    event_create = EventCreate(
-        eventType=event.type,
-        payload=payload_items
-    )
-
-
     try:
         event_type = event.type
         session_id = event.session_id
-        raw_payload = event.payload
-        payload_obj = raw_payload or AnalyticsEventPayload()
-        tracking_obj = None
+        payload_obj = event.payload or AnalyticsEventPayload()
 
-        # Unify OS
         final_os = event.os
         final_browser = event.browser
         final_device_type = event.deviceType
@@ -308,7 +248,6 @@ async def record_event(
         final_device_model = event.deviceModel or event.device
         final_device_app_version = event.deviceAppVersion
 
-        # Determine IP Address
         final_ip = event.ip_address
         if not final_ip and request.client and request.client.host:
             final_ip = request.client.host
@@ -325,71 +264,64 @@ async def record_event(
             "deviceType": final_device_type,
             "deviceOsVersion": final_device_os_version,
             "deviceModel": final_device_model,
-            "deviceAppVersion": final_device_app_version
+            "deviceAppVersion": final_device_app_version,
         }
 
-        try:
-            if event_type == "session_start":
-                is_returning = bool(payload_obj.returning) if payload_obj.returning is not None else False
-                tracking_obj = await tracking_repository.trackSession(user_id, session_id, is_returning, **kwargs)
-            elif event_type == "page_view":
-                page = event.page if event.page is not None else "/"
-                tracking_obj = await tracking_repository.trackPageView(user_id, page, session_id, **kwargs)
-            elif event_type == "product_view":
-                product_id = payload_obj.product_id
-                product_name = payload_obj.product_name if payload_obj.product_name is not None else "Unknown"
-                if product_id:
-                    tracking_obj = await tracking_repository.trackProductView(user_id, product_id, product_name, session_id, **kwargs)
-            elif event_type == "product_click":
-                product_id = payload_obj.product_id
-                product_name = payload_obj.product_name if payload_obj.product_name is not None else "Unknown"
-                p_source = payload_obj.source if payload_obj.source is not None else (final_source or "mobile_app")
-                if product_id:
-                    tracking_obj = await tracking_repository.trackProductClick(user_id, product_id, product_name, session_id, **{**kwargs, "source": p_source})
-            elif event_type == "add_to_cart":
-                product_id = payload_obj.product_id
-                quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
-                if product_id:
-                    tracking_obj = await tracking_repository.trackCartAdd(user_id, product_id, quantity, session_id, **kwargs)
-            elif event_type == "remove_from_cart":
-                product_id = payload_obj.product_id
-                quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
-                if product_id:
-                    tracking_obj = await tracking_repository.trackCartItemRemove(user_id, product_id, quantity, session_id, **kwargs)
-            elif event_type == "search":
-                query = payload_obj.query if payload_obj.query is not None else ""
-                results_count = payload_obj.results_count if payload_obj.results_count is not None else 0
-                tracking_obj = await tracking_repository.trackSearch(user_id, query, results_count, session_id, segment="customer", **kwargs)
-            elif event_type == "add_to_wishlist":
+        tracking_obj = None
 
-                product_id = payload_obj.product_id
-                if product_id:
-                    tracking_obj = await tracking_repository.trackWishlistAdd(user_id, product_id, "Unknown", session_id)
-            elif event_type == "session_end":
-                reason = payload_obj.reason if payload_obj.reason is not None else "unknown"
-                from app.models.schemas import AnalyticsEventCreate
-                tracking_obj = await tracking_repository.create(
-                    AnalyticsEventCreate(type="session_end", userId=user_id, sessionId=session_id, reason=reason)
-                )
-            elif event_type == "begin_checkout":
-                tracking_obj = await tracking_repository.trackPageView(user_id, "/checkout/step1", session_id)
-            elif event_type == "purchase":
-                tracking_obj = await tracking_repository.trackPageView(user_id, "/checkout/complete", session_id)
-        except Exception as sync_err:
-            logger.error("Failed to sync event to tracking repository: %s", str(sync_err), exc_info=True)
+        if event_type == "session_start":
+            is_returning = bool(payload_obj.returning) if payload_obj.returning is not None else False
+            tracking_obj = await tracking_repository.trackSession(user_id, session_id, is_returning, **kwargs)
+        elif event_type == "page_view":
+            page = event.page if event.page is not None else "/"
+            tracking_obj = await tracking_repository.trackPageView(user_id, page, session_id, **kwargs)
+        elif event_type == "product_view":
+            product_id = payload_obj.product_id
+            product_name = payload_obj.product_name if payload_obj.product_name is not None else "Unknown"
+            if product_id:
+                tracking_obj = await tracking_repository.trackProductView(user_id, product_id, product_name, session_id, **kwargs)
+        elif event_type == "product_click":
+            product_id = payload_obj.product_id
+            product_name = payload_obj.product_name if payload_obj.product_name is not None else "Unknown"
+            p_source = payload_obj.source if payload_obj.source is not None else (final_source or "mobile_app")
+            if product_id:
+                tracking_obj = await tracking_repository.trackProductClick(user_id, product_id, product_name, session_id, **{**kwargs, "source": p_source})
+        elif event_type == "add_to_cart":
+            product_id = payload_obj.product_id
+            quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
+            if product_id:
+                tracking_obj = await tracking_repository.trackCartAdd(user_id, product_id, quantity, session_id, **kwargs)
+        elif event_type == "remove_from_cart":
+            product_id = payload_obj.product_id
+            quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
+            if product_id:
+                tracking_obj = await tracking_repository.trackCartItemRemove(user_id, product_id, quantity, session_id, **kwargs)
+        elif event_type == "search":
+            query = payload_obj.query if payload_obj.query is not None else ""
+            results_count = payload_obj.results_count if payload_obj.results_count is not None else 0
+            tracking_obj = await tracking_repository.trackSearch(user_id, query, results_count, session_id, segment="customer", **kwargs)
+        elif event_type == "add_to_wishlist":
+            product_id = payload_obj.product_id
+            if product_id:
+                tracking_obj = await tracking_repository.trackWishlistAdd(user_id, product_id, "Unknown", session_id)
+        elif event_type == "session_end":
+            reason = payload_obj.reason if payload_obj.reason is not None else "unknown"
+            tracking_obj = await tracking_repository.create(
+                AnalyticsEventCreate(type="session_end", userId=user_id, sessionId=session_id, reason=reason)
+            )
+        elif event_type == "begin_checkout":
+            tracking_obj = await tracking_repository.trackPageView(user_id, "/checkout/step1", session_id)
+        elif event_type == "purchase":
+            tracking_obj = await tracking_repository.trackPageView(user_id, "/checkout/complete", session_id)
 
-        if tracking_obj:
-            event_create.tracking_id = int(tracking_obj.id)
-            
-        stored = await analytics_repository.record_event(event_create)
-
-
-
-        event_id = str(stored.id) if stored else None
+        event_id = str(tracking_obj.id) if tracking_obj else None
         return {"status": "ok", "eventId": event_id}
+
     except Exception as e:
-        logger.error("Unexpected error: %s", str(e), exc_info=True)
+        logger.error("Unexpected error in record_event: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
 
 
 @router.get("/kpi", response_model=KPIMetricsResponse)

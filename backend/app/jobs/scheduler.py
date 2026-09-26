@@ -96,14 +96,14 @@ def start_recommendation_scheduler():
         CronTrigger(hour=0, minute=0, timezone=IST),
         id="daily_search_report_job",
     )
-    # Daily Events Reconciler & Sync: 12:00 AM IST
-    from app.jobs.events_sync_job import run_events_sync_job_async
-
-    scheduler.add_job(
-        run_events_sync_job_async,
-        CronTrigger(hour=0, minute=0, timezone=IST),
-        id="daily_events_sync_job",
-    )
+    # Daily Events Reconciler & Sync: DISABLED — mobile events now write directly
+    # to sj_tracking in real-time via /api/analytics/events. No batch sync needed.
+    # from app.jobs.events_sync_job import run_events_sync_job_async
+    # scheduler.add_job(
+    #     run_events_sync_job_async,
+    #     CronTrigger(hour=0, minute=0, timezone=IST),
+    #     id="daily_events_sync_job",
+    # )
     # Resource Monitoring: Every 30 minutes
     scheduler.add_job(
         _resource_monitoring_job,
@@ -132,7 +132,7 @@ def start_recommendation_scheduler():
     )
     scheduler.start()
     logger.info(
-        "Recommendation scheduler started (IST): trending 12 AM/PM, favorites 12 AM, google reviews 12 AM, events sync 12 AM"
+        "Recommendation scheduler started (IST): trending 12 AM/PM, favorites 12 AM, google reviews 12 AM"
     )
 
 # ── MULTI-VM SCHEDULER (commented out — activate when scaling to multiple VMs) ──

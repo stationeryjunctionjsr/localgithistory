@@ -86,13 +86,11 @@ class MySQLTrackingDAO:
             orderValue=float(r.order_value) if r.order_value is not None else None,
             price=float(r.price) if r.price is not None else None,
             category=r.category,
-            product_ids=children["product_ids"] if "product_ids" in children else [],
-            payload={},
-            cartItems=children["cart_items"] if "cart_items" in children else []
+            cartItems=children.get("cart_items", [])
         )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {"product_ids": []} for rid in ids}
+        c_map = {rid: {} for rid in ids}
         if not ids:
             return c_map
         chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
@@ -100,7 +98,7 @@ class MySQLTrackingDAO:
         for chunk in chunks:
             chunk_params = {f"tid_{i}": tid for i, tid in enumerate(chunk)}
             placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
-            
+
             res = await session.execute(
                 text(f"SELECT tracking_id, product_id, quantity, price FROM sj_tracking_cart_items WHERE tracking_id IN ({placeholders})"),
                 chunk_params
@@ -110,51 +108,25 @@ class MySQLTrackingDAO:
                     c_map[r.tracking_id]["cart_items"] = []
                 c_map[r.tracking_id]["cart_items"].append({"productId": r.product_id, "quantity": r.quantity, "price": r.price})
 
-        for chunk in chunks:
-            chunk_params = {f"id_{i}": cid for i, cid in enumerate(chunk)}
-            placeholders = ", ".join([f":{k}" for k in chunk_params.keys()])
-
-            p_res = await session.execute(
-                text(f"SELECT tracking_id, product_id FROM sj_tracking_products WHERE tracking_id IN ({placeholders})"),
-                chunk_params,
-            )
-            for r in p_res.fetchall():
-                c_map[r.tracking_id]["product_ids"].append(r.product_id)
-
         return c_map
 
     async def _replace_children(self, session, tid: int, data: 'CamelBaseModel'):
-        await session.execute(text("DELETE FROM sj_tracking_products WHERE tracking_id = :tid"), {"tid": tid})
         await session.execute(text("DELETE FROM sj_tracking_cart_items WHERE tracking_id = :tid"), {"tid": tid})
 
         cart_items = []
         if data.cartItems is not None:
             cart_items.extend(data.cartItems)
-        
-        # Extract from payload if nested, to avoid stringifying array of objects
-        payload = data.payload
-        payload = payload.copy() if payload else {}
-        if "cart_items" in payload:
-            cart_items.extend(payload.pop("cart_items"))
 
         for item in cart_items:
-            item_dict = item
             await session.execute(
                 text("INSERT INTO sj_tracking_cart_items (tracking_id, product_id, quantity, price) VALUES (:tid, :pid, :qty, :prc)"),
                 {
-                    "tid": tid, 
-                    "pid": str(item_dict.product_id), 
-                    "qty": int(item_dict.quantity or 1),
-                    "prc": float(item_dict.price) if item_dict.price is not None else None
+                    "tid": tid,
+                    "pid": str(item.product_id),
+                    "qty": int(item.quantity or 1),
+                    "prc": float(item.price) if item.price is not None else None
                 }
             )
-
-        if data.product_ids is not None:
-            for pid in data.product_ids:
-                await session.execute(
-                    text("INSERT INTO sj_tracking_products (tracking_id, product_id) VALUES (:tid, :pid)"),
-                    {"tid": tid, "pid": str(pid)},
-                )
 
     async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None) -> List['AnalyticsEvent']:
         factory = self._factory()

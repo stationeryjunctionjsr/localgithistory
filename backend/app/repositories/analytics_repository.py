@@ -15,7 +15,6 @@ class AnalyticsRepository:
         self.product_storage = get_storage("products")
         self.user_storage = get_storage("users")
         self.cart_storage = get_storage("carts")
-        self.event_storage = get_storage("events")
         self.session_storage = get_storage("sessions")
         self.tracking_storage = get_storage("tracking")
 
@@ -763,9 +762,14 @@ class AnalyticsRepository:
             "sessionOrderRate": session_order_rate,
         }
 
-    async def record_event(self, event: 'AnalyticsEventRequest') -> Dict:
-        """Record an analytics event"""
-        return await self.event_storage.create(event)
+    async def record_event(self, event) -> None:
+        """
+        DEPRECATED — sj_events table has been dropped. Mobile events are now
+        written directly to sj_tracking via tracking_repository in the
+        /api/analytics/events endpoint. This stub is kept to prevent import
+        errors during the transition; callers in analytics.py have been removed.
+        """
+        pass
 
     @cache.ttl_cache(ttl=300)
     async def get_top_users_by_revenue(

@@ -118,10 +118,24 @@ class TrackingRepository:
         ))
 
     async def trackCartAdd(self, user_id, product_id, quantity, session_id=None, **kwargs):
-        return await self.trackAddToCart(user_id, product_id, "Unknown", quantity, 0, session_id, **kwargs)
+        from app.models.schemas import ItemSnippet
+        return await self.create(AnalyticsEventCreate(
+            type="cart_add",
+            userId=user_id,
+            sessionId=session_id,
+            cartItems=[ItemSnippet(product_id=product_id, quantity=quantity)],
+            **kwargs
+        ))
 
     async def trackCartItemRemove(self, user_id, product_id, quantity, session_id=None, **kwargs):
-        return await self.trackRemoveFromCart(user_id, product_id, "Unknown", quantity, 0, session_id, **kwargs)
+        from app.models.schemas import ItemSnippet
+        return await self.create(AnalyticsEventCreate(
+            type="cart_item_remove",
+            userId=user_id,
+            sessionId=session_id,
+            cartItems=[ItemSnippet(product_id=product_id, quantity=quantity)],
+            **kwargs
+        ))
 
     async def trackFilterClick(self, user_id, filter_name, filter_value, session_id=None, **kwargs):
         return await self.create(AnalyticsEventCreate(
