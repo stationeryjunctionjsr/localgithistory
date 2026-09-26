@@ -48,8 +48,7 @@ class MySQLCartDAO:
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
-            result = print(f'\n[DEBUG] MySQLCartDAO.create: user_id_raw={user_id_raw}, uid={uid}')
-            await session.execute(
+            result = await session.execute(
                 text(
                     f"SELECT id, external_id, user_id, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"
                 ),

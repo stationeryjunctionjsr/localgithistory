@@ -2,7 +2,7 @@ import typing
 
 JsonPayload = typing.Dict[str, typing.Any]
 
-﻿from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 class CamelBaseModel(BaseModel):
