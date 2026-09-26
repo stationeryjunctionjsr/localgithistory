@@ -1804,15 +1804,21 @@ class Msg91WebhookPayload(CamelBaseModel):
 
 
 class TrackBeaconRequest(CamelBaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
     event: Optional[str] = None
     page: Optional[str] = None
     session_id: Optional[str] = None
     timestamp: Optional[str] = None
     user_id: Optional[str] = None
+    campaign: Optional[str] = None
+    source: Optional[str] = None
+    os: Optional[str] = None
+    browser: Optional[str] = None
+    ip_address: Optional[str] = None
 
 
 class TrackNotifyPincodeRequest(CamelBaseModel):
+    model_config = ConfigDict(extra="ignore")
     product_id: str
     pincode: str
     product_name: Optional[str] = "Unknown"

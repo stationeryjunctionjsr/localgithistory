@@ -37,6 +37,7 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
 # Tracking request models
 
 class BaseTrackingRequest(CamelBaseModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
     campaign: Optional[str] = None
     source: Optional[str] = None
     os: Optional[str] = None
