@@ -70,9 +70,9 @@ async def create_segment(segment: CustomerSegmentCreate, admin: User = Depends(r
         id=str(uuid.uuid4()),
         name=segment.name,
         type=segment.type,
-        userIds=segment.userIds,
+        user_ids=segment.userIds,
         filters=segment.filters,
-        isActive=True
+        is_active=True
     )
     created = await customer_segments_repository.create(create_model)
     return created
@@ -88,7 +88,7 @@ async def update_segment(segment_id: str, segment: CustomerSegmentUpdate, admin:
     # Avoid model_dump dictionary creation per strict Pydantic model rules
     update_model = CustomerSegmentInternalUpdate()
     if segment.name is not None: update_model.name = segment.name
-    if segment.userIds is not None: update_model.userIds = segment.userIds
+    if segment.user_ids is not None: update_model.user_ids = segment.user_ids
     if segment.filters is not None: update_model.filters = segment.filters
     updated = await customer_segments_repository.update(segment_id, update_model)
     return updated
@@ -259,10 +259,10 @@ async def seed_system_segments():
                         id=full_id,
                         name=behavior_name,
                         type=seg_type,
-                        userIds=user_ids,
+                        user_ids=user_ids,
                         filters=CustomerSegmentFilters(behavior=behavior_id),
-                        isActive=True,
-                        isSystem=True,
+                        is_active=True,
+                        is_system=True,
                     )
                 )
             # Yield the event loop between iterations so incoming requests
@@ -273,7 +273,7 @@ async def seed_system_segments():
 @router.post("/filter", response_model=FilterSegmentResponse)
 async def filter_users(criteria: FilterCriteria, admin: User = Depends(require_super_admin)):
     userIds = await run_segment_filter(criteria)
-    return FilterSegmentResponse(userIds=userIds)
+    return FilterSegmentResponse(user_ids=userIds)
 
 
 @router.post("/{segment_id}/refresh", response_model=RefreshSegmentResponse)
@@ -309,7 +309,7 @@ async def refresh_segment(segment_id: str, admin: User = Depends(require_super_a
 
     from app.models.daos import CustomerSegmentInternalUpdate
     await customer_segments_repository.update(
-        segment_id, CustomerSegmentInternalUpdate(userIds=user_ids, lastRefreshedAt=datetime.now(timezone.utc).isoformat())
+        segment_id, CustomerSegmentInternalUpdate(user_ids=user_ids, last_refreshed_at=datetime.now(timezone.utc).isoformat())
     )
 
     return {"status": "success", "count": len(user_ids), "userIds": user_ids}

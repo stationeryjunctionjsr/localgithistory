@@ -352,9 +352,9 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
                 product=product,
                 quantity=i_dict.quantity,
                 price=i_dict.price,
-                stockStatus=None,
-                taxRate=None,
-                taxAmount=None,
+                stock_status=None,
+                tax_rate=None,
+                tax_amount=None,
             )
             populated_items.append(p_item)
 
@@ -368,20 +368,20 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
             id=order_resp.id,
             user=UserSnippet.model_validate(
                 user, from_attributes=True) if user else None,
-            assignedValet=ValetSnippet.model_validate(
+            assigned_valet=ValetSnippet.model_validate(
                 valet, from_attributes=True) if valet else None,
-            paymentEntries=[entry for payment in payment_entries for entry in (
+            payment_entries=[entry for payment in payment_entries for entry in (
                 payment.payment_entries or [])] if payment_entries else [],
             items=populated_items,
             sub_orders=order_resp.sub_orders,
-            orderStatus=order_resp.status,
+            order_status=order_resp.status,
             total=order_resp.total,
-            totalAmount=order_resp.total,
-            deliveryFee=order_resp.shipping,
+            total_amount=order_resp.total,
+            delivery_fee=order_resp.shipping,
             discount=order_resp.discount,
-            couponCode=None,
-            paymentMethod=order_resp.payment_method,
-            paymentStatus=order_resp.payment_status,
+            coupon_code=None,
+            payment_method=order_resp.payment_method,
+            payment_status=order_resp.payment_status,
             address=Address(
                 name=order_resp.ship_name,
                 street=order_resp.ship_street,
@@ -396,12 +396,12 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
                 longitude=order_resp.ship_longitude,
                 address=order_resp.ship_address
             ) if order_resp.ship_city or order_resp.ship_street else None,
-            createdAt=order_resp.created_at,
-            updatedAt=order_resp.updated_at,
-            zoneId=None,
-            orderNotes=order_resp.notes,
-            adminNotes=None,
-            valetNotes=None,
+            created_at=order_resp.created_at,
+            updated_at=order_resp.updated_at,
+            zone_id=None,
+            order_notes=order_resp.notes,
+            admin_notes=None,
+            valet_notes=None,
         )
         populated.append(pop_order)
 
@@ -1464,10 +1464,10 @@ async def create_order(
     order = await order_repository.create(
         OrderInternalCreate(
             user=current_user.id,
-            sessionId=current_user.session_id,
+            session_id=current_user.session_id,
             items=[
                 OrderItem(
-                    productId=str(i.product),
+                    product_id=str(i.product),
                     product=str(i.product),
                     quantity=i.quantity,
                     price=i.price,
@@ -1678,7 +1678,7 @@ async def create_order(
                         await notification_repository.create(
                             NotificationInternalCreate(
                                 _id=str(uuid.uuid4()),
-                                userId=super_admin.id,
+                                user_id=super_admin.id,
                                 type="low_stock",
                                 title="Low Stock Alert",
                                 message=f'Product "{product.sku}" - "{product.name}" has {new_stock} pieces left',
@@ -1912,7 +1912,7 @@ async def create_order(
                     "user": current_user.id,
                     "items": [
                         SubOrderItem(
-                            productId=str(i.product),
+                            product_id=str(i.product),
                             name=i.product_name,
                             qty=i.quantity,
                             price=i.price,

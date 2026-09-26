@@ -115,7 +115,7 @@ async def _enrich_bundle(bundle) -> BundleResponse:
         from app.models.product import Product
         p_obj = Product(
             id=product.id,
-            productId=product.product_id,
+            product_id=product.product_id,
             name=product.name,
             sku=product.sku,
             mrp=mrp,
@@ -124,10 +124,10 @@ async def _enrich_bundle(bundle) -> BundleResponse:
         )
         enriched_items.append(
             BundleItemResponse(
-                productId=item.product_id,
+                product_id=item.product_id,
                 quantity=qty,
                 product=p_obj,
-                lineMrp=line_mrp,
+                line_mrp=line_mrp,
             )
         )
 

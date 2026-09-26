@@ -146,20 +146,20 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
 
         bills_info.append(
             BillInfoResponse(
-                orderId=bill.order_id,
-                orderNumber=order_number,
-                amountRemaining=effective_due,
-                totalAmount=(bill.total_amount if bill.total_amount is not None else 0.0),
-                orderDate=order_date_raw if "order_date_raw" in locals() else (bill.order_date or bill.created_at),
-                dueDate=due_date.isoformat() + "Z",
-                timeRemaining=time_remaining_str,
+                order_id=bill.order_id,
+                order_number=order_number,
+                amount_remaining=effective_due,
+                total_amount=(bill.total_amount if bill.total_amount is not None else 0.0),
+                order_date=order_date_raw if "order_date_raw" in locals() else (bill.order_date or bill.created_at),
+                due_date=due_date.isoformat() + "Z",
+                time_remaining=time_remaining_str,
                 overdue=is_overdue,
-                paymentId=bill.id,
+                payment_id=bill.id,
             )
         )
 
     # Sort bills by due date (earliest first)
-    bills_info.sort(key=lambda b: b.dueDate)
+    bills_info.sort(key=lambda b: b.due_date)
 
     nearest_due_amount = 0.0
     nearest_due_date = None
@@ -359,7 +359,7 @@ async def submit_credit_settlement(
                 await notification_repository.create(
                     NotificationInternalCreate(
                         _id=str(uuid.uuid4()),
-                        userId=super_admin.id,
+                        user_id=super_admin.id,
                         type="new_payment",
                         title="New Payment Received",
                         message=f'New payment "{payment_id}" worth ₹{settlement_data.amount:.2f} received',

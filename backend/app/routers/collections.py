@@ -114,12 +114,12 @@ async def create_collection(data: CollectionCreate, current_user: User = Depends
     internal_data = CollectionInternalCreate(
         name=data.name,
         description=data.description,
-        imageUrl=data.image_url,
-        isActive=data.is_active,
-        displayOrder=data.displayOrder,
-        visiblePages=data.visible_pages,
-        userSegments=data.user_segments,
-        productIds=data.product_ids
+        image_url=data.image_url,
+        is_active=data.is_active,
+        display_order=data.display_order,
+        visible_pages=data.visible_pages,
+        user_segments=data.user_segments,
+        product_ids=data.product_ids
     )
     if data.visibility_rules:
         internal_data.visibility_rules = data.visibility_rules
@@ -136,12 +136,12 @@ async def update_collection(
     internal_update = CollectionInternalUpdate()
     if 'name' in data.model_fields_set: internal_update.name = data.name
     if 'description' in data.model_fields_set: internal_update.description = data.description
-    if 'imageUrl' in data.model_fields_set: internal_update.image_url = data.image_url
-    if 'isActive' in data.model_fields_set: internal_update.is_active = data.is_active
-    if 'displayOrder' in data.model_fields_set: internal_update.displayOrder = data.displayOrder
-    if 'visiblePages' in data.model_fields_set: internal_update.visible_pages = data.visible_pages
-    if 'userSegments' in data.model_fields_set: internal_update.user_segments = data.user_segments
-    if 'productIds' in data.model_fields_set: internal_update.product_ids = data.product_ids
+    if 'image_url' in data.model_fields_set: internal_update.image_url = data.image_url
+    if 'is_active' in data.model_fields_set: internal_update.is_active = data.is_active
+    if 'display_order' in data.model_fields_set: internal_update.display_order = data.display_order
+    if 'visible_pages' in data.model_fields_set: internal_update.visible_pages = data.visible_pages
+    if 'user_segments' in data.model_fields_set: internal_update.user_segments = data.user_segments
+    if 'product_ids' in data.model_fields_set: internal_update.product_ids = data.product_ids
     if data.visibility_rules is not None:
         internal_update.visibility_rules = data.visibility_rules
 

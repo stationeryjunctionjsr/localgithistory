@@ -349,12 +349,12 @@ async def upload_delivery_charges_csv(file: UploadFile = File(...), current_user
                 city=city_val,
                 district=district_val,
                 charge=float(row.charge if row.charge is not None else 0),
-                minCartValue=float(row.min_cart_value if row.min_cart_value is not None else 0),
-                isActive=(row.is_active if row.is_active is not None else "true").lower() == "true",
-                serviceableForCustomer=serviceable_for_customer,
-                serviceableForWholesaler=serviceable_for_wholesaler,
-                urgentDeliveryAvailable=urgent_delivery_available,
-                urgentDeliveryCharge=float(row.urgentDeliveryCharge) if (row.urgentDeliveryCharge or "").strip() else None
+                min_cart_value=float(row.min_cart_value if row.min_cart_value is not None else 0),
+                is_active=(row.is_active if row.is_active is not None else "true").lower() == "true",
+                serviceable_for_customer=serviceable_for_customer,
+                serviceable_for_wholesaler=serviceable_for_wholesaler,
+                urgent_delivery_available=urgent_delivery_available,
+                urgent_delivery_charge=float(row.urgentDeliveryCharge) if (row.urgentDeliveryCharge or "").strip() else None
             )
 
             await delivery_charge_repository.create(internal_model)

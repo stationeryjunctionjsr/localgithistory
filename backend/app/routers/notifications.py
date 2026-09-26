@@ -66,7 +66,7 @@ async def get_unread_count(current_user: User = Depends(get_current_user)):
     """Get count of unread notifications for user"""
     try:
         from app.models.daos import NotificationFilter
-        filters = NotificationFilter(isRead=False)
+        filters = NotificationFilter(is_read=False)
         if current_user.role != "super_admin":
             filters.userId = current_user.id or current_user.id
             
@@ -83,9 +83,9 @@ async def mark_all_read(current_user: User = Depends(get_current_user)):
     try:
         user_id = current_user.id or current_user.id
         from app.models.daos import NotificationInternalUpdate, NotificationFilter
-        update_model = NotificationInternalUpdate(isRead=True, isAcknowledged=True)
-        unread = await notification_repository.findAll(NotificationFilter(isRead=False, userId=user_id))
-        unack = await notification_repository.findAll(NotificationFilter(isAcknowledged=False, userId=user_id))
+        update_model = NotificationInternalUpdate(is_read=True, is_acknowledged=True)
+        unread = await notification_repository.findAll(NotificationFilter(is_read=False, user_id=user_id))
+        unack = await notification_repository.findAll(NotificationFilter(is_acknowledged=False, user_id=user_id))
         
         count = 0
         seen = set()

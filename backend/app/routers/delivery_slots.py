@@ -388,9 +388,9 @@ async def create_delivery_slot_config(
         config_obj = DeliverySlotConfigInternalCreate(
             segment=config.segment,
             date=config.date,
-            zoneId=zone_id,
+            zone_id=zone_id,
             slots=[DeliverySlotInternal.model_validate(s, from_attributes=True) for s in slots_with_capacity],
-            isActive=config.is_active
+            is_active=config.is_active
         )
 
         # Check for existing config for this date/segment/zone
