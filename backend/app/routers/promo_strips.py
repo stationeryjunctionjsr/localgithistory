@@ -65,8 +65,8 @@ async def create_promo_strip(data: PromoStripCreate, user: User = Depends(requir
     """Admin endpoint to create a promo strip"""
     internal_data = PromoStripsInternalCreate(
         text=data.text,
-        isActive=data.is_active if data.is_active is not None else True,
-        zoneIds=data.zone_ids,
+        is_active=data.is_active if data.is_active is not None else True,
+        zone_ids=data.zone_ids,
     )
     res = await promo_strip_repository.create(internal_data)
     cache.invalidate(_get_active_promo_strips_cached)
@@ -80,7 +80,7 @@ async def toggle_promo_strip(id: str, user: User = Depends(require_super_admin))
     if not strip:
         raise HTTPException(status_code=404, detail="Promo strip not found")
 
-    update_data = PromoStripsInternalUpdate(isActive=not (strip.is_active if strip.is_active is not None else True))
+    update_data = PromoStripsInternalUpdate(is_active=not (strip.is_active if strip.is_active is not None else True))
     res = await promo_strip_repository.update(id, update_data)
     cache.invalidate(_get_active_promo_strips_cached)
     return res
@@ -95,8 +95,8 @@ async def update_promo_strip(id: str, data: PromoStripUpdate, user: User = Depen
 
     update_data = PromoStripsInternalUpdate(
         text=data.text,
-        isActive=data.is_active,
-        zoneIds=data.zone_ids,
+        is_active=data.is_active,
+        zone_ids=data.zone_ids,
     )
     res = await promo_strip_repository.update(id, update_data)
     cache.invalidate(_get_active_promo_strips_cached)

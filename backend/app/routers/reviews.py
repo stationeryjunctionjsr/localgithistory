@@ -206,7 +206,7 @@ async def admin_create_classification(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Classification already exists")
 
     from app.models.daos_flat import ClassificationTagsInternalCreate
-    created = await review_classification_repository.create(ClassificationTagsInternalCreate(name=name, isActive=True))
+    created = await review_classification_repository.create(ClassificationTagsInternalCreate(name=name, is_active=True))
     return {"message": "Classification created successfully", "classification": created}
 
 

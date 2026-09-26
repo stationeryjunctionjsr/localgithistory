@@ -381,7 +381,7 @@ async def mark_notification_read(
             raise HTTPException(status_code=403, detail="No registered devices found for this account")
 
         # Idempotency: Use repository's user-based tracking to avoid double-counting
-        await push_notification_repository.updateStats(notification_id, {}, userId=user_id)
+        await push_notification_repository.updateStats(notification_id, {}, user_id=user_id)
 
         return {"message": "Notification marked as read"}
     except HTTPException:

@@ -307,12 +307,12 @@ async def schedule_unavailability(
     seller_id = str(current_user.id)
     from app.models.daos_flat import SellerAvailabilityInternalCreate
     created = await storage.create(SellerAvailabilityInternalCreate(
-        sellerId=seller_id,
-        startAt=data.startAt,
-        endAt=data.endAt,
+        seller_id=seller_id,
+        start_at=data.startAt,
+        end_at=data.endAt,
         reason=data.reason,
         status="scheduled",
-        createdAt=now.isoformat() + "Z"
+        created_at=now.isoformat() + "Z"
     ))
     # Invalidate unavailability cache so next request sees the new window immediately
     _unavailable_cache["expires"] = 0.0
@@ -331,7 +331,7 @@ async def get_my_availability_windows(
     """Return own upcoming and recent availability windows."""
     _require_seller(current_user)
     seller_id = str(current_user.id)
-    docs = await storage.findAll({"sellerId": seller_id})
+    docs = await storage.findAll({"seller_id": seller_id})
     # Sort by startAt descending (most recent first)
     parsed_docs = [
         d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d, from_attributes=True)
@@ -351,7 +351,7 @@ async def get_all_seller_availability(
     """Admin: view all sellers' availability windows."""
     query: dict = {}
     if sellerId:
-        query["sellerId"] = sellerId
+        query["seller_id"] = sellerId
     if status:
         query["status"] = status
     docs = await storage.findAll(query)

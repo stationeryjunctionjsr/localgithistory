@@ -39,7 +39,7 @@ async def populate_return_request(request: ReturnRequestInternal) -> ReturnReque
         product = await product_repository.findById(pid) if pid else None
         
         populated_items.append(ItemSnippet(
-            productId=pid,
+            product_id=pid,
             product=product.name if product else "Product not found",
             quantity=getattr(item, "quantity", 0),
             price=product.price if product else 0.0,
@@ -238,14 +238,14 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
     from app.models.daos import ReturnRequestInternalCreate
     created = await return_request_repository.create(
         ReturnRequestInternalCreate(
-            orderId=request_data.order_id,
-            userId=current_user.id,
+            order_id=request_data.order_id,
+            user_id=current_user.id,
             items=[i for i in request_data.items],
-            paymentMethod=request_data.payment_method,
-            upiPaymentScreenshot=screenshot_path,
+            payment_method=request_data.payment_method,
+            upi_payment_screenshot=screenshot_path,
             notes=request_data.notes,
             status=ReturnRequestStatus.PENDING.value,
-            deliveryCharge=delivery_charge_val,
+            delivery_charge=delivery_charge_val,
         )
     )
 
@@ -262,7 +262,7 @@ async def create_return_request(request_data: ReturnRequestCreate, current_user:
             await notification_repository.create(
                 NotificationInternalCreate(
                     _id=str(uuid.uuid4()),
-                    userId=super_admin.id,
+                    user_id=super_admin.id,
                     type="new_return",
                     title="New Return Request",
                     message=f"New return request for order {request_data.order_id}",

@@ -28,9 +28,9 @@ async def get_users(
     if role:
         query["role"] = role
     if approvalStatus:
-        query["approvalStatus"] = approvalStatus
+        query["approval_status"] = approvalStatus
     if isActive is not None:
-        query["isActive"] = isActive
+        query["is_active"] = isActive
 
     if page is not None and limit is not None and limit > 0:
         page = max(1, page)
@@ -119,7 +119,7 @@ async def deactivate_own_account(current_user: User = Depends(get_current_user))
     if user.role == "super_admin":
         raise HTTPException(status_code=400, detail="Super admin accounts cannot self-deactivate")
 
-    update_data = UserUpdate(isActive=False)
+    update_data = UserUpdate(is_active=False)
     if user.role == "wholesaler":
         update_data.is_deactivated = True
         update_data.serviceAreaZones = []
@@ -224,7 +224,7 @@ async def approve_user(user_id: str, current_user: User = Depends(require_super_
     if user.role != "wholesaler":
         raise HTTPException(status_code=400, detail="Only business customers require approval")
 
-    updated_user = await user_repository.update(user_id, UserUpdate(approvalStatus="approved", isActive=True))
+    updated_user = await user_repository.update(user_id, UserUpdate(approval_status="approved", is_active=True))
 
     return updated_user
 
@@ -236,7 +236,7 @@ async def reject_user(user_id: str, current_user: User = Depends(require_super_a
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    updated_user = await user_repository.update(user_id, UserUpdate(approvalStatus="rejected", isActive=False))
+    updated_user = await user_repository.update(user_id, UserUpdate(approval_status="rejected", is_active=False))
 
     return updated_user
 
@@ -301,7 +301,7 @@ async def get_seller_delivery_settings(
     from app.db.storage_factory import get_storage
 
     zones_storage = get_storage("deliveryZones")
-    all_zones = await zones_storage.findAll({"isActive": True})
+    all_zones = await zones_storage.findAll({"is_active": True})
 
     current_zone_ids = current_user.service_area_zones or []
 
