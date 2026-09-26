@@ -150,8 +150,7 @@ class MySQLEventsDAO:
         cols = ["external_id", "created_at", "updated_at"]
         vals = [":eid", ":c", ":u"]
         params = {"eid": ext_id, "c": now, "u": now}
-        
-        if getattr(data, "event_type", None) is not None:
+        if data.event_type is not None:
             cols.append("event_type")
             vals.append(":event_type")
             params["event_type"] = data.event_type
@@ -182,8 +181,7 @@ class MySQLEventsDAO:
                     params[col_name] = item.value
 
                     
-        # Explicitly map tracking_id if it exists
-        if getattr(data, "tracking_id", None) is not None:
+        if hasattr(data, 'tracking_id') and data.tracking_id is not None:
             cols.append("tracking_id")
             vals.append(":tracking_id")
             params["tracking_id"] = data.tracking_id

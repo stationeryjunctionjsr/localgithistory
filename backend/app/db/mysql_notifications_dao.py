@@ -226,10 +226,13 @@ class MySQLNotificationsDAO:
         return c_map
 
     async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
-
-        if getattr(data, "metadata", getattr(data, "data", None)) is not None:
+        child_list = None
+        if hasattr(data, 'metadata'): child_list = data.metadata
+        elif hasattr(data, 'data'): child_list = data.data
+        
+        if child_list is not None:
             await session.execute(text(f"DELETE FROM sj_notification_data WHERE parent_id = :id"), {"id": row_id})
-            child_list = getattr(data, "metadata", getattr(data, "data", None)) or {}
+            child_list = child_list or {}
 
             if child_list:
                 child_dict = child_list.model_dump() if hasattr(child_list, "model_dump") else child_list

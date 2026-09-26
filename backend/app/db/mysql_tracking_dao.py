@@ -209,22 +209,21 @@ class MySQLTrackingDAO:
                 return payload.model_extra[key]
             return None
 
-        # we use python hasattr instead of getattr to enforce the rule
-        add_col("source", "source", getattr(data, "source", None) if getattr(data, "source", None) is not None else get_payload_extra("source"))
+        add_col("source", "source", data.source if data.source is not None else get_payload_extra("source"))
         
-        filter_type = getattr(data, "filter_name", None) if getattr(data, "filter_name", None) is not None else get_payload_extra("filterType")
+        filter_type = data.filter_name if data.filter_name is not None else get_payload_extra("filterType")
         add_col("filter_type", "filter_type", filter_type)
         
-        add_col("filter_value", "filter_value", getattr(data, "filter_value", None) if getattr(data, "filter_value", None) is not None else get_payload_extra("filter_value"))
-        add_col("campaign", "campaign", getattr(data, "campaign", None) if getattr(data, "campaign", None) is not None else get_payload_extra("campaign"))
-        add_col("os", "os", getattr(data, "os", None) if getattr(data, "os", None) is not None else get_payload_extra("os"))
-        add_col("browser", "browser", getattr(data, "browser", None) if getattr(data, "browser", None) is not None else get_payload_extra("browser"))
-        add_col("ip_address", "ip_address", getattr(data, "ip_address", None) if getattr(data, "ip_address", None) is not None else get_payload_extra("ip_address"))
-        add_col("page_views", "page_views", getattr(data, "page_views", None) if getattr(data, "page_views", None) is not None else get_payload_extra("page_views"))
-        add_col("order_id", "order_id", getattr(data, "order_id", None) if getattr(data, "order_id", None) is not None else get_payload_extra("order_id"))
-        add_col("order_value", "order_value", getattr(data, "order_value", None) if getattr(data, "order_value", None) is not None else get_payload_extra("order_value"))
-        add_col("price", "price", getattr(data, "price", None) if getattr(data, "price", None) is not None else get_payload_extra("price"))
-        add_col("category", "category", getattr(data, "category", None) if getattr(data, "category", None) is not None else get_payload_extra("category"))
+        add_col("filter_value", "filter_value", data.filter_value if data.filter_value is not None else get_payload_extra("filter_value"))
+        add_col("campaign", "campaign", data.campaign if data.campaign is not None else get_payload_extra("campaign"))
+        add_col("os", "os", data.os if data.os is not None else get_payload_extra("os"))
+        add_col("browser", "browser", data.browser if data.browser is not None else get_payload_extra("browser"))
+        add_col("ip_address", "ip_address", data.ip_address if data.ip_address is not None else get_payload_extra("ip_address"))
+        add_col("page_views", "page_views", data.page_views if data.page_views is not None else get_payload_extra("page_views"))
+        add_col("order_id", "order_id", data.order_id if hasattr(data, 'order_id') and data.order_id is not None else get_payload_extra("order_id"))
+        add_col("order_value", "order_value", data.order_value if hasattr(data, 'order_value') and data.order_value is not None else get_payload_extra("order_value"))
+        add_col("price", "price", data.price if data.price is not None else get_payload_extra("price"))
+        add_col("category", "category", data.category if data.category is not None else get_payload_extra("category"))
 
         col_sql = ", ".join(cols)
         val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in extracted_keys])
