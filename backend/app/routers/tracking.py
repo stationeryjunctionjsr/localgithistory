@@ -154,10 +154,11 @@ async def track_beacon(
 ):
     """Accept beacon payloads (e.g. from navigator.sendBeacon on page unload)."""
     beacon_data = AnalyticsEventCreate(
-        type="beacon",
+        type=payload.type or "beacon",
         user_id=current_user.id if current_user else None,
         session_id=payload.session_id,
         page=payload.page,
+        reason=payload.reason,
         timestamp=payload.timestamp,
         os=ext_os(payload, request),
         browser=ext_br(payload, request),

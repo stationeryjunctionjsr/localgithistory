@@ -1815,6 +1815,8 @@ class TrackBeaconRequest(CamelBaseModel):
     os: Optional[str] = None
     browser: Optional[str] = None
     ip_address: Optional[str] = None
+    type: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class TrackNotifyPincodeRequest(CamelBaseModel):
