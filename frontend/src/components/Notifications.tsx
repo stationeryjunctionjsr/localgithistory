@@ -7,7 +7,7 @@ import { formatDateTimeIST } from '@/utils/dateUtils';
 import { logger } from '@/utils/logger';
 
 interface Notification {
-  _id: string;
+  id: string;
   type: 'new_order' | 'new_payment' | 'low_stock';
   title: string;
   message: string;
@@ -18,7 +18,7 @@ interface Notification {
 }
 
 interface Order {
-  _id: string;
+  id: string;
   orderNumber?: string;
   user?: {
     name: string;
@@ -37,7 +37,7 @@ interface Order {
 }
 
 interface Payment {
-  _id: string;
+  id: string;
   paymentId?: string;
   orderNumber?: string;
   orderId: string;
@@ -55,7 +55,7 @@ interface Payment {
 }
 
 interface Product {
-  _id: string;
+  id: string;
   sku: string;
   name: string;
   stock: number;
@@ -149,7 +149,7 @@ export default function Notifications() {
 
     if (!notification.isRead) {
       try {
-        await api.put(`/notifications/${notification._id}/read`);
+        await api.put(`/notifications/${notification.id}/read`);
         await fetchNotifications();
         await fetchUnreadCount();
       } catch (error: any) {
@@ -264,7 +264,7 @@ export default function Notifications() {
                     </h4>
                     {unreadNotifications.map((notification) => (
                       <div
-                        key={notification._id}
+                        key={notification.id}
                         className={`cursor-pointer border-b p-3 hover:bg-gray-50 ${!notification.isAcknowledged ? 'bg-yellow-50 font-semibold' : ''}`}
                         onClick={() => handleNotificationClick(notification)}
                       >
@@ -281,7 +281,7 @@ export default function Notifications() {
                           </div>
                           <button
                             className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-green-600 text-white transition-colors hover:bg-green-700"
-                            onClick={(e) => handleAcknowledge(notification._id, e)}
+                            onClick={(e) => handleAcknowledge(notification.id, e)}
                             title="Mark as read"
                           >
                             <svg
@@ -309,7 +309,7 @@ export default function Notifications() {
                     </h4>
                     {readNotifications.map((notification) => (
                       <div
-                        key={notification._id}
+                        key={notification.id}
                         className="cursor-pointer border-b p-3 hover:bg-gray-50"
                         onClick={() => handleNotificationClick(notification)}
                       >
@@ -405,7 +405,7 @@ function NotificationDetailModal({
 
   const handleAcceptOrder = async () => {
     try {
-      await api.put(`/orders/${order!._id}/accept`);
+      await api.put(`/orders/${order!.id}/accept`);
       toast.success('Order accepted');
       onClose();
     // eslint-disable-next-line unused-imports/no-unused-vars
@@ -418,7 +418,7 @@ function NotificationDetailModal({
     const reason = prompt('Please enter reason for decline:');
     if (!reason) return;
     try {
-      await api.put(`/orders/${order!._id}/decline`, { reason });
+      await api.put(`/orders/${order!.id}/decline`, { reason });
       toast.success('Order declined');
       onClose();
     // eslint-disable-next-line unused-imports/no-unused-vars
@@ -489,7 +489,7 @@ function OrderDetails({
       <div className="mb-6">
         <h4 className="mb-3 text-lg font-semibold">Order Information</h4>
         <p>
-          <strong>Order Number:</strong> {order.orderNumber || order._id}
+          <strong>Order Number:</strong> {order.orderNumber || order.id}
         </p>
         <p>
           <strong>Customer:</strong> {order.user?.name || 'N/A'}
@@ -566,7 +566,7 @@ function PaymentDetails({
       <div className="mb-6">
         <h4 className="mb-3 text-lg font-semibold">Payment Information</h4>
         <p>
-          <strong>Payment ID:</strong> {payment.paymentId || payment._id}
+          <strong>Payment ID:</strong> {payment.paymentId || payment.id}
         </p>
         <p>
           <strong>Order ID:</strong> {payment.orderNumber || payment.orderId}
@@ -604,14 +604,14 @@ function PaymentDetails({
               <div className="mt-3 flex gap-2">
                 <button
                   className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:opacity-50"
-                  onClick={() => onVerify(payment._id, entry.entryId, true)}
+                  onClick={() => onVerify(payment.id, entry.entryId, true)}
                   disabled={entry.verified}
                 >
                   Verify Yes
                 </button>
                 <button
                   className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
-                  onClick={() => onVerify(payment._id, entry.entryId, false)}
+                  onClick={() => onVerify(payment.id, entry.entryId, false)}
                   disabled={!entry.verified}
                 >
                   Verify No

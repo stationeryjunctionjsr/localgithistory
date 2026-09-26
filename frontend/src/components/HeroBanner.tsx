@@ -11,7 +11,7 @@ interface BreadcrumbItem {
 }
 
 interface Banner {
-  _id: string;
+  id: string;
   imageUrl?: string;
   image?: string;
   title?: string;
@@ -124,7 +124,7 @@ export default function HeroBanner({
             const link = banner.link || banner.linkUrl;
             const content = (
               <div
-                key={banner._id || index}
+                key={banner.id || index}
                 className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentIndex ? 'z-10 opacity-100' : 'z-0 opacity-0'}`}
               >
                 <Image
@@ -153,7 +153,7 @@ export default function HeroBanner({
             );
 
             return link ? (
-              <Link href={link} key={banner._id || index}>
+              <Link href={link} key={banner.id || index}>
                 {content}
               </Link>
             ) : (

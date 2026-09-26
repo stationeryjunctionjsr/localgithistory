@@ -5,7 +5,7 @@ import { getImageUrlWithFallback, IMAGE_PLACEHOLDER_DATA_URI } from '@/utils/ima
 import { useTheme } from '@/context/ThemeContext';
 
 interface Product {
-  _id?: string;
+  id?: string;
   name: string;
   displayImage?: string;
   displayPrice?: number;
@@ -65,7 +65,7 @@ export default function ProductCarousel({
         >
           {products.map((product) => (
             <div
-              key={product._id || product.displayImage}
+              key={product.id || product.displayImage}
               onClick={() => onProductClick && onProductClick(product)}
               className="flex h-full w-52 flex-none cursor-pointer flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] sm:w-56 md:w-64 md:rounded-none"
             >

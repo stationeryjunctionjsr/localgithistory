@@ -14,9 +14,9 @@ import { trackBackendCartAdd } from '@/utils/analytics';
 import { logger } from '@/utils/logger';
 
 export interface CartItem {
-  _id: string; // Product ID for guest, item ID for logged in
+  id: string; // Product ID for guest, item ID for logged in
   product: {
-    _id: string;
+    id: string;
     name: string;
     price: number;
     mrp?: number;
@@ -115,8 +115,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             const itemPrice = g.product?.price || 0;
             const itemQty = g.quantity || 1;
             return {
-              _id: g.productId,
-              product: g.product || { _id: g.productId, name: 'Product', price: 0 },
+              id: g.productId,
+              product: g.product || { id: g.productId, name: 'Product', price: 0 },
               price: itemPrice,
               quantity: itemQty,
               subtotal: itemPrice * itemQty,
@@ -169,10 +169,10 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     // Optimistic update: add the item immediately
     if (product) {
       setCart((prev) => {
-        const existing = prev?.items?.find((i) => i.product?._id === productId);
+        const existing = prev?.items?.find((i) => i.product?.id === productId);
         if (existing) {
           const updatedItems = prev!.items.map((i) =>
-            i.product?._id === productId
+            i.product?.id === productId
               ? { ...i, quantity: i.quantity + quantity, subtotal: i.price * (i.quantity + quantity) }
               : i
           );
@@ -184,8 +184,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         }
         const price = product.price || product.mrp || 0;
         const newItem: CartItem = {
-          _id: productId, // temporary id, will be replaced on fetchCart
-          product: { _id: productId, ...product },
+          id: productId, // temporary id, will be replaced on fetchCart
+          product: { id: productId, ...product },
           price,
           quantity,
           subtotal: price * quantity,
@@ -225,7 +225,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     setCart((prev) => {
       if (!prev?.items) return prev;
       const updatedItems = prev.items.map((i) => {
-        const id = user ? i._id : i.product?._id || i._id;
+        const id = user ? i.id : i.product?.id || i.id;
         if (id === itemId) {
           return { ...i, quantity, subtotal: i.price * quantity };
         }
@@ -256,7 +256,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     setCart((prev) => {
       if (!prev?.items) return prev;
       const updatedItems = prev.items.filter((i) => {
-        const id = user ? i._id : i.product?._id || i._id;
+        const id = user ? i.id : i.product?.id || i.id;
         return id !== itemId;
       });
       return {

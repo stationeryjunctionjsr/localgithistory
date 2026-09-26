@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { logger } from '@/utils/logger';
 
 interface BrandInfo {
-  _id?: string;
+  id?: string;
   name: string;
   logoUrl?: string;
   logo?: string;
@@ -55,7 +55,7 @@ export default function BrandDetailClient({
         );
         if (match) {
           setBrandInfo({
-            _id: match._id,
+            id: match.id,
             name: match.name || decoded,
             logoUrl: match.logoUrl,
             logo: match.logo,

@@ -11,9 +11,9 @@ import {
 } from '@/utils/guestStore';
 
 interface WishlistItem {
-  _id: string;
+  id: string;
   product: {
-    _id: string;
+    id: string;
     name: string;
     price: number;
     images: string[];
@@ -48,8 +48,8 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
         // For guest users, get from unified guestStore
         const guestItems = getGuestWishlist();
         const mapped = guestItems.map((g) => ({
-          _id: g.productId,
-          product: g.product || { _id: g.productId, name: '', price: 0, images: [] },
+          id: g.productId,
+          product: g.product || { id: g.productId, name: '', price: 0, images: [] },
           addedAt: new Date().toISOString(),
         }));
         setItems(mapped as any);
@@ -127,7 +127,7 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const isInWishlist = (productId: string) => {
-    return items.some((item) => item.product._id === productId);
+    return items.some((item) => item.product.id === productId);
   };
 
   return (

@@ -33,7 +33,7 @@ class ValetPayoutSettingsModel(BaseModel):
 
     @property
     def delivery_charge_per_order(self) -> float:
-        return self.delivery_chargePerOrder
+        return self.delivery_charge_per_order
 
     @property
     def return_pickup_charge_per_order(self) -> float:
@@ -51,10 +51,10 @@ async def _get_settings() -> ValetPayoutSettingsModel:
         doc = docs[0]
         return doc if isinstance(doc, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(doc, from_attributes=True)
     default = {
-        "deliveryChargePerOrder": 0.0,
-        "returnPickupChargePerOrder": 0.0,
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "updatedAt": datetime.now(timezone.utc).isoformat(),
+        "delivery_charge_per_order": 0.0,
+        "return_pickup_charge_per_order": 0.0,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     created = await storage.create(default)
     return created if isinstance(created, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(created, from_attributes=True)
@@ -69,9 +69,9 @@ class ValetPayoutSettingsPayload(BaseModel):
 async def get_valet_payout_settings(current_user: User = Depends(require_super_admin)):
     settings = await _get_settings()
     return {
-        "deliveryChargePerOrder": (settings.delivery_charge_per_order if settings.delivery_charge_per_order is not None else 0.0),
-        "returnPickupChargePerOrder": (settings.return_pickup_charge_per_order if settings.return_pickup_charge_per_order is not None else 0.0),
-        "updatedAt": settings.updated_at,
+        "delivery_charge_per_order": (settings.delivery_charge_per_order if settings.delivery_charge_per_order is not None else 0.0),
+        "return_pickup_charge_per_order": (settings.return_pickup_charge_per_order if settings.return_pickup_charge_per_order is not None else 0.0),
+        "updated_at": settings.updated_at,
     }
 
 @router.put("/settings", response_model=ValetPayoutSettingsResponse)
@@ -84,22 +84,22 @@ async def update_valet_payout_settings(
     updated = await storage.update(
         settings.id,
         {
-            "deliveryChargePerOrder": payload.delivery_chargePerOrder,
-            "returnPickupChargePerOrder": payload.return_pickup_charge_per_order,
-            "updatedAt": datetime.now(timezone.utc).isoformat(),
+            "delivery_charge_per_order": payload.delivery_charge_per_order,
+            "return_pickup_charge_per_order": payload.return_pickup_charge_per_order,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         },
     )
     if not updated:
         return {
-            "deliveryChargePerOrder": payload.delivery_chargePerOrder,
-            "returnPickupChargePerOrder": payload.return_pickup_charge_per_order,
-            "updatedAt": datetime.now(timezone.utc).isoformat(),
+            "delivery_charge_per_order": payload.delivery_charge_per_order,
+            "return_pickup_charge_per_order": payload.return_pickup_charge_per_order,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
     updated_model = updated if isinstance(updated, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(updated, from_attributes=True)
     return {
-        "deliveryChargePerOrder": (updated_model.delivery_chargePerOrder if updated_model.delivery_chargePerOrder is not None else 0.0),
-        "returnPickupChargePerOrder": (updated_model.return_pickup_charge_per_order if updated_model.return_pickup_charge_per_order is not None else 0.0),
-        "updatedAt": updated_model.updated_at,
+        "delivery_charge_per_order": (updated_model.delivery_charge_per_order if updated_model.delivery_charge_per_order is not None else 0.0),
+        "return_pickup_charge_per_order": (updated_model.return_pickup_charge_per_order if updated_model.return_pickup_charge_per_order is not None else 0.0),
+        "updated_at": updated_model.updated_at,
     }
 
 

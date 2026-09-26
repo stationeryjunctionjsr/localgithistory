@@ -5,7 +5,7 @@ import api from '@/utils/api';
 import { toast } from 'react-toastify';
 
 interface Valet {
-  _id: string;
+  id: string;
   name: string;
   phone?: string;
   vehicleType?: string;
@@ -142,12 +142,12 @@ export default function DispatchValetModal({
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {valets.map((valet) => {
-                  const isSelected = selectedValetId === valet._id;
+                  const isSelected = selectedValetId === valet.id;
                   const vehicleIcon = VEHICLE_ICONS[valet.vehicleType || ''] || '🛵';
                   return (
                     <button
-                      key={valet._id}
-                      onClick={() => setSelectedValetId(valet._id)}
+                      key={valet.id}
+                      onClick={() => setSelectedValetId(valet.id)}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '14px 16px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',

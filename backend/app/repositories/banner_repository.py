@@ -33,7 +33,7 @@ class BannerRepository:
             banner.target_audience = segments[0] if segments else "all"
 
             if rules and len(rules) > 0:
-                banner.position = (rules[0].pageType if rules[0].pageType else "homepage")
+                banner.position = (rules[0].page_type if rules[0].page_type else "homepage")
             
             # 4. Ensure required date fields exist for Pydantic validation
             if not banner.start_date:
@@ -90,9 +90,9 @@ class BannerRepository:
                 # Check new rules
                 if not match and rules:
                     for rule in rules:
-                        rule_pg = str(rule.pageType if rule.pageType else "").lower()
+                        rule_pg = str(rule.page_type if rule.page_type else "").lower()
                         if rule_pg == target_page_type or (is_home_request and rule_pg in homepage_aliases):
-                            page_ids = rule.pageIds if rule.pageIds else []
+                            page_ids = rule.page_ids if rule.page_ids else []
                             if not page_ids or target_page_id in page_ids:
                                 match = True
                                 break
@@ -102,7 +102,7 @@ class BannerRepository:
             banners = filtered
 
         # Sort by displayOrder
-        banners.sort(key=lambda x: x.displayOrder if x.displayOrder is not None else 0)
+        banners.sort(key=lambda x: x.display_order if x.display_order is not None else 0)
 
         return banners
 
@@ -169,7 +169,7 @@ class BannerRepository:
         start_date = banner_data.start_date
 
         target_audience = user_segments[0] if user_segments else "all"
-        position = (visibility_rules[0].pageType if visibility_rules[0].pageType else "homepage") if visibility_rules else "homepage"
+        position = (visibility_rules[0].page_type if visibility_rules[0].page_type else "homepage") if visibility_rules else "homepage"
 
         if not start_date or not str(start_date).strip():
             start_date = datetime.now(timezone.utc).isoformat()
@@ -179,7 +179,7 @@ class BannerRepository:
             "description": banner_data.description if banner_data.description is not None else "",
             "imageUrl": banner_data.image_url if banner_data.image_url is not None else "",
             "linkUrl": banner_data.link_url if banner_data.link_url is not None else "",
-            "displayOrder": banner_data.displayOrder if banner_data.displayOrder is not None else 0,
+            "displayOrder": banner_data.display_order if banner_data.display_order is not None else 0,
             "startDate": start_date,
             "endDate": banner_data.end_date,
             "isActive": banner_data.is_active if banner_data.is_active is not None else True,
@@ -203,7 +203,7 @@ class BannerRepository:
                 case "description": update_dict["description"] = update_data.description
                 case "imageUrl": update_dict["imageUrl"] = update_data.image_url
                 case "linkUrl": update_dict["linkUrl"] = update_data.link_url
-                case "displayOrder": update_dict["displayOrder"] = update_data.displayOrder
+                case "displayOrder": update_dict["displayOrder"] = update_data.display_order
                 case "startDate": update_dict["startDate"] = update_data.start_date
                 case "endDate": update_dict["endDate"] = update_data.end_date
                 case "isActive": update_dict["isActive"] = update_data.is_active
@@ -220,7 +220,7 @@ class BannerRepository:
 
         if "visibilityRules" in update_dict:
             rules = update_dict["visibilityRules"]
-            update_dict["position"] = (rules[0].pageType if rules[0].pageType else "homepage") if rules else "homepage"
+            update_dict["position"] = (rules[0].page_type if rules[0].page_type else "homepage") if rules else "homepage"
 
         update_model = BannerInternalUpdate.model_validate(update_dict)
         return await self.storage.update(id, update_model)

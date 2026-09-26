@@ -122,7 +122,7 @@ class PushNotificationRepository:
 
         if existing_device:
             # Update existing device
-            update = DeviceSubscriptionInternalUpdate(userId=userId, expoToken=expoToken)
+            update = DeviceSubscriptionInternalUpdate(user_id=userId, expo_token=expoToken)
             if subscription:
                 update.endpoint = subscription.endpoint
                 update.keys = (subscription.keys if subscription.keys is not None else {})
@@ -131,8 +131,8 @@ class PushNotificationRepository:
         else:
             # Create new device
             create = DeviceSubscriptionInternalCreate(
-                userId=userId,
-                expoToken=expoToken,
+                user_id=userId,
+                expo_token=expoToken,
                 endpoint=subscription.endpoint if subscription else None,
                 keys=(subscription.keys if subscription.keys is not None else {}) if subscription else {},
                 subscription=json.loads(subscription.model_dump_json()) if subscription else {}

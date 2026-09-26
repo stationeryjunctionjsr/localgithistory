@@ -39,9 +39,9 @@ class ReferralRepository:
         setting = settings[0]
         from app.models.referral_settings import ReferralSegment
         if not setting.retail:
-            setting.retail = ReferralSegment(segment="retail", discountType="percentage", discountValue=0, isActive=False)
+            setting.retail = ReferralSegment(segment="retail", discount_type="percentage", discount_value=0, is_active=False)
         if not setting.business:
-            setting.business = ReferralSegment(segment="business", discountType="percentage", discountValue=0, isActive=False)
+            setting.business = ReferralSegment(segment="business", discount_type="percentage", discount_value=0, is_active=False)
         return setting
 
     async def update_settings(self, update_data: 'ReferralSettings') -> Dict:

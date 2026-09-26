@@ -37,7 +37,7 @@ class CategoryTagRepository:
 
     async def delete(self, id: str) -> CategoryTagInternal:
         # Soft delete - set isActive to false
-        return await self.storage.update(id, CategoryTagInternalUpdate(isActive=False))
+        return await self.storage.update(id, CategoryTagInternalUpdate(is_active=False))
 
 
 category_tag_repository = CategoryTagRepository()

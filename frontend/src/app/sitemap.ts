@@ -27,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const productsData = await fetchJson<any>(`${baseURL}/products/public/`);
   const products: any[] = Array.isArray(productsData) ? productsData : (productsData?.data || []);
   const productURLs: MetadataRoute.Sitemap = products.map((product) => ({
-    url: `${siteUrl}/customer/product/${product._id}`,
+    url: `${siteUrl}/customer/product/${product.id}`,
     lastModified: new Date(product.updatedAt || new Date()),
     changeFrequency: 'daily',
     priority: 0.8,

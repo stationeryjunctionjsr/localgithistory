@@ -10,7 +10,7 @@ import { syncGuestDataToBackend } from '@/utils/syncCartWishlist';
 
 
 interface User {
-  _id: string;
+  id: string;
   name?: string | null;
   email?: string | null;
   phone?: string;
@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // promote guest activities if we had a guest session id
       const guestSessionId = Cookies.get('guestSessionId');
       if (guestSessionId && sessionId) {
-        promoteGuestActivities(guestSessionId, userData._id).catch(() => {
+        promoteGuestActivities(guestSessionId, userData.id).catch(() => {
           // non-critical â€” guest activity promotion failed silently
         });
       }

@@ -56,9 +56,9 @@ export default function CartOverlay() {
     const newQty = currentQty + delta * step;
 
     if (newQty < step) {
-      await removeFromCart(item._id);
+      await removeFromCart(item.id);
     } else {
-      await updateQuantity(item._id, newQty);
+      await updateQuantity(item.id, newQty);
     }
   };
 
@@ -163,7 +163,7 @@ export default function CartOverlay() {
               const hasProductDiscount = mrp > item.price;
 
               return (
-                <div key={item._id} className={styles.item}>
+                <div key={item.id} className={styles.item}>
                   <div className={styles.imageContainer}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -216,7 +216,7 @@ export default function CartOverlay() {
                       </div>
 
                       <button
-                        onClick={() => removeFromCart(item._id)}
+                        onClick={() => removeFromCart(item.id)}
                         className={styles.deleteBtn}
                         aria-label="Remove item"
                       >

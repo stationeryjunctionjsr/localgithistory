@@ -91,7 +91,7 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
   // eslint-disable-next-line unused-imports/no-unused-vars
   const [categoryTags, setCategoryTags] = useState<any[]>(props.initialCategoryTags || []);
   // eslint-disable-next-line unused-imports/no-unused-vars
-  const [brands, setBrands] = useState<{ _id?: string; name: string; logoUrl?: string }[]>(
+  const [brands, setBrands] = useState<{ id?: string; name: string; logoUrl?: string }[]>(
     props.initialBrands || []
   );
   const [isMobile, setIsMobile] = useState(false);
@@ -337,13 +337,13 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
                     .slice(0, expandedSections[sec.key] ? 24 : 6)
                     .map((p: any, index: number) => (
                       <div
-                        key={p._id}
+                        key={p.id}
                         className="animate-fade-in-up opacity-0"
                         style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
                       >
                         <HoverProductCard
                           product={{ ...p, isNew: false, bestSeller: false }}
-                          onClick={() => router.push(`/customer/product/${p._id}`)}
+                          onClick={() => router.push(`/customer/product/${p.id}`)}
                         />
                       </div>
                     ))}
@@ -423,10 +423,10 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {collections.map((col: any, index: number) => (
                   <div
-                    key={col._id}
+                    key={col.id}
                     className="animate-fade-in-up group relative aspect-[4/3] cursor-pointer overflow-hidden rounded-2xl opacity-0 shadow-lg"
                     style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'forwards' }}
-                    onClick={() => router.push(`/collections/${encodeURIComponent(col._id)}`)}
+                    onClick={() => router.push(`/collections/${encodeURIComponent(col.id)}`)}
                   >
                     <img
                       src={getImageUrlWithFallback(col.imageUrl)}
@@ -596,7 +596,7 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
               <InfiniteCarousel
                 items={brands.map((b) => {
                   const name = typeof b === 'string' ? b : b?.name || '';
-                  const id = typeof b === 'object' && b?._id ? b._id : name;
+                  const id = typeof b === 'object' && b?.id ? b.id : name;
                   const logoUrl =
                     typeof b === 'object' && b?.logoUrl ? getImageUrl(b.logoUrl) : null;
                   return {

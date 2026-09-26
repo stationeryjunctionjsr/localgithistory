@@ -44,7 +44,7 @@ class SearchTagRepository:
                 if tag.id and tag.tag_id:
                     await self.storage.update(
                         tag.id,
-                        SearchTagInternalUpdate(tagId=tag.tag_id)
+                        SearchTagInternalUpdate(tag_id=tag.tag_id)
                     )
 
         return all_tags
@@ -72,16 +72,16 @@ class SearchTagRepository:
         new_tag_id = f"ST-{max_num + 1}"
 
         tag_internal = SearchTagInternalCreate(
-            tagId=new_tag_id,
+            tag_id=new_tag_id,
             name=data.name,
             type=data.type,
-            isActive=data.is_active if data.is_active is not None else True,
+            is_active=data.is_active if data.is_active is not None else True,
             categories=data.categories if data.categories is not None else [],
-            subCategories=data.sub_categories if data.sub_categories is not None else [],
+            sub_categories=data.sub_categories if data.sub_categories is not None else [],
             brands=data.brands if data.brands is not None else [],
             collections=data.collections if data.collections is not None else [],
-            productIds=data.product_ids if data.product_ids is not None else [],
-            excludedProductIds=data.excluded_product_ids if data.excluded_product_ids is not None else [],
+            product_ids=data.product_ids if data.product_ids is not None else [],
+            excluded_product_ids=data.excluded_product_ids if data.excluded_product_ids is not None else [],
         )
         return await self.storage.create(tag_internal)
 
@@ -100,7 +100,7 @@ class SearchTagRepository:
             return None
         product_ids = list(set((tag.product_ids if tag.product_ids is not None else []) + [product_id]))
         excluded = [pid for pid in (tag.excluded_product_ids if tag.excluded_product_ids is not None else []) if pid != product_id]
-        return await self.update(tag_id, SearchTagInternalUpdate(productIds=product_ids, excludedProductIds=excluded))
+        return await self.update(tag_id, SearchTagInternalUpdate(product_ids=product_ids, excluded_product_ids=excluded))
 
     async def excludeProductId(self, tag_id: str, product_id: str) -> Optional[SearchTagInternal]:
         """Add a product ID to excludedProductIds and remove from productIds if present"""
@@ -109,7 +109,7 @@ class SearchTagRepository:
             return None
         excluded = list(set((tag.excluded_product_ids if tag.excluded_product_ids is not None else []) + [product_id]))
         product_ids = [pid for pid in (tag.product_ids if tag.product_ids is not None else []) if pid != product_id]
-        return await self.update(tag_id, SearchTagInternalUpdate(excludedProductIds=excluded, productIds=product_ids))
+        return await self.update(tag_id, SearchTagInternalUpdate(excluded_product_ids=excluded, product_ids=product_ids))
 
     async def delete(self, id: str) -> bool:
         return await self.storage.delete(id)

@@ -3,7 +3,7 @@ import api from '@/utils/api';
 import { logger } from '@/utils/logger';
 
 interface Notification {
-  _id: string;
+  id: string;
   title: string;
   body: string;
   type: string;
@@ -78,7 +78,7 @@ export const CustomerNotificationsModal: React.FC<Props> = ({ isOpen, onClose, o
   const handleMarkAsRead = async (id: string) => {
     try {
       await api.put(`/push-notifications/${id}/read`);
-      const updated = notifications.map(n => n._id === id ? { ...n, isRead: true } : n);
+      const updated = notifications.map(n => n.id === id ? { ...n, isRead: true } : n);
       setNotifications(updated);
       updateUnreadCount(updated);
     } catch (err) {
@@ -184,9 +184,9 @@ export const CustomerNotificationsModal: React.FC<Props> = ({ isOpen, onClose, o
             <div className="divide-y divide-gray-100">
               {notifications.map(notification => (
                 <div 
-                  key={notification._id}
+                  key={notification.id}
                   onClick={() => {
-                    if (!notification.isRead) handleMarkAsRead(notification._id);
+                    if (!notification.isRead) handleMarkAsRead(notification.id);
                     if (notification.data?.url) {
                       window.location.href = notification.data.url;
                     }

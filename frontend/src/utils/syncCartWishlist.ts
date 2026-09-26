@@ -57,7 +57,7 @@ export async function syncGuestDataToBackend(): Promise<void> {
     const allWishlistItems = [
       ...guestWishlist,
       ...legacyWishlist
-        .map((l: any) => ({ productId: l.product?._id || l.productId }))
+        .map((l: any) => ({ productId: l.product?.id || l.productId }))
         .filter((i: any) => i.productId),
     ];
     const failedWishlistItems: any[] = [];

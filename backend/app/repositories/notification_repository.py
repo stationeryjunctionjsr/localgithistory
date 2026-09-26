@@ -85,23 +85,23 @@ class NotificationRepository:
 
     async def acknowledge(self, id: str) -> NotificationInternal:
         from app.models.daos import NotificationInternalUpdate
-        return await self.update(id, NotificationInternalUpdate(isAcknowledged=True))
+        return await self.update(id, NotificationInternalUpdate(is_acknowledged=True))
 
     async def markAsRead(self, id: str) -> NotificationInternal:
         from app.models.daos import NotificationInternalUpdate
-        return await self.update(id, NotificationInternalUpdate(isRead=True))
+        return await self.update(id, NotificationInternalUpdate(is_read=True))
 
     async def markAllAsRead(self) -> int:
         """Mark all unread notifications as read and acknowledged"""
         from app.models.daos import NotificationInternalUpdate, NotificationFilter
-        update_model = NotificationInternalUpdate(isRead=True, isAcknowledged=True, updatedAt=self._get_timestamp())
-        unread_notifs = await self.storage.findAll(NotificationFilter(isRead=False))
+        update_model = NotificationInternalUpdate(is_read=True, is_acknowledged=True, updated_at=self._get_timestamp())
+        unread_notifs = await self.storage.findAll(NotificationFilter(is_read=False))
         count1 = 0
         for n in unread_notifs:
             await self.storage.update(n.id, update_model)
             count1 += 1
             
-        unack_notifs = await self.storage.findAll(NotificationFilter(isAcknowledged=False))
+        unack_notifs = await self.storage.findAll(NotificationFilter(is_acknowledged=False))
         count2 = 0
         for n in unack_notifs:
             if n.id not in [u.id for u in unread_notifs]:

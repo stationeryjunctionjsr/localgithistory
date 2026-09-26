@@ -67,8 +67,8 @@ function PopularProductsFallback() {
     <div className="mx-auto grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
       {popularProducts.map((product: any) => (
         <button
-          key={product._id}
-          onClick={() => router.push(`/customer/product/${product._id}`)}
+          key={product.id}
+          onClick={() => router.push(`/customer/product/${product.id}`)}
           className="rounded-lg bg-gray-50 p-3 text-left transition-colors hover:bg-gray-100"
         >
           {(product.displayImage || product.images?.[0]) && (
@@ -176,7 +176,7 @@ export default function ProductCatalog({
   const [categoryTags, setCategoryTags] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [availableCollections, setAvailableCollections] = useState<string[]>([]);
-  const [allCollections, setAllCollections] = useState<{ _id: string; name: string }[]>([]);
+  const [allCollections, setAllCollections] = useState<{ id: string; name: string }[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   // eslint-disable-next-line unused-imports/no-unused-vars
   // eslint-disable-next-line unused-imports/no-unused-vars
@@ -290,7 +290,7 @@ export default function ProductCatalog({
     if (user) {
       api.get('/wishlist').then((res) => {
         const items = res.data?.items || res.data || [];
-        const ids = new Set<string>(items.map((w: any) => w.product?._id || w.productId).filter(Boolean));
+        const ids = new Set<string>(items.map((w: any) => w.product?.id || w.productId).filter(Boolean));
         setWishlistedIds(ids);
       }).catch((e) => logger.warn("Background task failed", e));
     }
@@ -414,7 +414,7 @@ export default function ProductCatalog({
 
       // Track search for trending conversion (productIds = results shown)
       if (searchTerm && pageNumber === 1) {
-        const productIds = (fetchedProducts || []).map((p: any) => p._id || p.id).filter(Boolean);
+        const productIds = (fetchedProducts || []).map((p: any) => p.id || p.id).filter(Boolean);
         api
           .post('/tracking/search', {
             searchTerm,
@@ -432,7 +432,7 @@ export default function ProductCatalog({
 
       const seenIds = new Set<string>();
       const updatedProducts = fetchedProducts.filter((p: any) => {
-        const id = p._id || p.id;
+        const id = p.id || p.id;
         if (!id) return true;
         if (seenIds.has(id)) return false;
         seenIds.add(id);
@@ -601,7 +601,7 @@ export default function ProductCatalog({
   };
 
   const handleProductClick = (product: any) => {
-    trackBackendProductClick(product._id, product.name, 'catalog_grid');
+    trackBackendProductClick(product.id, product.name, 'catalog_grid');
     
     // Pass browsing context to the product detail page so breadcrumbs can adapt
     const queryParams = new URLSearchParams();
@@ -609,7 +609,7 @@ export default function ProductCatalog({
     if (propCollection) queryParams.set('refCollection', propCollection);
     
     const queryString = queryParams.toString();
-    const productUrl = `${basePath}/product/${product._id}${queryString ? `?${queryString}` : ''}`;
+    const productUrl = `${basePath}/product/${product.id}${queryString ? `?${queryString}` : ''}`;
     router.push(productUrl);
   };
 
@@ -641,7 +641,7 @@ export default function ProductCatalog({
     productName: string = ''
   ) => {
     try {
-      const product = products.find((p: any) => p._id === productId);
+      const product = products.find((p: any) => p.id === productId);
       await addToCart(productId, quantity, product);
       
       // Track add to cart event for GTM/GA4
@@ -650,7 +650,7 @@ export default function ProductCatalog({
         value: price * quantity,
         items: [
           {
-            item_id: product?._id,
+            item_id: product?.id,
             item_name: product?.name,
             price: price,
             item_brand: product?.brand,
@@ -982,7 +982,7 @@ export default function ProductCatalog({
     if (propCollection) {
       // eslint-disable-next-line unused-imports/no-unused-vars
       const collectionName =
-        allCollections.find((c) => c._id === propCollection)?.name ||
+        allCollections.find((c) => c.id === propCollection)?.name ||
         allCollections.find((c) => c.name === propCollection)?.name ||
         propCollection;
       name = ''; // Don't show name since it's already in the header
@@ -1103,7 +1103,7 @@ export default function ProductCatalog({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
                 <span className="text-gray-600">
-                  {allCollections.find((c) => c._id === propCollection)?.name ||
+                  {allCollections.find((c) => c.id === propCollection)?.name ||
                     allCollections.find((c) => c.name === propCollection)?.name ||
                     propCollection}
                 </span>
@@ -1354,7 +1354,7 @@ export default function ProductCatalog({
                       <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
                         {availableCollections.map((colId) => {
                           const colName =
-                            allCollections.find((c) => c._id === colId)?.name ||
+                            allCollections.find((c) => c.id === colId)?.name ||
                             allCollections.find((c) => c.name === colId)?.name ||
                             colId;
                           return (
@@ -1729,8 +1729,8 @@ export default function ProductCatalog({
                           const counts = product.items.map((bItem: any) => {
                             const ci = cart.items.find(
                               (i: any) =>
-                                i.bundleId === product._id &&
-                                (i.product?._id || i.product) === bItem.productId
+                                i.bundleId === product.id &&
+                                (i.product?.id || i.product) === bItem.productId
                             );
                             return ci ? Math.floor(ci.quantity / (bItem.quantity || 1)) : 0;
                           });
@@ -1751,7 +1751,7 @@ export default function ProductCatalog({
 
                     return (
                       <div
-                        key={product._id}
+                        key={product.id}
                         onClick={() => { if (!isBundle && !isSellerUnavailable) handleProductClick(product); }}
                         className={`group flex ${isBundle ? 'cursor-default' : isSellerUnavailable ? 'cursor-default' : 'cursor-pointer'} flex-col overflow-hidden rounded-lg border bg-white transition-all duration-200 hover:shadow-lg active:scale-[0.98] sm:rounded-xl border-gray-100 hover:border-gray-200`}
                       >
@@ -1805,13 +1805,13 @@ export default function ProductCatalog({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleWishlistToggle(product._id, product.name);
+                              handleWishlistToggle(product.id, product.name);
                             }}
                             className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 opacity-0 shadow-sm backdrop-blur-sm transition-all hover:bg-white hover:shadow-md group-hover:opacity-100"
                           >
                             <svg
-                              className={`h-4 w-4 transition-colors ${wishlistedIds.has(product._id) ? 'text-rose-500' : 'text-gray-600 hover:text-rose-500'}`}
-                              fill={wishlistedIds.has(product._id) ? 'currentColor' : 'none'}
+                              className={`h-4 w-4 transition-colors ${wishlistedIds.has(product.id) ? 'text-rose-500' : 'text-gray-600 hover:text-rose-500'}`}
+                              fill={wishlistedIds.has(product.id) ? 'currentColor' : 'none'}
                               viewBox="0 0 24 24"
                               stroke="currentColor"
                               strokeWidth="2"
@@ -1849,14 +1849,14 @@ export default function ProductCatalog({
                                          for (const bItem of (product.items || [])) {
                                            const ci = cart?.items?.find(
                                              (i: any) =>
-                                               i.bundleId === product._id &&
-                                               (i.product?._id || i.product) === bItem.productId
+                                               i.bundleId === product.id &&
+                                               (i.product?.id || i.product) === bItem.productId
                                            );
                                            if (!ci) continue;
                                            const newQty = ci.quantity - (bItem.quantity || 1);
                                            try {
-                                             if (newQty <= 0) await removeFromCart(ci._id);
-                                             else await updateQuantity(ci._id, newQty);
+                                             if (newQty <= 0) await removeFromCart(ci.id);
+                                             else await updateQuantity(ci.id, newQty);
                                            } catch { /* silent */ }
                                          }
                                        }}
@@ -1870,7 +1870,7 @@ export default function ProductCatalog({
                                        onClick={async (e) => {
                                          e.stopPropagation();
                                          try {
-                                           await api.post(`/bundles/${product._id}/add-to-cart`);
+                                           await api.post(`/bundles/${product.id}/add-to-cart`);
                                            await fetchCart();
                                            toast.success('Bundle added!');
                                          } catch (err: any) {
@@ -1891,7 +1891,7 @@ export default function ProductCatalog({
                                    onClick={async (e) => {
                                      e.stopPropagation();
                                      try {
-                                       await api.post(`/bundles/${product._id}/add-to-cart`);
+                                       await api.post(`/bundles/${product.id}/add-to-cart`);
                                        await fetchCart();
                                        toast.success('Bundle added to cart!');
                                      } catch (err: any) {
@@ -1911,8 +1911,8 @@ export default function ProductCatalog({
 
                              // ── Regular product counter ───────────────────
                               const cartItem = cart?.items?.find((item: any) => {
-                                const pId = item.product?._id || item.product || item._id;
-                                return pId === product._id;
+                                const pId = item.product?.id || item.product || item.id;
+                                return pId === product.id;
                               });
                               const quantityInCart = cartItem ? cartItem.quantity : 0;
 
@@ -1928,9 +1928,9 @@ export default function ProductCatalog({
                                          if (!cartItem) return;
                                          try {
                                            if (quantityInCart === 1) {
-                                             await removeFromCart(cartItem!._id);
+                                             await removeFromCart(cartItem!.id);
                                            } else {
-                                             await updateQuantity(cartItem!._id, quantityInCart - 1);
+                                             await updateQuantity(cartItem!.id, quantityInCart - 1);
                                            }
                                          } catch (_error) {
                                            toast.error('Failed to update quantity');
@@ -1949,7 +1949,7 @@ export default function ProductCatalog({
                                          e.stopPropagation();
                                          if (!cartItem) return;
                                          try {
-                                           await updateQuantity(cartItem!._id, quantityInCart + 1);
+                                           await updateQuantity(cartItem!.id, quantityInCart + 1);
                                          } catch (_error) {
                                            toast.error('Failed to update quantity');
                                          }
@@ -1967,7 +1967,7 @@ export default function ProductCatalog({
                                <button
                                  onClick={(e) => {
                                    e.stopPropagation();
-                                   handleAddToCart(product._id, 1, product.name);
+                                   handleAddToCart(product.id, 1, product.name);
                                  }}
                                  className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1 bg-gray-900/95 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 backdrop-blur-sm transition-all duration-300 sm:text-xs md:translate-y-full md:group-hover:translate-y-0"
                                >
@@ -1994,7 +1994,7 @@ export default function ProductCatalog({
                              <button
                                onClick={(e) => {
                                  e.stopPropagation();
-                                 handleNotifyMe(product._id, product.name);
+                                 handleNotifyMe(product.id, product.name);
                                }}
                                className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1.5 bg-[#ff3f6c] py-2 text-[10px] font-semibold uppercase tracking-wide text-white opacity-0 backdrop-blur-sm transition-all duration-300 group-hover:opacity-100 sm:py-2.5 sm:text-xs md:translate-y-full md:group-hover:translate-y-0"
                              >

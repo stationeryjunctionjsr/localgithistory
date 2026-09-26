@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 
 // eslint-disable-next-line unused-imports/no-unused-vars
 interface Variant {
-  _id: string;
+  id: string;
   type: string;
   value: string;
   mrp: number;
@@ -18,7 +18,7 @@ interface QuickVariantModalProps {
   isOpen: boolean;
   onClose: () => void;
   product: {
-    _id: string;
+    id: string;
     name: string;
     price: number;
     variants?: any[];
@@ -72,10 +72,10 @@ export default function QuickVariantModal({
             <div className="flex flex-wrap gap-2">
               {product.variants?.map((v: any) => (
                 <button
-                  key={v._id}
+                  key={v.id}
                   onClick={() => setSelectedVariant(v)}
                   className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
-                    selectedVariant?._id === v._id
+                    selectedVariant?.id === v.id
                       ? 'border-indigo-600 bg-indigo-600 text-white shadow-md ring-2 ring-indigo-200'
                       : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
                   }`}

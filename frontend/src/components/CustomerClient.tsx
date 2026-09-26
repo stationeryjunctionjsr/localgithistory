@@ -64,7 +64,7 @@ export default function CustomerClient({
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [brands, setBrands] = useState<{ _id?: string; name: string; logoUrl?: string }[]>(
+  const [brands, setBrands] = useState<{ id?: string; name: string; logoUrl?: string }[]>(
     initialBrands || []
   );
   const [isMobile, setIsMobile] = useState(false);
@@ -160,8 +160,8 @@ export default function CustomerClient({
       api.get('/wishlist').then((res) => {
         const ids = new Set<string>();
         (res.data || []).forEach((item: any) => {
-          if (item.product && item.product._id) {
-            ids.add(item.product._id);
+          if (item.product && item.product.id) {
+            ids.add(item.product.id);
           }
         });
         setWishlistedIds(ids);
@@ -511,7 +511,7 @@ export default function CustomerClient({
                           .slice(0, isExpanded ? cfg.expanded : cfg.visible)
                           .map((p: any, index: number) => (
                             <div
-                              key={p._id}
+                              key={p.id}
                               className="animate-fade-in-up opacity-0"
                               style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
                             >
@@ -519,40 +519,40 @@ export default function CustomerClient({
                                 product={{ ...p, isNew: false, bestSeller: false }}
                                 onClick={() => {
                                   trackRecommendationProductClick({
-                                    productId: p._id,
+                                    productId: p.id,
                                     productName: p.name,
                                     recommendationSlot: sec.slot,
                                   });
-                                  router.push(`/customer/product/${p._id}`);
+                                  router.push(`/customer/product/${p.id}`);
                                 }}
                                 cartQuantity={
-                                  cart?.items?.find((i: any) => (i.product?._id || i.product) === p._id)
+                                  cart?.items?.find((i: any) => (i.product?.id || i.product) === p.id)
                                     ?.quantity || 0
                                 }
                                 onAddToCart={(e) => {
                                   e.stopPropagation();
-                                  addToCart(p._id, 1, p);
+                                  addToCart(p.id, 1, p);
                                 }}
                                 onIncrement={(e) => {
                                   e.stopPropagation();
                                   const item = cart?.items?.find(
-                                    (i: any) => (i.product?._id || i.product) === p._id
+                                    (i: any) => (i.product?.id || i.product) === p.id
                                   );
-                                  if (item) updateQuantity(item._id, (item.quantity || 1) + 1);
+                                  if (item) updateQuantity(item.id, (item.quantity || 1) + 1);
                                 }}
                                 onDecrement={(e) => {
                                   e.stopPropagation();
                                   const item = cart?.items?.find(
-                                    (i: any) => (i.product?._id || i.product) === p._id
+                                    (i: any) => (i.product?.id || i.product) === p.id
                                   );
                                   if (item) {
-                                    if ((item.quantity || 1) <= 1) removeFromCart(item._id);
-                                    else updateQuantity(item._id, (item.quantity || 1) - 1);
+                                    if ((item.quantity || 1) <= 1) removeFromCart(item.id);
+                                    else updateQuantity(item.id, (item.quantity || 1) - 1);
                                   }
                                 }}
-                                isWishlisted={wishlistedIds.has(p._id)}
+                                isWishlisted={wishlistedIds.has(p.id)}
                                 onWishlistClick={(e) => {
-                                  toggleWishlist(p._id, p.name);
+                                  toggleWishlist(p.id, p.name);
                                 }}
                               />
                             </div>
@@ -617,10 +617,10 @@ export default function CustomerClient({
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {visibleCollections.map((col: any, index: number) => (
                   <div
-                    key={col._id}
+                    key={col.id}
                     className="animate-fade-in-up group relative aspect-[4/3] cursor-pointer overflow-hidden rounded-2xl opacity-0 shadow-lg"
                     style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'forwards' }}
-                    onClick={() => router.push(`/collections/${encodeURIComponent(col._id)}`)}
+                    onClick={() => router.push(`/collections/${encodeURIComponent(col.id)}`)}
                   >
                     <img
                       src={getImageUrlWithFallback(col.imageUrl)}
@@ -816,7 +816,7 @@ export default function CustomerClient({
               <InfiniteCarousel
                 items={visibleBrands.map((b) => {
                   const name = typeof b === 'string' ? b : b?.name || '';
-                  const id = typeof b === 'object' && b?._id ? b._id : name;
+                  const id = typeof b === 'object' && b?.id ? b.id : name;
                   const logoUrl =
                     typeof b === 'object' && b?.logoUrl ? getImageUrl(b.logoUrl) : null;
                   return {

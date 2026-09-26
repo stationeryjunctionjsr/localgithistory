@@ -249,12 +249,12 @@ class UserBase(CamelBaseModel):
     referral_code: Optional[str] = Field(default=None, description="Referral code used to sign up")
     is_email_verified: Optional[bool] = False
     device_token: Optional[str] = None
-    preferredLanguage: Optional[str] = Field(default="en", description="User's preferred UI language (BCP-47 code, e.g. 'hi', 'ta')")
-    approvalStatus: Optional[str] = "approved"
-    isDeactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
-    creditLimit: Optional[float] = 0
-    creditUsed: Optional[float] = 0
-    paymentTerms: Optional[str] = "30"
+    preferred_language: Optional[str] = Field(default="en", description="User's preferred UI language (BCP-47 code, e.g. 'hi', 'ta')")
+    approval_status: Optional[str] = "approved"
+    is_deactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
+    credit_limit: Optional[float] = 0
+    credit_used: Optional[float] = 0
+    payment_terms: Optional[str] = "30"
     assigned_salesperson: Optional[str] = None
     is_seller_admin: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isSellerAdmin", "is_seller_admin"))
     isOnDuty: Optional[bool] = False
@@ -335,9 +335,9 @@ class UserResponse(UserBase):
     user_id_formatted: Optional[str] = None
     role: Optional[str] = None
     effectiveRole: Optional[str] = None
-    approvalStatus: Optional[str] = None
+    approval_status: Optional[str] = None
     is_active: bool = Field(validation_alias=AliasChoices("isActive", "is_active"))
-    isDeactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
+    is_deactivated: Optional[bool] = Field(default=False, validation_alias=AliasChoices("isDeactivated", "is_deactivated"))
     credit_limit: float = Field(validation_alias=AliasChoices("creditLimit", "credit_limit"))
     credit_used: float = Field(validation_alias=AliasChoices("creditUsed", "credit_used"))
     payment_terms: Optional[int] = None
@@ -653,7 +653,7 @@ class RegisterRequest(CamelBaseModel):
     msg91Token: Optional[str] = None  # Token from MSG91 Widget/SDK
     otp: Optional[str] = None
     deviceId: Optional[str] = None
-    approvalStatus: Optional[str] = None
+    approval_status: Optional[str] = None
 
 
 

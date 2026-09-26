@@ -85,13 +85,13 @@ class PaymentInternalUpdate(CamelBaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-class VisibilityRuleInternal(BaseModel):
+class VisibilityRuleInternal(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     external_id: Optional[str] = Field(None, alias='externalId')
     pageType: Optional[str] = None
     pageIds: Optional[List[str]] = None
 
-class BannerInternalCreate(BaseModel):
+class BannerInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     external_id: Optional[str] = Field(None, alias='externalId')
     title: Optional[str] = None
@@ -109,7 +109,7 @@ class BannerInternalCreate(BaseModel):
     position: Optional[str] = None
     zoneIds: Optional[List[str]] = None
 
-class BannerInternalUpdate(BaseModel):
+class BannerInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     external_id: Optional[str] = Field(None, alias='externalId')
     title: Optional[str] = None
@@ -129,7 +129,7 @@ class BannerInternalUpdate(BaseModel):
     position: Optional[str] = None
     zoneIds: Optional[List[str]] = None
 
-class BannerChildrenData(BaseModel):
+class BannerChildrenData(CamelBaseModel):
     user_segments: Optional[List[str]] = None
     visibility_rules: Optional[List[VisibilityRuleSnippet]] = None
 
@@ -215,7 +215,7 @@ class ValetAvailabilityInternalUpdate(CamelBaseModel):
     slots: Optional[List[str]] = None
     zones: Optional[List[str]] = None
 
-class DeviceSnippet(BaseModel):
+class DeviceSnippet(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     type: Optional[str] = None
     os: Optional[str] = None
@@ -312,21 +312,21 @@ class WishlistInternalUpdate(CamelBaseModel):
     user: Optional[str] = None
     items: Optional[List[WishlistItemInternal]] = None
 
-class TrackingInternalCreate(BaseModel):
+class TrackingInternalCreate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     external_id: Optional[str] = Field(None, alias='externalId')
     order_id: str
     status: str
     details: Optional[str] = None
 
-class TrackingInternalUpdate(BaseModel):
+class TrackingInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid', populate_by_name=True)
     external_id: Optional[str] = Field(None, alias='externalId')
     order_id: Optional[str] = None
     status: Optional[str] = None
     details: Optional[str] = None
 
-class BusinessDetailsInternal(BaseModel):
+class BusinessDetailsInternal(CamelBaseModel):
     companyName: Optional[str] = None
     gstNumber: Optional[str] = None
     panNumber: Optional[str] = None
@@ -485,17 +485,17 @@ class CategoryInternalUpdate(CamelBaseModel):
     is_returnable: Optional[bool] = None
     created_at: Optional[datetime] = None
 
-class BrandInternalCreate(BaseModel):
+class BrandInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     external_id: Optional[str] = Field(None, alias='externalId')
     name: str
     description: Optional[str] = None
     is_active: bool = True
     is_system: bool = False
-    logoUrl: Optional[str] = None
-    showInMobileHomepage: Optional[bool] = False
+    logo_url: Optional[str] = None
+    show_in_mobile_homepage: Optional[bool] = False
 
-class BrandInternalUpdate(BaseModel):
+class BrandInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     external_id: Optional[str] = Field(None, alias='externalId')
     name: Optional[str] = None
@@ -504,7 +504,7 @@ class BrandInternalUpdate(BaseModel):
     sales_count: Optional[int] = None
     updated_at: Optional[datetime] = None
     slug: Optional[str] = None
-    logoUrl: Optional[str] = None
+    logo_url: Optional[str] = None
     show_in_mobile_homepage: Optional[bool] = None
 
 
@@ -665,7 +665,7 @@ class NotificationInternalUpdate(CamelBaseModel):
     is_acknowledged: Optional[bool] = None
     updated_at: Optional[datetime] = None
 
-class NotificationFilter(BaseModel):
+class NotificationFilter(CamelBaseModel):
     user_id: Optional[str] = None
     is_read: Optional[bool] = None
     is_acknowledged: Optional[bool] = None

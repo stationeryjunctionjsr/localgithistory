@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { logger } from '@/utils/logger';
 
 interface CollectionInfo {
-  _id?: string;
+  id?: string;
   name: string;
   description?: string;
   imageUrl?: string;
@@ -50,11 +50,11 @@ export default function CollectionDetailClient({
         const list = Array.isArray(res.data) ? res.data : res.data?.data || [];
         const decoded = decodeURIComponent(slug);
         const match = list.find(
-          (c: any) => c?._id === decoded || (c?.name || '').toLowerCase() === decoded.toLowerCase()
+          (c: any) => c?.id === decoded || (c?.name || '').toLowerCase() === decoded.toLowerCase()
         );
         if (match) {
           setCollectionInfo({
-            _id: match._id,
+            id: match.id,
             name: match.name || decoded,
             description: match.description,
             imageUrl: match.imageUrl,
@@ -91,7 +91,7 @@ export default function CollectionDetailClient({
 
   const collectionName = collectionInfo?.name || decodeURIComponent(slug);
   const collectionImage = collectionInfo?.imageUrl || collectionInfo?.image;
-  const collectionId = collectionInfo?._id || slug;
+  const collectionId = collectionInfo?.id || slug;
   const basePath = user?.role === 'wholesaler' ? '/wholesaler' : '/customer';
 
   const breadcrumbs = [

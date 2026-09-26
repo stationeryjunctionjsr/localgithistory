@@ -121,8 +121,8 @@ export const useCartStore = create<CartState>()(
           set({
             cart: {
               items: refreshedItems.map((g: any) => ({
-                _id: g.productId,
-                product: g.product || { _id: g.productId, name: 'Product', price: 0 },
+                id: g.productId,
+                product: g.product || { id: g.productId, name: 'Product', price: 0 },
                 price: g.product?.price || 0,
                 quantity: g.quantity || 1,
               })),
@@ -143,10 +143,10 @@ export const useCartStore = create<CartState>()(
       // Optimistic update
       if (product) {
         set((state) => {
-          const existing = state.cart?.items?.find((i) => i.product?._id === productId);
+          const existing = state.cart?.items?.find((i) => i.product?.id === productId);
           if (existing) {
             const updatedItems = state.cart!.items.map((i) =>
-              i.product?._id === productId
+              i.product?.id === productId
                 ? { ...i, quantity: i.quantity + quantity }
                 : i,
             );
@@ -160,8 +160,8 @@ export const useCartStore = create<CartState>()(
           }
           const price = product.price || product.mrp || 0;
           const newItem: CartItem = {
-            _id: productId,
-            product: { _id: productId, ...product },
+            id: productId,
+            product: { id: productId, ...product },
             price,
             quantity,
           };
@@ -199,7 +199,7 @@ export const useCartStore = create<CartState>()(
       set((state) => {
         if (!state.cart?.items) return state;
         const updatedItems = state.cart.items.map((i) => {
-          const id = user ? i._id : i.product?._id || i._id;
+          const id = user ? i.id : i.product?.id || i.id;
           return id === itemId ? { ...i, quantity } : i;
         });
         return {
@@ -231,7 +231,7 @@ export const useCartStore = create<CartState>()(
       set((state) => {
         if (!state.cart?.items) return state;
         const updatedItems = state.cart.items.filter((i) => {
-          const id = user ? i._id : i.product?._id || i._id;
+          const id = user ? i.id : i.product?.id || i.id;
           return id !== itemId;
         });
         return {

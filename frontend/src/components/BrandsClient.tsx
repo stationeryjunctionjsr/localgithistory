@@ -10,14 +10,14 @@ import { useAuth } from '@/context/AuthContext';
 import { logger } from '@/utils/logger';
 
 interface Brand {
-  _id?: string;
+  id?: string;
   name?: string;
   logoUrl?: string;
   logo?: string;
 }
 
 interface Category {
-  _id: string;
+  id?: string;
   name: string;
   subCategories?: string[];
 }
@@ -189,13 +189,13 @@ export default function BrandsClient({
                     </label>
 
                     {categories.map((cat) => (
-                      <div key={cat._id}>
+                      <div key={cat.id}>
                         <label className="group flex cursor-pointer items-center gap-3 rounded p-1 hover:bg-slate-50">
                           <div className="relative flex items-center">
                             <input
                               type="radio"
                               name="category_filter"
-                              checked={selectedCategory?._id === cat._id}
+                              checked={selectedCategory?.id === cat.id}
                               onChange={() => {
                                 setSelectedCategory(cat);
                                 setSelectedSubCategory('');
@@ -204,14 +204,14 @@ export default function BrandsClient({
                             />
                           </div>
                           <span
-                            className={`text-sm transition-colors group-hover:text-slate-900 ${selectedCategory?._id === cat._id ? 'font-medium text-indigo-600' : 'text-slate-600'}`}
+                            className={`text-sm transition-colors group-hover:text-slate-900 ${selectedCategory?.id === cat.id ? 'font-medium text-indigo-600' : 'text-slate-600'}`}
                           >
                             {cat.name}
                           </span>
                         </label>
 
                         {/* Sub-Categories (Show inline when category is selected) */}
-                        {selectedCategory?._id === cat._id &&
+                        {selectedCategory?.id === cat.id &&
                           cat.subCategories &&
                           cat.subCategories.length > 0 && (
                             <div className="animate-fadeIn ml-7 mt-1.5 space-y-1.5 border-l-2 border-indigo-100 pl-3">
@@ -271,7 +271,7 @@ export default function BrandsClient({
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {displayedBrands.map((item) => (
                     <button
-                      key={item._id || item.name}
+                      key={item.id || item.name}
                       type="button"
                       onClick={() => router.push(`/brands/${encodeURIComponent(item.name || '')}`)}
                       className="group relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-white p-3 text-center shadow-sm transition-all hover:border-indigo-100 hover:shadow-md"

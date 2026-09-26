@@ -13,14 +13,14 @@ class SessionRepository:
 
     async def create_session(self, user_id: Optional[str], device: dict, refresh_token_id: str) -> Dict:
         data = SessionInternalCreate(
-            userId=user_id,
-            refreshTokenId=refresh_token_id,
+            user_id=user_id,
+            refresh_token_id=refresh_token_id,
             status="active",
-            lastActiveAt=datetime.now(timezone.utc).isoformat(),
-            revokedAt=None,
-            revokedReason=None,
+            last_active_at=datetime.now(timezone.utc).isoformat(),
+            revoked_at=None,
+            revoked_reason=None,
             device=device,
-            isGuest=user_id is None,
+            is_guest=user_id is None,
             comment=None,
         )
         return await self.storage.create(data)
@@ -40,20 +40,20 @@ class SessionRepository:
         # since we can't use getattr, we use model_fields_set and explicitly assign
         for field in updates.model_fields_set:
             match field:
-                case "userId": existing.user_id = updates.userId
-                case "refreshTokenId": existing.refresh_token_id = updates.refresh_tokenId
+                case "user_id": existing.user_id = updates.user_id
+                case "refresh_token_id": existing.refresh_token_id = updates.refresh_token_id
                 case "status": existing.status = updates.status
-                case "lastActiveAt": existing.last_active_at = updates.lastActiveAt
-                case "revokedAt": existing.revoked_at = updates.revokedAt
-                case "revokedReason": existing.revoked_reason = updates.revokedReason
+                case "last_active_at": existing.last_active_at = updates.last_active_at
+                case "revoked_at": existing.revoked_at = updates.revoked_at
+                case "revoked_reason": existing.revoked_reason = updates.revoked_reason
                 case "device": existing.device = updates.device
-                case "isGuest": existing.is_guest = updates.is_guest
+                case "is_guest": existing.is_guest = updates.is_guest
 
-        return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing))
+        return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing, from_attributes=True))
 
     async def revoke_session(self, session_id: str, reason: str) -> Optional['Session']:
         return await self.update_session(
-            session_id, SessionInternalUpdate(status="revoked", revokedReason=reason, revokedAt=datetime.now(timezone.utc).isoformat())
+            session_id, SessionInternalUpdate(status="revoked", revoked_reason=reason, revoked_at=datetime.now(timezone.utc).isoformat())
         )
 
     async def revoke_other_sessions(self, user_id: str, exclude_session_id: Optional[str] = None) -> List['Session']:

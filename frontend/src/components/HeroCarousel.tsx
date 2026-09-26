@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
 
 interface Banner {
-  _id: string;
+  id: string;
   title?: string;
   subtitle?: string;
   image?: string;
@@ -128,7 +128,7 @@ export default function HeroCarousel({ banners }: HeroCarouselProps) {
       {/* Background Images with Ken Burns Effect */}
       {banners.map((banner, idx) => (
         <div
-          key={banner._id}
+          key={banner.id}
           className={`absolute inset-0 transition-all duration-1000 ease-out ${
             idx === currentIndex ? 'scale-100 opacity-100' : 'scale-105 opacity-0'
           }`}

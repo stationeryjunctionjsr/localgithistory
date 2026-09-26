@@ -244,7 +244,7 @@ export default function WholesalerClient({
 
       const allBanners = [...(wholesalerBanners.data || []), ...(homepageBanners.data || [])];
       const uniqueBanners = allBanners.filter(
-        (banner, index, self) => index === self.findIndex((b) => b._id === banner._id)
+        (banner, index, self) => index === self.findIndex((b) => b.id === banner.id)
       );
 
       const activeBanners = uniqueBanners.filter(
@@ -365,7 +365,7 @@ export default function WholesalerClient({
       const hasType = product.type && product.type.trim() !== '';
       const key = hasType
         ? `${product.name.toLowerCase()}_${product.type.toLowerCase()}`
-        : product._id;
+        : product.id;
 
       if (!groupedMap.has(key)) {
         // First product with this name+type combination
@@ -400,9 +400,9 @@ export default function WholesalerClient({
 
   const handleProductClick = (product: any) => {
     if (product._groupedVariants && product._groupedVariants.length > 0) {
-      router.push(`/wholesaler/product/${product._groupedVariants[0]._id}`);
-    } else if (product._id) {
-      router.push(`/wholesaler/product/${product._id}`);
+      router.push(`/wholesaler/product/${product._groupedVariants[0].id}`);
+    } else if (product.id) {
+      router.push(`/wholesaler/product/${product.id}`);
     }
   };
 
@@ -707,7 +707,7 @@ export default function WholesalerClient({
                       <>
                         {sec.items.slice(0, isExpanded ? cfg.expanded : cfg.visible).map((p, index) => (
                           <div
-                            key={p._id}
+                            key={p.id}
                             className="animate-fade-in-up opacity-0"
                             style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
                           >
@@ -772,11 +772,11 @@ export default function WholesalerClient({
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {visibleCollections.map((col: any, index: number) => (
                 <div
-                  key={col._id}
+                  key={col.id}
                   className="animate-fade-in-up group relative aspect-[4/3] cursor-pointer overflow-hidden rounded-2xl opacity-0 shadow-lg"
                   style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'forwards' }}
                   onClick={() =>
-                    router.push(`/wholesaler?collection=${encodeURIComponent(col._id)}`)
+                    router.push(`/wholesaler?collection=${encodeURIComponent(col.id)}`)
                   }
                 >
                   <img
@@ -932,7 +932,7 @@ export default function WholesalerClient({
 
             <InfiniteCarousel
               items={visibleBrands.map((b) => ({
-                id: b._id || b.name,
+                id: b.id || b.name,
                 title: b.name,
                 image: (b.logoUrl ? getImageUrl(b.logoUrl) : undefined) || undefined,
                 link: `/wholesaler?brand=${encodeURIComponent(b.name)}`,

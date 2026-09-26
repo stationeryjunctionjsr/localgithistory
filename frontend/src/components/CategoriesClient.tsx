@@ -26,10 +26,10 @@ export default function CategoriesClient({
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const [categories, setCategories] = useState<
-    Array<{ _id?: string; name: string; slug?: string; images?: string[]; categoryTags?: string[] }>
+    Array<{ id?: string; name: string; slug?: string; images?: string[]; categoryTags?: string[] }>
   >(initialCategories || []);
   const [categoryTags, setCategoryTags] = useState<
-    Array<{ _id?: string; name?: string; description?: string }>
+    Array<{ id?: string; name?: string; description?: string }>
   >(initialCategoryTags || []);
   const [loading, setLoading] = useState(!initialCategories);
   const [banners, setBanners] = useState<any[]>(initialBanners || []);
@@ -77,7 +77,7 @@ export default function CategoriesClient({
               .map((c: any) =>
                 typeof c === 'object' && c !== null && (c.name || c.title)
                   ? {
-                      _id: c._id,
+                      id: c.id,
                       name: c.name || c.title,
                       slug: c.slug,
                       images: c.images || [],

@@ -975,16 +975,16 @@ class ProductRepository:
             raise ValueError("Product with this SKU already exists")
 
         internal_create = ProductInternalCreate(
-            productId=product_id,
-            productIdFormatted=product_id_formatted,
+            product_id=product_id,
+            product_id_formatted=product_id_formatted,
             name=product_data.name,
             description=product_data.description if product_data.description is not None else "",
             sku=sku_val,
             category=product_data.category,
             sub_category=product_data.sub_category,
             brand=product_data.brand,
-            categoryId="1",
-            brandId=None,
+            category_id="1",
+            brand_id=None,
             price=float(product_data.mrp if product_data.mrp is not None else 0),
             mrp=float(product_data.mrp if product_data.mrp is not None else 0),
             mrp_per_case=product_data.mrp_per_case,

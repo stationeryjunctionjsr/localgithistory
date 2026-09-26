@@ -65,9 +65,9 @@ class ProductNotificationRepository:
         await self.ensure_table_exists()
         from app.models.daos_flat import ProductNotificationsInternalCreate
         notification_data = ProductNotificationsInternalCreate(
-            productId=str(product_id),
+            product_id=str(product_id),
             email=email.strip().lower(),
-            userId=str(user_id) if user_id else None,
+            user_id=str(user_id) if user_id else None,
             status="active"
         )
         # Check if an active notification already exists for this email and product

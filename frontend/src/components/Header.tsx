@@ -19,12 +19,12 @@ import AccessibilityModal from './AccessibilityModal';
 import { logger } from '@/utils/logger';
 
 interface CategoryTag {
-  _id: string;
+  id: string;
   name: string;
 }
 
 interface Category {
-  _id: string;
+  id: string;
   name: string;
   slug?: string;
   categoryTag?: string;
@@ -34,14 +34,14 @@ interface Category {
 }
 
 interface Brand {
-  _id: string;
+  id: string;
   name: string;
   slug?: string;
   categories?: string[];
 }
 
 interface PromoStrip {
-  _id: string;
+  id: string;
   text: string;
   isActive: boolean;
 }
@@ -372,7 +372,7 @@ export default function Header() {
             }}
           >
             {promoStrips.map((strip) => (
-              <div key={strip._id} className={styles.bannerSlide}>
+              <div key={strip.id} className={styles.bannerSlide}>
                 {strip.text}
               </div>
             ))}
@@ -422,17 +422,17 @@ export default function Header() {
           <nav className={styles.nav} ref={navRef} aria-label="Main navigation">
             {visibleTags.map((tag: CategoryTag) => (
               <div
-                key={tag._id}
-                className={`${styles.navItem} ${activeCategory === tag._id ? styles.active : ''}`}
+                key={tag.id}
+                className={`${styles.navItem} ${activeCategory === tag.id ? styles.active : ''}`}
                 tabIndex={0}
                 role="button"
-                aria-expanded={activeCategory === tag._id}
+                aria-expanded={activeCategory === tag.id}
                 aria-haspopup="true"
                 onMouseEnter={() => {
-                  setActiveCategory(tag._id);
+                  setActiveCategory(tag.id);
                 }}
                 onMouseLeave={() => setActiveCategory(null)}
-                onFocus={() => setActiveCategory(tag._id)}
+                onFocus={() => setActiveCategory(tag.id)}
                 onBlur={(e) => {
                   // Only close if focus leaves the entire nav item (including mega menu children)
                   if (!e.currentTarget.contains(e.relatedTarget as Node)) {
@@ -442,10 +442,10 @@ export default function Header() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    setActiveCategory(activeCategory === tag._id ? null : tag._id);
+                    setActiveCategory(activeCategory === tag.id ? null : tag.id);
                   } else if (e.key === 'Escape') {
                     setActiveCategory(null);
-                  } else if (e.key === 'Enter' && activeCategory === tag._id) {
+                  } else if (e.key === 'Enter' && activeCategory === tag.id) {
                     trackBackendFilterClick('category_tag', tag.name);
                     router.push(`${getBasePath()}?categoryTag=${encodeURIComponent(tag.name)}`);
                   }
@@ -457,17 +457,17 @@ export default function Header() {
               >
                 <span
                   style={{
-                    borderBottomColor: activeCategory === tag._id ? theme.primary : 'transparent',
+                    borderBottomColor: activeCategory === tag.id ? theme.primary : 'transparent',
                   }}
                 >
                   {tag.name.toUpperCase()}
                 </span>
 
-                {activeCategory === tag._id && (
+                {activeCategory === tag.id && (
                   <div className={styles.megaMenu} style={{ borderTopColor: theme.primary }} role="menu">
                     <div className={styles.megaMenuContent}>
                       {getCategoriesForTag(tag.name).map((cat: Category) => (
-                        <div key={cat._id} className={styles.megaMenuCol}>
+                        <div key={cat.id} className={styles.megaMenuCol}>
                           <h4
                             style={{ color: theme.primary }}
                             tabIndex={0}
@@ -585,7 +585,7 @@ export default function Header() {
                         <ul>
                           {overflowTags.map((tag: CategoryTag) => (
                             <li
-                              key={tag._id}
+                              key={tag.id}
                               onClick={() => {
                                 trackBackendFilterClick('category_tag', tag.name);
                                 router.push(

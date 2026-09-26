@@ -82,7 +82,7 @@ class CategoryRepository:
     async def delete(self, id: str) -> Category:
         # Soft delete - set isActive to false
         from app.models.daos import CategoryInternalUpdate
-        return await self.update(id, CategoryInternalUpdate(isActive=False))
+        return await self.update(id, CategoryInternalUpdate(is_active=False))
 
 
 category_repository = CategoryRepository()

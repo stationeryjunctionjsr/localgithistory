@@ -130,7 +130,7 @@ export default function FavouritesPageClient({ type }: FavouritesPageClientProps
   };
 
   const handleProductClick = (p: any) => {
-    router.push(`/wholesaler/product/${p._id}`);
+    router.push(`/wholesaler/product/${p.id}`);
   };
 
   const clearAllFilters = () => {
@@ -463,7 +463,7 @@ export default function FavouritesPageClient({ type }: FavouritesPageClientProps
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {products.map((p, index) => (
                   <div
-                    key={p._id}
+                    key={p.id}
                     className="animate-fade-in-up opacity-0"
                     style={{ animationDelay: `${Math.min(index, 20) * 40}ms`, animationFillMode: 'forwards' }}
                   >

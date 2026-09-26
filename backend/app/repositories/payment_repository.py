@@ -64,22 +64,22 @@ class PaymentRepository:
         return await self.storage.findOne(query)
 
     async def findByOrderId(self, order_id: str):
-        return await self.storage.findAll({"orderId": order_id})
+        return await self.storage.findAll({"order_id": order_id})
 
     async def create(self, payment_data: 'PaymentInternalCreate'):
         payment = {
-            "orderId": payment_data["orderId"],
-            "userId": payment_data["userId"] if "userId" in payment_data else None or payment_data["customerId"] if "customerId" in payment_data else None,  # Use userId instead of customerId
-            "userIdFormatted": payment_data["userIdFormatted"] if "userIdFormatted" in payment_data else None,
-            "customerName": payment_data["customerName"],
-            "orderDate": payment_data["orderDate"] if "orderDate" in payment_data else datetime.now(timezone.utc).isoformat(),
-            "paymentMethod": payment_data["paymentMethod"],  # 'cod', 'upi', 'credit'
-            "amountPaid": payment_data["amountPaid"] if "amountPaid" in payment_data else 0,
-            "amountRemaining": payment_data["amountRemaining"] if "amountRemaining" in payment_data else (payment_data["totalAmount"] if "totalAmount" in payment_data else 0),
-            "totalAmount": payment_data["totalAmount"] if "totalAmount" in payment_data else 0,
-            "paymentEntries": payment_data["paymentEntries"] if "paymentEntries" in payment_data else [],
-            "createdAt": datetime.now(timezone.utc).isoformat(),
-            "updatedAt": datetime.now(timezone.utc).isoformat(),
+            "order_id": payment_data["orderId"],
+            "user_id": payment_data["userId"] if "userId" in payment_data else None or payment_data["customerId"] if "customerId" in payment_data else None,  # Use userId instead of customerId
+            "user_id_formatted": payment_data["userIdFormatted"] if "userIdFormatted" in payment_data else None,
+            "customer_name": payment_data["customerName"],
+            "order_date": payment_data["orderDate"] if "orderDate" in payment_data else datetime.now(timezone.utc).isoformat(),
+            "payment_method": payment_data["paymentMethod"],  # 'cod', 'upi', 'credit'
+            "amount_paid": payment_data["amountPaid"] if "amountPaid" in payment_data else 0,
+            "amount_remaining": payment_data["amountRemaining"] if "amountRemaining" in payment_data else (payment_data["totalAmount"] if "totalAmount" in payment_data else 0),
+            "total_amount": payment_data["totalAmount"] if "totalAmount" in payment_data else 0,
+            "payment_entries": payment_data["paymentEntries"] if "paymentEntries" in payment_data else [],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Generate incremental payment ID in PYMT-X format
@@ -112,31 +112,31 @@ class PaymentRepository:
                     if update_data.order_id is not None: update_dict["orderId"] = update_data.order_id
                 except AttributeError: pass
                 try:
-                    if update_data.userId is not None: update_dict["userId"] = update_data.userId
+                    if update_data.user_id is not None: update_dict["userId"] = update_data.user_id
                 except AttributeError: pass
                 try:
                     if update_data.user_id_formatted is not None: update_dict["userIdFormatted"] = update_data.user_id_formatted
                 except AttributeError: pass
                 try:
-                    if update_data.customerName is not None: update_dict["customerName"] = update_data.customerName
+                    if update_data.customer_name is not None: update_dict["customerName"] = update_data.customer_name
                 except AttributeError: pass
                 try:
-                    if update_data.orderDate is not None: update_dict["orderDate"] = update_data.orderDate
+                    if update_data.order_date is not None: update_dict["orderDate"] = update_data.order_date
                 except AttributeError: pass
                 try:
                     if update_data.payment_method is not None: update_dict["paymentMethod"] = update_data.payment_method
                 except AttributeError: pass
                 try:
-                    if update_data.amountPaid is not None: update_dict["amountPaid"] = update_data.amountPaid
+                    if update_data.amount_paid is not None: update_dict["amountPaid"] = update_data.amount_paid
                 except AttributeError: pass
                 try:
-                    if update_data.amountRemaining is not None: update_dict["amountRemaining"] = update_data.amountRemaining
+                    if update_data.amount_remaining is not None: update_dict["amountRemaining"] = update_data.amount_remaining
                 except AttributeError: pass
                 try:
                     if update_data.total_amount is not None: update_dict["totalAmount"] = update_data.total_amount
                 except AttributeError: pass
                 try:
-                    if update_data.paymentId is not None: update_dict["paymentId"] = update_data.paymentId
+                    if update_data.payment_id is not None: update_dict["paymentId"] = update_data.payment_id
                 except AttributeError: pass
                 try:
                     if update_data.payment_entries is not None: update_dict["paymentEntries"] = update_data.payment_entries
@@ -157,12 +157,12 @@ class PaymentRepository:
         entry = {
             "entryId": len(entries) + 1,
             "amount": entry_data["amount"] if "amount" in entry_data else 0,
-            "paymentMethod": entry_data["paymentMethod"] if "paymentMethod" in entry_data else (payment.payment_method or "cod"),
+            "payment_method": entry_data["paymentMethod"] if "paymentMethod" in entry_data else (payment.payment_method or "cod"),
             "paidAt": entry_data["paidAt"] if "paidAt" in entry_data else datetime.now(timezone.utc).isoformat(),
             "image": entry_data["image"] if "image" in entry_data else None,  # Payment screenshot (optional)
             "notes": entry_data["notes"] if "notes" in entry_data else "",
             "verified": entry_data["verified"] if "verified" in entry_data else False,
-            "createdAt": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         entries.append(entry)
@@ -180,40 +180,40 @@ class PaymentRepository:
         def _to_internal_entry(e):
             if isinstance(e, dict):
                 return PaymentEntryInternal(
-                    entryId=e.get("entryId"),
+                    entry_id=e.get("entryId"),
                     amount=e.get("amount", 0),
-                    paymentMethod=e.get("paymentMethod"),
-                    paidAt=e.get("paidAt"),
+                    payment_method=e.get("paymentMethod"),
+                    paid_at=e.get("paidAt"),
                     image=e.get("image"),
                     notes=e.get("notes"),
                     verified=e.get("verified", False),
-                    createdAt=e.get("createdAt")
+                    created_at=e.get("createdAt")
                 )
             return PaymentEntryInternal(
-                entryId=int(e.entry_id) if e.entry_id else None,
+                entry_id=int(e.entry_id) if e.entry_id else None,
                 amount=e.amount,
-                paymentMethod=e.payment_method,
-                paidAt=e.paid_at.isoformat() if e.paid_at else None,
+                payment_method=e.payment_method,
+                paid_at=e.paid_at.isoformat() if e.paid_at else None,
                 image=e.image,
                 notes=e.notes,
                 verified=e.verified,
-                createdAt=e.created_at.isoformat() if e.created_at else None
+                created_at=e.created_at.isoformat() if e.created_at else None
             )
 
         internal_entries = [_to_internal_entry(e) for e in payment.payment_entries]
 
         update_payload = PaymentInternalUpdate(
-            orderId=payment.order_id,
-            userId=payment.user_id,
-            userIdFormatted=payment.user_id_formatted,
-            customerName=payment.customer_name,
-            orderDate=payment.order_date.isoformat() if payment.order_date else None,
-            paymentMethod=payment.payment_method,
-            amountPaid=payment.amount_paid,
-            amountRemaining=payment.amount_remaining,
-            totalAmount=payment.total_amount,
-            paymentId=payment.payment_id,
-            paymentEntries=internal_entries
+            order_id=payment.order_id,
+            user_id=payment.user_id,
+            user_id_formatted=payment.user_id_formatted,
+            customer_name=payment.customer_name,
+            order_date=payment.order_date.isoformat() if payment.order_date else None,
+            payment_method=payment.payment_method,
+            amount_paid=payment.amount_paid,
+            amount_remaining=payment.amount_remaining,
+            total_amount=payment.total_amount,
+            payment_id=payment.payment_id,
+            payment_entries=internal_entries
         )
         return await self.update(payment_id, update_payload)
 
@@ -244,24 +244,24 @@ class PaymentRepository:
         def _to_internal_entry(e):
             if isinstance(e, dict):
                 return PaymentEntryInternal(
-                    entryId=e.get("entryId"),
+                    entry_id=e.get("entryId"),
                     amount=e.get("amount", 0),
-                    paymentMethod=e.get("paymentMethod"),
-                    paidAt=e.get("paidAt"),
+                    payment_method=e.get("paymentMethod"),
+                    paid_at=e.get("paidAt"),
                     image=e.get("image"),
                     notes=e.get("notes"),
                     verified=e.get("verified", False),
-                    createdAt=e.get("createdAt")
+                    created_at=e.get("createdAt")
                 )
             return PaymentEntryInternal(
-                entryId=int(e.entry_id) if e.entry_id else None,
+                entry_id=int(e.entry_id) if e.entry_id else None,
                 amount=e.amount,
-                paymentMethod=e.payment_method,
-                paidAt=e.paid_at.isoformat() if e.paid_at else None,
+                payment_method=e.payment_method,
+                paid_at=e.paid_at.isoformat() if e.paid_at else None,
                 image=e.image,
                 notes=e.notes,
                 verified=e.verified,
-                createdAt=e.created_at.isoformat() if e.created_at else None
+                created_at=e.created_at.isoformat() if e.created_at else None
             )
 
         internal_entries = [_to_internal_entry(e) for e in entries]
@@ -271,17 +271,17 @@ class PaymentRepository:
         amount_remaining = max(0.0, total_amount - verified_paid)
 
         update_payload = PaymentInternalUpdate(
-            orderId=payment.order_id,
-            userId=payment.user_id,
-            userIdFormatted=payment.user_id_formatted,
-            customerName=payment.customer_name,
-            orderDate=payment.order_date.isoformat() if payment.order_date else None,
-            paymentMethod=payment.payment_method,
-            amountPaid=verified_paid,
-            amountRemaining=amount_remaining,
-            totalAmount=total_amount,
-            paymentId=payment.payment_id,
-            paymentEntries=internal_entries
+            order_id=payment.order_id,
+            user_id=payment.user_id,
+            user_id_formatted=payment.user_id_formatted,
+            customer_name=payment.customer_name,
+            order_date=payment.order_date.isoformat() if payment.order_date else None,
+            payment_method=payment.payment_method,
+            amount_paid=verified_paid,
+            amount_remaining=amount_remaining,
+            total_amount=total_amount,
+            payment_id=payment.payment_id,
+            payment_entries=internal_entries
         )
         return await self.update(payment_id, update_payload)
 

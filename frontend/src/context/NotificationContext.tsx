@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 import { logger } from '@/utils/logger';
 
 interface Notification {
-  _id: string;
+  id: string;
   title: string;
   message: string;
   read: boolean;
@@ -92,7 +92,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
           if (permissionGranted) {
             new Notification(notification.title, {
               body: notification.message,
-              tag: notification._id,
+              tag: notification.id,
               icon: notification.icon,
             });
           }
@@ -106,7 +106,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     try {
       await api.put(`/notifications/${notificationId}/read`);
       setNotifications((prev) =>
-        prev.map((n) => (n._id === notificationId ? { ...n, read: true } : n))
+        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {

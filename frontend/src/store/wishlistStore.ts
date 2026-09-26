@@ -65,8 +65,8 @@ export const useWishlistStore = create<WishlistState>()(
           const guestItems = getGuestWishlist();
           set({
             items: guestItems.map((g: any) => ({
-              _id: g.productId,
-              product: g.product || { _id: g.productId, name: '', price: 0, images: [] },
+              id: g.productId,
+              product: g.product || { id: g.productId, name: '', price: 0, images: [] },
               addedAt: new Date().toISOString(),
             })) as WishlistItem[],
           });
@@ -116,7 +116,7 @@ export const useWishlistStore = create<WishlistState>()(
     },
 
     isInWishlist: (productId) => {
-      return get().items.some((item) => item.product._id === productId);
+      return get().items.some((item) => item.product.id === productId);
     },
   })),
 );

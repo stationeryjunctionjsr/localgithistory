@@ -115,7 +115,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
     if (!cart?.items?.length || !bundle?.items?.length) return 0;
     const counts = bundle.items.map((bItem: any) => {
       const cartItem = cart.items.find(
-        (i: any) => i.bundleId === bundle._id && (i.product?._id || i.product) === bItem.productId
+        (i: any) => i.bundleId === bundle.id && (i.product?.id || i.product) === bItem.productId
       );
       if (!cartItem) return 0;
       return Math.floor(cartItem.quantity / bItem.quantity);
@@ -128,14 +128,14 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
     try {
       for (const bItem of bundle.items) {
         const cartItem = cart?.items?.find(
-          (i: any) => i.bundleId === bundle._id && (i.product?._id || i.product) === bItem.productId
+          (i: any) => i.bundleId === bundle.id && (i.product?.id || i.product) === bItem.productId
         );
         if (!cartItem) continue;
         const newQty = cartItem.quantity - bItem.quantity;
         if (newQty <= 0) {
-          await removeFromCart(cartItem._id);
+          await removeFromCart(cartItem.id);
         } else {
-          await updateQuantity(cartItem._id, newQty);
+          await updateQuantity(cartItem.id, newQty);
         }
       }
       await fetchCart();
@@ -186,12 +186,12 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   }, [id, user]);
 
   useEffect(() => {
-    if (product?._id) {
+    if (product?.id) {
       trackEcommerceEvent('view_item', {
         value: product.price,
         items: [
           {
-            item_id: product._id,
+            item_id: product.id,
             item_name: product.name,
             price: product.price,
             item_brand: product.brand,
@@ -202,16 +202,16 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
       });
       recordEvent({
         type: 'product_view',
-        payload: { productId: product._id, name: product.name },
+        payload: { productId: product.id, name: product.name },
       });
-      trackBackendProductView(product._id, product.name);
+      trackBackendProductView(product.id, product.name);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product?._id]);
+  }, [product?.id]);
 
   const cartItem = useMemo(() => {
     return cart?.items?.find((item: any) => {
-      const isSameProduct = item.product?._id === product?._id || item._id === product?._id;
+      const isSameProduct = item.product?.id === product?.id || item.id === product?.id;
       if (!isSameProduct) return false;
       
       if (product?.variantAttributes?.length > 0) {
@@ -253,14 +253,14 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
         }
         const response = await api.get(endpoint, { params });
         let prods = response.data.products || [];
-        prods = prods.filter((p: any) => p._id !== product._id);
+        prods = prods.filter((p: any) => p.id !== product.id);
         // Exclude products from sellers currently in a time-off window
         prods = prods.filter((p: any) => {
           const sid = p.sellers?.[0]?.sellerId;
           return !sid || !sellerAvailability[sid];
         });
         const mapped = prods.map((p: any) => ({
-          _id: p._id,
+          id: p.id,
           name: p.name,
           displayImage: p.images?.[0],
           displayPrice: p.price,
@@ -274,7 +274,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
     };
 
     fetchRecommendations();
-  }, [product?._id, product?.category, product?.subCategory, user]);
+  }, [product?.id, product?.category, product?.subCategory, user]);
 
   useEffect(() => {
     const fetchBundles = async () => {
@@ -342,7 +342,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
         value: activePrice * quantity,
         items: [
           {
-            item_id: product._id,
+            item_id: product.id,
             item_name: product.name,
             price: activePrice,
             item_brand: product.brand,
@@ -366,7 +366,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   const handleUpdateCart = async () => {
     if (!cartItem) return;
     try {
-      await updateQuantity(cartItem._id, quantity);
+      await updateQuantity(cartItem.id, quantity);
       toast.success('Cart updated');
       setHasInteractedWithQuantity(false);
       openCart();
@@ -376,15 +376,15 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   };
 
   const handleWishlistToggle = async () => {
-    if (!product?._id) return;
+    if (!product?.id) return;
     try {
-      if (isInWishlist(product._id)) {
+      if (isInWishlist(product.id)) {
         trackRemoveFromWishlist({
-          productId: product._id,
+          productId: product.id,
           productName: product.name,
           source: 'product_detail',
         });
-        await removeFromWishlist(product._id);
+        await removeFromWishlist(product.id);
       } else {
         if (!user) {
           setPendingWishlistAction(true);
@@ -392,11 +392,11 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
           return;
         }
         trackAddToWishlist({
-          productId: product._id,
+          productId: product.id,
           productName: product.name,
           source: 'product_detail',
         });
-        await addToWishlist(product._id, getSessionId());
+        await addToWishlist(product.id, getSessionId());
       }
     // eslint-disable-next-line unused-imports/no-unused-vars
     } catch (e) {
@@ -893,7 +893,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                             setPincodeActionLoading('request');
                             try {
                               await api.post('/availability-requests', {
-                                productId: product._id || product.id,
+                                productId: product.id || product.id,
                                 productName: product.name,
                                 pincode,
                               });
@@ -918,7 +918,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                             setPincodeActionLoading('notify');
                             try {
                               await api.post('/tracking/notify-pincode', {
-                                productId: product._id || product.id,
+                                productId: product.id || product.id,
                                 productName: product.name,
                                 pincode,
                               });
@@ -1035,10 +1035,10 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                   type="button"
                   className={styles.wishlistBtn}
                   onClick={handleWishlistToggle}
-                  aria-pressed={product?._id ? isInWishlist(product._id) : false}
+                  aria-pressed={product?.id ? isInWishlist(product.id) : false}
                 >
                   <HeartIcon />
-                  {product?._id && isInWishlist(product._id) ? ' SAVED' : ' WISHLIST'}
+                  {product?.id && isInWishlist(product.id) ? ' SAVED' : ' WISHLIST'}
                 </button>
                 <button
                   type="button"
@@ -1208,7 +1208,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                     {/* Reviews List */}
                     <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
                       {filteredReviewsList.map((review: any) => (
-                        <div key={review._id} className="border border-gray-100 rounded-xl p-4 shadow-sm bg-white">
+                        <div key={review.id} className="border border-gray-100 rounded-xl p-4 shadow-sm bg-white">
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <div className="flex items-center gap-2">
@@ -1267,7 +1267,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
               <ProductCarousel 
                 products={recommendations} 
                 basePath={getListingPath()} 
-                onProductClick={(p) => router.push(`${getListingPath()}/product/${p._id}`)}
+                onProductClick={(p) => router.push(`${getListingPath()}/product/${p.id}`)}
               />
             </div>
           )}
@@ -1278,7 +1278,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
               <h2 className="mb-6 px-4 text-xl font-bold text-gray-900 md:px-6">Available in Promo Bundles</h2>
               <div className="grid grid-cols-1 gap-6 px-4 sm:grid-cols-2 lg:grid-cols-3 md:px-6 max-w-7xl mx-auto">
                 {bundles.map((bundle) => (
-                  <div key={bundle._id} className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-md">
+                  <div key={bundle.id} className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:shadow-md">
                     <div>
                       {/* Bundle Savings Badge */}
                       <div className="absolute top-4 right-4 rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-700">
@@ -1341,7 +1341,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                                 onClick={async () => {
                                   if (!user) { setPendingWishlistAction(false); setShowAuthModal(true); return; }
                                   try {
-                                    await api.post(`/bundles/${bundle._id}/add-to-cart`);
+                                    await api.post(`/bundles/${bundle.id}/add-to-cart`);
                                     await fetchCart();
                                   } catch (err: any) {
                                     toast.error(err.response?.data?.detail || 'Failed to add bundle to cart');
@@ -1363,7 +1363,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                                 return;
                               }
                               try {
-                                await api.post(`/bundles/${bundle._id}/add-to-cart`);
+                                await api.post(`/bundles/${bundle.id}/add-to-cart`);
                                 toast.success(`"${bundle.name}" added to cart!`);
                                 await fetchCart();
                                 openCart();
@@ -1394,11 +1394,11 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
         }}
         redirectOnSuccess={false}
         onSuccess={async () => {
-          if (pendingWishlistAction && product?._id) {
+          if (pendingWishlistAction && product?.id) {
             try {
-              await api.post('/wishlist', { productId: product._id, sessionId: getSessionId() });
+              await api.post('/wishlist', { productId: product.id, sessionId: getSessionId() });
               trackAddToWishlist({
-                productId: product._id,
+                productId: product.id,
                 productName: product.name,
                 source: 'product_detail',
               });

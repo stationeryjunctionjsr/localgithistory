@@ -86,8 +86,7 @@ class CartRepository:
         """Save item for later"""
         saved_storage = get_storage("savedForLater")
         existing = await saved_storage.findOne({"user": user_id})
-
-        saved_item = SavedForLaterItem(user=user_id, productId=product_id, savedAt=datetime.now(timezone.utc).isoformat())
+        saved_item = SavedForLaterItem(user=user_id, product_id=product_id, saved_at=datetime.now(timezone.utc).isoformat())
 
         if existing:
             # Check if already saved

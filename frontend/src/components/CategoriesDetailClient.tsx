@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { logger } from '@/utils/logger';
 
 interface CategoryInfo {
-  _id?: string;
+  id?: string;
   name: string;
   slug?: string;
   images?: string[];
@@ -59,7 +59,7 @@ export default function CategoriesDetailClient({
           list.find((c: any) => (c?.name || '').toLowerCase() === slug.toLowerCase());
         if (match) {
           setCategoryInfo({
-            _id: match._id,
+            id: match.id,
             name: match.name || slug,
             slug: match.slug,
             images: match.images || [],

@@ -301,15 +301,15 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
             name=user_data.name,
             email=user_data.email,
             role=user_data.role,
-            deviceId=user_data.deviceId,
-            msg91Token=user_data.msg91Token,
-            companyName=user_data.company_name,
+            device_id=user_data.deviceId,
+            msg91_token=user_data.msg91Token,
+            company_name=user_data.company_name,
             address=user_data.address,
-            approvalStatus=user_data.approval_status,
-            creditLimit=user_data.credit_limit,
-            isDeactivated=user_data.is_deactivated,
-            savedAddresses=[],
-            isActive=True
+            approval_status=user_data.approval_status,
+            credit_limit=user_data.credit_limit,
+            is_deactivated=user_data.is_deactivated,
+            saved_addresses=[],
+            is_active=True
         )
         user = await user_repository.create(user_create)
 
@@ -328,8 +328,8 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
 
         auth_data = AuthResponse(
             token=access_token,
-            refreshToken=refresh_token,
-            sessionId=session.id,
+            refresh_token=refresh_token,
+            session_id=session.id,
             user=user_response,
             message="Registration successful.",
         )
@@ -402,7 +402,7 @@ async def login(login_data: LoginRequest, request: Request, response: Response):
     user_response.effectiveRole = effective_role
 
     auth_data = AuthResponse(
-        token=access_token, refreshToken=refresh_token, sessionId=session.id, user=user_response
+        token=access_token, refresh_token=refresh_token, session_id=session.id, user=user_response
     )
     set_auth_cookies(response, access_token, refresh_token, session.id)
     return auth_data
@@ -483,7 +483,7 @@ async def refresh_tokens(payload: RefreshRequest, request: Request, response: Re
     user_response = UserResponse.model_validate(user, from_attributes=True)
     user_response.effectiveRole = effective_role
     user_response.password = None
-    auth_data = AuthResponse(token=access_token, refreshToken=refresh_token, sessionId=session_id, user=user_response)
+    auth_data = AuthResponse(token=access_token, refresh_token=refresh_token, session_id=session_id, user=user_response)
     set_auth_cookies(response, access_token, refresh_token, session_id)
     return auth_data
 

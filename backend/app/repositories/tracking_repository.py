@@ -31,30 +31,38 @@ class TrackingRepository:
         session_id: Optional[str] = None,
         product_ids: Optional[List[str]] = None,
         segment: str = "customer",
-        **kwargs
+        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
+        device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
     ):
         payload = AnalyticsEventCreate(
             type="product_search",
-            userId=user_id,
-            searchTerm=search_term,
-            resultsCount=results_count,
-            sessionId=session_id,
+            source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+            device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
+            user_id=user_id,
+            search_term=search_term,
+            results_count=results_count,
+            session_id=session_id,
             segment=segment,
-            productIds=product_ids,
-            **kwargs
+            product_ids=product_ids
         )
         return await self.create(payload)
 
     async def trackProductView(
-        self, user_id: Optional[str], product_id: str, product_name: str, session_id: Optional[str] = None, **kwargs
+        self, user_id: Optional[str], product_id: str, product_name: str, session_id: Optional[str] = None,
+        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
+        device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
     ):
         return await self.create(
             AnalyticsEventCreate(
-                type="product_view", **kwargs,
-                userId=user_id,
-                productId=product_id,
-                productName=product_name,
-                sessionId=session_id
+                type="product_view",
+                source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+                device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
+                user_id=user_id,
+                product_id=product_id,
+                product_name=product_name,
+                session_id=session_id
             )
         )
 
@@ -65,18 +73,17 @@ class TrackingRepository:
         product_name: str,
         quantity: int,
         price: float,
-        session_id: Optional[str] = None,
-        **kwargs
+        session_id: Optional[str] = None
     ):
         return await self.create(
             AnalyticsEventCreate(
                 type="cart_add",
-                userId=user_id,
-                productId=product_id,
-                productName=product_name,
+                user_id=user_id,
+                product_id=product_id,
+                product_name=product_name,
                 quantity=quantity,
                 price=price,
-                sessionId=session_id,
+                session_id=session_id,
             )
         )
 
@@ -87,95 +94,176 @@ class TrackingRepository:
         product_name: str,
         quantity: int,
         price: float,
-        session_id: Optional[str] = None,
-        **kwargs
+        session_id: Optional[str] = None
     ):
         return await self.create(
             AnalyticsEventCreate(
                 type="cart_item_remove",
-                userId=user_id,
-                productId=product_id,
-                productName=product_name,
+                user_id=user_id,
+                product_id=product_id,
+                product_name=product_name,
                 quantity=quantity,
                 price=price,
-                sessionId=session_id,
+                session_id=session_id,
             )
         )
 
-    async def trackCheckout(self, user_id: Optional[str], cart_value: float, session_id: Optional[str] = None, **kwargs):
-        return await self.create(
-            AnalyticsEventCreate(
-                type="checkout", **kwargs,
-                userId=user_id,
-                cartValue=cart_value,
-                sessionId=session_id,
-            )
-        )
-
-    async def trackProductClick(self, user_id, product_id, product_name, session_id=None, **kwargs):
-        return await self.create(AnalyticsEventCreate(
-            type="product_click", userId=user_id, productId=product_id, productName=product_name, sessionId=session_id, **kwargs
-        ))
-
-    async def trackCartAdd(self, user_id, product_id, quantity, session_id=None, **kwargs):
-        from app.models.schemas import ItemSnippet
-        return await self.create(AnalyticsEventCreate(
-            type="cart_add",
-            userId=user_id,
-            sessionId=session_id,
-            cartItems=[ItemSnippet(product_id=product_id, quantity=quantity)],
-            **kwargs
-        ))
-
-    async def trackCartItemRemove(self, user_id, product_id, quantity, session_id=None, **kwargs):
-        from app.models.schemas import ItemSnippet
-        return await self.create(AnalyticsEventCreate(
-            type="cart_item_remove",
-            userId=user_id,
-            sessionId=session_id,
-            cartItems=[ItemSnippet(product_id=product_id, quantity=quantity)],
-            **kwargs
-        ))
-
-    async def trackFilterClick(self, user_id, filter_name, filter_value, session_id=None, **kwargs):
-        return await self.create(AnalyticsEventCreate(
-            type="filter_click", **kwargs, userId=user_id, sessionId=session_id,
-            filterName=filter_name, filterValue=filter_value
-        ))
-
-    async def trackWishlistAdd(self, user_id, product_id, product_name, session_id=None, **kwargs):
-        return await self.create(AnalyticsEventCreate(
-            type="wishlist_add", **kwargs, userId=user_id, sessionId=session_id,
-            productId=product_id, productName=product_name
-        ))
-
-    async def trackSession(self, user_id: Optional[str], session_id: str, is_returning: bool, **kwargs):
-        return await self.create(
-            AnalyticsEventCreate(
-                type="session", **kwargs, userId=user_id, sessionId=session_id, isReturning=is_returning, pageViews=1
-            )
-        )
-
-    async def trackPageView(self, user_id: Optional[str], page: str, session_id: Optional[str] = None, **kwargs):
-        return await self.create(AnalyticsEventCreate(type="page_view", **kwargs, userId=user_id, page=page, sessionId=session_id))
-
-    async def trackDropOff(self, user_id: Optional[str], page: str, reason: str, session_id: Optional[str] = None, **kwargs):
-        return await self.create(
-            AnalyticsEventCreate(type="drop_off", userId=user_id, **kwargs, page=page, reason=reason, sessionId=session_id)
-        )
-
-    async def trackPurchase(
-        self, user_id: Optional[str], order_id: str, order_value: float, session_id: Optional[str] = None, **kwargs
+    async def trackCheckout(
+        self, user_id: Optional[str], cart_value: float, session_id: Optional[str] = None,
+        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
+        device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
     ):
         return await self.create(
             AnalyticsEventCreate(
-                type="purchase", **kwargs, userId=user_id, orderId=order_id, orderValue=order_value, sessionId=session_id
+                type="checkout",
+                source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+                device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
+                user_id=user_id,
+                cart_value=cart_value,
+                session_id=session_id,
             )
         )
 
-    async def trackCartAbandonment(self, user_id: Optional[str], cart_items: List['CartItemInternal'], cart_value: Optional[float], session_id: Optional[str] = None, **kwargs):
+    async def trackProductClick(self, user_id, product_id, product_name, session_id=None,
+                                source=None, page=None,
+                                os=None, browser=None, ipAddress=None, campaign=None,
+                                deviceType=None, deviceOsVersion=None, deviceModel=None, deviceAppVersion=None):
+        return await self.create(AnalyticsEventCreate(
+            type="product_click", user_id=user_id, product_id=product_id, product_name=product_name, session_id=session_id,
+            source=source, page=page,
+            os=os, browser=browser, ipAddress=ipAddress, campaign=campaign,
+            deviceType=deviceType, deviceOsVersion=deviceOsVersion, deviceModel=deviceModel, deviceAppVersion=deviceAppVersion
+        ))
+
+    async def trackCartAdd(self, user_id, product_id, quantity, session_id=None,
+                           source=None, page=None,
+                           os=None, browser=None, ipAddress=None, campaign=None,
+                           deviceType=None, deviceOsVersion=None, deviceModel=None, deviceAppVersion=None):
+        from app.models.schemas import ItemSnippet
+        return await self.create(AnalyticsEventCreate(
+            type="cart_add",
+            user_id=user_id,
+            session_id=session_id,
+            cart_items=[ItemSnippet(product_id=product_id, quantity=quantity)],
+            source=source, page=page,
+            os=os, browser=browser, ipAddress=ipAddress, campaign=campaign,
+            deviceType=deviceType, deviceOsVersion=deviceOsVersion, deviceModel=deviceModel, deviceAppVersion=deviceAppVersion
+        ))
+
+    async def trackCartItemRemove(
+        self, user_id, product_id, quantity, session_id=None,
+        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
+        device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
+    ):
+        from app.models.schemas import ItemSnippet
+        return await self.create(AnalyticsEventCreate(
+            type="cart_item_remove",
+            source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+            device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
+            user_id=user_id,
+            session_id=session_id,
+            cart_items=[ItemSnippet(product_id=product_id, quantity=quantity)]
+        ))
+
+    async def trackFilterClick(
+        self, user_id, filter_name, filter_value, session_id=None,
+        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
+        device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
+    ):
+        return await self.create(AnalyticsEventCreate(
+            type="filter_click",
+            source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+            device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
+            user_id=user_id, session_id=session_id,
+            filter_name=filter_name, filter_value=filter_value
+        ))
+
+    async def trackWishlistAdd(self, user_id, product_id, product_name, session_id=None,
+                               source=None, source_page=None, source_section=None,
+                               os=None, browser=None, ipAddress=None, campaign=None,
+                               deviceType=None, deviceOsVersion=None, deviceModel=None, deviceAppVersion=None):
+        return await self.create(AnalyticsEventCreate(
+            type="wishlist_add", user_id=user_id, session_id=session_id,
+            product_id=product_id, product_name=product_name,
+            source=source, sourcePage=source_page, sourceSection=source_section,
+            os=os, browser=browser, ipAddress=ipAddress, campaign=campaign,
+            deviceType=deviceType, deviceOsVersion=deviceOsVersion, deviceModel=deviceModel, deviceAppVersion=deviceAppVersion
+        ))
+
+    async def trackSession(
+        self, user_id: Optional[str], session_id: str, is_returning: bool,
+        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
+        device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
+    ):
         return await self.create(
-            AnalyticsEventCreate(type="cart_abandonment", userId=user_id, **kwargs, cartItems=cart_items, cartValue=cart_value, sessionId=session_id)
+            AnalyticsEventCreate(
+                type="session",
+                source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+                device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
+                user_id=user_id, session_id=session_id, is_returning=is_returning, page_views=1
+            )
+        )
+
+    async def trackPageView(
+        self, user_id: Optional[str], page: str, session_id: Optional[str] = None,
+        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
+        device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
+    ):
+        return await self.create(AnalyticsEventCreate(
+            type="page_view",
+            source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+            device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
+            user_id=user_id, page=page, session_id=session_id
+        ))
+
+    async def trackDropOff(
+        self, user_id: Optional[str], page: str, reason: str, session_id: Optional[str] = None,
+        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
+        device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
+    ):
+        return await self.create(
+            AnalyticsEventCreate(
+                type="drop_off", user_id=user_id,
+                source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+                device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
+                page=page, reason=reason, session_id=session_id
+            )
+        )
+
+    async def trackPurchase(
+        self, user_id: Optional[str], order_id: str, order_value: float, session_id: Optional[str] = None,
+        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
+        device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
+    ):
+        return await self.create(
+            AnalyticsEventCreate(
+                type="purchase",
+                source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+                device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
+                user_id=user_id, order_id=order_id, order_value=order_value, session_id=session_id
+            )
+        )
+
+    async def trackCartAbandonment(
+        self, user_id: Optional[str], cart_items: List['CartItemInternal'], cart_value: Optional[float], session_id: Optional[str] = None,
+        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
+        device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
+    ):
+        return await self.create(
+            AnalyticsEventCreate(
+                type="cart_abandonment", user_id=user_id,
+                source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+                device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
+                cart_items=cart_items, cart_value=cart_value, session_id=session_id
+            )
         )
 
     async def getSessionsCount(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
@@ -328,8 +416,8 @@ class TrackingRepository:
         marker = AnalyticsEventCreate(
             type="search_history_clear",
             timestamp=self._get_current_timestamp(),
-            userId=user_id,
-            sessionId=session_id
+            user_id=user_id,
+            session_id=session_id
         )
         await self.storage.create(marker)
 
