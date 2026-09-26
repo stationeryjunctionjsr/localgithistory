@@ -110,6 +110,13 @@ def _try_acquire_scheduler_lock() -> bool:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
+    from app.utils.startup import deferred_segment_seed, stock_cleanup_loop, warm_critical_caches
+    
+    asyncio.create_task(deferred_segment_seed())
+    asyncio.create_task(stock_cleanup_loop())
+    asyncio.create_task(warm_critical_caches())
+    
     yield
     import app.config.database as db_config
     engine = db_config.get_async_engine()
