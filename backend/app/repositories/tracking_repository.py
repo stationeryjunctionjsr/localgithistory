@@ -127,19 +127,19 @@ class TrackingRepository:
 
     async def trackProductClick(self, user_id, product_id, product_name, session_id=None,
                                 source=None, page=None,
-                                os=None, browser=None, ipAddress=None, campaign=None,
-                                deviceType=None, deviceOsVersion=None, deviceModel=None, deviceAppVersion=None):
+                                os=None, browser=None, ip_address=None, campaign=None,
+                                device_type=None, device_os_version=None, device_model=None, device_app_version=None):
         return await self.create(AnalyticsEventCreate(
             type="product_click", user_id=user_id, product_id=product_id, product_name=product_name, session_id=session_id,
             source=source, page=page,
-            os=os, browser=browser, ipAddress=ipAddress, campaign=campaign,
-            deviceType=deviceType, deviceOsVersion=deviceOsVersion, deviceModel=deviceModel, deviceAppVersion=deviceAppVersion
+            os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+            device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version
         ))
 
     async def trackCartAdd(self, user_id, product_id, quantity, session_id=None,
                            source=None, page=None,
-                           os=None, browser=None, ipAddress=None, campaign=None,
-                           deviceType=None, deviceOsVersion=None, deviceModel=None, deviceAppVersion=None):
+                           os=None, browser=None, ip_address=None, campaign=None,
+                           device_type=None, device_os_version=None, device_model=None, device_app_version=None):
         from app.models.schemas import ItemSnippet
         return await self.create(AnalyticsEventCreate(
             type="cart_add",
@@ -147,8 +147,8 @@ class TrackingRepository:
             session_id=session_id,
             cart_items=[ItemSnippet(product_id=product_id, quantity=quantity)],
             source=source, page=page,
-            os=os, browser=browser, ipAddress=ipAddress, campaign=campaign,
-            deviceType=deviceType, deviceOsVersion=deviceOsVersion, deviceModel=deviceModel, deviceAppVersion=deviceAppVersion
+            os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+            device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version
         ))
 
     async def trackCartItemRemove(
@@ -183,14 +183,14 @@ class TrackingRepository:
 
     async def trackWishlistAdd(self, user_id, product_id, product_name, session_id=None,
                                source=None, source_page=None, source_section=None,
-                               os=None, browser=None, ipAddress=None, campaign=None,
-                               deviceType=None, deviceOsVersion=None, deviceModel=None, deviceAppVersion=None):
+                               os=None, browser=None, ip_address=None, campaign=None,
+                               device_type=None, device_os_version=None, device_model=None, device_app_version=None):
         return await self.create(AnalyticsEventCreate(
             type="wishlist_add", user_id=user_id, session_id=session_id,
             product_id=product_id, product_name=product_name,
-            source=source, sourcePage=source_page, sourceSection=source_section,
-            os=os, browser=browser, ipAddress=ipAddress, campaign=campaign,
-            deviceType=deviceType, deviceOsVersion=deviceOsVersion, deviceModel=deviceModel, deviceAppVersion=deviceAppVersion
+            source=source,
+            os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+            device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version
         ))
 
     async def trackSession(
