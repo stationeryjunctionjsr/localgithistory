@@ -113,7 +113,7 @@ async def add_to_wishlist(item: WishlistItemRequest, current_user: User = Depend
         from app.repositories.tracking_repository import tracking_repository
 
         await tracking_repository.trackWishlistAdd(
-            current_user.id, item.product_id, item.session_id
+            current_user.id, item.product_id, "Unknown", session_id=item.session_id
         )
 
         return {"message": "Added to wishlist"}

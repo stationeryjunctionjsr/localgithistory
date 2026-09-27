@@ -3,12 +3,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 
 from app.db.storage_factory import get_storage
-from app.models.schemas import AnalyticsEventCreate
+from app.models.schemas import AnalyticsEventCreate, AnalyticsSessionCreate
+from app.db.mysql_analytics_session_dao import MySQLAnalyticsSessionDAO
 
 
 class TrackingRepository:
     def __init__(self):
         self.storage = get_storage("tracking")
+        self.session_dao = MySQLAnalyticsSessionDAO()
         self._ANALYTICS_LIMIT = 5000  # Default limit for safety
 
     async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
@@ -17,6 +19,11 @@ class TrackingRepository:
     async def create(self, tracking_data: AnalyticsEventCreate):
         if tracking_data.timestamp is None:
             tracking_data.timestamp = self._get_current_timestamp()
+
+        # Update the time spent for this session on every event
+        if tracking_data.session_id and tracking_data.type != "session":
+            event_time = datetime.fromisoformat(str(tracking_data.timestamp).replace("Z", "+00:00"))
+            await self.session_dao.update_session_time(tracking_data.session_id, event_time)
 
         return await self.storage.create(tracking_data)
 
@@ -50,14 +57,14 @@ class TrackingRepository:
 
     async def trackProductView(
         self, user_id: Optional[str], product_id: str, product_name: str, session_id: Optional[str] = None,
-        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        source: Optional[str] = None, page: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
         ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
         device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
     ):
         return await self.create(
             AnalyticsEventCreate(
                 type="product_view",
-                source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+                source=source, page=page, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
                 device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
                 user_id=user_id,
                 product_id=product_id,
@@ -153,14 +160,14 @@ class TrackingRepository:
 
     async def trackCartItemRemove(
         self, user_id, product_id, quantity, session_id=None,
-        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        source: Optional[str] = None, page: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
         ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
         device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
     ):
         from app.models.schemas import ItemSnippet
         return await self.create(AnalyticsEventCreate(
             type="cart_item_remove",
-            source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+            source=source, page=page, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
             device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
             user_id=user_id,
             session_id=session_id,
@@ -182,29 +189,42 @@ class TrackingRepository:
         ))
 
     async def trackWishlistAdd(self, user_id, product_id, product_name, session_id=None,
-                               source=None, source_page=None, source_section=None,
+                               source=None, page=None,
                                os=None, browser=None, ip_address=None, campaign=None,
                                device_type=None, device_os_version=None, device_model=None, device_app_version=None):
         return await self.create(AnalyticsEventCreate(
             type="wishlist_add", user_id=user_id, session_id=session_id,
             product_id=product_id, product_name=product_name,
-            source=source,
+            source=source, page=page,
             os=os, browser=browser, ip_address=ip_address, campaign=campaign,
             device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version
         ))
 
     async def trackSession(
         self, user_id: Optional[str], session_id: str, is_returning: bool,
-        source: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
+        source: Optional[str] = None, page: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
         ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
         device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
     ):
+        await self.session_dao.create_session(
+            AnalyticsSessionCreate(
+                session_id=session_id,
+                user_id=user_id,
+                is_returning=is_returning,
+                source=source,
+                os=os,
+                browser=browser,
+                ip_address=ip_address,
+                device_type=device_type,
+                start_time=datetime.now(timezone.utc)
+            )
+        )
         return await self.create(
             AnalyticsEventCreate(
                 type="session",
-                source=source, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
+                source=source, page=page, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
                 device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
-                user_id=user_id, session_id=session_id, is_returning=is_returning, page_views=1
+                user_id=user_id, session_id=session_id, is_returning=is_returning
             )
         )
 

@@ -1748,6 +1748,23 @@ class AnalyticsEventPayload(CamelBaseModel):
     screen: Optional[str] = None
 
 
+class AnalyticsSessionCreate(CamelBaseModel):
+    model_config = ConfigDict(extra='forbid')
+    session_id: str
+    user_id: Optional[str] = None
+    is_returning: Optional[bool] = False
+    source: Optional[str] = None
+    os: Optional[str] = None
+    browser: Optional[str] = None
+    ip_address: Optional[str] = None
+    device_type: Optional[str] = None
+    start_time: datetime
+
+class AnalyticsSessionResponse(AnalyticsSessionCreate):
+    id: int
+    end_time: datetime
+    time_spent_seconds: int
+
 class AnalyticsEventCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     type: str
