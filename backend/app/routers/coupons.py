@@ -1,7 +1,7 @@
 from app.models.schemas import CouponCreateInternal
 from app.models.user import User
 from app.models.schemas import MessageResponse
-from typing import Dict, Any, List, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.encoders import jsonable_encoder
