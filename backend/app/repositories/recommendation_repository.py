@@ -8,6 +8,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
+from app.models.recommendation_config import RecommendationConfig, EngagementWeights, StrategyLimits, BanditConfig, FavouriteWeights, SegmentConfig
 
 from app.db.storage_factory import get_storage
 from app.repositories.tracking_repository import tracking_repository
@@ -92,10 +93,9 @@ def _load_config() -> Dict:
     return _defaults
 
 
-def _segment_config(segment: str) -> Dict:
+def _segment_config(segment: str) -> SegmentConfig:
     config = _load_config()
-    segments = config["segments"] if "segments" in config else {}
-    return segments[segment] if segment in segments else {}
+    return config.segments.get(segment, SegmentConfig())
 
 
 def _get_favourites_weights(kind: str) -> Tuple[float, float]:
@@ -134,7 +134,7 @@ def _strategy_to_key(strategy: str) -> str:
     return mapping[strategy] if strategy in mapping else "customerFavourites"  # Wait, dict on the fly is fine, or we can replace it.
 
 
-def get_recommendation_config() -> Dict:
+def get_recommendation_config() -> RecommendationConfig:
     """Expose config for routers (e.g. bandit reward weights)."""
     return _load_config()
 
@@ -738,10 +738,9 @@ class RecommendationRepository:
         """Append a reward to Personal (if user_id) and Global matrices for the given strategy (arm)."""
         if strategy not in BANDIT_STRATEGIES:
             return
-        config = _load_config()
-        bandit_cfg = config["bandit"] if "bandit" in config else {}
-        max_user = bandit_cfg["max_rewards_per_user_strategy"] if "max_rewards_per_user_strategy" in bandit_cfg else 500
-        max_global = bandit_cfg["max_rewards_per_global_strategy"] if "max_rewards_per_global_strategy" in bandit_cfg else 10000
+        # We no longer limit in-memory rewards directly since bandit is removed, but we keep the stub
+        max_user = 500
+        max_global = 10000
         async with self._rewards_lock:
             data = self._load_rewards()
             # Global
@@ -792,9 +791,8 @@ class RecommendationRepository:
         return list(strategies)
 
         config = _load_config()
-        bandit_cfg = config["bandit"] if "bandit" in config else {}
-        epsilon = bandit_cfg["epsilon"] if "epsilon" in bandit_cfg else 0.2
-        personal_threshold = bandit_cfg["personal_threshold"] if "personal_threshold" in bandit_cfg else 10
+        epsilon = config.bandit.epsilon
+        personal_threshold = config.bandit.personal_threshold
         async with self._rewards_lock:
             data = self._load_rewards()
         global_rewards = data["global"] if "global" in data else {}
@@ -943,8 +941,8 @@ class RecommendationRepository:
         if not product_ids:
             return {}
         config = _load_config()
-        days = config["engagement_days"] if "engagement_days" in config else 30
-        weights = config["engagement_weights"] if "engagement_weights" in config else {"product_view": 1, "add_to_cart": 3}
+        days = config.engagement_days
+        weights = config.engagement_weights
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         pid_set = set(product_ids)
         scores: Dict[str, float] = {pid: 0.0 for pid in product_ids}
@@ -1083,10 +1081,10 @@ class RecommendationRepository:
         All slots participate in the bandit (epsilon-greedy) for section ordering.
         """
         config = _load_config()
-        limits = config["strategy_limits"] if "strategy_limits" in config else {}
-        limit_trending = limits["trending"] if "trending" in limits else 24
-        limit_explore = limits["explore"] if "explore" in limits else 24
-        limit_new = (limits["new_arrivals"] if "new_arrivals" in limits else None) or (limits["user_favorites"] if "user_favorites" in limits else None) or 24
+        limits = config.strategy_limits
+        limit_trending = limits.trending
+        limit_explore = limits.explore
+        limit_new = limits.user_favorites  # new_arrivals mapped to user_favorites limit
         
         # Fetch all active products once and reuse
         all_products = await self.product_storage.findAll({"isActive": True})
@@ -1220,7 +1218,7 @@ class RecommendationRepository:
         # Retail (logged-in customer or any non-wholesaler)
         if role != "wholesaler":
             seg = _segment_config("retail")
-            exclude_days = seg["exclude_user_purchases_days"] if "exclude_user_purchases_days" in seg else 60
+            exclude_days = seg.exclude_user_purchases_days or 60
             
             import asyncio
             # Parallel fetch: user purchased IDs + cart IDs
@@ -1263,9 +1261,9 @@ class RecommendationRepository:
             explore_exclude = exclude | set(cf_ids) | set(tn_ids) | set(new_ids)
             
             # 3. Fetch Explore using the consolidated exclude set
-            exp_days = seg["explore_days"] if "explore_days" in seg else 60
+            exp_days = seg.explore_days or 60
             explore_ids_prod = []
-            if (seg["explore_available"] if "explore_available" in seg else True):
+            if seg.explore_available:
                 explore_ids_prod = await self.get_best_selling_from_least_bought_categories(
                     user_id, limit_explore, days=exp_days, exclude_product_ids=explore_exclude
                 )
@@ -1287,7 +1285,7 @@ class RecommendationRepository:
 
         # Business (wholesaler)
         seg = _segment_config("wholesaler")
-        bf_days = seg["business_favourites_days"] if "business_favourites_days" in seg else (seg["wholesaler_favourites_days"] if "wholesaler_favourites_days" in seg else 60)
+        bf_days = seg.business_favourites_days or seg.wholesaler_favourites_days or 60
         
         import asyncio
         purchased_ids = await self._get_user_purchased_product_ids(user_id, bf_days)
@@ -1337,9 +1335,9 @@ class RecommendationRepository:
         explore_exclude = exclude | set(cf_ids) | set(bf_ids_after_exclude) | set(tn_ids) | set(new_ids)
         
         # Fetch Explore sequentially
-        exp_days = seg["explore_days"] if "explore_days" in seg else 60
+        exp_days = seg.explore_days or 60
         explore_ids_prod = []
-        if (seg["explore_available"] if "explore_available" in seg else True):
+        if seg.explore_available:
             explore_ids_prod = await self.get_best_selling_from_least_bought_categories(
                 user_id, limit_explore, days=exp_days, exclude_product_ids=explore_exclude
             )

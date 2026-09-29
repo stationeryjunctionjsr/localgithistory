@@ -370,14 +370,14 @@ async def track_recommendation_event(
         strategy = body.strategy or body.slot
         if strategy in BANDIT_STRATEGIES:
             config = get_recommendation_config()
-            section_wise = config.get("section_wise_weights", {})
-            engagement = config.get("engagement_weights", {})
-            section_weights = section_wise.get(body.slot) or engagement or {}
+            section_wise = config.section_wise_weights
+            engagement = config.engagement_weights
+            section_weights = section_wise.get(body.slot, engagement)
             
             if body.eventType == "add_to_cart":
-                weight = section_weights.get("add_to_cart", 3)
+                weight = section_weights.add_to_cart
             else:
-                weight = section_weights.get("product_view", 1)
+                weight = section_weights.product_view
                 
             await recommendation_repository.append_reward(user_id, strategy, float(weight), body.slot)
     return {"ok": True}

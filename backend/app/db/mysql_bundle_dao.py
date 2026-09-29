@@ -2,7 +2,7 @@ import secrets
 from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.utils.time import now_utc
+from app.db.db_utils import now_utc
 from app.models.daos import BundleInternalCreate, BundleItemInternal, BundleInternalUpdate
 from app.models.schemas import BundleResponse, BundleItemResponse
 
