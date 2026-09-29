@@ -1,5 +1,6 @@
 from app.models.schemas import UserUpdate
 from app.models.user import User
+from app.models.sub_order import SubOrder
 from typing import List
 from app.models.schemas import MessageResponse
 """
@@ -152,7 +153,7 @@ async def resolve_commission_pct(order_total: float, seller_id: Optional[str]) -
 # ---------------------------------------------------------------------------
 
 
-async def is_return_period_over(sub_order: dict) -> bool:
+async def is_return_period_over(sub_order: SubOrder) -> bool:
     delivered_at_raw = sub_order.delivered_at
     if not delivered_at_raw:
         return False
@@ -182,7 +183,7 @@ async def is_return_period_over(sub_order: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 
-async def stamp_commission_on_delivery(sub_order: dict) -> dict:
+async def stamp_commission_on_delivery(sub_order: SubOrder) -> dict:
     """
     Called when a sub-order transitions to 'delivered'.
     Returns a dict of fields to merge into the sub-order update payload.
@@ -210,7 +211,7 @@ async def stamp_commission_on_delivery(sub_order: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
-async def maybe_realize_commission(sub_order: dict) -> dict:
+async def maybe_realize_commission(sub_order: SubOrder) -> dict:
     """
     If a sub-order has commissionStatus='unrealized' and the return window has
     elapsed, promote it to 'realized' and persist the change.

@@ -36,7 +36,7 @@ class CategoryTagUpdate(BaseModel):
 
 @router.get("", response_model=List[CategoryTagResponse])
 @router.get("/")
-async def get_category_tags(current_user: dict = Depends(require_super_admin)):
+async def get_category_tags(current_user: User = Depends(require_super_admin)):
     """Get all category tags (Super Admin only)"""
     try:
         tags = await category_tag_repository.findAll()
@@ -61,7 +61,7 @@ async def get_active_category_tags():
 
 @router.post("", response_model=CategoryTagResponse)
 @router.post("/", response_model=CategoryTagResponse)
-async def create_category_tag(tag: CategoryTagBase, current_user: dict = Depends(require_super_admin)):
+async def create_category_tag(tag: CategoryTagBase, current_user: User = Depends(require_super_admin)):
     """Create a new category tag (Super Admin only)"""
     try:
         # Check if tag with same name already exists
@@ -90,7 +90,7 @@ async def create_category_tag(tag: CategoryTagBase, current_user: dict = Depends
 
 @router.put("/{tag_id}", response_model=CategoryTagResponse)
 async def update_category_tag(
-    tag_id: str, tag_update: CategoryTagUpdate, current_user: dict = Depends(require_super_admin)
+    tag_id: str, tag_update: CategoryTagUpdate, current_user: User = Depends(require_super_admin)
 ):
     """Update a category tag (Super Admin only)"""
     try:
@@ -139,7 +139,7 @@ async def update_category_tag(
 
 
 @router.delete("/{tag_id}", response_model=MessageResponse)
-async def hide_category_tag(tag_id: str, current_user: dict = Depends(require_super_admin)):
+async def hide_category_tag(tag_id: str, current_user: User = Depends(require_super_admin)):
     """Hide a category tag (soft delete) (Super Admin only)"""
     try:
         tag = await category_tag_repository.findById(tag_id)

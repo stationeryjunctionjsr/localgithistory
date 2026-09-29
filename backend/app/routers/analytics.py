@@ -39,7 +39,7 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
         raise HTTPException(status_code=400, detail="Invalid date format")
 
 
-def _resolve_seller_id(current_user: dict, requested_seller_id: Optional[str] = None) -> Optional[str]:
+def _resolve_seller_id(current_user: User, requested_seller_id: Optional[str] = None) -> Optional[str]:
     """
     Resolves the effective seller_id for a request.
     - Sellers (wholesaler role): always scoped to their own _id, ignores any requested_seller_id.

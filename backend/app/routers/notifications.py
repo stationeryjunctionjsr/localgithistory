@@ -101,7 +101,7 @@ async def mark_all_read(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-async def _get_and_verify_notification(notification_id: str, current_user: dict):
+async def _get_and_verify_notification(notification_id: str, current_user: User):
     notification = await notification_repository.findById(notification_id)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")

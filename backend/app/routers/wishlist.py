@@ -1,5 +1,5 @@
 from app.models.user import User
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 from app.models.schemas import MessageResponse
 from app.models.product import Product
 from app.models.daos import WishlistItemInternal
@@ -20,12 +20,12 @@ class WishlistItemRequest(BaseModel):
     sessionId: Optional[str] = None
 
 
-def get_role_for_pricing(user: dict) -> str:
+def get_role_for_pricing(user: User) -> str:
     effective_role = user.effective_role or (user.role if user.role is not None else "customer")
     return effective_role
 
 
-def get_min_quantity_for_role(product: dict, role: str) -> int:
+def get_min_quantity_for_role(product, role: str) -> int:
     if role == "wholesaler":
         qty_per_case = product.quantity_per_case or 0
         if qty_per_case > 0:
@@ -50,34 +50,28 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
 
         role_for_pricing = get_role_for_pricing(current_user)
         populated_items = []
-        norm_items = []
-        for it in raw_items:
-            if isinstance(it, dict):
-                norm_items.append(it)
-            elif isinstance(it, str):
-                norm_items.append({"product": it, "quantity": 1})
-
-        product_ids = [item.product for item in norm_items if (item.product)]
+        product_ids = [item.product for item in raw_items if item.product]
         products_map = {}
         if product_ids:
             products = await product_repository.findAll({"allowed_ids": product_ids})
             products_map = {str(p.id): p for p in products}
 
-        for item in norm_items:
+        for item in raw_items:
             p_id = item.product
-            product = (products_map[str(p_id)] if str(p_id) in products_map else None)
+            product = products_map.get(str(p_id))
             if not product or product.is_active is False:
                 continue
 
             quantity = item.quantity if item.quantity is not None else 1
             price = product_repository.getPriceForRole(product, role_for_pricing, quantity)
 
-            it_dict = item
             populated_items.append(
                 {
-                    **it_dict,
+                    "quantity": quantity,
+                    "externalId": item.external_id,
+                    "_id": str(item.id_) if item.id_ else None,
                     "product": {
-                        "_id": product.id,
+                        "_id": str(product.id),
                         "name": product.name,
                         "sku": product.sku,
                         "images": (product.images or []),
