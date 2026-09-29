@@ -113,7 +113,7 @@ async def _resolve_zone_config(pincode: str, date: str, segment: str) -> Optiona
     logger = logging.getLogger(__name__)
     
     zone_data = await get_zone_for_pincode(pincode)
-    zone_id = zone_data.id or (zone_data["_id"] if isinstance(zone_data, dict) and "_id" in zone_data else zone_data["id"] if isinstance(zone_data, dict) and "id" in zone_data else None) if zone_data else None
+    zone_id = zone_data.id if zone_data else None
     logger.debug(f"_resolve_zone_config: pincode={pincode} date={date} segment={segment} zone_id={zone_id}")
 
     if zone_id:
@@ -121,13 +121,13 @@ async def _resolve_zone_config(pincode: str, date: str, segment: str) -> Optiona
         logger.debug(f"_resolve_zone_config: found {len(configs)} configs for zone_id={zone_id}")
         if configs:
             doc = configs[0]
-            return doc if isinstance(doc, DeliverySlotConfigModel) else DeliverySlotConfigModel.model_validate(doc, from_attributes=True)
+            return doc
 
     default_configs = await storage.findAll({"date": date, "segment": segment, "zoneId": DEFAULT_ZONE_ID, "isActive": True})
     logger.debug(f"_resolve_zone_config: found {len(default_configs)} default configs")
     if default_configs:
         doc = default_configs[0]
-        return doc if isinstance(doc, DeliverySlotConfigModel) else DeliverySlotConfigModel.model_validate(doc, from_attributes=True)
+        return doc
 
     return None
 
@@ -331,7 +331,7 @@ async def book_slot(
     if not config:
         raise HTTPException(status_code=404, detail="Slot configuration not found")
 
-    cfg = config if isinstance(config, DeliverySlotConfigModel) else DeliverySlotConfigModel.model_validate(config, from_attributes=True)
+    cfg = config
     updated = False
     booked_slot: Optional[SlotBase] = None
     for slot in cfg.slots:

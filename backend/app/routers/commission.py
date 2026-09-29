@@ -28,6 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, ConfigDict
 
 from app.db.storage_factory import get_storage
+from app.models.commission_settings import CommissionSettings, CommissionSettingsInternalCreate, CommissionSettingsInternalUpdate, CommissionTierInternal
 from app.repositories.return_settings_repository import return_settings_repository
 from app.repositories.user_repository import user_repository
 from app.utils.auth import require_super_admin
@@ -45,18 +46,16 @@ def _get_commission_storage():
     return get_storage("commissionSettings")
 
 
-async def _get_settings() -> dict:
+async def _get_settings() -> CommissionSettings:
     storage = _get_commission_storage()
     docs = await storage.findAll()
     if docs:
         return docs[0]
     # Create default settings
-    default = {
-        "tiers": [],
-        "defaultCommissionPct": 5.0,
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "updatedAt": datetime.now(timezone.utc).isoformat(),
-    }
+    default = CommissionSettingsInternalCreate(
+        default_commission_pct=5.0,
+        tiers=[]
+    )
     return await storage.create(default)
 
 
@@ -130,7 +129,13 @@ async def resolve_commission_pct(order_total: float, seller_id: Optional[str]) -
     # 2. Fall through to global tiers
     settings = await _get_settings()
     raw_tiers = settings.tiers or []
-    tiers: List[CommissionTier] = [t if isinstance(t, CommissionTier) else CommissionTier.model_validate(t, from_attributes=True) for t in raw_tiers]
+    tiers = []
+    for t in raw_tiers:
+        tiers.append(CommissionTier(
+            min_order_value=t.min if t.min is not None else 0.0,
+            max_order_value=t.max,
+            commission_pct=t.pct
+        ))
     default_pct: float = (settings.default_commission_pct if settings.default_commission_pct is not None else 5.0)
 
     for tier in sorted(tiers, key=lambda t: (t.minOrderValue if t.minOrderValue is not None else 0)):
@@ -272,24 +277,33 @@ async def update_commission_tiers(
 
     storage = _get_commission_storage()
     settings = await _get_settings()
-    updated = await storage.update(
-        settings.id,
-        {
-            "tiers": tiers_data,
-            "defaultCommissionPct": payload.defaultCommissionPct,
-            "updatedAt": datetime.now(timezone.utc).isoformat(),
-        },
+    
+    internal_tiers = []
+    for t in tiers_data:
+        internal_tiers.append(CommissionTierInternal(min=t.minOrderValue, max=t.maxOrderValue, pct=t.commissionPct))
+        
+    update_dto = CommissionSettingsInternalUpdate(
+        default_commission_pct=payload.defaultCommissionPct,
+        tiers=internal_tiers
     )
-    if isinstance(updated, dict):
-        updated_tiers = updated["tiers"] if "tiers" in updated else tiers_data
-        updated_default = updated["defaultCommissionPct"] if "defaultCommissionPct" in updated else payload.defaultCommissionPct
-    else:
-        updated_tiers = updated.tiers
-        updated_default = updated.default_commission_pct if updated.default_commission_pct is not None else payload.defaultCommissionPct
+    
+    updated = await storage.update(settings.id, update_dto)
+    
+    # Map back to response format
+    updated_tiers = []
+    if updated and updated.tiers:
+        for t in updated.tiers:
+            updated_tiers.append(CommissionTier(
+                min_order_value=t.min if t.min is not None else 0.0,
+                max_order_value=t.max,
+                commission_pct=t.pct
+            ))
+            
+    updated_default = updated.default_commission_pct if updated else payload.defaultCommissionPct
 
     return {
-        "tiers": updated_tiers if updated_tiers is not None else [],
-        "defaultCommissionPct": updated_default if updated_default is not None else 5.0,
+        "tiers": updated_tiers,
+        "defaultCommissionPct": updated_default,
     }
 
 
