@@ -24,6 +24,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import MSG91Initializer from '@/components/MSG91Initializer';
 import ConsentBasedTracking from '@/components/ConsentBasedTracking';
 import AppChrome from '@/components/AppChrome';
+import PincodeModal from '@/components/PincodeModal';
 import { AccessibilityProvider } from '@/context/AccessibilityContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
@@ -141,6 +142,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                           <Suspense fallback={null}>
                             <AppChrome />
                           </Suspense>
+                          <PincodeModal />
                         <LaunchPopup />
                         <FeedbackModal />
                         <MSG91Initializer nonce={nonce} />
