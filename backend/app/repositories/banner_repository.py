@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Dict, Optional, Any
+from typing import TYPE_CHECKING, Optional
 from app.models.daos import BannerInternalCreate, BannerInternalUpdate
 
 from app.db.storage_factory import get_storage
@@ -13,7 +13,7 @@ class BannerRepository:
     def __init__(self):
         self.storage = get_storage("banners")
 
-    async def findAll(self, query: Optional[Dict] = None):
+    async def findAll(self, query: Optional[dict] = None):
         banners = await self.storage.findAll()
 
         # Consistent preprocessing for ALL banners
@@ -109,51 +109,28 @@ class BannerRepository:
     async def findById(self, id: str):
         return await self.storage.findById(id)
 
-    async def findActive(self, query: Optional[Dict] = None, zone_id: Optional[str] = None):
-        now = datetime.now(timezone.utc).isoformat()
+    async def findActive(self, query: Optional[dict] = None, zone_id: Optional[str] = None):
         banners = await self.findAll({**(query or {}), "isActive": True, "isPublished": True})
 
-        # Filter by date range
         active_banners = []
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now(timezone.utc)
         for banner in banners:
-            start_date = banner.start_date
-            end_date = banner.end_date
+            start_dt = banner.start_date
+            end_dt = banner.end_date
 
-            def parse_iso(dt_str):
-                if isinstance(dt_str, datetime):
-                    if dt_str.tzinfo is not None:
-                        from datetime import timezone
-                        return dt_str.astimezone(timezone.utc).replace(tzinfo=None)
-                    return dt_str
-                if not dt_str or not str(dt_str).strip():
-                    return None
-                try:
-                    # Handle Z suffix for UTC
-                    if isinstance(dt_str, str) and dt_str.endswith("Z"):
-                        dt_str = dt_str[:-1] + "+00:00"
-                    dt = datetime.fromisoformat(dt_str)
-                    # If aware, convert to naive UTC for consistent comparison
-                    if dt.tzinfo is not None:
-                        from datetime import timezone
+            if start_dt and start_dt.tzinfo is None:
+                start_dt = start_dt.replace(tzinfo=timezone.utc)
+            if end_dt and end_dt.tzinfo is None:
+                end_dt = end_dt.replace(tzinfo=timezone.utc)
 
-                        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-                    return dt
-                except (ValueError, TypeError):
-                    return None
-
-            start = parse_iso(start_date)
-            if start and now < start:
+            if start_dt and now < start_dt:
                 continue
 
-            end = parse_iso(end_date)
-            if end and now > end:
+            if end_dt and now > end_dt:
                 continue
 
             active_banners.append(banner)
 
-        # Zone filtering: if zone_id given, keep banners that have no zone restriction
-        # (zoneIds is None/empty = applies to all zones) OR explicitly include this zone.
         if zone_id:
             active_banners = [
                 b for b in active_banners

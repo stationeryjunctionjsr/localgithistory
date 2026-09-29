@@ -1,8 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Any
-from app.models.brand import Brand
-from app.models.schemas import BrandCreate, BrandUpdate, Any
-from app.models.brand import Brand
-from app.models.schemas import BrandCreate, BrandUpdate, Any
+﻿from typing import TYPE_CHECKING, List, Optional
 from app.models.brand import Brand
 from app.models.schemas import BrandCreate, BrandUpdate
 
@@ -17,11 +13,11 @@ class BrandRepository:
     def __init__(self):
         self.storage = get_storage("brands")
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Brand]:
+    async def findAll(self, query: Optional[dict] = None) -> List[Brand]:
         items = await self.storage.findAll(query or {})
-        if query and 'isActive' in query and query["isActive"] is not None:
-            items = [b for b in items if b.is_active == query['isActive']]
-        return sorted(items, key=lambda x: (x.name or '').lower())
+        if query and "isActive" in query and query["isActive"] is not None:
+            items = [b for b in items if b.is_active == query["isActive"]]
+        return sorted(items, key=lambda x: (x.name or "").lower())
 
     async def findById(self, id: str):
         return await self.storage.findById(id)
@@ -29,13 +25,13 @@ class BrandRepository:
     async def findActive(self) -> List[Brand]:
         items = await self.storage.findAll()
         return sorted(
-            [b for b in items if b.is_active is True], key=lambda x: (x.name or '').lower()
+            [b for b in items if b.is_active is True], key=lambda x: (x.name or "").lower()
         )
 
-    async def create(self, data: 'BrandInternalCreate') -> Brand:
+    async def create(self, data: "BrandInternalCreate") -> Brand:
         return await self.storage.create(data)
 
-    async def update(self, id: str, data: 'BrandInternalUpdate') -> Optional[Brand]:
+    async def update(self, id: str, data: "BrandInternalUpdate") -> Optional[Brand]:
         return await self.storage.update(id, data)
 
     async def delete(self, id: str) -> bool:

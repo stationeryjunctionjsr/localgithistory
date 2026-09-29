@@ -1,5 +1,7 @@
-from typing import Any
-from typing import Dict, Optional
+
+from typing import Optional
+from pydantic import BaseModel
+from app.utils.device import DeviceContext
 
 from app.db.storage_factory import get_storage
 
@@ -13,13 +15,14 @@ class ActivityRepository:
         user_id: Optional[str],
         session_id: str,
         action: str,
-        meta: Dict,
-        device: dict,
+        meta: BaseModel,
+        device: DeviceContext,
         comment: Optional[str] = None,
         is_guest: bool = False,
     ):
         from app.models.daos_flat import ActivityInternalCreate, ActivityMetaInternal
-        meta_list = [ActivityMetaInternal(key=k, value=str(v)) for k, v in (meta or {}).items()]
+        meta_dict = meta.model_dump(exclude_unset=True, exclude_none=True) if meta else {}
+        meta_list = [ActivityMetaInternal(key=k, value=str(v)) for k, v in meta_dict.items()]
         payload = ActivityInternalCreate(
             user_id=user_id,
             session_id=session_id,
@@ -28,15 +31,15 @@ class ActivityRepository:
             comment=comment,
             is_guest=is_guest,
         )
-        if device and isinstance(device, dict):
-            if "userAgent" in device: payload.user_agent = device["userAgent"]
-            if "os" in device: payload.os = device["os"]
-            if "osVersion" in device: payload.os_version = device["osVersion"]
-            if "deviceType" in device: payload.device_type = device["deviceType"]
+        if device:
+            payload.user_agent = device.userAgent
+            payload.os = device.os
+            payload.os_version = device.osVersion
+            payload.device_type = device.deviceType
             
         return await self.storage.create(payload)
 
-    async def promote_guest_activities(self, session_id: str, user_id: str) -> Dict:
+    async def promote_guest_activities(self, session_id: str, user_id: str) -> object:
         from app.models.daos_flat import ActivityInternalUpdate
         activities = await self.storage.findAll({"sessionId": session_id})
         updated = 0

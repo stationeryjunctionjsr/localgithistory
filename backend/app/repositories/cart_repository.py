@@ -1,5 +1,5 @@
 from app.models.saved_for_later import SavedForLater, SavedForLaterItem
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING
 from app.models.daos import CartInternalCreate, CartInternalUpdate, CartItemInternal
 
 from app.db.storage_factory import get_storage
@@ -13,15 +13,9 @@ class CartRepository:
         return await self.storage.findOne({"user": user_id})
 
     async def create(self, cart_data: 'CartInternalCreate'):
-        if not isinstance(cart_data, CartInternalCreate):
-            cart = CartInternalCreate(user=cart_data.user, items=(cart_data.items if cart_data.items is not None else []))
-        else:
-            cart = cart_data
-        return await self.storage.create(cart)
+        return await self.storage.create(cart_data)
 
     async def update(self, id: str, update_data: 'CartInternalUpdate'):
-        if not isinstance(update_data, CartInternalUpdate):
-            update_data = CartInternalUpdate.model_validate(update_data)
         return await self.storage.update(id, update_data)
 
     async def clearCart(self, user_id: str):
