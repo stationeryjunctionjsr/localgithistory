@@ -120,14 +120,14 @@ async def _resolve_zone_config(pincode: str, date: str, segment: str) -> Optiona
         configs = await storage.findAll({"date": date, "segment": segment, "zoneId": str(zone_id), "isActive": True})
         logger.debug(f"_resolve_zone_config: found {len(configs)} configs for zone_id={zone_id}")
         if configs:
-            doc = configs[0]
-            return doc
+            config = configs[0]
+            return config
 
     default_configs = await storage.findAll({"date": date, "segment": segment, "zoneId": DEFAULT_ZONE_ID, "isActive": True})
     logger.debug(f"_resolve_zone_config: found {len(default_configs)} default configs")
     if default_configs:
-        doc = default_configs[0]
-        return doc
+        default_config = default_configs[0]
+        return default_config
 
     return None
 
@@ -371,9 +371,9 @@ async def create_delivery_slot_config(
         # Resolve zone capacity
         zone_default_capacity = 10  # fallback
         if zone_id != DEFAULT_ZONE_ID:
-            zone_doc = await zones_storage.findById(zone_id)
-            if zone_doc:
-                cap_val = (zone_doc.default_capacity if zone_doc.default_capacity is not None else 10)
+            zone = await zones_storage.findById(zone_id)
+            if zone:
+                cap_val = (zone.default_capacity if zone.default_capacity is not None else 10)
                 zone_default_capacity = int(cap_val) if cap_val is not None else 10
 
         # Auto-fill slot capacities from zone default if not set
@@ -396,8 +396,8 @@ async def create_delivery_slot_config(
         # Check for existing config for this date/segment/zone
         existing = await storage.findAll({"date": config.date, "segment": config.segment, "zoneId": zone_id})
         if existing:
-            doc_id = str(existing[0].id)
-            updated = await storage.update(doc_id, config_obj)
+            config_id = str(existing[0].id)
+            updated = await storage.update(config_id, config_obj)
             created.append(updated)
         else:
             result = await storage.create(config_obj)
