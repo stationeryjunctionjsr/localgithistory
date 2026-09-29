@@ -3,9 +3,9 @@ from app.models.daos import ProductInternalUpdate
 import uuid
 from app.models.user import User
 from collections import defaultdict
-from typing import Dict, Any, List
+from typing import List
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from app.services.email_service import email_service

@@ -1,5 +1,5 @@
 from app.models.user import User
-from typing import Dict, Any, List
+from typing import List
 from app.models.daos_flat import PushNotificationsInternalCreate, PushNotificationsInternalUpdate
 from app.models.schemas import MessageResponse, PushNotificationResponse, PushAnalyticsResponse, VapidKeyResponse, PushSubscription
 from pathlib import Path
@@ -308,11 +308,7 @@ async def register_device(
     try:
         # Must have at least one identifier
         has_web_subscription = bool(
-            request.subscription and (
-                request.subscription.endpoint if request.subscription.endpoint else (
-                    request.subscription["endpoint"] if isinstance(request.subscription, dict) and "endpoint" in request.subscription else None
-                )
-            )
+            request.subscription and request.subscription.endpoint
         )
         has_expo_token = bool(request.expoToken)
 
