@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models.user import User
 from app.models.schemas import MessageResponse, ValetPayoutSettingsResponse, ValetEarningsResponse, ValetPayoutDetailResponse, ValetPayoutCreate, MarkPaidRequest
 from app.models.daos import ValetPayoutInternalCreate, ValetPayoutInternalUpdate
+from app.models.valet_payout_settings import ValetPayoutSettings
 from app.db.storage_factory import get_storage
 from app.db.mysql_valet_payout_dao import MySQLValetPayoutDAO
 from app.utils.auth import get_current_user, require_super_admin
@@ -46,10 +47,10 @@ class ValetPayoutSettingsModel(BaseModel):
 
 async def _get_settings() -> ValetPayoutSettingsModel:
     storage = _storage()
-    docs = await storage.findAll()
-    if docs:
-        doc = docs[0]
-        return doc if isinstance(doc, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(doc, from_attributes=True)
+    rows = await storage.findAll()
+    if rows:
+        row = rows[0]
+        return row if isinstance(row, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(row, from_attributes=True)
     default = {
         "delivery_charge_per_order": 0.0,
         "return_pickup_charge_per_order": 0.0,
@@ -104,7 +105,7 @@ async def update_valet_payout_settings(
 
 
 from app.models.schemas import ValetEarningsResponse
-async def _compute_valet_earnings(valet_id: str, settings: dict, orders: list, returns: list) -> ValetEarningsResponse:
+async def _compute_valet_earnings(valet_id: str, settings: ValetPayoutSettings, orders: list, returns: list) -> ValetEarningsResponse:
     delivery_rate = float((settings.delivery_charge_per_order if settings.delivery_charge_per_order is not None else 0.0))
     return_rate = float((settings.return_pickup_charge_per_order if settings.return_pickup_charge_per_order is not None else 0.0))
 
@@ -179,18 +180,18 @@ async def get_valet_earnings_by_id(
     result = await _compute_valet_earnings(valet_id, settings, orders, returns)
     return result
 
-async def _enrich_with_valet(doc: ValetPayoutDetailResponse) -> ValetPayoutDetailResponse:
-    valet = await user_repository.findById(doc.valet_id)
+async def _enrich_with_valet(record: ValetPayoutDetailResponse) -> ValetPayoutDetailResponse:
+    valet = await user_repository.findById(record.valet_id)
     if valet:
-        doc.valet_name = valet.name
-        doc.valet_phone = valet.phone
-        doc.valet_upi_id = valet.upi_id
-        doc.valet_qr_code_url = valet.qr_code_url
-        doc.valet_bank_account_number = valet.bank_account_number
-        doc.valet_bank_ifsc_code = valet.bank_ifsc_code
-        doc.valet_bank_account_holder = valet.bank_account_holder
-        doc.valet_bank_name = valet.bank_name
-    return doc
+        record.valet_name = valet.name
+        record.valet_phone = valet.phone
+        record.valet_upi_id = valet.upi_id
+        record.valet_qr_code_url = valet.qr_code_url
+        record.valet_bank_account_number = valet.bank_account_number
+        record.valet_bank_ifsc_code = valet.bank_ifsc_code
+        record.valet_bank_account_holder = valet.bank_account_holder
+        record.valet_bank_name = valet.bank_name
+    return record
 
 
 @router.post("/payouts", response_model=ValetPayoutDetailResponse, status_code=201)

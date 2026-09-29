@@ -15,7 +15,7 @@ Endpoints:
 
 from datetime import date as dt_date
 from datetime import timedelta
-from typing import Dict, Any, List, Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ValidationInfo, field_validator, model_validator, Field
@@ -62,7 +62,7 @@ class ValetAvailabilityCreate(BaseModel):
 # ─── Helper ───────────────────────────────────────────────────────────────────
 
 
-def _require_valet(current_user: dict):
+def _require_valet(current_user: User):
     if current_user.role != "valet":
         raise HTTPException(status_code=403, detail="Only valets can access this endpoint")
 
@@ -164,7 +164,7 @@ async def get_my_availability(
     valet_id = str(current_user.id)
     all_docs = await storage.findAll({"valetId": valet_id})
 
-    return [(doc) for doc in all_docs if (doc.date.strftime("%Y-%m-%d")) in upcoming_dates]
+    return [record for record in all_docs if (record.date.strftime("%Y-%m-%d")) in upcoming_dates]
 
 
 @router.get("", response_model=List[EnrichedValetAvailabilityResponse])
@@ -181,13 +181,13 @@ async def get_all_availability(
     if valetId:
         query["valetId"] = valetId
 
-    docs = await storage.findAll(query)
+    records = await storage.findAll(query)
 
     # Enrich with valet name for admin display
     from app.repositories.user_repository import user_repository
 
-    valet_ids = list({doc.valet_id for doc in docs if doc.valet_id})
-    valets_map: Dict[str, dict] = {}
+    valet_ids = list({record.valet_id for record in records if record.valet_id})
+    valets_map: Dict[str, User] = {}
     for vid in valet_ids:
         valet = await user_repository.findById(vid)
         if valet:
@@ -202,53 +202,53 @@ async def get_all_availability(
         seller_zones = set(zone_ids)
 
     enriched = []
-    for doc in docs:
-        vid = (doc.valet_id or "")
-        valet = (valets_map[vid] if vid in valets_map else {})
+    for record in records:
+        vid = (record.valet_id or "")
+        valet = valets_map.get(vid)
 
         # Filter for sellers
         if is_seller and current_user.role != "super_admin":
             # Compare valet's daily selected zones with seller's zones
-            valet_daily_zones = set(doc.zones or [])
+            valet_daily_zones = set(record.zones or [])
             if not seller_zones.intersection(valet_daily_zones):
                 continue
 
         enriched.append(
-            {
-                **doc,
-                "valetName": (valet.name or ""),
-                "valetPhone": (valet.phone or ""),
-                "serviceAreaZones": (valet.service_area_zones or []),
-            }
+            EnrichedValetAvailabilityResponse(
+                **record.model_dump(),
+                valetName=valet.name if valet else "",
+                valetPhone=valet.phone if valet else "",
+                serviceAreaZones=valet.service_area_zones if valet else [],
+            )
         )
 
     # Sort by date ascending
-    enriched.sort(key=lambda d: d.date if not isinstance(d, dict) else (d["date"] if "date" in d and d["date"] is not None else ""))
+    enriched.sort(key=lambda r: r.date or "")
     return enriched
 
 
-@router.delete("/{doc_id}", response_model=MessageResponse)
+@router.delete("/{record_id}", response_model=MessageResponse)
 async def delete_availability(
-    doc_id: str,
+    record_id: str,
     current_user: User = Depends(get_current_user),
 ):
     """Remove an availability entry. Valets can only delete their own entries."""
     _require_valet(current_user)
 
-    doc = await storage.findById(doc_id)
-    if not doc:
+    record = await storage.findById(record_id)
+    if not record:
         raise HTTPException(status_code=404, detail="Availability entry not found")
 
-    if str(doc.valet_id) != str(current_user.id):
+    if str(record.valet_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="You can only delete your own availability entries")
 
     # Prevent deleting past entries
     try:
-        entry_date = dt_date.fromisoformat(doc.date)
+        entry_date = dt_date.fromisoformat(record.date)
         if entry_date < dt_date.today():
             raise HTTPException(status_code=400, detail="Cannot delete past availability entries")
     except (ValueError, KeyError):
         pass
 
-    await storage.delete(doc_id)
+    await storage.delete(record_id)
     return {"message": "Availability entry deleted successfully"}

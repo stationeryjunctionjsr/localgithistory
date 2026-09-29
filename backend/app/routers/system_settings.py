@@ -8,7 +8,7 @@ router = APIRouter()
 storage = get_storage("systemSettings")
 
 
-from typing import Any, Dict, Optional
+from typing import Optional
 from pydantic import BaseModel, Field
 
 class SystemSettingsUpdate(BaseModel):
@@ -34,18 +34,18 @@ class SystemSettingsResponse(BaseModel):
 @router.get("/", response_model=SystemSettingsResponse)
 async def get_settings(current_user: User = Depends(require_super_admin)):
     """Get global system settings"""
-    doc = await storage.findById("1")
-    if not doc:
+    settings = await storage.findById("1")
+    if not settings:
         return await storage.create(SystemSettingsUpdate())
-    return doc
+    return settings
 
 
 @router.put("", response_model=SystemSettingsResponse)
 @router.put("/", response_model=SystemSettingsResponse)
 async def update_settings(data: SystemSettingsUpdate, current_user: User = Depends(require_super_admin)):
     """Update global system settings"""
-    doc = await storage.findById("1")
-    if not doc:
+    settings = await storage.findById("1")
+    if not settings:
         new_doc = data
         await storage.create(new_doc)
         return new_doc

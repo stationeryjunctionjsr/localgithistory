@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 from app.models.schemas import UserResponse, UserUpdate, SUPPORTED_LANGUAGES, PaginatedUsersResponse, PreferencesResponse, DutyStatusResponse, MessageResponse
-from typing import Dict, Any
+
 from app.repositories.user_repository import user_repository
 from app.utils.auth import get_current_user, require_super_admin, require_super_admin_or_seller
 from app.utils.limiter import limiter
