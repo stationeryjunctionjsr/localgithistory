@@ -15,7 +15,7 @@ from app.models.analytics_schemas import (
 from app.models.user import User
 from app.models.schemas import MessageResponse, AnalyticsEventCreate, AnalyticsEventPayload
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional, Union
+from typing import List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 
@@ -54,7 +54,7 @@ def _resolve_seller_id(current_user: dict, requested_seller_id: Optional[str] = 
 
 
 from pydantic import BaseModel, Field, ConfigDict, RootModel
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 
 class RecordEventResponse(BaseModel):
     status: str

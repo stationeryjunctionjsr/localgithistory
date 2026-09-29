@@ -1,5 +1,5 @@
 from app.models.user import User
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 from app.models.schemas import MessageResponse, AdCreate, AdUpdate, AdStatusUpdate, AdSummaryResponse, AdStats
 from app.models.ad import Ad
 import uuid

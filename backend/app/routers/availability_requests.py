@@ -1,6 +1,6 @@
 import logging
 from app.models.user import User
-from typing import Dict, Any, List
+from typing import List
 from app.models.schemas import MessageResponse, AvailabilityRequestResponse, AvailabilityRequestListResponse
 from datetime import datetime, timezone
 from typing import Optional
