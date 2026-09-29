@@ -2,7 +2,7 @@ from app.models.daos import ProductInternalUpdate
 from app.models.user import User
 from app.models.schemas import MessageResponse, ProductReviewResponse, ClassificationTagResponse, ReviewActionResponse, ClassificationActionResponse
 from datetime import datetime
-from typing import Dict, Any, List, List, Optional
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 

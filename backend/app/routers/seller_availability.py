@@ -19,7 +19,7 @@ Endpoints:
 import logging
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List, Any, Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, validator, ConfigDict
@@ -47,6 +47,7 @@ class SellerAvailabilityItem(BaseModel):
     reason: Optional[str] = None
     status: Optional[str] = None
     sellerName: Optional[str] = None
+    sellerEmail: Optional[str] = None
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
@@ -99,20 +100,20 @@ async def is_seller_currently_unavailable(seller_id: str) -> bool:
     """
     now = datetime.now(timezone.utc)
     now.isoformat() + "Z"
-    docs = await storage.findAll(
+    records = await storage.findAll(
         {
             "sellerId": seller_id,
             "status": {"$in": ["scheduled", "active"]},
         }
     )
-    for doc in docs:
+    for record in records:
         try:
-            start = datetime.fromisoformat(doc.startAt.replace("Z", ""))
-            end = datetime.fromisoformat(doc.endAt.replace("Z", ""))
+            start = datetime.fromisoformat(record.startAt.replace("Z", ""))
+            end = datetime.fromisoformat(record.endAt.replace("Z", ""))
             if start <= now <= end:
                 return True
         except (ValueError, AttributeError):
-            logger.warning("Seller availability doc %r has unparseable startAt/endAt; skipping.", getattr(doc, 'id', '?'), exc_info=True)
+            logger.warning("Seller availability record %r has unparseable startAt/endAt; skipping.", getattr(record, 'id', '?'), exc_info=True)
             continue
     return False
 
@@ -125,21 +126,21 @@ async def get_all_unavailable_seller_ids() -> Set[str]:
     if _unavailable_cache["expires"] > now and _unavailable_cache["data"] is not None:
         return _unavailable_cache["data"]
 
-    all_docs = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
+    all_records = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
 
     unavailable_sellers = set()
     current_utc = datetime.now(timezone.utc)
 
-    for doc in all_docs:
+    for record in all_records:
         try:
-            start = datetime.fromisoformat(doc.startAt.replace("Z", ""))
-            end = datetime.fromisoformat(doc.endAt.replace("Z", ""))
+            start = datetime.fromisoformat(record.startAt.replace("Z", ""))
+            end = datetime.fromisoformat(record.endAt.replace("Z", ""))
             if start <= current_utc <= end:
-                seller_id = doc.seller_id
+                seller_id = record.seller_id
                 if seller_id:
                     unavailable_sellers.add(str(seller_id))
         except (ValueError, AttributeError):
-            logger.warning("Seller availability doc %r has unparseable startAt/endAt; skipping from unavailable set.", getattr(doc, 'id', '?'), exc_info=True)
+            logger.warning("Seller availability record %r has unparseable startAt/endAt; skipping from unavailable set.", getattr(record, 'id', '?'), exc_info=True)
             continue
 
     _unavailable_cache["data"] = unavailable_sellers
@@ -165,21 +166,21 @@ async def get_seller_unavailable_until(seller_ids: Set[str]) -> Optional[str]:
     latest_end: Optional[datetime] = None
 
     try:
-        all_docs = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
-        for doc in all_docs:
-            if str(doc.seller_id) not in seller_ids:
+        all_records = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
+        for record in all_records:
+            if str(record.seller_id) not in seller_ids:
                 continue
             try:
-                start = datetime.fromisoformat(doc.startAt.replace("Z", ""))
-                end = datetime.fromisoformat(doc.endAt.replace("Z", ""))
+                start = datetime.fromisoformat(record.startAt.replace("Z", ""))
+                end = datetime.fromisoformat(record.endAt.replace("Z", ""))
                 if start <= current_utc <= end:
                     if latest_end is None or end > latest_end:
                         latest_end = end
             except (ValueError, AttributeError):
-                logger.warning("Seller availability doc %r has unparseable startAt/endAt; skipping from unavailable-until lookup.", getattr(doc, 'id', '?'), exc_info=True)
+                logger.warning("Seller availability record %r has unparseable startAt/endAt; skipping from unavailable-until lookup.", getattr(record, 'id', '?'), exc_info=True)
                 continue
     except Exception:
-        logger.warning("Failed to fetch seller availability docs for unavailable-until lookup; returning None.", exc_info=True)
+        logger.warning("Failed to fetch seller availability records for unavailable-until lookup; returning None.", exc_info=True)
         return None
 
     if latest_end is None:
@@ -190,26 +191,39 @@ async def get_seller_unavailable_until(seller_ids: Set[str]) -> Optional[str]:
 
 
 
-async def _enrich_with_seller_name(docs: list) -> list:
-    """Add sellerName to each doc for admin display."""
+async def _enrich_with_seller_name(records: List[Any]) -> List[SellerAvailabilityItem]:
+    """Add sellerName to each record for admin display."""
     from app.repositories.user_repository import user_repository
+    from app.models.user import User
 
-    seller_ids = list({doc.seller_id for doc in docs if doc.seller_id})
-    sellers_map: Dict[str, dict] = {}
+    seller_ids = list({record.seller_id for record in records if record.seller_id})
+    sellers_map: Dict[str, User] = {}
     for sid in seller_ids:
         seller = await user_repository.findById(sid)
         if seller:
             sellers_map[sid] = seller
+            
     enriched = []
-    for doc in docs:
-        sid = (doc.seller_id or "")
-        seller = (sellers_map[sid] if sid in sellers_map else {})
+    for record in records:
+        sid = (record.seller_id or "")
+        seller = sellers_map.get(sid)
+        
+        # record is a SQLAlchemy model/Pydantic model from storage
         enriched.append(
-            {
-                **doc,
-                "sellerName": (seller.name or ""),
-                "sellerEmail": (seller.email or ""),
-            }
+            SellerAvailabilityItem(
+                id=str(record.id) if record.id else None,
+                sellerId=record.seller_id,
+                startAt=record.start_at.isoformat() if record.start_at else None,
+                endAt=record.end_at.isoformat() if record.end_at else None,
+                startDate=record.start_at.isoformat() if record.start_at else None,
+                endDate=record.end_at.isoformat() if record.end_at else None,
+                reason=record.reason,
+                status=record.status,
+                sellerName=seller.name if seller else "",
+                sellerEmail=seller.email if seller else "",
+                createdAt=record.created_at.isoformat() if record.created_at else None,
+                updatedAt=record.updated_at.isoformat() if record.updated_at else None,
+            )
         )
     return enriched
 
@@ -245,24 +259,24 @@ async def get_zone_seller_availability_status(pincode: Optional[str] = None):
     result: Dict[str, str] = {}
     current_utc = datetime.now(timezone.utc)
     try:
-        all_docs = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
-        for doc in all_docs:
-            sid = str(doc.seller_id or "")
+        all_records = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
+        for record in all_records:
+            sid = str(record.seller_id or "")
             if sid not in unavailable_ids:
                 continue
             try:
-                start = datetime.fromisoformat(doc.startAt.replace("Z", ""))
-                end = datetime.fromisoformat(doc.endAt.replace("Z", ""))
+                start = datetime.fromisoformat(record.startAt.replace("Z", ""))
+                end = datetime.fromisoformat(record.endAt.replace("Z", ""))
                 if start <= current_utc <= end:
                     end_str = end.strftime("%Y-%m-%dT%H:%M:%SZ")
                     # Keep the latest endAt if there are multiple windows
                     if sid not in result or end_str > result[sid]:
                         result[sid] = end_str
             except (ValueError, AttributeError):
-                logger.warning("Seller availability doc %r has unparseable startAt/endAt in zone-status; skipping.", getattr(doc, 'id', '?'), exc_info=True)
+                logger.warning("Seller availability record %r has unparseable startAt/endAt in zone-status; skipping.", getattr(record, 'id', '?'), exc_info=True)
                 continue
     except Exception:
-        logger.warning("Failed to fetch seller availability docs for zone-status pincode=%r; returning empty.", None, exc_info=True)
+        logger.warning("Failed to fetch seller availability records for zone-status pincode=%r; returning empty.", None, exc_info=True)
         return {"unavailableSellers": {}}
 
     return {"unavailableSellers": result}
@@ -331,11 +345,11 @@ async def get_my_availability_windows(
     """Return own upcoming and recent availability windows."""
     _require_seller(current_user)
     seller_id = str(current_user.id)
-    docs = await storage.findAll({"seller_id": seller_id})
+    records = await storage.findAll({"seller_id": seller_id})
     # Sort by startAt descending (most recent first)
     parsed_docs = [
         d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d, from_attributes=True)
-        for d in docs
+        for d in records
     ]
     parsed_docs.sort(key=lambda d: (d.startAt or d.start_date or ""), reverse=True)
     return parsed_docs
@@ -354,14 +368,10 @@ async def get_all_seller_availability(
         query["seller_id"] = sellerId
     if status:
         query["status"] = status
-    docs = await storage.findAll(query)
-    enriched = await _enrich_with_seller_name(docs)
-    parsed_enriched = [
-        d if isinstance(d, SellerAvailabilityItem) else SellerAvailabilityItem.model_validate(d, from_attributes=True)
-        for d in enriched
-    ]
-    parsed_enriched.sort(key=lambda d: (d.startAt or d.start_date or ""), reverse=True)
-    return parsed_enriched
+    records = await storage.findAll(query)
+    enriched = await _enrich_with_seller_name(records)
+    enriched.sort(key=lambda d: (d.startAt or d.startDate or ""), reverse=True)
+    return enriched
 
 
 @router.delete("/{window_id}", response_model=MessageResponse)
@@ -372,19 +382,19 @@ async def cancel_availability_window(
     """Cancel a scheduled availability window. Only allowed before it becomes active."""
     _require_seller(current_user)
 
-    doc = await storage.findById(window_id)
-    if not doc:
+    record = await storage.findById(window_id)
+    if not record:
         raise HTTPException(status_code=404, detail="Availability window not found")
 
-    if str(doc.seller_id) != str(current_user.id):
+    if str(record.seller_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="You can only cancel your own windows")
 
-    if doc.status == "active":
+    if record.status == "active":
         raise HTTPException(
             status_code=400,
             detail="Cannot cancel a window that is already active. It will expire automatically.",
         )
-    if doc.status in ("ended", "cancelled"):
+    if record.status in ("ended", "cancelled"):
         raise HTTPException(status_code=400, detail="This window has already ended or been cancelled.")
 
     await storage.update(window_id, {"status": "cancelled"})
@@ -409,20 +419,20 @@ async def tick_availability_statuses(
     active -> ended (if endAt has passed)
     """
     now = datetime.now(timezone.utc)
-    docs = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
+    records = await storage.findAll({"status": {"$in": ["scheduled", "active"]}})
     updated = 0
-    for doc in docs:
+    for record in records:
         try:
-            start_dt = datetime.fromisoformat(doc.startAt.replace("Z", ""))
-            end_dt = datetime.fromisoformat(doc.endAt.replace("Z", ""))
-            doc_id = str(doc.id)
-            if doc.status == "scheduled" and now >= start_dt:
+            start_dt = datetime.fromisoformat(record.startAt.replace("Z", ""))
+            end_dt = datetime.fromisoformat(record.endAt.replace("Z", ""))
+            doc_id = str(record.id)
+            if record.status == "scheduled" and now >= start_dt:
                 await storage.update(doc_id, {"status": "active"})
                 updated += 1
-            elif doc.status == "active" and now >= end_dt:
+            elif record.status == "active" and now >= end_dt:
                 await storage.update(doc_id, {"status": "ended"})
                 updated += 1
         except Exception:
-            logger.warning("tick: failed to process seller availability doc %r; skipping.", getattr(doc, 'id', '?'), exc_info=True)
+            logger.warning("tick: failed to process seller availability record %r; skipping.", getattr(record, 'id', '?'), exc_info=True)
             continue
-    return {"updated": updated, "checked": len(docs)}
+    return {"updated": updated, "checked": len(records)}

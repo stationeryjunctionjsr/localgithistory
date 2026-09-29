@@ -1,5 +1,5 @@
 from app.models.user import User
-from typing import List, Optional, Any
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, ConfigDict
