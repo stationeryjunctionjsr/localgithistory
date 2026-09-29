@@ -214,8 +214,8 @@ class MySQLTrackingDAO:
         add_col("filter_type", "filter_type", filter_type)
         
         add_col("filter_value", "filter_value", data.filter_value if data.filter_value is not None else get_payload_extra("filter_value"))
-        add_col("order_id", "order_id", data.order_id if hasattr(data, 'order_id') and data.order_id is not None else get_payload_extra("order_id"))
-        add_col("order_value", "order_value", data.order_value if hasattr(data, 'order_value') and data.order_value is not None else get_payload_extra("order_value"))
+        add_col("order_id", "order_id", data.order_id if data.order_id is not None else get_payload_extra("order_id"))
+        add_col("order_value", "order_value", data.order_value if data.order_value is not None else get_payload_extra("order_value"))
         add_col("price", "price", data.price if data.price is not None else get_payload_extra("price"))
         add_col("category", "category", data.category if data.category is not None else get_payload_extra("category"))
 
