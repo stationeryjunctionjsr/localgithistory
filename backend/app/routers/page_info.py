@@ -1,5 +1,5 @@
 from app.models.user import User
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional
 from app.models.schemas import MessageResponse
 import json
 from pathlib import Path
