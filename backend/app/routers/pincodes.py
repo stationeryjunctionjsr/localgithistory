@@ -1,6 +1,6 @@
 from app.models.user import User
-from typing import Dict, Any, List
-from app.models.schemas import MessageResponse
+from typing import List
+from app.models.schemas import PincodeDetailsResponse, MessageResponse
 import json
 import os
 
@@ -55,7 +55,7 @@ async def get_pincodes(
     return sorted(data[state][district])
 
 
-@router.get("/{pincode}", response_model=Dict[str, str])
+@router.get("/{pincode}", response_model=PincodeDetailsResponse)
 async def get_pincode_details(pincode: str):
     """Reverse-lookup state and district for a given 6-digit pincode (public — used in checkout auto-fill)"""
     data = _load_pincode_data()

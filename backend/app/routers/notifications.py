@@ -1,6 +1,6 @@
 from app.models.user import User
-from app.models.schemas import MessageResponse, NotificationMetadata
-from typing import Optional, Dict, Any, List
+from app.models.schemas import BulkUpdateResponse, MessageResponse, NotificationMetadata
+from typing import Optional, List
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +18,7 @@ class NotificationResponse(BaseModel):
 
 class UnreadCountResponse(BaseModel):
     unreadCount: int
-from typing import Optional, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -77,7 +77,7 @@ async def get_unread_count(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.put("/read-all", response_model=Dict[str, int])
+@router.put("/read-all", response_model=BulkUpdateResponse)
 async def mark_all_read(current_user: User = Depends(get_current_user)):
     """Mark all notifications as read and acknowledged"""
     try:

@@ -1499,6 +1499,21 @@ class DutyStatusResponse(BaseModel):
 class MessageResponse(BaseModel):
     message: str
 
+class ImageUploadResponse(BaseModel):
+    url: str
+
+class MultipleImageUploadResponse(BaseModel):
+    urls: List[str]
+
+class BulkUpdateResponse(BaseModel):
+    updated: int
+
+class PincodeDetailsResponse(BaseModel):
+    state: str
+    district: str
+    city: str
+    pincode: str
+
 class CartResponse(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     items: List[ItemSnippet]

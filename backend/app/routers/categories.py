@@ -1,8 +1,8 @@
 import logging
 from app.models.user import User
 from app.models.category import Category
-from app.models.schemas import MessageResponse
-from typing import List, Optional, Dict
+from app.models.schemas import MessageResponse, MultipleImageUploadResponse
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -278,7 +278,7 @@ async def get_category(category_id: str, current_user: User = Depends(require_su
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
-@router.post("/upload-images", response_model=Dict[str, List[str]])
+@router.post("/upload-images", response_model=MultipleImageUploadResponse)
 async def upload_category_images(
     images: List[UploadFile] = File(...), current_user: User = Depends(require_super_admin)
 ):

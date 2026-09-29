@@ -1,7 +1,7 @@
 import logging
 from app.models.user import User
-from typing import Dict, List
-from app.models.schemas import MessageResponse
+from typing import List
+from app.models.schemas import MessageResponse, ImageUploadResponse
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.models.schemas import BrandCreate, BrandUpdate, BrandResponse
@@ -40,7 +40,7 @@ async def get_brands(current_user: User = Depends(require_super_admin)):
     return await brand_repository.findAll()
 
 
-@router.post("/upload-logo", status_code=status.HTTP_200_OK, response_model=Dict[str, str])
+@router.post("/upload-logo", status_code=status.HTTP_200_OK, response_model=ImageUploadResponse)
 async def upload_brand_logo(image: UploadFile = File(...), current_user: User = Depends(require_super_admin)):
     """Upload brand logo (super_admin only). Uses OCI Object Storage when configured."""
     try:

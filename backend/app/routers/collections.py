@@ -1,8 +1,8 @@
 import logging
 from app.models.user import User
-from typing import Dict, List
+
 from app.models.daos_flat import CollectionInternalCreate, CollectionInternalUpdate
-from app.models.schemas import ProductResponse, MessageResponse, CollectionResponse
+from app.models.schemas import ProductResponse, MessageResponse, CollectionResponse, ImageUploadResponse
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -80,7 +80,7 @@ async def get_collection(collection_id: str, current_user: User = Depends(requir
     return _format_collection_response(collection)
 
 
-@router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=Dict[str, str])
+@router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=ImageUploadResponse)
 async def upload_collection_image(image: UploadFile = File(...), current_user: User = Depends(require_super_admin)):
     """Upload collection cover image (super_admin only). Uses OCI Object Storage when configured."""
     try:

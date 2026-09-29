@@ -1,6 +1,6 @@
 from app.models.user import User
-from app.models.schemas import MessageResponse
-from typing import Dict, List, Optional
+from app.models.schemas import MessageResponse, ImageUploadResponse
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
@@ -96,7 +96,7 @@ async def get_banners(
     return banners
 
 
-@router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=Dict[str, str])
+@router.post("/upload-image", status_code=status.HTTP_200_OK, response_model=ImageUploadResponse)
 async def upload_banner_image(image: UploadFile = File(...), current_user: User = Depends(require_super_admin)):
     """Upload banner image (Super Admin only). Uses OCI Object Storage when configured."""
     try:
