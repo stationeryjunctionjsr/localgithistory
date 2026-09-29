@@ -519,6 +519,8 @@ class BundleInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     external_id: Optional[str] = None
     name: str
+    description: Optional[str] = None
+    discount_percentage: Optional[float] = None
     items: Optional[List[BundleItemInternal]] = []
     products: Optional[List[BundleItemInternal]] = []
     sales_count: Optional[int] = 0
@@ -530,6 +532,8 @@ class BundleInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     external_id: Optional[str] = None
     name: Optional[str] = None
+    description: Optional[str] = None
+    discount_percentage: Optional[float] = None
     items: Optional[List[BundleItemInternal]] = None
     price: Optional[float] = None
     is_active: Optional[bool] = None

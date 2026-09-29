@@ -1,5 +1,5 @@
 import secrets
-from typing import Dict, List, Optional
+from typing import List, Optional
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
 from app.utils.time import now_utc
@@ -41,9 +41,9 @@ class MySQLBundleDAO:
             _id=str(row.id),
             external_id=row.external_id,
             name=row.name,
-            description=row.description if hasattr(row, 'description') else None,
+            description=row.description,
             price=float(row.price) if row.price is not None else 0.0,
-            discount_percentage=float(row.discount_percentage) if hasattr(row, 'discount_percentage') and row.discount_percentage is not None else None,
+            discount_percentage=float(row.discount_percentage) if row.discount_percentage is not None else None,
             is_active=bool(row.is_active),
             sales_count=row.sales_count,
             created_at=row.created_at,
@@ -72,18 +72,15 @@ class MySQLBundleDAO:
         now = now_utc()
         ext_id = secrets.token_hex(16)
         
-        description = getattr(data, 'description', None)
-        discount_percentage = getattr(data, 'discount_percentage', None)
-        
         async with SessionLocal() as session:
             await session.execute(
                 text(f"INSERT INTO {self.TABLE} (external_id, created_at, updated_at, name, description, price, discount_percentage, is_active, sales_count) VALUES (:eid, :c, :u, :name, :desc, :price, :dp, :ia, :sc)"),
                 {
                     "eid": ext_id, "c": now, "u": now,
                     "name": data.name,
-                    "desc": description,
+                    "desc": data.description,
                     "price": data.price,
-                    "dp": discount_percentage,
+                    "dp": data.discount_percentage,
                     "ia": 1 if data.is_active else 0,
                     "sc": data.sales_count or 0
                 }
@@ -92,7 +89,7 @@ class MySQLBundleDAO:
             new_id = res.scalar()
             await session.commit()
             
-        items = data.items if data.items else (data.products if getattr(data, 'products', None) else [])
+        items = data.items if data.items else (data.products if data.products else [])
         await self._save_products(ext_id, items)
         return await self.findById(str(new_id))
 
@@ -112,19 +109,17 @@ class MySQLBundleDAO:
             updates.append("name = :name")
             params["name"] = update_data.name
             
-        description = getattr(update_data, 'description', None)
-        if description is not None:
+        if update_data.description is not None:
             updates.append("description = :desc")
-            params["desc"] = description
+            params["desc"] = update_data.description
             
         if update_data.price is not None:
             updates.append("price = :price")
             params["price"] = update_data.price
             
-        discount_percentage = getattr(update_data, 'discount_percentage', None)
-        if discount_percentage is not None:
+        if update_data.discount_percentage is not None:
             updates.append("discount_percentage = :dp")
-            params["dp"] = discount_percentage
+            params["dp"] = update_data.discount_percentage
             
         if update_data.is_active is not None:
             updates.append("is_active = :ia")
@@ -141,7 +136,7 @@ class MySQLBundleDAO:
             )
             await session.commit()
             
-        items = update_data.items if update_data.items else getattr(update_data, 'products', None)
+        items = update_data.items if update_data.items else update_data.products
         if items is not None:
             await self._save_products(existing.external_id, items)
             
