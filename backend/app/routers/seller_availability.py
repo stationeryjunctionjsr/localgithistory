@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field, validator, ConfigDict
 
 from app.db.storage_factory import get_storage
 from app.utils.auth import get_current_user, require_super_admin
+from app.models.seller_availability import SellerAvailability
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ class SellerAvailabilityCreate(BaseModel):
 MIN_LEAD_HOURS = 3  # Seller must schedule at least 3 hours before the window starts
 
 
-def _require_seller(current_user: dict):
+def _require_seller(current_user: User):
     if current_user.role not in ("seller", "super_admin"):
         raise HTTPException(status_code=403, detail="Only seller accounts can access this endpoint")
 
@@ -113,7 +114,7 @@ async def is_seller_currently_unavailable(seller_id: str) -> bool:
             if start <= now <= end:
                 return True
         except (ValueError, AttributeError):
-            logger.warning("Seller availability record %r has unparseable startAt/endAt; skipping.", getattr(record, 'id', '?'), exc_info=True)
+            logger.warning("Seller availability record %r has unparseable startAt/endAt; skipping.", record.id or "?", exc_info=True)
             continue
     return False
 
@@ -140,7 +141,7 @@ async def get_all_unavailable_seller_ids() -> Set[str]:
                 if seller_id:
                     unavailable_sellers.add(str(seller_id))
         except (ValueError, AttributeError):
-            logger.warning("Seller availability record %r has unparseable startAt/endAt; skipping from unavailable set.", getattr(record, 'id', '?'), exc_info=True)
+            logger.warning("Seller availability record %r has unparseable startAt/endAt; skipping from unavailable set.", record.id or "?", exc_info=True)
             continue
 
     _unavailable_cache["data"] = unavailable_sellers
@@ -177,7 +178,7 @@ async def get_seller_unavailable_until(seller_ids: Set[str]) -> Optional[str]:
                     if latest_end is None or end > latest_end:
                         latest_end = end
             except (ValueError, AttributeError):
-                logger.warning("Seller availability record %r has unparseable startAt/endAt; skipping from unavailable-until lookup.", getattr(record, 'id', '?'), exc_info=True)
+                logger.warning("Seller availability record %r has unparseable startAt/endAt; skipping from unavailable-until lookup.", record.id or "?", exc_info=True)
                 continue
     except Exception:
         logger.warning("Failed to fetch seller availability records for unavailable-until lookup; returning None.", exc_info=True)
@@ -191,7 +192,7 @@ async def get_seller_unavailable_until(seller_ids: Set[str]) -> Optional[str]:
 
 
 
-async def _enrich_with_seller_name(records: List[Any]) -> List[SellerAvailabilityItem]:
+async def _enrich_with_seller_name(records: List[SellerAvailability]) -> List[SellerAvailabilityItem]:
     """Add sellerName to each record for admin display."""
     from app.repositories.user_repository import user_repository
     from app.models.user import User
@@ -273,7 +274,7 @@ async def get_zone_seller_availability_status(pincode: Optional[str] = None):
                     if sid not in result or end_str > result[sid]:
                         result[sid] = end_str
             except (ValueError, AttributeError):
-                logger.warning("Seller availability record %r has unparseable startAt/endAt in zone-status; skipping.", getattr(record, 'id', '?'), exc_info=True)
+                logger.warning("Seller availability record %r has unparseable startAt/endAt in zone-status; skipping.", record.id or "?", exc_info=True)
                 continue
     except Exception:
         logger.warning("Failed to fetch seller availability records for zone-status pincode=%r; returning empty.", None, exc_info=True)
@@ -433,6 +434,6 @@ async def tick_availability_statuses(
                 await storage.update(doc_id, {"status": "ended"})
                 updated += 1
         except Exception:
-            logger.warning("tick: failed to process seller availability record %r; skipping.", getattr(record, 'id', '?'), exc_info=True)
+            logger.warning("tick: failed to process seller availability record %r; skipping.", record.id or "?", exc_info=True)
             continue
     return {"updated": updated, "checked": len(records)}
