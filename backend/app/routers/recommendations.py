@@ -372,7 +372,7 @@ async def track_recommendation_event(
             config = get_recommendation_config()
             section_wise = config.section_wise_weights
             engagement = config.engagement_weights
-            section_weights = section_wise.get(body.slot, engagement)
+            section_weights = section_wise[body.slot] if body.slot in section_wise else engagement
             
             if body.eventType == "add_to_cart":
                 weight = section_weights.add_to_cart

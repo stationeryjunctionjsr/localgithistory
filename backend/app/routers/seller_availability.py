@@ -207,7 +207,7 @@ async def _enrich_with_seller_name(records: List[SellerAvailability]) -> List[Se
     enriched = []
     for record in records:
         sid = (record.seller_id or "")
-        seller = sellers_map.get(sid)
+        seller = sellers_map[sid] if sid in sellers_map else None
         
         # record is a SQLAlchemy model/Pydantic model from storage
         enriched.append(

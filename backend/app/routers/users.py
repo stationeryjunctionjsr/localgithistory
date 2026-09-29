@@ -542,8 +542,8 @@ async def request_email_verification(request: Request, current_user: User = Depe
 
     ok, payload = await request_email_otp_async(email)
     if not ok:
-        err_msg = payload.get("message")
-        retry_secs = payload.get("retry_after_seconds")
+        err_msg = payload["message"] if "message" in payload else None
+        retry_secs = payload["retry_after_seconds"] if "retry_after_seconds" in payload else None
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=err_msg,
@@ -552,7 +552,7 @@ async def request_email_verification(request: Request, current_user: User = Depe
 
     response_data = {"message": "Verification code sent to your email."}
     if os.getenv("ENVIRONMENT") == "development" or os.getenv("TESTING") == "true":
-        otp_val = payload.get("otp")
+        otp_val = payload["otp"] if "otp" in payload else None
         response_data["code"] = otp_val
 
     return response_data
@@ -573,9 +573,9 @@ async def verify_email(data: VerifyEmailRequest, request: Request, current_user:
     from app.utils.email_otp import verify_email_otp_async
 
     result = await verify_email_otp_async(email, data.code)
-    is_valid = result.get("valid")
+    is_valid = result["valid"] if "valid" in result else None
     if not is_valid:
-        err_msg = result.get("message")
+        err_msg = result["message"] if "message" in result else None
         raise HTTPException(status_code=400, detail=err_msg)
 
     await user_repository.update(user_id, UserUpdate(isEmailVerified=True))

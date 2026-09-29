@@ -58,7 +58,7 @@ async def get_wishlist(current_user: User = Depends(get_current_user)):
 
         for item in raw_items:
             p_id = item.product
-            product = products_map.get(str(p_id))
+            product = products_map[str(p_id)] if str(p_id) in products_map else None
             if not product or product.is_active is False:
                 continue
 
