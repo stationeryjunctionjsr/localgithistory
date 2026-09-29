@@ -18,8 +18,8 @@ class MySQLAnalyticsSessionDAO:
     async def create_session(self, session_data: AnalyticsSessionCreate) -> Optional[AnalyticsSessionResponse]:
         query = f"""
             INSERT IGNORE INTO {self.TABLE}
-            (session_id, user_id, is_returning, source, os, browser, ip_address, device_type, start_time, end_time, time_spent_seconds)
-            VALUES (:session_id, :user_id, :is_returning, :source, :os, :browser, :ip_address, :device_type, :start_time, :end_time, 0)
+            (session_id, user_id, is_returning, source, os, browser, ip_address, device_type, device_os_version, device_model, device_app_version, campaign, start_time, end_time, time_spent_seconds)
+            VALUES (:session_id, :user_id, :is_returning, :source, :os, :browser, :ip_address, :device_type, :device_os_version, :device_model, :device_app_version, :campaign, :start_time, :end_time, 0)
         """
         params = {
             "session_id": session_data.session_id,
@@ -30,6 +30,10 @@ class MySQLAnalyticsSessionDAO:
             "browser": session_data.browser,
             "ip_address": session_data.ip_address,
             "device_type": session_data.device_type,
+            "device_os_version": session_data.device_os_version,
+            "device_model": session_data.device_model,
+            "device_app_version": session_data.device_app_version,
+            "campaign": session_data.campaign,
             "start_time": session_data.start_time,
             "end_time": session_data.start_time
         }
@@ -84,6 +88,10 @@ class MySQLAnalyticsSessionDAO:
                         browser=row.browser,
                         ip_address=row.ip_address,
                         device_type=row.device_type,
+                        device_os_version=row.device_os_version,
+                        device_model=row.device_model,
+                        device_app_version=row.device_app_version,
+                        campaign=row.campaign,
                         start_time=row.start_time,
                         end_time=row.end_time,
                         time_spent_seconds=row.time_spent_seconds

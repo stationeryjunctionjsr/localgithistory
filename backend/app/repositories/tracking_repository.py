@@ -216,15 +216,18 @@ class TrackingRepository:
                 browser=browser,
                 ip_address=ip_address,
                 device_type=device_type,
+                device_os_version=device_os_version,
+                device_model=device_model,
+                device_app_version=device_app_version,
+                campaign=campaign,
                 start_time=datetime.now(timezone.utc)
             )
         )
         return await self.create(
             AnalyticsEventCreate(
                 type="session",
-                source=source, page=page, os=os, browser=browser, ip_address=ip_address, campaign=campaign,
-                device_type=device_type, device_os_version=device_os_version, device_model=device_model, device_app_version=device_app_version,
-                user_id=user_id, session_id=session_id, is_returning=is_returning
+                source=source, page=page,
+                user_id=user_id, session_id=session_id
             )
         )
 

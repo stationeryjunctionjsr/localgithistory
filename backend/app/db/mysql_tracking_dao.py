@@ -202,7 +202,6 @@ class MySQLTrackingDAO:
         add_col("page", "page", data.page)
         add_col("reason", "reason", data.reason)
         add_col("cart_value", "cart_value", data.cart_value)
-        add_col("is_returning", "is_returning", data.is_returning)
 
         def get_payload_extra(key):
             if payload and payload.model_extra and key in payload.model_extra:
@@ -215,11 +214,6 @@ class MySQLTrackingDAO:
         add_col("filter_type", "filter_type", filter_type)
         
         add_col("filter_value", "filter_value", data.filter_value if data.filter_value is not None else get_payload_extra("filter_value"))
-        add_col("campaign", "campaign", data.campaign if data.campaign is not None else get_payload_extra("campaign"))
-        add_col("os", "os", data.os if data.os is not None else get_payload_extra("os"))
-        add_col("browser", "browser", data.browser if data.browser is not None else get_payload_extra("browser"))
-        add_col("ip_address", "ip_address", data.ip_address if data.ip_address is not None else get_payload_extra("ip_address"))
-        add_col("page_views", "page_views", data.page_views if data.page_views is not None else get_payload_extra("page_views"))
         add_col("order_id", "order_id", data.order_id if hasattr(data, 'order_id') and data.order_id is not None else get_payload_extra("order_id"))
         add_col("order_value", "order_value", data.order_value if hasattr(data, 'order_value') and data.order_value is not None else get_payload_extra("order_value"))
         add_col("price", "price", data.price if data.price is not None else get_payload_extra("price"))

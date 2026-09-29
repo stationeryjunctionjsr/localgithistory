@@ -1758,6 +1758,10 @@ class AnalyticsSessionCreate(CamelBaseModel):
     browser: Optional[str] = None
     ip_address: Optional[str] = None
     device_type: Optional[str] = None
+    device_os_version: Optional[str] = None
+    device_model: Optional[str] = None
+    device_app_version: Optional[str] = None
+    campaign: Optional[str] = None
     start_time: datetime
 
 class AnalyticsSessionResponse(AnalyticsSessionCreate):
