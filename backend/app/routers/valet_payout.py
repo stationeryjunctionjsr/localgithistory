@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 from app.models.user import User
 from app.models.schemas import MessageResponse, ValetPayoutSettingsResponse, ValetEarningsResponse, ValetPayoutDetailResponse, ValetPayoutCreate, MarkPaidRequest
@@ -24,41 +24,18 @@ def _storage():
 
 valet_payout_dao = MySQLValetPayoutDAO()
 
-class ValetPayoutSettingsModel(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    id: Optional[str] = Field(None, alias="_id")
-    deliveryChargePerOrder: float = Field(0.0, alias="delivery_charge_per_order")
-    returnPickupChargePerOrder: float = Field(0.0, alias="return_pickup_charge_per_order")
-    createdAt: Optional[datetime] = Field(None, alias="created_at")
-    updatedAt: Optional[datetime] = Field(None, alias="updated_at")
-
-    @property
-    def delivery_charge_per_order(self) -> float:
-        return self.delivery_charge_per_order
-
-    @property
-    def return_pickup_charge_per_order(self) -> float:
-        return self.return_pickup_charge_per_order
-
-    @property
-    def updated_at(self) -> Optional[datetime]:
-        return self.updated_at
+from app.models.daos_flat import ValetPayoutSettingsInternalCreate, ValetPayoutSettingsInternalUpdate
 
 
-async def _get_settings() -> ValetPayoutSettingsModel:
+async def _get_settings() -> ValetPayoutSettings:
     storage = _storage()
     rows = await storage.findAll()
     if rows:
-        row = rows[0]
-        return row if isinstance(row, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(row, from_attributes=True)
-    default = {
-        "delivery_charge_per_order": 0.0,
-        "return_pickup_charge_per_order": 0.0,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }
-    created = await storage.create(default)
-    return created if isinstance(created, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(created, from_attributes=True)
+        return rows[0]
+    return await storage.create(ValetPayoutSettingsInternalCreate(
+        deliveryChargePerOrder=0.0,
+        returnPickupChargePerOrder=0.0,
+    ))
 
 
 class ValetPayoutSettingsPayload(BaseModel):
@@ -68,12 +45,8 @@ class ValetPayoutSettingsPayload(BaseModel):
 
 @router.get("/settings", response_model=ValetPayoutSettingsResponse)
 async def get_valet_payout_settings(current_user: User = Depends(require_super_admin)):
-    settings = await _get_settings()
-    return {
-        "delivery_charge_per_order": (settings.delivery_charge_per_order if settings.delivery_charge_per_order is not None else 0.0),
-        "return_pickup_charge_per_order": (settings.return_pickup_charge_per_order if settings.return_pickup_charge_per_order is not None else 0.0),
-        "updated_at": settings.updated_at,
-    }
+    return await _get_settings()
+
 
 @router.put("/settings", response_model=ValetPayoutSettingsResponse)
 async def update_valet_payout_settings(
@@ -84,24 +57,12 @@ async def update_valet_payout_settings(
     settings = await _get_settings()
     updated = await storage.update(
         settings.id,
-        {
-            "delivery_charge_per_order": payload.delivery_charge_per_order,
-            "return_pickup_charge_per_order": payload.return_pickup_charge_per_order,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        },
+        ValetPayoutSettingsInternalUpdate(
+            deliveryChargePerOrder=payload.deliveryChargePerOrder,
+            returnPickupChargePerOrder=payload.returnPickupChargePerOrder,
+        ),
     )
-    if not updated:
-        return {
-            "delivery_charge_per_order": payload.delivery_charge_per_order,
-            "return_pickup_charge_per_order": payload.return_pickup_charge_per_order,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }
-    updated_model = updated if isinstance(updated, ValetPayoutSettingsModel) else ValetPayoutSettingsModel.model_validate(updated, from_attributes=True)
-    return {
-        "delivery_charge_per_order": (updated_model.delivery_charge_per_order if updated_model.delivery_charge_per_order is not None else 0.0),
-        "return_pickup_charge_per_order": (updated_model.return_pickup_charge_per_order if updated_model.return_pickup_charge_per_order is not None else 0.0),
-        "updated_at": updated_model.updated_at,
-    }
+    return updated if updated else settings
 
 
 from app.models.schemas import ValetEarningsResponse

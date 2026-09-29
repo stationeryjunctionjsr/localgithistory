@@ -204,7 +204,7 @@ async def get_all_availability(
     enriched = []
     for record in records:
         vid = (record.valet_id or "")
-        valet = valets_map.get(vid)
+        valet = valets_map[vid] if vid in valets_map else None
 
         # Filter for sellers
         if is_seller and current_user.role != "super_admin":
@@ -214,12 +214,11 @@ async def get_all_availability(
                 continue
 
         enriched.append(
-            EnrichedValetAvailabilityResponse(
-                **record.model_dump(),
-                valetName=valet.name if valet else "",
-                valetPhone=valet.phone if valet else "",
-                serviceAreaZones=valet.service_area_zones if valet else [],
-            )
+            record.model_copy(update={
+                "valetName": valet.name if valet else "",
+                "valetPhone": valet.phone if valet else "",
+                "serviceAreaZones": valet.service_area_zones if valet else [],
+            })
         )
 
     # Sort by date ascending
