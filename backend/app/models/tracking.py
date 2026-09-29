@@ -25,7 +25,6 @@ class Tracking(CamelBaseModel):
     os: Optional[str] = None
     browser: Optional[str] = None
     ip_address: Optional[str] = None
-    page_views: Optional[int] = None
     cart_items: Optional[List['ItemSnippet']] = None
     order_id: Optional[str] = None
     order_value: Optional[float] = None
@@ -68,3 +67,4 @@ class TrackingPayload(CamelBaseModel):
 
 Tracking.model_rebuild()
 TrackingPayload.model_rebuild()
+

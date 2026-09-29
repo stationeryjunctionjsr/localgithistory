@@ -38,8 +38,7 @@ _TRACKING_SCALAR = {
     "os": "os",
     "browser": "browser",
     "ipAddress": "ip_address",
-    "pageViews": "page_views",
-    "orderId": "order_id",
+        "orderId": "order_id",
     "orderValue": "order_value",
     "price": "price",
     "category": "category",
@@ -81,7 +80,6 @@ class MySQLTrackingDAO:
             os=r.os,
             browser=r.browser,
             ipAddress=r.ip_address,
-            pageViews=int(r.page_views) if r.page_views is not None else None,
             orderId=r.order_id,
             orderValue=float(r.order_value) if r.order_value is not None else None,
             price=float(r.price) if r.price is not None else None,
@@ -270,4 +268,5 @@ class MySQLTrackingDAO:
             res = await session.execute(text(f"DELETE FROM {self.TABLE} WHERE {where_sql}"), params)
             await session.commit()
             return res.rowcount
+
 
