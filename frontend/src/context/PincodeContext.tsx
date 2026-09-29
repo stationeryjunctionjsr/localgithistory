@@ -149,9 +149,10 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setPincodeData(newPincodeData);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(newPincodeData));
           localStorage.setItem(PINCODE_ONLY_KEY, cleanPin);
-          setIsMandatory(false);
-          setIsPincodeModalOpen(false);
+          setIsMandatory(false);  // Immediately lift the blur gate so page starts revealing
           setError(null);
+          // Keep modal up briefly so the success card animates while the page reveals behind it
+          setTimeout(() => setIsPincodeModalOpen(false), 900);
           return { success: true, isServiceable: true, data: newPincodeData };
         } else {
           const errMsg = `Delivery is currently not available to pincode ${cleanPin}. Please try another pincode.`;

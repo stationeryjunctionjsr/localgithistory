@@ -243,8 +243,8 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
 
       {/* Page body: blurred + non-interactive while pincode gate is active */}
       <div
-        className={gateBlur ? 'pointer-events-none select-none blur-sm transition-[filter] duration-200' : ''}
-        aria-hidden={gateBlur}
+        className={`transition-all duration-700 ease-out${gateBlur ? ' blur-2xl brightness-[0.35] saturate-[0.15] pointer-events-none select-none' : ''}`}
+        aria-hidden={gateBlur || undefined}
       >
       {!selectedCategory && !selectedCategoryTag && !selectedCollection && !searchTerm && (
         <>
