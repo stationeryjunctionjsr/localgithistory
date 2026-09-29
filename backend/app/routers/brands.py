@@ -1,6 +1,6 @@
 import logging
 from app.models.user import User
-from typing import Dict, Any, List
+from typing import Dict, List
 from app.models.schemas import MessageResponse
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 

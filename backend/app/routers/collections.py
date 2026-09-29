@@ -1,6 +1,6 @@
 import logging
 from app.models.user import User
-from typing import Dict, Any, List
+from typing import Dict, List
 from app.models.daos_flat import CollectionInternalCreate, CollectionInternalUpdate
 from app.models.schemas import ProductResponse, MessageResponse, CollectionResponse
 from typing import List, Optional

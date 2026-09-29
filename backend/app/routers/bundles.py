@@ -1,7 +1,7 @@
 from app.models.user import User
 from app.models.schemas import BundleItemResponse, MessageResponse, BundleResponse, BundlesListResponse
 from app.models.daos import BundleInternalCreate, BundleInternalUpdate, BundleItemInternal
-from typing import Dict, Any, List
+
 from pydantic import BaseModel, Field, AliasChoices
 from app.models.base import CamelBaseModel
 
