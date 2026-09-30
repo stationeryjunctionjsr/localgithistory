@@ -1,5 +1,4 @@
-from typing import TYPE_CHECKING, Any
-from typing import Dict
+from typing import TYPE_CHECKING
 
 from app.db.storage_factory import get_storage
 
@@ -14,7 +13,7 @@ class ReferralRepository:
     def __init__(self):
         self.storage = get_storage("referralSettings")
 
-    async def get_settings(self) -> Dict:
+    async def get_settings(self) -> 'ReferralSettings':
         settings = await self.storage.findAll()
         if not settings:
             # Initialize with default values as per requirements:
@@ -44,7 +43,7 @@ class ReferralRepository:
             setting.business = ReferralSegment(segment="business", discount_type="percentage", discount_value=0, is_active=False)
         return setting
 
-    async def update_settings(self, update_data: 'ReferralSettings') -> Dict:
+    async def update_settings(self, update_data: 'ReferralSettings') -> 'ReferralSettings':
         settings = await self.get_settings()
         return await self.storage.update(settings.id, update_data)
 

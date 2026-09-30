@@ -45,7 +45,8 @@ BANDIT_STRATEGIES = [
 ]
 
 
-def _load_config() -> Dict:
+from app.models.recommendation_config import RecommendationConfig, SegmentConfig
+def _load_config() -> RecommendationConfig:
     global _config_cache, _config_cache_ts
     now = time.monotonic()
     if _config_cache is not None and (now - _config_cache_ts) < _CONFIG_CACHE_TTL:
@@ -78,24 +79,14 @@ def _load_config() -> Dict:
             },
         },
     }
-    # JSON config file read is disabled — Oracle is the only supported backend.
-    # File-based recommendationConfig.json is no longer used.
-    # try:
-    #     if _CONFIG_PATH.exists():
-    #         loaded = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
-    #         _config_cache = loaded
-    #         _config_cache_ts = now
-    #         return loaded
-    # except Exception:
-    #     logger.exception("Error loading recommendation config from file")
-    _config_cache = _defaults
+    _config_cache = RecommendationConfig.model_validate(_defaults)
     _config_cache_ts = now
-    return _defaults
+    return _config_cache
 
 
 def _segment_config(segment: str) -> SegmentConfig:
     config = _load_config()
-    return config.segments.get(segment, SegmentConfig())
+    return config.segments[segment] if segment in config.segments else SegmentConfig()
 
 
 def _get_favourites_weights(kind: str) -> Tuple[float, float]:
@@ -106,11 +97,10 @@ def _get_favourites_weights(kind: str) -> Tuple[float, float]:
     Defaults: (0.7, 0.3).
     """
     config = _load_config()
-    key = "customer_favourites_weights" if kind == "customer_favourites" else "business_favourites_weights"
-    weights = config[key] if key in config else {}
-    w_freq = float(weights["frequency"] if "frequency" in weights else 0.7)
-    w_qty = float(weights["quantity"] if "quantity" in weights else 0.3)
-    return (w_freq, w_qty)
+    weights = config.customer_favourites_weights if kind == "customer_favourites" else config.business_favourites_weights
+    if not weights:
+        return (0.7, 0.3)
+    return (float(weights.frequency), float(weights.quantity))
 
 
 def _strategy_to_key(strategy: str) -> str:
@@ -1046,7 +1036,7 @@ class RecommendationRepository:
                             p = product_map[str(pid)] if str(pid) in product_map else None if product_map else None
                             if p and p.sub_category:
                                 sc = p.sub_category
-                                sub_cat = sc["name"] if "name" in sc else None if isinstance(sc, dict) else sc
+                                sub_cat = sc
                                 break
                     eb["subCategory"] = sub_cat
                     enriched.append(eb)
@@ -1057,7 +1047,7 @@ class RecommendationRepository:
             logging.error(f"Error fetching bundles for recommendations: {e}")
             return []
 
-    def _is_available_in_zone(self, product: dict, seller_id_set: set) -> bool:
+    def _is_available_in_zone(self, product: 'Product', seller_id_set: set) -> bool:
         """True if product has at least one active, in-stock seller in the zone."""
         if seller_id_set is None:
             return True  # no zone filter
@@ -1175,11 +1165,11 @@ class RecommendationRepository:
 
         trending_days = 7
         
-        cf_days_config = _segment_config("guest")["customer_favourites_days"] if "customer_favourites_days" in _segment_config("guest") else 60
+        cf_days_config = _segment_config("guest").customer_favourites_days or 60
 
         # Customer Favourites: from cache (job at 12 AM IST) or compute on the fly
         cf_cache = _read_customer_favourites_cache()
-        cf_ids_cached = (cf_cache["product_ids"] if "product_ids" in cf_cache else None) if isinstance((cf_cache["product_ids"] if "product_ids" in cf_cache else None), list) else None
+        cf_ids_cached = cf_cache["product_ids"] if "product_ids" in cf_cache else None
 
         # Guest: no user_id
         if not user_id:
@@ -1310,7 +1300,7 @@ class RecommendationRepository:
             bf_ids_raw = await self.get_business_favourites_by_subcategory(days=bf_days, city=city_normalised)
         else:
             bf_cache = _read_business_favourites_cache()
-            bf_ids_cached = (bf_cache["product_ids"] if "product_ids" in bf_cache else None) if isinstance((bf_cache["product_ids"] if "product_ids" in bf_cache else None), list) else None
+            bf_ids_cached = bf_cache["product_ids"] if "product_ids" in bf_cache else None
             bf_ids_raw = bf_ids_cached if bf_ids_cached is not None else await self.get_business_favourites_by_subcategory(days=bf_days)
 
         bf_ids_after_exclude = [x for x in (bf_ids_raw or []) if x not in exclude]

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import List, Optional
 import re
 from sqlalchemy import text
 
@@ -69,7 +69,7 @@ class ReturnRequestRepository:
         next_id = max(1, max_id + 1)
         return f"{prefix}{next_id}"
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[ReturnRequestInternal]:
+    async def findAll(self, query: Optional[dict] = None) -> List[ReturnRequestInternal]:
         requests = await self.storage.findAll(query)
         if not query:
             requests.sort(key=lambda x: x.created_at or "", reverse=True)
@@ -98,7 +98,7 @@ class ReturnRequestRepository:
     async def update(self, id: str, update_data: ReturnRequestInternalUpdate) -> ReturnRequestInternal:
         return await self.storage.update(id, update_data)
 
-    async def delete(self, id: str) -> Dict:
+    async def delete(self, id: str) -> bool:
         return await self.storage.delete(id)
 
 

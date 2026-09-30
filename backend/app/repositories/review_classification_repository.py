@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Any
+from typing import TYPE_CHECKING, List, Optional
 from app.models.schemas import ClassificationTagResponse
 from sqlalchemy import text
 
@@ -78,7 +78,7 @@ class ReviewClassificationRepository:
         except Exception as e:
             logger.error("Failed to pre-populate default classifications: %s", str(e))
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[ClassificationTagResponse]:
+    async def findAll(self, query: Optional[dict] = None) -> List[ClassificationTagResponse]:
         await self.ensure_table_exists()
         return await self.storage.findAll(query)
 
