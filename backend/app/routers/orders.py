@@ -2229,8 +2229,7 @@ async def update_order_status(
                     # Add new payment entry for COD payment received
                     updated_payment_with_entry = await payment_repository.addPaymentEntry(
                         payment.id,
-                        {"amount": order.total or payment.total_amount,
-                            "image": None, "verified": False},
+                        PaymentEntryInternal(amount=order.total or payment.total_amount, image=None, verified=False),
                     )
                     # Create notification for COD payment
                     await create_payment_notification(
@@ -3128,8 +3127,7 @@ async def settle_credit(
     # credit balance was reduced immediately on an unverified submission.
     payment_image = settle_data.paymentImage or settle_data.upi_payment_screenshot
     await payment_repository.addPaymentEntry(
-        payment.id, {"amount": settle_amount,
-                     "image": payment_image, "verified": False}
+        payment.id, PaymentEntryInternal(amount=settle_amount, image=payment_image, verified=False)
     )
 
     updated_payment = await payment_repository.findById(payment.id)

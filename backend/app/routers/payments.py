@@ -344,13 +344,13 @@ async def submit_credit_settlement(
         # Add payment entry
         updated_payment = await payment_repository.addPaymentEntry(
             payment.id,
-            {
-                "amount": float(settlement_data.amount),
-                "image": screenshot_path,
-                "verified": False,
-                "paymentMethod": "upi",
-                "notes": "Credit settlement payment",
-            },
+            PaymentEntryInternal(
+                amount=float(settlement_data.amount),
+                image=screenshot_path,
+                verified=False,
+                payment_method="upi",
+                notes="Credit settlement payment"
+            ),
         )
 
         # Create notification for new payment (credit settlement)

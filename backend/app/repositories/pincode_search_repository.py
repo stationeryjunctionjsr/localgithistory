@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
@@ -131,8 +131,8 @@ class PincodeSearchRepository:
         unique_pins = set()
         serviceable_count = 0
         unserviceable_count = 0
-        unserviceable_freq: Dict[str, dict] = {}
-        overall_freq: Dict[str, dict] = {}
+        unserviceable_freq: dict[str, dict] = {}
+        overall_freq: dict[str, dict] = {}
 
         for r in all_records:
             pin = str((r.pincode if r.pincode is not None else "")).strip()

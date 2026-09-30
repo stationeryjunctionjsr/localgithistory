@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.models.daos_flat import OrderFeedbackInternal, OrderFeedbackInternalCreate, OrderFeedbackInternalUpdate
@@ -7,7 +7,7 @@ class OrderFeedbackRepository:
     def __init__(self):
         self.storage = get_storage("orderFeedback")
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[OrderFeedbackInternal]:
+    async def findAll(self, query: Optional[dict] = None) -> List[OrderFeedbackInternal]:
         return await self.storage.findAll(query or {})
 
     async def findById(self, id: str) -> Optional[OrderFeedbackInternal]:

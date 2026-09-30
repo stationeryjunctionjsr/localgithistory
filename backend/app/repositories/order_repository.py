@@ -1,8 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Dict, Optional, Any
-from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate, Any
-from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate, Any
+from typing import TYPE_CHECKING, Optional
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
 
 from app.db.storage_factory import get_storage
@@ -43,24 +41,12 @@ class OrderRepository:
         next_id = max(1, max_id + 1)  # ORDER-RT-1, ORDER-WH-1, etc. (never 0)
         return f"{prefix}{next_id}"
 
-    async def findAll(self, query: Optional[Dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
-        # Delegate all filtering to storage (DAO)
-        try:
-            return await self.storage.findAll(query, skip=skip, limit=limit)
-        except TypeError:
-            docs = await self.storage.findAll(query)
-            if skip is not None or limit is not None:
-                start = skip or 0
-                end = (start + limit) if limit is not None else None
-                return docs[start:end]
+    async def findAll(self, query: Optional[dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
+        return await self.storage.findAll(query, skip=skip, limit=limit)[start:end]
             return docs
 
-    async def count(self, query: Optional[Dict] = None) -> int:
-        try:
-            return await self.storage.count(query)
-        except AttributeError:
-            orders = await self.storage.findAll(query)
-        return len(orders)
+    async def count(self, query: Optional[dict] = None) -> int:
+        return await self.storage.count(query)
 
     async def countByUser(self, user_id: str) -> int:
         return await self.count({"user": user_id})

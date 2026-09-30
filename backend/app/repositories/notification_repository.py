@@ -1,7 +1,7 @@
 from app.models.daos import NotificationInternal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 
@@ -20,7 +20,7 @@ class NotificationRepository:
         """Get current timestamp in ISO format with IST timezone"""
         return datetime.now(IST).isoformat()
 
-    async def findAll(self, filters: dict = None) -> List[NotificationInternal]:
+    async def findAll(self, filters: Optional[dict] = None) -> List[NotificationInternal]:
         if filters is None:
             from app.models.daos import NotificationFilter
             filters = NotificationFilter()
