@@ -2772,6 +2772,8 @@ class MySQLValetPayoutSettingsDAO:
 # Collection name -> Strict DAO instance
 FLAT_DAOS = {
     "returnSettings": MySQLReturnSettingsDAO(),
+    "aboutUs": MySQLAboutUsDAO(),
+    "privacyPolicy": MySQLPrivacyPolicyDAO(),
     "orderFeedback": MySQLOrderFeedbackDAO(),
     "promoStrips": MySQLPromoStripsDAO(),
     "pushNotifications": MySQLPushNotificationsDAO(),
