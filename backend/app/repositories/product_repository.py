@@ -1,9 +1,9 @@
 from app.models.product import Product
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 import asyncio
 import time as time_module
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 
@@ -19,12 +19,12 @@ class ProductRepository:
         self._search_tags_cache_time = None
         self._collections_cache = None
         self._collections_cache_time = None
-        self._cat_gst_map: Optional[Dict[str, float]] = None
+        self._cat_gst_map: Optional[dict[str, float]] = None
         self._cat_gst_map_exp: float = 0.0
         # Lock prevents thundering herd: only one coroutine rebuilds the
         # lightweight search catalog at a time; all others wait then serve from cache.
         self._light_catalog_lock = asyncio.Lock()
-        self._light_catalog_cache: Dict = {}
+        self._light_catalog_cache: dict = {}
 
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         if not date_str:
@@ -59,16 +59,7 @@ class ProductRepository:
         parts = []
         for attr in product.variant_attributes or []:
             parts.append(str(attr).lower())
-        for combo in product.variantCombinations or []:
-            attrs = combo.attributes or {}
-            for k, v in attrs.items():
-                parts.append(str(k).lower())
-                parts.append(str(v).lower())
-            price = combo.price
-            if price is not None:
-                p_val = float(price)
-                parts.append(str(p_val))
-                parts.append(str(int(p_val)))
+
         return " ".join(parts)
 
     def _extract_price_text(self, product: 'ProductInternal') -> str:
@@ -97,11 +88,11 @@ class ProductRepository:
         fields = {
             "name": (product.name or "").lower(),
             "sku": (product.sku or "").lower(),
-            "searchTags": " ".join(product.searchTags or []).lower(),
+            "searchTags": " ".join(product.search_tags or []).lower(),
             "category": (product.category or "").lower(),
-            "categoryTag": (product.categoryTag or "").lower(),
-            "subCategory": (product.subCategory or "").lower(),
-            "collections": " ".join(product.resolvedCollectionNames or []).lower(),
+            "categoryTag": ('' or "").lower(),
+            "subCategory": (product.sub_category or "").lower(),
+            "collections": " ".join(product.resolved_collection_names or [] or []).lower(),
             "brand": (product.brand or "").lower(),
             "variantAttributes": self._get_variant_search_text(product),
             "price": price_text,
@@ -162,7 +153,7 @@ class ProductRepository:
                 return 0.0  # AND logic: all tokens must match somewhere
         return score
 
-    async def _weighted_search(self, products: List[Dict], search_query: str) -> Dict:
+    async def _weighted_search(self, products: List['Product'], search_query: str) -> dict:
         """Filter and rank products using multi-word tokenized search with weighted relevance scoring.
         Falls back to fuzzy matching if exact search yields fewer than 5 results.
         The CPU-heavy fuzzy search is offloaded to a thread pool to avoid blocking the event loop."""
@@ -201,7 +192,7 @@ class ProductRepository:
         return {"products": scored, "usedFuzzy": used_fuzzy, "suggestedQuery": suggested_query}
 
     def _fuzzy_search(
-        self, products: List[Dict], tokens: List[str], already_matched: set
+        self, products: List['Product'], tokens: List[str], already_matched: set
     ) -> tuple[List[Dict], Optional[str]]:
         """Fuzzy matching fallback using difflib for typo tolerance."""
         from difflib import SequenceMatcher
@@ -310,12 +301,11 @@ class ProductRepository:
                     "sku": p.sku,
                     "searchTags": p.search_tags,
                     "category": p.category,
-                    "categoryTag": getattr(p, "categoryTag", getattr(p, "category_tag", None)),
+                    "categoryTag": None,
                     "subCategory": p.sub_category,
-                    "resolvedCollectionNames": p.resolved_collection_names,
+                    "resolvedCollectionNames": p.resolved_collection_names or [],
                     "brand": p.brand,
-                    "variantAttributes": p.variant_attributes,
-                    "variantCombinations": getattr(p, "variantCombinations", getattr(p, "variant_combinations", None)),
+                    "variantAttributes": p.variant_attributes or [],
                     "description": p.description,
                     # Seller IDs for pincode-based availability filtering in autocomplete
                     "sellerIds": [
@@ -344,7 +334,7 @@ class ProductRepository:
             }
             return light_products
 
-    async def _attach_category_gst(self, products: List[Dict]) -> List[Product]:
+    async def _attach_category_gst(self, products: List['Product']) -> List[Product]:
         if not products:
             return products
         from app.repositories.category_repository import category_repository
@@ -361,7 +351,7 @@ class ProductRepository:
             p.gst = float(cat_gst_map[p.category] if p.category in cat_gst_map else 0)
         return products
 
-    async def findAll(self, query: Optional[Dict] = None):
+    async def findAll(self, query: Optional[dict] = None):
         products = await self.storage.findAll(query)
         products = await self._attach_category_gst(products)
 
@@ -539,7 +529,7 @@ class ProductRepository:
         return products
 
     async def get_catalog(
-        self, query: Dict, skip: int = 0, limit: int = 50, sort: str = "newest", include_facets: bool = True
+        self, query: dict, skip: int = 0, limit: int = 50, sort: str = "newest", include_facets: bool = True
     ):
         """Orchestrates server-side pagination by calling the DAO."""
         dao_query = query.copy()
@@ -716,7 +706,7 @@ class ProductRepository:
         #     all_pids = set(str(p.id) for p in all_products)
         #     available_collections = []
         #     for col in all_collections:
-        #         col_pids = set(str(pid) for pid in col["productIds"] if "productIds" in col else [])
+        #         col_pids = set(str(pid) for pid in col.product_ids or [])
         #         if all_pids.intersection(col_pids):
         #             available_collections.append(col["name"] if "name" in col else None)
         #     facets["collections"] = sorted(list(set(available_collections)))
@@ -724,7 +714,7 @@ class ProductRepository:
         #     return paginated_products, total_count, facets, used_fuzzy, suggested_query
 
     async def add_dynamic_tags(
-        self, products: List[Dict], role: str = "customer", user_id: Optional[str] = None
+        self, products: List['Product'], role: str = "customer", user_id: Optional[str] = None
     ) -> List[Product]:
         """Add refined dynamic tags: segmented best sellers and user-specific new arrivals"""
         import time as _t
@@ -832,18 +822,18 @@ class ProductRepository:
         self._collections_cache_time = now
         return collections
 
-    async def resolve_search_tags(self, products: List[Dict]) -> List[Product]:
+    async def resolve_search_tags(self, products: List['Product']) -> List[Product]:
         """Resolve which search tags apply to each product based on association rules"""
         search_tags = await self._get_active_search_tags()
 
         # Build collection -> productIds mapping and product -> collection names (used for search scoring)
         collections = await self._get_collections()
-        collection_product_map: Dict[str, List[str]] = {}
-        product_collection_names: Dict[str, List[str]] = {}
+        collection_product_map: dict[str, List[str]] = {}
+        product_collection_names: dict[str, List[str]] = {}
         for col in collections:
-            col_id = str(col["_id"] if "_id" in col else "")
-            col_name = col["name"] if "name" in col else ""
-            col_product_ids = col["productIds"] if "productIds" in col else []
+            col_id = str(col.id)
+            col_name = col.name
+            col_product_ids = col.product_ids or []
             if col_id:
                 collection_product_map[col_id] = col_product_ids
             for pid in col_product_ids:
@@ -1065,7 +1055,7 @@ class ProductRepository:
         product: 'ProductInternal',
         role: str,
         quantity: int = 1,
-        selected_attributes: Optional[Dict] = None,
+        selected_attributes: Optional[dict] = None,
         sell_as_case: bool = False,
         user_id: Optional[str] = None,
         ignore_auto_discount: bool = False,
@@ -1084,19 +1074,7 @@ class ProductRepository:
         # Base MRP (per unit)
         mrp = float(product.mrp)
 
-        # Check for variant-specific pricing if attributes are selected
-        if selected_attributes and product.variantCombinations:
-            for combo in product.variantCombinations:
-                match = True
-                combo_attrs = combo.attributes if combo.attributes is not None else {}
-                for k, v in selected_attributes.items():
-                    if k not in combo_attrs or combo_attrs[k] != v:
-                        match = False
-                        break
-                if match:
-                    if combo.price is not None:
-                        mrp = float(combo.price)
-                    break
+
 
         if mrp <= 0:
             return 0.0
@@ -1167,7 +1145,7 @@ class ProductRepository:
         product: 'ProductInternal',
         role: str,
         quantity: int,
-        selected_attributes: Optional[Dict] = None,
+        selected_attributes: Optional[dict] = None,
         sell_as_case: bool = False,
         user_id: Optional[str] = None,
         ignore_auto_discount: bool = False,

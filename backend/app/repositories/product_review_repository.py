@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional, Any
+from typing import TYPE_CHECKING, List, Optional
 from app.models.schemas import ProductReviewResponse
 from sqlalchemy import text
 
@@ -65,7 +65,7 @@ class ProductReviewRepository:
             except Exception as e:
                 logger.error("Error ensuring %s exists: %s", table_name_upper, str(e))
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[ProductReviewResponse]:
+    async def findAll(self, query: Optional[dict] = None) -> List[ProductReviewResponse]:
         await self.ensure_table_exists()
         return await self.storage.findAll(query)
 

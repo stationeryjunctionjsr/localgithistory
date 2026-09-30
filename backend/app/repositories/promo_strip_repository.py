@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from typing import List, Optional
 from app.models.daos_flat import PromoStripsInternal, PromoStripsInternalCreate, PromoStripsInternalUpdate
 
 from app.db.storage_factory import get_storage

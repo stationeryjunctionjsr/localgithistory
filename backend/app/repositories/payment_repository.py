@@ -73,7 +73,7 @@ class PaymentRepository:
         for p in all_payments:
             if (
                 p.payment_id is not None
-                and isinstance(p.payment_id, str)
+                
                 and p.payment_id.startswith("PYMT-")
             ):
                 try:

@@ -1,8 +1,8 @@
 from app.models.schemas import PushSubscription
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 
@@ -16,7 +16,7 @@ class PushNotificationRepository:
         self.storage = get_storage("pushNotifications")
         self.device_storage = get_storage("deviceSubscriptions")
 
-    async def findAll(self, query: Optional[Dict] = None):
+    async def findAll(self, query: Optional[dict] = None):
         """Get all push notifications with optional filters"""
         all_notifications = await self.storage.findAll()
 
@@ -139,7 +139,7 @@ class PushNotificationRepository:
             )
             return await self.device_storage.create(create)
 
-    async def getAllDeviceSubscriptions(self) -> List[Dict]:
+    async def getAllDeviceSubscriptions(self) -> List['DeviceSubscriptionsInternal']:
         """Get all device subscriptions"""
         devices = await self.device_storage.findAll()
         # Return subscriptions including expoToken for mobile devices
@@ -154,7 +154,7 @@ class PushNotificationRepository:
             for d in devices
         ]
 
-    async def getDeviceSubscriptionsByUser(self, userId: str) -> List[Dict]:
+    async def getDeviceSubscriptionsByUser(self, userId: str) -> List['DeviceSubscriptionsInternal']:
         """Get device subscriptions for a specific user"""
         user_devices = await self.device_storage.findAll({"userId": userId})
         return [

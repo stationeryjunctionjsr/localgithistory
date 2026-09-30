@@ -1,7 +1,7 @@
 from app.models.daos_flat import ProductNotificationsInternalUpdate
 import asyncio
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 from sqlalchemy import text
 
 from app.db.storage_factory import get_storage
@@ -61,7 +61,7 @@ class ProductNotificationRepository:
             except Exception as e:
                 logger.error("Error ensuring %s exists: %s", table_name_upper, str(e))
 
-    async def create_notification(self, product_id: str, email: str, user_id: Optional[str] = None) -> Dict:
+    async def create_notification(self, product_id: str, email: str, user_id: Optional[str] = None) -> 'ProductNotificationsInternal':
         await self.ensure_table_exists()
         from app.models.daos_flat import ProductNotificationsInternalCreate
         notification_data = ProductNotificationsInternalCreate(
