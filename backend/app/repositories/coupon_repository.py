@@ -363,11 +363,10 @@ class CouponRepository:
 
                     recent_count = 0
                     for o in user_orders:
-                        c_at_str = (o["createdAt"] if "createdAt" in o else None)
-                        if not c_at_str:
-                        continue
+                        c_at = o.created_at
+                        if not c_at:
+                            continue
                         try:
-                            c_at = datetime.fromisoformat(c_at_str.replace("Z", "+00:00"))
                             if c_at.tzinfo:
                                 c_at = c_at.replace(tzinfo=None)
                             if three_months_ago <= c_at <= reference_date:

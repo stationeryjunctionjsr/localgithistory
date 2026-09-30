@@ -8,7 +8,7 @@ from app.models.daos_flat import (
     AboutUsInternalCreate, AboutUsInternalUpdate,
     PrivacyPolicyInternalCreate, PrivacyPolicyInternalUpdate
 )
-from app.models.daos import (
+from app.models.faq_section import (
     FaqSectionInternalCreate, FaqSectionInternalUpdate
 )
 

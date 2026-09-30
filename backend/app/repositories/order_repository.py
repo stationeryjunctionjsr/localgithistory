@@ -42,8 +42,7 @@ class OrderRepository:
         return f"{prefix}{next_id}"
 
     async def findAll(self, query: Optional[dict] = None, skip: Optional[int] = None, limit: Optional[int] = None):
-        return await self.storage.findAll(query, skip=skip, limit=limit)[start:end]
-            return docs
+        return await self.storage.findAll(query, skip=skip, limit=limit)
 
     async def count(self, query: Optional[dict] = None) -> int:
         return await self.storage.count(query)

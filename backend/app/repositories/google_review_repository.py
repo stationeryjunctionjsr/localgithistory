@@ -1,4 +1,4 @@
-﻿from app.models.daos_flat import Google_reviewsInternal, Google_reviewsInternalCreate, Google_reviewsInternalUpdate
+from app.models.daos_flat import Google_reviewsInternal, Google_reviewsInternalCreate, Google_reviewsInternalUpdate
 import os
 import re
 from datetime import datetime, timezone
@@ -77,13 +77,13 @@ class GoogleReviewRepository:
                 html = response.text
 
                 patterns = [
-                    r"itemprop="ratingValue" content="([\d\.]+)"",
+                    r'itemprop="ratingValue" content="([\d\.]+)"',
                     r"Rated ([\d\.]+) out of 5",
                     r"Rating: ([\d\.]+)/5",
                 ]
 
                 count_patterns = [
-                    r"itemprop="reviewCount" content="([\d,]+)"",
+                    r'itemprop="reviewCount" content="([\d,]+)"',
                     r"([\d,]+) Google reviews",
                     r"([\d,]+) reviews",
                 ]
