@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -31,11 +32,22 @@ class AboutUsRepository:
 
     async def upsert(self, data) -> AboutUs:
         existing = await self.get()
+        
+        # Serialize the UI-specific fields into the single 'content' column
+        # since the MySQL DAO schema doesn't have brandName, tagline, etc.
+        content_json = data.model_dump_json(exclude_unset=True)
+
         if existing:
-            update_data = AboutUsInternalUpdate.model_validate(data.model_dump())
+            update_data = AboutUsInternalUpdate(
+                content=content_json,
+                isPublished=True
+            )
             return await self.storage.update(existing.id, update_data)
         
-        create_data = AboutUsInternalCreate.model_validate(data.model_dump())
+        create_data = AboutUsInternalCreate(
+            content=content_json,
+            isPublished=True
+        )
         return await self.storage.create(create_data)
 
 
@@ -57,14 +69,24 @@ class PrivacyPolicyRepository:
         else:
             next_version = "1.0"
 
-        payload_dict = data.model_dump(exclude_unset=True)
-        payload_dict["version"] = next_version
+        # Serialize the sections into the single 'content' column
+        content_json = json.dumps([s.model_dump() for s in data.sections]) if data.sections else ""
 
         if existing:
-            update_data = PrivacyPolicyInternalUpdate.model_validate(payload_dict)
+            update_data = PrivacyPolicyInternalUpdate(
+                content=content_json,
+                effectiveDate=data.lastUpdated,
+                version=next_version,
+                is_active=True
+            )
             return await self.storage.update(existing.id, update_data)
 
-        create_data = PrivacyPolicyInternalCreate.model_validate(payload_dict)
+        create_data = PrivacyPolicyInternalCreate(
+            content=content_json,
+            effectiveDate=data.lastUpdated,
+            version=next_version,
+            is_active=True
+        )
         return await self.storage.create(create_data)
 
 
