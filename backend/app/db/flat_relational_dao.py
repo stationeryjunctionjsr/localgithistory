@@ -145,13 +145,10 @@ class FlatRelationalDAO:
         # Use dict.fromkeys for uniqueness, then quote
         return [_q(c) for c in dict.fromkeys(cols)]
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
-        factory = self._factory()
-        if not factory:
-            return []
-
+    def _build_where(self, query: Optional[Dict]) -> tuple[str, Dict]:
+        """Build WHERE clause and params from a query dict — same logic used by findAll and count."""
         where_clauses = []
-        params = {}
+        params: Dict = {}
         if query:
             for k, v in query.items():
                 if k in ("_id", "id"):
@@ -166,8 +163,15 @@ class FlatRelationalDAO:
                     else:
                         params[p] = v
                 # Note: CLOB filtering not supported here (requires JSON_VALUE/JSON_EXISTS)
-
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        return where_sql, params
+
+    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+        factory = self._factory()
+        if not factory:
+            return []
+
+        where_sql, params = self._build_where(query)
         cols = ", ".join(self._all_columns())
 
         async with factory() as session:
@@ -273,35 +277,26 @@ class FlatRelationalDAO:
             return result.rowcount > 0
 
     async def deleteMany(self, query: Dict) -> Dict:
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            if await self.delete(d["_id"] if "_id" in d else None):
-                deleted += 1
-        return {"deletedCount": deleted}
+        """Delete all rows matching query in a single SQL statement instead of N+1 deletes."""
+        factory = self._factory()
+        if not factory:
+            return {"deletedCount": 0}
+
+        where_sql, params = self._build_where(query)
+        async with factory() as session:
+            result = await session.execute(
+                text(f"DELETE FROM {self.table_name} WHERE {where_sql}"),
+                params,
+            )
+            await session.commit()
+        return {"deletedCount": result.rowcount}
 
     async def updateMany(self, query: Dict, update_data: Dict) -> int:
         factory = self._factory()
         if not factory:
             return 0
 
-        where_clauses = []
-        params = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k in self.scalar_map:
-                    col = self.scalar_map[k]
-                    p = _param(col)
-                    where_clauses.append(f"{_q(col)} = :{p}")
-                    if k in self.bool_api_keys:
-                        params[p] = 1 if v else None
-                    else:
-                        params[p] = v
-
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        where_sql, params = self._build_where(query)
 
         now = now_utc()
         set_parts = ["updated_at = :updated_at"]
@@ -331,7 +326,17 @@ class FlatRelationalDAO:
             return result.rowcount
 
     async def count(self, query: Optional[Dict] = None) -> int:
-        return len(await self.findAll(query))
+        """Count rows matching query using SELECT COUNT(*) — never loads row data."""
+        factory = self._factory()
+        if not factory:
+            return 0
+        where_sql, params = self._build_where(query)
+        async with factory() as session:
+            result = await session.execute(
+                text(f"SELECT COUNT(*) FROM {self.table_name} WHERE {where_sql}"),
+                params,
+            )
+            return int(result.scalar() or 0)
 
     find_all = findAll
     find_by_id = findById

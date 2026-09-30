@@ -202,7 +202,7 @@ class MySQLSessionDAO:
         return await self.findById(id)
 
     async def touch(self, session_id: str, device: dict = None) -> None:
-        """Lightweight session touch — single UPDATE, no reads. Fire-and-forget."""
+        """Lightweight session touch — single UPDATE with SQL-level debounce. Fire-and-forget."""
         factory = self._factory()
         if not factory:
             return
@@ -210,6 +210,10 @@ class MySQLSessionDAO:
         if not sid:
             return
         now = now_utc()
+        # Only update if the session hasn't been touched in the last 60 seconds
+        import datetime
+        throttle_time = now - datetime.timedelta(seconds=60)
+        
         try:
             async with factory() as session:
                 if device:
@@ -219,9 +223,10 @@ class MySQLSessionDAO:
                             UPDATE {self.TABLE}
                             SET last_active_at = :now, updated_at = :now
                             WHERE id = :id AND status = 'active'
+                              AND (last_active_at IS NULL OR last_active_at < :throttle)
                             """
                         ),
-                        {"now": now, "id": sid},
+                        {"now": now, "id": sid, "throttle": throttle_time},
                     )
                 else:
                     await session.execute(
@@ -230,13 +235,14 @@ class MySQLSessionDAO:
                             UPDATE {self.TABLE}
                             SET last_active_at = :now, updated_at = :now
                             WHERE id = :id AND status = 'active'
+                              AND (last_active_at IS NULL OR last_active_at < :throttle)
                             """
                         ),
-                        {"now": now, "id": sid},
+                        {"now": now, "id": sid, "throttle": throttle_time},
                     )
                 await session.commit()
         except Exception as e:
-            logging.warning("mysql_session_dao.touch: failed to update last_active_at for session %s: %s", sid, e, exc_info=e)  # Fire-and-forget — don't break the request on touch failure
+            logging.warning("mysql_session_dao.touch: failed to update last_active_at for session %s: %s", sid, e, exc_info=e)
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
@@ -252,35 +258,57 @@ class MySQLSessionDAO:
             return result.rowcount > 0
 
     async def deleteMany(self, query: Dict) -> Dict:
+        """Delete matching sessions in a single SQL statement instead of N+1 deletes."""
+        factory = self._factory()
+        if not factory:
+            return {"deletedCount": 0}
+        # Only user_id-keyed deletes are issued by the codebase; build targeted DELETE.
+        if "user_id" in query:
+            uid = int(query["user_id"]) if str(query["user_id"]).isdigit() else None
+            if uid is None:
+                return {"deletedCount": 0}
+            async with factory() as session:
+                result = await session.execute(
+                    text(f"DELETE FROM {self.TABLE} WHERE user_id = :uid"),
+                    {"uid": uid},
+                )
+                await session.commit()
+            return {"deletedCount": result.rowcount}
+        # Fallback for any other query shape: load IDs then delete in one IN clause
         docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            if await self.delete(d._id):
-                deleted += 1
-        return {"deletedCount": deleted}
+        if not docs:
+            return {"deletedCount": 0}
+        ids = [int(d.id) for d in docs if str(d.id).isdigit()]
+        if not ids:
+            return {"deletedCount": 0}
+        id_params = {f"id_{i}": v for i, v in enumerate(ids)}
+        placeholders = ", ".join(f":{k}" for k in id_params)
+        async with factory() as session:
+            result = await session.execute(
+                text(f"DELETE FROM {self.TABLE} WHERE id IN ({placeholders})"),
+                id_params,
+            )
+            await session.commit()
+        return {"deletedCount": result.rowcount}
 
     async def delete_by_user_id(self, user_id: str) -> int:
         """Delete all sessions for a user with a single targeted SQL DELETE.
-        Used in test teardown to avoid FK_SJ_SESSIONS_USER constraint violations."""
+        Used in test teardown to avoid FK constraint violations."""
+        result = await self.deleteMany({"user_id": user_id})
+        return result.get("deletedCount", 0)
+
+    async def count(self, query: Optional[Dict] = None) -> int:
+        """Count sessions using SELECT COUNT(*) — never loads row data."""
         factory = self._factory()
         if not factory:
             return 0
-        uid = int(user_id) if str(user_id).isdigit() else None
-        if uid is None:
-            return 0
+        # Simple full count (no complex filter needed for sessions)
         async with factory() as session:
-            result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE user_id = :uid"),
-                {"uid": uid},
-            )
-            await session.commit()
-            return result.rowcount
-
-    async def count(self, query: Optional[Dict] = None) -> int:
-        docs = await self.findAll(query)
-        return len(docs)
+            result = await session.execute(text(f"SELECT COUNT(*) FROM {self.TABLE}"))
+            return int(result.scalar() or 0)
 
     find_all = findAll
     find_by_id = findById
     find_one = findOne
     touch_session = touch
+

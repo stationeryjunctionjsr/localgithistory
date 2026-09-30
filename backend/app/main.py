@@ -442,10 +442,6 @@ app.include_router(availability_requests.router, prefix="/api/availability-reque
 # except Exception as e:
 #     logger.warning(f"Failed to start prometheus instrumentator: {e}")
 
-# In-memory session last touch times to debounce database updates.
-_session_last_touch = {}
-
-
 @app.middleware("http")
 async def uploads_auth_middleware(request: Request, call_next):
     path = request.url.path
@@ -476,12 +472,15 @@ async def uploads_auth_middleware(request: Request, call_next):
 # Middleware to update session activity and device info
 @app.middleware("http")
 async def touch_session_middleware(request: Request, call_next):
-    global _session_last_touch
-    from app.utils.cookies import get_token_from_request
+    path = request.url.path
+    if path.startswith(("/uploads/", "/public/", "/api/health")):
+        return await call_next(request)
 
+    from app.utils.cookies import get_token_from_request
     token = get_token_from_request(request)
     if not token:
         return await call_next(request)
+        
     try:
         # Lightweight JWT decode just to extract session ID — no DB calls.
         # Full verification happens in get_current_user() inside the route.
@@ -493,27 +492,17 @@ async def touch_session_middleware(request: Request, call_next):
             algorithms=["HS256"],
             options={"verify_exp": False},
         )
-        session_id = (payload["sessionId"] if "sessionId" in payload else None)
+        session_id = payload.get("sessionId")
         if session_id:
             device = parse_device(request, default_type="web")
-            now = time.time()
-            cache_key = (session_id, device)
-            last_touch = (_session_last_touch[cache_key] if cache_key in _session_last_touch else 0)
-
-            # Only update the DB if 60 seconds have elapsed since the last touch
-            if now - last_touch > 60:
-                asyncio.create_task(session_repository.touch(session_id, device))
-                _session_last_touch[cache_key] = now
-
-                # Cleanup cache if it grows too large to prevent memory leaks
-                if len(_session_last_touch) > 10000:
-                    _session_last_touch = {k: t for k, t in _session_last_touch.items() if now - t <= 60}
+            # The DAO touch() method inherently throttles updates to once per 60s
+            asyncio.create_task(session_repository.touch(session_id, device))
     except Exception as e:
-        if isinstance(e, HTTPException) and isinstance(e.detail, dict) and (e.detail["code"] if "code" in e.detail else None) == ERR_SESSION_REVOKED:
+        if isinstance(e, HTTPException) and isinstance(e.detail, dict) and e.detail.get("code") == ERR_SESSION_REVOKED:
             return JSONResponse(status_code=401, content=e.detail)
         # Silently ignore — route's get_current_user() will handle real auth errors
-    response = await call_next(request)
-    return response
+        
+    return await call_next(request)
 
 
 @app.get("/")
