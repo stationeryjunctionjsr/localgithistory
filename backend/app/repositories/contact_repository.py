@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.models.daos_flat import ContactInternal, ContactInternalCreate, ContactInternalUpdate
@@ -7,7 +7,7 @@ class ContactRepository:
     def __init__(self):
         self.storage = get_storage("contacts")
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[ContactInternal]:
+    async def findAll(self, query: Optional[dict] = None) -> List[ContactInternal]:
         return await self.storage.findAll(query or {})
 
     async def findById(self, id: str) -> Optional[ContactInternal]:

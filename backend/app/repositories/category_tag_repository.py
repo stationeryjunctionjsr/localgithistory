@@ -1,6 +1,6 @@
 from typing import Any
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.models.daos_flat import CategoryTagInternal, CategoryTagInternalCreate, CategoryTagInternalUpdate

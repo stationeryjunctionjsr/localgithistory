@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.models.daos_flat import CollectionInternal, CollectionInternalCreate, CollectionInternalUpdate
@@ -9,16 +9,16 @@ class CollectionRepository:
     def __init__(self):
         self.storage = get_storage("collections")
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[CollectionInternal]:
+    async def findAll(self, query: Optional[dict] = None) -> List[CollectionInternal]:
         collections = await self.storage.findAll()
 
         query = query or {}
 
         # Consolidate all filters into one pass for robustness
         filtered = []
-        user_role = query.get("userRole", "guest")
-        target_page_type = query.get("pageType") or query.get("visiblePage")
-        target_page_id = query.get("pageId")
+        user_role = query["userRole"] if "userRole" in query else "guest"
+        target_page_type = query["pageType"] if "pageType" in query else None or query["visiblePage"] if "visiblePage" in query else None
+        target_page_id = query["pageId"] if "pageId" in query else None
 
         for col in collections:
             # 1. Check isActive
@@ -44,7 +44,7 @@ class CollectionRepository:
                 rules = col.visibility_rules or []
                 for rule_str in rules:
                     try:
-                        rule = json.loads(rule_str) if isinstance(rule_str, str) else rule_str
+                        rule = json.loads(rule_str)
                     except:
                         continue
 
