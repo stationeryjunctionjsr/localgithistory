@@ -17,7 +17,7 @@ class CorrelationIdFilter(logging.Filter):
     """Injects the current request_id into every log record automatically."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        record.request_id = "-"
+        record.request_id = request_id_var.get("-")
         return True
 
 

@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 from app.models.daos_flat import CategoryTagInternalCreate, CategoryTagInternalUpdate
+from app.models.user import User
 from app.repositories.category_tag_repository import category_tag_repository
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache

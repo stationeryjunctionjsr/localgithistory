@@ -82,12 +82,9 @@ def verify_refresh_token(token: str) -> 'User':
 
     try:
         payload = jwt.decode(token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
-        # Use [] if  in  else None for safe key access and proper equality checks.
-        # The original ternary pattern had Python operator-precedence bugs that made
-        # all type checks evaluate incorrectly, rejecting every valid refresh token.
-        if payload["type"] if "type" in payload else None != "refresh":
+        if payload.get("type") != "refresh":
             raise credentials_exception
-        if not payload["userId"] if "userId" in payload else None or not payload["sessionId"] if "sessionId" in payload else None or not payload["refreshId"] if "refreshId" in payload else None:
+        if not (payload.get("userId") and payload.get("sessionId") and payload.get("refreshId")):
             raise credentials_exception
         return payload
     except JWTError:
@@ -154,7 +151,7 @@ def check_roles(user: 'User', *allowed_roles: str):
     (e.g. deactivated wholesalers get effectiveRole='customer'), falling
     back to role for backwards compatibility."""
     effective = user.effective_role or user.role
-    print(f"USER ROLE: {effective}, Allowed: {allowed_roles}")
+    logger.debug("Role check — effective: %s, allowed: %s", effective, allowed_roles)
     if effective not in allowed_roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Insufficient permissions.")
     return user
