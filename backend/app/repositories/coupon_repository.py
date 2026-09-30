@@ -1,8 +1,8 @@
 from app.models.schemas import CouponUpdate
 from app.models.daos_flat import CouponInternalUpdate
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
@@ -86,14 +86,14 @@ class CouponRepository:
         return (self._collections_map[str(cid)] if str(cid) in self._collections_map else None)
 
     async def _calculate_bxgy_discount(
-        self, coupon: 'CouponInternal', cart_items: List[Dict], product_repository, user_role: str, user_id: str
-    ) -> Dict:
+        self, coupon: 'CouponInternal', cart_items: List[dict], product_repository, user_role: str, user_id: str
+    ) -> dict:
         applicable_item_type = (coupon.applicable_item_type if coupon.applicable_item_type is not None else "units")
         x_required = int(coupon.min_quantity_of_eligible_items) if coupon.min_quantity_of_eligible_items is not None else None
         y_required = int(coupon.buy_x_get_y_customer_gets_quantity) if coupon.buy_x_get_y_customer_gets_quantity is not None else None
 
         # Batch-load all cart products upfront to avoid N+1 (one DB hit per item)
-        cart_pids = [str((getattr(item, 'product', None) or getattr(item, 'product_id', None)) if not isinstance(item, dict) else (item.get('product') or item.get('product_id'))) for item in cart_items if ((getattr(item, 'product', None) or getattr(item, 'product_id', None)) if not isinstance(item, dict) else (item.get('product') or item.get('product_id')))]
+        cart_pids = [str(item.product_id) for item in cart_items if item.product_id]
         if cart_pids:
             products_list = await product_repository.findAll({"allowed_ids": cart_pids})
             product_map = {str(p.id): p for p in products_list if p.id}
@@ -102,14 +102,14 @@ class CouponRepository:
 
         elements = []
         for idx, item in enumerate(cart_items):
-            pid = str((getattr(item, 'product', None) or getattr(item, 'product_id', None)) if not isinstance(item, dict) else (item.get('product') or item.get('product_id')))
+            pid = str(item.product_id)
             product = (product_map[pid] if pid in product_map else None)
             if not product:
                 continue
-            qty = int((item.quantity if getattr(item, 'quantity', None) is not None else 0) if not isinstance(item, dict) else (item.get('quantity') or 0))
+            qty = int(item.quantity or 0)
             if qty <= 0:
                 continue
-            sell_as_case = (getattr(item, 'sell_as_case', False) if not isinstance(item, dict) else item.get('sell_as_case', False))
+            sell_as_case = item.sell_as_case or False
             qty_per_case = int(product.quantity_per_case) if product.quantity_per_case is not None else 1
 
             item_total_price = product_repository.calculateTotalPrice(
@@ -235,7 +235,7 @@ class CouponRepository:
 
         return BxGyEvaluationResponse(discount=total_discount, itemDiscounts=item_discounts, bxgyItemIndices=bxgy_item_indices)
 
-    async def findAll(self, query: Optional[Dict] = None):
+    async def findAll(self, query: Optional[dict] = None):
         return await self.storage.findAll(query or {})
 
     async def findById(self, id: str):
@@ -322,9 +322,9 @@ class CouponRepository:
         self,
         user_id: str,
         behavior: Optional[str],
-        user_orders: Optional[List[Dict]] = None,
+        user_orders: Optional[List[dict]] = None,
         has_app: Optional[bool] = None,
-        user_behavior_cache: Optional[Dict] = None,
+        user_behavior_cache: Optional[dict] = None,
     ) -> bool:
         """Check if user matches discount user_behavior. For 'registered*' consider all users; for 'downloaded*' only app users."""
         if not behavior or behavior == "none":
@@ -364,8 +364,8 @@ class CouponRepository:
                     recent_count = 0
                     for o in user_orders:
                         c_at_str = (o["createdAt"] if "createdAt" in o else None)
-                        if not c_at_str or not isinstance(c_at_str, str):
-                            continue
+                        if not c_at_str:
+                        continue
                         try:
                             c_at = datetime.fromisoformat(c_at_str.replace("Z", "+00:00"))
                             if c_at.tzinfo:
@@ -691,9 +691,9 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         user_id: str,
         category: Optional[str] = None,
         payment_method: Optional[str] = None,
-        cart_items: Optional[List[Dict]] = None,
+        cart_items: Optional[List[dict]] = None,
         product_repository=None,
-        shipping_address: Optional[Dict] = None,
+        shipping_address: Optional[dict] = None,
         shipping_charge: float = 0.0,
     ):
         """
@@ -710,9 +710,9 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             return CouponValidationResponse(valid=False, message="Discount is not active")
 
         now = datetime.now(timezone.utc)
-        valid_from = coupon.start_date if isinstance(coupon.start_date, datetime) else datetime.fromisoformat(coupon.start_date.replace('Z', '+00:00'))
+        valid_from = coupon.start_date 
         if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
-        valid_until = coupon.end_date if isinstance(coupon.end_date, datetime) else datetime.fromisoformat(coupon.end_date.replace('Z', '+00:00'))
+        valid_until = coupon.end_date 
         if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
 
         if now < valid_from:
@@ -785,7 +785,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             applies_to_ids = (coupon.applies_to_value_ids if coupon.applies_to_value_ids is not None else None) or []
             eligible_subtotal = 0.0
             for idx, item in enumerate(cart_items):
-                product = await product_repository.findById((getattr(item, 'product', None) or getattr(item, 'product_id', None)) if not isinstance(item, dict) else (item.get('product') or item.get('product_id')))
+                product = await product_repository.findByIditem.product_id
                 if not product:
                     continue
                 if await self._product_eligible_async(
@@ -794,9 +794,9 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                     applies_to_ids if applies_to_ids else None,
                     (coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None),
                 ):
-                    qty = ((item.quantity if item.quantity is not None else 0) if not isinstance(item, dict) else (item.get('quantity', 0) or 0))
+                    qty = (item.quantity or 0)
                     eligible_quantity += qty
-                    sell_as_case = (getattr(item, 'sell_as_case', False) if not isinstance(item, dict) else item.get('sell_as_case', False))
+                    sell_as_case = item.sell_as_case or False
                     ignore_auto = (coupon.method if coupon.method is not None else None) == "discount_code" and (coupon.coupon_mode if coupon.coupon_mode is not None else None) == "override"
                     item_total = product_repository.calculateTotalPrice(
                         product,
@@ -873,10 +873,10 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         self,
         user_id: str,
         user_role: str,
-        cart_items: List[Dict],
+        cart_items: List[dict],
         product_repository,
         payment_method: Optional[str] = None,
-        shipping_address: Optional[Dict] = None,
+        shipping_address: Optional[dict] = None,
         shipping_charge: float = 0.0,
     ) -> List['CouponInternal']:
         """Find active automatic discounts that match user and cart. Returns list of { coupon, discount, eligibleItemIndices }."""
@@ -887,9 +887,9 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             try:
                 if (coupon.type_of_discount if coupon.type_of_discount is not None else None) == "product_discount":
                     continue
-                valid_from = coupon.start_date if isinstance(coupon.start_date, datetime) else datetime.fromisoformat(coupon.start_date.replace('Z', '+00:00'))
+                valid_from = coupon.start_date 
                 if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
-                valid_until = coupon.end_date if isinstance(coupon.end_date, datetime) else datetime.fromisoformat(coupon.end_date.replace('Z', '+00:00'))
+                valid_until = coupon.end_date 
                 if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
                 if now < valid_from or now > valid_until:
                     continue
@@ -942,7 +942,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 eligible_quantity = 0
                 eligible_item_indices = []
                 for idx, item in enumerate(cart_items):
-                    product = await product_repository.findById((getattr(item, 'product', None) or getattr(item, 'product_id', None)) if not isinstance(item, dict) else (item.get('product') or item.get('product_id')))
+                    product = await product_repository.findByIditem.product_id
                     if not product:
                         continue
                     if await self._product_eligible_async(
@@ -951,9 +951,9 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                         applies_to_ids if applies_to_ids else None,
                         (coupon.excluded_product_ids if coupon.excluded_product_ids is not None else None),
                     ):
-                        qty = ((item.quantity if item.quantity is not None else 0) if not isinstance(item, dict) else (item.get('quantity', 0) or 0))
+                        qty = (item.quantity or 0)
                         eligible_quantity += qty
-                        sell_as_case = (getattr(item, 'sell_as_case', False) if not isinstance(item, dict) else item.get('sell_as_case', False))
+                        sell_as_case = item.sell_as_case or False
                         item_total = product_repository.calculateTotalPrice(
                             product, user_role, qty, sell_as_case=sell_as_case, user_id=user_id
                         )
@@ -1018,7 +1018,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                     )
                 )
             except Exception:
-                logger.warning("Coupon %r failed cart calculation; skipping.", getattr(coupon, 'id', '?'), exc_info=True)
+                logger.warning("Coupon %r failed cart calculation; skipping.", coupon.id, exc_info=True)
                 continue
         return results
 
@@ -1214,8 +1214,8 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 valid_until_str = c.end_date or c.end_date
                 if not valid_from_str or not valid_until_str:
                     continue
-                valid_from = valid_from_str if isinstance(valid_from_str, datetime) else datetime.fromisoformat(valid_from_str.replace('Z', '+00:00'))
-                valid_until = valid_until_str if isinstance(valid_until_str, datetime) else datetime.fromisoformat(valid_until_str.replace('Z', '+00:00'))
+                valid_from = valid_from_str 
+                valid_until = valid_until_str 
                 
                 # Make sure both are either aware or naive
                 if valid_from.tzinfo is None:
@@ -1256,8 +1256,8 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         product: 'ProductInternal',
         role: str,
         user_id: Optional[str] = None,
-        all_coupons: Optional[List[Dict]] = None,
-        user_behavior_cache: Optional[Dict] = None,
+        all_coupons: Optional[List[dict]] = None,
+        user_behavior_cache: Optional[dict] = None,
     ) -> List['CouponInternal']:
         """Find other active discounts applicable to this product, excluding the default highest automatic product discount"""
         if all_coupons is None:
@@ -1270,14 +1270,14 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         # Step 1: Find the default highest automatic product discount
         for c in all_coupons:
             try:
-                valid_from = c.start_date if isinstance(c.start_date, datetime) else datetime.fromisoformat(c.start_date.replace('Z', '+00:00'))
+                valid_from = c.start_date 
                 if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
-                valid_until = c.end_date if isinstance(c.end_date, datetime) else datetime.fromisoformat(c.end_date.replace('Z', '+00:00'))
+                valid_until = c.end_date 
                 if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
                 if not (valid_from <= now <= valid_until):
                     continue
             except (ValueError, TypeError, AttributeError):
-                logger.warning("Coupon %r has unparseable valid_from/valid_until; skipping.", getattr(c, 'id', '?'), exc_info=True)
+                logger.warning("Coupon %r has unparseable valid_from/valid_until; skipping.", c.id, exc_info=True)
                 continue
 
             if c.method == "automatic" and c.type_of_discount == "product_discount":
@@ -1324,14 +1324,14 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                 continue
 
             try:
-                valid_from = c.start_date if isinstance(c.start_date, datetime) else datetime.fromisoformat(c.start_date.replace('Z', '+00:00'))
+                valid_from = c.start_date 
                 if valid_from.tzinfo is None: valid_from = valid_from.replace(tzinfo=timezone.utc)
-                valid_until = c.end_date if isinstance(c.end_date, datetime) else datetime.fromisoformat(c.end_date.replace('Z', '+00:00'))
+                valid_until = c.end_date 
                 if valid_until.tzinfo is None: valid_until = valid_until.replace(tzinfo=timezone.utc)
                 if not (valid_from <= now <= valid_until):
                     continue
             except (ValueError, TypeError, AttributeError):
-                logger.warning("Coupon %r (step-2) has unparseable valid_from/valid_until; skipping.", getattr(c, 'id', '?'), exc_info=True)
+                logger.warning("Coupon %r (step-2) has unparseable valid_from/valid_until; skipping.", c.id, exc_info=True)
                 continue
 
             if role not in (c.applicable_roles if c.applicable_roles is not None else []):

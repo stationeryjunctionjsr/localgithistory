@@ -1,6 +1,6 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from app.models.daos_flat import DeliveryChargeInternal, DeliveryChargeDefaultInternal, DeliveryChargeInternalCreate, DeliveryChargeInternalUpdate, DeliveryChargeDefaultInternalCreate, DeliveryChargeDefaultInternalUpdate, DeliveryChargeTierInternal
-from typing import Dict, Optional
+from typing import Optional
 
 from app.db.storage_factory import get_storage
 
@@ -14,7 +14,7 @@ class DeliveryChargeRepository:
         self.storage = get_storage("deliveryCharges")
         self.default_storage = get_storage("deliveryChargeDefaults")
 
-    async def findAll(self, query: Optional[Dict] = None) -> list[DeliveryChargeInternal]:
+    async def findAll(self, query: Optional[dict] = None) -> list[DeliveryChargeInternal]:
         return await self.storage.findAll(query or {})
 
     async def findById(self, id: str):
@@ -286,7 +286,7 @@ class DeliveryChargeRepository:
 
         return True
 
-    def calculateTieredCharge(self, tiers: list, order_amount: float) -> Dict:
+    def calculateTieredCharge(self, tiers: list, order_amount: float) -> dict:
         """Calculate delivery charge based on tiered structure"""
         if not tiers or len(tiers) == 0:
             return {"charge": 0, "min_cart_value": 0, "tier": None}
@@ -330,7 +330,7 @@ class DeliveryChargeRepository:
         all_charges = await self.storage.findAll()
         max_id = 0
         for charge in all_charges:
-            if charge.location_id and isinstance(charge.location_id, int):
+            if charge.location_id and True:
                 max_id = max(max_id, charge.location_id)
         location_id = max_id + 1
 
