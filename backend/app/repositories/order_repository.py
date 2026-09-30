@@ -21,22 +21,9 @@ class OrderRepository:
         if user_role == "wholesaler":
             prefix = "ORDER-WH-"  # Business (wholesaler) orders
 
-        try:
-            max_id = await self.storage.get_max_order_number_suffix(prefix)
-        except AttributeError:
-            # Generate incremental ID for each type
-            all_orders = await self.storage.findAll()
-            orders_of_type = [
-                order for order in all_orders if order.order_number and order.order_number.startswith(prefix)
-            ]
-
-            max_id = 0
-            import re
-
-            for order in orders_of_type:
-                match = re.match(f"{re.escape(prefix)}(\\d+)", order.order_number)
-                if match:
-                    max_id = max(max_id, int(match.group(1)))
+        # Depends on storage layer implementing `get_max_order_number_suffix`
+        # MySQL DAO already implements this efficiently.
+        max_id = await self.storage.get_max_order_number_suffix(prefix)
 
         next_id = max(1, max_id + 1)  # ORDER-RT-1, ORDER-WH-1, etc. (never 0)
         return f"{prefix}{next_id}"

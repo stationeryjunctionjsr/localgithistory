@@ -510,12 +510,41 @@ class MySQLOrderDAO:
             return int(result.scalar() or 0)
 
     async def deleteMany(self, query: Dict) -> Dict:
+        """Delete matching orders in a single statement (or batched statements) instead of N+1."""
         docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            if await self.delete(d._id):
-                deleted += 1
-        return {"deletedCount": deleted}
+        if not docs:
+            return {"deletedCount": 0}
+        
+        ids = [int(d.id) for d in docs if str(d.id).isdigit()]
+        if not ids:
+            return {"deletedCount": 0}
+            
+        factory = self._factory()
+        if not factory:
+            return {"deletedCount": 0}
+            
+        deleted_total = 0
+        chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
+        
+        async with factory() as session:
+            for chunk in chunks:
+                id_params = {f"id_{i}": v for i, v in enumerate(chunk)}
+                placeholders = ", ".join(f":{k}" for k in id_params)
+                
+                # Delete items first (maintains referential integrity if ON DELETE CASCADE is missing)
+                await session.execute(
+                    text(f"DELETE FROM {self.ITEMS_TABLE} WHERE order_id IN ({placeholders})"),
+                    id_params,
+                )
+                # Delete orders
+                result = await session.execute(
+                    text(f"DELETE FROM {self.TABLE} WHERE id IN ({placeholders})"),
+                    id_params,
+                )
+                deleted_total += result.rowcount
+            await session.commit()
+            
+        return {"deletedCount": deleted_total}
 
     async def count(self, query: Optional[Dict] = None) -> int:
         factory = self._factory()
