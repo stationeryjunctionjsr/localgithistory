@@ -25,8 +25,8 @@ class EventTrackResponse(BaseModel):
     ok: bool = True
 
 
-from app.repositories.activity_repository import activity_repository
 from app.repositories.recommendation_repository import recommendation_repository
+from app.repositories.tracking_repository import tracking_repository
 from app.repositories.user_repository import user_repository
 from app.utils.auth import get_optional_user, require_super_admin
 from app.utils.cache import cache
@@ -354,14 +354,13 @@ async def track_recommendation_event(
         meta["productName"] = body.product_name
     device = parse_device(request, default_type="web")
     user_id = current_user.id if current_user else None
-    is_guest = user_id is None
-    await activity_repository.log_activity(
-        user_id=user_id,
+    await tracking_repository.trackRecommendationEvent(
+        user_id=str(user_id) if user_id else None,
         session_id=session_id,
         action=action,
-        meta=meta,
-        device=device,
-        is_guest=is_guest,
+        product_id=body.product_id if body.product_id else None,
+        product_name=body.product_name if body.product_name else None,
+        source=body.slot,
     )
     # Update Multi-Armed Bandit rewards (all slots participate); use slot as strategy when strategy not provided
     if body.eventType in ("product_view", "add_to_cart"):

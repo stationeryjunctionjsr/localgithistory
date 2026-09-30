@@ -20,7 +20,6 @@ from app.db.mysql_saved_for_later_dao import MySQLSavedForLaterDAO
 from app.db.mysql_session_dao import MySQLSessionDAO
 from app.db.mysql_tracking_dao import MySQLTrackingDAO
 from app.db.mysql_coupons_dao import MySQLCouponsDAO
-from app.db.mysql_activities_dao import MySQLActivitiesDAO
 from app.db.mysql_notifications_dao import MySQLNotificationsDAO
 from app.db.mysql_returnRequests_dao import MySQLReturnRequestsDAO
 from app.db.mysql_returnSettings_dao import MySQLReturnSettingsDAO
@@ -43,7 +42,6 @@ from app.db.mysql_flat_daos import FLAT_DAOS
 from app.db.mysql_user_dao import MySQLUserDAO
 from app.db.mysql_wishlist_dao import MySQLWishlistDAO
 from app.db.mysql_coupons_dao import MySQLCouponsDAO
-from app.db.mysql_activities_dao import MySQLActivitiesDAO
 from app.db.mysql_notifications_dao import MySQLNotificationsDAO
 from app.db.mysql_returnRequests_dao import MySQLReturnRequestsDAO
 from app.db.mysql_returnSettings_dao import MySQLReturnSettingsDAO
@@ -107,7 +105,6 @@ _MYSQL_DAO_COLLECTIONS = {
 
     "deliverySlots": MySQLDeliverySlotsDAO,
     "coupons": MySQLCouponsDAO,
-    "activities": MySQLActivitiesDAO,
     "notifications": MySQLNotificationsDAO,
     "returnRequests": MySQLReturnRequestsDAO,
     "returnSettings": MySQLReturnSettingsDAO,

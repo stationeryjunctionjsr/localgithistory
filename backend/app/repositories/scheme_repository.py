@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.models.daos_flat import SchemeInternal
@@ -9,7 +9,7 @@ class SchemeRepository:
     def __init__(self):
         self.storage = get_storage("schemes")
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[SchemeInternal]:
+    async def findAll(self, query: Optional[dict] = None) -> List[SchemeInternal]:
         return await self.storage.findAll(query or {})
 
     async def findById(self, id: str) -> Optional[SchemeInternal]:

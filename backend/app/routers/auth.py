@@ -243,7 +243,7 @@ async def register(user_data: RegisterRequest, request: Request, response: Respo
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a valid 10-digit phone number")
 
         # Set registration defaults directly on the Pydantic model.
-        # user_repository.create() accepts Any — it handles both Pydantic models and dicts.
+
         if user_data.role == "wholesaler":
             user_data.approval_status = "pending"
         else:

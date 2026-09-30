@@ -1912,14 +1912,8 @@ class PushSubscription(CamelBaseModel):
 
 # --- Router Response and Request DTOs ---
 
-class ActivityLogResponse(CamelBaseModel):
-    model_config = ConfigDict(extra="forbid")
-    id: Optional[str] = Field(None, alias="_id")
-    user_id: Optional[str] = None
-    session_id: Optional[str] = None
-    action: Optional[str] = None
-    meta: Optional[ActivityMetadata] = None
-    is_guest: Optional[bool] = None
+class ActivityLogResponse(BaseModel):
+    success: bool = True
 
 
 class PromoteGuestResponse(BaseModel):

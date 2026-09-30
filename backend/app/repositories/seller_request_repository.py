@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Dict, Optional, Any
+from typing import TYPE_CHECKING, Optional
 
 from app.db.storage_factory import get_storage
 from app.models.daos import SellerRequestInternalCreate, SellerRequestInternalUpdate
@@ -17,7 +17,7 @@ class SellerRequestRepository:
     def generateRequestNumber(self) -> str:
         return f"SRQ-{int(datetime.now(timezone.utc).timestamp() * 1000)}-{secrets.token_hex(4).upper()}"
 
-    async def findAll(self, query: Optional[Dict] = None):
+    async def findAll(self, query: Optional[dict] = None):
         query = query or {}
         # Push supported filters to storage to avoid a full-table scan.
         storage_query = {k: v for k, v in query.items() if k in ("user", "status", "priority")}
@@ -40,7 +40,7 @@ class SellerRequestRepository:
         return await self.storage.findById(id)
 
     async def create(self, request_data: SellerRequestInternalCreate):
-        request_data.requestNumber = self.generateRequestNumber()
+        request_data.request_number = self.generateRequestNumber()
         request_data.created_at = datetime.now(timezone.utc).isoformat()
         if request_data.category is None:
             request_data.category = "general"
@@ -56,25 +56,26 @@ class SellerRequestRepository:
         return await self.storage.create(request_data)
 
     async def update(self, id: str, update_data: SellerRequestInternalUpdate):
-        if update_data.status == "resolved" and update_data.resolvedAt is None:
-            update_data.resolvedAt = datetime.now(timezone.utc).isoformat()
-        elif update_data.status == "closed" and update_data.closedAt is None:
-            update_data.closedAt = datetime.now(timezone.utc).isoformat()
+        if update_data.status == "resolved" and update_data.resolved_at is None:
+            update_data.resolved_at = datetime.now(timezone.utc).isoformat()
+        elif update_data.status == "closed" and update_data.closed_at is None:
+            update_data.closed_at = datetime.now(timezone.utc).isoformat()
 
         return await self.storage.update(id, update_data)
 
     async def addResponse(self, request_id: str, response_data: 'TicketResponseItemInternal'):
+        from app.models.schemas import TicketResponseItem
         request = await self.findById(request_id)
         if not request:
             raise ValueError("Request not found")
 
-        response = {
-            "user": response_data.user,
-            "message": response_data.message,
-            "attachments": response_data.attachments if response_data.attachments is not None else [],
-            "isAdminResponse": response_data.isAdminResponse if response_data.isAdminResponse is not None else False,
-            "createdAt": datetime.now(timezone.utc).isoformat(),
-        }
+        response = TicketResponseItem(
+            user=response_data.user,
+            message=response_data.message,
+            attachments=response_data.attachments if response_data.attachments is not None else [],
+            isAdminResponse=response_data.isAdminResponse if response_data.isAdminResponse is not None else False,
+            createdAt=datetime.now(timezone.utc).isoformat(),
+        )
 
         if request.responses is None:
             request.responses = []

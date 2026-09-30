@@ -289,6 +289,41 @@ class TrackingRepository:
             )
         )
 
+    async def trackAuthEvent(
+        self, user_id: Optional[str], session_id: Optional[str], action: str,
+        source: Optional[str] = None, page: Optional[str] = None
+    ):
+        """Track login/register/logout events in the unified sj_tracking table."""
+        return await self.create(
+            AnalyticsEventCreate(
+                type=action,
+                user_id=user_id,
+                session_id=session_id,
+                source=source,
+                page=page,
+            )
+        )
+
+    async def trackRecommendationEvent(
+        self, user_id: Optional[str], session_id: Optional[str], action: str,
+        product_id: Optional[str] = None, product_name: Optional[str] = None,
+        source: Optional[str] = None, page: Optional[str] = None,
+        segment: Optional[str] = None,
+    ):
+        """Track recommendation interactions (section_view, product_view, add_to_cart) in sj_tracking."""
+        return await self.create(
+            AnalyticsEventCreate(
+                type=action,
+                user_id=user_id,
+                session_id=session_id,
+                product_id=product_id,
+                product_name=product_name,
+                source=source,
+                page=page,
+                segment=segment,
+            )
+        )
+
     async def getSessionsCount(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
         sessions = await self.findAll({"type": "session"}, limit=self._ANALYTICS_LIMIT)
 

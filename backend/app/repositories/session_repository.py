@@ -1,17 +1,17 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any
+from typing import List, Optional
 
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
 from app.models.daos import SessionInternalCreate, SessionInternalUpdate
-
+from app.models.session import Session
 
 class SessionRepository:
     def __init__(self):
         self.storage = get_storage("sessions")
 
-    async def create_session(self, user_id: Optional[str], device: dict, refresh_token_id: str) -> Dict:
+    async def create_session(self, user_id: Optional[str], device: dict, refresh_token_id: str) -> Session:
         data = SessionInternalCreate(
             user_id=user_id,
             refresh_token_id=refresh_token_id,
@@ -25,13 +25,13 @@ class SessionRepository:
         )
         return await self.storage.create(data)
 
-    async def find_by_refresh_id(self, refresh_token_id: str) -> Optional[Dict]:
-        return await self.storage.findOne({"refreshTokenId": refresh_token_id})
+    async def find_by_refresh_id(self, refresh_token_id: str) -> Optional[Session]:
+        return await self.storage.findOne({"refresh_token_id": refresh_token_id})
 
-    async def find_by_id(self, session_id: str) -> Optional[Dict]:
+    async def find_by_id(self, session_id: str) -> Optional[Session]:
         return await self.storage.findById(session_id)
 
-    async def update_session(self, session_id: str, updates: SessionInternalUpdate) -> Optional['Session']:
+    async def update_session(self, session_id: str, updates: SessionInternalUpdate) -> Optional[Session]:
         existing = await self.storage.findById(session_id)
         if not existing:
             return None
@@ -51,21 +51,21 @@ class SessionRepository:
 
         return await self.storage.update(session_id, SessionInternalUpdate.model_validate(existing, from_attributes=True))
 
-    async def revoke_session(self, session_id: str, reason: str) -> Optional['Session']:
+    async def revoke_session(self, session_id: str, reason: str) -> Optional[Session]:
         return await self.update_session(
             session_id, SessionInternalUpdate(status="revoked", revoked_reason=reason, revoked_at=datetime.now(timezone.utc).isoformat())
         )
 
-    async def revoke_other_sessions(self, user_id: str, exclude_session_id: Optional[str] = None) -> List['Session']:
+    async def revoke_other_sessions(self, user_id: str, exclude_session_id: Optional[str] = None) -> List[Session]:
         sessions = await self.storage.findAll()
         updated = []
         for s in sessions:
-            if s.userId == user_id and s.id != exclude_session_id and s.status == "active":
+            if s.user_id == user_id and s.id != exclude_session_id and s.status == "active":
                 updated.append(await self.revoke_session(s.id, "single_session"))
         return updated
 
     async def touch_last_active(self, session_id: str):
-        await self.update_session(session_id, SessionInternalUpdate(lastActiveAt=datetime.now(timezone.utc).isoformat()))
+        await self.update_session(session_id, SessionInternalUpdate(last_active_at=datetime.now(timezone.utc).isoformat()))
 
     async def touch(self, session_id: str, device: dict = None) -> None:
         """Lightweight session touch — delegates to DAO's single-UPDATE touch."""
@@ -73,12 +73,12 @@ class SessionRepository:
             await self.storage.touch(session_id, device)
         except AttributeError:
             # Fallback for non-Oracle storage backends
-            updates = SessionInternalUpdate(lastActiveAt=datetime.now(timezone.utc).isoformat())
+            updates = SessionInternalUpdate(last_active_at=datetime.now(timezone.utc).isoformat())
             if device:
                 updates.device = device
             await self.update_session(session_id, updates)
 
-    async def check_inactivity_and_revoke(self, session: 'Session', max_inactive_days: int) -> Dict:
+    async def check_inactivity_and_revoke(self, session: Session, max_inactive_days: int) -> Session:
         last_active = session.last_active_at
         if last_active:
             try:
@@ -95,7 +95,7 @@ class SessionRepository:
             await self.storage.delete_by_user_id(str(user_id))
         except AttributeError:
             # Fallback for non-Oracle backends
-            all_sessions = await self.storage.findAll({"userId": str(user_id)})
+            all_sessions = await self.storage.findAll({"user_id": str(user_id)})
             for s in all_sessions:
                 try:
                     await self.storage.delete(s.id)
