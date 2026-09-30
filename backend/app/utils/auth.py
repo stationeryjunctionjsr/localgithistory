@@ -8,6 +8,7 @@ import bcrypt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,20 @@ def create_refresh_token(user_id: str, session_id: str, refresh_id: str) -> str:
     return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_refresh_token(token: str) -> 'User':
+class RefreshTokenPayload(BaseModel):
+    """Pydantic model for the decoded refresh JWT payload.
+
+    All fields are required — model_validate() raises ValidationError if any
+    are missing or empty, which is caught and surfaced as a 401.
+    """
+
+    type: str
+    userId: str
+    sessionId: str
+    refreshId: str
+
+
+def verify_refresh_token(token: str) -> dict:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate refresh token",
@@ -81,13 +95,12 @@ def verify_refresh_token(token: str) -> 'User':
     )
 
     try:
-        payload = jwt.decode(token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("type") != "refresh":
+        raw = jwt.decode(token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
+        payload = RefreshTokenPayload.model_validate(raw)
+        if payload.type != "refresh":
             raise credentials_exception
-        if not (payload.get("userId") and payload.get("sessionId") and payload.get("refreshId")):
-            raise credentials_exception
-        return payload
-    except JWTError:
+        return raw
+    except (JWTError, ValidationError):
         raise credentials_exception
 
 
