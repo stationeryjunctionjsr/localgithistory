@@ -75,7 +75,6 @@ from app.db.mysql_valet_payout_dao import MySQLValetPayoutDAO
 
 
 from app.db.mysql_deliverySlots_dao import MySQLDeliverySlotsDAO
-from app.utils.file_storage import FileStorage
 
 
 
@@ -139,4 +138,5 @@ def get_storage(collection_name: str) -> object:
         return _MYSQL_DAO_COLLECTIONS[collection_name]()
     if collection_name in FLAT_DAOS:
         return FLAT_DAOS[collection_name]
-    return FileStorage(collection_name)
+        
+    raise ValueError(f"No MySQL DAO mapped for collection: {collection_name}")
