@@ -69,8 +69,7 @@ class PrivacyPolicyRepository:
         else:
             next_version = "1.0"
 
-        # Serialize the sections into the single 'content' column
-        content_json = json.dumps([s.model_dump() for s in data.sections]) if data.sections else ""
+        content_json = "[" + ",".join(s.model_dump_json() for s in data.sections) + "]" if data.sections else ""
 
         if existing:
             update_data = PrivacyPolicyInternalUpdate(

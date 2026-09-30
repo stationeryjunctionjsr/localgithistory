@@ -21,7 +21,8 @@ class ActivityRepository:
         is_guest: bool = False,
     ):
         from app.models.daos_flat import ActivityInternalCreate, ActivityMetaInternal
-        meta_dict = meta.model_dump(exclude_unset=True, exclude_none=True) if meta else {}
+        import json
+        meta_dict = json.loads(meta.model_dump_json(exclude_unset=True, exclude_none=True)) if meta else {}
         meta_list = [ActivityMetaInternal(key=k, value=str(v)) for k, v in meta_dict.items()]
         payload = ActivityInternalCreate(
             user_id=user_id,
