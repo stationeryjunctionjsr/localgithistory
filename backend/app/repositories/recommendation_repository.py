@@ -1,5 +1,4 @@
 import logging
-from typing import Any
 from app.models.schemas import SkinnyProductResponse
 import asyncio
 import json
@@ -7,7 +6,7 @@ import random
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 from app.models.recommendation_config import RecommendationConfig, EngagementWeights, StrategyLimits, BanditConfig, FavouriteWeights, SegmentConfig
 
 from app.db.storage_factory import get_storage
@@ -23,15 +22,15 @@ _CUSTOMER_FAVOURITES_CACHE_PATH = _DATA_DIR / "customer_favourites_cache.json"
 _BUSINESS_FAVOURITES_CACHE_PATH = _DATA_DIR / "business_favourites_cache.json"
 
 # ------- Lightweight config / file cache (avoids repeated disk I/O) -------
-_config_cache: Optional[Dict] = None
+_config_cache: Optional['RecommendationConfig'] = None
 _config_cache_ts: float = 0.0
 _CONFIG_CACHE_TTL = 60.0  # seconds – config rarely changes
 
-_trending_cache_store: Optional[Dict] = None
+_trending_cache_store: Optional[dict] = None
 _trending_cache_ts: float = 0.0
-_CF_CACHE_STORE: Optional[Dict] = None
+_CF_CACHE_STORE: Optional[dict] = None
 _CF_CACHE_TS: float = 0.0
-_BF_CACHE_STORE: Optional[Dict] = None
+_BF_CACHE_STORE: Optional[dict] = None
 _BF_CACHE_TS: float = 0.0
 _FILE_CACHE_TTL = 30.0  # seconds for JSON result caches
 
@@ -149,7 +148,7 @@ def _parse_order_date(raw_date: str) -> Optional[datetime]:
         return None
 
 
-def _read_trending_cache() -> Dict:
+def _read_trending_cache() -> dict:
     """Read precomputed trending list (written by scheduled job) with short-lived in-memory TTL."""
     global _trending_cache_store, _trending_cache_ts
     now = time.monotonic()
@@ -166,7 +165,7 @@ def _read_trending_cache() -> Dict:
     return {}
 
 
-def _write_trending_cache(data: 'Dict') -> None:
+def _write_trending_cache(data: 'dict') -> None:
     """Write trending cache — disabled: JSON file cache is no longer used (Oracle is the only backend)."""
     global _trending_cache_store, _trending_cache_ts
     # _DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -175,7 +174,7 @@ def _write_trending_cache(data: 'Dict') -> None:
     _trending_cache_ts = time.monotonic()
 
 
-def _read_customer_favourites_cache() -> Dict:
+def _read_customer_favourites_cache() -> dict:
     """Read precomputed Customer Favourites list with short-lived in-memory TTL."""
     global _CF_CACHE_STORE, _CF_CACHE_TS
     now = time.monotonic()
@@ -192,7 +191,7 @@ def _read_customer_favourites_cache() -> Dict:
     return {}
 
 
-def _write_customer_favourites_cache(data: 'Dict') -> None:
+def _write_customer_favourites_cache(data: 'dict') -> None:
     """Write Customer Favourites cache — disabled: JSON file cache is no longer used (Oracle is the only backend)."""
     global _CF_CACHE_STORE, _CF_CACHE_TS
     # _DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -201,7 +200,7 @@ def _write_customer_favourites_cache(data: 'Dict') -> None:
     _CF_CACHE_TS = time.monotonic()
 
 
-def _read_business_favourites_cache() -> Dict:
+def _read_business_favourites_cache() -> dict:
     global _BF_CACHE_STORE, _BF_CACHE_TS
     now = time.monotonic()
     if _BF_CACHE_STORE is not None and (now - _BF_CACHE_TS) < _FILE_CACHE_TTL:
@@ -217,7 +216,7 @@ def _read_business_favourites_cache() -> Dict:
     return {}
 
 
-def _write_business_favourites_cache(data: 'Dict') -> None:
+def _write_business_favourites_cache(data: 'dict') -> None:
     """Write Business Favourites cache — disabled: JSON file cache is no longer used (Oracle is the only backend)."""
     global _BF_CACHE_STORE, _BF_CACHE_TS
     # _DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -277,7 +276,7 @@ class RecommendationRepository:
             "orderNumber_prefix": "ORDER-RT-",
             "startDate": cutoff.isoformat(),
         })
-        product_counts: Dict[str, int] = {}
+        product_counts: dict[str, int] = {}
         for order in orders:
             if order.user not in retail_ids:
                 continue
@@ -348,7 +347,7 @@ class RecommendationRepository:
             "orderNumber_prefix": prefix,
             "startDate": cutoff.isoformat(),
         })
-        converted_sales_count: Dict[str, int] = {}
+        converted_sales_count: dict[str, int] = {}
         for order in orders:
             order_dt = _parse_order_date(order.created_at)
             if not order_dt:
@@ -452,11 +451,11 @@ class RecommendationRepository:
             }),
             self.product_storage.findAll({"isActive": True}),
         )
-        pid_to_subcat: Dict[str, str] = {
+        pid_to_subcat: dict[str, str] = {
             p.id: (p.sub_category or "None") for p in all_products if p.id
         }
-        segment_order_count: Dict[str, Dict[str, int]] = {}
-        segment_quantity: Dict[str, Dict[str, int]] = {}
+        segment_order_count: dict[str, dict[str, int]] = {}
+        segment_quantity: dict[str, dict[str, int]] = {}
         for order in orders:
             if order.user not in retail_ids:
                 continue
@@ -508,7 +507,7 @@ class RecommendationRepository:
         ids = await self.get_customer_favourites_by_subcategory(days=60)
         return set(ids)
 
-    async def compute_customer_favourites_for_cache(self, days: int = 60) -> Dict:
+    async def compute_customer_favourites_for_cache(self, days: int = 60) -> dict:
         """Compute Customer Favourites (top 1 per subcategory by quantity+frequency, retail, 60d) for the job."""
         ids = await self.get_customer_favourites_by_subcategory(days=days)
         return {
@@ -535,11 +534,11 @@ class RecommendationRepository:
             }),
             self.product_storage.findAll({"isActive": True}),
         )
-        pid_to_subcat: Dict[str, str] = {
+        pid_to_subcat: dict[str, str] = {
             p.id: (p.sub_category or "None") for p in all_products if p.id
         }
-        segment_order_count: Dict[str, Dict[str, int]] = {}
-        segment_quantity: Dict[str, Dict[str, int]] = {}
+        segment_order_count: dict[str, dict[str, int]] = {}
+        segment_quantity: dict[str, dict[str, int]] = {}
         for order in orders:
             if order.status == "cancelled":
                 continue
@@ -588,7 +587,7 @@ class RecommendationRepository:
         ids = await self.get_business_favourites_by_subcategory(days=60)
         return set(ids)
 
-    async def compute_business_favourites_for_cache(self, days: int = 60) -> Dict:
+    async def compute_business_favourites_for_cache(self, days: int = 60) -> dict:
         """Compute Business Favourites (top 1 per subcategory by quantity+frequency, wholesaler orders, 60d) for the job."""
         ids = await self.get_business_favourites_by_subcategory(days=days)
         return {
@@ -602,7 +601,7 @@ class RecommendationRepository:
         days: int = 60,
         state: Optional[str] = None,
         city: Optional[str] = None,
-    ) -> Dict:
+    ) -> dict:
         """
         Return ALL products ranked by weighted sales score (highest → lowest).
         Unlike get_customer/business_favourites_by_subcategory, this does NOT limit to
@@ -629,8 +628,8 @@ class RecommendationRepository:
         state_filter = state.strip().lower() if state and state.strip() else None
         city_filter = city.strip().lower() if city and city.strip() else None
 
-        order_count: Dict[str, int] = {}
-        quantity_map: Dict[str, int] = {}
+        order_count: dict[str, int] = {}
+        quantity_map: dict[str, int] = {}
         states_seen: set = set()
         cities_seen: set = set()
 
@@ -709,7 +708,7 @@ class RecommendationRepository:
         candidates.sort(key=lambda x: x[1] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
         return [pid for pid, _ in candidates[:limit]]
 
-    def _load_rewards(self) -> Dict:
+    def _load_rewards(self) -> dict:
         # Rewards are stored in-memory only (JSON file storage disabled).
         # try:
         #     if _REWARDS_PATH.exists():
@@ -718,7 +717,7 @@ class RecommendationRepository:
         #     logger.exception("Error loading rewards from file")
         return {"global": {s: [] for s in BANDIT_STRATEGIES}, "users": {}}
 
-    def _save_rewards(self, data: 'Dict') -> None:
+    def _save_rewards(self, data: 'dict') -> None:
         # Rewards file write disabled — Oracle is the only supported backend.
         # _REWARDS_PATH.parent.mkdir(parents=True, exist_ok=True)
         # _REWARDS_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -750,8 +749,8 @@ class RecommendationRepository:
             self._save_rewards(data)
 
     def _average_rewards(
-        self, rewards_by_strategy: Dict[str, List[float]], strategies: Optional[List[str]] = None
-    ) -> Dict[str, float]:
+        self, rewards_by_strategy: dict[str, List[float]], strategies: Optional[List[str]] = None
+    ) -> dict[str, float]:
         """Compute average reward per strategy (arm). If strategies given, only those."""
         strategies = strategies or BANDIT_STRATEGIES
         out = {}
@@ -761,7 +760,7 @@ class RecommendationRepository:
         return out
 
     def _total_personal_rewards(
-        self, rewards_by_strategy: Dict[str, List[float]], strategies: Optional[List[str]] = None
+        self, rewards_by_strategy: dict[str, List[float]], strategies: Optional[List[str]] = None
     ) -> int:
         strategies = strategies or BANDIT_STRATEGIES
         return sum(len(rewards_by_strategy[s] if s in rewards_by_strategy else []) for s in strategies)
@@ -814,7 +813,7 @@ class RecommendationRepository:
             "orderNumber_prefix": "ORDER-WH-",
             "startDate": cutoff.isoformat(),
         })
-        product_counts: Dict[str, int] = {}
+        product_counts: dict[str, int] = {}
         for order in orders:
             if order.user not in wholesaler_ids:
                 continue
@@ -829,7 +828,7 @@ class RecommendationRepository:
         """Top products bought by same user in last `days` days (for wholesaler 'your favourites')."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         orders = await self.order_storage.findAll({"user": user_id, "startDate": cutoff.isoformat()})
-        product_counts: Dict[str, int] = {}
+        product_counts: dict[str, int] = {}
         for order in orders:
             for item in (order.items if order.items is not None else []):
                 pid = item.product or item.product_id
@@ -922,7 +921,7 @@ class RecommendationRepository:
         return recommended_product_ids[:limit]
 
 
-    async def _get_engagement_scores(self, product_ids: List[str]) -> Dict[str, float]:
+    async def _get_engagement_scores(self, product_ids: List[str]) -> dict[str, float]:
         """
         Score each product by recommendation engagement in the last N days:
         product_view counts as 1, add_to_cart as 3 (configurable).
@@ -935,7 +934,7 @@ class RecommendationRepository:
         weights = config.engagement_weights
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         pid_set = set(product_ids)
-        scores: Dict[str, float] = {pid: 0.0 for pid in product_ids}
+        scores: dict[str, float] = {pid: 0.0 for pid in product_ids}
 
         try:
             pv_docs, atc_docs = await asyncio.gather(
@@ -1134,7 +1133,7 @@ class RecommendationRepository:
             scored = sorted([(_b["_id"], (_b["salesCount"] if "salesCount" in _b else 0) or 0) for _b in bundle_items if (_b["_id"] if "_id" in _b else None) and _b["_id"] not in exclude_set and ((_b["subCategory"] if "subCategory" in _b else None) or (_b["category"] if "category" in _b else None)) in neglected_set], key=lambda x: x[1], reverse=True)
             return [bid for bid, _ in scored]
 
-        def to_products(ids: list[str]) -> list[dict]:
+        def to_products(ids: list[str]) -> list['SkinnyProductResponse']:
             out = []
             for pid in ids:
                 p = product_map[pid] if pid in product_map else None
@@ -1145,7 +1144,7 @@ class RecommendationRepository:
                     out.append(skinny_p)
             return out
 
-        def to_products_city_only(ids: list) -> list:
+        def to_products_city_only(ids: list) -> list['SkinnyProductResponse']:
             """
             Like to_products but WITHOUT zone filtering.
             Used for Customer Favourites and Business Favourites on the Wholesaler
