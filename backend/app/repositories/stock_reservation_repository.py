@@ -71,7 +71,7 @@ class StockReservationRepository:
 
         return active_res
 
-    async def reserve_stock(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> dict:
+    async def reserve_stock(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> 'StockReservationInternal':
         """Creates or updates a reservation for a product and user."""
         await self.ensure_table_exists()
 
@@ -146,7 +146,7 @@ class StockReservationRepository:
         if expired_count > 0:
             logger.info("Cleaned up %d expired stock reservations", expired_count)
 
-    async def reserve_stock_checked(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> dict:
+    async def reserve_stock_checked(self, product_id: str, user_id: str, quantity: int, ttl_minutes: int) -> 'StockReservationInternal':
         from datetime import datetime, timedelta, timezone
         from sqlalchemy import text
         from app.config.database import get_async_session_factory
