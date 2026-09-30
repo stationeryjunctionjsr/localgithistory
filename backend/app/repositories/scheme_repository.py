@@ -9,18 +9,18 @@ class SchemeRepository:
     def __init__(self):
         self.storage = get_storage("schemes")
 
-    async def findAll(self, query: Optional[dict] = None) -> List[SchemeInternal]:
-        return await self.storage.findAll(query or {})
+    async def findAll(self, **kwargs) -> List[SchemeInternal]:
+        return await self.storage.findAll(kwargs)
 
     async def findById(self, id: str) -> Optional[SchemeInternal]:
         return await self.storage.findById(id)
 
     async def findActiveForBusiness(self) -> List[SchemeInternal]:
         """Return active schemes targeted at business/wholesaler users."""
-        return await self.storage.findAll({"isActive": True})
+        return await self.storage.findAll({"is_active": True})
 
-    async def findOne(self, query: dict) -> Optional[SchemeInternal]:
-        return await self.storage.findOne(query)
+    async def findOne(self, **kwargs) -> Optional[SchemeInternal]:
+        return await self.storage.findOne(kwargs)
 
 
 scheme_repository = SchemeRepository()

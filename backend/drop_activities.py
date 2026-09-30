@@ -10,5 +10,6 @@ async def run():
         await session.execute(text("DROP TABLE IF EXISTS sj_activities;"))
         print("Dropped sj_activities")
         await session.commit()
+        print("Done.")
 
 asyncio.run(run())

@@ -17,19 +17,22 @@ class SellerRequestRepository:
     def generateRequestNumber(self) -> str:
         return f"SRQ-{int(datetime.now(timezone.utc).timestamp() * 1000)}-{secrets.token_hex(4).upper()}"
 
-    async def findAll(self, query: Optional[dict] = None):
-        query = query or {}
+    async def findAll(self, user: Optional[str] = None, status: Optional[str] = None, priority: Optional[str] = None, category: Optional[str] = None, subject: Optional[str] = None, request_number: Optional[str] = None):
         # Push supported filters to storage to avoid a full-table scan.
-        storage_query = {k: v for k, v in query.items() if k in ("user", "status", "priority")}
+        storage_query = {}
+        if user: storage_query["user"] = user
+        if status: storage_query["status"] = status
+        if priority: storage_query["priority"] = priority
+        
         requests = await self.storage.findAll(storage_query or None)
 
         # Python-side filter for any remaining keys not yet pushed to storage
-        if "category" in query and "category" not in storage_query:
-            requests = [r for r in requests if r.category == query["category"]]
-        if "subject" in query and "subject" not in storage_query:
-            requests = [r for r in requests if r.subject == query["subject"]]
-        if "requestNumber" in query and "requestNumber" not in storage_query:
-            requests = [r for r in requests if r.requestNumber == query["requestNumber"]]
+        if category:
+            requests = [r for r in requests if r.category == category]
+        if subject:
+            requests = [r for r in requests if r.subject == subject]
+        if request_number:
+            requests = [r for r in requests if r.request_number == request_number]
 
         # Sort by creation date (newest first)
         requests.sort(key=lambda x: x.created_at if x.created_at else "", reverse=True)
