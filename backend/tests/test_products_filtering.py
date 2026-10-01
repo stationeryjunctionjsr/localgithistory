@@ -39,7 +39,7 @@ async def test_products_fuzzy_search_typo_tolerance(client):
 
     # 1. Create a product with a distinct name
     product = await product_repository.create(
-        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "SuperFuzzyWidget", "mrp": 100.0, "category": "Gadgets", "stock": 10, "isActive": True}})
+        ProductInternalCreate(name="SuperFuzzyWidget", mrp=100.0, price=100.0, category="Gadgets", stock=10)
     )
     product_id = product.id if hasattr(product, "id") else product["_id"]
 

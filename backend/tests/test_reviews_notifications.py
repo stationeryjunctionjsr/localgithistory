@@ -38,7 +38,7 @@ async def cleanup_db():
 async def test_notify_me_registration_guest(client: AsyncClient):
     # 1. Create a test product with stock = 0
     product = await product_repository.create(
-        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Guest Out of Stock Pen", "mrp": 10.0, "category": "Stationery", "stock": 0}})
+        ProductInternalCreate(name="Guest Out of Stock Pen", mrp=10.0, price=10.0, category="Stationery", stock=0)
     )
     product_id = product.id if hasattr(product, "id") else product["_id"]
 
@@ -75,7 +75,7 @@ async def test_notify_me_registration_guest(client: AsyncClient):
 async def test_notify_me_registration_auth(client: AsyncClient, user_auth):
     # 1. Create a test product with stock = 0
     product = await product_repository.create(
-        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Auth Out of Stock Pen", "mrp": 12.0, "category": "Stationery", "stock": 0}})
+        ProductInternalCreate(name="Auth Out of Stock Pen", mrp=12.0, price=12.0, category="Stationery", stock=0)
     )
     product_id = product.id if hasattr(product, "id") else product["_id"]
 
@@ -98,7 +98,7 @@ async def test_notify_me_registration_auth(client: AsyncClient, user_auth):
 async def test_reviews_submission_validation(client: AsyncClient, user_auth):
     # 1. Create test product
     product = await product_repository.create(
-        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Reviewable Notepad", "mrp": 25.0, "category": "Stationery", "stock": 10}})
+        ProductInternalCreate(name="Reviewable Notepad", mrp=25.0, price=25.0, category="Stationery", stock=10)
     )
     product_id = product.id if hasattr(product, "id") else product["_id"]
 

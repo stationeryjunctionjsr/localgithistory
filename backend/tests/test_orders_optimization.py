@@ -73,7 +73,7 @@ async def test_orders_optimization_logic():
     )
 
     product = await product_repository.create(
-        ProductInternalCreate(name="TEST_ORDER_OPT_Product", sku=f"SKU-{uuid.uuid4()}", mrp=100.0, price=100.0, category="Stationery", isActive=True, isApproved=True)
+        ProductInternalCreate(name="TEST_ORDER_OPT_Product", sku=f"SKU-{uuid.uuid4()}", mrp=100.0, price=100.0, category="Stationery")
     )
 
     # 2. Create order
@@ -137,7 +137,7 @@ async def test_orders_pagination_and_counting_logic():
     )
 
     product = await product_repository.create(
-        ProductInternalCreate(name="TEST_ORDER_OPT_Product", sku=f"SKU-{uuid.uuid4()}", mrp=100.0, price=100.0, category="Stationery", isActive=True, isApproved=True)
+        ProductInternalCreate(name="TEST_ORDER_OPT_Product", sku=f"SKU-{uuid.uuid4()}", mrp=100.0, price=100.0, category="Stationery")
     )
 
     # 2. Create 3 test orders with unique notes and payment methods

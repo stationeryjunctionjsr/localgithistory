@@ -20,20 +20,19 @@ async def test_shipping_discount_payment_method_and_capping():
 
     # 2. Create a shipping discount coupon: 50% off shipping, UPI payment only
     ship_coupon = await coupon_repository.create(
-        CouponInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
-            "typeOfDiscount": "shipping_discount",
-            "method": "discount_code",
-            "code": "SHIPUPI50",
-            "isActive": True,
-            "validFrom": "2026-01-01T00:00:00",
-            "validUntil": "2026-12-31T23:59:59",
-            "applicableRoles": ["customer"],
-            "discountType": "percentage",
-            "discountValue": 50.0,
-            "applicablePaymentMethods": ["upi"],
-            "appliesToType": "all",
-            "force": True,
-        }})
+        CouponInternalCreate(
+            type_of_discount="shipping_discount",
+            method="discount_code",
+            code="SHIPUPI50",
+            is_active=True,
+            valid_from="2026-01-01T00:00:00",
+            valid_until="2026-12-31T23:59:59",
+            applicable_roles=["customer"],
+            discount_type="percentage",
+            discount_value=50.0,
+            applicable_payment_methods=["upi"],
+            applies_to_type="all",
+        )
     )
 
     # 3. Create a fixed shipping discount coupon: Rs. 100 off shipping, UPI payment only
