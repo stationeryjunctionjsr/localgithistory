@@ -1,3 +1,11 @@
+try:
+    from app.models.daos import ProductInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos_flat import ProductInternalCreate
+except ImportError:
+    pass
 import pytest
 import uuid
 import asyncio
@@ -31,7 +39,7 @@ async def test_products_fuzzy_search_typo_tolerance(client):
 
     # 1. Create a product with a distinct name
     product = await product_repository.create(
-        {"name": "SuperFuzzyWidget", "mrp": 100.0, "category": "Gadgets", "stock": 10, "isActive": True}
+        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "SuperFuzzyWidget", "mrp": 100.0, "category": "Gadgets", "stock": 10, "isActive": True}})
     )
     product_id = product.id if hasattr(product, "id") else product["_id"]
 

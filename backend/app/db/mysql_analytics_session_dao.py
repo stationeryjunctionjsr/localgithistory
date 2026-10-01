@@ -18,13 +18,12 @@ class MySQLAnalyticsSessionDAO:
     async def create_session(self, session_data: AnalyticsSessionCreate) -> Optional[AnalyticsSessionResponse]:
         query = f"""
             INSERT IGNORE INTO {self.TABLE}
-            (session_id, user_id, is_returning, source, os, browser, ip_address, device_type, device_os_version, device_model, device_app_version, campaign, start_time, end_time, time_spent_seconds)
-            VALUES (:session_id, :user_id, :is_returning, :source, :os, :browser, :ip_address, :device_type, :device_os_version, :device_model, :device_app_version, :campaign, :start_time, :end_time, 0)
+            (session_id, user_id, source, os, browser, ip_address, device_type, device_os_version, device_model, device_app_version, campaign, start_time, end_time, time_spent_seconds)
+            VALUES (:session_id, :user_id, :source, :os, :browser, :ip_address, :device_type, :device_os_version, :device_model, :device_app_version, :campaign, :start_time, :end_time, 0)
         """
         params = {
             "session_id": session_data.session_id,
             "user_id": session_data.user_id,
-            "is_returning": 1 if session_data.is_returning else 0,
             "source": session_data.source,
             "os": session_data.os,
             "browser": session_data.browser,
@@ -82,7 +81,6 @@ class MySQLAnalyticsSessionDAO:
                         id=row.id,
                         session_id=row.session_id,
                         user_id=row.user_id,
-                        is_returning=bool(row.is_returning),
                         source=row.source,
                         os=row.os,
                         browser=row.browser,

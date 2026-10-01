@@ -1,3 +1,19 @@
+try:
+    from app.models.daos import ProductInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos_flat import ProductInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos import PaymentInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos_flat import PaymentInternalCreate
+except ImportError:
+    pass
 import uuid
 from app.models.order import OrderInternalCreate
 from app.models.daos import PaymentInternalCreate
@@ -57,7 +73,7 @@ async def test_orders_optimization_logic():
     )
 
     product = await product_repository.create(
-        {"name": "TEST_ORDER_OPT_Product", "sku": f"SKU-{uuid.uuid4()}", "mrp": 100.0, "category": "Stationery"}
+        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "TEST_ORDER_OPT_Product", "sku": f"SKU-{uuid.uuid4()}", "mrp": 100.0, "category": "Stationery"}})
     )
 
     # 2. Create order
@@ -81,14 +97,14 @@ async def test_orders_optimization_logic():
     )
 
     # Create associated payment
-    payment = await payment_repository.create({
+    payment = await payment_repository.create(PaymentInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
             "orderId": order.id,
             "userId": user.id,
             "customerName": "TEST_ORDER_OPT_User",
             "paymentMethod": "cod",
             "totalAmount": 200.0,
             "paymentEntries": [{"entryId": 1, "amount": 200.0, "verified": False}],
-        }
+        }})
     )
 
     # 3. Test populate_orders batch loader
@@ -121,7 +137,7 @@ async def test_orders_pagination_and_counting_logic():
     )
 
     product = await product_repository.create(
-        {"name": "TEST_ORDER_OPT_Product", "sku": f"SKU-{uuid.uuid4()}", "mrp": 100.0, "category": "Stationery"}
+        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "TEST_ORDER_OPT_Product", "sku": f"SKU-{uuid.uuid4()}", "mrp": 100.0, "category": "Stationery"}})
     )
 
     # 2. Create 3 test orders with unique notes and payment methods

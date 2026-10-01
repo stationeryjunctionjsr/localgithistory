@@ -73,5 +73,3 @@ async def test_category_optimizations():
 
 
 
-
-

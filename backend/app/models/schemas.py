@@ -1766,7 +1766,6 @@ class AnalyticsSessionCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
     session_id: str
     user_id: Optional[str] = None
-    is_returning: Optional[bool] = False
     source: Optional[str] = None
     os: Optional[str] = None
     browser: Optional[str] = None

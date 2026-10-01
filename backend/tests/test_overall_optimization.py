@@ -1,3 +1,19 @@
+try:
+    from app.models.daos import ProductInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos_flat import ProductInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos import UserInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos_flat import UserInternalCreate
+except ImportError:
+    pass
 import pytest
 from httpx import AsyncClient
 from app.repositories.product_repository import product_repository
@@ -87,11 +103,11 @@ async def test_oracle_doc_store_filtering():
 async def test_wishlist_and_cart_bulk_populating(client):
     # 1. Create a test user and product
     user = await user_repository.create(
-        {"name": "TEST_GEN_OPT_User", "email": "gen_opt_user@test.com", "password": "Password123", "role": "customer"}
+        UserInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "TEST_GEN_OPT_User", "email": "gen_opt_user@test.com", "password": "Password123", "role": "customer"}})
     )
 
     product = await product_repository.create(
-        {"name": "TEST_GEN_OPT_Product", "sku": "SKU-GEN-OPT", "mrp": 150.0, "category": "Stationery"}
+        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "TEST_GEN_OPT_Product", "sku": "SKU-GEN-OPT", "mrp": 150.0, "category": "Stationery"}})
     )
 
     # Add to wishlist

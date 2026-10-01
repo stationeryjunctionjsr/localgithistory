@@ -1,3 +1,11 @@
+try:
+    from app.models.daos import CouponInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos_flat import CouponInternalCreate
+except ImportError:
+    pass
 import pytest
 from app.repositories.product_repository import product_repository
 from app.repositories.coupon_repository import coupon_repository
@@ -12,7 +20,7 @@ async def test_shipping_discount_payment_method_and_capping():
 
     # 2. Create a shipping discount coupon: 50% off shipping, UPI payment only
     ship_coupon = await coupon_repository.create(
-        {
+        CouponInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
             "typeOfDiscount": "shipping_discount",
             "method": "discount_code",
             "code": "SHIPUPI50",
@@ -25,7 +33,7 @@ async def test_shipping_discount_payment_method_and_capping():
             "applicablePaymentMethods": ["upi"],
             "appliesToType": "all",
             "force": True,
-        }
+        }})
     )
 
     # 3. Create a fixed shipping discount coupon: Rs. 100 off shipping, UPI payment only
@@ -34,7 +42,7 @@ async def test_shipping_discount_payment_method_and_capping():
         await coupon_repository.storage.delete(existing_fixed["_id"])
 
     fixed_coupon = await coupon_repository.create(
-        {
+        CouponInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
             "typeOfDiscount": "shipping_discount",
             "method": "discount_code",
             "code": "SHIPFIXED100",
@@ -47,7 +55,7 @@ async def test_shipping_discount_payment_method_and_capping():
             "applicablePaymentMethods": ["upi"],
             "appliesToType": "all",
             "force": True,
-        }
+        }})
     )
 
     mock_address = {

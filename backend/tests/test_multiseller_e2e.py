@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 import uuid
 import logging
 from httpx import AsyncClient, ASGITransport
@@ -122,7 +122,6 @@ async def test_multiseller_suborder_split():
         shipping1 = sub_orders[0].shipping
         shipping2 = sub_orders[1].shipping
         assert shipping1 == 0.0 and shipping2 == 0.0, "Sub-orders should not carry delivery charges!"
-
 
 
 

@@ -66,5 +66,3 @@ async def test_category_crud_workflow(client: AsyncClient):
     assert response.status_code == 200
 
 
-
-

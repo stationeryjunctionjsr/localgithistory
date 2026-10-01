@@ -1,3 +1,19 @@
+try:
+    from app.models.daos import ProductInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos_flat import ProductInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos import BundleInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos_flat import BundleInternalCreate
+except ImportError:
+    pass
 import pytest
 from httpx import AsyncClient
 from app.repositories.product_repository import product_repository
@@ -9,11 +25,11 @@ from app.repositories.cart_repository import cart_repository
 async def test_bundle_product_recommendations(client: AsyncClient, user_auth: dict):
     # 1. Create test products
     p1 = await product_repository.create(
-        {"name": "Test Pen", "mrp": 10.0, "price": 8.0, "stock": 100, "isActive": True, "category": "Stationery"}
+        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Test Pen", "mrp": 10.0, "price": 8.0, "stock": 100, "isActive": True, "category": "Stationery"}})
     )
 
     p2 = await product_repository.create(
-        {"name": "Test Notebook", "mrp": 50.0, "price": 40.0, "stock": 100, "isActive": True, "category": "Stationery"}
+        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Test Notebook", "mrp": 50.0, "price": 40.0, "stock": 100, "isActive": True, "category": "Stationery"}})
     )
 
     pid1 = p1.id
@@ -21,23 +37,23 @@ async def test_bundle_product_recommendations(client: AsyncClient, user_auth: di
 
     # 2. Create active bundles with different salesCount values
     b1 = await bundle_repository.create(
-        {
+        BundleInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
             "name": "Low Volume Bundle",
             "price": 50.0,
             "isActive": True,
             "products": [{"productId": pid1, "quantity": 1}, {"productId": pid2, "quantity": 1}],
             "salesCount": 5,
-        }
+        }})
     )
 
     b2 = await bundle_repository.create(
-        {
+        BundleInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
             "name": "High Volume Bundle",
             "price": 45.0,
             "isActive": True,
             "products": [{"productId": pid1, "quantity": 2}],
             "salesCount": 20,
-        }
+        }})
     )
 
     # 3. Retrieve bundles containing pid1 and assert descending sort by salesCount
@@ -68,18 +84,18 @@ async def test_bundle_product_recommendations(client: AsyncClient, user_auth: di
 async def test_bundle_purchase_increments_sales_count(client: AsyncClient, user_auth: dict):
     # 1. Create a product and a bundle
     p = await product_repository.create(
-        {"name": "Test Item", "mrp": 20.0, "price": 15.0, "stock": 50, "isActive": True, "category": "Stationery"}
+        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Test Item", "mrp": 20.0, "price": 15.0, "stock": 50, "isActive": True, "category": "Stationery"}})
     )
     pid = p.id
 
     b = await bundle_repository.create(
-        {
+        BundleInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
             "name": "Test Order Bundle",
             "price": 12.0,
             "isActive": True,
             "products": [{"productId": pid, "quantity": 1}],
             "salesCount": 10,
-        }
+        }})
     )
     bid = b.id
 

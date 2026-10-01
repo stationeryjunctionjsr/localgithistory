@@ -1,3 +1,11 @@
+try:
+    from app.models.daos import OrderInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos_flat import OrderInternalCreate
+except ImportError:
+    pass
 import pytest
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -46,7 +54,7 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
 
         # Create corresponding order record via repository to generate IDs & number correctly
         order = await order_repository.create(
-            {
+            OrderInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
                 "user": user.id,
                 "userRole": "wholesaler",
                 "subtotal": 500.0,
@@ -55,7 +63,7 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
                 "paymentMethod": "credit",
                 "status": "processing",
                 "createdAt": order_date.isoformat().replace("+00:00", "Z"),
-            }
+            }})
         )
 
         payment_data = {

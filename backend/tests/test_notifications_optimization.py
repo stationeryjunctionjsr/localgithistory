@@ -1,3 +1,11 @@
+try:
+    from app.models.daos import NotificationInternalCreate
+except ImportError:
+    pass
+try:
+    from app.models.daos_flat import NotificationInternalCreate
+except ImportError:
+    pass
 import pytest
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -22,17 +30,17 @@ async def cleanup_notifications():
 async def test_notification_optimizations():
     # 1. Create a set of test notifications with distinct attributes
     n1 = await notification_repository.create(
-        {"title": f"{PREFIX}1", "message": "Message 1", "userId": "user_opt_A", "type": "new_order"}
+        NotificationInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"title": f"{PREFIX}1", "message": "Message 1", "userId": "user_opt_A", "type": "new_order"}})
     )
     n2 = await notification_repository.create(
-        {"title": f"{PREFIX}2", "message": "Message 2", "userId": "user_opt_A", "type": "low_stock"}
+        NotificationInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"title": f"{PREFIX}2", "message": "Message 2", "userId": "user_opt_A", "type": "low_stock"}})
     )
     n3 = await notification_repository.create(
-        {"title": f"{PREFIX}3", "message": "Message 3", "userId": "user_opt_B", "type": "new_order"}
+        NotificationInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"title": f"{PREFIX}3", "message": "Message 3", "userId": "user_opt_B", "type": "new_order"}})
     )
 
     # Initially all should be unread and unacknowledged
-    assert n1["isRead"] is False
+    assert n1.is_read is False
     assert n1["isAcknowledged"] is False
     assert n2["isRead"] is False
     assert n3["isRead"] is False

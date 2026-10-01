@@ -267,8 +267,7 @@ async def record_event(
         p_source = payload_obj.source if payload_obj.source is not None else (final_source or "mobile_app")
 
         if event_type == "session_start":
-            is_returning = bool(payload_obj.returning) if payload_obj.returning is not None else False
-            tracking_obj = await tracking_repository.trackSession(user_id, session_id, is_returning, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=final_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version, page=page)
+            tracking_obj = await tracking_repository.trackSession(user_id, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=final_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version, page=page)
         elif event_type == "page_view":
             tracking_obj = await tracking_repository.trackPageView(user_id, page, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=final_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version)
         elif event_type == "product_view":
