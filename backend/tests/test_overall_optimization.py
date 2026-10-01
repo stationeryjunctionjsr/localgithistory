@@ -71,13 +71,13 @@ async def test_oracle_doc_store_filtering():
 
     # Create dummy reservations
     r1 = await store.create(
-        {
-            "productId": "9991",
-            "userId": "TEST_GEN_OPT_USER_ID",
-            "quantity": 5,
-            "status": "active",
-            "expiresAt": "2026-06-04 12:00:00",
-        }
+        __import__("app").models.daos.StockReservationsInternalCreate(
+            product_id="9991",
+            user_id="TEST_GEN_OPT_USER_ID",
+            quantity=5,
+            status="active",
+            expires_at="2026-06-04 12:00:00",
+        )
     )
     r2 = await store.create(
         {
@@ -92,11 +92,11 @@ async def test_oracle_doc_store_filtering():
     # Query with filter
     active_res = await store.findAll({"userId": "TEST_GEN_OPT_USER_ID", "status": "active"})
     assert len(active_res) == 1
-    assert active_res[0]["productId"] == "9991"
+    assert active_res[0].product_id == "9991"
 
     # Clean up
-    await store.delete(r1["_id"])
-    await store.delete(r2["_id"])
+    await store.delete(r1.id)
+    await store.delete(r2.id)
 
 
 @pytest.mark.asyncio
