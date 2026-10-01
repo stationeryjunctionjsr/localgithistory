@@ -202,7 +202,7 @@ class FlatRelationalDAO:
     async def create(self, data: Dict) -> Dict:
         factory = self._factory()
         if not factory:
-            raise RuntimeError("Oracle not configured")
+            raise RuntimeError("MySQL not configured")
         now = now_utc()
         params = self._doc_to_params(data, now)
         skip = {"id"}
@@ -222,14 +222,18 @@ class FlatRelationalDAO:
                 bind_params,
             )
             await session.commit()
-            new_id = None
-            if self.has_external_id:
-                result = await session.execute(
-                    text(f"SELECT id FROM {self.table_name} WHERE external_id = :eid"),
-                    {"eid": params["external_id"]},
-                )
-                row = result.fetchone()
-                new_id = row[0] if row else None
+
+        if not self.has_external_id:
+            raise RuntimeError("Cannot retrieve new row id without external_id")
+
+        # Open a fresh session after commit to fetch the new row id
+        async with factory() as session:
+            result = await session.execute(
+                text(f"SELECT id FROM {self.table_name} WHERE external_id = :eid"),
+                {"eid": bind_params["external_id"]},
+            )
+            row = result.fetchone()
+        new_id = row[0] if row else None
         if new_id is None:
             raise RuntimeError("Could not obtain new row id after insert")
         return await self.findById(str(new_id))

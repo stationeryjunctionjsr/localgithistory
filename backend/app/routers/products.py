@@ -295,8 +295,8 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                         brand=product_data.brand,
                         mrp=product_data.mrp,
                         price=product_data.mrp or 0.0,
-                        mrp_per_case=product_data.mrp_per_case if hasattr(product_data, 'mrp_per_case') else None,
-                        items_per_case=product_data.quantity_per_case if hasattr(product_data, 'quantity_per_case') else None,
+                        mrp_per_case=product_data.mrp_per_case,
+                        items_per_case=product_data.quantity_per_case,
                         images=product_data.images or [],
                         is_active=product_data.is_active
                     )
@@ -1034,8 +1034,8 @@ async def create_product(product_data: ProductCreate, current_user: User = Depen
             brand=product_data.brand,
             mrp=product_data.mrp,
             price=product_data.mrp or 0.0,
-            mrp_per_case=product_data.mrp_per_case if hasattr(product_data, 'mrp_per_case') else None,
-            items_per_case=product_data.quantity_per_case if hasattr(product_data, 'quantity_per_case') else None,
+            mrp_per_case=product_data.mrp_per_case,
+            items_per_case=product_data.quantity_per_case,
             images=product_data.images or [],
             is_active=product_data.is_active
         )

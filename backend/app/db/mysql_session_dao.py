@@ -202,7 +202,7 @@ class MySQLSessionDAO:
         return await self.findById(id)
 
     async def touch(self, session_id: str, device: dict = None) -> None:
-        """Lightweight session touch — single UPDATE with SQL-level debounce. Fire-and-forget."""
+        """Lightweight session touch — single UPDATE with SQL-level 60s debounce. Fire-and-forget."""
         factory = self._factory()
         if not factory:
             return
@@ -210,39 +210,24 @@ class MySQLSessionDAO:
         if not sid:
             return
         now = now_utc()
-        # Only update if the session hasn't been touched in the last 60 seconds
-        import datetime
-        throttle_time = now - datetime.timedelta(seconds=60)
-        
+        from datetime import timedelta
+        throttle_time = now - timedelta(seconds=60)
         try:
             async with factory() as session:
-                if device:
-                    await session.execute(
-                        text(
-                            f"""
-                            UPDATE {self.TABLE}
-                            SET last_active_at = :now, updated_at = :now
-                            WHERE id = :id AND status = 'active'
-                              AND (last_active_at IS NULL OR last_active_at < :throttle)
-                            """
-                        ),
-                        {"now": now, "id": sid, "throttle": throttle_time},
-                    )
-                else:
-                    await session.execute(
-                        text(
-                            f"""
-                            UPDATE {self.TABLE}
-                            SET last_active_at = :now, updated_at = :now
-                            WHERE id = :id AND status = 'active'
-                              AND (last_active_at IS NULL OR last_active_at < :throttle)
-                            """
-                        ),
-                        {"now": now, "id": sid, "throttle": throttle_time},
-                    )
+                await session.execute(
+                    text(
+                        f"""
+                        UPDATE {self.TABLE}
+                        SET last_active_at = :now, updated_at = :now
+                        WHERE id = :id AND status = 'active'
+                          AND (last_active_at IS NULL OR last_active_at < :throttle)
+                        """
+                    ),
+                    {"now": now, "id": sid, "throttle": throttle_time},
+                )
                 await session.commit()
         except Exception as e:
-            logging.warning("mysql_session_dao.touch: failed to update last_active_at for session %s: %s", sid, e, exc_info=e)
+            logging.warning("mysql_session_dao.touch: failed for session %s: %s", sid, e, exc_info=e)
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
