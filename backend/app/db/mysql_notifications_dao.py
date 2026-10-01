@@ -136,7 +136,7 @@ class MySQLNotificationsDAO:
         params = {"id": id, "u": now_utc()}
 
         if data.user_id is not None:
-            updates.append("user_id = :s_userId")
+            updates.append("user_id = :s_user_id")
             params["s_user_id"] = data.user_id
 
         if data.type is not None:
