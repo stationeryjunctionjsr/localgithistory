@@ -1,6 +1,6 @@
 from typing import List
 from app.models.schemas import MessageResponse
-from typing import Optional
+from typing import Optional, Dict
 
 from fastapi import APIRouter, Query
 

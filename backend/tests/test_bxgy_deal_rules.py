@@ -28,10 +28,10 @@ async def test_bxgy_deal_sorting_and_allocation():
 
     # Products
     p1 = await product_repository.create(
-        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Expensive BXGY Item", "category": "Test BXGY", "mrp": 1000.0, "sku": "SKU-BXGY-1", "isActive": True}})
+        ProductInternalCreate(name="Expensive BXGY Item", category="Test BXGY", mrp=1000.0, price=1000.0, sku="SKU-BXGY-1", isActive=True)
     )
     p2 = await product_repository.create(
-        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Cheap BXGY Item", "category": "Test BXGY", "mrp": 200.0, "sku": "SKU-BXGY-2", "isActive": True}})
+        ProductInternalCreate(name="Cheap BXGY Item", category="Test BXGY", mrp=200.0, price=200.0, sku="SKU-BXGY-2", isActive=True)
     )
 
     # BXGY Deal: Buy 2 get 1 Free

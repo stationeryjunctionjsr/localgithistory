@@ -25,11 +25,11 @@ from app.repositories.cart_repository import cart_repository
 async def test_bundle_product_recommendations(client: AsyncClient, user_auth: dict):
     # 1. Create test products
     p1 = await product_repository.create(
-        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Test Pen", "mrp": 10.0, "price": 8.0, "stock": 100, "isActive": True, "category": "Stationery"}})
+        ProductInternalCreate(name="Test Pen", mrp=10.0, price=8.0, stock=100, isActive=True, category="Stationery")
     )
 
     p2 = await product_repository.create(
-        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Test Notebook", "mrp": 50.0, "price": 40.0, "stock": 100, "isActive": True, "category": "Stationery"}})
+        ProductInternalCreate(name="Test Notebook", mrp=50.0, price=40.0, stock=100, isActive=True, category="Stationery")
     )
 
     pid1 = p1.id
@@ -84,7 +84,7 @@ async def test_bundle_product_recommendations(client: AsyncClient, user_auth: di
 async def test_bundle_purchase_increments_sales_count(client: AsyncClient, user_auth: dict):
     # 1. Create a product and a bundle
     p = await product_repository.create(
-        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "Test Item", "mrp": 20.0, "price": 15.0, "stock": 50, "isActive": True, "category": "Stationery"}})
+        ProductInternalCreate(name="Test Item", mrp=20.0, price=15.0, stock=50, isActive=True, category="Stationery")
     )
     pid = p.id
 

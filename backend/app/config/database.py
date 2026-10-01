@@ -53,7 +53,7 @@ def get_async_engine():
             max_overflow=10,
             pool_timeout=30,
             pool_recycle=1800,
-            pool_pre_ping=True,
+            pool_pre_ping=False,
             echo=(os.environ.get("SQL_ECHO", "")).lower() in ("1", "true"),
             connect_args=connect_args,
         )
@@ -68,7 +68,7 @@ def get_async_engine():
             max_overflow=max_overflow,
             pool_timeout=30,
             pool_recycle=1800,
-            pool_pre_ping=True,
+            pool_pre_ping=False,
             echo=(os.environ.get("SQL_ECHO", "")).lower() in ("1", "true"),
             connect_args=connect_args,
         )
