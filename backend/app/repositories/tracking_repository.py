@@ -202,6 +202,7 @@ class TrackingRepository:
 
     async def trackSession(
         self, user_id: Optional[str], session_id: str,
+        auth_session_id: Optional[str] = None,
         source: Optional[str] = None, page: Optional[str] = None, os: Optional[str] = None, browser: Optional[str] = None,
         ip_address: Optional[str] = None, campaign: Optional[str] = None, device_type: Optional[str] = None,
         device_os_version: Optional[str] = None, device_model: Optional[str] = None, device_app_version: Optional[str] = None
@@ -210,6 +211,7 @@ class TrackingRepository:
             AnalyticsSessionCreate(
                 session_id=session_id,
                 user_id=user_id,
+                auth_session_id=auth_session_id,
                 source=source,
                 os=os,
                 browser=browser,
