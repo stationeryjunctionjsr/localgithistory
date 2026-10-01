@@ -47,18 +47,23 @@ def get_async_engine():
     import sys
 
     if "pytest" in sys.modules:
+        # pool_pre_ping is intentionally OFF for tests.
+        # AsyncAdapt_aiomysql_connection.ping() is not compatible with the way
+        # pytest-asyncio manages the event loop, causing test failures.
+        # Tests use short-lived connections — pre-ping is not needed.
         _async_engine = create_async_engine(
             DATABASE_URL,
             pool_size=5,
             max_overflow=10,
             pool_timeout=30,
             pool_recycle=1800,
-            pool_pre_ping=True,
             echo=(os.environ.get("SQL_ECHO", "")).lower() in ("1", "true"),
             connect_args=connect_args,
         )
     else:
         # Use QueuePool for connection pooling in a long-running FastAPI app.
+        # pool_pre_ping=True protects against stale connections after DB restart
+        # or long idle periods (safe for the production async loop).
         pool_size = int(os.getenv("DB_POOL_SIZE", 5))
         max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 2))
 
@@ -73,6 +78,7 @@ def get_async_engine():
             connect_args=connect_args,
         )
     return _async_engine
+
 
 def get_async_session_factory():
     global _async_session_factory
@@ -104,5 +110,3 @@ async def get_session():
         finally:
             await session.close()
 
-use_oracle = False
-is_oracle = False
