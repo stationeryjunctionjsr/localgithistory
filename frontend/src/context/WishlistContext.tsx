@@ -1,5 +1,24 @@
 'use client';
 
+// ── New thin hook — reads from Zustand store instead of React context ─────────
+// Consumer components continue to call useWishlist() with no changes needed.
+import { useWishlistStore } from '@/store/wishlistStore';
+
+export const useWishlist = () => {
+  const items             = useWishlistStore((s) => s.items);
+  const loading           = useWishlistStore((s) => s.loading);
+  const addToWishlist     = useWishlistStore((s) => s.addToWishlist);
+  const removeFromWishlist = useWishlistStore((s) => s.removeFromWishlist);
+  const isInWishlist      = useWishlistStore((s) => s.isInWishlist);
+  const fetchWishlist     = useWishlistStore((s) => s.fetchWishlist);
+
+  return { items, loading, addToWishlist, removeFromWishlist, isInWishlist, fetchWishlist };
+};
+
+// ── OLD React Context implementation — DEPRECATED ─────────────────────────────
+// State now lives in store/wishlistStore.ts (Zustand). Kept for reference.
+// WishlistProvider is no longer mounted in layout.tsx.
+/*
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import api from '@/utils/api';
@@ -146,10 +165,11 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
   );
 };
 
-export const useWishlist = () => {
+export const useWishlist_OLD = () => {
   const context = useContext(WishlistContext);
   if (!context) {
     throw new Error('useWishlist must be used within a WishlistProvider');
   }
   return context;
 };
+*/

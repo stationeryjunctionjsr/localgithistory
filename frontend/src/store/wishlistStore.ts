@@ -1,19 +1,19 @@
+'use client';
+
 /**
- * STANDBY — not wired into the application yet.
- *
  * Zustand-based replacement for WishlistContext. Provides the same public API
- * so migration is a drop-in swap:
+ * so migration is a drop-in swap.
  *
- *   Before:  const { items, addToWishlist } = useWishlist();
- *   After:   const items = useWishlistStore(s => s.items);
- *            const addToWishlist = useWishlistStore(s => s.addToWishlist);
+ * WishlistContext.tsx now delegates its useWishlist() hook to this store, so
+ * no consumer components need to change their imports.
  *
- * Migration steps when ready:
- *   1. Add <WishlistStoreSync /> inside <AuthProvider> in layout.tsx
- *   2. Remove <WishlistProvider> from layout.tsx
- *   3. Replace `useWishlist()` calls with selector imports from this store
+ * Migration steps applied:
+ *   1. <WishlistStoreSync /> added inside <AuthProvider> in layout.tsx
+ *   2. <WishlistProvider> commented out from layout.tsx
+ *   3. WishlistContext.tsx useWishlist() now reads from this store
  */
 
+import { useEffect } from 'react';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import api from '@/utils/api';
@@ -22,10 +22,20 @@ import {
   addGuestWishlistItem,
   removeGuestWishlistItem,
 } from '@/utils/guestStore';
-import type { WishlistItem } from '@sj/api-client';
 import { logger } from '@/utils/logger';
+import { useAuth } from '@/context/AuthContext';
 
-export type { WishlistItem };
+// Matching the WishlistItem shape from WishlistContext.tsx exactly
+export interface WishlistItem {
+  id: string;
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    images: string[];
+  };
+  addedAt: string;
+}
 
 interface WishlistState {
   items: WishlistItem[];
@@ -62,14 +72,14 @@ export const useWishlistStore = create<WishlistState>()(
           const data = response.data;
           set({ items: Array.isArray(data) ? data : data?.items || [] });
         } else {
+          // For guest users, get from unified guestStore
           const guestItems = getGuestWishlist();
-          set({
-            items: guestItems.map((g: any) => ({
-              id: g.productId,
-              product: g.product || { id: g.productId, name: '', price: 0, images: [] },
-              addedAt: new Date().toISOString(),
-            })) as WishlistItem[],
-          });
+          const mapped = guestItems.map((g: any) => ({
+            id: g.productId,
+            product: g.product || { id: g.productId, name: '', price: 0, images: [] },
+            addedAt: new Date().toISOString(),
+          }));
+          set({ items: mapped as any });
         }
       } catch (error) {
         logger.error('Error fetching wishlist:', error);
@@ -90,7 +100,9 @@ export const useWishlistStore = create<WishlistState>()(
             try {
               const res = await api.get(`/products/public/${productId}`);
               productData = res.data;
-            } catch (e) { logger.warn("Silent catch block:", e); /* keep productData undefined */ }
+            } catch (err) {
+              logger.error('Failed to fetch product for guest wishlist', err);
+            }
           }
           addGuestWishlistItem(productId, productData);
           await get().fetchWishlist();
@@ -122,9 +134,44 @@ export const useWishlistStore = create<WishlistState>()(
 );
 
 /**
- * STANDBY — Drop this inside <AuthProvider> in layout.tsx when activating.
- * Bridges AuthContext user changes → wishlistStore.setUser().
+ * Drop this inside <AuthProvider> in layout.tsx.
+ * Bridges AuthContext user → wishlistStore.setUser(), replicates the
+ * visibility polling and 'guest-data-synced' listener from WishlistContext.
  */
 export function WishlistStoreSync() {
+  const { user } = useAuth();
+
+  useEffect(() => {
+    // Bridge auth state into store (triggers fetchWishlist internally)
+    useWishlistStore.getState().setUser(user ?? null);
+
+    // guest-data-synced fires when guest localStorage is hydrated after login
+    const handleSync = () => useWishlistStore.getState().fetchWishlist();
+    window.addEventListener('guest-data-synced', handleSync);
+
+    // Sync wishlist on tab focus (instant) and every 60s when the tab is visible.
+    // Poll is paused when the tab is hidden to avoid unnecessary DB load.
+    let interval: ReturnType<typeof setInterval> | null = setInterval(
+      () => useWishlistStore.getState().fetchWishlist(),
+      60_000,
+    );
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+      } else {
+        useWishlistStore.getState().fetchWishlist(); // Immediately refresh on return
+        interval = setInterval(() => useWishlistStore.getState().fetchWishlist(), 60_000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('guest-data-synced', handleSync);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (interval) clearInterval(interval);
+    };
+  }, [user]);
+
   return null;
 }

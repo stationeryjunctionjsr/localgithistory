@@ -1,20 +1,20 @@
-﻿/**
- * STANDBY â€” not wired into the application yet.
- *
+'use client';
+
+/**
  * Zustand-based replacement for CartContext. Provides the same public API
- * (same method names, same state shape) so migration is a drop-in swap:
+ * (same method names, same state shape) so migration is a drop-in swap.
  *
- *   Before:  const { cart, addToCart } = useCart();
- *   After:   const cart = useCartStore(s => s.cart);
- *            const addToCart = useCartStore(s => s.addToCart);
+ * CartContext.tsx now delegates its useCart() hook to this store, so no
+ * consumer components need to change their imports.
  *
- * Migration steps when ready:
- *   1. Add <CartStoreSync /> inside <AuthProvider> in layout.tsx
- *      (bridges AuthContext user â†’ store's setUser)
- *   2. Remove <CartProvider> from layout.tsx
- *   3. Replace `useCart()` calls with selector imports from this store
+ * Migration steps applied:
+ *   1. <CartStoreSync /> added inside <AuthProvider> in layout.tsx
+ *      (bridges AuthContext user → store's setUser)
+ *   2. <CartProvider> commented out from layout.tsx
+ *   3. CartContext.tsx useCart() now reads from this store
  */
 
+import { useEffect } from 'react';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import api from '@/utils/api';
@@ -26,10 +26,32 @@ import {
   saveGuestCart,
 } from '@/utils/guestStore';
 import { trackBackendCartAdd } from '@/utils/analytics';
-import type { Cart, CartItem } from '@sj/api-client';
 import { logger } from '@/utils/logger';
+import { useAuth } from '@/context/AuthContext';
 
-export type { Cart, CartItem };
+// Matching the CartItem/Cart shape from CartContext.tsx exactly
+export interface CartItem {
+  id: string; // Product ID for guest, item ID for logged-in
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    mrp?: number;
+    images?: string[];
+    quantityPerCase?: number;
+    mrpPerCase?: number;
+    [key: string]: any;
+  };
+  price: number;
+  quantity: number;
+  subtotal?: number;
+  sellAsCase?: boolean;
+}
+
+export interface Cart {
+  items: CartItem[];
+  subtotal: number;
+}
 
 interface CartState {
   cart: Cart | null;
@@ -38,12 +60,12 @@ interface CartState {
   duesInfo: any;
 
   /**
-   * Auth bridge â€” set by <CartStoreSync /> component (not from AuthContext
+   * Auth bridge — set by <CartStoreSync /> component (not from AuthContext
    * directly, to keep this store free of React context dependencies).
    */
   _user: any | null;
 
-  // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Actions ──────────────────────────────────────────────────────────────
   setUser: (user: any | null) => void;
   setIsCartOpen: (open: boolean) => void;
   openCart: () => void;
@@ -108,7 +130,8 @@ export const useCartStore = create<CartState>()(
                   params: { role: 'customer' },
                 });
                 return { ...g, product: res.data };
-              } catch {
+              } catch (err) {
+                logger.error(`Failed to refresh price for product ${g.productId}`, err);
                 return g;
               }
             }),
@@ -120,12 +143,17 @@ export const useCartStore = create<CartState>()(
           );
           set({
             cart: {
-              items: refreshedItems.map((g: any) => ({
-                id: g.productId,
-                product: g.product || { id: g.productId, name: 'Product', price: 0 },
-                price: g.product?.price || 0,
-                quantity: g.quantity || 1,
-              })),
+              items: refreshedItems.map((g: any) => {
+                const itemPrice = g.product?.price || 0;
+                const itemQty = g.quantity || 1;
+                return {
+                  id: g.productId,
+                  product: g.product || { id: g.productId, name: 'Product', price: 0 },
+                  price: itemPrice,
+                  quantity: itemQty,
+                  subtotal: itemPrice * itemQty,
+                };
+              }),
               subtotal,
             },
           });
@@ -140,14 +168,14 @@ export const useCartStore = create<CartState>()(
     addToCart: async (productId, quantity, product, variantAttributes, sellAsCase) => {
       const user = get()._user;
 
-      // Optimistic update
+      // Optimistic update: add the item immediately
       if (product) {
         set((state) => {
           const existing = state.cart?.items?.find((i) => i.product?.id === productId);
           if (existing) {
             const updatedItems = state.cart!.items.map((i) =>
               i.product?.id === productId
-                ? { ...i, quantity: i.quantity + quantity }
+                ? { ...i, quantity: i.quantity + quantity, subtotal: i.price * (i.quantity + quantity) }
                 : i,
             );
             return {
@@ -160,10 +188,11 @@ export const useCartStore = create<CartState>()(
           }
           const price = product.price || product.mrp || 0;
           const newItem: CartItem = {
-            id: productId,
+            id: productId, // temporary id, will be replaced on fetchCart
             product: { id: productId, ...product },
             price,
             quantity,
+            subtotal: price * quantity,
           };
           const items = [...(state.cart?.items || []), newItem];
           return {
@@ -182,11 +211,12 @@ export const useCartStore = create<CartState>()(
           await api.post('/cart', { productId, quantity, variantAttributes, sellAsCase, sessionId });
         } else {
           addGuestCartItem(productId, quantity, product);
-          trackBackendCartAdd(productId, quantity).catch((e) => logger.warn("Background task failed", e));
+          trackBackendCartAdd(productId, quantity).catch((e) => logger.warn('Background task failed', e));
         }
         await get().fetchCart();
-        set({ isCartOpen: true });
+        set({ isCartOpen: true }); // Automatically slide open overlay
       } catch (error) {
+        logger.error('Error adding item to cart:', error);
         await get().fetchCart(); // revert optimistic update
         throw error;
       }
@@ -200,7 +230,10 @@ export const useCartStore = create<CartState>()(
         if (!state.cart?.items) return state;
         const updatedItems = state.cart.items.map((i) => {
           const id = user ? i.id : i.product?.id || i.id;
-          return id === itemId ? { ...i, quantity } : i;
+          if (id === itemId) {
+            return { ...i, quantity, subtotal: i.price * quantity };
+          }
+          return i;
         });
         return {
           cart: {
@@ -215,11 +248,12 @@ export const useCartStore = create<CartState>()(
         if (user) {
           await api.put(`/cart/${itemId}`, { quantity });
         } else {
-          updateGuestCartQty(itemId, quantity);
+          updateGuestCartQty(itemId, quantity); // For guest, itemId is productId
         }
         await get().fetchCart();
       } catch (error) {
-        await get().fetchCart();
+        logger.error('Error updating cart item quantity:', error);
+        await get().fetchCart(); // revert optimistic update
         throw error;
       }
     },
@@ -247,11 +281,12 @@ export const useCartStore = create<CartState>()(
         if (user) {
           await api.delete(`/cart/${itemId}`);
         } else {
-          removeGuestCartItem(itemId);
+          removeGuestCartItem(itemId); // For guest, itemId is productId
         }
         await get().fetchCart();
       } catch (error) {
-        await get().fetchCart();
+        logger.error('Error removing item from cart:', error);
+        await get().fetchCart(); // revert optimistic update
         throw error;
       }
     },
@@ -259,17 +294,39 @@ export const useCartStore = create<CartState>()(
 );
 
 /**
- * STANDBY â€” Drop this component inside <AuthProvider> in layout.tsx when
- * activating the store. It bridges AuthContext â†’ cartStore without coupling
- * the store itself to React context.
- *
- * Usage in layout.tsx:
- *   import { CartStoreSync } from '@/store/cartStore';
- *   // Inside <AuthProvider>:
- *   <CartStoreSync />
+ * Drop this inside <AuthProvider> in layout.tsx.
+ * Bridges AuthContext user → cartStore.setUser(), and replicates
+ * the visibility-change polling that CartContext previously owned.
  */
 export function CartStoreSync() {
-  // Will be implemented when wiring: reads useAuth() and calls useCartStore.getState().setUser()
-  // Using a useEffect that subscribes to user changes.
+  const { user } = useAuth();
+
+  useEffect(() => {
+    // Bridge auth state into store (triggers fetchCart internally)
+    useCartStore.getState().setUser(user ?? null);
+
+    // Sync cart on tab focus (instant) and every 60s when the tab is visible.
+    // Poll is paused when the tab is hidden to avoid unnecessary DB load.
+    let interval: ReturnType<typeof setInterval> | null = setInterval(
+      () => useCartStore.getState().fetchCart(),
+      60_000,
+    );
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (interval) { clearInterval(interval); interval = null; }
+      } else {
+        useCartStore.getState().fetchCart(); // Immediately refresh on return
+        interval = setInterval(() => useCartStore.getState().fetchCart(), 60_000);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (interval) clearInterval(interval);
+    };
+  }, [user]);
+
   return null;
 }

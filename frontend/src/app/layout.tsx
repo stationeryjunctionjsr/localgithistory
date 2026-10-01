@@ -5,8 +5,10 @@ import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { ThemeProvider } from '@/context/ThemeContext';
-import { WishlistProvider } from '@/context/WishlistContext';
-import { CartProvider } from '@/context/CartContext';
+// import { WishlistProvider } from '@/context/WishlistContext'; // DEPRECATED: replaced by Zustand store
+// import { CartProvider } from '@/context/CartContext';          // DEPRECATED: replaced by Zustand store
+import { CartStoreSync } from '@/store/cartStore';
+import { WishlistStoreSync } from '@/store/wishlistStore';
 import { PincodeProvider } from '@/context/PincodeContext';
 import CartOverlay from '@/components/CartOverlay';
 import PrivacyConsent from '@/components/PrivacyConsent';
@@ -135,8 +137,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <ThemeProvider>
               <FontProvider>
                 <AuthProvider>
-                  <WishlistProvider>
-                    <CartProvider>
+                  {/* Zustand store sync — bridges AuthContext user into cart/wishlist stores */}
+                  <CartStoreSync />
+                  <WishlistStoreSync />
+                  {/* <WishlistProvider> */}
+                  {/* <CartProvider> */}
                       <NotificationProvider>
                         <PincodeProvider>
                           <Suspense fallback={null}>
@@ -165,8 +170,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                         <Toaster position="top-center" />
                         </PincodeProvider>
                       </NotificationProvider>
-                    </CartProvider>
-                  </WishlistProvider>
+                  {/* </CartProvider> */}
+                  {/* </WishlistProvider> */}
                 </AuthProvider>
               </FontProvider>
             </ThemeProvider>

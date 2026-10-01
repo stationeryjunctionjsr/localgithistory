@@ -1,18 +1,7 @@
-﻿'use client';
+'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
-import api from '@/utils/api';
-import {
-  getGuestCart,
-  addGuestCartItem,
-  updateGuestCartQty,
-  removeGuestCartItem,
-  saveGuestCart,
-} from '@/utils/guestStore';
-import { trackBackendCartAdd } from '@/utils/analytics';
-import { logger } from '@/utils/logger';
-
+// ── Type exports — kept here so existing consumer imports still resolve ──────
+// (e.g. CartOverlay imports `CartItem` from '@/context/CartContext')
 export interface CartItem {
   id: string; // Product ID for guest, item ID for logged in
   product: {
@@ -27,6 +16,7 @@ export interface CartItem {
   };
   price: number;
   quantity: number;
+  subtotal?: number;
   sellAsCase?: boolean;
 }
 
@@ -34,6 +24,57 @@ export interface Cart {
   items: CartItem[];
   subtotal: number;
 }
+
+// ── New thin hook — reads from Zustand store instead of React context ─────────
+// Consumer components continue to call useCart() with no changes needed.
+import { useCartStore } from '@/store/cartStore';
+
+export const useCart = () => {
+  const cart              = useCartStore((s) => s.cart);
+  const loading           = useCartStore((s) => s.loading);
+  const isCartOpen        = useCartStore((s) => s.isCartOpen);
+  const setIsCartOpen     = useCartStore((s) => s.setIsCartOpen);
+  const openCart          = useCartStore((s) => s.openCart);
+  const closeCart         = useCartStore((s) => s.closeCart);
+  const fetchCart         = useCartStore((s) => s.fetchCart);
+  const addToCart         = useCartStore((s) => s.addToCart);
+  const updateQuantity    = useCartStore((s) => s.updateQuantity);
+  const removeFromCart    = useCartStore((s) => s.removeFromCart);
+  const duesInfo          = useCartStore((s) => s.duesInfo);
+  const fetchDuesInfo     = useCartStore((s) => s.fetchDuesInfo);
+
+  return {
+    cart,
+    loading,
+    isCartOpen,
+    setIsCartOpen,
+    openCart,
+    closeCart,
+    fetchCart,
+    addToCart,
+    updateQuantity,
+    removeFromCart,
+    duesInfo,
+    fetchDuesInfo,
+  };
+};
+
+// ── OLD React Context implementation — DEPRECATED ─────────────────────────────
+// State now lives in store/cartStore.ts (Zustand). Kept for reference.
+// CartProvider is no longer mounted in layout.tsx.
+/*
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import api from '@/utils/api';
+import {
+  getGuestCart,
+  addGuestCartItem,
+  updateGuestCartQty,
+  removeGuestCartItem,
+  saveGuestCart,
+} from '@/utils/guestStore';
+import { trackBackendCartAdd } from '@/utils/analytics';
+import { logger } from '@/utils/logger';
 
 interface CartContextType {
   cart: Cart | null;
@@ -301,10 +342,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export const useCart = () => {
+export const useCart_OLD = () => {
   const context = useContext(CartContext);
   if (!context) {
     throw new Error('useCart must be used within a CartProvider');
   }
   return context;
 };
+*/
