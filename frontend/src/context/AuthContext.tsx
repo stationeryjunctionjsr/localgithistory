@@ -14,8 +14,8 @@ interface User {
   name?: string | null;
   email?: string | null;
   phone?: string;
-  role: 'super_admin' | 'wholesaler' | 'customer' | 'valet' | 'seller_admin' | 'seller';
-  effectiveRole?: 'super_admin' | 'wholesaler' | 'customer' | 'valet' | 'seller_admin' | 'seller';
+  role: 'super_admin' | 'wholesaler' | 'customer' | 'valet' | 'seller';
+  effectiveRole?: 'super_admin' | 'wholesaler' | 'customer' | 'valet' | 'seller';
   companyName?: string;
   approvalStatus?: string;
   address?: any;

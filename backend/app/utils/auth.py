@@ -273,13 +273,8 @@ async def require_super_admin_or_valet(current_user: 'User' = Depends(get_curren
 
 
 def is_seller_admin(user: 'User') -> bool:
-    """Returns True for seller_admin role, seller role, or users with the isSellerAdmin flag.
-
-    Consistent with require_super_admin_or_seller which accepts all seller roles.
-    Previously only checked role == "seller_admin", causing sellers to bypass ownership
-    filters on some routes while being blocked by others.
-    """
-    if user.role in ("seller_admin", "seller"):
+    """Returns True for users with the seller role or the isSellerAdmin flag."""
+    if user.role == "seller":
         return True
     if user.is_seller_admin:
         return True
@@ -294,6 +289,6 @@ def require_seller_admin(user: 'User' = Depends(get_current_user)) -> 'User':
 
 def require_super_admin_or_seller(user: 'User' = Depends(get_current_user)) -> 'User':
     role = user.role
-    if role not in ("super_admin", "seller_admin", "seller"):
+    if role not in ("super_admin", "seller"):
         raise HTTPException(status_code=403, detail="Admin or Seller required")
     return user

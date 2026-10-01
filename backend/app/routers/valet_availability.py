@@ -194,7 +194,7 @@ async def get_all_availability(
             valets_map[vid] = valet
 
     # Determine seller's service area if applicable
-    is_seller = current_user.is_seller_admin or current_user.role == "seller"
+    is_seller = current_user.role == "seller" or current_user.is_seller_admin
     seller_zones = set()
     if is_seller and current_user.role != "super_admin":
         # Use serviceableZoneIds directly — sellers now declare zones, not pincodes

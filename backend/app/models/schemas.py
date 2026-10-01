@@ -13,7 +13,6 @@ class UserRole(str, Enum):
     CUSTOMER = "customer"
     VALET = "valet"
     SELLER = "seller"
-    SELLER_ADMIN = "seller_admin"
 
 
 class ReturnRequestStatus(str, Enum):
