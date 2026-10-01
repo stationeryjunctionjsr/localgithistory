@@ -1,6 +1,6 @@
 """
-Database configuration for Oracle. Uses single DATABASE_URL.
-All access is parameterized; one application user.
+Database configuration for MySQL. Uses single DATABASE_URL (mysql+aiomysql://...).
+All access is parameterised; one application user.
 """
 
 import os
@@ -53,25 +53,26 @@ def get_async_engine():
             max_overflow=10,
             pool_timeout=30,
             pool_recycle=1800,
-            echo=(os.environ["SQL_ECHO"] if "SQL_ECHO" in os.environ else "").lower() in ("1", "true"),
+            pool_pre_ping=True,
+            echo=(os.environ.get("SQL_ECHO", "")).lower() in ("1", "true"),
             connect_args=connect_args,
         )
     else:
         # Use QueuePool for connection pooling in a long-running FastAPI app.
         pool_size = int(os.getenv("DB_POOL_SIZE", 5))
         max_overflow = int(os.getenv("DB_MAX_OVERFLOW", 2))
-        
+
         _async_engine = create_async_engine(
             DATABASE_URL,
             pool_size=pool_size,
             max_overflow=max_overflow,
             pool_timeout=30,
             pool_recycle=1800,
-            echo=(os.environ["SQL_ECHO"] if "SQL_ECHO" in os.environ else "").lower() in ("1", "true"),
+            pool_pre_ping=True,
+            echo=(os.environ.get("SQL_ECHO", "")).lower() in ("1", "true"),
             connect_args=connect_args,
         )
     return _async_engine
-
 
 def get_async_session_factory():
     global _async_session_factory
@@ -89,7 +90,7 @@ def get_async_session_factory():
     return _async_session_factory
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session():
     factory = get_async_session_factory()
     if factory is None:
         raise RuntimeError("DATABASE_URL is not set")
@@ -103,10 +104,5 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         finally:
             await session.close()
 
-
-def use_oracle() -> bool:
-    return False  # Oracle commented out, force False
-
-
-def is_oracle() -> bool:
-    return False  # Oracle commented out, force False
+use_oracle = False
+is_oracle = False

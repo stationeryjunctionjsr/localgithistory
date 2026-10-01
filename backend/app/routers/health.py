@@ -54,34 +54,21 @@ async def check_health():
     from fastapi.responses import JSONResponse
     from sqlalchemy import text
 
-    from app.config.database import get_async_engine, use_oracle
+    from app.config.database import get_async_engine
 
     db_status = "ok"
 
-    if use_oracle():
-        try:
-            engine = get_async_engine()
-            if engine:
-                async with engine.connect() as conn:
-                    await conn.execute(text("SELECT 1 FROM dual"))
-            else:
-                db_status = "unconfigured"
-        except Exception:
-            logger.debug("Oracle DB health probe failed; reporting db=unreachable.", exc_info=True)
-            db_status = "unreachable"
-    else:
-        # JSON file-based storage — check that the data directory is readable
-        try:
-            from pathlib import Path
-
-            from app.utils.file_storage import DATA_DIR
-
-            data_path = Path(DATA_DIR)
-            if not data_path.exists():
-                db_status = "data_dir_missing"
-        except Exception:
-            logger.debug("File storage health probe failed; reporting db=unreachable.", exc_info=True)
-            db_status = "unreachable"
+    # MySQL reachability check
+    try:
+        engine = get_async_engine()
+        if engine:
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+        else:
+            db_status = "unconfigured"
+    except Exception:
+        logger.debug("MySQL DB health probe failed; reporting db=unreachable.", exc_info=True)
+        db_status = "unreachable"
 
     payload = HealthResponse(
         status="ok" if db_status in ("ok", "unconfigured") else "degraded",

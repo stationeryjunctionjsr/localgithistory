@@ -38,22 +38,20 @@ async def _google_reviews_job():
 
 
 async def _resource_monitoring_job():
-    from app.config.database import get_async_session_factory, use_oracle
+    from app.config.database import get_async_session_factory
     from app.utils.error_handler import check_db_usage, check_system_resources
 
     # Check CPU/Mem (Sync)
     check_system_resources()
 
     # Check DB (Async)
-    if use_oracle():
-        try:
-            session_factory = get_async_session_factory()
-            if session_factory:
-                async with session_factory() as session:
-                    await check_db_usage(session)
-        except Exception as e:
-            # We don't want to log this as CRITICAL to avoid loops if DB is down
-            logger.error("Error in DB resource monitoring: %s", str(e), exc_info=True)
+    try:
+        session_factory = get_async_session_factory()
+        if session_factory:
+            async with session_factory() as session:
+                await check_db_usage(session)
+    except Exception as e:
+        logger.error("Error in DB resource monitoring: %s", str(e), exc_info=True)
 
 
 def start_recommendation_scheduler():

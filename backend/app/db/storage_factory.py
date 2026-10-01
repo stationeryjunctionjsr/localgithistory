@@ -6,7 +6,7 @@ DATABASE_URL must be set.
 from app.config.settings import settings
 from typing import Any
 
-from app.config.database import use_oracle
+from app.config.database import get_async_session_factory
 from app.db.mysql_banner_dao import MySQLBannerDAO
 from app.db.mysql_brand_dao import MySQLBrandDAO
 from app.db.mysql_cart_dao import MySQLCartDAO

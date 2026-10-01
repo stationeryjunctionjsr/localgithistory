@@ -4,7 +4,6 @@ import secrets
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.config.database import use_oracle
 from app.utils.logger import logger
 
 # Policy Settings

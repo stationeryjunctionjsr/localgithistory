@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 import requests.exceptions
 
-from app.config.database import use_oracle
 from app.utils.logger import logger
 from app.utils.retry import with_retry
 

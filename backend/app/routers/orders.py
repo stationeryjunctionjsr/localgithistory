@@ -22,25 +22,32 @@ from app.repositories.order_repository import order_repository
 from app.repositories.notification_repository import notification_repository
 from app.repositories.category_repository import category_repository
 from app.repositories.cart_repository import cart_repository
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Header, status
 from typing import List, Optional
 from datetime import datetime, timezone
+import logging
+import uuid
 
-from app.models.schemas import UserSnippet, ValetSnippet, Address, OrderItemCreate, SellerDeliveryOption, ItemSnippet as OrderItem
+from app.models.schemas import (
+    UserSnippet,
+    ValetSnippet,
+    Address,
+    OrderItemCreate,
+    SellerDeliveryOption,
+    ItemSnippet as OrderItem,
+    UserInternalUpdate,
+    PopulatedOrderResponse,
+    PopulatedOrderItemResponse,
+)
 from app.schemas.orders import PaginatedOrdersResponse, PaginatedSubOrdersResponse, DeliveryChargeUpdateResponse
 from app.models.payment import PaymentEntry
-import uuid
-from app.models.schemas import UserSnippet, ValetSnippet, UserInternalUpdate
-import logging
-from app.models.schemas import UserSnippet, ValetSnippet, PopulatedOrderResponse, PopulatedOrderItemResponse
 from app.db.storage_factory import get_storage
 from app.models.user import User
 from app.models.order import Order, OrderInternalCreate, OrderInternalUpdate
 from app.models.daos import BundleInternalUpdate
 from app.models.sub_order import SubOrder, SubOrderInternalCreate, SubOrderInternalUpdate, SubOrderItem
 from app.models.product import Product
-from pydantic import BaseModel, ConfigDict, Field
 from app.models.base import CamelBaseModel
 
 
@@ -67,7 +74,6 @@ async def create_order_notification(order):
         if not super_admin:
             return
 
-        import uuid
         await notification_repository.create(
             NotificationInternalCreate(**{
                 "_id": str(uuid.uuid4()),
@@ -97,7 +103,6 @@ async def create_payment_notification(payment):
             return
 
         payment_id = payment.payment_id or payment.id
-        import uuid
         await notification_repository.create(
             NotificationInternalCreate(**{
                 "_id": str(uuid.uuid4()),
@@ -1674,7 +1679,6 @@ async def create_order(
                 try:
                     super_admin = await user_repository.findOne({"role": "super_admin"})
                     if super_admin:
-                        import uuid
                         await notification_repository.create(
                             NotificationInternalCreate(
                                 _id=str(uuid.uuid4()),
@@ -1944,7 +1948,6 @@ async def create_order(
                 # Notify the seller about their new sub-order (if it's a seller admin, not platform)
                 if seller_id:
                     try:
-                        import uuid
                         await notification_repository.create(
                             NotificationInternalCreate(**{
                                 "_id": str(uuid.uuid4()),

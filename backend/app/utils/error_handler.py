@@ -4,14 +4,7 @@ from datetime import datetime, timedelta
 
 import psutil
 
-try:
-    from sqlalchemy import text
-
-    from app.config.database import use_oracle
-except ImportError:
-
-    def use_oracle():
-        return False
+from sqlalchemy import text
 
 
 # Global state for throttling (in-memory)
@@ -130,9 +123,8 @@ def check_system_resources():
 
 
 async def check_db_usage(db_session):
-    """Oracle specific DB usage check."""
-    if not use_oracle():
-        return
+    """DB usage check — currently a no-op (Oracle tablespace query removed)."""
+    return
 
     try:
         # Query to check tablespace usage

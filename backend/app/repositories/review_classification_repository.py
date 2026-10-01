@@ -5,7 +5,7 @@ from app.models.schemas import ClassificationTagResponse
 from sqlalchemy import text
 
 from app.db.storage_factory import get_storage
-from app.config.database import use_oracle, is_oracle, get_async_session_factory
+from app.config.database import get_async_session_factory
 from app.utils.logger import logger
 
 if TYPE_CHECKING:
@@ -27,10 +27,9 @@ class ReviewClassificationRepository:
     async def ensure_table_exists(self):
         if self._initialized:
             return
-        if not use_oracle() or not is_oracle():
-            self._initialized = True
-            await self._prepopulate_defaults()
-            return
+        self._initialized = True
+        await self._prepopulate_defaults()
+        return
         from app.config.settings import settings
 
         table_name_upper = f"SJ_CLASSIFICATION_TAGS".upper()

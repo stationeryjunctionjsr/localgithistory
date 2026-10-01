@@ -88,20 +88,20 @@ class MySQLOrderDAO:
                     where_clauses.append("status = :status")
                     params["status"] = v
                 elif k == "order_type":
-                    where_clauses.append("order_type = :orderType")
+                    where_clauses.append("order_type = :order_type")
                     params["order_type"] = v
                 elif k == "payment_method":
-                    where_clauses.append("payment_method = :paymentMethod")
+                    where_clauses.append("payment_method = :payment_method")
                     params["payment_method"] = v
                 elif k == "start_date":
                     dt = _to_ts(v)
                     if dt:
-                        where_clauses.append("created_at >= :startDate")
+                        where_clauses.append("created_at >= :start_date")
                         params["start_date"] = dt
                 elif k == "end_date":
                     dt = _to_ts(v)
                     if dt:
-                        where_clauses.append("created_at <= :endDate")
+                        where_clauses.append("created_at <= :end_date")
                         params["end_date"] = dt
                 elif k == "order_number_prefix":
                     if v:

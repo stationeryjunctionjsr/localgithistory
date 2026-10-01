@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import text
 
 from app.db.storage_factory import get_storage
-from app.config.database import use_oracle, is_oracle, get_async_session_factory
+from app.config.database import get_async_session_factory
 from app.config.settings import settings
 from app.services.email_service import email_service
 from app.utils.logger import logger
@@ -25,9 +25,8 @@ class ProductNotificationRepository:
     async def ensure_table_exists(self):
         if self._initialized:
             return
-        if not use_oracle() or not is_oracle():
-            self._initialized = True
-            return
+        self._initialized = True
+        return
         table_name_upper = f"SJ_PRODUCT_NOTIFICATIONS".upper()
         table_name_lower = f"sj_product_notifications".lower()
         constraint_name_lower = f"uq_prod_notif_external".lower()
