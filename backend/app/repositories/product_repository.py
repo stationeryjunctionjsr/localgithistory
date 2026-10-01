@@ -964,7 +964,7 @@ class ProductRepository:
 
         internal_create = ProductInternalCreate(
             product_id=product_id,
-            product_id_formatted=product_id_formatted,
+            productIdFormatted=product_id_formatted,
             name=product_data.name,
             description=product_data.description if product_data.description is not None else "",
             sku=sku_val,
