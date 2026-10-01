@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useTheme } from '@/context/ThemeContext';
-import { useWishlist } from '@/context/WishlistContext';
+// import { useWishlist } from '@/context/WishlistContext';
+import { useWishlistStore } from '@/store/wishlistStore';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import api from '@/utils/api';
@@ -135,7 +136,10 @@ export default function ModernProductCard({
   className = '',
 }: ModernProductCardProps) {
   const { theme } = useTheme();
-  const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist();
+  // const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist();
+  const addToWishlist      = useWishlistStore((s) => s.addToWishlist);
+  const isInWishlist       = useWishlistStore((s) => s.isInWishlist);
+  const removeFromWishlist = useWishlistStore((s) => s.removeFromWishlist);
   const { share } = useShare();
   const { user } = useAuth();
   const router = useRouter();

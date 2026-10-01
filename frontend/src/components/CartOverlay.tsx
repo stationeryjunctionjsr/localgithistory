@@ -2,14 +2,22 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCart, CartItem } from '@/context/CartContext';
+// import { useCart, CartItem } from '@/context/CartContext';
+import { useCartStore, CartItem } from '@/store/cartStore';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import styles from './CartOverlay.module.css';
 
 export default function CartOverlay() {
-  const { cart, loading, isCartOpen, closeCart, updateQuantity, removeFromCart, duesInfo } = useCart();
+  // const { cart, loading, isCartOpen, closeCart, updateQuantity, removeFromCart, duesInfo } = useCart();
+  const cart           = useCartStore((s) => s.cart);
+  const loading        = useCartStore((s) => s.loading);
+  const isCartOpen     = useCartStore((s) => s.isCartOpen);
+  const closeCart      = useCartStore((s) => s.closeCart);
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
+  const removeFromCart = useCartStore((s) => s.removeFromCart);
+  const duesInfo       = useCartStore((s) => s.duesInfo);
   const { theme } = useTheme();
   const { user } = useAuth();
   const router = useRouter();

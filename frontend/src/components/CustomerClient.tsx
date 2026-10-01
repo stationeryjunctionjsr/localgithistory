@@ -19,7 +19,8 @@ import { getImageUrlWithFallback, getImageUrl } from '@/utils/imageUrl';
 import Link from 'next/link';
 import { useRecommendationSectionView } from '@/hooks/useRecommendationSectionView';
 import { trackRecommendationProductClick } from '@/utils/analytics';
-import { useCart } from '@/context/CartContext';
+// import { useCart } from '@/context/CartContext';
+import { useCartStore } from '@/store/cartStore';
 import { usePincode } from '@/context/PincodeContext';
 import UnserviceableLocationBanner from '@/components/UnserviceableLocationBanner';
 import { toast } from 'react-hot-toast';
@@ -45,7 +46,11 @@ export default function CustomerClient({
   initialStats,
 }: CustomerClientProps) {
   const { user } = useAuth();
-  const { cart, addToCart, updateQuantity, removeFromCart } = useCart();
+  // const { cart, addToCart, updateQuantity, removeFromCart } = useCart();
+  const cart           = useCartStore((s) => s.cart);
+  const addToCart      = useCartStore((s) => s.addToCart);
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
+  const removeFromCart = useCartStore((s) => s.removeFromCart);
   const { isServiceable, pincode } = usePincode();
   // eslint-disable-next-line unused-imports/no-unused-vars
   const { theme } = useTheme();

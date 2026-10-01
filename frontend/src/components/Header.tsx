@@ -4,8 +4,10 @@ import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { useWishlist } from '@/context/WishlistContext';
-import { useCart } from '@/context/CartContext';
+// import { useWishlist } from '@/context/WishlistContext';
+// import { useCart } from '@/context/CartContext';
+import { useWishlistStore } from '@/store/wishlistStore';
+import { useCartStore } from '@/store/cartStore';
 import { usePincode } from '@/context/PincodeContext';
 import AuthModal from './AuthModal';
 import GeneralFeedbackModal from './GeneralFeedbackModal';
@@ -58,8 +60,11 @@ export default function Header() {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
   // eslint-disable-next-line unused-imports/no-unused-vars
-  const { items: wishlistItems } = useWishlist();
-  const { cart, openCart } = useCart();
+  // const { items: wishlistItems } = useWishlist();
+  // const { cart, openCart } = useCart();
+  const wishlistItems = useWishlistStore((s) => s.items);
+  const cart          = useCartStore((s) => s.cart);
+  const openCart      = useCartStore((s) => s.openCart);
   const { pincode, city, openPincodeModal } = usePincode();
   const router = useRouter();
   // eslint-disable-next-line unused-imports/no-unused-vars

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/context/ThemeContext';
-import { useWishlist } from '@/context/WishlistContext';
+// import { useWishlist } from '@/context/WishlistContext';
+import { useWishlistStore } from '@/store/wishlistStore';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import api from '@/utils/api';
@@ -42,7 +43,10 @@ export default function ModernProductCatalog({
   itemsPerPage = 12,
 }: ModernProductCatalogProps) {
   const { theme } = useTheme();
-  const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist();
+  // const { addToWishlist, isInWishlist, removeFromWishlist } = useWishlist();
+  const addToWishlist      = useWishlistStore((s) => s.addToWishlist);
+  const isInWishlist       = useWishlistStore((s) => s.isInWishlist);
+  const removeFromWishlist = useWishlistStore((s) => s.removeFromWishlist);
   const { user } = useAuth();
   const router = useRouter();
 

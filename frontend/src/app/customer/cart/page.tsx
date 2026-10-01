@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { useCart } from '@/context/CartContext';
+// import { useCart } from '@/context/CartContext';
+import { useCartStore } from '@/store/cartStore';
 import api from '@/utils/api';
 import {
   recordEvent,
@@ -143,7 +144,9 @@ export default function Cart() {
   const { user, login, loginWithTokens } = useAuth();
   const isValet = (user as any)?.role === 'valet';
   const { theme } = useTheme();
-  const { duesInfo, fetchDuesInfo } = useCart();
+  // const { duesInfo, fetchDuesInfo } = useCart();
+  const duesInfo     = useCartStore((s) => s.duesInfo);
+  const fetchDuesInfo = useCartStore((s) => s.fetchDuesInfo);
   const [showDuesModal, setShowDuesModal] = useState(false);
   const [selectedBillForSettle, setSelectedBillForSettle] = useState<any>(null);
   const [duesSettleAmount, setDuesSettleAmount] = useState('');

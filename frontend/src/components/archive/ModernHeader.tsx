@@ -4,7 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { useWishlist } from '@/context/WishlistContext';
+// import { useWishlist } from '@/context/WishlistContext';
+import { useWishlistStore } from '@/store/wishlistStore';
 import Link from 'next/link';
 import { guestCartService } from '@/utils/guestCart';
 import ThemeSwitcher from '../ThemeSwitcher';
@@ -170,7 +171,8 @@ const categories: Category[] = [
 export default function ModernHeader() {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
-  const { items: wishlistItems } = useWishlist();
+  // const { items: wishlistItems } = useWishlist();
+  const wishlistItems = useWishlistStore((s) => s.items);
   // eslint-disable-next-line unused-imports/no-unused-vars
   const pathname = usePathname();
   const router = useRouter();

@@ -14,8 +14,10 @@ import {
   getSessionId,
 } from '@/utils/analytics';
 import { useAuth } from '@/context/AuthContext';
-import { useWishlist } from '@/context/WishlistContext';
-import { useCart } from '@/context/CartContext';
+// import { useWishlist } from '@/context/WishlistContext';
+// import { useCart } from '@/context/CartContext';
+import { useWishlistStore } from '@/store/wishlistStore';
+import { useCartStore } from '@/store/cartStore';
 import { useTheme } from '@/context/ThemeContext';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import { getMinimumQuantity } from '@/utils/priceCalculator';
@@ -81,8 +83,17 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   const router = useRouter();
   const { user } = useAuth();
   const { theme } = useTheme();
-  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const { cart, addToCart, updateQuantity, removeFromCart, fetchCart, openCart } = useCart();
+  // const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  // const { cart, addToCart, updateQuantity, removeFromCart, fetchCart, openCart } = useCart();
+  const addToWishlist     = useWishlistStore((s) => s.addToWishlist);
+  const removeFromWishlist = useWishlistStore((s) => s.removeFromWishlist);
+  const isInWishlist      = useWishlistStore((s) => s.isInWishlist);
+  const cart           = useCartStore((s) => s.cart);
+  const addToCart      = useCartStore((s) => s.addToCart);
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
+  const removeFromCart = useCartStore((s) => s.removeFromCart);
+  const fetchCart      = useCartStore((s) => s.fetchCart);
+  const openCart       = useCartStore((s) => s.openCart);
   const { pincode, serviceableSellers } = usePincode();
   const { share } = useShare();
   const { sellerAvailability } = useSellerAvailability();

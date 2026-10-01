@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { useWishlist } from '@/context/WishlistContext';
+// import { useWishlist } from '@/context/WishlistContext';
+import { useWishlistStore } from '@/store/wishlistStore';
 import { useAuth } from '@/context/AuthContext';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import { trackRemoveFromWishlist } from '@/utils/analytics';
@@ -13,7 +14,10 @@ import { toast } from 'react-toastify';
 
 export default function WishlistPage() {
   const { user } = useAuth();
-  const { items, loading, removeFromWishlist } = useWishlist();
+  // const { items, loading, removeFromWishlist } = useWishlist();
+  const items             = useWishlistStore((s) => s.items);
+  const loading           = useWishlistStore((s) => s.loading);
+  const removeFromWishlist = useWishlistStore((s) => s.removeFromWishlist);
   const list = Array.isArray(items) ? items : ((items as any)?.items ?? []);
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
 

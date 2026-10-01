@@ -4,7 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { useWishlist } from '@/context/WishlistContext';
+// import { useWishlist } from '@/context/WishlistContext';
+import { useWishlistStore } from '@/store/wishlistStore';
 import { getGuestCartCount } from '@/utils/guestStore';
 
 // Temporary placeholder components
@@ -68,7 +69,8 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
-  const { items: wishlistItems } = useWishlist();
+  // const { items: wishlistItems } = useWishlist();
+  const wishlistItems = useWishlistStore((s) => s.items);
   const [cartCount, setCartCount] = useState(0);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
