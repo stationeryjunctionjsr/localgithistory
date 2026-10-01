@@ -88,7 +88,7 @@ async def list_seller_payouts(
 async def create_seller_payout(
     data: SellerPayoutCreate,
     current_user: User = Depends(require_super_admin)):
-    seller = await user_repository.findById(data.seller_id)
+    seller = await user_repository.findById(data.sellerId)
     if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
 
@@ -96,10 +96,10 @@ async def create_seller_payout(
     storage = _payout_storage()
     created = await storage.create(
         SellerPayoutInternalCreate(
-            sellerId=data.seller_id,
+            sellerId=data.sellerId,
             amount=data.amount,
-            periodStart=data.period_start,
-            periodEnd=data.period_end,
+            periodStart=data.periodStart,
+            periodEnd=data.periodEnd,
             status=data.status or "pending_payment",
             notes=data.notes,
             subOrderIds=data.sub_order_ids or []

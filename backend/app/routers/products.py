@@ -286,7 +286,21 @@ async def upload_csv(file: UploadFile = File(...), current_user: User = Depends(
                     product_id_to_show = (product_data.product_idFormatted if product_data.product_idFormatted is not None else product_data.name)
                     results.append({"product": product_id_to_show, "action": "updated"})
                 else:
-                    await product_repository.create(product_data)
+                    internal_create = ProductInternalCreate(
+                        name=product_data.name,
+                        sku=product_data.sku,
+                        category=product_data.category,
+                        sub_category=product_data.sub_category,
+                        description=product_data.description,
+                        brand=product_data.brand,
+                        mrp=product_data.mrp,
+                        price=product_data.mrp or 0.0,
+                        mrp_per_case=product_data.mrp_per_case if hasattr(product_data, 'mrp_per_case') else None,
+                        items_per_case=product_data.quantity_per_case if hasattr(product_data, 'quantity_per_case') else None,
+                        images=product_data.images or [],
+                        is_active=product_data.is_active
+                    )
+                    await product_repository.create(internal_create)
                     results.append({"product": product_data.name, "action": "created"})
             except (ValueError, TypeError, KeyError) as e:
                 errors.append(
@@ -1011,7 +1025,21 @@ async def create_product(product_data: ProductCreate, current_user: User = Depen
             if (p.sku or "").strip().lower() == sku_lower:
                 raise HTTPException(status_code=400, detail=f"Product with SKU '{product_data.sku}' already exists")
                 
-        product = await product_repository.create(product_data)
+        internal_create = ProductInternalCreate(
+            name=product_data.name,
+            sku=product_data.sku,
+            category=product_data.category,
+            sub_category=product_data.sub_category,
+            description=product_data.description,
+            brand=product_data.brand,
+            mrp=product_data.mrp,
+            price=product_data.mrp or 0.0,
+            mrp_per_case=product_data.mrp_per_case if hasattr(product_data, 'mrp_per_case') else None,
+            items_per_case=product_data.quantity_per_case if hasattr(product_data, 'quantity_per_case') else None,
+            images=product_data.images or [],
+            is_active=product_data.is_active
+        )
+        product = await product_repository.create(internal_create)
         _invalidate_product_caches()
         return product
     except ValueError as e:

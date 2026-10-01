@@ -1138,8 +1138,8 @@ class RecommendationRepository:
             for pid in ids:
                 p = product_map[pid] if pid in product_map else None
                 if p and self._is_available_in_zone(p, seller_id_set):
-                    if not p.displayImage and p.images:
-                        p.displayImage = p.images[0]
+                    if not p.display_image and p.images:
+                        p.display_image = p.images[0]
                     skinny_p = SkinnyProductResponse.model_validate(p, from_attributes=True)
                     out.append(skinny_p)
             return out
@@ -1156,8 +1156,8 @@ class RecommendationRepository:
             for pid in ids:
                 p = product_map[pid] if pid in product_map else None
                 if p:
-                    if not p.displayImage and p.images:
-                        p.displayImage = p.images[0]
+                    if not p.display_image and p.images:
+                        p.display_image = p.images[0]
                     skinny_p = SkinnyProductResponse.model_validate(p, from_attributes=True)
                     out.append(skinny_p)
             return out
