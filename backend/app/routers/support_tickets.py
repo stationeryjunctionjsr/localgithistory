@@ -84,7 +84,7 @@ async def populate_ticket(ticket_data):
         category=ticket.category,
         priority=ticket.priority,
         attachments=ticket.attachments,
-        ticket_number=ticket.ticket_number,
+        ticketNumber=ticket.ticket_number,
         status=ticket.status,
         resolved_at=ticket.resolved_at,
         closed_at=ticket.closed_at,
@@ -92,7 +92,7 @@ async def populate_ticket(ticket_data):
         updated_at=ticket.updated_at,
         external_id=ticket.external_id,
         user=final_user,
-        assigned_to=final_assigned_to,
+        assignedTo=final_assigned_to,
         responses=populated_responses
     )
 

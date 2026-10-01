@@ -367,7 +367,7 @@ async def create_delivery_slot_config(
     zones_storage = get_storage("deliveryZones")
     created = []
 
-    for zone_id in config.zone_ids:
+    for zone_id in config.zoneIds:
         # Resolve zone capacity
         zone_default_capacity = 10  # fallback
         if zone_id != DEFAULT_ZONE_ID:
