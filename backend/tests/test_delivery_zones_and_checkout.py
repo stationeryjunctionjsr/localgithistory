@@ -126,14 +126,14 @@ class TestDeliveryChargeRepository:
         mock_charge_serviceable = MagicMock(
             pincode="110001",
             is_active=True,
-            serviceableForCustomer=True,
-            serviceableForWholesaler=False,
+            serviceable_for_customer=True,
+            serviceable_for_wholesaler=False,
         )
         mock_charge_not_serviceable = MagicMock(
             pincode="110002",
             is_active=True,
-            serviceableForCustomer=False,
-            serviceableForWholesaler=True,
+            serviceable_for_customer=False,
+            serviceable_for_wholesaler=True,
         )
 
         with patch.object(self.repo, "findByPincode", new_callable=AsyncMock) as mock_find:
@@ -147,7 +147,7 @@ class TestDeliveryChargeRepository:
 
             mock_find.return_value = mock_charge_not_serviceable
             result = await self.repo.isPincodeServiceable("110002", "wholesaler")
-            assert result is True  # serviceableForWholesaler=True
+            assert result is True  # serviceable_for_wholesaler=True
 
 
 # ═════════════════════════════════════════════════════════════════════════════

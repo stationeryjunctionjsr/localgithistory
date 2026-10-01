@@ -20,15 +20,16 @@ async def test_coupon_override_and_stacking():
         await coupon_repository.storage.delete(existing_extra.id)
 
     # 1. Create a test product
-    product_data = {
-        "name": "Test Coupon Mode Product",
-        "category": "Test Category",
-        "mrp": 100.0,
-        "sku": "SKU-TEST-COUPON-MODE",
-        "isActive": True,
-    }
-    product = await product_repository.create(product_data)
-    product_id = str(product.id if hasattr(product, "id") else product["_id"])
+    from app.models.daos import ProductInternalCreate
+    product = await product_repository.create(ProductInternalCreate(
+        name="Test Coupon Mode Product",
+        category="Test Category",
+        mrp=100.0,
+        price=100.0,
+        sku="SKU-TEST-COUPON-MODE",
+        isActive=True
+    ))
+    product_id = str(product.id)
 
     # 2. Create an automatic product discount (15% off)
     auto_discount_data = {
