@@ -5,10 +5,11 @@ from app.repositories.product_repository import product_repository
 
 @pytest.mark.asyncio
 async def test_price_search_scoring():
+    from app.models.daos import ProductInternal
     products = [
-        {"_id": "1", "name": "Classmate Notebook", "mrp": 250.0, "category": "Notebooks"},
-        {"_id": "2", "name": "Gel Pen", "mrp": 50.0, "category": "Pens"},
-        {"_id": "3", "name": "Executive Diary", "mrp": 750.0, "category": "Diaries"},
+        ProductInternal(id="1", name="Classmate Notebook", mrp=250.0, price=250.0, category="Notebooks", isActive=True, isApproved=True),
+        ProductInternal(id="2", name="Gel Pen", mrp=50.0, price=50.0, category="Pens", isActive=True, isApproved=True),
+        ProductInternal(id="3", name="Executive Diary", mrp=750.0, price=750.0, category="Diaries", isActive=True, isApproved=True),
     ]
 
     # Test numeric price search token '50'
@@ -26,7 +27,8 @@ async def test_price_search_scoring():
 
 @pytest.mark.asyncio
 async def test_bundle_eligibility_in_schemes():
-    bundle = {"_id": "bundle_101", "name": "School Kit", "category": "Stationery", "brand": "Classmate", "price": 499.0}
+    from app.models.daos import BundleInternal
+    bundle = BundleInternal(id="bundle_101", name="School Kit", category="Stationery", brand="Classmate", price=499.0, items=[], isActive=True)
 
     # Check appliesToType = "bundles"
     eligible = await coupon_repository._bundle_eligible_async(
@@ -50,7 +52,7 @@ async def test_bundle_search_tags_schema():
         items=[{"productId": "p1", "quantity": 1}],
         searchTags=["back-to-school", "starter-pack"],
     )
-    assert req.searchTags == ["back-to-school", "starter-pack"]
+    assert req.search_tags == ["back-to-school", "starter-pack"]
 
     up = UpdateBundleRequest(searchTags=["summer-sale"])
     assert up.searchTags == ["summer-sale"]
