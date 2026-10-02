@@ -180,9 +180,6 @@ async def get_orders(
 @router.post("", response_model=PopulatedOrderResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=PopulatedOrderResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
-@router.post("", response_model=PopulatedOrderResponse, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=PopulatedOrderResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("10/minute")
 async def create_order(
     request: Request,
     order_data: OrderCreateRequest,

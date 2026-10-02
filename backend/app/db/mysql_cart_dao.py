@@ -227,6 +227,118 @@ class MySQLCartDAO:
 
         return await self.findById(id)
 
+    async def update_items_atomic(
+        self,
+        user_id: str,
+        merge_fn,
+    ) -> Optional['Cart']:
+        """Read-lock the user's cart row, apply merge_fn to the current items,
+        and write the result — all inside one transaction.
+
+        merge_fn(current_items: List[CartItemInternal]) -> List[CartItemInternal]
+
+        This eliminates the lost-update race that occurs when two concurrent
+        requests each read the cart state and the second write overwrites the first.
+
+        Returns the updated Cart, or None when the factory is unavailable.
+        """
+        import json
+        factory = self._factory()
+        if not factory:
+            return None
+
+        now = now_utc()
+
+        async with factory() as session:
+            # Resolve the numeric user PK (supports both numeric and external IDs)
+            uid_int = int(user_id) if user_id and str(user_id).isdigit() else None
+            uid_res = await session.execute(
+                text(
+                    "SELECT id, external_id FROM sj_users "
+                    "WHERE id = COALESCE(:uid_int, 0) OR external_id = :uid_str "
+                    "LIMIT 1"
+                ),
+                {"uid_int": uid_int, "uid_str": str(user_id)},
+            )
+            uid_row = uid_res.fetchone()
+            if not uid_row:
+                return None
+            numeric_uid = uid_row.id
+
+            # Lock the cart row so no other worker can read-modify-write concurrently.
+            cart_res = await session.execute(
+                text(
+                    f"SELECT id, external_id FROM {self.TABLE} "
+                    f"WHERE user_id = :uid FOR UPDATE"
+                ),
+                {"uid": numeric_uid},
+            )
+            cart_row = cart_res.fetchone()
+
+            if not cart_row:
+                # No cart yet — create one inside the same transaction.
+                ext_id = secrets.token_hex(16)
+                await session.execute(
+                    text(
+                        f"INSERT INTO {self.TABLE} (external_id, user_id, created_at, updated_at) "
+                        f"VALUES (:eid, :uid, :now, :now)"
+                    ),
+                    {"eid": ext_id, "uid": numeric_uid, "now": now},
+                )
+                r2 = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
+                    {"eid": ext_id},
+                )
+                cart_pk = r2.scalar()
+                current_items: List[CartItemInternal] = []
+            else:
+                cart_pk = cart_row.id
+                ext_id = cart_row.external_id
+
+                # Fetch current items while holding the lock
+                items_res = await session.execute(
+                    text(
+                        f"SELECT product_id, quantity, sell_as_case, bundle_id, bundle_name, variant_attributes "
+                        f"FROM {self.ITEMS_TABLE} WHERE cart_id = :cart_id ORDER BY id ASC"
+                    ),
+                    {"cart_id": ext_id},
+                )
+                current_items = []
+                for ir in items_res.fetchall():
+                    variant_attrs = None
+                    if ir.variant_attributes:
+                        try:
+                            parsed = json.loads(ir.variant_attributes)
+                            from app.models.schemas import VariantAttributes
+                            if parsed:
+                                variant_attrs = VariantAttributes(**parsed)
+                        except (json.JSONDecodeError, TypeError, ValueError):
+                            pass
+                    current_items.append(
+                        CartItemInternal(
+                            product=str(ir.product_id),
+                            quantity=int(ir.quantity),
+                            sell_as_case=bool(ir.sell_as_case),
+                            bundle_id=str(ir.bundle_id) if ir.bundle_id else None,
+                            bundle_name=str(ir.bundle_name) if ir.bundle_name else None,
+                            variant_attributes=variant_attrs,
+                        )
+                    )
+
+            # Let the caller decide what the new item list should be
+            new_items = merge_fn(current_items)
+
+            # Write the result
+            await session.execute(
+                text(f"UPDATE {self.TABLE} SET updated_at = :now WHERE id = :id"),
+                {"now": now, "id": cart_pk},
+            )
+            await self._replace_items(session, ext_id, new_items)
+            await session.commit()
+
+        return await self.findById(str(cart_pk))
+
+
     async def delete(self, id: str) -> bool:
         factory = self._factory()
         if not factory:

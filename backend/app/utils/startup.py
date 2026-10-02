@@ -14,7 +14,13 @@ async def deferred_segment_seed():
         logger.warning("Could not run deferred seed customer segments task: %s", e)
 
 async def stock_cleanup_loop():
-    """Periodically cleans up expired stock reservations."""
+    """Periodically cleans up expired stock reservations.
+
+    NOTE: This infinite-loop version is kept for reference but is no longer
+    called directly.  APScheduler now calls _run_stock_cleanup_once every 60 s
+    via the stock_cleanup_job (see scheduler.py), which gives better
+    observability and correct multi-VM behaviour.
+    """
     from app.repositories.stock_reservation_repository import stock_reservation_repository
     logger.info("Stock reservation cleanup task started")
     while True:
@@ -23,6 +29,22 @@ async def stock_cleanup_loop():
         except Exception as e:
             logger.error("Error in stock reservation cleanup: %s", e)
         await asyncio.sleep(60)
+
+async def _run_stock_cleanup_once():
+    """Single-invocation stock reservation cleanup called by APScheduler.
+
+    APScheduler schedules this every 60 s with max_instances=1 and
+    coalesce=True, so it never runs concurrently within one worker and
+    missed ticks are collapsed into a single catch-up run.
+
+    On multi-VM (SQLAlchemyJobStore), the DB row-lock in APScheduler ensures
+    exactly one VM fires this per tick across the entire fleet.
+    """
+    from app.repositories.stock_reservation_repository import stock_reservation_repository
+    try:
+        await stock_reservation_repository.cleanup_expired()
+    except Exception as e:
+        logger.error("Error in stock reservation cleanup: %s", e)
 
 async def warm_critical_caches():
     """Pre-warms DB connection pool and critical API caches."""

@@ -128,6 +128,20 @@ def start_recommendation_scheduler():
         minutes=15,
         id="tick_availability_statuses_job",
     )
+    # Stock reservation cleanup: Every 60 seconds.
+    # Deletes expired sj_stock_reservations rows so stock held by abandoned
+    # carts is released back to available inventory.
+    # Runs inside the elected worker's scheduler (file-lock election above
+    # ensures exactly one worker runs this on a single VM).
+    from app.utils.startup import _run_stock_cleanup_once
+    scheduler.add_job(
+        _run_stock_cleanup_once,
+        "interval",
+        seconds=60,
+        id="stock_cleanup_job",
+        max_instances=1,
+        coalesce=True,
+    )
     scheduler.start()
     logger.info(
         "Recommendation scheduler started (IST): trending 12 AM/PM, favorites 12 AM, google reviews 12 AM"
@@ -252,11 +266,42 @@ def start_recommendation_scheduler():
 #         id="daily_events_sync_job",
 #         replace_existing=True,
 #     )
+#     # Valet timeout + auto-cascade: Every 1 minute
+#     from app.jobs.valet_timeout_job import run_valet_timeout_job
+#     scheduler.add_job(
+#         run_valet_timeout_job,
+#         "interval",
+#         minutes=1,
+#         id="valet_timeout_job",
+#         replace_existing=True,
+#     )
+#     # Seller Availability Tick: Every 15 minutes
+#     from app.routers.seller_availability import tick_availability_statuses
+#     scheduler.add_job(
+#         tick_availability_statuses,
+#         "interval",
+#         minutes=15,
+#         id="tick_availability_statuses_job",
+#         replace_existing=True,
+#     )
 #     # Resource Monitoring: Every 30 minutes
 #     # NOTE: Unlike other jobs, resource monitoring is intentionally NOT
 #     # deduplicated — each VM should monitor its own CPU/memory independently.
 #     # Do not add it to this distributed scheduler; keep it in a separate
 #     # per-worker BackgroundScheduler or asyncio task if you need it.
+#
+#     # Stock reservation cleanup: Every 60 seconds.
+#     # SQLAlchemyJobStore + coalesce=True + max_instances=1 (from job_defaults)
+#     # guarantees exactly one VM fires the cleanup per tick across the entire
+#     # fleet — no N-VM duplication.
+#     from app.utils.startup import _run_stock_cleanup_once
+#     scheduler.add_job(
+#         _run_stock_cleanup_once,
+#         "interval",
+#         seconds=60,
+#         id="stock_cleanup_job",
+#         replace_existing=True,
+#     )
 #
 #     scheduler.start()
 #
@@ -266,3 +311,4 @@ def start_recommendation_scheduler():
 #     )
 #
 # ─────────────────────────────────────────────────────────────────────────────────
+

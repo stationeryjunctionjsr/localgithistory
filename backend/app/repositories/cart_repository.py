@@ -19,10 +19,8 @@ class CartRepository:
         return await self.storage.update(id, update_data)
 
     async def clearCart(self, user_id: str):
-        cart = await self.findByUser(user_id)
-        if cart:
-            return await self.update(cart.id, CartInternalUpdate(items=[]))
-        return None
+        """Atomically clear all items from the user's cart."""
+        return await self.storage.update_items_atomic(user_id, lambda _: [])
 
     async def createOrUpdate(self, user_id: str, items: list):
         existing = await self.findByUser(user_id)
@@ -34,47 +32,51 @@ class CartRepository:
             return await self.create(create_data)
 
     async def addItem(self, user_id: str, item: 'CartItemInternal'):
-        cart = await self.findByUser(user_id)
-        if not cart:
-            return await self.createOrUpdate(user_id, [item])
+        """Atomically add an item to the cart.
 
-        items = (cart.items if cart.items is not None else [])
-        # Check for existing item with same product, variants, and sellAsCase
-        existing_item_index = next(
-            (
-                i
-                for i, it in enumerate(items)
-                if it.product == item.product
-                and it.variant_attributes == item.variant_attributes
-                and it.sell_as_case == item.sell_as_case
-            ),
-            None,
-        )
-
-        if existing_item_index is not None:
-            old = items[existing_item_index]
-            items[existing_item_index] = CartItemInternal(
-                product=old.product,
-                quantity=(old.quantity if old.quantity is not None else 0) + (item.quantity if item.quantity is not None else 0),
-                price=item.price,
-                sellAsCase=old.sell_as_case,
-                bundleId=old.bundle_id,
-                bundleName=old.bundle_name,
-                variantAttributes=old.variant_attributes,
+        Uses a DB-level FOR UPDATE lock so concurrent add requests for the
+        same user cannot overwrite each other (lost-update race).
+        """
+        def _merge(current_items):
+            items = list(current_items)
+            existing_index = next(
+                (
+                    i
+                    for i, it in enumerate(items)
+                    if it.product == item.product
+                    and it.variant_attributes == item.variant_attributes
+                    and it.sell_as_case == item.sell_as_case
+                ),
+                None,
             )
-        else:
-            items.append(item)
 
-        return await self.createOrUpdate(user_id, items)
+            if existing_index is not None:
+                old = items[existing_index]
+                items[existing_index] = CartItemInternal(
+                    product=old.product,
+                    quantity=(old.quantity if old.quantity is not None else 0) + (item.quantity if item.quantity is not None else 0),
+                    price=item.price,
+                    sellAsCase=old.sell_as_case,
+                    bundleId=old.bundle_id,
+                    bundleName=old.bundle_name,
+                    variantAttributes=old.variant_attributes,
+                )
+            else:
+                items.append(item)
+
+            return items
+
+        return await self.storage.update_items_atomic(user_id, _merge)
 
     async def removeItem(self, user_id: str, item_id: str):
-        cart = await self.findByUser(user_id)
-        if not cart:
-            raise ValueError("Cart not found")
+        """Atomically remove a specific item from the cart.
 
-        items = (cart.items if cart.items is not None else [])
-        items = [item for item in items if item._id != item_id]
-        return await self.createOrUpdate(user_id, items)
+        Uses a DB-level FOR UPDATE lock so concurrent removals cannot race.
+        """
+        def _merge(current_items):
+            return [it for it in current_items if it._id != item_id]
+
+        return await self.storage.update_items_atomic(user_id, _merge)
 
     async def saveForLater(self, user_id: str, product_id: str):
         """Save item for later"""

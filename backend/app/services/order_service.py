@@ -445,13 +445,10 @@ async def create_order_service(
         raise HTTPException(
             status_code=401, detail="Please log in to place an order")
 
-    # Check for existing order with the same idempotency key for this user
-    if idempotency_key:
-        existing_orders = await order_repository.findAll({"user": current_user.id, "idempotencyKey": idempotency_key})
-        if existing_orders:
-            # Return the existing order to prevent duplicate creation
-            populated_existing = await populate_order(existing_orders[0])
-            return populated_existing
+    # Ensure the idempotency_key column and unique index exist on sj_orders.
+    # This is a no-op after the first run (ALTER TABLE IF NOT EXISTS / CREATE
+    # INDEX IF NOT EXISTS).  Safe to call from all 4 workers simultaneously.
+    await order_repository.storage.ensure_idempotency_index()
 
     # Valets cannot place orders
     if current_user.role == "valet":
@@ -1422,7 +1419,7 @@ async def create_order_service(
 
     # Create order
 
-    order = await order_repository.create(
+    order, _order_created = await order_repository.storage.create_idempotent(
         OrderInternalCreate(
             user=current_user.id,
             session_id=current_user.session_id,
@@ -1462,6 +1459,13 @@ async def create_order_service(
             idempotencyKey=idempotency_key,
         )
     )
+
+    # A concurrent request already inserted an order with this idempotency key
+    # (the DB unique index on (user_id, idempotency_key) enforced it atomically).
+    # Return the existing order and skip all post-creation side-effects — they
+    # already ran for the winning request.
+    if not _order_created:
+        return await populate_order(order)
 
     # ── Post-creation compensation block ─────────────────────────────────────────
     # Order record is now persisted. If any step below fails unexpectedly (e.g.

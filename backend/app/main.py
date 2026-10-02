@@ -110,12 +110,32 @@ def _try_acquire_scheduler_lock() -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
-    from app.utils.startup import deferred_segment_seed, stock_cleanup_loop, warm_critical_caches
-    
-    asyncio.create_task(deferred_segment_seed())
-    asyncio.create_task(stock_cleanup_loop())
+    from app.utils.startup import deferred_segment_seed, warm_critical_caches
+
+    # Elect exactly one worker to run background jobs that must not execute
+    # concurrently across the 4 uvicorn processes sharing this VM.
+    # _try_acquire_scheduler_lock() uses fcntl.flock (Linux) so only the first
+    # worker to call it wins; the others return False and skip these tasks.
+    # On Windows (dev) fcntl is unavailable and it always returns True — fine
+    # because dev runs a single worker anyway.
+    _is_elected_worker = _try_acquire_scheduler_lock()
+
+    if _is_elected_worker:
+        # Seed built-in customer segments once after startup (idempotent, but
+        # noisy and wasteful to run 4 times).
+        asyncio.create_task(deferred_segment_seed())
+
+        # Start the recommendation / analytics scheduler (trending, customer
+        # favourites, Google reviews, stock cleanup, etc.).
+        # Must run in exactly one worker — the scheduler owns all periodic jobs.
+        from app.jobs.scheduler import start_recommendation_scheduler
+        start_recommendation_scheduler()
+
+    # Pre-warm the DB connection pool and in-process caches in EVERY worker.
+    # Each worker has its own pool and its own InMemoryTTLCache instance, so
+    # all four benefit from independent warm-up.
     asyncio.create_task(warm_critical_caches())
-    
+
     yield
     import app.config.database as db_config
     engine = db_config.get_async_engine()

@@ -107,6 +107,9 @@ class MySQLOrderDAO:
                     if v:
                         where_clauses.append("order_number LIKE :order_prefix")
                         params["order_prefix"] = f"{v}%"
+                elif k == "idempotencyKey":
+                    where_clauses.append("idempotency_key = :idempotency_key")
+                    params["idempotency_key"] = v
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         return where_sql, params
@@ -137,6 +140,7 @@ class MySQLOrderDAO:
                            ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                            decline_reason, cancelled_at, cancelled_by, turnaround_hours,
+                           idempotency_key,
                            created_at, updated_at
                     FROM {self.TABLE}
                     WHERE {where_sql}
@@ -207,6 +211,7 @@ class MySQLOrderDAO:
                            ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                            decline_reason, cancelled_at, cancelled_by, turnaround_hours,
+                           idempotency_key,
                            created_at, updated_at
                     FROM {self.TABLE}
                     WHERE id = :id
@@ -252,7 +257,53 @@ class MySQLOrderDAO:
                 {"order_id": order_id, "vid": str((d.valet_id if d.valet_id is not None else "")), "r": d.reason}
             )
 
-    async def create(self, data: 'OrderInternalCreate') -> Order:
+    async def ensure_idempotency_index(self) -> None:
+        """Idempotently add the idempotency_key column + unique index to sj_orders.
+
+        Called once at application startup (from order_service or startup.py).
+        Safe to call from all 4 workers simultaneously — each statement is a
+        no-op if the column / index already exists.
+        """
+        factory = self._factory()
+        if not factory:
+            return
+        async with factory() as session:
+            # Add the column if it doesn't exist yet
+            await session.execute(
+                text(
+                    "ALTER TABLE sj_orders "
+                    "ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(128) NULL DEFAULT NULL"
+                )
+            )
+            # Add the unique index if it doesn't exist yet.
+            # MySQL 8.0+ supports CREATE INDEX IF NOT EXISTS; for older versions
+            # we swallow the duplicate-key-name error silently.
+            try:
+                await session.execute(
+                    text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_user_idempotency "
+                        "ON sj_orders (user_id, idempotency_key)"
+                    )
+                )
+            except Exception:
+                # Index already exists — nothing to do
+                pass
+            await session.commit()
+
+    async def create_idempotent(self, data: 'OrderInternalCreate') -> tuple['Order', bool]:
+        """Insert an order, using the DB unique index on (user_id, idempotency_key)
+        to eliminate the TOCTOU race in the application-layer check.
+
+        Returns (order, created) where created=False means the row already
+        existed (a concurrent request won the race) and the existing order is
+        returned.  Callers must skip all post-creation side-effects when
+        created=False.
+
+        Falls back to plain create() when idempotency_key is None/empty.
+        """
+        if not data.idempotency_key:
+            return await self.create(data), True
+
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -260,29 +311,31 @@ class MySQLOrderDAO:
         external_id = secrets.token_hex(16)
         user_val = str(data.user) if data.user is not None else ""
         if user_val and not user_val.isdigit():
-            user_id_subquery = f"(SELECT id FROM sj_users WHERE external_id = :uid)"
+            user_id_subquery = "(SELECT id FROM sj_users WHERE external_id = :uid)"
             uid_param = user_val
         else:
             user_id_subquery = ":uid"
             uid_param = int(user_val) if user_val else None
 
         async with factory() as session:
-            await session.execute(
+            result = await session.execute(
                 text(
                     f"""
-                    INSERT INTO {self.TABLE} (
+                    INSERT IGNORE INTO {self.TABLE} (
                         external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
                         order_type, payment_status, payment_method, upi_payment_screenshot,
                         ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                         shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                         decline_reason, cancelled_at, cancelled_by, turnaround_hours,
+                        idempotency_key,
                         created_at, updated_at
                     ) VALUES (
                         :external_id, {user_id_subquery}, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
                         :order_type, :payment_status, :payment_method, :upi_payment_screenshot,
                         :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :ship_address, :ship_district, :ship_country, :ship_google_location, :ship_latitude, :ship_longitude, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :bill_address, :bill_district, :bill_country, :bill_google_location, :bill_latitude, :bill_longitude, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :is_urgent_delivery,
-                                                :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
+                        :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
                         :decline_reason, :cancelled_at, :cancelled_by, :turnaround_hours,
+                        :idempotency_key,
                         :created_at, :updated_at
                     )
                     """
@@ -327,12 +380,11 @@ class MySQLOrderDAO:
                     "bill_longitude": getattr(data, "bill_longitude", None),
                     "notes": data.notes,
                     "printed_bill": 1 if data.printed_bill else 0,
-                                        "assigned_valet": data.assigned_valet,
+                    "assigned_valet": data.assigned_valet,
                     "is_urgent_delivery": 1 if data.is_urgent_delivery else 0,
                     "pending_valet_id": data.pending_valet_id,
                     "valet_assigned_at": _to_ts(data.valet_assigned_at),
                     "valet_cascade_count": data.valet_cascade_count or 0,
-                    
                     "shipped_at": _to_ts(data.shipped_at),
                     "delivered_at": _to_ts(data.delivered_at),
                     "cod_payment_received": 1 if data.cod_payment_received else 0,
@@ -341,6 +393,122 @@ class MySQLOrderDAO:
                     "cancelled_at": _to_ts(data.cancelled_at),
                     "cancelled_by": data.cancelled_by,
                     "turnaround_hours": data.turnaround_hours,
+                    "idempotency_key": data.idempotency_key,
+                    "created_at": _to_ts(data.created_at) or now,
+                    "updated_at": now,
+                },
+            )
+            created = result.rowcount > 0
+
+            if created:
+                # Our INSERT won — wire up children and commit
+                r = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"),
+                    {"eid": external_id},
+                )
+                new_id = int(r.scalar() or 0)
+                await self._replace_children(session, new_id, data.items or [], data.valet_decline_history or [])
+                await session.commit()
+                return await self.findById(str(new_id)), True
+            else:
+                # Another request already inserted this idempotency key — fetch it
+                await session.rollback()
+                existing = await self.findOne(
+                    {"user": str(uid_param), "idempotencyKey": data.idempotency_key}
+                )
+                return existing, False
+
+
+        factory = self._factory()
+        if not factory:
+            raise RuntimeError("MySQL not configured")
+        now = now_utc()
+        external_id = secrets.token_hex(16)
+        user_val = str(data.user) if data.user is not None else ""
+        if user_val and not user_val.isdigit():
+            user_id_subquery = f"(SELECT id FROM sj_users WHERE external_id = :uid)"
+            uid_param = user_val
+        else:
+            user_id_subquery = ":uid"
+            uid_param = int(user_val) if user_val else None
+
+        async with factory() as session:
+            await session.execute(
+                text(
+                    f"""
+                    INSERT INTO {self.TABLE} (
+                        external_id, user_id, order_number, status, total, subtotal, tax, shipping, discount,
+                        order_type, payment_status, payment_method, upi_payment_screenshot,
+                        ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
+                        shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
+                        decline_reason, cancelled_at, cancelled_by, turnaround_hours,
+                        idempotency_key,
+                        created_at, updated_at
+                    ) VALUES (
+                        :external_id, {user_id_subquery}, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
+                        :order_type, :payment_status, :payment_method, :upi_payment_screenshot,
+                        :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :ship_address, :ship_district, :ship_country, :ship_google_location, :ship_latitude, :ship_longitude, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :bill_address, :bill_district, :bill_country, :bill_google_location, :bill_latitude, :bill_longitude, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :is_urgent_delivery,
+                        :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
+                        :decline_reason, :cancelled_at, :cancelled_by, :turnaround_hours,
+                        :idempotency_key,
+                        :created_at, :updated_at
+                    )
+                    """
+                ),
+                {
+                    "external_id": external_id,
+                    "uid": uid_param,
+                    "order_number": data.order_number,
+                    "status": data.status,
+                    "total": (data.total if data.total is not None else 0),
+                    "subtotal": (data.subtotal if data.subtotal is not None else 0),
+                    "tax": (data.tax if data.tax is not None else 0),
+                    "shipping": (data.shipping if data.shipping is not None else 0),
+                    "discount": (data.discount if data.discount is not None else 0),
+                    "order_type": data.order_type,
+                    "payment_status": data.payment_status,
+                    "payment_method": data.payment_method,
+                    "upi_payment_screenshot": data.upi_payment_screenshot,
+                    "ship_name": data.ship_name,
+                    "ship_street": data.ship_street,
+                    "ship_city": data.ship_city,
+                    "ship_state": data.ship_state,
+                    "ship_pincode": data.ship_pincode,
+                    "ship_phone": data.ship_phone,
+                    "ship_address": getattr(data, "ship_address", None),
+                    "ship_district": getattr(data, "ship_district", None),
+                    "ship_country": getattr(data, "ship_country", None),
+                    "ship_google_location": getattr(data, "ship_google_location", None),
+                    "ship_latitude": getattr(data, "ship_latitude", None),
+                    "ship_longitude": getattr(data, "ship_longitude", None),
+                    "bill_name": data.bill_name,
+                    "bill_street": data.bill_street,
+                    "bill_city": data.bill_city,
+                    "bill_state": data.bill_state,
+                    "bill_pincode": data.bill_pincode,
+                    "bill_phone": data.bill_phone,
+                    "bill_address": getattr(data, "bill_address", None),
+                    "bill_district": getattr(data, "bill_district", None),
+                    "bill_country": getattr(data, "bill_country", None),
+                    "bill_google_location": getattr(data, "bill_google_location", None),
+                    "bill_latitude": getattr(data, "bill_latitude", None),
+                    "bill_longitude": getattr(data, "bill_longitude", None),
+                    "notes": data.notes,
+                    "printed_bill": 1 if data.printed_bill else 0,
+                    "assigned_valet": data.assigned_valet,
+                    "is_urgent_delivery": 1 if data.is_urgent_delivery else 0,
+                    "pending_valet_id": data.pending_valet_id,
+                    "valet_assigned_at": _to_ts(data.valet_assigned_at),
+                    "valet_cascade_count": data.valet_cascade_count or 0,
+                    "shipped_at": _to_ts(data.shipped_at),
+                    "delivered_at": _to_ts(data.delivered_at),
+                    "cod_payment_received": 1 if data.cod_payment_received else 0,
+                    "cod_payment_received_at": _to_ts(data.cod_payment_received_at),
+                    "decline_reason": data.decline_reason,
+                    "cancelled_at": _to_ts(data.cancelled_at),
+                    "cancelled_by": data.cancelled_by,
+                    "turnaround_hours": data.turnaround_hours,
+                    "idempotency_key": getattr(data, "idempotency_key", None),
                     "created_at": _to_ts(data.created_at) or now,
                     "updated_at": now,
                 },
