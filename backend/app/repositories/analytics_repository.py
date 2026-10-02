@@ -1265,11 +1265,16 @@ class AnalyticsRepository:
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_by_location(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, limit: int = 100
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 100,
+        seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Aggregate sales by shipping address city/state."""
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
+        orders = self._filter_by_seller(orders, seller_id)
 
         location_stats: dict = {}
         for order in orders:
@@ -1445,7 +1450,11 @@ class AnalyticsRepository:
 
     @cache.ttl_cache(ttl=300)
     async def get_top_returned_products(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, limit: int = 50
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 50,
+        seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Find products that are returned the most."""
         from app.repositories.return_request_repository import return_request_repository
@@ -1466,6 +1475,10 @@ class AnalyticsRepository:
             for item in req.items:
                 pid = item.product or item.product_id
                 if not pid:
+                    continue
+
+                prod = product_map.get(pid)
+                if seller_id and prod and str(prod.seller_id) != seller_id:
                     continue
 
                 if pid not in product_returns:
@@ -1498,9 +1511,11 @@ class AnalyticsRepository:
         return sorted(result, key=lambda x: x["returnCount"], reverse=True)[:limit]
 
     @cache.ttl_cache(ttl=300)
-    async def get_inventory_value_by_category(self) -> List[Dict]:
+    async def get_inventory_value_by_category(self, seller_id: Optional[str] = None) -> List[Dict]:
         """Calculate total tied up capital in inventory grouped by category."""
         products = await self.product_storage.findAll()
+        if seller_id:
+            products = [p for p in products if p.seller_id and str(p.seller_id) == seller_id]
 
         category_stats = {}
         for p in products:
