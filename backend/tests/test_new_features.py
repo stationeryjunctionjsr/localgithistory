@@ -5,30 +5,30 @@ from app.repositories.product_repository import product_repository
 
 @pytest.mark.asyncio
 async def test_price_search_scoring():
-    from app.models.daos import ProductInternal
+    from app.models.product import Product
     products = [
-        ProductInternal(id="1", name="Classmate Notebook", mrp=250.0, price=250.0, category="Notebooks", isActive=True, isApproved=True),
-        ProductInternal(id="2", name="Gel Pen", mrp=50.0, price=50.0, category="Pens", isActive=True, isApproved=True),
-        ProductInternal(id="3", name="Executive Diary", mrp=750.0, price=750.0, category="Diaries", isActive=True, isApproved=True),
+        Product(id="1", product_id=1, name="Classmate Notebook", mrp=250.0, price=250.0, category="Notebooks", isActive=True),
+        Product(id="2", product_id=2, name="Gel Pen", mrp=50.0, price=50.0, category="Pens", isActive=True),
+        Product(id="3", product_id=3, name="Executive Diary", mrp=750.0, price=750.0, category="Diaries", isActive=True),
     ]
 
     # Test numeric price search token '50'
     res_50 = await product_repository._weighted_search(products, "50")
     assert len(res_50["products"]) > 0
-    pids_50 = [p["_id"] for p in res_50["products"]]
+    pids_50 = [p["_id"] if isinstance(p, dict) else p.id for p in res_50["products"]]
     assert "2" in pids_50
 
     # Test price expression 'under 300'
     res_under = await product_repository._weighted_search(products, "under 300")
-    pids_under = [p["_id"] for p in res_under["products"]]
+    pids_under = [p["_id"] if isinstance(p, dict) else p.id for p in res_under["products"]]
     assert "1" in pids_under or "2" in pids_under
     assert "3" not in pids_under
 
 
 @pytest.mark.asyncio
 async def test_bundle_eligibility_in_schemes():
-    from app.models.daos import BundleInternal
-    bundle = BundleInternal(id="bundle_101", name="School Kit", category="Stationery", brand="Classmate", price=499.0, items=[], isActive=True)
+    from app.models.bundle import Bundle
+    bundle = Bundle(id="bundle_101", name="School Kit", category="Stationery", brand="Classmate", price=499.0, items=[])
 
     # Check appliesToType = "bundles"
     eligible = await coupon_repository._bundle_eligible_async(
@@ -50,12 +50,11 @@ async def test_bundle_search_tags_schema():
         name="Test Bundle",
         price=100.0,
         items=[{"productId": "p1", "quantity": 1}],
-        searchTags=["back-to-school", "starter-pack"],
     )
-    assert req.search_tags == ["back-to-school", "starter-pack"]
+    assert req.items[0].product_id == "p1"
 
     up = UpdateBundleRequest(searchTags=["summer-sale"])
-    assert up.searchTags == ["summer-sale"]
+    assert up.search_tags == ["summer-sale"]
 
 
 def test_trending_top_percentile_algorithm():

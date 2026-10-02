@@ -65,8 +65,8 @@ async def create_promo_strip(data: PromoStripCreate, user: User = Depends(requir
     """Admin endpoint to create a promo strip"""
     internal_data = PromoStripsInternalCreate(
         text=data.text,
-        is_active=data.is_active if data.is_active is not None else True,
-        zone_ids=data.zone_ids,
+        is_active=data.isActive if data.isActive is not None else True,
+        zone_ids=data.zoneIds,
     )
     res = await promo_strip_repository.create(internal_data)
     cache.invalidate(_get_active_promo_strips_cached)
@@ -95,8 +95,8 @@ async def update_promo_strip(id: str, data: PromoStripUpdate, user: User = Depen
 
     update_data = PromoStripsInternalUpdate(
         text=data.text,
-        is_active=data.is_active,
-        zone_ids=data.zone_ids,
+        is_active=data.isActive,
+        zone_ids=data.zoneIds,
     )
     res = await promo_strip_repository.update(id, update_data)
     cache.invalidate(_get_active_promo_strips_cached)

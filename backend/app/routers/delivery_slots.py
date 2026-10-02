@@ -18,16 +18,16 @@ storage = get_storage("deliverySlots")
 DEFAULT_ZONE_ID = "default"
 
 
-class SlotBase(BaseModel):
+class SlotBase(CamelBaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[str] = None
-    startTime: str = ""
-    endTime: str = ""
+    start_time: str = ""
+    end_time: str = ""
     capacity: Optional[int] = None  # max bookings allowed; None = unlimited
-    bookedCount: Optional[int] = 0  # current bookings for this slot
-    isFullDay: Optional[bool] = False
+    booked_count: Optional[int] = 0  # current bookings for this slot
+    is_full_day: Optional[bool] = False
     isActive: Optional[bool] = True
-    isUrgent: Optional[bool] = False  # marks this as an urgent delivery slot
+    is_urgent: Optional[bool] = False  # marks this as an urgent delivery slot
     cutoffHours: Optional[int] = None  # slot closes N hours before startTime; None = no cutoff
     urgentCutoffHours: Optional[int] = (
         None  # cutoff specifically for urgent slots; overrides cutoffHours when isUrgent=True
@@ -45,24 +45,24 @@ class DeliverySlotConfigModel(BaseModel):
     isActive: Optional[bool] = True
 
 
-class DeliverySlotConfigResponse(BaseModel):
+class DeliverySlotConfigResponse(CamelBaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     id: Optional[str] = Field(None, alias="_id")
     segment: str
     date: str
-    zoneId: str
+    zone_id: str
     slots: List[SlotBase]
-    isActive: bool
-    createdAt: Optional[str] = None
-    updatedAt: Optional[str] = None
+    is_active: bool
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class AvailableSlotItem(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     configId: str
     slotId: str
-    startTime: str
-    endTime: str
+    start_time: str
+    end_time: str
     isUrgent: bool = False
     isFullDay: bool = False
 
@@ -89,9 +89,9 @@ class DeliverySlotConfigBase(BaseModel):
     date: str
     # zoneId replaces the old free-form pincodes list.
     # Use "default" to create a fallback config for zones that have no specific config.
-    zoneId: str = DEFAULT_ZONE_ID
+    zone_id: str = DEFAULT_ZONE_ID
     slots: List[SlotBase]
-    isActive: bool = True
+    is_active: bool = True
 
 
 class DeliverySlotConfigCreate(BaseModel):
@@ -104,7 +104,7 @@ class DeliverySlotConfigCreate(BaseModel):
     date: str
     zoneIds: List[str]  # e.g. ["zone_abc", "zone_xyz"] or ["default"]
     slots: List[SlotBase]
-    isActive: bool = True
+    is_active: bool = True
 
 
 async def _resolve_zone_config(pincode: str, date: str, segment: str) -> Optional[DeliverySlotConfigModel]:
@@ -390,11 +390,11 @@ async def create_delivery_slot_config(
             date=config.date,
             zone_id=zone_id,
             slots=[DeliverySlotInternal.model_validate(s, from_attributes=True) for s in slots_with_capacity],
-            is_active=config.is_active
+            is_active=config.isActive
         )
 
         # Check for existing config for this date/segment/zone
-        existing = await storage.findAll({"date": config.date, "segment": config.segment, "zoneId": zone_id})
+        existing = await storage.findAll({"date": config.date, "segment": config.segment, "zone_id": zone_id})
         if existing:
             config_id = str(existing[0].id)
             updated = await storage.update(config_id, config_obj)

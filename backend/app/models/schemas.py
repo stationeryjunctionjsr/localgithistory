@@ -427,6 +427,7 @@ class BundlesListResponse(BaseModel):
     total: int
 
 class ProductBase(CamelBaseModel):
+    model_config = ConfigDict(extra='allow')
     name: str
     sku: Optional[str] = None
     category: Optional[str] = None

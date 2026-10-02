@@ -28,17 +28,17 @@ PAYOUT_COLLECTION = "sellerPayouts"
 def _payout_storage():
     return get_storage(PAYOUT_COLLECTION)
 
-class SellerPayoutCreate(BaseModel):
-    sellerId: str
+class SellerPayoutCreate(CamelBaseModel):
+    seller_id: str
     amount: float = Field(..., ge=0)
-    periodStart: Optional[str] = None
-    periodEnd: Optional[str] = None
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
     status: Optional[str] = 'pending_payment'
     notes: Optional[str] = None
-    subOrderIds: Optional[List[str]] = Field(default=[], description="Sub-order IDs included in this payout")
+    sub_order_ids: Optional[List[str]] = Field(default=[], description="Sub-order IDs included in this payout")
 
 class SellerPayoutSummaryResponse(BaseModel):
-    sellerId: str
+    seller_id: str
     sellerName: Optional[str] = None
     totalRealized: float
     totalPaid: float

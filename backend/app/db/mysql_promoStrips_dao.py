@@ -109,9 +109,9 @@ class MySQLPromoStripsDAO:
         if "s_text" in params:
             val_parts.append(":s_text")
         if "s_is_active" in params:
-            val_parts.append(":s_isActive")
+            val_parts.append(":s_is_active")
         if "s_zone_ids" in params:
-            val_parts.append(":s_zoneIds")
+            val_parts.append(":s_zone_ids")
         val_sql = ", ".join(val_parts)
         
         async with factory() as session:
@@ -136,11 +136,11 @@ class MySQLPromoStripsDAO:
             params["s_text"] = data.text
 
         if data.is_active is not None:
-            updates.append("is_active = :s_isActive")
+            updates.append("is_active = :s_is_active")
             params["s_is_active"] = data.is_active
 
         if data.zone_ids is not None:
-            updates.append("zone_ids = :s_zoneIds")
+            updates.append("zone_ids = :s_zone_ids")
             params["s_zone_ids"] = json.dumps(data.zone_ids)
 
         if len(updates) > 1:

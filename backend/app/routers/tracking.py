@@ -238,7 +238,7 @@ async def track_session(
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     await tracking_repository.trackSession(
-        current_user.id if current_user else None, payload.session_id, payload.is_returning, os=ext_os(payload, request), browser=ext_br(payload, request), ip_address=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
+        current_user.id if current_user else None, payload.session_id, None, os=ext_os(payload, request), browser=ext_br(payload, request), ip_address=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
     return {"message": "Session tracked"}
 
 

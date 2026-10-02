@@ -1,3 +1,4 @@
+from app.models.daos import ProductInternalCreate
 from datetime import datetime, timezone, timedelta
 import asyncio
 import uuid

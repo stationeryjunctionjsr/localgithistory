@@ -1,3 +1,4 @@
+from app.models.daos import ProductInternalCreate
 import pytest
 import asyncio
 import uuid

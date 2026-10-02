@@ -1,4 +1,4 @@
-from app.models.daos import ProductInternalUpdate
+from app.models.daos import ProductInternalUpdate, ProductInternalCreate
 import logging
 from app.models.user import User
 from fastapi.responses import StreamingResponse
@@ -1025,20 +1025,9 @@ async def create_product(product_data: ProductCreate, current_user: User = Depen
             if (p.sku or "").strip().lower() == sku_lower:
                 raise HTTPException(status_code=400, detail=f"Product with SKU '{product_data.sku}' already exists")
                 
-        internal_create = ProductInternalCreate(
-            name=product_data.name,
-            sku=product_data.sku,
-            category=product_data.category,
-            sub_category=product_data.sub_category,
-            description=product_data.description,
-            brand=product_data.brand,
-            mrp=product_data.mrp,
-            price=product_data.mrp or 0.0,
-            mrp_per_case=product_data.mrp_per_case,
-            items_per_case=product_data.quantity_per_case,
-            images=product_data.images or [],
-            is_active=product_data.is_active
-        )
+        internal_create = ProductInternalCreate.model_validate(product_data.model_dump(by_alias=True))
+        if product_data.mrp is not None and getattr(internal_create, "price", None) in (None, 0.0):
+            internal_create.price = product_data.mrp
         product = await product_repository.create(internal_create)
         _invalidate_product_caches()
         return product

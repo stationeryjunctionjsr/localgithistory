@@ -46,7 +46,7 @@ class MySQLBannerDAO:
 
         async with factory() as session:
             result = await session.execute(
-                text(f"SELECT id AS _id, external_id, title, description, image_url, link_url, display_order, start_date, end_date, is_active, is_published, target_audience, position, zone_ids, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params
+                text(f"SELECT id AS _id, external_id, title, description, image_url, link_url, display_order, start_date, end_date, is_active, is_published, target_audience, position, created_at, updated_at FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"), params
             )
             rows = result.fetchall()
             
@@ -79,13 +79,11 @@ class MySQLBannerDAO:
                         external_id, title, description, image_url, link_url,
                         display_order, start_date, end_date,
                         is_active, is_published, target_audience, position,
-                        zone_ids,
                         created_at, updated_at
                     ) VALUES (
                         :external_id, :title, :description, :image_url, :link_url,
                         :display_order, :start_date, :end_date,
                         :is_active, :is_published, :target_audience, :position,
-                        :zone_ids,
                         :created_at, :updated_at
                     )
                     """
@@ -99,11 +97,11 @@ class MySQLBannerDAO:
                     "display_order": (data.displayOrder if data.displayOrder is not None else 0),
                     "start_date": data.startDate,
                     "end_date": data.endDate,
-                    "is_active": int(bool((data.isActive if data.isActive is not None else True))),
+                    "is_active": int(bool((data.is_active if data.is_active is not None else True))),
                     "is_published": int(bool((data.isPublished if data.isPublished is not None else False))),
                     "target_audience": data.targetAudience,
                     "position": data.position,
-                    "zone_ids": json.dumps(data.zoneIds) if data.zoneIds else None,
+                    
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -133,7 +131,7 @@ class MySQLBannerDAO:
                 case "displayOrder": val = update_data.displayOrder if update_data.displayOrder is not None else existing.display_order
                 case "startDate": val = update_data.startDate if update_data.startDate is not None else existing.start_date
                 case "endDate": val = update_data.endDate if update_data.endDate is not None else existing.end_date
-                case "isActive": val = update_data.isActive if update_data.isActive is not None else existing.is_active
+                case "isActive": val = update_data.is_active if update_data.is_active is not None else existing.is_active
                 case "isPublished": val = update_data.isPublished if update_data.isPublished is not None else existing.is_published
                 case "targetAudience": val = update_data.targetAudience if update_data.targetAudience is not None else existing.target_audience
                 case "position": val = update_data.position if update_data.position is not None else existing.position
@@ -159,7 +157,6 @@ class MySQLBannerDAO:
                         is_published = :is_published,
                         target_audience = :target_audience,
                         position = :position,
-                        zone_ids = :zone_ids,
                         updated_at = :updated_at
                     WHERE id = :id
                     """
@@ -177,15 +174,15 @@ class MySQLBannerDAO:
                     "is_published": int(bool(merged["isPublished"] if "isPublished" in merged else False)),
                     "target_audience": merged["targetAudience"],
                     "position": merged["position"],
-                    "zone_ids": json.dumps(merged["zoneIds"]) if merged["zoneIds"] else None,
+                    
                     "updated_at": now,
                 },
             )
             # Need to pass an object with userSegments and visibilityRules for _replace_children
             from app.models.daos import BannerChildrenData
             dummy_merged = BannerChildrenData(
-                user_segments=update_data.userSegments if update_data.userSegments is not None else existing.user_segments,
-                visibility_rules=update_data.visibilityRules if update_data.visibilityRules is not None else existing.visibility_rules
+                user_segments=update_data.user_segments if update_data.user_segments is not None else existing.user_segments,
+                visibility_rules=update_data.visibility_rules if update_data.visibility_rules is not None else existing.visibility_rules
             )
             await self._replace_children(session, bid, dummy_merged)
             await session.commit()
@@ -200,3 +197,24 @@ class MySQLBannerDAO:
             await session.commit()
             return result.rowcount > 0
 
+
+
+    async def _replace_children(self, session, bid: int, data):
+        from sqlalchemy import text
+        await session.execute(text("DELETE FROM sj_banner_user_segments WHERE banner_id = :bid"), {"bid": bid})
+        await session.execute(text("DELETE FROM sj_banner_visibility_rules WHERE banner_id = :bid"), {"bid": bid})
+        
+        user_segments = getattr(data, 'user_segments', [])
+        for seg in (user_segments if user_segments is not None else []):
+            await session.execute(
+                text("INSERT INTO sj_banner_user_segments (banner_id, segment) VALUES (:bid, :seg)"),
+                {"bid": bid, "seg": seg}
+            )
+            
+        visibility_rules = getattr(data, 'visibility_rules', [])
+        for rule in (visibility_rules if visibility_rules is not None else []):
+            rule_val = rule.model_dump_json() if hasattr(rule, 'model_dump_json') else str(rule)
+            await session.execute(
+                text("INSERT INTO sj_banner_visibility_rules (banner_id, rule) VALUES (:bid, :rule)"),
+                {"bid": bid, "rule": rule_val}
+            )

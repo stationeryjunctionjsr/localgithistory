@@ -71,9 +71,9 @@ class ProductRepository:
                 parts.extend([str(fmrp), str(int(fmrp)), f"rs {int(fmrp)}", f"₹{int(fmrp)}", f"rs.{int(fmrp)}"])
             except ValueError:
                 pass
-        if product.mrpPerCase is not None:
+        if product.mrp_per_case is not None:
             try:
-                fmrp_case = float(product.mrpPerCase)
+                fmrp_case = float(product.mrp_per_case)
                 parts.extend([str(fmrp_case), str(int(fmrp_case))])
             except ValueError:
                 pass
@@ -187,7 +187,7 @@ class ProductRepository:
 
         # Clean up internal score field
         for p in scored:
-            p.pop("_searchScore", None)
+            delattr(p, "_searchScore") if hasattr(p, "_searchScore") else None
 
         return {"products": scored, "usedFuzzy": used_fuzzy, "suggestedQuery": suggested_query}
 
@@ -1066,8 +1066,8 @@ class ProductRepository:
 
         # Business (wholesaler) buying by case: calculate total using case MRP
         if sell_as_case and role == "wholesaler":
-            qty_per_case = product.quantityPerCase or 0
-            mrp_case = product.mrpPerCase
+            qty_per_case = product.quantity_per_case or 0
+            mrp_case = product.mrp_per_case
             if qty_per_case and mrp_case is not None:
                 return round(float(mrp_case), 2)
 
@@ -1104,8 +1104,8 @@ class ProductRepository:
                         # Evaluate quantity tiers
                         qty_to_use = quantity
                         if role == "wholesaler" and sell_as_case:
-                            if c.applicable_item_type == "cases" and product.quantityPerCase:
-                                qty_to_use = quantity // product.quantityPerCase
+                            if c.applicable_item_type == "cases" and product.quantity_per_case:
+                                qty_to_use = quantity // product.quantity_per_case
 
                         sorted_tiers = sorted(c.quantity_tiers, key=lambda x: x["quantity"] if "quantity" in x else 0, reverse=True)
                         matched_pct = 0.0
@@ -1152,8 +1152,8 @@ class ProductRepository:
     ) -> float:
         """Total price for quantity (units). If sell_as_case, quantity is in units and price = cases * mrpPerCase."""
         if sell_as_case and role == "wholesaler":
-            qty_per_case = int(product.quantityPerCase or 0)
-            mrp_case = product.mrpPerCase
+            qty_per_case = int(product.quantity_per_case or 0)
+            mrp_case = product.mrp_per_case
             if qty_per_case and mrp_case is not None and quantity >= qty_per_case:
                 cases = quantity // qty_per_case
                 return round(float(mrp_case) * cases, 2)

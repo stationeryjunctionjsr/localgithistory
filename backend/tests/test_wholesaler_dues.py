@@ -1,11 +1,4 @@
-try:
-    from app.models.daos import OrderInternalCreate
-except ImportError:
-    pass
-try:
-    from app.models.daos_flat import OrderInternalCreate
-except ImportError:
-    pass
+from app.models.order import OrderInternalCreate
 import pytest
 import uuid
 from datetime import datetime, timezone, timedelta

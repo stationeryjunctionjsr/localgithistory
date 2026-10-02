@@ -368,11 +368,16 @@ class SellerRequestInternalUpdate(CamelBaseModel):
 
 
 class ProductInternalCreate(CamelBaseModel):
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra='ignore')
+    stock: int = 0
+    sellers: List[ProductSellerEntry] = []
+    rating: float = 0.0
+    reviews: int = 0
+    quantity_per_case: int = 0
     external_id: Optional[str] = Field(None, alias='externalId')
     name: str
     description: Optional[str] = None
-    price: float
+    price: float = 0.0
     mrp: Optional[float] = None
     category_id: str = "1"
     brand_id: Optional[str] = None
@@ -524,7 +529,7 @@ class BundleInternalCreate(CamelBaseModel):
     items: Optional[List[BundleItemInternal]] = []
     products: Optional[List[BundleItemInternal]] = []
     sales_count: Optional[int] = 0
-    price: float
+    price: float = 0.0
     is_active: bool = True
     is_system: bool = False
 

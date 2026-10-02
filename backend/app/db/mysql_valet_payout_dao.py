@@ -82,11 +82,11 @@ class MySQLValetPayoutDAO:
             params["amount"] = data.amount
         if data.delivery_count is not None:
             cols.append("delivery_count")
-            vals.append(":deliveryCount")
+            vals.append(":delivery_count")
             params["delivery_count"] = data.delivery_count
         if data.return_count is not None:
             cols.append("return_count")
-            vals.append(":returnCount")
+            vals.append(":return_count")
             params["return_count"] = data.return_count
         if data.period_start is not None:
             cols.append("period_start")
@@ -102,7 +102,7 @@ class MySQLValetPayoutDAO:
             params["status"] = data.status
         if data.payment_method is not None:
             cols.append("payment_method")
-            vals.append(":paymentMethod")
+            vals.append(":payment_method")
             params["payment_method"] = data.payment_method
         if data.payment_reference is not None:
             cols.append("payment_reference")

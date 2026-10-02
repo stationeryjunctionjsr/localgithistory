@@ -47,8 +47,7 @@ async def test_promo_strips_crud(client: AsyncClient):
     payload = {
         "text": "Special Discount!",
         "isActive": True,
-        "link": "/sale",
-        "userRole": "customer"
+        
     }
     response = await client.post("/api/promo-strips/", json=payload)
     assert response.status_code == 200 or response.status_code == 201, f"Promo strip creation failed: {response.text}"

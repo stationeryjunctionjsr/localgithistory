@@ -75,7 +75,7 @@ class TestDeliveryChargeRepository:
             MockTier("Infinity", 0),
         ]
         result = self.repo.calculateTieredCharge(tiers, order_amount=300)
-        assert result.charge == 60.0
+        assert result['charge'] == 60.0
         assert result.appliedTier is not None
 
     # ── A2 ──────────────────────────────────────────────────────────────────
@@ -86,13 +86,13 @@ class TestDeliveryChargeRepository:
             MagicMock(max="Infinity", charge=0),
         ]
         result = self.repo.calculateTieredCharge(tiers, order_amount=1500)
-        assert result.charge == 0.0
+        assert result['charge'] == 0.0
 
     # ── A3 ──────────────────────────────────────────────────────────────────
     def test_calculate_tiered_charge_empty(self):
         """Empty tiers list returns zero charge."""
         result = self.repo.calculateTieredCharge([], order_amount=500)
-        assert result.charge == 0
+        assert result['charge'] == 0
         assert result.appliedTier is None
 
     # ── A4 ──────────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ class TestDeliveryChargeRepository:
         ]
         # order_amount = 500 is NOT < 500, so it falls to the Infinity tier
         result = self.repo.calculateTieredCharge(tiers, order_amount=500)
-        assert result.charge == 0.0
+        assert result['charge'] == 0.0
 
     # ── A5 ──────────────────────────────────────────────────────────────────
     def test_is_charge_applicable_to_role(self):
@@ -581,7 +581,7 @@ async def test_delivery_charge_gst_calculation():
             order_amount=200,
         )
 
-    assert result.charge == 100.0
+    assert result['charge'] == 100.0
     assert result.source == "pincode"
 
 
@@ -608,7 +608,7 @@ async def test_delivery_charge_wholesaler_not_applicable():
         )
 
     assert result.is_applicable_to_role is False
-    assert result.charge == 0
+    assert result['charge'] == 0
 
 
 @pytest.mark.asyncio
