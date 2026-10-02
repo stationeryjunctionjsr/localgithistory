@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.models.user import User
-from app.models.schemas import MessageResponse, SellerPayoutDetailResponse, MarkPaidRequest
+from app.models.schemas import CamelBaseModel, MessageResponse, SellerPayoutDetailResponse, MarkPaidRequest
 from app.models.daos import SellerPayoutInternalCreate, SellerPayoutInternalUpdate
 from app.models.sub_order import SubOrderInternalUpdate
 from app.db.storage_factory import get_storage
@@ -88,7 +88,7 @@ async def list_seller_payouts(
 async def create_seller_payout(
     data: SellerPayoutCreate,
     current_user: User = Depends(require_super_admin)):
-    seller = await user_repository.findById(data.sellerId)
+    seller = await user_repository.findById(data.seller_id)
     if not seller or not seller.is_seller_admin:
         raise HTTPException(status_code=404, detail="Seller not found")
 
@@ -96,10 +96,10 @@ async def create_seller_payout(
     storage = _payout_storage()
     created = await storage.create(
         SellerPayoutInternalCreate(
-            sellerId=data.sellerId,
+            sellerId=data.seller_id,
             amount=data.amount,
-            periodStart=data.periodStart,
-            periodEnd=data.periodEnd,
+            periodStart=data.period_start,
+            periodEnd=data.period_end,
             status=data.status or "pending_payment",
             notes=data.notes,
             subOrderIds=data.sub_order_ids or []

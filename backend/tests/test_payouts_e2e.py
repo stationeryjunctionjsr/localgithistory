@@ -66,10 +66,9 @@ async def test_valet_payout_flow():
             "amount": 500.0,
             "periodStart": "2024-01-01T00:00:00Z",
             "periodEnd": "2024-01-31T23:59:59Z",
-            "totalDeliveries": 10,
-            "totalReturns": 2,
-            "orderIds": []
-        }
+            "deliveryCount": 10,
+            "returnCount": 2,
+            }
         res = await client.post("/api/valet-payouts/payouts", json=payout_payload, headers=admin_auth)
         assert res.status_code == 201, res.text
         payout_id = res.json()["id"]

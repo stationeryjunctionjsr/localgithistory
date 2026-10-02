@@ -72,7 +72,6 @@ class TrackCartAbandonmentRequest(BaseTrackingRequest):
 
 class TrackSessionRequest(BaseTrackingRequest):
     session_id: str
-    is_returning: bool = False
 
 
 class TrackPageViewRequest(BaseTrackingRequest):

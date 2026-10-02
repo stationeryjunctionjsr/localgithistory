@@ -47,7 +47,7 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
 
         # Create corresponding order record via repository to generate IDs & number correctly
         order = await order_repository.create(
-            OrderInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
+            OrderInternalCreate(**{"tax": 0.0, "shipping": 0.0, "discount": 0.0, '_id': __import__('uuid').uuid4().hex, **{
                 "user": user.id,
                 "userRole": "wholesaler",
                 "subtotal": 500.0,

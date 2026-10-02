@@ -123,6 +123,7 @@ class ItemSnippet(CamelBaseModel):
     quantity: Optional[int] = None
     sell_as_case: Optional[bool] = None
     price: Optional[float] = None
+    cart_items: Optional[List[ItemSnippet]] = None
     mrp: Optional[float] = None
     name: Optional[str] = None
     image: Optional[str] = None
@@ -146,6 +147,7 @@ class VariantOption(CamelBaseModel):
     sku: Optional[str] = None
     attributes: Optional[VariantAttributes] = None
     price: Optional[float] = None
+    cart_items: Optional[List[ItemSnippet]] = None
 
 class VisibilityRuleSnippet(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -393,6 +395,7 @@ class BundleItemResponse(CamelBaseModel):
     quantity: int
     image: Optional[str] = None
     price: Optional[float] = None
+    cart_items: Optional[List[ItemSnippet]] = None
     discount_price: Optional[float] = None
     product: Optional['Product'] = None
     line_mrp: Optional[float] = None
@@ -1167,6 +1170,7 @@ class ProductResponse(ProductBase):
     productId: Optional[int] = None
     productIdFormatted: Optional[str] = None
     price: Optional[float] = None
+    cart_items: Optional[List[ItemSnippet]] = None
     originalPrice: Optional[float] = None
     discountPercentage: Optional[float] = None
     defaultDiscountPercentage: Optional[float] = None
@@ -1208,6 +1212,7 @@ class SkinnyProductResponse(CamelBaseModel):
     is_active: bool = True
     tags: Optional[List[str]] = None
     price: Optional[float] = None
+    cart_items: Optional[List[ItemSnippet]] = None
     originalPrice: Optional[float] = None
     discountPercentage: Optional[float] = None
     searchTags: Optional[List[str]] = None
@@ -1271,12 +1276,12 @@ class CouponBase(CamelBaseModel):
     buy_x_get_y_customer_gets_applies_to_value_ids: Optional[List[str]] = None
     buy_x_get_y_customer_gets_discount_type: Optional[str] = None
     buy_x_get_y_customer_gets_discount_value: Optional[float] = None
-    displayId: Optional[str] = None
-    shippingStates: Optional[List[str]] = None
-    shippingDistricts: Optional[List[str]] = None
-    shippingPincodes: Optional[List[str]] = None
-    applicablePaymentMethods: Optional[List[str]] = None
-    couponMode: Optional[str] = "override"
+    display_id: Optional[str] = None
+    shipping_states: Optional[List[str]] = None
+    shipping_districts: Optional[List[str]] = None
+    shipping_pincodes: Optional[List[str]] = None
+    applicable_payment_methods: Optional[List[str]] = None
+    coupon_mode: Optional[str] = "override"
     
     @model_validator(mode='after')
     def validate_dates(self):
@@ -1328,11 +1333,11 @@ class CouponUpdate(CamelBaseModel):
     buy_x_get_y_customer_gets_applies_to_value_ids: Optional[List[str]] = None
     buy_x_get_y_customer_gets_discount_type: Optional[str] = None
     buy_x_get_y_customer_gets_discount_value: Optional[float] = None
-    shippingStates: Optional[List[str]] = None
-    shippingDistricts: Optional[List[str]] = None
-    shippingPincodes: Optional[List[str]] = None
-    applicablePaymentMethods: Optional[List[str]] = None
-    couponMode: Optional[str] = None
+    shipping_states: Optional[List[str]] = None
+    shipping_districts: Optional[List[str]] = None
+    shipping_pincodes: Optional[List[str]] = None
+    applicable_payment_methods: Optional[List[str]] = None
+    coupon_mode: Optional[str] = None
 
 
 class CouponResponse(CouponBase):
@@ -1635,7 +1640,7 @@ class OrderAddress(CamelBaseModel):
 class CouponCreateInternal(CouponBase):
     resolution: Optional[str] = None
     force: bool = False
-    displayId: Optional[str] = None
+    display_id: Optional[str] = None
     used_count: int = 0
 
 
@@ -1802,6 +1807,7 @@ class AnalyticsEventCreate(CamelBaseModel):
     product_name: Optional[str] = None
     quantity: Optional[int] = None
     price: Optional[float] = None
+    cart_items: Optional[List[ItemSnippet]] = None
     cart_value: Optional[float] = None
     is_returning: Optional[bool] = None
     device_type: Optional[str] = None
@@ -1869,6 +1875,7 @@ class OrderItemCreate(CamelBaseModel):
     quantity: int = 1
     sell_as_case: Optional[bool] = False
     price: Optional[float] = None
+    cart_items: Optional[List[ItemSnippet]] = None
     selected_variation: Optional[VariantAttributes] = None
     bundle_id: Optional[str] = None
     bundle_name: Optional[str] = None
@@ -1966,6 +1973,7 @@ class ReturnEligibilityItem(CamelBaseModel):
     reason: Optional[str] = None
     name: Optional[str] = None
     price: Optional[float] = None
+    cart_items: Optional[List[ItemSnippet]] = None
     image: Optional[str] = None
 
 
@@ -2141,6 +2149,7 @@ class PopulatedOrderItemResponse(CamelBaseModel):
     product: Optional['Product'] = None
     quantity: Optional[int] = None
     price: Optional[float] = None
+    cart_items: Optional[List[ItemSnippet]] = None
     stock_status: Optional[str] = None
     tax_rate: Optional[float] = None
     tax_amount: Optional[float] = None

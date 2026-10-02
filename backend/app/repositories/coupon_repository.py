@@ -483,7 +483,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             buy_x_get_y_customer_gets_discount_type=coupon_data.buy_x_get_y_customer_gets_discount_type,
             buy_x_get_y_customer_gets_discount_value=float(coupon_data.buy_x_get_y_customer_gets_discount_value) if coupon_data.buy_x_get_y_customer_gets_discount_value is not None else None,
             applicable_item_type=coupon_data.applicable_item_type or "units",
-            coupon_mode=coupon_data.couponMode or "override",
+            coupon_mode=coupon_data.coupon_mode or "override",
             max_usage_per_user=int(coupon_data.max_usage_per_user) if coupon_data.max_usage_per_user else None,
             user_behavior=coupon_data.user_behavior,
         )

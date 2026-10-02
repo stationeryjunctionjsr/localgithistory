@@ -4,6 +4,7 @@ from app.models.schemas import MessageResponse
 from app.models.daos_flat import DeliverySlotConfigInternalCreate, DeliverySlotInternal
 from typing import List, Optional
 from pydantic import BaseModel, Field, ConfigDict
+from app.models.schemas import CamelBaseModel
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 
@@ -94,7 +95,7 @@ class DeliverySlotConfigBase(BaseModel):
     is_active: bool = True
 
 
-class DeliverySlotConfigCreate(BaseModel):
+class DeliverySlotConfigCreate(CamelBaseModel):
     """
     Create request — admin selects one or more zones (or "default").
     The backend will create a separate SlotConfig record per zone, each
@@ -102,7 +103,7 @@ class DeliverySlotConfigCreate(BaseModel):
     """
     segment: str
     date: str
-    zoneIds: List[str]  # e.g. ["zone_abc", "zone_xyz"] or ["default"]
+    zone_ids: List[str]  # e.g. ["zone_abc", "zone_xyz"] or ["default"]
     slots: List[SlotBase]
     is_active: bool = True
 
@@ -367,7 +368,7 @@ async def create_delivery_slot_config(
     zones_storage = get_storage("deliveryZones")
     created = []
 
-    for zone_id in config.zoneIds:
+    for zone_id in config.zone_ids:
         # Resolve zone capacity
         zone_default_capacity = 10  # fallback
         if zone_id != DEFAULT_ZONE_ID:
@@ -390,7 +391,7 @@ async def create_delivery_slot_config(
             date=config.date,
             zone_id=zone_id,
             slots=[DeliverySlotInternal.model_validate(s, from_attributes=True) for s in slots_with_capacity],
-            is_active=config.isActive
+            is_active=config.is_active
         )
 
         # Check for existing config for this date/segment/zone

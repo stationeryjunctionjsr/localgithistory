@@ -95,7 +95,6 @@ async def test_web_tracking_endpoints(client: AsyncClient):
         "/api/tracking/session",
         json={
             "sessionId": session_id,
-            "isReturning": True,
         },
     )
     assert res.status_code == 200
@@ -172,9 +171,6 @@ async def test_web_tracking_endpoints(client: AsyncClient):
 
     abandon_record = next(r for r in records if r.type == "cart_abandonment")
     assert abandon_record.cart_value == 998.0
-
-    session_record = next(r for r in records if r.type == "session")
-    assert session_record.is_returning is True
 
     # Cleanup test tracking events
     await tracking_repository.storage.deleteMany({"sessionId": session_id})
@@ -280,7 +276,6 @@ async def test_analytics_reports_incorporate_events(client: AsyncClient, admin_a
         "/api/tracking/session",
         json={
             "sessionId": session_id,
-            "isReturning": False,
         },
     )
     await client.post(

@@ -258,37 +258,11 @@ class MySQLOrderDAO:
             )
 
     async def ensure_idempotency_index(self) -> None:
-        """Idempotently add the idempotency_key column + unique index to sj_orders.
+        pass
 
-        Called once at application startup (from order_service or startup.py).
-        Safe to call from all 4 workers simultaneously — each statement is a
-        no-op if the column / index already exists.
-        """
-        factory = self._factory()
-        if not factory:
-            return
-        async with factory() as session:
-            # Add the column if it doesn't exist yet
-            await session.execute(
-                text(
-                    "ALTER TABLE sj_orders "
-                    "ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(128) NULL DEFAULT NULL"
-                )
-            )
-            # Add the unique index if it doesn't exist yet.
-            # MySQL 8.0+ supports CREATE INDEX IF NOT EXISTS; for older versions
-            # we swallow the duplicate-key-name error silently.
-            try:
-                await session.execute(
-                    text(
-                        "CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_user_idempotency "
-                        "ON sj_orders (user_id, idempotency_key)"
-                    )
-                )
-            except Exception:
-                # Index already exists — nothing to do
-                pass
-            await session.commit()
+    async def create(self, data: 'OrderInternalCreate') -> 'Order':
+        res, _ = await self.create_idempotent(data)
+        return res
 
     async def create_idempotent(self, data: 'OrderInternalCreate') -> tuple['Order', bool]:
         """Insert an order, using the DB unique index on (user_id, idempotency_key)
@@ -301,8 +275,7 @@ class MySQLOrderDAO:
 
         Falls back to plain create() when idempotency_key is None/empty.
         """
-        if not data.idempotency_key:
-            return await self.create(data), True
+
 
         factory = self._factory()
         if not factory:

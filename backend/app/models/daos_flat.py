@@ -874,6 +874,17 @@ class StockReservationsInternalUpdate(BaseModel):
     status: Optional[str] = None
     user_id: Optional[str] = None
 
+
+class ProductNotificationsInternal(BaseModel):
+    model_config = ConfigDict(extra='ignore', populate_by_name=True)
+    id: int
+    external_id: str = Field(..., alias='externalId')
+    email: str = ""
+    phone: str = ""
+    product_id: str = Field(..., alias='productId')
+    status: str = ""
+    user_id: str = Field("", alias='userId')
+
 class ProductNotificationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
     external_id: Optional[str] = Field(None, alias='externalId')

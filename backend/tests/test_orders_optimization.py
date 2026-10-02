@@ -77,7 +77,7 @@ async def test_orders_optimization_logic():
     )
 
     # 2. Create order
-    order = await order_repository.create(OrderInternalCreate(**{
+    order = await order_repository.create(OrderInternalCreate(**{"tax": 0.0, "shipping": 0.0, "discount": 0.0, 
             "user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id),
             "userRole": "customer",
             "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 2, "price": 100.0}],
@@ -141,7 +141,7 @@ async def test_orders_pagination_and_counting_logic():
     )
 
     # 2. Create 3 test orders with unique notes and payment methods
-    o1 = await order_repository.create(OrderInternalCreate(**{
+    o1 = await order_repository.create(OrderInternalCreate(**{"tax": 0.0, "shipping": 0.0, "discount": 0.0, 
             "user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id),
             "userRole": "customer",
             "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 1, "price": 100.0}],
@@ -159,7 +159,7 @@ async def test_orders_pagination_and_counting_logic():
             "notes": "TEST_ORDER_OPT_1",
         })
     )
-    o2 = await order_repository.create(OrderInternalCreate(**{
+    o2 = await order_repository.create(OrderInternalCreate(**{"tax": 0.0, "shipping": 0.0, "discount": 0.0, 
             "user": getattr(user, "_id", user.id),
             "userRole": "customer",
             "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 2, "price": 100.0}],
@@ -177,7 +177,7 @@ async def test_orders_pagination_and_counting_logic():
             "notes": "TEST_ORDER_OPT_2",
         })
     )
-    o3 = await order_repository.create(OrderInternalCreate(**{
+    o3 = await order_repository.create(OrderInternalCreate(**{"tax": 0.0, "shipping": 0.0, "discount": 0.0, 
             "user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id),
             "userRole": "customer",
             "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 1, "price": 100.0}],

@@ -268,37 +268,37 @@ async def record_event(
 
         if event_type == "session_start":
             auth_session_id = user_info.session_id if user_info else None
-            tracking_obj = await tracking_repository.trackSession(user_id, session_id, auth_session_id=auth_session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=final_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version, page=page)
+            tracking_obj = await tracking_repository.trackSession(user_id, session_id, auth_session_id=auth_session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=final_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version)
         elif event_type == "page_view":
             tracking_obj = await tracking_repository.trackPageView(user_id, page, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=final_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version)
         elif event_type == "product_view":
             product_id = payload_obj.product_id
             product_name = payload_obj.product_name if payload_obj.product_name is not None else "Unknown"
             if product_id:
-                tracking_obj = await tracking_repository.trackProductView(user_id, product_id, product_name, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=p_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version, page=page)
+                tracking_obj = await tracking_repository.trackProductView(user_id, product_id, product_name, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=p_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version)
         elif event_type == "product_click":
             product_id = payload_obj.product_id
             product_name = payload_obj.product_name if payload_obj.product_name is not None else "Unknown"
             if product_id:
-                tracking_obj = await tracking_repository.trackProductClick(user_id, product_id, product_name, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=p_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version, page=page)
+                tracking_obj = await tracking_repository.trackProductClick(user_id, product_id, product_name, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=p_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version)
         elif event_type == "add_to_cart":
             product_id = payload_obj.product_id
             quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
             if product_id:
-                tracking_obj = await tracking_repository.trackCartAdd(user_id, product_id, quantity, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=p_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version, page=page)
+                tracking_obj = await tracking_repository.trackCartAdd(user_id, product_id, quantity, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=p_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version)
         elif event_type == "remove_from_cart":
             product_id = payload_obj.product_id
             quantity = payload_obj.quantity if payload_obj.quantity is not None else 1
             if product_id:
-                tracking_obj = await tracking_repository.trackCartItemRemove(user_id, product_id, quantity, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=final_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version, page=page)
+                tracking_obj = await tracking_repository.trackCartItemRemove(user_id, product_id, quantity, session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=final_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version)
         elif event_type == "search":
             query = payload_obj.query if payload_obj.query is not None else ""
             results_count = payload_obj.results_count if payload_obj.results_count is not None else 0
-            tracking_obj = await tracking_repository.trackSearch(user_id, query, results_count, session_id, segment=computed_segment, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=final_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version, page=page)
+            tracking_obj = await tracking_repository.trackSearch(user_id, query, results_count, session_id, segment=computed_segment, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=final_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version)
         elif event_type == "add_to_wishlist":
             product_id = payload_obj.product_id
             if product_id:
-                tracking_obj = await tracking_repository.trackWishlistAdd(user_id, product_id, "Unknown", session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=p_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version, page=page)
+                tracking_obj = await tracking_repository.trackWishlistAdd(user_id, product_id, "Unknown", session_id, os=final_os, browser=final_browser, ip_address=final_ip, campaign=final_campaign, source=p_source, device_type=final_device_type, device_os_version=final_device_os_version, device_model=final_device_model, device_app_version=final_device_app_version)
         elif event_type == "session_end":
             reason = payload_obj.reason if payload_obj.reason is not None else "unknown"
             tracking_obj = await tracking_repository.create(

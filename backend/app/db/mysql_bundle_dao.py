@@ -136,7 +136,7 @@ class MySQLBundleDAO:
             )
             await session.commit()
             
-        items = update_data.items if update_data.items else update_data.products
+        items = getattr(update_data, 'items', None) or getattr(update_data, 'products', None)
         if items is not None:
             await self._save_products(existing.external_id, items)
             

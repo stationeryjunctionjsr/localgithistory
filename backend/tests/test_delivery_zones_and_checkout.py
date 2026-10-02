@@ -76,7 +76,7 @@ class TestDeliveryChargeRepository:
         ]
         result = self.repo.calculateTieredCharge(tiers, order_amount=300)
         assert result['charge'] == 60.0
-        assert result.appliedTier is not None
+        assert result['appliedTier'] is not None
 
     # ── A2 ──────────────────────────────────────────────────────────────────
     def test_calculate_tiered_charge_infinity_tier(self):
@@ -93,7 +93,7 @@ class TestDeliveryChargeRepository:
         """Empty tiers list returns zero charge."""
         result = self.repo.calculateTieredCharge([], order_amount=500)
         assert result['charge'] == 0
-        assert result.appliedTier is None
+        assert result['appliedTier'] is None
 
     # ── A4 ──────────────────────────────────────────────────────────────────
     def test_calculate_tiered_charge_boundary(self):
@@ -512,12 +512,12 @@ async def test_get_available_slots_valid_slot_included():
 
 
 @pytest.mark.asyncio
-async def test_book_slot_not_found(user_auth: dict):
+async def test_book_slot_not_found(admin_auth: dict):
     """E6 – Booking a slot in a non-existent config returns 404."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post(
             "/api/delivery-slots/nonexistent_config_id/book-slot",
-            params={"slot_id": "slot_123"}, headers=user_auth,
+            params={"slot_id": "slot_123"}, headers=admin_auth,
         )
     assert resp.status_code == 404
 

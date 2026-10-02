@@ -104,7 +104,6 @@ class AnalyticsRepository:
             "orders": total_orders,
         }
 
-    @cache.ttl_cache(ttl=300)
     def _filter_by_seller(self, orders: list, seller_id: Optional[str]) -> list:
         """Filter orders to those belonging to a specific seller.
 
