@@ -1,0 +1,27 @@
+Test: book_slot_not_found
+Error: E       assert 403 == 404
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+Test: full_e2e_flow
+Error: E               fastapi.exceptions.ResponseValidationError: 14 validation errors:
+E                 {'type': 'missing', 'loc': ('response', 0, 'zoneId'), 'msg': 'Field required', 'input': DeliverySlotConfigInternal(external_id='4883936cfa5c99e46eac3fbe82530fae', id='1', segment='retail', date='2026-10-02', zone_id='6', is_active=True, slots=[{'start_time': '00:00', 'end_time': '23:59', 'capacity': '100', 'booked_count': 0, 'is_full_day': 0, 'is_urgent': 0, 'cutoff_hours': 0}, {'start_time': '00:00', 'end_time': '23:59', 'capacity': '50', 'booked_count': 0, 'is_full_day': 0, 'is_urgent': 1, 'cutoff_hours': 0}], created_at=datetime.datetime(2026, 10, 1, 18, 48, 38), updated_at=datetime.datetime(2026, 10, 1, 18, 48, 38))}
+E                 {'type': 'extra_forbidden', 'loc': ('response', 0, 'slots', 0, 'start_time'), 'msg': 'Extra inputs are not permitted', 'input': '00:00'}
+E                 {'type': 'extra_forbidden', 'loc': ('response', 0, 'slots', 0, 'end_time'), 'msg': 'Extra inputs are not permitted', 'input': '23:59'}
+E                 {'type': 'extra_forbidden', 'loc': ('response', 0, 'slots', 0, 'booked_count'), 'msg': 'Extra inputs are not permitted', 'input': 0}
+
+Test: full_integrated_e2e
+Error: E           AssertionError: {"detail":"An internal error occurred"}
+E           assert 500 in [200, 201]
+E            +  where 500 = <Response [500 Internal Server Error]>.status_code
+E               AssertionError: Cart add failed: {"detail":"Insufficient stock. Available: 0"}
+E               assert 400 in [200, 201]
+
+Test: seller_payout_flow
+Error: E                   AttributeError: 'SellerPayoutCreate' object has no attribute 'sub_order_ids'. Did you mean: 'subOrderIds'?
+
+Test: valet_payout_flow
+Error: E                       sqlalchemy.exc.InvalidRequestError: A value is required for bind parameter 'deliveryCount' (Background on this error at: https://sqlalche.me/e/20/cd3x)
+E                       sqlalchemy.exc.StatementError: (sqlalchemy.exc.InvalidRequestError) A value is required for bind parameter 'deliveryCount'
+E                       [SQL: INSERT INTO sj_valet_payouts (external_id, created_at, updated_at, valet_id, amount, delivery_count, return_count, period_start, period_end, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)]
+E                       [parameters: [{'eid': '95c6e614f46effdbd5831d76f34f61df', 'c': datetime.datetime(2026, 10, 1, 18, 51, 24, 555477, tzinfo=datetime.timezone.utc), 'u': datetime.datet ... (162 characters truncated) ... count': 0, 'period_start': datetime.datetime(2024, 1, 1, 0, 0), 'period_end': datetime.datetime(2024, 1, 31, 23, 59, 59), 'status': 'pending_payment'}]]
+E                       (Background on this error at: https://sqlalche.me/e/20/cd3x)

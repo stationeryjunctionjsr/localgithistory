@@ -32,7 +32,10 @@ _redis_url = os.getenv("REDIS_URL", "")
 
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["100000/minute"],
+    # Catch-all floor for unauthenticated / undecorated endpoints.
+    # ≈10 req/s per worker; with up to 4 workers effective throughput for a
+    # single client is ~2 400 req/min before any worker blocks the client.
+    default_limits=["600/minute"],
     enabled=not is_test,
     storage_uri=_redis_url if _redis_url else None,
     in_memory_fallback_enabled=bool(_redis_url),  # fallback only when Redis is configured

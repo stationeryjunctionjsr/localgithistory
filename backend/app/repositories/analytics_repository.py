@@ -105,12 +105,38 @@ class AnalyticsRepository:
         }
 
     @cache.ttl_cache(ttl=300)
+    def _filter_by_seller(self, orders: list, seller_id: Optional[str]) -> list:
+        """Filter orders to those belonging to a specific seller.
+
+        Orders are associated with sellers via sub-orders (order.sub_orders[].seller_id)
+        or directly via order.seller_id for single-seller orders.  A None seller_id
+        means no restriction (super-admin view — return everything).
+        """
+        if not seller_id:
+            return orders
+        filtered = []
+        for order in orders:
+            # Direct seller_id field on order (single-seller path)
+            if order.seller_id and str(order.seller_id) == seller_id:
+                filtered.append(order)
+                continue
+            # Sub-order path: any sub-order belonging to this seller makes the order relevant
+            sub_orders = order.sub_orders or []
+            if any(str(so.seller_id) == seller_id for so in sub_orders if so.seller_id):
+                filtered.append(order)
+        return filtered
+
     async def get_sales_over_time(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, group_by: str = "hour"
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        group_by: str = "hour",
+        seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Get sales over time, grouped by hour, day, or month"""
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
+        orders = self._filter_by_seller(orders, seller_id)
 
         sales_by_period = {}
 
@@ -248,11 +274,16 @@ class AnalyticsRepository:
 
     @cache.ttl_cache(ttl=300)
     async def get_sales_by_product(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, limit: int = 10
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 10,
+        seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Get top products by sales"""
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
+        orders = self._filter_by_seller(orders, seller_id)
 
         products = await self.product_storage.findAll()
         product_map = {p.id: p for p in products}
@@ -467,11 +498,16 @@ class AnalyticsRepository:
 
     @cache.ttl_cache(ttl=300)
     async def get_products_by_sell_through_rate(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, limit: int = 10
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 10,
+        seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Get products by sell-through rate"""
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
+        orders = self._filter_by_seller(orders, seller_id)
 
         products = await self.product_storage.findAll()
         {p.id: p for p in products}
@@ -991,7 +1027,10 @@ class AnalyticsRepository:
 
     @cache.ttl_cache(ttl=300)
     async def get_returns_report(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Aggregate returns/refund requests with order value and status."""
         from app.repositories.return_request_repository import return_request_repository
@@ -1011,6 +1050,11 @@ class AnalyticsRepository:
                 continue
 
             order = (order_map[ret.order_id] if ret.order_id in order_map else None)
+            # Seller scoping: skip returns not belonging to this seller
+            if seller_id and order:
+                order_in_scope = self._filter_by_seller([order], seller_id)
+                if not order_in_scope:
+                    continue
             user = (user_map[ret.userId] if ret.userId in user_map else None)
             items = ret.items
             refund_value = sum((i.subtotal or i.price) * i.quantity for i in items)
@@ -1035,11 +1079,15 @@ class AnalyticsRepository:
 
     @cache.ttl_cache(ttl=300)
     async def get_payment_methods_report(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Aggregate order count and revenue by payment method."""
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
+        orders = self._filter_by_seller(orders, seller_id)
 
         method_stats: dict = {}
         for order in orders:
@@ -1065,11 +1113,16 @@ class AnalyticsRepository:
 
     @cache.ttl_cache(ttl=300)
     async def get_revenue_by_category(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, limit: int = 20
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 20,
+        seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Aggregate revenue, quantity and order count by product category."""
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
+        orders = self._filter_by_seller(orders, seller_id)
         products = await self.product_storage.findAll()
         product_map = {p.id: p for p in products}
 

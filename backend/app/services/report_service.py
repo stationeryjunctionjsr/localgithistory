@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -126,14 +127,11 @@ class ReportService:
                     continue
             ws.column_dimensions[column].width = max_length + 2
 
-        # Save to temp file
-        report_dir = "backend/app/reports"
-        if not os.path.exists(report_dir):
-            report_dir = "app/reports"
-            if not os.path.exists(report_dir):
-                os.makedirs(report_dir, exist_ok=True)
+        # Save to an absolute path derived from this file's location — works in Docker and locally
+        report_dir = Path(__file__).parent.parent / "reports"
+        report_dir.mkdir(parents=True, exist_ok=True)
 
-        report_path = os.path.abspath(os.path.join(report_dir, f"search_report_{target_date_str}.xlsx"))
+        report_path = str(report_dir / f"search_report_{target_date_str}.xlsx")
         wb.save(report_path)
 
         return report_path
