@@ -1152,9 +1152,12 @@ class AnalyticsRepository:
         return sorted(result, key=lambda x: x["revenue"], reverse=True)[:limit]
 
     @cache.ttl_cache(ttl=300)
-    async def get_inventory_alerts(self, threshold: int = 10) -> List[Dict]:
+    async def get_inventory_alerts(self, threshold: int = 10, seller_id: Optional[str] = None) -> List[Dict]:
         """Return products whose current stock is at or below `threshold`."""
         products = await self.product_storage.findAll()
+        # Filter products by seller if scoped
+        if seller_id:
+            products = [p for p in products if p.seller_id and str(p.seller_id) == seller_id]
 
         result = []
         for product in products:
@@ -1175,11 +1178,15 @@ class AnalyticsRepository:
 
     @cache.ttl_cache(ttl=300)
     async def get_fulfillment_time_report(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Calculate fulfillment times for completed/delivered orders."""
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
+        orders = self._filter_by_seller(orders, seller_id)
         users = await self.user_storage.findAll()
         user_map = {u.id: u for u in users}
 
@@ -1220,11 +1227,15 @@ class AnalyticsRepository:
 
     @cache.ttl_cache(ttl=300)
     async def get_coupon_usage_report(
-        self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Aggregate coupon usage: how many orders used each coupon and total discount given."""
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
+        orders = self._filter_by_seller(orders, seller_id)
 
         coupon_stats: dict = {}
         for order in orders:
