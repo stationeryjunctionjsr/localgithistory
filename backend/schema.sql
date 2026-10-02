@@ -1,4 +1,3 @@
--- Table: sj_about_us
 CREATE TABLE `sj_about_us` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -12,42 +11,6 @@ CREATE TABLE `sj_about_us` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_activities
-CREATE TABLE `sj_activities` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `user_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `session_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `action` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `comments` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `is_guest` tinyint(1) NOT NULL DEFAULT '0',
-  `user_agent` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `os` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `os_version` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `device_type` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `app_version` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `device_model` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `locale` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `ip` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `created_at` datetime DEFAULT NULL,
-  `updated_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_sj_activities_external` (`external_id`),
-  KEY `ix_sj_activities_created` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table: sj_activity_meta
-CREATE TABLE `sj_activity_meta` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `parent_id` int NOT NULL,
-  `meta_key` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `meta_value` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `fk_sj_activit` (`parent_id`),
-  CONSTRAINT `fk_sj_activit` FOREIGN KEY (`parent_id`) REFERENCES `sj_activities` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table: sj_ads
 CREATE TABLE `sj_ads` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) NOT NULL,
@@ -91,7 +54,30 @@ CREATE TABLE `sj_ads` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Table: sj_availability_requests
+CREATE TABLE `sj_analytics_sessions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `session_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `auth_session_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `source` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `os` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `browser` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ip_address` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `device_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `device_os_version` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `device_model` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `device_app_version` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `campaign` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `start_time` datetime DEFAULT NULL,
+  `end_time` datetime DEFAULT NULL,
+  `time_spent_seconds` int DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_analytics_session_id` (`session_id`),
+  KEY `ix_analytics_sessions_user` (`user_id`),
+  KEY `ix_analytics_sessions_auth` (`auth_session_id`),
+  KEY `ix_analytics_sessions_start` (`start_time`)
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `sj_availability_requests` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -106,7 +92,6 @@ CREATE TABLE `sj_availability_requests` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_banner_user_segments
 CREATE TABLE `sj_banner_user_segments` (
   `id` int NOT NULL AUTO_INCREMENT,
   `banner_id` int NOT NULL,
@@ -114,9 +99,8 @@ CREATE TABLE `sj_banner_user_segments` (
   PRIMARY KEY (`id`),
   KEY `fk_banner_user_seg` (`banner_id`),
   CONSTRAINT `fk_banner_user_seg` FOREIGN KEY (`banner_id`) REFERENCES `sj_banners` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_banner_visibility_rules
 CREATE TABLE `sj_banner_visibility_rules` (
   `id` int NOT NULL AUTO_INCREMENT,
   `banner_id` int NOT NULL,
@@ -126,7 +110,6 @@ CREATE TABLE `sj_banner_visibility_rules` (
   CONSTRAINT `fk_banner_vis_rule` FOREIGN KEY (`banner_id`) REFERENCES `sj_banners` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_banners
 CREATE TABLE `sj_banners` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -143,12 +126,12 @@ CREATE TABLE `sj_banners` (
   `position` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `zone_ids` text COLLATE utf8mb4_unicode_ci COMMENT 'JSON array of zone external_ids; NULL = all zones',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_banners_external` (`external_id`),
   KEY `ix_sj_banners_active` (`is_active`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_brands
 CREATE TABLE `sj_brands` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -158,11 +141,11 @@ CREATE TABLE `sj_brands` (
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `show_in_mobile_homepage` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_brands_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_bundle_products
 CREATE TABLE `sj_bundle_products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `bundle_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -172,9 +155,8 @@ CREATE TABLE `sj_bundle_products` (
   PRIMARY KEY (`id`),
   KEY `fk_bundle_id` (`bundle_id`),
   CONSTRAINT `fk_bundle_id` FOREIGN KEY (`bundle_id`) REFERENCES `sj_bundles` (`external_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_bundles
 CREATE TABLE `sj_bundles` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -188,9 +170,8 @@ CREATE TABLE `sj_bundles` (
   `sales_count` int DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=54 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_cart_items
 CREATE TABLE `sj_cart_items` (
   `id` int NOT NULL AUTO_INCREMENT,
   `cart_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -199,12 +180,12 @@ CREATE TABLE `sj_cart_items` (
   `sell_as_case` tinyint(1) DEFAULT '0',
   `bundle_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `bundle_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `variant_attributes` text COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
   KEY `fk_cart_item_cart` (`cart_id`),
   CONSTRAINT `fk_cart_item_cart` FOREIGN KEY (`cart_id`) REFERENCES `sj_carts` (`external_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_carts
 CREATE TABLE `sj_carts` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -215,9 +196,8 @@ CREATE TABLE `sj_carts` (
   UNIQUE KEY `uq_sj_carts_external` (`external_id`),
   KEY `ix_sj_carts_user` (`user_id`),
   CONSTRAINT `fk_sj_carts_user` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_categories
 CREATE TABLE `sj_categories` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -234,9 +214,8 @@ CREATE TABLE `sj_categories` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_categories_external` (`external_id`),
   KEY `ix_sj_categories_active` (`is_active`)
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_category_category_tags
 CREATE TABLE `sj_category_category_tags` (
   `id` int NOT NULL AUTO_INCREMENT,
   `category_id` int NOT NULL,
@@ -246,7 +225,6 @@ CREATE TABLE `sj_category_category_tags` (
   CONSTRAINT `fk_cat_tag` FOREIGN KEY (`category_id`) REFERENCES `sj_categories` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_category_images
 CREATE TABLE `sj_category_images` (
   `id` int NOT NULL AUTO_INCREMENT,
   `category_id` int NOT NULL,
@@ -256,7 +234,6 @@ CREATE TABLE `sj_category_images` (
   CONSTRAINT `fk_cat_img` FOREIGN KEY (`category_id`) REFERENCES `sj_categories` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_category_sub_categories
 CREATE TABLE `sj_category_sub_categories` (
   `id` int NOT NULL AUTO_INCREMENT,
   `category_id` int NOT NULL,
@@ -266,7 +243,6 @@ CREATE TABLE `sj_category_sub_categories` (
   CONSTRAINT `fk_cat_sub_cat` FOREIGN KEY (`category_id`) REFERENCES `sj_categories` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_category_tags
 CREATE TABLE `sj_category_tags` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -279,7 +255,6 @@ CREATE TABLE `sj_category_tags` (
   UNIQUE KEY `uq_sj_category_tags_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_classification_tags
 CREATE TABLE `sj_classification_tags` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -291,7 +266,6 @@ CREATE TABLE `sj_classification_tags` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_coach_marks
 CREATE TABLE `sj_coach_marks` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -307,7 +281,6 @@ CREATE TABLE `sj_coach_marks` (
   UNIQUE KEY `uq_sj_coach_marks_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_collection_pages
 CREATE TABLE `sj_collection_pages` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -317,7 +290,6 @@ CREATE TABLE `sj_collection_pages` (
   CONSTRAINT `fk_sj_collect` FOREIGN KEY (`parent_id`) REFERENCES `sj_collections` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_collection_products
 CREATE TABLE `sj_collection_products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -327,7 +299,6 @@ CREATE TABLE `sj_collection_products` (
   CONSTRAINT `fk_sj_collection_products` FOREIGN KEY (`parent_id`) REFERENCES `sj_collections` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_collection_rules
 CREATE TABLE `sj_collection_rules` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -337,7 +308,6 @@ CREATE TABLE `sj_collection_rules` (
   CONSTRAINT `fk_sj_collection_rules` FOREIGN KEY (`parent_id`) REFERENCES `sj_collections` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_collection_segments
 CREATE TABLE `sj_collection_segments` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -347,7 +317,6 @@ CREATE TABLE `sj_collection_segments` (
   CONSTRAINT `fk_sj_collection_segments` FOREIGN KEY (`parent_id`) REFERENCES `sj_collections` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_collections
 CREATE TABLE `sj_collections` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -362,7 +331,6 @@ CREATE TABLE `sj_collections` (
   UNIQUE KEY `uq_sj_collections_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_commission_settings
 CREATE TABLE `sj_commission_settings` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -373,7 +341,6 @@ CREATE TABLE `sj_commission_settings` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_commission_settings_tiers
 CREATE TABLE `sj_commission_settings_tiers` (
   `id` int NOT NULL AUTO_INCREMENT,
   `setting_id` int NOT NULL,
@@ -385,7 +352,6 @@ CREATE TABLE `sj_commission_settings_tiers` (
   CONSTRAINT `fk_comm_tier` FOREIGN KEY (`setting_id`) REFERENCES `sj_commission_settings` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_contact_addresses
 CREATE TABLE `sj_contact_addresses` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -395,7 +361,6 @@ CREATE TABLE `sj_contact_addresses` (
   CONSTRAINT `fk_sj_contact` FOREIGN KEY (`parent_id`) REFERENCES `sj_contacts` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_contact_phones
 CREATE TABLE `sj_contact_phones` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -405,7 +370,6 @@ CREATE TABLE `sj_contact_phones` (
   CONSTRAINT `fk_sj_contact_phones` FOREIGN KEY (`parent_id`) REFERENCES `sj_contacts` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_contacts
 CREATE TABLE `sj_contacts` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -415,41 +379,38 @@ CREATE TABLE `sj_contacts` (
   `display_order` int NOT NULL DEFAULT '0',
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `social_media` text COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_contacts_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_coupon_applies_to_values
 CREATE TABLE `sj_coupon_applies_to_values` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
-  `value_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `ix_coupon_applies_to_parent` (`parent_id`),
   CONSTRAINT `fk_coupon_applies_to_coupon` FOREIGN KEY (`parent_id`) REFERENCES `sj_coupons` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_coupon_categories
 CREATE TABLE `sj_coupon_categories` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
-  `category` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `category` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `ix_coupon_categories_parent` (`parent_id`),
   CONSTRAINT `fk_coupon_categories_coupon` FOREIGN KEY (`parent_id`) REFERENCES `sj_coupons` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_coupon_excluded_products
 CREATE TABLE `sj_coupon_excluded_products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
-  `product_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `product_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `ix_coupon_excluded_parent` (`parent_id`),
   CONSTRAINT `fk_coupon_excluded_coupon` FOREIGN KEY (`parent_id`) REFERENCES `sj_coupons` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_coupon_quantity_tiers
 CREATE TABLE `sj_coupon_quantity_tiers` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -460,38 +421,34 @@ CREATE TABLE `sj_coupon_quantity_tiers` (
   CONSTRAINT `fk_coupon_tiers_coupon` FOREIGN KEY (`parent_id`) REFERENCES `sj_coupons` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_coupon_roles
 CREATE TABLE `sj_coupon_roles` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
-  `role` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `ix_coupon_roles_parent` (`parent_id`),
   CONSTRAINT `fk_coupon_roles_coupon` FOREIGN KEY (`parent_id`) REFERENCES `sj_coupons` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `sj_coupon_user_usages` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `parent_id` int NOT NULL,
+  `user_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `usage_count` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_coupon_usages_parent_user` (`parent_id`,`user_id`),
+  CONSTRAINT `k_coupon_usages_coupon` FOREIGN KEY (`parent_id`) REFERENCES `sj_coupons` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_coupon_users
 CREATE TABLE `sj_coupon_users` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
-  `user_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `ix_coupon_users_parent` (`parent_id`),
   CONSTRAINT `fk_coupon_users_coupon` FOREIGN KEY (`parent_id`) REFERENCES `sj_coupons` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_coupon_user_usages
-CREATE TABLE sj_coupon_user_usages (
-  id int NOT NULL AUTO_INCREMENT,
-  parent_id int NOT NULL,
-  user_id varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
-  usage_count int NOT NULL DEFAULT '0',
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_coupon_usages_parent_user (parent_id, user_id),
-  CONSTRAINT k_coupon_usages_coupon FOREIGN KEY (parent_id) REFERENCES sj_coupons (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Table: sj_coupons
 CREATE TABLE `sj_coupons` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -512,12 +469,22 @@ CREATE TABLE `sj_coupons` (
   `min_quantity_of_eligible_items` int DEFAULT NULL,
   `max_discount_amount` decimal(10,2) DEFAULT NULL,
   `applies_to_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'all',
+  `display_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bxgy_applies_to_ids` json DEFAULT NULL,
+  `bxgy_discount_type` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bxgy_discount_value` decimal(10,2) DEFAULT NULL,
+  `applicable_item_type` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `coupon_mode` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `max_usage_per_user` int DEFAULT NULL,
+  `user_usages` json DEFAULT NULL,
+  `user_behavior` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bxgy_customer_gets_quantity` int DEFAULT NULL,
+  `bxgy_customer_gets_applies_to_type` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_coupons_external` (`external_id`),
   UNIQUE KEY `ix_sj_coupons_code` ((upper(`code`)))
-) ENGINE=InnoDB AUTO_INCREMENT=88 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_customer_segment_users
 CREATE TABLE `sj_customer_segment_users` (
   `id` int NOT NULL AUTO_INCREMENT,
   `segment_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -526,9 +493,8 @@ CREATE TABLE `sj_customer_segment_users` (
   PRIMARY KEY (`id`),
   KEY `fk_segment_id` (`segment_id`),
   CONSTRAINT `fk_segment_id` FOREIGN KEY (`segment_id`) REFERENCES `sj_customer_segments` (`external_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_customer_segments
 CREATE TABLE `sj_customer_segments` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -552,9 +518,8 @@ CREATE TABLE `sj_customer_segments` (
   `is_system` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_delivery_charge_def_tiers
 CREATE TABLE `sj_delivery_charge_def_tiers` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -566,7 +531,6 @@ CREATE TABLE `sj_delivery_charge_def_tiers` (
   CONSTRAINT `fk_sj_delivery_charge_def_ti` FOREIGN KEY (`parent_id`) REFERENCES `sj_delivery_charge_defaults` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_delivery_charge_defaults
 CREATE TABLE `sj_delivery_charge_defaults` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -579,7 +543,6 @@ CREATE TABLE `sj_delivery_charge_defaults` (
   UNIQUE KEY `uq_sj_dc_defaults_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_delivery_charge_tiers
 CREATE TABLE `sj_delivery_charge_tiers` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -591,7 +554,6 @@ CREATE TABLE `sj_delivery_charge_tiers` (
   CONSTRAINT `fk_sj_deliver` FOREIGN KEY (`parent_id`) REFERENCES `sj_delivery_charges` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_delivery_charges
 CREATE TABLE `sj_delivery_charges` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -610,12 +572,13 @@ CREATE TABLE `sj_delivery_charges` (
   `description` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `urgent_delivery_available` tinyint(1) DEFAULT '0',
+  `urgent_delivery_charge` float DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_delivery_charges_external` (`external_id`),
   KEY `ix_sj_delivery_charges_pincode` (`pincode`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_delivery_slot_pincodes
 CREATE TABLE `sj_delivery_slot_pincodes` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -625,19 +588,22 @@ CREATE TABLE `sj_delivery_slot_pincodes` (
   CONSTRAINT `fk_sj_delivery_slot_pincodes` FOREIGN KEY (`parent_id`) REFERENCES `sj_delivery_slots` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_delivery_slot_times
 CREATE TABLE `sj_delivery_slot_times` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
   `start_time` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `end_time` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `capacity` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_full_day` tinyint(1) NOT NULL DEFAULT '0',
+  `is_urgent` tinyint(1) NOT NULL DEFAULT '0',
+  `cutoff_hours` int DEFAULT NULL,
+  `booked_count` int DEFAULT '0',
+  `slot_uuid` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_sj_delivery_slot_times` (`parent_id`),
   CONSTRAINT `fk_sj_delivery_slot_times` FOREIGN KEY (`parent_id`) REFERENCES `sj_delivery_slots` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_delivery_slots
 CREATE TABLE `sj_delivery_slots` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -651,9 +617,8 @@ CREATE TABLE `sj_delivery_slots` (
   UNIQUE KEY `uq_sj_delivery_slots_external` (`external_id`),
   KEY `ix_sj_delivery_slots_date` (`date`),
   KEY `ix_sj_delivery_slots_segment` (`segment`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_delivery_zone_pincodes
 CREATE TABLE `sj_delivery_zone_pincodes` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -661,9 +626,8 @@ CREATE TABLE `sj_delivery_zone_pincodes` (
   PRIMARY KEY (`id`),
   KEY `fk_sj_delivery_zone_pincodes` (`parent_id`),
   CONSTRAINT `fk_sj_delivery_zone_pincodes` FOREIGN KEY (`parent_id`) REFERENCES `sj_delivery_zones` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_delivery_zones
 CREATE TABLE `sj_delivery_zones` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -675,12 +639,12 @@ CREATE TABLE `sj_delivery_zones` (
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
   `customer_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'retail' COMMENT 'retail | business | both',
+  `seller_ids` longtext COLLATE utf8mb4_unicode_ci COMMENT 'JSON array of seller ID strings',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_delivery_zones_external` (`external_id`),
   KEY `ix_sj_delivery_zones_active` (`is_active`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_device_keys
 CREATE TABLE `sj_device_keys` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -691,7 +655,6 @@ CREATE TABLE `sj_device_keys` (
   CONSTRAINT `fk_sj_device_` FOREIGN KEY (`parent_id`) REFERENCES `sj_device_subscriptions` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_device_sub_data
 CREATE TABLE `sj_device_sub_data` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -702,7 +665,6 @@ CREATE TABLE `sj_device_sub_data` (
   CONSTRAINT `fk_sj_device_sub_data` FOREIGN KEY (`parent_id`) REFERENCES `sj_device_subscriptions` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_device_subscriptions
 CREATE TABLE `sj_device_subscriptions` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -715,7 +677,6 @@ CREATE TABLE `sj_device_subscriptions` (
   UNIQUE KEY `uq_sj_device_subscriptions_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_email_otp_send_log
 CREATE TABLE `sj_email_otp_send_log` (
   `id` int NOT NULL AUTO_INCREMENT,
   `email` varchar(255) DEFAULT NULL,
@@ -723,9 +684,8 @@ CREATE TABLE `sj_email_otp_send_log` (
   PRIMARY KEY (`id`),
   KEY `ix_sj_email_otp_send_log_email` (`email`),
   KEY `ix_sj_email_otp_send_log_sent` (`sent_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Table: sj_email_otps
 CREATE TABLE `sj_email_otps` (
   `id` int NOT NULL AUTO_INCREMENT,
   `email` varchar(255) DEFAULT NULL,
@@ -738,9 +698,8 @@ CREATE TABLE `sj_email_otps` (
   PRIMARY KEY (`id`),
   KEY `ix_sj_email_otps_email` (`email`),
   KEY `ix_sj_email_otps_expires` (`expires_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Table: sj_event_payload
 CREATE TABLE `sj_event_payload` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -749,9 +708,8 @@ CREATE TABLE `sj_event_payload` (
   PRIMARY KEY (`id`),
   KEY `fk_sj_event_p` (`parent_id`),
   CONSTRAINT `fk_sj_event_p` FOREIGN KEY (`parent_id`) REFERENCES `sj_events` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=426 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=297 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_events
 CREATE TABLE `sj_events` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -761,9 +719,8 @@ CREATE TABLE `sj_events` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_events_external` (`external_id`),
   KEY `ix_sj_events_created` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=197 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=137 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_faq_items
 CREATE TABLE `sj_faq_items` (
   `id` int NOT NULL AUTO_INCREMENT,
   `section_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -775,7 +732,6 @@ CREATE TABLE `sj_faq_items` (
   CONSTRAINT `fk_faq_section_id` FOREIGN KEY (`section_id`) REFERENCES `sj_faq_sections` (`external_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_faq_sections
 CREATE TABLE `sj_faq_sections` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -789,7 +745,6 @@ CREATE TABLE `sj_faq_sections` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_feature_flags
 CREATE TABLE `sj_feature_flags` (
   `id` int NOT NULL AUTO_INCREMENT,
   `flag_id` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -801,9 +756,8 @@ CREATE TABLE `sj_feature_flags` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_feature_flags_flag_id` (`flag_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_google_reviews
 CREATE TABLE `sj_google_reviews` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -815,9 +769,8 @@ CREATE TABLE `sj_google_reviews` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_google_reviews_external` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_notification_data
 CREATE TABLE `sj_notification_data` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -826,9 +779,8 @@ CREATE TABLE `sj_notification_data` (
   PRIMARY KEY (`id`),
   KEY `fk_sj_notific` (`parent_id`),
   CONSTRAINT `fk_sj_notific` FOREIGN KEY (`parent_id`) REFERENCES `sj_notifications` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_notifications
 CREATE TABLE `sj_notifications` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -843,9 +795,8 @@ CREATE TABLE `sj_notifications` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_notifications_external` (`external_id`),
   KEY `ix_sj_notifications_user` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_order_feedback
 CREATE TABLE `sj_order_feedback` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -862,7 +813,6 @@ CREATE TABLE `sj_order_feedback` (
   UNIQUE KEY `uq_sj_order_feedback_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_order_items
 CREATE TABLE `sj_order_items` (
   `id` int NOT NULL AUTO_INCREMENT,
   `order_id` int NOT NULL,
@@ -874,20 +824,18 @@ CREATE TABLE `sj_order_items` (
   KEY `ix_sj_order_items_product` (`product_id`),
   CONSTRAINT `fk_oi_order` FOREIGN KEY (`order_id`) REFERENCES `sj_orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_oi_product` FOREIGN KEY (`product_id`) REFERENCES `sj_products` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_order_valet_declines
 CREATE TABLE `sj_order_valet_declines` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
-  `valet_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `valet_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `ix_order_valet_declines_parent` (`parent_id`),
-  CONSTRAINT `fk_order_valet_declines_order` FOREIGN KEY (`parent_id`) REFERENCES `sj_orders` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `fk_sj_order_valet_declines` (`parent_id`),
+  CONSTRAINT `fk_sj_order_valet_declines` FOREIGN KEY (`parent_id`) REFERENCES `sj_orders` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_orders
 CREATE TABLE `sj_orders` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -902,7 +850,7 @@ CREATE TABLE `sj_orders` (
   `order_type` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `payment_status` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `payment_method` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `upi_payment_screenshot` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `upi_payment_screenshot` longtext COLLATE utf8mb4_unicode_ci,
   `notes` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `printed_bill` tinyint(1) NOT NULL DEFAULT '0',
   `assigned_valet` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -928,20 +876,21 @@ CREATE TABLE `sj_orders` (
   `bill_state` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `bill_pincode` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `bill_phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `pending_valet_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `pending_valet_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `valet_assigned_at` datetime DEFAULT NULL,
-  `valet_cascade_count` int NOT NULL DEFAULT '0',
+  `valet_cascade_count` int DEFAULT '0',
+  `valet_decline_history` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `is_urgent_delivery` tinyint(1) NOT NULL DEFAULT '0',
-  `ship_address` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `ship_district` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `ship_country` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `ship_google_location` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ship_address` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ship_district` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ship_country` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ship_google_location` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `ship_latitude` decimal(10,8) DEFAULT NULL,
   `ship_longitude` decimal(11,8) DEFAULT NULL,
-  `bill_address` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `bill_district` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `bill_country` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `bill_google_location` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bill_address` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bill_district` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bill_country` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bill_google_location` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `bill_latitude` decimal(10,8) DEFAULT NULL,
   `bill_longitude` decimal(11,8) DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -950,10 +899,10 @@ CREATE TABLE `sj_orders` (
   KEY `ix_sj_orders_user` (`user_id`),
   KEY `ix_sj_orders_status` (`status`),
   KEY `ix_sj_orders_created` (`created_at`),
+  KEY `ix_orders_user_status_created` (`user_id`,`status`,`created_at` DESC),
   CONSTRAINT `fk_sj_orders_user` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=53 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_otp_send_log
 CREATE TABLE `sj_otp_send_log` (
   `id` int NOT NULL AUTO_INCREMENT,
   `phone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -961,9 +910,8 @@ CREATE TABLE `sj_otp_send_log` (
   PRIMARY KEY (`id`),
   KEY `ix_sj_otp_send_log_phone` (`phone`),
   KEY `ix_sj_otp_send_log_sent` (`sent_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_otps
 CREATE TABLE `sj_otps` (
   `id` int NOT NULL AUTO_INCREMENT,
   `phone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -977,9 +925,8 @@ CREATE TABLE `sj_otps` (
   KEY `ix_sj_otps_phone` (`phone`),
   KEY `ix_sj_otps_expires` (`expires_at`),
   KEY `ix_sj_otps_phone_device` (`phone`,`device_key`)
-) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_payment_entries
 CREATE TABLE `sj_payment_entries` (
   `id` int NOT NULL AUTO_INCREMENT,
   `payment_id` int NOT NULL,
@@ -994,9 +941,8 @@ CREATE TABLE `sj_payment_entries` (
   PRIMARY KEY (`id`),
   KEY `fk_sj_payment_ent` (`payment_id`),
   CONSTRAINT `fk_sj_payment_ent` FOREIGN KEY (`payment_id`) REFERENCES `sj_payments` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_payments
 CREATE TABLE `sj_payments` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1014,9 +960,8 @@ CREATE TABLE `sj_payments` (
   `payment_id` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_payments_external` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_pincode_searches
 CREATE TABLE `sj_pincode_searches` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1028,9 +973,8 @@ CREATE TABLE `sj_pincode_searches` (
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_privacy_policy
 CREATE TABLE `sj_privacy_policy` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1044,7 +988,6 @@ CREATE TABLE `sj_privacy_policy` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_attributes
 CREATE TABLE `sj_product_attributes` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
@@ -1054,7 +997,6 @@ CREATE TABLE `sj_product_attributes` (
   CONSTRAINT `fk_prod_attr` FOREIGN KEY (`product_id`) REFERENCES `sj_products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_details
 CREATE TABLE `sj_product_details` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
@@ -1065,7 +1007,6 @@ CREATE TABLE `sj_product_details` (
   CONSTRAINT `fk_prod_det` FOREIGN KEY (`product_id`) REFERENCES `sj_products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_images
 CREATE TABLE `sj_product_images` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
@@ -1076,7 +1017,6 @@ CREATE TABLE `sj_product_images` (
   CONSTRAINT `fk_prod_img` FOREIGN KEY (`product_id`) REFERENCES `sj_products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_notifications
 CREATE TABLE `sj_product_notifications` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1089,9 +1029,8 @@ CREATE TABLE `sj_product_notifications` (
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_reviews
 CREATE TABLE `sj_product_reviews` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1102,11 +1041,12 @@ CREATE TABLE `sj_product_reviews` (
   `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_name` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `classification` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_seller_variants
 CREATE TABLE `sj_product_seller_variants` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_seller_id` int NOT NULL,
@@ -1116,7 +1056,6 @@ CREATE TABLE `sj_product_seller_variants` (
   CONSTRAINT `fk_sj_prod_sel_var` FOREIGN KEY (`product_seller_id`) REFERENCES `sj_product_sellers` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_sellers
 CREATE TABLE `sj_product_sellers` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Matches sj_products.external_id',
@@ -1133,7 +1072,6 @@ CREATE TABLE `sj_product_sellers` (
   KEY `ix_ps_seller_id` (`seller_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_tags
 CREATE TABLE `sj_product_tags` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
@@ -1143,7 +1081,6 @@ CREATE TABLE `sj_product_tags` (
   CONSTRAINT `fk_prod_tag` FOREIGN KEY (`product_id`) REFERENCES `sj_products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_variant_attributes
 CREATE TABLE `sj_product_variant_attributes` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
@@ -1153,7 +1090,6 @@ CREATE TABLE `sj_product_variant_attributes` (
   CONSTRAINT `sj_product_variant_attributes_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `sj_products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Table: sj_product_variant_combinations
 CREATE TABLE `sj_product_variant_combinations` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
@@ -1165,7 +1101,6 @@ CREATE TABLE `sj_product_variant_combinations` (
   CONSTRAINT `fk_prod_var` FOREIGN KEY (`product_id`) REFERENCES `sj_products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_variant_combo_attrs
 CREATE TABLE `sj_product_variant_combo_attrs` (
   `id` int NOT NULL AUTO_INCREMENT,
   `variant_id` int NOT NULL,
@@ -1176,7 +1111,6 @@ CREATE TABLE `sj_product_variant_combo_attrs` (
   CONSTRAINT `sj_product_variant_combo_attrs_ibfk_1` FOREIGN KEY (`variant_id`) REFERENCES `sj_product_variants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Table: sj_product_variant_options
 CREATE TABLE `sj_product_variant_options` (
   `id` int NOT NULL AUTO_INCREMENT,
   `combination_id` int NOT NULL,
@@ -1187,7 +1121,6 @@ CREATE TABLE `sj_product_variant_options` (
   CONSTRAINT `fk_prod_var_opt` FOREIGN KEY (`combination_id`) REFERENCES `sj_product_variant_combinations` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_product_variants
 CREATE TABLE `sj_product_variants` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
@@ -1200,7 +1133,6 @@ CREATE TABLE `sj_product_variants` (
   CONSTRAINT `sj_product_variants_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `sj_products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Table: sj_product_videos
 CREATE TABLE `sj_product_videos` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
@@ -1211,7 +1143,6 @@ CREATE TABLE `sj_product_videos` (
   CONSTRAINT `fk_prod_vid` FOREIGN KEY (`product_id`) REFERENCES `sj_products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_products
 CREATE TABLE `sj_products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1228,32 +1159,21 @@ CREATE TABLE `sj_products` (
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
-  `rating` decimal(3,2) DEFAULT '0.00',
+  `rating` decimal(3,1) DEFAULT '0.0',
   `reviews` int DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_products_external` (`external_id`),
   UNIQUE KEY `ix_sj_products_sku` (`sku`),
   KEY `ix_sj_products_active` (`is_active`),
   KEY `ix_sj_products_category` (`category`),
-  KEY `idx_sj_products_is_active` (`is_active`),
-  KEY `idx_sj_products_category` (`category`),
-  KEY `idx_sj_products_brand` (`brand`(191)),
-  KEY `idx_sj_products_sub_category` (`sub_category`),
-  KEY `idx_sj_products_mrp` (`mrp`),
-  KEY `idx_sj_products_created_at` (`created_at`),
-  KEY `idx_sj_products_active_category` (`is_active`,`category`),
-  KEY `idx_sj_products_active_brand` (`is_active`,`brand`(191)),
-  KEY `idx_sj_products_active_created` (`is_active`,`created_at`),
-  KEY `idx_sj_products_sku` (`sku`),
   KEY `ix_sj_products_stock` (`stock`),
   KEY `ix_sj_products_subcategory` (`sub_category`),
   KEY `ix_sj_products_mrp` (`mrp`),
   KEY `idx_products_category` (`category`),
   KEY `idx_products_sub_cat` (`sub_category`),
   FULLTEXT KEY `ft_sj_products_search` (`name`,`brand`,`category`)
-) ENGINE=InnoDB AUTO_INCREMENT=138 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=226 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_promo_strips
 CREATE TABLE `sj_promo_strips` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1261,11 +1181,11 @@ CREATE TABLE `sj_promo_strips` (
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `zone_ids` text COLLATE utf8mb4_unicode_ci COMMENT 'JSON array of zone external_ids; NULL = all zones',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_promo_strips_external` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_push_notifications
 CREATE TABLE `sj_push_notifications` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1286,7 +1206,6 @@ CREATE TABLE `sj_push_notifications` (
   UNIQUE KEY `uq_sj_push_notifications_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_referral_settings
 CREATE TABLE `sj_referral_settings` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1298,9 +1217,8 @@ CREATE TABLE `sj_referral_settings` (
   `is_active` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_referral_settings_external` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=65 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=79 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_return_request_items
 CREATE TABLE `sj_return_request_items` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -1312,7 +1230,6 @@ CREATE TABLE `sj_return_request_items` (
   CONSTRAINT `fk_sj_return_` FOREIGN KEY (`parent_id`) REFERENCES `sj_return_requests` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_return_requests
 CREATE TABLE `sj_return_requests` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1337,11 +1254,11 @@ CREATE TABLE `sj_return_requests` (
   `valet_accepted_at` datetime DEFAULT NULL,
   `valet_declined_at` datetime DEFAULT NULL,
   `valet_decline_reason` varchar(1000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `valet_decline_history` longtext COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_return_requests_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_return_settings
 CREATE TABLE `sj_return_settings` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1352,7 +1269,6 @@ CREATE TABLE `sj_return_settings` (
   UNIQUE KEY `uq_sj_return_settings_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_return_valet_declines
 CREATE TABLE `sj_return_valet_declines` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -1363,19 +1279,21 @@ CREATE TABLE `sj_return_valet_declines` (
   CONSTRAINT `fk_sj_return_valet_declines` FOREIGN KEY (`parent_id`) REFERENCES `sj_return_requests` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_review_classifications
 CREATE TABLE `sj_review_classifications` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `external_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT '1',
+  `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `review_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `category` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `confidence_score` decimal(5,4) DEFAULT NULL,
+  `sentiment` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `name` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_saved_for_later
 CREATE TABLE `sj_saved_for_later` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1388,7 +1306,6 @@ CREATE TABLE `sj_saved_for_later` (
   UNIQUE KEY `uq_sj_saved_for_later_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_scheme_roles
 CREATE TABLE `sj_scheme_roles` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -1398,7 +1315,6 @@ CREATE TABLE `sj_scheme_roles` (
   CONSTRAINT `fk_sj_scheme_` FOREIGN KEY (`parent_id`) REFERENCES `sj_schemes` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_schemes
 CREATE TABLE `sj_schemes` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1417,7 +1333,6 @@ CREATE TABLE `sj_schemes` (
   UNIQUE KEY `uq_sj_schemes_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_search_tag_brands
 CREATE TABLE `sj_search_tag_brands` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -1427,7 +1342,6 @@ CREATE TABLE `sj_search_tag_brands` (
   CONSTRAINT `fk_sj_search_tag_brands` FOREIGN KEY (`parent_id`) REFERENCES `sj_search_tags` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_search_tag_categories
 CREATE TABLE `sj_search_tag_categories` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -1437,7 +1351,6 @@ CREATE TABLE `sj_search_tag_categories` (
   CONSTRAINT `fk_sj_search_` FOREIGN KEY (`parent_id`) REFERENCES `sj_search_tags` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_search_tag_collections
 CREATE TABLE `sj_search_tag_collections` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -1447,7 +1360,6 @@ CREATE TABLE `sj_search_tag_collections` (
   CONSTRAINT `fk_sj_search_tag_collections` FOREIGN KEY (`parent_id`) REFERENCES `sj_search_tags` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_search_tag_ex_products
 CREATE TABLE `sj_search_tag_ex_products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -1457,7 +1369,6 @@ CREATE TABLE `sj_search_tag_ex_products` (
   CONSTRAINT `fk_sj_search_tag_ex_products` FOREIGN KEY (`parent_id`) REFERENCES `sj_search_tags` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_search_tag_products
 CREATE TABLE `sj_search_tag_products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -1467,7 +1378,6 @@ CREATE TABLE `sj_search_tag_products` (
   CONSTRAINT `fk_sj_search_tag_products` FOREIGN KEY (`parent_id`) REFERENCES `sj_search_tags` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_search_tag_subcats
 CREATE TABLE `sj_search_tag_subcats` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -1477,7 +1387,6 @@ CREATE TABLE `sj_search_tag_subcats` (
   CONSTRAINT `fk_sj_search_tag_subcats` FOREIGN KEY (`parent_id`) REFERENCES `sj_search_tags` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_search_tags
 CREATE TABLE `sj_search_tags` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1491,7 +1400,6 @@ CREATE TABLE `sj_search_tags` (
   UNIQUE KEY `uq_sj_search_tags_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_seller_availability
 CREATE TABLE `sj_seller_availability` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1510,7 +1418,6 @@ CREATE TABLE `sj_seller_availability` (
   KEY `ix_sa_seller_status` (`seller_id`,`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_seller_payout_sub_orders
 CREATE TABLE `sj_seller_payout_sub_orders` (
   `id` int NOT NULL AUTO_INCREMENT,
   `payout_id` int NOT NULL,
@@ -1520,7 +1427,6 @@ CREATE TABLE `sj_seller_payout_sub_orders` (
   CONSTRAINT `sj_seller_payout_sub_orders_ibfk_1` FOREIGN KEY (`payout_id`) REFERENCES `sj_seller_payouts` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Table: sj_seller_payouts
 CREATE TABLE `sj_seller_payouts` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) NOT NULL,
@@ -1531,11 +1437,16 @@ CREATE TABLE `sj_seller_payouts` (
   `notes` text,
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `status` varchar(32) NOT NULL DEFAULT 'pending_payment',
+  `payment_method` varchar(32) DEFAULT NULL,
+  `payment_reference` varchar(255) DEFAULT NULL,
+  `admin_paid_at` datetime DEFAULT NULL,
+  `admin_paid_by` varchar(64) DEFAULT NULL,
+  `seller_received_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Table: sj_seller_request_attachments
 CREATE TABLE `sj_seller_request_attachments` (
   `id` int NOT NULL AUTO_INCREMENT,
   `request_id` int NOT NULL,
@@ -1545,7 +1456,6 @@ CREATE TABLE `sj_seller_request_attachments` (
   CONSTRAINT `fk_req_att` FOREIGN KEY (`request_id`) REFERENCES `sj_seller_requests` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_seller_request_responses
 CREATE TABLE `sj_seller_request_responses` (
   `id` int NOT NULL AUTO_INCREMENT,
   `request_id` int NOT NULL,
@@ -1557,7 +1467,6 @@ CREATE TABLE `sj_seller_request_responses` (
   CONSTRAINT `fk_req_resp` FOREIGN KEY (`request_id`) REFERENCES `sj_seller_requests` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_seller_requests
 CREATE TABLE `sj_seller_requests` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1576,7 +1485,6 @@ CREATE TABLE `sj_seller_requests` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_seller_zones
 CREATE TABLE `sj_seller_zones` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` int NOT NULL,
@@ -1588,7 +1496,6 @@ CREATE TABLE `sj_seller_zones` (
   CONSTRAINT `fk_usr_zone` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_sessions
 CREATE TABLE `sj_sessions` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1608,9 +1515,8 @@ CREATE TABLE `sj_sessions` (
   KEY `ix_sj_sessions_status` (`status`),
   KEY `ix_sj_sessions_refresh` (`refresh_token_id`),
   CONSTRAINT `fk_sj_sessions_user` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=184 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=426 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_stock_reservations
 CREATE TABLE `sj_stock_reservations` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1623,9 +1529,8 @@ CREATE TABLE `sj_stock_reservations` (
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_sub_order_items
 CREATE TABLE `sj_sub_order_items` (
   `id` int NOT NULL AUTO_INCREMENT,
   `sub_order_id` int NOT NULL,
@@ -1638,7 +1543,6 @@ CREATE TABLE `sj_sub_order_items` (
   CONSTRAINT `sj_sub_order_items_ibfk_1` FOREIGN KEY (`sub_order_id`) REFERENCES `sj_sub_orders` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_sub_order_variants
 CREATE TABLE `sj_sub_order_variants` (
   `id` int NOT NULL AUTO_INCREMENT,
   `sub_order_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1648,7 +1552,6 @@ CREATE TABLE `sj_sub_order_variants` (
   CONSTRAINT `fk_sub_ord_var` FOREIGN KEY (`sub_order_id`) REFERENCES `sj_sub_orders` (`external_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_sub_orders
 CREATE TABLE `sj_sub_orders` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1694,6 +1597,11 @@ CREATE TABLE `sj_sub_orders` (
   `order_type` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
+  `pickup_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `assigned_valet` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `picked_up_at` datetime DEFAULT NULL,
+  `commission_pct` decimal(5,2) DEFAULT NULL,
+  `commission_amount` decimal(10,2) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_sub_orders_external` (`external_id`),
   KEY `ix_so_seller_status` (`seller_id`,`status`),
@@ -1704,7 +1612,6 @@ CREATE TABLE `sj_sub_orders` (
   KEY `ix_so_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_support_tickets
 CREATE TABLE `sj_support_tickets` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1726,9 +1633,8 @@ CREATE TABLE `sj_support_tickets` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_support_tickets_external` (`external_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_system_settings
 CREATE TABLE `sj_system_settings` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1743,7 +1649,6 @@ CREATE TABLE `sj_system_settings` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_ticket_attachments
 CREATE TABLE `sj_ticket_attachments` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
@@ -1753,18 +1658,18 @@ CREATE TABLE `sj_ticket_attachments` (
   CONSTRAINT `fk_sj_ticket_` FOREIGN KEY (`parent_id`) REFERENCES `sj_support_tickets` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_ticket_responses
 CREATE TABLE `sj_ticket_responses` (
   `id` int NOT NULL AUTO_INCREMENT,
   `parent_id` int NOT NULL,
   `admin_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `message` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_admin_response` tinyint(1) DEFAULT '0',
+  `attachments` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_sj_ticket_responses` (`parent_id`),
   CONSTRAINT `fk_sj_ticket_responses` FOREIGN KEY (`parent_id`) REFERENCES `sj_support_tickets` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_tracking
 CREATE TABLE `sj_tracking` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1784,30 +1689,37 @@ CREATE TABLE `sj_tracking` (
   `filter_type` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `filter_value` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `cart_value` decimal(18,2) DEFAULT NULL,
-  `os` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `browser` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `ip_address` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `is_returning` tinyint(1) DEFAULT NULL,
   `source` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `campaign` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `order_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `order_value` decimal(18,2) DEFAULT NULL,
+  `price` decimal(18,2) DEFAULT NULL,
+  `category` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_tracking_external` (`external_id`),
   KEY `ix_sj_tracking_created` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=690 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=334 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_tracking_cart_items
 CREATE TABLE `sj_tracking_cart_items` (
   `id` int NOT NULL AUTO_INCREMENT,
   `tracking_id` int NOT NULL,
-  `product_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `product_id` varchar(64) DEFAULT NULL,
   `quantity` int DEFAULT '1',
-  `price` DECIMAL(10,2) DEFAULT NULL,
+  `price` decimal(10,2) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `tracking_id` (`tracking_id`),
   CONSTRAINT `sj_tracking_cart_items_ibfk_1` FOREIGN KEY (`tracking_id`) REFERENCES `sj_tracking` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `sj_tracking_payload` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `tracking_id` int NOT NULL,
+  `payload_key` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payload_value` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  KEY `fk_sj_tracking_pay` (`tracking_id`),
+  CONSTRAINT `fk_sj_tracking_pay` FOREIGN KEY (`tracking_id`) REFERENCES `sj_tracking` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_tracking_products
 CREATE TABLE `sj_tracking_products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `tracking_id` int NOT NULL,
@@ -1817,7 +1729,6 @@ CREATE TABLE `sj_tracking_products` (
   CONSTRAINT `fk_sj_tracking_prod` FOREIGN KEY (`tracking_id`) REFERENCES `sj_tracking` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_user_addresses
 CREATE TABLE `sj_user_addresses` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` int NOT NULL,
@@ -1827,17 +1738,18 @@ CREATE TABLE `sj_user_addresses` (
   `state` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `pincode` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    district varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  country varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  google_location varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  latitude decimal(10,8) DEFAULT NULL,
-  longitude decimal(11,8) DEFAULT NULL,
+  `district` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `country` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `google_location` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `latitude` decimal(10,8) DEFAULT NULL,
+  `longitude` decimal(11,8) DEFAULT NULL,
+  `address_text` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `zip_code` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_usr_addr` (`user_id`),
   CONSTRAINT `fk_usr_addr` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=315 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_users
 CREATE TABLE `sj_users` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1848,7 +1760,7 @@ CREATE TABLE `sj_users` (
   `role` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `phone` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `company_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  gst_number varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gst_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `approval_status` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_deactivated` tinyint(1) NOT NULL DEFAULT '0',
@@ -1863,15 +1775,20 @@ CREATE TABLE `sj_users` (
   `is_seller_admin` tinyint(1) NOT NULL DEFAULT '0',
   `is_on_duty` tinyint(1) NOT NULL DEFAULT '0',
   `commission_override_pct` decimal(5,2) DEFAULT NULL,
+  `bank_account_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bank_ifsc_code` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bank_account_holder` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bank_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `upi_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `qr_code_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_users_external` (`external_id`),
   KEY `ix_sj_users_email` (`email`),
   KEY `ix_sj_users_phone` (`phone`),
   KEY `ix_sj_users_role` (`role`),
   KEY `ix_sj_users_referral` (`referral_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=245 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=470 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_valet_availability
 CREATE TABLE `sj_valet_availability` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1879,11 +1796,11 @@ CREATE TABLE `sj_valet_availability` (
   `availability_type` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `valet_id` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `external_id` (`external_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_valet_availability_slots
 CREATE TABLE `sj_valet_availability_slots` (
   `id` int NOT NULL AUTO_INCREMENT,
   `availability_id` int NOT NULL,
@@ -1893,7 +1810,6 @@ CREATE TABLE `sj_valet_availability_slots` (
   CONSTRAINT `fk_valet_slot` FOREIGN KEY (`availability_id`) REFERENCES `sj_valet_availability` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_valet_availability_zones
 CREATE TABLE `sj_valet_availability_zones` (
   `id` int NOT NULL AUTO_INCREMENT,
   `availability_id` int NOT NULL,
@@ -1901,9 +1817,8 @@ CREATE TABLE `sj_valet_availability_zones` (
   PRIMARY KEY (`id`),
   KEY `fk_valet_zone` (`availability_id`),
   CONSTRAINT `fk_valet_zone` FOREIGN KEY (`availability_id`) REFERENCES `sj_valet_availability` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_valet_payout_settings
 CREATE TABLE `sj_valet_payout_settings` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1915,7 +1830,30 @@ CREATE TABLE `sj_valet_payout_settings` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_wishlist_items
+CREATE TABLE `sj_valet_payouts` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `valet_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `amount` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `delivery_count` int NOT NULL DEFAULT '0',
+  `return_count` int NOT NULL DEFAULT '0',
+  `period_start` datetime DEFAULT NULL,
+  `period_end` datetime DEFAULT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending_payment',
+  `payment_method` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payment_reference` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` text COLLATE utf8mb4_unicode_ci,
+  `admin_paid_at` datetime DEFAULT NULL,
+  `admin_paid_by` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `valet_received_at` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `external_id` (`external_id`),
+  KEY `ix_valet_payouts_valet` (`valet_id`),
+  KEY `ix_valet_payouts_status` (`status`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `sj_wishlist_items` (
   `id` int NOT NULL AUTO_INCREMENT,
   `wishlist_id` int NOT NULL,
@@ -1923,9 +1861,8 @@ CREATE TABLE `sj_wishlist_items` (
   PRIMARY KEY (`id`),
   KEY `fk_sj_wishlist_item` (`wishlist_id`),
   CONSTRAINT `fk_sj_wishlist_item` FOREIGN KEY (`wishlist_id`) REFERENCES `sj_wishlists` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_wishlists
 CREATE TABLE `sj_wishlists` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
