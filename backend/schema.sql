@@ -1588,17 +1588,6 @@ CREATE TABLE `sj_seller_zones` (
   CONSTRAINT `fk_usr_zone` FOREIGN KEY (`user_id`) REFERENCES `sj_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Table: sj_session_devices
-CREATE TABLE `sj_session_devices` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `session_id` int NOT NULL,
-  `device_key` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `device_value` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `fk_sj_session_dev` (`session_id`),
-  CONSTRAINT `fk_sj_session_dev` FOREIGN KEY (`session_id`) REFERENCES `sj_sessions` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- Table: sj_sessions
 CREATE TABLE `sj_sessions` (
   `id` int NOT NULL AUTO_INCREMENT,
