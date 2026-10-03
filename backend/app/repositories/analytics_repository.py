@@ -358,12 +358,15 @@ class AnalyticsRepository:
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, group_by: str = "hour"
     ) -> Dict:
         """Get conversion rate over time (orders / sessions) calculated from actual tracking events"""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         # 1. Sessions count (unique sessions in the date range)
-        sessions_tracking = await self.tracking_storage.findAll({"type": "session"})
-        sessions_tracking = self._filter_by_date_range(sessions_tracking, start_date, end_date, "timestamp")
+        sessions_tracking = await self.tracking_storage.find_by_date_range("session", start_date, end_date)
         session_count = len(set(s.session_id for s in sessions_tracking if s.session_id))
 
         # Fallback to estimated sessions if zero tracking traffic exists
@@ -371,8 +374,7 @@ class AnalyticsRepository:
             session_count = len(orders) * 10 if orders else 10
 
         # 2. Cart Additions (unique sessions adding items to cart)
-        cart_add_tracking = await self.tracking_storage.findAll({"type": "cart_add"})
-        cart_add_tracking = self._filter_by_date_range(cart_add_tracking, start_date, end_date, "timestamp")
+        cart_add_tracking = await self.tracking_storage.find_by_date_range("cart_add", start_date, end_date)
         added_to_cart_count = len(set(c.session_id for c in cart_add_tracking if c.session_id))
 
         # Fallback if no cart additions tracked
@@ -385,8 +387,8 @@ class AnalyticsRepository:
         added_to_cart_count = min(session_count, added_to_cart_count)
 
         # 3. Reached Checkout (unique sessions landing on checkout page step 1)
-        checkout_tracking = await self.tracking_storage.findAll({"type": "page_view", "page": "/checkout/step1"})
-        checkout_tracking = self._filter_by_date_range(checkout_tracking, start_date, end_date, "timestamp")
+        all_checkout_tracking = await self.tracking_storage.find_by_date_range("page_view", start_date, end_date)
+        checkout_tracking = [e for e in all_checkout_tracking if e.page == "/checkout/step1"]
         reached_checkout_count = len(set(c.session_id for c in checkout_tracking if c.session_id))
 
         # Fallback if zero tracking events exist
@@ -441,12 +443,16 @@ class AnalyticsRepository:
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> Dict:
         """Get detailed checkout funnel stages breakdown"""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         async def get_unique_sessions_for_page(page_path: str) -> int:
-            events = await self.tracking_storage.findAll({"type": "page_view", "page": page_path})
-            events = self._filter_by_date_range(events, start_date, end_date, "timestamp")
+            events = await self.tracking_storage.find_by_date_range("page_view", start_date, end_date)
+            events = [e for e in events if e.page == page_path]
             return len(set(e.session_id for e in events if e.session_id))
 
         cart_sessions = await get_unique_sessions_for_page("/customer/cart")
@@ -530,8 +536,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Get products by sell-through rate"""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
         orders = self._filter_by_seller(orders, seller_id)
 
         products = await self.product_storage.findAll()
@@ -635,8 +645,7 @@ class AnalyticsRepository:
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[Dict]:
         """Get sessions by landing page"""
-        tracking = await self.tracking_storage.findAll({"type": "page_view"})
-        tracking = self._filter_by_date_range(tracking, start_date, end_date, "timestamp")
+        tracking = await self.tracking_storage.find_by_date_range("page_view", start_date, end_date)
 
         session_landing = {}
         for t in tracking:
@@ -841,8 +850,12 @@ class AnalyticsRepository:
         limit: int = 10,
     ) -> List[Dict]:
         """Get top users by revenue, optionally filtered by role"""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         users = await self.user_storage.findAll()
         user_map = {u.id: u for u in users}
@@ -949,17 +962,8 @@ class AnalyticsRepository:
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[Dict]:
         """Get engagement counts (searches, views) broken down by user role"""
-        all_tracking = await self.tracking_storage.findAll()
-
-        # Filter by date
-        filtered_tracking = []
-        for t in all_tracking:
-            ts = self._parse_date(t.timestamp or t.created_at)
-            if start_date and ts and ts < start_date:
-                continue
-            if end_date and ts and ts > end_date:
-                continue
-            filtered_tracking.append(t)
+        # Use find_by_date_range with no event_type to push date filtering to SQL
+        filtered_tracking = await self.tracking_storage.find_by_date_range(None, start_date, end_date)
 
         users = await self.user_storage.findAll()
         user_role_map = {u.id: u.role for u in users}
@@ -1110,8 +1114,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Aggregate order count and revenue by payment method."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
         orders = self._filter_by_seller(orders, seller_id)
 
         method_stats: dict = {}
@@ -1145,8 +1153,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Aggregate revenue, quantity and order count by product category."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
         orders = self._filter_by_seller(orders, seller_id)
         products = await self.product_storage.findAll()
         product_map = {p.id: p for p in products}
@@ -1209,8 +1221,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Calculate fulfillment times for completed/delivered orders."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
         orders = self._filter_by_seller(orders, seller_id)
         users = await self.user_storage.findAll()
         user_map = {u.id: u for u in users}
@@ -1258,8 +1274,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Aggregate coupon usage: how many orders used each coupon and total discount given."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
         orders = self._filter_by_seller(orders, seller_id)
 
         coupon_stats: dict = {}
@@ -1297,8 +1317,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Aggregate sales by shipping address city/state."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
         orders = self._filter_by_seller(orders, seller_id)
 
         location_stats: dict = {}
@@ -1377,8 +1401,12 @@ class AnalyticsRepository:
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, limit: int = 50
     ) -> List[Dict]:
         """Market basket analysis: find pairs of products frequently bought together."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         products = await self.product_storage.findAll()
         product_map = {p.id: p for p in products}
@@ -1436,8 +1464,12 @@ class AnalyticsRepository:
         # For this we need to match orders to sessions or user agents.
         # Since orders don't directly store deviceType, we can try to find a session match or fallback
         # Let's see if orders have sessionId
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         sessions = await self.session_storage.findAll()
         session_map = {s.session_id: s for s in sessions}
@@ -1569,14 +1601,17 @@ class AnalyticsRepository:
         from app.repositories.tracking_repository import tracking_repository
 
         # Fetch raw collections (all cached individually by their methods)
-        orders = await self.order_storage.findAll()
+        _order_query: Dict = {}
+        if start_date:
+            _order_query["start_date"] = start_date.isoformat()
+        if end_date:
+            _order_query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(_order_query or None)
         users = await self.user_storage.findAll()
         products = await self.product_storage.findAll()
 
-        filtered_orders = self._filter_by_date_range(orders, start_date, end_date)
-
-        total_orders = len(filtered_orders)
-        total_revenue = sum(o.total for o in filtered_orders)
+        total_orders = len(orders)
+        total_revenue = sum(o.total for o in orders)
         total_products = len(products)
         total_customers = sum(1 for u in users if u.role == "customer")
         total_wholesalers = sum(1 for u in users if u.role == "wholesaler")
@@ -1712,8 +1747,7 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Daily session count and unique visitor count from tracking data."""
-        sessions = await self.tracking_storage.findAll({"type": "session"})
-        sessions = self._filter_by_date_range(sessions, start_date, end_date, "timestamp")
+        sessions = await self.tracking_storage.find_by_date_range("session", start_date, end_date)
 
         by_day: dict = {}
         for s in sessions:
@@ -1772,8 +1806,7 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Search terms whose sessions never produced a product_click event."""
-        searches = await self.tracking_storage.findAll({"type": "product_search"})
-        searches = self._filter_by_date_range(searches, start_date, end_date, "timestamp")
+        searches = await self.tracking_storage.find_by_date_range("product_search", start_date, end_date)
 
         clicks = await self.tracking_storage.findAll({"type": "product_click"})
         clicked_sessions = {c.session_id for c in clicks if c.session_id}
@@ -1809,12 +1842,15 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Percentage of sessions that searched AND placed an order."""
-        searches = await self.tracking_storage.findAll({"type": "product_search"})
-        searches = self._filter_by_date_range(searches, start_date, end_date, "timestamp")
+        searches = await self.tracking_storage.find_by_date_range("product_search", start_date, end_date)
         search_sessions = {s.session_id for s in searches if s.session_id}
 
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
         order_sessions = {o.session_id for o in orders if o.session_id}
 
         total = len(search_sessions)
@@ -1839,8 +1875,7 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Daily bounce rate: sessions with only 1 page view / total sessions."""
-        page_views = await self.tracking_storage.findAll({"type": "page_view"})
-        page_views = self._filter_by_date_range(page_views, start_date, end_date, "timestamp")
+        page_views = await self.tracking_storage.find_by_date_range("page_view", start_date, end_date)
 
         # Count page views per (day, sessionId)
         session_day: dict = {}  # sid -> day
@@ -1882,8 +1917,12 @@ class AnalyticsRepository:
         """RFM segmentation: Champions, Loyal, Promising, At Risk, Dormant."""
         from datetime import timedelta
 
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
         users = await self.user_storage.findAll()
         user_map = {u.id: u for u in users}
 
@@ -1946,8 +1985,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Split of one-time vs repeat buyers with revenue per group."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         user_stats: dict = {}
         for order in orders:
@@ -1995,8 +2038,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Per-order breakdown: gross sales → discounts → tax → shipping → net sales."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         if seller_id:
             orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
@@ -2046,8 +2093,12 @@ class AnalyticsRepository:
         """Order volume and revenue grouped by day-of-week (0=Mon) and hour-of-day (0-23)."""
         DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         if seller_id:
             orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
@@ -2144,8 +2195,12 @@ class AnalyticsRepository:
         end_date: Optional[datetime] = None,
     ) -> List[Dict]:
         """Revenue, order count, and AOV broken down by sales channel (desktop_web / mobile_web / mobile_app)."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         CHANNELS = ["desktop_web", "mobile_web", "mobile_app"]
         stats: dict = {ch: {"revenue": 0.0, "orderCount": 0} for ch in CHANNELS}
@@ -2186,8 +2241,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Per-order line-item audit: coupon code, discount type/value, gross, discount applied, net."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         if seller_id:
             orders = [o for o in orders if str(o.seller_id) == str(seller_id)]
@@ -2234,8 +2293,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Units sold in the period as a % of current stock (sell-through by quantity)."""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         products = await self.product_storage.findAll()
         if seller_id:
