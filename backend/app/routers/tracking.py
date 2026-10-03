@@ -10,7 +10,7 @@ from app.models.base import CamelBaseModel
 from pydantic import Field, ConfigDict
 
 from app.repositories.tracking_repository import tracking_repository
-from app.utils.auth import get_optional_user, require_super_admin
+from app.utils.auth import get_optional_user, get_optional_user_lightweight, require_super_admin
 from app.utils.limiter import limiter
 
 router = APIRouter()
@@ -149,7 +149,7 @@ class MostAbandonedProductResponse(BaseModel):
 async def track_beacon(
     request: Request,
     payload: TrackBeaconRequest = Body(default_factory=TrackBeaconRequest),
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     """Accept beacon payloads (e.g. from navigator.sendBeacon on page unload)."""
     beacon_data = AnalyticsEventCreate(
@@ -174,7 +174,7 @@ async def track_beacon(
 async def track_search(
     request: Request,
     payload: TrackSearchRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     segment = "wholesaler" if (current_user and current_user.role == "wholesaler") else "customer"
     await tracking_repository.trackSearch(
@@ -193,7 +193,7 @@ async def track_search(
 async def track_view(
     request: Request,
     payload: TrackViewRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     await tracking_repository.trackProductView(
         current_user.id if current_user else None, payload.product_id, payload.product_name, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ip_address=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -205,7 +205,7 @@ async def track_view(
 async def track_click(
     request: Request,
     payload: TrackClickRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     await tracking_repository.trackProductClick(
         current_user.id if current_user else None,
@@ -222,7 +222,7 @@ async def track_click(
 async def track_cart_abandonment(
     request: Request,
     payload: TrackCartAbandonmentRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     await tracking_repository.trackCartAbandonment(
         current_user.id if current_user else None, payload.cart_items, payload.cart_value, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ip_address=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -234,7 +234,7 @@ async def track_cart_abandonment(
 async def track_session(
     request: Request,
     payload: TrackSessionRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     await tracking_repository.trackSession(
         current_user.id if current_user else None, payload.session_id, None, os=ext_os(payload, request), browser=ext_br(payload, request), ip_address=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -246,7 +246,7 @@ async def track_session(
 async def track_page_view(
     request: Request,
     payload: TrackPageViewRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     await tracking_repository.trackPageView(
         current_user.id if current_user else None, payload.page, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ip_address=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -258,7 +258,7 @@ async def track_page_view(
 async def track_drop_off(
     request: Request,
     payload: TrackDropOffRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     await tracking_repository.trackDropOff(
         current_user.id if current_user else None, payload.page, payload.reason, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ip_address=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -270,7 +270,7 @@ async def track_drop_off(
 async def track_frontend_error(
     request: Request,
     payload: TrackErrorRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     from app.utils.logger import logger
 
@@ -310,7 +310,7 @@ class TrackFilterClickRequest(BaseTrackingRequest):
 async def track_cart_item_remove(
     request: Request,
     payload: TrackCartItemRemoveRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     await tracking_repository.trackCartItemRemove(
         current_user.id if current_user else None, payload.product_id, payload.quantity, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ip_address=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -322,7 +322,7 @@ async def track_cart_item_remove(
 async def track_cart_item_add(
     request: Request,
     payload: TrackCartItemAddRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     await tracking_repository.trackCartAdd(
         current_user.id if current_user else None, payload.product_id, payload.quantity, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ip_address=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
@@ -334,7 +334,7 @@ async def track_cart_item_add(
 async def track_filter_click(
     request: Request,
     payload: TrackFilterClickRequest,
-    current_user: Optional[User] = Depends(get_optional_user),
+    current_user: Optional[User] = Depends(get_optional_user_lightweight),
 ):
     await tracking_repository.trackFilterClick(
         current_user.id if current_user else None, payload.filter_type, payload.filter_value, payload.session_id, os=ext_os(payload, request), browser=ext_br(payload, request), ip_address=ext_ip(payload, request), campaign=payload.campaign, source=payload.source)
