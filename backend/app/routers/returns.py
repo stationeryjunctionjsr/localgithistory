@@ -394,6 +394,22 @@ async def complete_return(
     if email:
         background_tasks.add_task(email_service.send_order_returned_email, email, populated_req)
 
+    # Notify customer — in-app notification + push
+    try:
+        from app.utils.notify import notify_user
+        customer_id = str(req.user_id) if req.user_id else None
+        if customer_id:
+            await notify_user(
+                user_id    = customer_id,
+                notif_type = "return_completed",
+                title      = "Return processed ✅",
+                message    = "Your return has been collected and processed. Refund will be initiated shortly.",
+                link       = "/customer/orders",
+                metadata   = {"order_id": str(req.order_id) if req.order_id else None, "status": "returned"},
+            )
+    except Exception as e:
+        logger.warning("Notification failed for return completion %s: %s", request_id, str(e))
+
     return populated_req
 
 
@@ -409,6 +425,28 @@ async def reject_return(
     updated = await return_request_repository.update(
         request_id, ReturnRequestInternalUpdate(status=ReturnRequestStatus.REJECTED.value, notes=update_data.notes or req.notes)
     )
+
+    # Notify customer — in-app notification + push
+    try:
+        from app.utils.notify import notify_user
+        customer_id = str(req.user_id) if req.user_id else None
+        if customer_id:
+            reason_note = (update_data.notes or "").strip()
+            msg = (
+                f"Your return request was rejected. Reason: {reason_note}"
+                if reason_note
+                else "Your return request has been rejected. Contact support for more information."
+            )
+            await notify_user(
+                user_id    = customer_id,
+                notif_type = "return_rejected",
+                title      = "Return request rejected ❌",
+                message    = msg,
+                link       = "/customer/orders",
+                metadata   = {"order_id": str(req.order_id) if req.order_id else None, "status": "rejected"},
+            )
+    except Exception as e:
+        logger.warning("Notification failed for return rejection %s: %s", request_id, str(e))
 
     return await populate_return_request(updated)
 

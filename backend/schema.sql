@@ -11,6 +11,20 @@ CREATE TABLE `sj_about_us` (
   UNIQUE KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `sj_abandoned_cart_reminders` (
+  `id`               INT NOT NULL AUTO_INCREMENT,
+  `user_external_id` VARCHAR(64) NOT NULL COMMENT 'matches sj_tracking.user_id / sj_users.external_id',
+  `tracking_id`      INT NOT NULL           COMMENT 'FK → sj_tracking.id of the abandonment event',
+  `sent_at`          DATETIME NOT NULL      COMMENT 'UTC timestamp when the reminder was sent',
+  `channels`         VARCHAR(128) NOT NULL  COMMENT 'comma-separated: email, push, whatsapp',
+  PRIMARY KEY (`id`),
+  INDEX `idx_acr_user` (`user_external_id`),
+  INDEX `idx_acr_sent` (`sent_at`),
+  CONSTRAINT `fk_acr_tracking` FOREIGN KEY (`tracking_id`)
+      REFERENCES `sj_tracking` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Deduplication log for abandoned-cart recovery reminders';
+
 CREATE TABLE `sj_ads` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) NOT NULL,

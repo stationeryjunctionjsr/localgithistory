@@ -105,6 +105,11 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   const [currentCombination, setCurrentCombination] = useState<any>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [reviewsList, setReviewsList] = useState<any[]>([]);
+  const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '', classification: '' });
+  const [reviewClassifications, setReviewClassifications] = useState<string[]>([]);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [hoverRating, setHoverRating] = useState(0);
   const [bundles, setBundles] = useState<any[]>([]);
   // Pincode availability state
   const [requestAdded, setRequestAdded] = useState(false);
@@ -314,6 +319,9 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   useEffect(() => {
     if (id) {
       fetchReviews();
+      api.get('/reviews/classifications')
+        .then(res => setReviewClassifications((res.data || []).map((c: any) => c.name)))
+        .catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -412,6 +420,31 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
     // eslint-disable-next-line unused-imports/no-unused-vars
     } catch (e) {
       toast.error('Could not update wishlist. Please try again.');
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!user) { toast.error('Please log in to submit a review'); return; }
+    if (reviewForm.rating === 0) { toast.error('Please select a star rating'); return; }
+    if (!reviewForm.comment.trim()) { toast.error('Please write a comment'); return; }
+    if (!reviewForm.classification) { toast.error('Please select a classification'); return; }
+    setSubmittingReview(true);
+    try {
+      await api.post('/reviews', {
+        productId: id,
+        rating: reviewForm.rating,
+        comment: reviewForm.comment.trim(),
+        classification: reviewForm.classification,
+      });
+      setReviewSubmitted(true);
+      setReviewForm({ rating: 0, comment: '', classification: '' });
+      toast.success('Review submitted! It will appear after moderation.');
+      fetchReviews();
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || 'Failed to submit review';
+      toast.error(msg);
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -1267,6 +1300,102 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                       ))}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Write a Review */}
+              {user && !reviewSubmitted && (
+                <div className="mt-10 border-t border-gray-100 pt-8">
+                  <h3 className="text-lg font-bold text-gray-900 mb-5">Write a Review</h3>
+                  <div className="bg-gray-50 rounded-2xl p-6 space-y-5 max-w-2xl">
+                    {/* Star Rating */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Your Rating *</label>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setReviewForm(f => ({ ...f, rating: i + 1 }))}
+                            onMouseEnter={() => setHoverRating(i + 1)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            aria-label={`Rate ${i + 1} star${i !== 0 ? 's' : ''}`}
+                            className="focus:outline-none"
+                          >
+                            <svg
+                              className={`h-8 w-8 transition-colors ${i < (hoverRating || reviewForm.rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                            </svg>
+                          </button>
+                        ))}
+                        {reviewForm.rating > 0 && (
+                          <span className="ml-2 text-sm text-gray-500 self-center">
+                            {['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][reviewForm.rating]}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Classification Pills */}
+                    {reviewClassifications.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Classification *</label>
+                        <div className="flex flex-wrap gap-2">
+                          {reviewClassifications.map(cls => (
+                            <button
+                              key={cls}
+                              type="button"
+                              onClick={() => setReviewForm(f => ({ ...f, classification: cls }))}
+                              className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                                reviewForm.classification === cls
+                                  ? 'bg-gray-900 border-gray-900 text-white'
+                                  : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400'
+                              }`}
+                            >
+                              {cls}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Comment */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Your Review *</label>
+                      <textarea
+                        rows={4}
+                        maxLength={1000}
+                        placeholder="Share your experience with this product..."
+                        value={reviewForm.comment}
+                        onChange={e => setReviewForm(f => ({ ...f, comment: e.target.value }))}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:border-gray-400 focus:outline-none resize-none"
+                      />
+                      <p className="text-right text-xs text-gray-400 mt-1">{reviewForm.comment.length}/1000</p>
+                    </div>
+
+                    <button
+                      onClick={handleSubmitReview}
+                      disabled={submittingReview}
+                      className="w-full rounded-xl py-3 font-bold text-white transition-all"
+                      style={{ background: submittingReview ? '#94a3b8' : 'linear-gradient(135deg,#7c3aed,#6d28d9)' }}
+                    >
+                      {submittingReview ? 'Submitting...' : 'Submit Review'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {user && reviewSubmitted && (
+                <div className="mt-8 rounded-2xl bg-green-50 border border-green-200 p-6 text-center">
+                  <p className="text-green-700 font-semibold text-sm">✓ Review submitted — it will appear after moderation. Thank you!</p>
+                </div>
+              )}
+
+              {!user && (
+                <div className="mt-8 rounded-2xl bg-gray-50 border border-gray-100 p-5 text-center">
+                  <p className="text-gray-600 text-sm">Log in to write a review for this product.</p>
                 </div>
               )}
             </div>

@@ -155,6 +155,25 @@ async def admin_approve_review(review_id: str, current_user: User = Depends(requ
     except Exception as e:
         logger.error("Failed to update product aggregated rating after review approval (review %s): %s", review_id, str(e), exc_info=True)
 
+    # Notify the reviewer — in-app notification + push
+    try:
+        from app.utils.notify import notify_user
+        reviewer_id = str(review.user_id) if getattr(review, "user_id", None) else None
+        product_id_for_push = getattr(review, "product_id", None)
+        if reviewer_id:
+            product_obj = await product_repository.findById(product_id_for_push) if product_id_for_push else None
+            product_name = (product_obj.name if product_obj else None) or "your product"
+            await notify_user(
+                user_id    = reviewer_id,
+                notif_type = "review_approved",
+                title      = "Your review is live! ⭐",
+                message    = f"Your review for {product_name} has been approved and is now visible.",
+                link       = f"/products/product/{product_id_for_push}" if product_id_for_push else "/",
+                metadata   = {"product_id": product_id_for_push},
+            )
+    except Exception as e:
+        logger.warning("Notification failed for review approval %s: %s", review_id, str(e))
+
     return {"message": "Review approved successfully", "review": updated}
 
 

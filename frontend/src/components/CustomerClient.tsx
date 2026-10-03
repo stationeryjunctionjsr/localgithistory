@@ -79,6 +79,8 @@ export default function CustomerClient({
   const [customerFavourites, setCustomerFavourites] = useState<any[]>([]);
   const [trendingNow, setTrendingNow] = useState<any[]>([]);
   const [explore, setExplore] = useState<any[]>([]);
+  const [selectedRecoCategory, setSelectedRecoCategory] = useState<string | null>(null);
+  const [selectedRecoSubCategory, setSelectedRecoSubCategory] = useState<string | null>(null);
   const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
   const [availableCatalog, setAvailableCatalog] = useState<{ categoryNames: string[]; subCategories: Record<string, string[]>; brandNames: string[]; collectionNames: string[] } | null>(null);
 
@@ -119,6 +121,58 @@ export default function CustomerClient({
     });
     return counts;
   }, [products]);
+
+  /** Distinct categories present across ALL recommendation sections combined. */
+  const recoCategoryOptions = useMemo(() => {
+    const cats = new Set<string>();
+    [...newArrivals, ...customerFavourites, ...trendingNow, ...explore].forEach((p: any) => {
+      const cat = typeof p.category === 'object' ? p.category?.name : p.category;
+      if (cat) cats.add(cat);
+    });
+    return Array.from(cats).sort();
+  }, [newArrivals, customerFavourites, trendingNow, explore]);
+
+  /** Distinct subcategories for the currently selected category. */
+  const recoSubCategoryOptions = useMemo(() => {
+    if (!selectedRecoCategory) return [];
+    const subs = new Set<string>();
+    [...newArrivals, ...customerFavourites, ...trendingNow, ...explore].forEach((p: any) => {
+      const cat = typeof p.category === 'object' ? p.category?.name : p.category;
+      if (cat === selectedRecoCategory && p.sub_category) subs.add(p.sub_category);
+    });
+    return Array.from(subs).sort();
+  }, [selectedRecoCategory, newArrivals, customerFavourites, trendingNow, explore]);
+
+  /** Products filtered by the selected reco category — used for StatsCounter. */
+  const filteredStatsProducts = useMemo(() => {
+    if (!selectedRecoCategory) return products;
+    return products.filter((p: any) => {
+      const cat = typeof p.category === 'object' ? p.category?.name : p.category;
+      return cat === selectedRecoCategory;
+    });
+  }, [selectedRecoCategory, products]);
+
+  /** Distinct brand count within the filtered product set. */
+  const filteredStatsBrandCount = useMemo(() => {
+    if (!selectedRecoCategory) return brands.length;
+    const brandNames = new Set<string>();
+    filteredStatsProducts.forEach((p: any) => {
+      const b = typeof p.brand === 'object' ? p.brand?.name : p.brand;
+      if (b) brandNames.add(b);
+    });
+    return brandNames.size || brands.length;
+  }, [selectedRecoCategory, filteredStatsProducts, brands]);
+
+  /** Filter a list of recommendation products by the active category/subcategory pills. */
+  const applyRecoFilter = (items: any[]) => {
+    if (!selectedRecoCategory) return items;
+    return items.filter((p: any) => {
+      const cat = typeof p.category === 'object' ? p.category?.name : p.category;
+      if (cat !== selectedRecoCategory) return false;
+      if (selectedRecoSubCategory && p.sub_category !== selectedRecoSubCategory) return false;
+      return true;
+    });
+  };
 
   // Detect mobile view
   useEffect(() => {
@@ -405,9 +459,78 @@ export default function CustomerClient({
           {!selectedCategory && !selectedCategoryTag && !selectedCollection && !searchTerm && (
             <>
               <HeroCarousel banners={banners} />
-              <StatsCounter 
-                productCount={products.length} 
-                brandCount={brands.length} 
+
+              {/* ── Category / Subcategory Filter Pills ── */}
+              {recoCategoryOptions.length > 1 && (
+                <div className="px-4 pb-4 pt-6 md:px-8 xl:px-12">
+                  {/* Category pills */}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedRecoCategory(null);
+                        setSelectedRecoSubCategory(null);
+                      }}
+                      className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${
+                        !selectedRecoCategory
+                          ? 'border-[#1a4d33] bg-[#1a4d33] text-white shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-[#1a4d33] hover:text-[#1a4d33]'
+                      }`}
+                    >
+                      All
+                    </button>
+                    {recoCategoryOptions.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          setSelectedRecoCategory(cat === selectedRecoCategory ? null : cat);
+                          setSelectedRecoSubCategory(null);
+                        }}
+                        className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${
+                          selectedRecoCategory === cat
+                            ? 'border-[#1a4d33] bg-[#1a4d33] text-white shadow-sm'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-[#1a4d33] hover:text-[#1a4d33]'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Subcategory pills — shown only when a category is active and has multiple subcategories */}
+                  {selectedRecoCategory && recoSubCategoryOptions.length > 1 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setSelectedRecoSubCategory(null)}
+                        className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-all ${
+                          !selectedRecoSubCategory
+                            ? 'border-amber-500 bg-amber-500 text-white'
+                            : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-400 hover:text-amber-600'
+                        }`}
+                      >
+                        All {selectedRecoCategory}
+                      </button>
+                      {recoSubCategoryOptions.map((sub) => (
+                        <button
+                          key={sub}
+                          onClick={() =>
+                            setSelectedRecoSubCategory(sub === selectedRecoSubCategory ? null : sub)
+                          }
+                          className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-all ${
+                            selectedRecoSubCategory === sub
+                              ? 'border-amber-500 bg-amber-500 text-white'
+                              : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-400 hover:text-amber-600'
+                          }`}
+                        >
+                          {sub}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <StatsCounter
+                productCount={filteredStatsProducts.length}
+                brandCount={filteredStatsBrandCount}
               />
             </>
           )}
@@ -419,6 +542,11 @@ export default function CustomerClient({
           !selectedCollection &&
           !searchTerm &&
           (() => {
+            const filteredNewArrivals = applyRecoFilter(newArrivals);
+            const filteredCustomerFavourites = applyRecoFilter(customerFavourites);
+            const filteredTrendingNow = applyRecoFilter(trendingNow);
+            const filteredExplore = applyRecoFilter(explore);
+
             const allSections: {
               key: string;
               label: string;
@@ -436,9 +564,9 @@ export default function CustomerClient({
                 subtitle:
                   'Discover our latest additions — fresh designs and premium quality pieces just for you.',
                 ref: newArrivalsRef,
-                items: newArrivals,
+                items: filteredNewArrivals,
                 slot: 'new_arrivals',
-                show: getSectionDisplayConfig(newArrivals.length, productsPerRow).hide === false,
+                show: getSectionDisplayConfig(filteredNewArrivals.length, productsPerRow).hide === false,
               },
               {
                 key: 'customer_favourites',
@@ -446,9 +574,9 @@ export default function CustomerClient({
                 title: 'Customer Favourites',
                 subtitle: 'Bestsellers loved by customers.',
                 ref: customerFavouritesRef,
-                items: customerFavourites,
+                items: filteredCustomerFavourites,
                 slot: 'customer_favourites',
-                show: getSectionDisplayConfig(customerFavourites.length, productsPerRow).hide === false,
+                show: getSectionDisplayConfig(filteredCustomerFavourites.length, productsPerRow).hide === false,
               },
               {
                 key: 'trending_now',
@@ -456,9 +584,9 @@ export default function CustomerClient({
                 title: 'Trending Now',
                 subtitle: 'What retail customers are buying (search-to-sale, last 7 days).',
                 ref: trendingNowRef,
-                items: trendingNow,
+                items: filteredTrendingNow,
                 slot: 'trending_now',
-                show: getSectionDisplayConfig(trendingNow.length, productsPerRow).hide === false,
+                show: getSectionDisplayConfig(filteredTrendingNow.length, productsPerRow).hide === false,
               },
               {
                 key: 'explore',
@@ -466,9 +594,9 @@ export default function CustomerClient({
                 title: 'Explore',
                 subtitle: 'Best sellers from categories you might like to try.',
                 ref: exploreRef,
-                items: explore,
+                items: filteredExplore,
                 slot: 'explore',
-                show: getSectionDisplayConfig(explore.length, productsPerRow).hide === false && !!user,
+                show: getSectionDisplayConfig(filteredExplore.length, productsPerRow).hide === false && !!user,
               },
             ];
             const styles: Record<string, { span: string; bar: string }> = {
@@ -488,114 +616,212 @@ export default function CustomerClient({
               .map((s) => allSections.find((sec) => sec.key === s))
               .filter((sec): sec is NonNullable<typeof sec> => !!sec && sec.show);
             const ordered = [...(newArrSec && newArrSec.show ? [newArrSec] : []), ...rest];
-            return ordered.map((sec) => (
-              <section key={sec.key} ref={sec.ref} className="mb-20">
-                <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
-                  <div className="relative">
-                    <span
-                      className={`${styles[sec.key]?.span || ''} mb-2 block text-xs font-semibold uppercase tracking-[0.2em]`}
-                    >
-                      {sec.label}
-                    </span>
-                    <h2 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
-                      {sec.title}
-                    </h2>
-                    <p className="mt-2 max-w-md text-sm text-gray-500">{sec.subtitle}</p>
-                    <div
-                      className={`absolute -left-4 bottom-0 top-0 w-1 bg-gradient-to-b ${styles[sec.key]?.bar || ''} hidden rounded-full md:block`}
-                    />
+            return (
+              <>
+                {/* ── Category / Subcategory Filter Pills ── */}
+                {recoCategoryOptions.length > 1 && (
+                  <div className="mb-8 -mx-1">
+                    {/* Category pills */}
+                    <div className="flex flex-wrap gap-2 px-1">
+                      <button
+                        onClick={() => {
+                          setSelectedRecoCategory(null);
+                          setSelectedRecoSubCategory(null);
+                        }}
+                        className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${
+                          !selectedRecoCategory
+                            ? 'border-[#1a4d33] bg-[#1a4d33] text-white shadow-sm'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-[#1a4d33] hover:text-[#1a4d33]'
+                        }`}
+                      >
+                        All
+                      </button>
+                      {recoCategoryOptions.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => {
+                            setSelectedRecoCategory(cat === selectedRecoCategory ? null : cat);
+                            setSelectedRecoSubCategory(null);
+                          }}
+                          className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${
+                            selectedRecoCategory === cat
+                              ? 'border-[#1a4d33] bg-[#1a4d33] text-white shadow-sm'
+                              : 'border-gray-200 bg-white text-gray-600 hover:border-[#1a4d33] hover:text-[#1a4d33]'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Subcategory pills — shown only when a category is active */}
+                    {selectedRecoCategory && recoSubCategoryOptions.length > 1 && (
+                      <div className="mt-2 flex flex-wrap gap-2 px-1">
+                        <button
+                          onClick={() => setSelectedRecoSubCategory(null)}
+                          className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-all ${
+                            !selectedRecoSubCategory
+                              ? 'border-amber-500 bg-amber-500 text-white'
+                              : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-400 hover:text-amber-600'
+                          }`}
+                        >
+                          All {selectedRecoCategory}
+                        </button>
+                        {recoSubCategoryOptions.map((sub) => (
+                          <button
+                            key={sub}
+                            onClick={() =>
+                              setSelectedRecoSubCategory(sub === selectedRecoSubCategory ? null : sub)
+                            }
+                            className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-all ${
+                              selectedRecoSubCategory === sub
+                                ? 'border-amber-500 bg-amber-500 text-white'
+                                : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-400 hover:text-amber-600'
+                            }`}
+                          >
+                            {sub}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5 xl:grid-cols-6">
-                  {(() => {
-                    const cfg = getSectionDisplayConfig(sec.items.length, productsPerRow);
-                    const isExpanded = expandedSections[sec.key];
-                    return (
-                      <>
-                        {sec.items
-                          .slice(0, isExpanded ? cfg.expanded : cfg.visible)
-                          .map((p: any, index: number) => (
-                            <div
-                              key={p.id}
-                              className="animate-fade-in-up opacity-0"
-                              style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
-                            >
-                              <HoverProductCard
-                                product={{ ...p, isNew: false, bestSeller: false }}
-                                onClick={() => {
-                                  trackRecommendationProductClick({
-                                    productId: p.id,
-                                    productName: p.name,
-                                    recommendationSlot: sec.slot,
-                                  });
-                                  router.push(`/customer/product/${p.id}`);
-                                }}
-                                cartQuantity={
-                                  cart?.items?.find((i: any) => (i.product?.id || i.product) === p.id)
-                                    ?.quantity || 0
-                                }
-                                onAddToCart={(e) => {
-                                  e.stopPropagation();
-                                  addToCart(p.id, 1, p);
-                                }}
-                                onIncrement={(e) => {
-                                  e.stopPropagation();
-                                  const item = cart?.items?.find(
-                                    (i: any) => (i.product?.id || i.product) === p.id
-                                  );
-                                  if (item) updateQuantity(item.id, (item.quantity || 1) + 1);
-                                }}
-                                onDecrement={(e) => {
-                                  e.stopPropagation();
-                                  const item = cart?.items?.find(
-                                    (i: any) => (i.product?.id || i.product) === p.id
-                                  );
-                                  if (item) {
-                                    if ((item.quantity || 1) <= 1) removeFromCart(item.id);
-                                    else updateQuantity(item.id, (item.quantity || 1) - 1);
-                                  }
-                                }}
-                                isWishlisted={wishlistedIds.has(p.id)}
-                                onWishlistClick={(e) => {
-                                  toggleWishlist(p.id, p.name);
-                                }}
-                              />
-                            </div>
-                          ))}
+                )}
 
-                        {cfg.showButton && (
-                          <div className="col-span-full">
-                            <div className="relative mt-12 flex justify-center border-t border-gray-100 pt-8">
-                              <button
-                                onClick={() => handleToggleSection(sec.key)}
-                                className="absolute -top-6 flex items-center gap-2 rounded-full border border-gray-200 bg-white px-8 py-3 font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md"
-                              >
-                                {isExpanded ? (
-                                  <>
-                                    Show less
-                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                    </svg>
-                                  </>
-                                ) : (
-                                  <>
-                                    Show more
-                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              </section>
-            ));
+                {/* Empty state when the selected filter yields no results */}
+                {ordered.length === 0 && selectedRecoCategory && (
+                  <div className="mb-16 flex flex-col items-center gap-3 py-16 text-center text-gray-400">
+                    <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z" />
+                    </svg>
+                    <p className="text-sm font-medium">
+                      No trending items in{' '}
+                      <span className="font-semibold text-gray-600">
+                        {selectedRecoSubCategory || selectedRecoCategory}
+                      </span>{' '}
+                      right now.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSelectedRecoCategory(null);
+                        setSelectedRecoSubCategory(null);
+                      }}
+                      className="text-xs font-semibold text-[#1a4d33] underline underline-offset-2 hover:text-[#143b27]"
+                    >
+                      Show all recommendations
+                    </button>
+                  </div>
+                )}
+
+                {ordered.map((sec) => (
+                  <section key={sec.key} ref={sec.ref} className="mb-20">
+                    <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
+                      <div className="relative">
+                        <span
+                          className={`${styles[sec.key]?.span || ''} mb-2 block text-xs font-semibold uppercase tracking-[0.2em]`}
+                        >
+                          {sec.label}
+                        </span>
+                        <h2 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
+                          {sec.title}
+                        </h2>
+                        <p className="mt-2 max-w-md text-sm text-gray-500">{sec.subtitle}</p>
+                        <div
+                          className={`absolute -left-4 bottom-0 top-0 w-1 bg-gradient-to-b ${styles[sec.key]?.bar || ''} hidden rounded-full md:block`}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5 xl:grid-cols-6">
+                      {(() => {
+                        const cfg = getSectionDisplayConfig(sec.items.length, productsPerRow);
+                        const isExpanded = expandedSections[sec.key];
+                        return (
+                          <>
+                            {sec.items
+                              .slice(0, isExpanded ? cfg.expanded : cfg.visible)
+                              .map((p: any, index: number) => (
+                                <div
+                                  key={p.id}
+                                  className="animate-fade-in-up opacity-0"
+                                  style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
+                                >
+                                  <HoverProductCard
+                                    product={{ ...p, isNew: false, bestSeller: false }}
+                                    onClick={() => {
+                                      trackRecommendationProductClick({
+                                        productId: p.id,
+                                        productName: p.name,
+                                        recommendationSlot: sec.slot,
+                                      });
+                                      router.push(`/customer/product/${p.id}`);
+                                    }}
+                                    cartQuantity={
+                                      cart?.items?.find((i: any) => (i.product?.id || i.product) === p.id)
+                                        ?.quantity || 0
+                                    }
+                                    onAddToCart={(e) => {
+                                      e.stopPropagation();
+                                      addToCart(p.id, 1, p);
+                                    }}
+                                    onIncrement={(e) => {
+                                      e.stopPropagation();
+                                      const item = cart?.items?.find(
+                                        (i: any) => (i.product?.id || i.product) === p.id
+                                      );
+                                      if (item) updateQuantity(item.id, (item.quantity || 1) + 1);
+                                    }}
+                                    onDecrement={(e) => {
+                                      e.stopPropagation();
+                                      const item = cart?.items?.find(
+                                        (i: any) => (i.product?.id || i.product) === p.id
+                                      );
+                                      if (item) {
+                                        if ((item.quantity || 1) <= 1) removeFromCart(item.id);
+                                        else updateQuantity(item.id, (item.quantity || 1) - 1);
+                                      }
+                                    }}
+                                    isWishlisted={wishlistedIds.has(p.id)}
+                                    onWishlistClick={(e) => {
+                                      toggleWishlist(p.id, p.name);
+                                    }}
+                                  />
+                                </div>
+                              ))}
+
+                            {cfg.showButton && (
+                              <div className="col-span-full">
+                                <div className="relative mt-12 flex justify-center border-t border-gray-100 pt-8">
+                                  <button
+                                    onClick={() => handleToggleSection(sec.key)}
+                                    className="absolute -top-6 flex items-center gap-2 rounded-full border border-gray-200 bg-white px-8 py-3 font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md"
+                                  >
+                                    {isExpanded ? (
+                                      <>
+                                        Show less
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                        </svg>
+                                      </>
+                                    ) : (
+                                      <>
+                                        Show more
+                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </section>
+                ))}
+              </>
+            );
           })()}
+
 
         {/* Collections Section */}
         {visibleCollections.length > 0 &&

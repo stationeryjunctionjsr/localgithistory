@@ -19,6 +19,7 @@ Multi-VM mode (commented out below — see start_recommendation_scheduler_multi_
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from app.jobs.abandoned_cart_job import run_abandoned_cart_job
 from app.jobs.customer_favourites_job import run_customer_favourites_job
 from app.jobs.search_report_job import run_daily_search_report_job
 from app.jobs.trending_job import run_trending_job
@@ -189,9 +190,22 @@ def start_recommendation_scheduler():
         max_instances=1,
         coalesce=True,
     )
+    # Abandoned Cart Recovery: Every 30 minutes.
+    # Queries sj_tracking for cart_abandonment events whose owners haven't
+    # placed an order since, then sends an email + push reminder.
+    # Deduplication is handled via sj_abandoned_cart_reminders (24-hour cooldown).
+    scheduler.add_job(
+        run_abandoned_cart_job,
+        "interval",
+        minutes=30,
+        id="abandoned_cart_job",
+        max_instances=1,
+        coalesce=True,
+    )
     scheduler.start()
     logger.info(
-        "Recommendation scheduler started (IST): trending 12 AM/PM, favorites 12 AM, google reviews 12 AM, session cleanup 1 AM"
+        "Recommendation scheduler started (IST): trending 12 AM/PM, favorites 12 AM, "
+        "google reviews 12 AM, session cleanup 1 AM, abandoned cart every 30 min"
     )
 
 # ── MULTI-VM SCHEDULER (commented out — activate when scaling to multiple VMs) ──

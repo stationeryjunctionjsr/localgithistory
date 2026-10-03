@@ -101,6 +101,8 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
   const [collections, setCollections] = useState<any[]>(props.initialCollections || []);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [selectedRecoCategory, setSelectedRecoCategory] = useState<string | null>(null);
+  const [selectedRecoSubCategory, setSelectedRecoSubCategory] = useState<string | null>(null);
 
   const categoryCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
@@ -110,6 +112,38 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
     });
     return counts;
   }, [products]);
+
+  /** Distinct categories present across ALL recommendation sections combined (guest view). */
+  const recoCategoryOptions = useMemo(() => {
+    const cats = new Set<string>();
+    [...newArrivals, ...customerFavourites, ...trendingNow].forEach((p: any) => {
+      const cat = typeof p.category === 'object' ? p.category?.name : p.category;
+      if (cat) cats.add(cat);
+    });
+    return Array.from(cats).sort();
+  }, [newArrivals, customerFavourites, trendingNow]);
+
+  /** Distinct subcategories for the currently selected category. */
+  const recoSubCategoryOptions = useMemo(() => {
+    if (!selectedRecoCategory) return [];
+    const subs = new Set<string>();
+    [...newArrivals, ...customerFavourites, ...trendingNow].forEach((p: any) => {
+      const cat = typeof p.category === 'object' ? p.category?.name : p.category;
+      if (cat === selectedRecoCategory && p.sub_category) subs.add(p.sub_category);
+    });
+    return Array.from(subs).sort();
+  }, [selectedRecoCategory, newArrivals, customerFavourites, trendingNow]);
+
+  /** Filter recommendation items by active category/subcategory pills. */
+  const applyRecoFilter = (items: any[]) => {
+    if (!selectedRecoCategory) return items;
+    return items.filter((p: any) => {
+      const cat = typeof p.category === 'object' ? p.category?.name : p.category;
+      if (cat !== selectedRecoCategory) return false;
+      if (selectedRecoSubCategory && p.sub_category !== selectedRecoSubCategory) return false;
+      return true;
+    });
+  };
 
   // Detect mobile view
   useEffect(() => {
@@ -266,6 +300,10 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
           !selectedCollection &&
           !searchTerm &&
           (() => {
+            const filteredNewArrivals = applyRecoFilter(newArrivals);
+            const filteredCustomerFavourites = applyRecoFilter(customerFavourites);
+            const filteredTrendingNow = applyRecoFilter(trendingNow);
+
             const allSections: {
               key: string;
               label: string;
@@ -280,24 +318,24 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
                 title: 'New Arrivals',
                 subtitle:
                   'Discover our latest additions — fresh designs and premium quality pieces just for you.',
-                items: newArrivals,
-                show: newArrivals.length > 0,
+                items: filteredNewArrivals,
+                show: filteredNewArrivals.length > 0,
               },
               {
                 key: 'customer_favourites',
                 label: 'Your picks',
                 title: 'Customer Favourites',
                 subtitle: 'Bestsellers loved by customers.',
-                items: customerFavourites,
-                show: customerFavourites.length > 0,
+                items: filteredCustomerFavourites,
+                show: filteredCustomerFavourites.length > 0,
               },
               {
                 key: 'trending_now',
                 label: 'Hot right now',
                 title: 'Trending Now',
                 subtitle: 'What customers are buying right now.',
-                items: trendingNow,
-                show: trendingNow.length > 0,
+                items: filteredTrendingNow,
+                show: filteredTrendingNow.length > 0,
               },
             ];
             const styles: Record<string, { span: string; bar: string }> = {
@@ -314,90 +352,166 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
               .map((s) => allSections.find((sec) => sec.key === s))
               .filter((sec): sec is NonNullable<typeof sec> => !!sec && sec.show);
             const ordered = [...(newArrSec && newArrSec.show ? [newArrSec] : []), ...rest];
-            return ordered.map((sec) => (
-              <section key={sec.key} className="mb-20">
-                <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
-                  <div className="relative">
-                    <span
-                      className={`${styles[sec.key]?.span || ''} mb-2 block text-xs font-semibold uppercase tracking-[0.2em]`}
-                    >
-                      {sec.label}
-                    </span>
-                    <h2 className="text-3xl font-semibold text-gray-900 md:text-4xl">
-                      {sec.title}
-                    </h2>
-                    <p className="mt-2 max-w-md text-sm text-gray-500">{sec.subtitle}</p>
-                    <div
-                      className={`absolute -left-4 bottom-0 top-0 w-1 bg-gradient-to-b ${styles[sec.key]?.bar || ''} hidden rounded-full md:block`}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5 xl:grid-cols-6">
-                  {sec.items
-                    .slice(0, expandedSections[sec.key] ? 24 : 6)
-                    .map((p: any, index: number) => (
-                      <div
-                        key={p.id}
-                        className="animate-fade-in-up opacity-0"
-                        style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
+            return (
+              <>
+                {/* ── Category / Subcategory Filter Pills ── */}
+                {recoCategoryOptions.length > 1 && (
+                  <div className="mb-8 -mx-1">
+                    <div className="flex flex-wrap gap-2 px-1">
+                      <button
+                        onClick={() => {
+                          setSelectedRecoCategory(null);
+                          setSelectedRecoSubCategory(null);
+                        }}
+                        className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${
+                          !selectedRecoCategory
+                            ? 'border-[#1a4d33] bg-[#1a4d33] text-white shadow-sm'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-[#1a4d33] hover:text-[#1a4d33]'
+                        }`}
                       >
-                        <HoverProductCard
-                          product={{ ...p, isNew: false, bestSeller: false }}
-                          onClick={() => router.push(`/customer/product/${p.id}`)}
-                        />
+                        All
+                      </button>
+                      {recoCategoryOptions.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => {
+                            setSelectedRecoCategory(cat === selectedRecoCategory ? null : cat);
+                            setSelectedRecoSubCategory(null);
+                          }}
+                          className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${
+                            selectedRecoCategory === cat
+                              ? 'border-[#1a4d33] bg-[#1a4d33] text-white shadow-sm'
+                              : 'border-gray-200 bg-white text-gray-600 hover:border-[#1a4d33] hover:text-[#1a4d33]'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedRecoCategory && recoSubCategoryOptions.length > 1 && (
+                      <div className="mt-2 flex flex-wrap gap-2 px-1">
+                        <button
+                          onClick={() => setSelectedRecoSubCategory(null)}
+                          className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-all ${
+                            !selectedRecoSubCategory
+                              ? 'border-amber-500 bg-amber-500 text-white'
+                              : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-400 hover:text-amber-600'
+                          }`}
+                        >
+                          All {selectedRecoCategory}
+                        </button>
+                        {recoSubCategoryOptions.map((sub) => (
+                          <button
+                            key={sub}
+                            onClick={() =>
+                              setSelectedRecoSubCategory(sub === selectedRecoSubCategory ? null : sub)
+                            }
+                            className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-all ${
+                              selectedRecoSubCategory === sub
+                                ? 'border-amber-500 bg-amber-500 text-white'
+                                : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-400 hover:text-amber-600'
+                            }`}
+                          >
+                            {sub}
+                          </button>
+                        ))}
                       </div>
-                    ))}
-                </div>
+                    )}
+                  </div>
+                )}
 
-                {sec.items.length > 6 && (
-                  <div className="relative mt-12 flex justify-center border-t border-gray-100 pt-8">
+                {/* Empty state when filter yields no results */}
+                {ordered.length === 0 && selectedRecoCategory && (
+                  <div className="mb-16 flex flex-col items-center gap-3 py-16 text-center text-gray-400">
+                    <svg className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z" />
+                    </svg>
+                    <p className="text-sm font-medium">
+                      No trending items in{' '}
+                      <span className="font-semibold text-gray-600">
+                        {selectedRecoSubCategory || selectedRecoCategory}
+                      </span>{' '}
+                      right now.
+                    </p>
                     <button
-                      onClick={() =>
-                        setExpandedSections((prev) => ({ ...prev, [sec.key]: !prev[sec.key] }))
-                      }
-                      className="absolute -top-6 flex items-center gap-2 rounded-full border border-gray-200 bg-white px-8 py-3 font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md"
+                      onClick={() => {
+                        setSelectedRecoCategory(null);
+                        setSelectedRecoSubCategory(null);
+                      }}
+                      className="text-xs font-semibold text-[#1a4d33] underline underline-offset-2 hover:text-[#143b27]"
                     >
-                      {expandedSections[sec.key] ? (
-                        <>
-                          Show less
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 15l7-7 7 7"
-                            />
-                          </svg>
-                        </>
-                      ) : (
-                        <>
-                          Show more
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </>
-                      )}
+                      Show all recommendations
                     </button>
                   </div>
                 )}
-              </section>
-            ));
+
+                {ordered.map((sec) => (
+                  <section key={sec.key} className="mb-20">
+                    <div className="mb-10 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
+                      <div className="relative">
+                        <span
+                          className={`${styles[sec.key]?.span || ''} mb-2 block text-xs font-semibold uppercase tracking-[0.2em]`}
+                        >
+                          {sec.label}
+                        </span>
+                        <h2 className="text-3xl font-semibold text-gray-900 md:text-4xl">
+                          {sec.title}
+                        </h2>
+                        <p className="mt-2 max-w-md text-sm text-gray-500">{sec.subtitle}</p>
+                        <div
+                          className={`absolute -left-4 bottom-0 top-0 w-1 bg-gradient-to-b ${styles[sec.key]?.bar || ''} hidden rounded-full md:block`}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5 xl:grid-cols-6">
+                      {sec.items
+                        .slice(0, expandedSections[sec.key] ? 24 : 6)
+                        .map((p: any, index: number) => (
+                          <div
+                            key={p.id}
+                            className="animate-fade-in-up opacity-0"
+                            style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'forwards' }}
+                          >
+                            <HoverProductCard
+                              product={{ ...p, isNew: false, bestSeller: false }}
+                              onClick={() => router.push(`/customer/product/${p.id}`)}
+                            />
+                          </div>
+                        ))}
+                    </div>
+
+                    {sec.items.length > 6 && (
+                      <div className="relative mt-12 flex justify-center border-t border-gray-100 pt-8">
+                        <button
+                          onClick={() =>
+                            setExpandedSections((prev) => ({ ...prev, [sec.key]: !prev[sec.key] }))
+                          }
+                          className="absolute -top-6 flex items-center gap-2 rounded-full border border-gray-200 bg-white px-8 py-3 font-semibold text-gray-900 shadow-sm transition-all hover:shadow-md"
+                        >
+                          {expandedSections[sec.key] ? (
+                            <>
+                              Show less
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </>
+                          ) : (
+                            <>
+                              Show more
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </section>
+                ))}
+              </>
+            );
           })()}
+
 
         {collections.length > 0 &&
           !selectedCategory &&

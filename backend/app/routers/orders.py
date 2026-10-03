@@ -233,16 +233,17 @@ async def update_order_tracking(
             __import__("datetime").timezone.utc).isoformat() + "Z"
     ))
 
-    # Push notification to customer
+    # Notify customer — in-app notification + push
     try:
-        from app.services.push_notification_service import push_notification_service
-
-        await push_notification_service.send_to_user(
-            str(order.user),
-            PushNotifications(
-                title="Order Shipped",
-                message=f"Your order #{(order.order_number if order.order_number is not None else order_id)} has been shipped. Tracking ID: {data.trackingId}"
-            ),
+        from app.utils.notify import notify_user
+        order_num = order.order_number if order.order_number is not None else order_id
+        await notify_user(
+            user_id    = str(order.user),
+            notif_type = "order_shipped",
+            title      = "Order Shipped 📦",
+            message    = f"Your order #{order_num} has been shipped. Tracking ID: {data.trackingId}",
+            link       = f"/customer/orders/{order_id}",
+            metadata   = {"order_id": str(order_id), "status": "shipped"},
         )
     except Exception as _ne:
         logger.warning(
@@ -1208,18 +1209,21 @@ async def confirm_sub_order_pickup(
             len(all_sub_orders),
             order_id,
         )
-        # Notify the customer
+        # Notify the customer — in-app notification + push
         try:
-            from app.services.push_notification_service import push_notification_service
-
-            await push_notification_service.send_to_user(order.user, PushNotifications(
-                title="Your Order is On the Way! 🚴",
-                message=(
-                    f"Your order #{(order.order_number if order.order_number is not None else order_id)} has been collected "
+            from app.utils.notify import notify_user
+            order_num = order.order_number if order.order_number is not None else order_id
+            await notify_user(
+                user_id    = str(order.user),
+                notif_type = "order_out_for_delivery",
+                title      = "Your Order is On the Way! 🚴",
+                message    = (
+                    f"Your order #{order_num} has been collected "
                     "from all sellers and is now heading to you."
                 ),
-                link=f"/orders/{order_id}",
-            ))
+                link       = f"/customer/orders/{order_id}",
+                metadata   = {"order_id": str(order_id), "status": "out_for_delivery"},
+            )
         except Exception as e:
             logger.warning(
                 "[ConfirmPickup] Customer notification failed: %s", e)

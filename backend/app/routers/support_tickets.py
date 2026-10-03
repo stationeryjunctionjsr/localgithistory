@@ -172,6 +172,32 @@ async def update_ticket_status(
     updated_ticket = await support_ticket_repository.update(ticket_id, update_data)
     populated_ticket = await populate_ticket(updated_ticket)
 
+    # Notify customer — in-app notification + push
+    try:
+        from app.utils.notify import notify_user
+        from app.utils.logger import logger
+        customer_id = str(ticket.user) if getattr(ticket, "user", None) else None
+        new_status = status_data.status or ""
+        status_labels = {
+            "open": "reopened 🔓",
+            "in_progress": "in progress 🔧",
+            "resolved": "resolved ✅",
+            "closed": "closed 🔒",
+        }
+        label = status_labels.get(new_status, f"updated to {new_status}")
+        if customer_id and new_status:
+            await notify_user(
+                user_id    = customer_id,
+                notif_type = f"ticket_{new_status}",
+                title      = f"Support ticket {label}",
+                message    = f"Your support ticket has been {label}. Tap to view details.",
+                link       = "/customer/support",
+                metadata   = {"status": new_status},
+            )
+    except Exception as e:
+        from app.utils.logger import logger
+        logger.warning("Notification failed for ticket status update %s: %s", ticket_id, str(e))
+
     return populated_ticket
 
 
@@ -198,6 +224,25 @@ async def add_ticket_response(
 
     updated_ticket = await support_ticket_repository.findById(ticket_id)
     populated_ticket = await populate_ticket(updated_ticket)
+
+    # Notify customer when admin replies — in-app notification + push
+    if is_admin_response:
+        try:
+            from app.utils.notify import notify_user
+            customer_id = str(ticket.user) if getattr(ticket, "user", None) else None
+            if customer_id:
+                preview = (response_data.message or "")[:80].strip()
+                await notify_user(
+                    user_id    = customer_id,
+                    notif_type = "ticket_reply",
+                    title      = "New reply on your support ticket 💬",
+                    message    = preview or "Support has responded to your ticket. Tap to read.",
+                    link       = "/customer/support",
+                    metadata   = {"status": "replied"},
+                )
+        except Exception as e:
+            from app.utils.logger import logger
+            logger.warning("Notification failed for ticket reply %s: %s", ticket_id, str(e))
 
     return populated_ticket
 
