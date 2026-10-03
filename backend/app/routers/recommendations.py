@@ -56,10 +56,12 @@ class RecommendationEventBody(BaseModel):
 @router.get("/", )
 async def get_recommendations(
     current_user: Optional[dict] = Depends(get_optional_user),
-    pincode: Optional[str] = Query(None)
+    pincode: Optional[str] = Query(None),
+    category_tag: Optional[str] = Query(None, description="Filter recommendations to a specific category tag (e.g. 'Stationery'). Case-insensitive.")
 ):
     """
     Get recommendation components by segment. Auth optional (guests get Customer Favourites + Trending Now only).
+    Pass ?categoryTag=Stationery to restrict all sections to products belonging to that tag's categories.
     """
     try:
         user_id = current_user.id if current_user else None
@@ -91,11 +93,13 @@ async def get_recommendations(
 
         location_key = zone_id if zone_id else (pincode or "all")
 
+        # Normalise category_tag for consistent cache keying and lookup
+        tag_key = (category_tag or "").strip().lower() or None
 
-        # Guest path: serve from 300-second server-side cache
+        # Guest path: serve from 300-second server-side cache (keyed by location + tag)
         if not user_id:
             now = _time.monotonic()
-            guest_key = f"guest_{location_key}"
+            guest_key = f"guest_{location_key}_{tag_key or 'all'}"
             entry = (_guest_rec_cache[guest_key] if guest_key in _guest_rec_cache else None)
             if entry and now < entry[1]:
                 return entry[0]
@@ -107,7 +111,7 @@ async def get_recommendations(
                     return entry[0]
 
                 result = await recommendation_repository.get_recommendation_components(
-                    user_id=None, role=None, seller_id_set=seller_id_set
+                    user_id=None, role=None, seller_id_set=seller_id_set, category_tag=tag_key
                 )
                 _guest_rec_cache[guest_key] = (result, _time.monotonic() + _GUEST_REC_TTL)
                 return result
@@ -126,15 +130,15 @@ async def get_recommendations(
             except Exception:
                 logger.warning("Could not resolve city for wholesaler %s", user_id, exc_info=True)
 
-        # Authenticated user path: cache per-user (and per-city for wholesalers) for 180 seconds
+        # Authenticated user path: cache per-user (and per-city for wholesalers, and per-tag) for 180 seconds
         city_key = city or "all"
-        user_cache_key = f"rec_{role}_{user_id}_{city_key}_{location_key}"
+        user_cache_key = f"rec_{role}_{user_id}_{city_key}_{location_key}_{tag_key or 'all'}"
         cached_res = cache.get(user_cache_key)  # BUG-4 fix: use cache.get(), not cache[key]
         if cached_res:
             return cached_res
 
         result = await recommendation_repository.get_recommendation_components(
-            user_id=user_id, role=role, city=city, seller_id_set=seller_id_set
+            user_id=user_id, role=role, city=city, seller_id_set=seller_id_set, category_tag=tag_key
         )
         cache.set(user_cache_key, result, ttl=180.0)
         return result

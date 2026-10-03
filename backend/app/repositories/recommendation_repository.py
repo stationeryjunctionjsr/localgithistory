@@ -1060,7 +1060,8 @@ class RecommendationRepository:
         )
 
     async def get_recommendation_components(
-        self, user_id: str = None, role: str = None, city: str = None, seller_id_set: set = None
+        self, user_id: str = None, role: str = None, city: str = None, seller_id_set: set = None,
+        category_tag: Optional[str] = None
     ) -> dict:
         """
         Return recommendation components by segment (guest, retail, business/wholesaler).
@@ -1068,6 +1069,10 @@ class RecommendationRepository:
         - Retail: Customer Favourites + Trending Now + Explore (exclude user purchases/cart for CF/TN). sectionOrder from bandit.
         - Wholesaler (business): Customer Favourites (retail), Trending Now (business), Explore (user), Business Favourites (business). sectionOrder from bandit.
         All slots participate in the bandit (epsilon-greedy) for section ordering.
+
+        category_tag: optional lowercase tag name (e.g. 'stationery'). When supplied, all returned sections
+        are restricted to products whose category belongs to that tag. Resolved once via the categories
+        collection so no per-product lookups are needed.
         """
         config = _load_config()
         limits = config.strategy_limits
@@ -1078,6 +1083,34 @@ class RecommendationRepository:
         # Fetch all active products once and reuse
         all_products = await self.product_storage.findAll({"isActive": True})
         product_map = {p.id: p for p in all_products if p.id}
+
+        # ── Category-tag filter ──────────────────────────────────────────────
+        # Resolve which category names belong to the requested tag (one DB query).
+        # The result is a set[str] used by to_products / to_products_city_only.
+        _tag_category_names: Optional[Set[str]] = None
+        if category_tag:
+            try:
+                from app.db.storage_factory import get_storage as _gs
+                cat_storage = _gs("categories")
+                all_cats = await cat_storage.findAll({"isActive": True})
+                _tag_category_names = set()
+                for cat in all_cats:
+                    # Each category carries category_tag (single str) and category_tags (list[str])
+                    cat_tag = getattr(cat, "category_tag", None) or ""
+                    cat_tags = getattr(cat, "category_tags", None) or []
+                    all_tags = {t.strip().lower() for t in ([cat_tag] + list(cat_tags)) if t}
+                    if category_tag.strip().lower() in all_tags:
+                        cat_name = getattr(cat, "name", None)
+                        if cat_name:
+                            _tag_category_names.add(cat_name)
+                logger.debug(
+                    "category_tag filter '%s' resolved to %d categories: %s",
+                    category_tag, len(_tag_category_names), _tag_category_names
+                )
+            except Exception as _e:
+                logger.warning("Could not resolve category_tag '%s': %s", category_tag, _e, exc_info=True)
+                _tag_category_names = None  # fall back to unfiltered on error
+        # ────────────────────────────────────────────────────────────────────
 
         try:
             bundle_items = await (self._get_bundles_as_items if self._get_bundles_as_items is not None else lambda **kw: [])(product_map=product_map)
@@ -1138,6 +1171,12 @@ class RecommendationRepository:
             for pid in ids:
                 p = product_map[pid] if pid in product_map else None
                 if p and self._is_available_in_zone(p, seller_id_set):
+                    # Apply category-tag filter when requested
+                    if _tag_category_names is not None:
+                        raw_cat = p.category if hasattr(p, "category") else None
+                        cat_name = raw_cat.name if hasattr(raw_cat, "name") else (raw_cat or "")
+                        if cat_name not in _tag_category_names:
+                            continue
                     if not p.display_image and p.images:
                         p.display_image = p.images[0]
                     skinny_p = SkinnyProductResponse.model_validate(p, from_attributes=True)
@@ -1156,6 +1195,12 @@ class RecommendationRepository:
             for pid in ids:
                 p = product_map[pid] if pid in product_map else None
                 if p:
+                    # Apply category-tag filter when requested
+                    if _tag_category_names is not None:
+                        raw_cat = p.category if hasattr(p, "category") else None
+                        cat_name = raw_cat.name if hasattr(raw_cat, "name") else (raw_cat or "")
+                        if cat_name not in _tag_category_names:
+                            continue
                     if not p.display_image and p.images:
                         p.display_image = p.images[0]
                     skinny_p = SkinnyProductResponse.model_validate(p, from_attributes=True)

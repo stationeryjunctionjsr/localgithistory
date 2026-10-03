@@ -45,7 +45,7 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
   const { user } = useAuth();
   // eslint-disable-next-line unused-imports/no-unused-vars
   const { theme } = useTheme();
-  const { isPincodeModalOpen, isMandatory } = usePincode();
+  const { isPincodeModalOpen, isMandatory, pincode } = usePincode();
   const router = useRouter();
   const searchParams = useSearchParams();
   // eslint-disable-next-line unused-imports/no-unused-vars
@@ -303,6 +303,31 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
       document.body.style.overflow = '';
     };
   }, [isMandatory, isPincodeModalOpen, user]);
+
+  // Re-fetch recommendations from the server whenever the category tag filter changes.
+  // Includes pincode so the server can apply zone filtering for the guest's location.
+  useEffect(() => {
+    const fetchTaggedRecommendations = async () => {
+      try {
+        const params: Record<string, string> = {};
+        if (pincode) params.pincode = pincode;
+        if (selectedRecoCategory) params.categoryTag = selectedRecoCategory;
+        const response = await api.get('/recommendations', { params });
+        const data = response.data || {};
+        const filterActive = (arr: any[]) => (arr || []).filter((p: any) => p && p.isActive !== false);
+        setNewArrivals(filterActive(data.newArrivals || []));
+        setCustomerFavourites(filterActive(data.customerFavourites || []));
+        setTrendingNow(filterActive(data.trendingNow || []));
+        if (Array.isArray(data.sectionOrder) && data.sectionOrder.length) {
+          setSectionOrder(data.sectionOrder);
+        }
+      } catch (e) {
+        logger.error('Failed to fetch tagged recommendations', e);
+      }
+    };
+    fetchTaggedRecommendations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRecoCategory]);
 
   // Determine if the mandatory pincode gate should blur page content
   const gateBlur = isMandatory && isPincodeModalOpen && !user;

@@ -248,6 +248,15 @@ export default function CustomerClient({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile, user, pincode, isServiceable]);
 
+  // Re-fetch recommendations from the server whenever the category tag filter changes.
+  // The server now filters server-side, so only relevant products are transferred.
+  useEffect(() => {
+    if (isServiceable !== false) {
+      fetchRecommendations(selectedRecoCategory);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRecoCategory]);
+
   // Bundles now appear inline in the ProductCatalog grid via /bundles/search (no separate fetch needed here)
 
   /*
@@ -276,7 +285,7 @@ export default function CustomerClient({
   const fetchBrands = async () => {
     try {
       // forHomepage flag commented out — all zone-available brands now show on homepage; display is row-limited in the UI
-      const res = await api.get('/brands/public' /*, { params: { forHomepage: true } }*/);
+      const res = await api.get('/brands/public');
       setBrands(Array.isArray(res.data) ? res.data : res.data?.brands || []);
     } catch (e) {
       logger.error('Failed to fetch brands', e);
@@ -289,7 +298,7 @@ export default function CustomerClient({
     try {
       try {
         // forHomepage flag commented out — all zone-available categories now show on homepage; display is row-limited in the UI
-        const response = await api.get('/categories/public' /*, { params: { forHomepage: true } }*/);
+        const response = await api.get('/categories/public');
         const categoryData = response.data || [];
         const activeCategories = categoryData
           .filter((cat: any) => cat.isActive !== false)
@@ -336,11 +345,15 @@ export default function CustomerClient({
 
 
 
-  const fetchRecommendations = async () => {
+  const fetchRecommendations = async (categoryTag?: string | null) => {
     try {
       const params: Record<string, string> = {};
       if (pincode) {
         params.pincode = pincode;
+      }
+      // Pass the selected category tag to the server so it filters recommendations before sending
+      if (categoryTag) {
+        params.categoryTag = categoryTag;
       }
       const response = await api.get('/recommendations', { params });
       const data = response.data || {};
