@@ -229,6 +229,60 @@ class MySQLSessionDAO:
         except Exception as e:
             logging.warning("mysql_session_dao.touch: failed for session %s: %s", sid, e, exc_info=e)
 
+    async def revoke_active_for_user(
+        self,
+        user_id: str,
+        reason: str,
+        exclude_session_id: Optional[str] = None,
+    ) -> int:
+        """Revoke all active sessions for a user in a single UPDATE.
+
+        Much more efficient than findAll() + Python loop + N individual UPDATEs.
+        Returns the number of sessions revoked.
+        """
+        factory = self._factory()
+        if not factory:
+            return 0
+        uid = int(user_id) if str(user_id).isdigit() else None
+        if uid is None:
+            return 0
+        now = now_utc()
+        params: dict = {
+            "user_id": uid,
+            "reason": reason,
+            "now": now,
+        }
+        exclude_clause = ""
+        if exclude_session_id:
+            exc_sid = int(exclude_session_id) if str(exclude_session_id).isdigit() else None
+            if exc_sid:
+                exclude_clause = "AND id != :exclude_id"
+                params["exclude_id"] = exc_sid
+        try:
+            async with factory() as session:
+                result = await session.execute(
+                    text(
+                        f"""
+                        UPDATE {self.TABLE}
+                        SET status = 'revoked',
+                            revoked_at = :now,
+                            revoked_reason = :reason,
+                            updated_at = :now
+                        WHERE user_id = :user_id
+                          AND status = 'active'
+                          {exclude_clause}
+                        """
+                    ),
+                    params,
+                )
+                await session.commit()
+                return result.rowcount
+        except Exception as e:
+            logging.warning(
+                "mysql_session_dao.revoke_active_for_user: failed for user %s: %s", user_id, e, exc_info=e
+            )
+            return 0
+
     async def delete(self, id: str) -> bool:
         factory = self._factory()
         if not factory:
