@@ -275,7 +275,8 @@ export default function CustomerClient({
   // Commented out to prevent redundant client-side fetching (data is now SSR-loaded via initialBrands):
   const fetchBrands = async () => {
     try {
-      const res = await api.get('/brands/public', { params: { forHomepage: true } });
+      // forHomepage flag commented out — all zone-available brands now show on homepage; display is row-limited in the UI
+      const res = await api.get('/brands/public' /*, { params: { forHomepage: true } }*/);
       setBrands(Array.isArray(res.data) ? res.data : res.data?.brands || []);
     } catch (e) {
       logger.error('Failed to fetch brands', e);
@@ -287,7 +288,8 @@ export default function CustomerClient({
   const fetchCategories = async () => {
     try {
       try {
-        const response = await api.get('/categories/public', { params: { forHomepage: true } });
+        // forHomepage flag commented out — all zone-available categories now show on homepage; display is row-limited in the UI
+        const response = await api.get('/categories/public' /*, { params: { forHomepage: true } }*/);
         const categoryData = response.data || [];
         const activeCategories = categoryData
           .filter((cat: any) => cat.isActive !== false)
@@ -295,6 +297,7 @@ export default function CustomerClient({
             name: cat.name,
             images: cat.images && cat.images.length > 0 ? cat.images : [],
             description: cat.description || '',
+            categoryTag: cat.categoryTag || cat.category_tag || '',
           }));
         setCategories(activeCategories);
       } catch (categoryError) {

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -1628,28 +1628,49 @@ export default function Cart() {
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2">
                                   {item.outOfStock && (
                                     <button
                                       onClick={async () => {
-                                        try {
-                                          const prodId = item.product?._id || item.product;
-                                          if (user?.email) {
+                                        const prodId = item.product?._id || item.product;
+                                        const prodName = item.product?.name || 'this item';
+                                        if (user?.email) {
+                                          try {
                                             await api.post(`/products/${prodId}/notify-me`, {});
-                                            toast.success(`We will notify you at ${user.email} once restocked!`);
-                                          } else {
-                                            const email = window.prompt(`Enter your email to get notified when "${item.product?.name}" is back in stock:`);
-                                            if (email === null) return;
-                                            const trimmedEmail = email.trim();
-                                            if (!trimmedEmail || !trimmedEmail.includes('@')) {
-                                              toast.error('Please enter a valid email address.');
-                                              return;
-                                            }
-                                            await api.post(`/products/${prodId}/notify-me`, { email: trimmedEmail });
-                                            toast.success(`We will notify you at ${trimmedEmail} once restocked!`);
+                                            toast.success(`We'll notify you at ${user.email} once restocked!`);
+                                          } catch (err: any) {
+                                            toast.error(err?.response?.data?.detail || 'Failed to register notification');
                                           }
-                                        } catch (err: any) {
-                                          toast.error(err.response?.data?.detail || 'Failed to register notification');
+                                        } else {
+                                          const email = await new Promise<string | null>((resolve) => {
+                                            let inputVal = '';
+                                            toast(
+                                              <div className="flex flex-col gap-2 pt-1">
+                                                <p className="text-xs text-gray-600">Email for restock alert on <strong>{prodName}</strong>:</p>
+                                                <div className="flex gap-1.5">
+                                                  <input
+                                                    type="email"
+                                                    autoFocus
+                                                    placeholder="you@example.com"
+                                                    onChange={(e) => { inputVal = e.target.value; }}
+                                                    className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs outline-none focus:border-pink-500"
+                                                  />
+                                                  <button
+                                                    onClick={() => resolve(inputVal.trim())}
+                                                    className="rounded bg-[#ff3f6c] px-3 py-1.5 text-xs font-bold text-white"
+                                                  >Notify</button>
+                                                </div>
+                                              </div>,
+                                              { autoClose: false, closeOnClick: false }
+                                            );
+                                          });
+                                          if (!email || !email.includes('@')) return;
+                                          try {
+                                            await api.post(`/products/${prodId}/notify-me`, { email });
+                                            toast.success(`We'll notify you at ${email} once restocked!`);
+                                          } catch (err: any) {
+                                            toast.error(err?.response?.data?.detail || 'Failed to register notification');
+                                          }
                                         }
                                       }}
                                       className="flex items-center gap-2 rounded-lg bg-pink-50 px-4 py-2 text-sm font-bold text-[#ff3f6c] transition-colors hover:bg-pink-100"
@@ -1922,26 +1943,29 @@ export default function Cart() {
                                <button
                                  type="button"
                                  onClick={async () => {
-                                   try {
-                                     const prodId = item.product?._id || item.product;
-                                     if (user?.email) {
-                                       await api.post(`/products/${prodId}/notify-me`, {});
-                                       toast.success(`We will notify you at ${user.email} once restocked!`);
-                                     } else {
-                                       const email = window.prompt(`Enter your email to get notified when "${item.product?.name}" is back in stock:`);
-                                       if (email === null) return;
-                                       const trimmedEmail = email.trim();
-                                       if (!trimmedEmail || !trimmedEmail.includes('@')) {
-                                         toast.error('Please enter a valid email address.');
-                                         return;
-                                       }
-                                       await api.post(`/products/${prodId}/notify-me`, { email: trimmedEmail });
-                                       toast.success(`We will notify you at ${trimmedEmail} once restocked!`);
-                                     }
-                                   } catch (err: any) {
-                                     toast.error(err.response?.data?.detail || 'Failed to register notification');
-                                   }
-                                 }}
+                                    const prodId = item.product?._id || item.product;
+                                    const prodName = item.product?.name || 'this item';
+                                    if (user?.email) {
+                                      try {
+                                        await api.post(`/products/${prodId}/notify-me`, {});
+                                        toast.success(`We'll notify you at ${user.email} once restocked!`);
+                                      } catch (err: any) {
+                                        toast.error(err?.response?.data?.detail || 'Failed to register notification');
+                                      }
+                                    } else {
+                                      const email = await new Promise<string | null>((resolve) => {
+                                        let inputVal = '';
+                                        toast(<div className="flex flex-col gap-2 pt-1"><p className="text-xs text-gray-600">Email for restock alert on <strong>{prodName}</strong>:</p><div className="flex gap-1.5"><input type="email" autoFocus placeholder="you@example.com" onChange={(e) => { inputVal = e.target.value; }} className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs outline-none focus:border-pink-500" /><button onClick={() => resolve(inputVal.trim())} className="rounded bg-[#ff3f6c] px-3 py-1.5 text-xs font-bold text-white">Notify</button></div></div>, { autoClose: false, closeOnClick: false });
+                                      });
+                                      if (!email || !email.includes('@')) return;
+                                      try {
+                                        await api.post(`/products/${prodId}/notify-me`, { email });
+                                        toast.success(`We'll notify you at ${email} once restocked!`);
+                                      } catch (err: any) {
+                                        toast.error(err?.response?.data?.detail || 'Failed to register notification');
+                                      }
+                                    }
+                                  }}
                                  className="rounded-lg bg-pink-50 px-2.5 py-1 text-xs font-bold text-[#ff3f6c] transition-colors hover:bg-pink-100"
                                >
                                  Notify

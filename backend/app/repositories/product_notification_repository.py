@@ -114,8 +114,25 @@ class ProductNotificationRepository:
                     # Send email
                     import asyncio
                     await asyncio.to_thread(email_service.send_email, notif.email, subject, plain_text_body, html_body=html_body)
-                    # Mark as notified
-                    await self.storage.update(notif.id, ProductNotificationsInternalUpdate(status="notified"))
+
+                # In-app + push for logged-in users
+                notif_user_id = getattr(notif, "user_id", None) or getattr(notif, "userId", None)
+                if notif_user_id:
+                    try:
+                        from app.utils.notify import notify_user
+                        await notify_user(
+                            user_id    = str(notif_user_id),
+                            notif_type = "back_in_stock",
+                            title      = "Back in stock! 🎉",
+                            message    = f"{product_name} is available again. Grab yours before it sells out!",
+                            link       = f"/customer/products/product/{product_id}",
+                            metadata   = {"product_id": str(product_id), "status": "restocked"},
+                        )
+                    except Exception as push_err:
+                        logger.warning("Restock push/in-app failed for user %s product %s: %s", notif_user_id, product_id, push_err)
+
+                # Mark as notified
+                await self.storage.update(notif.id, ProductNotificationsInternalUpdate(status="notified"))
         except Exception as e:
             logger.error(f"Restock notification crashed: {e}\n{traceback.format_exc()}")
 
