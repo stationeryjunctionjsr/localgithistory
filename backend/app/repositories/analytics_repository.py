@@ -125,6 +125,7 @@ class AnalyticsRepository:
                 filtered.append(order)
         return filtered
 
+    @cache.ttl_cache(ttl=300)
     async def get_sales_over_time(
         self,
         start_date: Optional[datetime] = None,
@@ -136,6 +137,7 @@ class AnalyticsRepository:
         orders = await self.order_storage.findAll()
         orders = self._filter_by_date_range(orders, start_date, end_date)
         orders = self._filter_by_seller(orders, seller_id)
+
 
         sales_by_period = {}
 
@@ -1587,7 +1589,7 @@ class AnalyticsRepository:
         """
         from app.repositories.bundle_repository import bundle_repository
         
-        bundles = await bundle_repository.findAll({})
+        bundles = await bundle_repository.findAll()
         bundle_map = {str(b.id): b for b in bundles if b.id}
         
         # Initialize stats map
