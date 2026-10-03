@@ -1951,5 +1951,17 @@ async def create_order_service(
             "Sub-order creation failed (parent order %s still valid): %s", order.id, str(sub_err), exc_info=True
         )
 
+    # Log initial placed status to history table (best-effort)
+    try:
+        from app.utils.order_timeline import log_order_status as _log_tl
+        await _log_tl(
+            order_id=order.id,
+            status="placed",
+            changed_by=str(current_user.id),
+            note="Order placed",
+        )
+    except Exception as _tl_err:
+        logger.warning("order_timeline: initial log failed: %s", _tl_err)
+
     return populated_order
 

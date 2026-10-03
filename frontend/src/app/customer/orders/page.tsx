@@ -6,6 +6,7 @@ import api from '@/utils/api';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { toast } from 'react-toastify';
+import OrderTimeline from '@/components/OrderTimeline';
 
 const PAGE_SIZE = 10;
 
@@ -590,6 +591,17 @@ export default function MyOrders() {
               <p className="mb-4">
                 <strong>Order Date:</strong> {formatDate(selectedOrderForDetails.createdAt)}
               </p>
+
+              {/* ── Order Status Timeline ── */}
+              <div className="mb-6 rounded-2xl border border-gray-100 bg-gray-50 px-5 py-5">
+                <h4 className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500">
+                  Order Progress
+                </h4>
+                <OrderTimeline
+                  orderId={selectedOrderForDetails._id || selectedOrderForDetails.id}
+                  currentStatus={selectedOrderForDetails.status || 'pending'}
+                />
+              </div>
 
               {/* Delivery slot info */}
               {selectedOrderForDetails.deliverySlot?.slotId && (

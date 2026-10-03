@@ -827,6 +827,19 @@ CREATE TABLE `sj_order_feedback` (
   UNIQUE KEY `uq_sj_order_feedback_external` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `sj_order_status_history` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `order_id` int NOT NULL,
+  `status` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `changed_by` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `changed_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `note` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `ix_osh_order` (`order_id`),
+  KEY `ix_osh_changed_at` (`changed_at`),
+  CONSTRAINT `fk_osh_order` FOREIGN KEY (`order_id`) REFERENCES `sj_orders` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `sj_order_items` (
   `id` int NOT NULL AUTO_INCREMENT,
   `order_id` int NOT NULL,

@@ -4,6 +4,7 @@ from app.models.schemas import VariantAttributes, CouponResponse
 from app.utils.logger import logger
 from app.utils.limiter import limiter
 from app.utils.invoice_generator import generate_invoice_pdf, save_invoice_pdf
+from app.utils.order_timeline import log_order_status, get_order_timeline
 from app.utils.auth import (
     get_current_user,
     is_seller_admin,
@@ -329,6 +330,28 @@ async def update_delivery_charge(
 
 
 
+
+@router.get("/{order_id}/timeline")
+async def get_order_status_timeline(
+    order_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Return chronological status history for an order.
+    Customers can only see their own orders; admins see all.
+    """
+    order = await order_repository.findById(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Authorisation: customers can only see own orders
+    if current_user.role not in ("super_admin", "seller_admin", "valet"):
+        if str(order.user) != str(current_user.id):
+            raise HTTPException(status_code=403, detail="Not authorised")
+
+    timeline = await get_order_timeline(order.id)
+    return {"orderId": order_id, "timeline": timeline}
+
+
 @router.put("/{order_id}/status", response_model=PopulatedOrderResponse)
 async def update_order_status(
     order_id: str,
@@ -504,6 +527,17 @@ async def update_order_status(
 
     updated_order = await order_repository.update(order_id, OrderInternalUpdate.model_validate(update_data))
     populated_order = await populate_order(updated_order)
+
+    # ── Log status transition to history table ────────────────────────────
+    try:
+        await log_order_status(
+            order_id=updated_order.id,
+            status=status_data.status,
+            changed_by=str(current_user.id),
+            note=getattr(status_data, "note", None),
+        )
+    except Exception as _tl_err:
+        logger.warning("order_timeline: log failed: %s", _tl_err)
 
     # ── C5: Cascade terminal status from parent to sub-orders ─────────────────
     if status_data.status in ("cancelled", "delivered"):
