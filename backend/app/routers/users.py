@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.models.schemas import UserResponse, UserUpdate, SUPPORTED_LANGUAGES, PaginatedUsersResponse, PreferencesResponse, DutyStatusResponse, MessageResponse
 
 from app.repositories.user_repository import user_repository
+from app.utils.audit import audit_action
 from app.utils.auth import get_current_user, require_super_admin, require_super_admin_or_seller
 from app.utils.limiter import limiter
 
@@ -215,7 +216,8 @@ async def get_available_valets(
 
 
 @router.put("/{user_id}/approve", response_model=UserResponse)
-async def approve_user(user_id: str, current_user: User = Depends(require_super_admin)):
+@audit_action("user", "approve")
+async def approve_user(user_id: str, request: Request, current_user: User = Depends(require_super_admin)):
     user = await user_repository.findById(user_id)
 
     if not user:
@@ -230,7 +232,8 @@ async def approve_user(user_id: str, current_user: User = Depends(require_super_
 
 
 @router.put("/{user_id}/reject", response_model=UserResponse)
-async def reject_user(user_id: str, current_user: User = Depends(require_super_admin)):
+@audit_action("user", "reject")
+async def reject_user(user_id: str, request: Request, current_user: User = Depends(require_super_admin)):
     user = await user_repository.findById(user_id)
 
     if not user:
@@ -247,8 +250,9 @@ class RoleUpdateRequest(BaseModel):
 
 
 @router.put("/{user_id}/role", response_model=UserResponse)
+@audit_action("user", "role_change")
 async def update_user_role(
-    user_id: str, role_data: RoleUpdateRequest, current_user: User = Depends(require_super_admin)
+    user_id: str, role_data: RoleUpdateRequest, request: Request, current_user: User = Depends(require_super_admin)
 ):
     if role_data.role not in ["customer", "wholesaler", "valet"]:
         raise HTTPException(status_code=400, detail="Invalid role")
@@ -432,7 +436,8 @@ async def update_user(user_id: str, user_data: UserUpdate, current_user: User = 
 
 
 @router.put("/{user_id}/deactivate", response_model=UserResponse)
-async def deactivate_user(user_id: str, current_user: User = Depends(require_super_admin)):
+@audit_action("user", "deactivate")
+async def deactivate_user(user_id: str, request: Request, current_user: User = Depends(require_super_admin)):
     user = await user_repository.findById(user_id)
 
     if not user:
@@ -446,7 +451,8 @@ async def deactivate_user(user_id: str, current_user: User = Depends(require_sup
 
 
 @router.put("/{user_id}/activate", response_model=UserResponse)
-async def activate_user(user_id: str, current_user: User = Depends(require_super_admin)):
+@audit_action("user", "activate")
+async def activate_user(user_id: str, request: Request, current_user: User = Depends(require_super_admin)):
     user = await user_repository.findById(user_id)
 
     if not user:
@@ -508,7 +514,8 @@ async def change_password(
 
 
 @router.delete("/{user_id}", response_model=MessageResponse)
-async def delete_user(user_id: str, current_user: User = Depends(require_super_admin)):
+@audit_action("user", "delete")
+async def delete_user(user_id: str, request: Request, current_user: User = Depends(require_super_admin)):
     user = await user_repository.findById(user_id)
 
     if not user:
