@@ -335,7 +335,7 @@ async def schedule_unavailability(
     from app.routers.products import get_public_products
     from app.utils.cache import cache as _cache
 
-    await _cache.invalidate(get_public_products)
+    _cache.invalidate(get_public_products)
     return created
 
 
@@ -405,7 +405,7 @@ async def cancel_availability_window(
     from app.routers.products import get_public_products
     from app.utils.cache import cache as _cache
 
-    await _cache.invalidate(get_public_products)
+    _cache.invalidate(get_public_products)
     return {"message": "Availability window cancelled"}
 
 

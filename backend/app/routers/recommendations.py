@@ -129,7 +129,7 @@ async def get_recommendations(
         # Authenticated user path: cache per-user (and per-city for wholesalers) for 180 seconds
         city_key = city or "all"
         user_cache_key = f"rec_{role}_{user_id}_{city_key}_{location_key}"
-        cached_res = (cache[user_cache_key] if user_cache_key in cache else None)
+        cached_res = cache.get(user_cache_key)  # BUG-4 fix: use cache.get(), not cache[key]
         if cached_res:
             return cached_res
 

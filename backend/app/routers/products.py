@@ -639,6 +639,10 @@ def _invalidate_product_caches():
     cache.invalidate(get_public_product)
     cache.invalidate(get_products)
     cache.invalidate(get_product)
+    # BUG-2/BUG-3 fix: also invalidate the cached inner functions that back the
+    # authenticated listing and detail endpoints (keyed by primitives, not by User object).
+    cache.invalidate(_get_products_cached)
+    cache.invalidate(_get_product_cached)
     try:
         from app.routers.categories import get_tag_brands
 
@@ -841,47 +845,47 @@ async def get_public_product(product_id: str, role: str = "customer", response: 
     return product
 
 
-@router.get("", response_model=PaginatedProductResponse)
-@router.get("/", response_model=PaginatedProductResponse)
 @cache.ttl_cache(ttl=60.0)
-async def get_products(
-    category: Optional[str] = None,
-    categories: Optional[str] = None,
-    subCategory: Optional[str] = None,
-    search: Optional[str] = None,
-    brand: Optional[str] = None,
-    collection: Optional[str] = None,
-    popularity: Optional[str] = None,
-    minDiscount: Optional[str] = None,
-    minPrice: Optional[float] = None,
-    maxPrice: Optional[float] = None,
-    availability: Optional[str] = None,
-    categoryTag: Optional[str] = None,
-    sort: Optional[str] = None,
-    status: Optional[str] = None,
-    page: int = 1,
-    limit: int = 50,
-    includeFacets: bool = True,
-    skinny: bool = False,
-    myProducts: bool = False,
-    pincode: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
-):
-    # Use effectiveRole if user is deactivated
-    effective_role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
-    user_id = current_user.id
-
-    query = {}
+async def _get_products_cached(
+    effective_role: str,
+    user_id: str,
+    category: Optional[str],
+    categories: Optional[str],
+    subCategory: Optional[str],
+    search: Optional[str],
+    brand: Optional[str],
+    collection: Optional[str],
+    popularity: Optional[str],
+    minDiscount: Optional[str],
+    minPrice: Optional[float],
+    maxPrice: Optional[float],
+    availability: Optional[str],
+    categoryTag: Optional[str],
+    sort: Optional[str],
+    status: Optional[str],
+    page: int,
+    limit: int,
+    includeFacets: bool,
+    skinny: bool,
+    myProducts: bool,
+    pincode: Optional[str],
+) -> dict:
+    """Cached inner function — receives only primitive args so cache keys are stable.
+    BUG-2 fix: the route handler (get_products) resolves current_user to its primitive
+    fields (effective_role, user_id) before delegating here, avoiding the object-identity
+    hash problem that made @cache.ttl_cache a no-op when applied directly to get_products.
+    """
+    query: dict = {}
     if category:
         query["category"] = category
     if categories:
-        query["categories"] = categories  # Comma-separated list of categories
+        query["categories"] = categories
     if subCategory:
         query["subCategory"] = subCategory
     if search:
         query["search"] = search
     if brand:
-        query.brand = brand
+        query["brand"] = brand
     if collection:
         query["collection"] = collection
     if categoryTag:
@@ -899,9 +903,9 @@ async def get_products(
     if sort:
         query["sort"] = sort
     if status == "active":
-        query.is_active = True
+        query["is_active"] = True
     elif status == "inactive":
-        query.is_active = False
+        query["is_active"] = False
     elif status == "all":
         query["includeInactive"] = True
 
@@ -916,19 +920,16 @@ async def get_products(
     elif effective_role == "seller" and myProducts:
         query["my_seller_id"] = user_id
     elif pincode:
-        # Zone-based seller filter for retail customers: only show products
-        # serviceable in their zone. None = pincode not in any zone → fail-open.
         from app.repositories.zone_seller_cache import get_seller_ids_for_pincode
         seller_id_set = await get_seller_ids_for_pincode(pincode)
         if seller_id_set is not None:
             query["allowed_seller_ids"] = list(seller_id_set)
 
-    if page > 1:
-        includeFacets = False
+    _include_facets = includeFacets if page == 1 else False
 
     start_index = (page - 1) * limit
     products, total_count, facets, used_fuzzy, suggested_query = await product_repository.get_catalog(
-        query, skip=start_index, limit=limit, sort=sort, include_facets=includeFacets
+        query, skip=start_index, limit=limit, sort=sort, include_facets=_include_facets
     )
 
     await populate_product_discounts(products, effective_role, user_id=user_id, skinny=skinny)
@@ -936,22 +937,19 @@ async def get_products(
     if skinny:
         for p in products:
             p.displayImage = p.display_image or (p.images[0] if p.images else None)
-            p.pop("description", None)
-            p.pop("variants", None)
-            p.pop("videos", None)
-            p.pop("images", None)
-            p.pop("applicableDiscounts", None)
-            p.pop("variations", None)
-            p.pop("variantAttributes", None)
+            p.description = None
+            p.variants = []
+            p.videos = []
+            p.images = []
+            p.applicableDiscounts = None
+            p.variant_attributes = []
 
     products_with_pricing = []
     for product in products:
-        # Ensure tags and variations arrays exist
-        if "tags" not in product or product.tags is None:
+        if product.tags is None:
             product.tags = []
-        if "variations" not in product or product.variations is None:
+        if product.variations is None:
             product.variations = []
-
         products_with_pricing.append(product)
 
     if facets:
@@ -976,19 +974,54 @@ async def get_products(
     }
 
 
-@router.get("/{product_id}", response_model=ProductResponse)
+@router.get("", response_model=PaginatedProductResponse)
+@router.get("/", response_model=PaginatedProductResponse)
+async def get_products(
+    category: Optional[str] = None,
+    categories: Optional[str] = None,
+    subCategory: Optional[str] = None,
+    search: Optional[str] = None,
+    brand: Optional[str] = None,
+    collection: Optional[str] = None,
+    popularity: Optional[str] = None,
+    minDiscount: Optional[str] = None,
+    minPrice: Optional[float] = None,
+    maxPrice: Optional[float] = None,
+    availability: Optional[str] = None,
+    categoryTag: Optional[str] = None,
+    sort: Optional[str] = None,
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
+    includeFacets: bool = True,
+    skinny: bool = False,
+    myProducts: bool = False,
+    pincode: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+):
+    # BUG-2 fix: resolve User → primitives before delegating to the cached function.
+    # @cache.ttl_cache cannot be applied here directly because current_user is a
+    # Pydantic model whose hash() is object-identity — every request gets a cache miss.
+    effective_role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
+    user_id = str(current_user.id or "")
+    return await _get_products_cached(
+        effective_role, user_id,
+        category, categories, subCategory, search, brand, collection,
+        popularity, minDiscount, minPrice, maxPrice, availability,
+        categoryTag, sort, status, page, limit, includeFacets, skinny, myProducts, pincode,
+    )
+
+
 @cache.ttl_cache(ttl=900.0)
-async def get_product(product_id: str, current_user: User = Depends(get_current_user)):
+async def _get_product_cached(product_id: str, effective_role: str, user_id: str):
+    """Cached inner function for a single authenticated product fetch.
+    BUG-3 fix: cache key built from primitive strings only — no User object.
+    """
     product = await product_repository.findById(product_id)
 
     if not product or not (product.is_active if product.is_active is not None else True):
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Use effectiveRole if user is deactivated
-    effective_role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
-    user_id = current_user.id
-
-    # Add dynamic tags for a single product too
     products_list = await product_repository.add_dynamic_tags([product], effective_role, user_id)
     products_list = await product_repository.resolve_search_tags(products_list)
     product = products_list[0]
@@ -1001,13 +1034,20 @@ async def get_product(product_id: str, current_user: User = Depends(get_current_
     else:
         product.minOrderQuantity = (product.min_order_quantity if product.min_order_quantity is not None else 1)
 
-    # Ensure tags and variations arrays exist
-    if "tags" not in product or product.tags is None:
+    if product.tags is None:
         product.tags = []
-    if "variations" not in product or product.variations is None:
+    if product.variations is None:
         product.variations = []
 
     return product
+
+
+@router.get("/{product_id}", response_model=ProductResponse)
+async def get_product(product_id: str, current_user: User = Depends(get_current_user)):
+    # BUG-3 fix: resolve User → primitives before delegating to the cached function.
+    effective_role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
+    user_id = str(current_user.id or "")
+    return await _get_product_cached(product_id, effective_role, user_id)
 
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
