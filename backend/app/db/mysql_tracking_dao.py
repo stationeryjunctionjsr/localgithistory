@@ -17,6 +17,10 @@ from app.db.db_utils import now_utc
 
 logger = logging.getLogger(__name__)
 
+# Columns that exist directly on sj_tracking (flat scalar fields).
+# Removed after table restructure: is_returning, os, browser, ip_address,
+# campaign — these fields now live in sj_analytics_sessions (one row per
+# analytics session) and are written by MySQLAnalyticsSessionDAO.
 _TRACKING_SCALAR = {
     "type": "event_type",
     "userId": "user_id",
@@ -32,17 +36,13 @@ _TRACKING_SCALAR = {
     "filterType": "filter_type",
     "filterValue": "filter_value",
     "cartValue": "cart_value",
-    "isReturning": "is_returning",
     "source": "source",
-    "campaign": "campaign",
-    "os": "os",
-    "browser": "browser",
-    "ipAddress": "ip_address",
-        "orderId": "order_id",
+    "orderId": "order_id",
     "orderValue": "order_value",
     "price": "price",
     "category": "category",
 }
+
 
 
 class MySQLTrackingDAO:
