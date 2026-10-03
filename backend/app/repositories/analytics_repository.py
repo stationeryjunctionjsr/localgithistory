@@ -590,52 +590,40 @@ class AnalyticsRepository:
     ) -> List[Dict]:
         """Get customer cohort analysis"""
         orders = await self.order_storage.findAll()
-        await self.user_storage.findAll()
 
-        # Group users by acquisition month (first order month)
-        user_first_order = {}
+        # Pre-group orders by user_id so inner lookup is O(1) not O(N)
+        orders_by_user: Dict[str, list] = defaultdict(list)
         for order in orders:
-            user_id = order.user
-            if not user_id:
-                continue
+            if order.user:
+                orders_by_user[order.user].append(order)
 
-            order_date = self._parse_date(order.created_at)
-            if not order_date:
-                continue
-
-            if user_id not in user_first_order:
-                user_first_order[user_id] = order_date
-            elif order_date < user_first_order[user_id]:
-                user_first_order[user_id] = order_date
-
-        # Group by cohort month
-        cohorts = defaultdict(lambda: defaultdict(int))
-
-        for user_id, first_order_date in user_first_order.items():
-            cohort_month = first_order_date.strftime("%Y-%m")
-
-            # Count orders in subsequent months
-            for order in orders:
-                if order.user != user_id:
-                    continue
-
+        # Find each user's first order date
+        user_first_order: Dict[str, datetime] = {}
+        for user_id, user_orders in orders_by_user.items():
+            for order in user_orders:
                 order_date = self._parse_date(order.created_at)
                 if not order_date:
                     continue
+                if user_id not in user_first_order or order_date < user_first_order[user_id]:
+                    user_first_order[user_id] = order_date
 
-                order_month = order_date.strftime("%Y-%m")
-                if order_month >= cohort_month:
-                    month_index = (order_date.year - first_order_date.year) * 12 + (
-                        order_date.month - first_order_date.month
-                    )
-                    cohorts[cohort_month][month_index] += 1
+        # Build cohort matrix — O(total orders) not O(users × orders)
+        cohorts: Dict[str, Dict[int, int]] = defaultdict(lambda: defaultdict(int))
+        for user_id, first_order_date in user_first_order.items():
+            cohort_month = first_order_date.strftime("%Y-%m")
+            for order in orders_by_user[user_id]:
+                order_date = self._parse_date(order.created_at)
+                if not order_date or order_date < first_order_date:
+                    continue
+                month_index = (order_date.year - first_order_date.year) * 12 + (
+                    order_date.month - first_order_date.month
+                )
+                cohorts[cohort_month][month_index] += 1
 
-        # Format for display
         result = []
         for cohort_month in sorted(cohorts.keys()):
             cohort_data = cohorts[cohort_month]
             max_months = max(cohort_data.keys()) if cohort_data else 0
-
             result.append({"cohort": cohort_month, "months": [(cohort_data[i] if i in cohort_data else 0) for i in range(max_months + 1)]})
 
         return result
@@ -793,21 +781,19 @@ class AnalyticsRepository:
                 gaps_days.append((d2 - d1).total_seconds() / 86400.0)
         average_days_between_sessions = round(sum(gaps_days) / len(gaps_days), 2) if gaps_days else None
 
-        # 3) Average pages per session (page_view events from tracking, by sessionId)
+        # 3) Average pages per session — only fetch page_view events (not whole table)
         session_ids = {s.id for s in sessions if s.id}
-        all_tracking = await self.tracking_storage.findAll()
-        page_views_by_session = {sid: 0 for sid in session_ids}
-        for t in all_tracking:
-            if t.type != "page_view":
-                continue
+        page_view_events = await self.tracking_storage.find_by_date_range("page_view", None, None)
+        page_views_by_session: Dict[str, int] = {sid: 0 for sid in session_ids}
+        for t in page_view_events:
             sid = t.session_id
             if sid in session_ids:
-                page_views_by_session[sid] = (page_views_by_session[sid] if sid in page_views_by_session else 0) + 1
+                page_views_by_session[sid] = page_views_by_session.get(sid, 0) + 1
         page_counts = list(page_views_by_session.values())
         average_pages_per_session = round(sum(page_counts) / len(page_counts), 2) if page_counts else None
 
-        # 4) Average number of sessions with orders placed (rate: sessions with ≥1 order / total sessions)
-        all_orders = await self.order_storage.findAll()
+        # 4) Sessions with orders — only load orders for this user
+        all_orders = await self.order_storage.findAll({"user": user_id})
         orders_for_user = []
         for o in all_orders:
             if o.user != user_id:

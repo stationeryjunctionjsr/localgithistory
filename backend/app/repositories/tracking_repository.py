@@ -364,20 +364,13 @@ class TrackingRepository:
     async def getDropOffs(
         self, limit: int = 10, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        drop_offs = await self.findAll({"type": "drop_off"}, limit=self._ANALYTICS_LIMIT)
+        drop_offs = await self.storage.find_by_date_range("drop_off", start_date, end_date)
         drop_off_counts: dict = {}
 
         for d in drop_offs:
-            ts = self._parse_timestamp(d.timestamp)
-            if start_date and ts and ts < start_date:
-                continue
-            if end_date and ts and ts > end_date:
-                continue
-
             page = d.page
             if page not in drop_off_counts:
-                drop_off_counts[page] = {
-                    "page": page, "count": 0, "reasons": {}}
+                drop_off_counts[page] = {"page": page, "count": 0, "reasons": {}}
             drop_off_counts[page]["count"] += 1
 
             reason = d.reason if d.reason is not None else None
@@ -391,17 +384,7 @@ class TrackingRepository:
     async def getCartAbandonments(
         self, limit: int = 100, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        abandonments = await self.findAll({"type": "cart_abandonment"}, limit=self._ANALYTICS_LIMIT)
-
-        filtered = []
-        for a in abandonments:
-            ts = self._parse_timestamp(a.timestamp)
-            if start_date and ts and ts < start_date:
-                continue
-            if end_date and ts and ts > end_date:
-                continue
-            filtered.append(a)
-
+        filtered = await self.storage.find_by_date_range("cart_abandonment", start_date, end_date)
         return sorted(filtered, key=lambda x: x.timestamp or "", reverse=True)[:limit]
 
     async def getMostAbandonedProducts(
@@ -566,28 +549,18 @@ class TrackingRepository:
     async def getMostSearched(
         self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        all_tracking = await self.findAll({"type": "search"})
-
-        filtered_tracking = []
-        for track in all_tracking:
-            ts = self._parse_timestamp(track.timestamp)
-            if not ts: continue
-            if start_date and ts < start_date: continue
-            if end_date and ts > end_date: continue
-            filtered_tracking.append(track)
+        all_tracking = await self.storage.find_by_date_range("product_search", start_date, end_date)
 
         search_stats = {}
-        for track in filtered_tracking:
-            term = track.search_term or ""
-            term = term.lower()
+        for track in all_tracking:
+            term = (track.search_term or "").lower()
             if term:
                 if term not in search_stats:
                     search_stats[term] = {"count": 0, "total_results": 0}
                 search_stats[term]["count"] += 1
                 search_stats[term]["total_results"] += track.results_count or 0
 
-        sorted_searches = sorted(search_stats.items(
-        ), key=lambda x: x[1]["count"], reverse=True)[:limit]
+        sorted_searches = sorted(search_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:limit]
         return [
             {
                 "term": term,
@@ -601,21 +574,10 @@ class TrackingRepository:
     async def getZeroResultSearches(
         self, limit: int = 50, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        all_tracking = await self.findAll({"type": "product_search"})
-
-        filtered_tracking = []
-        for track in all_tracking:
-            ts = self._parse_timestamp(track.timestamp)
-            if not ts:
-                continue
-            if start_date and ts < start_date:
-                continue
-            if end_date and ts > end_date:
-                continue
-            filtered_tracking.append(track)
+        all_tracking = await self.storage.find_by_date_range("product_search", start_date, end_date)
 
         search_stats = {}
-        for track in filtered_tracking:
+        for track in all_tracking:
             if (track.results_count or 0) == 0:
                 term = (track.search_term or "").lower()
                 if term:
@@ -624,33 +586,18 @@ class TrackingRepository:
                     search_stats[term]["count"] += 1
 
         return [
-            {
-                "term": term,
-                "count": stats["count"],
-            }
+            {"term": term, "count": stats["count"]}
             for term, stats in sorted(search_stats.items(), key=lambda x: x[1]["count"], reverse=True)[:limit]
         ]
 
     async def getMostViewed(
         self, limit: int = 5, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):
-        all_tracking = await self.findAll({"type": "product_view"})
-
-        # Filter by date
-        filtered_tracking = []
-        for track in all_tracking:
-            ts = self._parse_timestamp(track.timestamp)
-            if not ts:
-                continue
-            if start_date and ts < start_date:
-                continue
-            if end_date and ts > end_date:
-                continue
-            filtered_tracking.append(track)
+        all_tracking = await self.storage.find_by_date_range("product_view", start_date, end_date)
 
         view_counts = {}
-        for track in filtered_tracking:
-            product_id = (track.product_ids[0] if track.product_ids else None)
+        for track in all_tracking:
+            product_id = track.product_id
             if product_id:
                 if product_id not in view_counts:
                     view_counts[product_id] = {
