@@ -459,8 +459,8 @@ async def refresh_tokens(payload: RefreshRequest, request: Request, response: Re
             },
         )
 
-    # touch activity and issue new tokens
-    await session_repository.touch_last_active(session_id)
+    # touch activity and issue new tokens (60s SQL debounce via DAO)
+    await session_repository.touch(session_id)
     device = parse_device(request, default_type="web")
     await session_repository.update_session(session_id, {"device": device})
 
