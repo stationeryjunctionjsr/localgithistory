@@ -17,8 +17,10 @@ class ProductRepository:
         self.storage = get_storage("products")
         self._search_tags_cache = None
         self._search_tags_cache_time = None
+        self._search_tags_lock = asyncio.Lock()  # DESIGN-3: prevents stampede on cache rebuild
         self._collections_cache = None
         self._collections_cache_time = None
+        self._collections_lock = asyncio.Lock()  # DESIGN-3: prevents stampede on cache rebuild
         self._cat_gst_map: Optional[dict[str, float]] = None
         self._cat_gst_map_exp: float = 0.0
         # Lock prevents thundering herd: only one coroutine rebuilds the
@@ -791,36 +793,63 @@ class ProductRepository:
         return products
 
     async def _get_active_search_tags(self) -> List[Product]:
-        """Get all active search tags with short caching"""
+        """Get all active search tags with short caching.
+
+        Double-checked locking: 10 s TTL means this expires frequently.
+        Without a lock, every concurrent request at expiry fires a DB query.
+        """
         now = datetime.now(timezone.utc)
+        # Fast path
         if (
             self._search_tags_cache is not None
             and self._search_tags_cache_time
             and (now - self._search_tags_cache_time).total_seconds() < 10
         ):
             return self._search_tags_cache
-        from app.repositories.search_tag_repository import search_tag_repository
 
-        tags = await search_tag_repository.findAllActive()
-        self._search_tags_cache = tags
-        self._search_tags_cache_time = now
-        return tags
+        async with self._search_tags_lock:
+            # Re-check after acquiring lock
+            if (
+                self._search_tags_cache is not None
+                and self._search_tags_cache_time
+                and (now - self._search_tags_cache_time).total_seconds() < 10
+            ):
+                return self._search_tags_cache
+
+            from app.repositories.search_tag_repository import search_tag_repository
+            tags = await search_tag_repository.findAllActive()
+            self._search_tags_cache = tags
+            self._search_tags_cache_time = datetime.now(timezone.utc)
+            return tags
 
     async def _get_collections(self) -> List[Product]:
-        """Get all collections with short caching"""
+        """Get all collections with short caching.
+
+        Double-checked locking: same 10 s TTL; same stampede risk as _get_active_search_tags.
+        """
         now = datetime.now(timezone.utc)
+        # Fast path
         if (
             self._collections_cache is not None
             and self._collections_cache_time
             and (now - self._collections_cache_time).total_seconds() < 10
         ):
             return self._collections_cache
-        from app.repositories.collection_repository import collection_repository
 
-        collections = await collection_repository.findAll()
-        self._collections_cache = collections
-        self._collections_cache_time = now
-        return collections
+        async with self._collections_lock:
+            # Re-check after acquiring lock
+            if (
+                self._collections_cache is not None
+                and self._collections_cache_time
+                and (now - self._collections_cache_time).total_seconds() < 10
+            ):
+                return self._collections_cache
+
+            from app.repositories.collection_repository import collection_repository
+            collections = await collection_repository.findAll()
+            self._collections_cache = collections
+            self._collections_cache_time = datetime.now(timezone.utc)
+            return collections
 
     async def resolve_search_tags(self, products: List['Product']) -> List[Product]:
         """Resolve which search tags apply to each product based on association rules"""

@@ -848,7 +848,7 @@ async def get_public_product(product_id: str, role: str = "customer", response: 
 @cache.ttl_cache(ttl=60.0)
 async def _get_products_cached(
     effective_role: str,
-    user_id: str,
+    user_id: str,  # empty string "" for wholesaler/customer — see DESIGN-4 note in get_products
     category: Optional[str],
     categories: Optional[str],
     subCategory: Optional[str],
@@ -871,9 +871,14 @@ async def _get_products_cached(
     pincode: Optional[str],
 ) -> dict:
     """Cached inner function — receives only primitive args so cache keys are stable.
-    BUG-2 fix: the route handler (get_products) resolves current_user to its primitive
-    fields (effective_role, user_id) before delegating here, avoiding the object-identity
-    hash problem that made @cache.ttl_cache a no-op when applied directly to get_products.
+
+    BUG-2 fix: the route handler resolves current_user → primitive fields first.
+
+    DESIGN-4: user_id is only included in the cache key when it actually changes the
+    result (seller role + myProducts=True).  For wholesaler and customer roles every
+    user with the same query gets the same result, so keying per-user would create
+    N×Q cache entries with zero benefit.  The route handler passes "" for user_id in
+    those cases so all such requests share one cache slot per query combination.
     """
     query: dict = {}
     if category:
@@ -910,7 +915,8 @@ async def _get_products_cached(
         query["includeInactive"] = True
 
     query["role"] = effective_role
-    query["user_id"] = user_id
+    if user_id:
+        query["user_id"] = user_id
 
     if effective_role == "wholesaler":
         from app.repositories.zone_seller_cache import get_super_admin_seller_id
@@ -932,7 +938,7 @@ async def _get_products_cached(
         query, skip=start_index, limit=limit, sort=sort, include_facets=_include_facets
     )
 
-    await populate_product_discounts(products, effective_role, user_id=user_id, skinny=skinny)
+    await populate_product_discounts(products, effective_role, user_id=user_id or None, skinny=skinny)
 
     if skinny:
         for p in products:
@@ -1003,9 +1009,13 @@ async def get_products(
     # @cache.ttl_cache cannot be applied here directly because current_user is a
     # Pydantic model whose hash() is object-identity — every request gets a cache miss.
     effective_role = current_user.effective_role or (current_user.role if current_user.role is not None else "customer")
-    user_id = str(current_user.id or "")
+    raw_user_id = str(current_user.id or "")
+    # DESIGN-4: user_id only changes the result when a seller views their own products.
+    # For all other roles the listing is role-scoped (not user-scoped), so pass ""
+    # so that all users with the same role+query share one cache entry.
+    cache_user_id = raw_user_id if (effective_role == "seller" and myProducts) else ""
     return await _get_products_cached(
-        effective_role, user_id,
+        effective_role, cache_user_id,
         category, categories, subCategory, search, brand, collection,
         popularity, minDiscount, minPrice, maxPrice, availability,
         categoryTag, sort, status, page, limit, includeFacets, skinny, myProducts, pincode,

@@ -187,6 +187,21 @@ async def lifespan(app: FastAPI):
     # all four benefit from independent warm-up.
     asyncio.create_task(warm_critical_caches())
 
+    # DESIGN-5: Periodically evict expired entries from the in-process TTL cache.
+    # Without this the _store dict grows unbounded until the worker restarts.
+    # Run in every worker (not under _is_elected_worker) because each worker has
+    # its own InMemoryTTLCache instance that needs independent housekeeping.
+    from app.utils.cache import cache as _ttl_cache
+
+    async def _evict_cache_loop():
+        while True:
+            await asyncio.sleep(300)  # every 5 minutes
+            evicted = _ttl_cache.evict_expired()
+            if evicted:
+                logger.debug("cache: evicted %d expired entries", evicted)
+
+    asyncio.create_task(_evict_cache_loop())
+
     # ── MULTI-VM: Redis pub/sub cache invalidation listener ───────────────────
     # Uncomment when REDIS_URL is set and multi-VM is active.
     # Run in EVERY worker (not under _is_elected_worker) so each process can

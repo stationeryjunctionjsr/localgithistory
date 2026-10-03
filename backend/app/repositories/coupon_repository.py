@@ -1,3 +1,4 @@
+import asyncio
 from app.models.schemas import CouponUpdate
 from app.models.daos_flat import CouponInternalUpdate
 from typing import TYPE_CHECKING
@@ -28,8 +29,13 @@ class CouponRepository:
         self._collection_storage = get_storage("collections")
         self._active_automatic_discounts_cache = None
         self._active_automatic_discounts_cache_time = None
+        # DESIGN-2: Locks prevent stampede when many requests see a cold cache simultaneously.
+        # Without them, N concurrent callers all miss, fire N identical DB queries, then
+        # each overwrites the cache — identical to having no cache at all under burst load.
+        self._active_automatic_discounts_lock = asyncio.Lock()
         self._active_coupons_cache = None
         self._active_coupons_cache_time = None
+        self._active_coupons_lock = asyncio.Lock()
         self._categories_map = None
         self._categories_map_time = None
         self._brands_map = None
@@ -1177,9 +1183,15 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         return None
 
     async def get_active_coupons(self) -> List['CouponInternal']:
-        """Get all active coupons with a short 60s cache"""
+        """Get all active coupons with a short 60s cache.
+
+        Double-checked locking: fast path serves from warm cache without the lock;
+        only the cold/expired path serialises through _active_coupons_lock so that
+        N concurrent callers don't all fan out to the DB simultaneously.
+        """
         now = datetime.now(timezone.utc)
 
+        # Fast path — no lock needed; CPython GIL makes attribute reads atomic
         if (
             self._active_coupons_cache is not None
             and self._active_coupons_cache_time
@@ -1187,14 +1199,30 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         ):
             return self._active_coupons_cache
 
-        active_coupons = await self.storage.findAll({"is_active": True})
-        self._active_coupons_cache = active_coupons
-        self._active_coupons_cache_time = now
-        return active_coupons
+        async with self._active_coupons_lock:
+            # Re-check after acquiring lock — another coroutine may have rebuilt it
+            if (
+                self._active_coupons_cache is not None
+                and self._active_coupons_cache_time
+                and (now - self._active_coupons_cache_time).total_seconds() < 60
+            ):
+                return self._active_coupons_cache
+
+            active_coupons = await self.storage.findAll({"is_active": True})
+            self._active_coupons_cache = active_coupons
+            self._active_coupons_cache_time = datetime.now(timezone.utc)
+            return active_coupons
 
     async def get_active_automatic_product_discounts(self) -> List['CouponInternal']:
-        """Get all active automatic product discounts with short caching"""
+        """Get all active automatic product discounts with short caching.
+
+        Double-checked locking: fast path serves from warm cache without the lock;
+        only the cold/expired path acquires _active_automatic_discounts_lock so that
+        concurrent callers don't trigger N expensive DB+date-filter rebuild cycles.
+        """
         now = datetime.now(timezone.utc)
+
+        # Fast path — no lock needed
         if (
             self._active_automatic_discounts_cache is not None
             and self._active_automatic_discounts_cache_time
@@ -1202,36 +1230,46 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
         ):
             return self._active_automatic_discounts_cache
 
-        discounts = await self.storage.findAll(
-            {"method": "automatic", "is_active": True, "type_of_discount": "product_discount"}
-        )
+        async with self._active_automatic_discounts_lock:
+            # Re-check after acquiring lock
+            now = datetime.now(timezone.utc)
+            if (
+                self._active_automatic_discounts_cache is not None
+                and self._active_automatic_discounts_cache_time
+                and (now - self._active_automatic_discounts_cache_time).total_seconds() < 300
+            ):
+                return self._active_automatic_discounts_cache
 
-        valid_discounts = []
-        for c in discounts:
-            try:
-                valid_from_str = c.start_date or c.start_date
-                valid_until_str = c.end_date or c.end_date
-                if not valid_from_str or not valid_until_str:
+            discounts = await self.storage.findAll(
+                {"method": "automatic", "is_active": True, "type_of_discount": "product_discount"}
+            )
+
+            valid_discounts = []
+            for c in discounts:
+                try:
+                    valid_from_str = c.start_date or c.start_date
+                    valid_until_str = c.end_date or c.end_date
+                    if not valid_from_str or not valid_until_str:
+                        continue
+                    valid_from = valid_from_str
+                    valid_until = valid_until_str
+
+                    # Make sure both are either aware or naive
+                    if valid_from.tzinfo is None:
+                        valid_from = valid_from.replace(tzinfo=timezone.utc)
+                    if valid_until.tzinfo is None:
+                        valid_until = valid_until.replace(tzinfo=timezone.utc)
+
+                    if valid_from <= now <= valid_until:
+                        c._affected_product_ids = await self._get_affected_product_ids(c)
+                        valid_discounts.append(c)
+                except Exception as e:
+                    import traceback; traceback.print_exc()
                     continue
-                valid_from = valid_from_str 
-                valid_until = valid_until_str 
-                
-                # Make sure both are either aware or naive
-                if valid_from.tzinfo is None:
-                    valid_from = valid_from.replace(tzinfo=timezone.utc)
-                if valid_until.tzinfo is None:
-                    valid_until = valid_until.replace(tzinfo=timezone.utc)
-                    
-                if valid_from <= now <= valid_until:
-                    c._affected_product_ids = await self._get_affected_product_ids(c)
-                    valid_discounts.append(c)
-            except Exception as e:
-                import traceback; traceback.print_exc()
-                continue
 
-        self._active_automatic_discounts_cache = valid_discounts
-        self._active_automatic_discounts_cache_time = now
-        return valid_discounts
+            self._active_automatic_discounts_cache = valid_discounts
+            self._active_automatic_discounts_cache_time = datetime.now(timezone.utc)
+            return valid_discounts
 
     async def get_applicable_automatic_product_discounts(self, role: str, user_id: Optional[str] = None) -> List['CouponInternal']:
         discounts = await self.get_active_automatic_product_discounts()
