@@ -203,10 +203,9 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(_evict_cache_loop())
 
     # ── MULTI-VM: Redis pub/sub cache invalidation listener ───────────────────
-    # Uncomment when REDIS_URL is set and multi-VM is active.
-    # Run in EVERY worker (not under _is_elected_worker) so each process can
-    # clear its own local cache when another worker/VM publishes an invalidation.
-    # Also uncomment the two _redis_publish() lines in cache.py → invalidate().
+    # Run in EVERY worker (not under _is_elected_worker) so each process clears
+    # its own local cache when another worker/VM publishes an invalidation.
+    # Step 3 of 3: uncomment the two lines below (after steps 1 & 2 in cache.py).
     #
     # from app.utils.cache import cache as _cache
     # asyncio.create_task(_cache.start_invalidation_listener())
