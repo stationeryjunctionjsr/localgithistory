@@ -143,7 +143,7 @@ async def verify_token(token: str) -> 'User':
             },
         )
 
-    await session_repository.touch_last_active(session_id)
+    await session_repository.touch(session_id)
 
     user = await user_repository.findById(user_id)
     if user is None or not (user.is_active if user.is_active is not None else True):

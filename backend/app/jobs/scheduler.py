@@ -54,6 +54,43 @@ async def _resource_monitoring_job():
         logger.error("Error in DB resource monitoring: %s", str(e), exc_info=True)
 
 
+async def _session_cleanup_job():
+    """Purge stale sessions nightly to keep sj_sessions lean.
+
+    Deletes two categories of rows that serve no further purpose:
+      1. Revoked sessions older than 30 days  — already invalidated, no longer needed.
+      2. Guest sessions older than 30 days    — anonymous, no user to notify.
+
+    Rows younger than 30 days are kept so active refresh tokens can still be
+    validated and so analytics reports covering the last 30 days remain accurate.
+    """
+    from app.config.database import get_async_session_factory
+    from sqlalchemy import text
+
+    factory = get_async_session_factory()
+    if not factory:
+        logger.warning("_session_cleanup_job: no DB connection, skipping")
+        return
+    try:
+        async with factory() as session:
+            result = await session.execute(
+                text(
+                    """
+                    DELETE FROM sj_sessions
+                    WHERE (
+                        status = 'revoked'
+                        OR (is_guest = 1 AND status != 'active')
+                    )
+                    AND updated_at < NOW() - INTERVAL 30 DAY
+                    """
+                )
+            )
+            await session.commit()
+            logger.info("_session_cleanup_job: deleted %d stale session row(s)", result.rowcount)
+    except Exception as e:
+        logger.error("_session_cleanup_job: error during cleanup: %s", str(e), exc_info=True)
+
+
 def start_recommendation_scheduler():
     """Start the background scheduler (call from app startup).
 
@@ -142,9 +179,19 @@ def start_recommendation_scheduler():
         max_instances=1,
         coalesce=True,
     )
+    # Session cleanup: Nightly at 1:00 AM IST.
+    # Deletes revoked and old guest sessions older than 30 days from sj_sessions,
+    # preventing unbounded table growth that would slow down analytics queries.
+    scheduler.add_job(
+        _session_cleanup_job,
+        CronTrigger(hour=1, minute=0, timezone=IST),
+        id="session_cleanup_job",
+        max_instances=1,
+        coalesce=True,
+    )
     scheduler.start()
     logger.info(
-        "Recommendation scheduler started (IST): trending 12 AM/PM, favorites 12 AM, google reviews 12 AM"
+        "Recommendation scheduler started (IST): trending 12 AM/PM, favorites 12 AM, google reviews 12 AM, session cleanup 1 AM"
     )
 
 # ── MULTI-VM SCHEDULER (commented out — activate when scaling to multiple VMs) ──

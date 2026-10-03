@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -17,7 +17,7 @@ export default function SessionAnalytics() {
   const lastActivityRef = useRef(Date.now());
   const endedRef = useRef(false);
 
-  // session start on mount
+  // session start — runs once on mount only
   useEffect(() => {
     const initSession = async () => {
       if (typeof window === 'undefined') return;
@@ -39,7 +39,7 @@ export default function SessionAnalytics() {
       const returningKey = 'sj_returning_user';
       const hasReturned = !!localStorage.getItem(returningKey);
 
-      // Register session start in the backend
+      // Register session start in the backend (once per mount, not on every query-string change)
       try {
         await api.post('/tracking/session', {
           sessionId: sid,
@@ -64,8 +64,11 @@ export default function SessionAnalytics() {
     };
 
     initSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — session start fires once per mount
 
-    // Ad Attribution Tracking
+  // Ad Attribution Tracking — runs whenever searchParams change (separate from session init)
+  useEffect(() => {
     if (typeof window !== 'undefined' && searchParams) {
       const adId = searchParams.get('ad_id');
       const utmSource = searchParams.get('utm_source');
@@ -84,14 +87,14 @@ export default function SessionAnalytics() {
           gclid,
         };
         localStorage.setItem('sj_attribution', JSON.stringify(attribution));
-        
+
         if (adId) {
           const platform = fbclid ? 'meta' : (gclid ? 'google' : (utmSource || 'unknown'));
           trackWebAdClick(adId, window.location.href, platform);
         }
       }
     }
-  }, [user, searchParams]);
+  }, [searchParams]);
 
   // page views
   useEffect(() => {
