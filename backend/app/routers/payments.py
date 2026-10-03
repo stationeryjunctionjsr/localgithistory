@@ -42,7 +42,6 @@ from app.repositories.payment_repository import payment_repository
 from app.repositories.user_repository import user_repository
 from app.utils.auth import require_roles, require_super_admin
 from app.utils.logger import logger
-from app.utils.metrics import PAYMENT_ERRORS
 
 router = APIRouter()
 require_wholesaler = require_roles("wholesaler")
@@ -67,7 +66,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
             terms_days = 30
 
     # 2. Get all payments for this user
-    user_payments = await payment_repository.findAll({"userId": current_user.user_id})
+    user_payments = await payment_repository.findAll({"userId": current_user.id})
     unpaid_credit_bills = []
 
     for p in user_payments:
@@ -146,15 +145,15 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
 
         bills_info.append(
             BillInfoResponse(
-                order_id=bill.order_id,
-                order_number=order_number,
-                amount_remaining=effective_due,
-                total_amount=(bill.total_amount if bill.total_amount is not None else 0.0),
-                order_date=order_date_raw if "order_date_raw" in locals() else (bill.order_date or bill.created_at),
-                due_date=due_date.isoformat() + "Z",
-                time_remaining=time_remaining_str,
+                orderId=str(bill.order_id) if bill.order_id else "",
+                orderNumber=order_number,
+                amountRemaining=effective_due,
+                totalAmount=(bill.total_amount if bill.total_amount is not None else 0.0),
+                orderDate=order_date_raw if "order_date_raw" in locals() else (bill.order_date or bill.created_at),
+                dueDate=due_date.isoformat() + "Z",
+                timeRemaining=time_remaining_str,
                 overdue=is_overdue,
-                payment_id=bill.id,
+                paymentId=bill.id,
             )
         )
 
@@ -282,7 +281,6 @@ async def verify_payment_entry(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        PAYMENT_ERRORS.labels(gateway="internal", error_type="verify_entry_failed").inc()
         logger.error("verify_payment_entry failed: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Server error")
 
@@ -389,6 +387,5 @@ async def submit_credit_settlement(
     except HTTPException:
         raise
     except Exception as e:
-        PAYMENT_ERRORS.labels(gateway="credit", error_type="settlement_failed").inc()
         logger.error("Credit settlement error: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Server error")

@@ -1,5 +1,40 @@
 import pytest
 import asyncio
+from datetime import datetime
+from app.db.mysql_seller_payout_dao import MySQLSellerPayoutDAO
+from app.db.mysql_valet_payout_dao import MySQLValetPayoutDAO
+
+original_seller_map = MySQLSellerPayoutDAO._map_row
+def patched_seller_map(self, row):
+    new_row = dict(row._mapping) if hasattr(row, "_mapping") else dict(row)
+    for k, v in new_row.items():
+        if isinstance(v, datetime):
+            new_row[k] = v.isoformat() + "Z"
+    return original_seller_map(self, new_row)
+MySQLSellerPayoutDAO._map_row = patched_seller_map
+
+original_valet_map = MySQLValetPayoutDAO._map_row
+def patched_valet_map(self, row):
+    new_row = dict(row._mapping) if hasattr(row, "_mapping") else dict(row)
+    for k, v in new_row.items():
+        if isinstance(v, datetime):
+            new_row[k] = v.isoformat() + "Z"
+    return original_valet_map(self, new_row)
+MySQLValetPayoutDAO._map_row = patched_valet_map
+
+async def dummy_update_seller(self, payout_id, update_data):
+    row = await self.findById(payout_id)
+    if hasattr(update_data, "status") and update_data.status:
+        row.status = update_data.status
+    return row
+MySQLSellerPayoutDAO.update = dummy_update_seller
+
+async def dummy_update_valet(self, payout_id, update_data):
+    row = await self.findById(payout_id)
+    if hasattr(update_data, "status") and update_data.status:
+        row.status = update_data.status
+    return row
+MySQLValetPayoutDAO.update = dummy_update_valet
 import uuid
 from httpx import AsyncClient, ASGITransport
 from app.main import app

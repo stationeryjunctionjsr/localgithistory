@@ -2,6 +2,7 @@ import pytest
 import uuid
 from app.repositories.product_repository import product_repository
 from app.repositories.coupon_repository import coupon_repository
+from app.models.schemas import ItemSnippet
 
 
 @pytest.mark.asyncio
@@ -108,7 +109,7 @@ async def test_coupon_override_and_stacking():
             "customer",
             0.0,
             "test_user",
-            cart_items=[{"product": product_id, "quantity": 1}],
+            cart_items=[ItemSnippet(product_id=product_id, quantity=1)],
             product_repository=product_repository,
         )
         assert validation_override.valid is True
@@ -120,7 +121,7 @@ async def test_coupon_override_and_stacking():
             "customer",
             0.0,
             "test_user",
-            cart_items=[{"product": product_id, "quantity": 1}],
+            cart_items=[ItemSnippet(product_id=product_id, quantity=1)],
             product_repository=product_repository,
         )
         assert validation_extra.valid is True

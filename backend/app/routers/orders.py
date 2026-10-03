@@ -1,7 +1,6 @@
 from app.models.daos import NotificationInternalCreate
 from fastapi.responses import FileResponse
 from app.models.schemas import VariantAttributes, CouponResponse
-from app.utils.metrics import ORDER_FAILURES
 from app.utils.logger import logger
 from app.utils.limiter import limiter
 from app.utils.invoice_generator import generate_invoice_pdf, save_invoice_pdf

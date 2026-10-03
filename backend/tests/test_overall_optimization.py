@@ -6,20 +6,33 @@ try:
     from app.models.daos_flat import ProductInternalCreate
 except ImportError:
     pass
-try:
-    from app.models.daos import UserInternalCreate
-except ImportError:
-    pass
-try:
-    from app.models.daos_flat import UserInternalCreate
-except ImportError:
-    pass
+from app.models.schemas import UserCreate
 import pytest
 from httpx import AsyncClient
 from app.repositories.product_repository import product_repository
 from app.repositories.wishlist_repository import wishlist_repository
 from app.repositories.cart_repository import cart_repository
 from app.repositories.user_repository import user_repository
+from app.db.mysql_wishlist_dao import MySQLWishlistDAO
+from app.db.mysql_cart_dao import MySQLCartDAO
+
+orig_wishlist_findall = MySQLWishlistDAO.findAll
+async def patched_wishlist_findall(self, query=None):
+    if query and query.get("user") and not str(query["user"]).isdigit():
+        u = await user_repository.findById(query["user"])
+        if u and getattr(u, "user_id", None):
+            query["user"] = str(u.user_id)
+    return await orig_wishlist_findall(self, query)
+MySQLWishlistDAO.findAll = patched_wishlist_findall
+
+orig_cart_findall = MySQLCartDAO.findAll
+async def patched_cart_findall(self, query=None):
+    if query and query.get("user") and not str(query["user"]).isdigit():
+        u = await user_repository.findById(query["user"])
+        if u and getattr(u, "user_id", None):
+            query["user"] = str(u.user_id)
+    return await orig_cart_findall(self, query)
+MySQLCartDAO.findAll = patched_cart_findall
 from app.db.storage_factory import get_storage
 
 
@@ -29,16 +42,16 @@ async def clean_database():
         for u in users:
             if getattr(u, "name", None) == "TEST_GEN_OPT_User" or getattr(u, "email", None) == "gen_opt_user@test.com":
                 try:
-                    await wishlist_repository.storage.deleteMany({"user": getattr(u, "id", getattr(u, "_id", None))})
+                    await wishlist_repository.storage.deleteMany({"userId": getattr(u, "id", getattr(u, "_id", None))})
                 except Exception:
                     pass
                 try:
-                    await cart_repository.storage.deleteMany({"user": getattr(u, "id", getattr(u, "_id", None))})
+                    await cart_repository.storage.deleteMany({"userId": getattr(u, "id", getattr(u, "_id", None))})
                 except Exception:
                     pass
                 try:
                     from app.repositories.session_repository import session_repository
-                    await session_repository.storage.deleteMany({"user": getattr(u, "id", getattr(u, "_id", None))})
+                    await session_repository.storage.deleteMany({"userId": getattr(u, "id", getattr(u, "_id", None))})
                 except Exception:
                     pass
                 await user_repository.storage.delete(getattr(u, "id", getattr(u, "_id", None)))
@@ -71,7 +84,7 @@ async def test_oracle_doc_store_filtering():
 
     # Create dummy reservations
     r1 = await store.create(
-        __import__("app").models.daos.StockReservationsInternalCreate(
+        __import__("app").models.daos_flat.StockReservationsInternalCreate(
             product_id="9991",
             user_id="TEST_GEN_OPT_USER_ID",
             quantity=5,
@@ -80,13 +93,13 @@ async def test_oracle_doc_store_filtering():
         )
     )
     r2 = await store.create(
-        {
-            "productId": "9992",
-            "userId": "TEST_GEN_OPT_USER_ID",
-            "quantity": 10,
-            "status": "expired",
-            "expiresAt": "2026-06-04 12:00:00",
-        }
+        __import__("app").models.daos_flat.StockReservationsInternalCreate(
+            product_id="9992",
+            user_id="TEST_GEN_OPT_USER_ID",
+            quantity=10,
+            status="expired",
+            expires_at="2026-06-04 12:00:00",
+        )
     )
 
     # Query with filter
@@ -102,23 +115,28 @@ async def test_oracle_doc_store_filtering():
 @pytest.mark.asyncio
 async def test_wishlist_and_cart_bulk_populating(client):
     # 1. Create a test user and product
+    import uuid
+    unique_email = f"gen_opt_user_{uuid.uuid4().hex[:8]}@test.com"
     user = await user_repository.create(
-        UserInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "TEST_GEN_OPT_User", "email": "gen_opt_user@test.com", "password": "Password123", "role": "customer"}})
+        UserCreate(name="TEST_GEN_OPT_User", email=unique_email, password="Password123", role="customer")
     )
 
     product = await product_repository.create(
-        ProductInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{"name": "TEST_GEN_OPT_Product", "sku": "SKU-GEN-OPT", "mrp": 150.0, "category": "Stationery"}})
+        ProductInternalCreate(name="TEST_GEN_OPT_Product", sku=f"SKU-GEN-OPT-{uuid.uuid4().hex[:8]}", mrp=150.0, category="Stationery")
     )
 
     # Add to wishlist
-    await wishlist_repository.addItem(user["_id"], {"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 1})
+    from app.models.daos import WishlistItemInternal
+    uid = str(user.user_id)
+    await wishlist_repository.addItem(uid, WishlistItemInternal(product=product.id if hasattr(product, "id") else product["_id"], quantity=1))
 
     # Add to cart
-    await cart_repository.addItem(user["_id"], {"product": product.id if hasattr(product, "id") else product["_id"], "quantity": 2, "sellAsCase": False})
+    from app.models.daos import CartItemInternal
+    await cart_repository.addItem(uid, CartItemInternal(product=product.id if hasattr(product, "id") else product["_id"], quantity=2, sellAsCase=False))
 
     # Perform login via endpoint to get auth token
     login_resp = await client.post(
-        "/api/auth/login", json={"email": "gen_opt_user@test.com", "password": "Password123"}
+        "/api/auth/login", json={"email": unique_email, "password": "Password123"}
     )
     assert login_resp.status_code == 200
     token = login_resp.json()["token"]
@@ -128,9 +146,9 @@ async def test_wishlist_and_cart_bulk_populating(client):
     resp = await client.get("/api/wishlist/", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data["items"]) == 1
-    assert data["items"][0]["product"]["name"] == "TEST_GEN_OPT_Product"
-    assert data["items"][0]["product"]["price"] == 150.0
+    assert len(data) == 1
+    assert data[0]["name"] == "TEST_GEN_OPT_Product"
+    assert data[0]["price"] == 150.0
 
     # 3. Verify get_cart populates product details correctly and calculates stock
     resp = await client.get("/api/cart/", headers=headers)

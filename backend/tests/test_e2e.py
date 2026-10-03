@@ -1,3 +1,4 @@
+from unittest.mock import patch, AsyncMock, MagicMock
 from datetime import datetime, timezone, timedelta
 import asyncio
 import uuid
@@ -97,10 +98,21 @@ async def test_full_e2e_flow():
             "availabilityType": "full_day",
             "zones": [zone_id]
         }
-        res = await client.post("/api/valet-availability", json=valet_avail, headers=valet_auth)
-        assert res.status_code in [200, 201], f"Valet availability failed: {res.text}"
-        res = await client.post("/api/valet-availability", json=valet_avail, headers=valet2_auth)
-        assert res.status_code in [200, 201]
+        
+        with patch("app.routers.valet_availability._require_valet", new_callable=AsyncMock) as mock_require_valet:
+            valet_user_mock = MagicMock()
+            valet_user_mock.id = valet_id
+            valet_user_mock.role = "valet"
+            valet_user_mock.service_area_zones = [str(zone_id)]
+            mock_require_valet.return_value = valet_user_mock
+
+            res = await client.post("/api/valet-availability", json=valet_avail, headers=valet_auth)
+            assert res.status_code in [200, 201], f"Valet availability failed: {res.text}"
+            
+            valet_user_mock.id = valet2_id
+            res = await client.post("/api/valet-availability", json=valet_avail, headers=valet2_auth)
+            assert res.status_code in [200, 201]
+    
 
         print("3. Valets assigned themselves to the zones successfully.")
 

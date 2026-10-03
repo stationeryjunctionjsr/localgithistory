@@ -26,7 +26,8 @@ class MySQLWishlistDAO:
         
         w = Wishlist.model_validate(r)
         w.user = getattr(r, "user_id", None)
-        w.items = [{"product": p} for p in items]
+        from app.models.daos import WishlistItemInternal
+        w.items = [WishlistItemInternal(product=p) for p in items]
         return w
 
     async def _fetch_items(self, session, ids: List[int]) -> Dict[int, List[str]]:

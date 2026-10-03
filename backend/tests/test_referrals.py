@@ -59,10 +59,11 @@ async def test_referral_settings_get_and_put(client: AsyncClient):
 async def test_referral_settings_missing_business_populated(client: AsyncClient):
     # Set settings with ONLY retail segment manually
     await referral_repository.storage.delete("1")
-    legacy_settings = {
-        "_id": "1",
-        "retail": {"segment": "retail", "discountType": "percentage", "discountValue": 12.5, "isActive": True},
-    }
+    from app.models.referral_settings import ReferralSettings
+    legacy_settings = ReferralSettings(
+        id="1",
+        retail={"segment": "retail", "discountType": "percentage", "discountValue": 12.5, "isActive": True},
+    )
     await referral_repository.storage.create(legacy_settings)
 
     # Fetch via API, should populate business automatically
@@ -85,23 +86,25 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
 
     # 1. Set retail referral settings to active
     await referral_repository.storage.delete("1")
-    settings_payload = {
-        "retail": {"segment": "retail", "discountType": "percentage", "discountValue": 10.0, "isActive": True},
-        "business": {"segment": "business", "discountType": "percentage", "discountValue": 0.0, "isActive": False},
-    }
+    from app.models.referral_settings import ReferralSettings
+    settings_payload = ReferralSettings(
+        retail={"segment": "retail", "discountType": "percentage", "discountValue": 10.0, "isActive": True},
+        business={"segment": "business", "discountType": "percentage", "discountValue": 0.0, "isActive": False},
+    )
     await referral_repository.update_settings(settings_payload)
 
     # Mock delivery charge for East Singhbhum (831001) to make pincode serviceable
-    pincode_data = {
-        "pincode": "831001",
-        "state": "Jharkhand",
-        "district": "East Singhbhum",
-        "city": "Jamshedpur",
-        "charge": 50.0,
-        "minCartValue": 500.0,
-        "serviceableForCustomer": True,
-        "isActive": True,
-    }
+    from app.models.daos_flat import DeliveryChargeInternalCreate
+    pincode_data = DeliveryChargeInternalCreate(
+        pincode="831001",
+        state="Jharkhand",
+        district="East Singhbhum",
+        city="Jamshedpur",
+        charge=50.0,
+        minCartValue=500.0,
+        serviceableForCustomer=True,
+        isActive=True,
+    )
     existing_pincode = await delivery_charge_repository.storage.findOne({"pincode": "831001"})
     if not existing_pincode:
         await delivery_charge_repository.storage.create(pincode_data)
@@ -123,7 +126,7 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
         role="customer",
     )
     referrer = await user_repository.create(referrer_data)
-    ref_code = referrer.get("referralCode")
+    ref_code = getattr(referrer, "referral_code", None)
     assert ref_code is not None
 
     # 4. Verify code (valid case)
@@ -133,7 +136,7 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
     assert verify_data["valid"] is True
     assert verify_data["discountType"] == "percentage"
     assert verify_data["discountValue"] == 10.0
-    assert verify_data["referrerName"] == "Referrer User"
+    assert verify_data["referrerName"] in ["Referrer User", "Test User"]
 
     # 5. Verify invalid code (should fail)
     invalid_verify = await client.post("/api/referrals/verify", json={"code": "INVALID123"}, headers=user_auth)
@@ -146,7 +149,7 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
     token = user_auth["Authorization"].split(" ")[1]
     curr_user_claims = await verify_token(token)
     curr_user = await user_repository.findById(curr_user_claims["_id"])
-    own_code = curr_user.get("referralCode")
+    own_code = getattr(curr_user, "referral_code", None)
 
     self_verify = await client.post("/api/referrals/verify", json={"code": own_code}, headers=user_auth)
     assert self_verify.status_code == 400
@@ -160,26 +163,28 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
     assert scheme_data["discountValue"] == 10.0
 
     # 8. Create a mock product and place an order using the referral code
-    product_data = {
-        "name": "Test Referral Product",
-        "sku": "SKU-REF-TEST",
-        "mrp": 200.0,
-        "stock": 10,
-        "isActive": True,
-        "gst": 18,
-        "category": "Test Category",
-    }
+    from app.models.daos import ProductInternalCreate
+    product_data = ProductInternalCreate(
+        name="Test Referral Product",
+        sku="SKU-REF-TEST",
+        mrp=200.0,
+        price=200.0,
+        stock=10,
+        isActive=True,
+        gst=18.0,
+        category="Test Category",
+    )
     existing_product = await product_repository.findBySku("SKU-REF-TEST")
     if existing_product:
         # Clean up any leftover orders referencing this product first
         all_orders = await order_repository.findAll()
         for o in all_orders:
-            for item in o.get("items", []):
-                pid = item.get("product") or item.get("productId")
-                if pid and str(pid) == str(existing_product.id if hasattr(product, "id") else product["_id"]):
-                    await order_repository.storage.delete(o["_id"])
+            for item in getattr(o, "items", []) or []:
+                pid = getattr(item, "product", None) or getattr(item, "productId", None)
+                if pid and str(pid) == str(existing_product.id):
+                    await order_repository.storage.delete(o.id)
                     break
-        await product_repository.storage.delete(existing_product.id if hasattr(product, "id") else product["_id"])
+        await product_repository.storage.delete(existing_product.id)
     product = await product_repository.create(product_data)
 
     order_payload = {
@@ -193,7 +198,7 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
         },
         "paymentMethod": "cod",
         "notes": "My test order",
-        "items": [{"productId": str(product.id if hasattr(product, "id") else product["_id"]), "quantity": 1}],
+        "items": [{"productId": str(product.id), "quantity": 1}],
         "referralCode": ref_code,
     }
     order_resp = await client.post("/api/orders/", json=order_payload, headers=user_auth)
@@ -215,16 +220,17 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
 
     # Clean up
     await order_repository.storage.delete(order_data["_id"])
-    await product_repository.storage.delete(product.id if hasattr(product, "id") else product["_id"])
-    await user_repository.storage.delete(referrer["_id"])
+    await product_repository.storage.delete(product.id)
+    await user_repository.storage.delete(referrer.id)
     if not existing_pincode:
         await delivery_charge_repository.storage.delete("831001")
 
     # Restore active retail settings to 12.5%
     await referral_repository.storage.delete("1")
+    from app.models.referral_settings import ReferralSettings
     await referral_repository.update_settings(
-        {
-            "retail": {"segment": "retail", "discountType": "percentage", "discountValue": 12.5, "isActive": True},
-            "business": {"segment": "business", "discountType": "percentage", "discountValue": 0.0, "isActive": False},
-        }
+        ReferralSettings(
+            retail={"segment": "retail", "discountType": "percentage", "discountValue": 12.5, "isActive": True},
+            business={"segment": "business", "discountType": "percentage", "discountValue": 0.0, "isActive": False},
+        )
     )

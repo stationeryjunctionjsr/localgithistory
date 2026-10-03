@@ -784,7 +784,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
             applies_to_ids = (coupon.applies_to_value_ids if coupon.applies_to_value_ids is not None else None) or []
             eligible_subtotal = 0.0
             for idx, item in enumerate(cart_items):
-                product = await product_repository.findByIditem.product_id
+                product = await product_repository.findById(item.product_id)
                 if not product:
                     continue
                 if await self._product_eligible_async(
@@ -809,7 +809,7 @@ applies_to_value_ids=coupon_data.applies_to_value_ids or [],
                     eligible_item_indices.append(idx)
             purchase_amount_to_use = eligible_subtotal
         else:
-            applicable_categories = (coupon.applicableCategories if coupon.applicableCategories is not None else [])
+            applicable_categories = (coupon.applicable_categories if coupon.applicable_categories is not None else [])
             if applicable_categories and category and category not in applicable_categories:
                 return CouponValidationResponse(valid=False, message="Discount not applicable for this category")
 

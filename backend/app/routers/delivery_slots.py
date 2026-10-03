@@ -3,6 +3,7 @@ from app.models.user import User
 from app.models.schemas import MessageResponse
 from app.models.daos_flat import DeliverySlotConfigInternalCreate, DeliverySlotInternal
 from typing import List, Optional
+from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
 from app.models.schemas import CamelBaseModel
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -27,10 +28,10 @@ class SlotBase(CamelBaseModel):
     capacity: Optional[int] = None  # max bookings allowed; None = unlimited
     booked_count: Optional[int] = 0  # current bookings for this slot
     is_full_day: Optional[bool] = False
-    isActive: Optional[bool] = True
+    is_active: Optional[bool] = True
     is_urgent: Optional[bool] = False  # marks this as an urgent delivery slot
-    cutoffHours: Optional[int] = None  # slot closes N hours before startTime; None = no cutoff
-    urgentCutoffHours: Optional[int] = (
+    cutoff_hours: Optional[int] = None  # slot closes N hours before startTime; None = no cutoff
+    urgent_cutoff_hours: Optional[int] = (
         None  # cutoff specifically for urgent slots; overrides cutoffHours when isUrgent=True
     )
 
@@ -40,10 +41,10 @@ class DeliverySlotConfigModel(BaseModel):
     id: Optional[str] = Field(None, alias="_id")
     segment: Optional[str] = None
     date: Optional[str] = None
-    zoneId: Optional[str] = None
-    zoneDefaultCapacity: Optional[int] = 10
+    zone_id: Optional[str] = None
+    zone_default_capacity: Optional[int] = 10
     slots: List[SlotBase] = Field(default_factory=list)
-    isActive: Optional[bool] = True
+    is_active: Optional[bool] = True
 
 
 class DeliverySlotConfigResponse(CamelBaseModel):
@@ -54,8 +55,8 @@ class DeliverySlotConfigResponse(CamelBaseModel):
     zone_id: str
     slots: List[SlotBase]
     is_active: bool
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class AvailableSlotItem(BaseModel):
@@ -228,8 +229,8 @@ async def get_available_slots(
         matched_slots.append({
             "configId": str(config_id_val),
             "slotId": slot_id,
-            "startTime": slot.startTime,
-            "endTime": slot.endTime,
+            "start_time": slot.startTime,
+            "end_time": slot.endTime,
             "isUrgent": is_urgent,
             "isFullDay": is_full_day,
         })

@@ -59,16 +59,17 @@ async def test_wholesaler_dues_and_block_flow(client: AsyncClient):
             }})
         )
 
-        payment_data = {
-            "orderId": order.id,
-            "userId": str(user.id),
-            "customerName": user.name,
-            "orderDate": order_date.isoformat().replace("+00:00", "Z"),
-            "paymentMethod": "credit",
-            "amountPaid": 0.0,
-            "amountRemaining": 500.0,
-            "totalAmount": 500.0,
-        }
+        from app.models.daos import PaymentInternalCreate
+        payment_data = PaymentInternalCreate(
+            order_id=order.id,
+            user_id=str(user.id),
+            customer_name=user.name,
+            order_date=order_date.isoformat().replace("+00:00", "Z"),
+            payment_method="credit",
+            amount_paid=0.0,
+            amount_remaining=500.0,
+            total_amount=500.0,
+        )
         payment = await payment_repository.create(payment_data)
 
         # 4. Fetch dues again (should show 500 dues and hasOverdueBills = True)

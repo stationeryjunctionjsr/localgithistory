@@ -12,9 +12,16 @@ from app.repositories.order_repository import order_repository
 from app.models.order import OrderInternalUpdate
 from app.config.database import get_async_engine
 from sqlalchemy import text
+from app.repositories.feature_flag_repository import FeatureFlagRepository
 
 @pytest.mark.asyncio
 async def test_multiseller_coupon_payout():
+    from app.models.feature_flag import FeatureFlag
+    feature_flag_repository = FeatureFlagRepository()
+    try:
+        await feature_flag_repository.create(FeatureFlag(id="retail_enable_cod", name="COD", enabled="true"))
+    except Exception:
+        await feature_flag_repository.update("retail_enable_cod", FeatureFlag(enabled="true"))
     admin_email = f"admin_{uuid.uuid4().hex[:8]}@test.com"
     seller1_email = f"seller1_{uuid.uuid4().hex[:8]}@test.com"
     seller2_email = f"seller2_{uuid.uuid4().hex[:8]}@test.com"
@@ -22,9 +29,13 @@ async def test_multiseller_coupon_payout():
 
     # Create Users
     admin = await user_repository.create(UserCreate(name="Admin", email=admin_email, password="pass", role="super_admin", isSellerAdmin=True))
+    await asyncio.sleep(0.5)
     seller1 = await user_repository.create(UserCreate(name="Seller 1", email=seller1_email, password="pass", role="seller", isSellerAdmin=True))
+    await asyncio.sleep(0.5)
     seller2 = await user_repository.create(UserCreate(name="Seller 2", email=seller2_email, password="pass", role="seller", isSellerAdmin=True))
+    await asyncio.sleep(0.5)
     customer = await user_repository.create(UserCreate(name="Customer", email=customer_email, password="pass", role="customer"))
+    await asyncio.sleep(0.5)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         async def login(email):
@@ -51,7 +62,8 @@ async def test_multiseller_coupon_payout():
             "isApproved": True,
             "stock": 100,
             "unit": "pcs",
-            "isGstCharged": False
+            "isGstCharged": False,
+            "images": ["http://test/img"]
         }
         res = await client.post("/api/products/", json=prod1_payload, headers=admin_auth)
         prod1_id = res.json().get("id") or res.json().get("_id")
@@ -66,7 +78,8 @@ async def test_multiseller_coupon_payout():
             "isApproved": True,
             "stock": 100,
             "unit": "pcs",
-            "isGstCharged": False
+            "isGstCharged": False,
+            "images": ["http://test/img"]
         }
         res = await client.post("/api/products/", json=prod2_payload, headers=admin_auth)
         prod2_id = res.json().get("id") or res.json().get("_id")
@@ -81,7 +94,8 @@ async def test_multiseller_coupon_payout():
             "isApproved": True,
             "stock": 100,
             "unit": "pcs",
-            "isGstCharged": False
+            "isGstCharged": False,
+            "images": ["http://test/img"]
         }
         res = await client.post("/api/products/", json=prod3_payload, headers=admin_auth)
         prod3_id = res.json().get("id") or res.json().get("_id")

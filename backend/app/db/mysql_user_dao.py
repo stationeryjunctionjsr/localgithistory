@@ -71,17 +71,30 @@ class MySQLUserDAO:
                 where_clauses.append('1=0')
             else:
                 id_list = [int(aid) for aid in allowed_ids if str(aid).isdigit()]
-                if not id_list:
-                    where_clauses.append('1=0')
-                else:
+                ext_list = [str(aid) for aid in allowed_ids if not str(aid).isdigit()]
+                conds = []
+                
+                if id_list:
                     chunks = [id_list[i:i + 999] for i in range(0, len(id_list), 999)]
-                    chunk_sqls = []
                     for chunk_idx, chunk in enumerate(chunks):
                         id_params = {f'aid_{chunk_idx}_{i}': aid for i, aid in enumerate(chunk)}
                         params.update(id_params)
                         id_placeholders = ', '.join([f':{k}' for k in id_params.keys()])
-                        chunk_sqls.append(f'id IN ({id_placeholders})')
-                    where_clauses.append('(' + ' OR '.join(chunk_sqls) + ')' if len(chunk_sqls) > 1 else chunk_sqls[0])
+                        conds.append(f'id IN ({id_placeholders})')
+                
+                if ext_list:
+                    ext_chunks = [ext_list[i:i + 999] for i in range(0, len(ext_list), 999)]
+                    for chunk_idx, chunk in enumerate(ext_chunks):
+                        ext_params = {f'ext_{chunk_idx}_{i}': aid for i, aid in enumerate(chunk)}
+                        params.update(ext_params)
+                        ext_placeholders = ', '.join([f':{k}' for k in ext_params.keys()])
+                        conds.append(f'external_id IN ({ext_placeholders})')
+                
+                if not conds:
+                    where_clauses.append('1=0')
+                else:
+                    where_clauses.append('(' + ' OR '.join(conds) + ')')
+
         where_sql = ' AND '.join(where_clauses) if where_clauses else '1=1'
         return (where_sql, params)
 

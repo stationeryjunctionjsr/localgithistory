@@ -71,9 +71,9 @@ class BundleRepository:
             except Exception as e:
                 logger.error("Error ensuring %s exists: %s", table_name_upper, str(e))
 
-    async def findAll(self, query: Optional[dict] = None) -> List['BundleInternal']:
+    async def findAll(self) -> List['BundleInternal']:
         await self.ensure_table_exists()
-        return await self.storage.findAll(query)
+        return await self.storage.findAll()
 
     async def findById(self, id: str) -> Optional['BundleInternal']:
         await self.ensure_table_exists()

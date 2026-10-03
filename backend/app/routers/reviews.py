@@ -43,7 +43,7 @@ class ClassificationUpdate(BaseModel):
 async def create_review(review_data: ReviewCreate, current_user: User = Depends(get_current_user)):
     """Submit a rating and review for a delivered product."""
     user_id = str(current_user.id)
-    product_id = str(review_data.product_id)
+    product_id = str(review_data.productId)
 
     # 1. Verify that the product exists
     product = await product_repository.findById(product_id)

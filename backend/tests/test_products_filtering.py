@@ -38,26 +38,29 @@ async def test_products_fuzzy_search_typo_tolerance(client):
     from app.repositories.product_repository import product_repository
 
     # 1. Create a product with a distinct name
+    uid = uuid.uuid4().hex[:6]
     product = await product_repository.create(
-        ProductInternalCreate(name="SuperFuzzyWidget", mrp=100.0, price=100.0, category="Gadgets", stock=10)
+        ProductInternalCreate(name=f"SuperFuzzyWidget{uid}", mrp=100.0, price=100.0, category="Gadgets", stock=10, is_active=True, status="active")
     )
     product_id = product.id if hasattr(product, "id") else product["_id"]
+    
+    # Invalidate the lightweight catalog cache so the new product is picked up
+    product_repository._light_catalog_cache = {}
+    from app.routers.products import _invalidate_product_caches
+    _invalidate_product_caches()
 
     try:
         # 2. Search using typo (similarity ratio >= 0.7)
-        # "SuperFuzzyWidget" has 16 characters. "SprFuzyWdget" has 12 characters.
-        # SequenceMatcher similarity ratio of "superfuzzywidget" vs "sprfuzywdget" is:
-        # 2 * 11 / (16 + 12) = 22 / 28 = 0.785 (which is >= 0.7)
-        response = await client.get("/api/products/public?search=SprFuzyWdget")
+        response = await client.get(f"/api/products/public?search=SprFuzyWdget{uid}")
         assert response.status_code == 200
         data = response.json()
         results = data["products"]
 
         # Verify that our test product is in the fuzzy search results and response includes fuzzy metadata
-        matched_ids = [str(p["_id"]) for p in results]
+        matched_ids = [str(p.get("id", p.get("_id"))) for p in results]
         assert str(product_id) in matched_ids
         assert data["usedFuzzy"] is True
-        assert data["suggestedQuery"] == "superfuzzywidget"
+        assert data["suggestedQuery"] == f"superfuzzywidget{uid}"
 
     finally:
         # 3. Clean up

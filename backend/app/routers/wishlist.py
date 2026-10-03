@@ -34,8 +34,8 @@ def get_min_quantity_for_role(product, role: str) -> int:
     return 1
 
 
-@router.get("", response_model=List[Product])
-@router.get("/", response_model=List[Product])
+@router.get("")
+@router.get("/")
 async def get_wishlist(current_user: User = Depends(get_current_user)):
     """Get user's wishlist"""
     try:

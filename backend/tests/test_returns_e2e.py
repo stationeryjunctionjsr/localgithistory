@@ -86,12 +86,26 @@ async def test_full_returns_e2e_flow():
         cart_payload = {"productId": prod_id, "quantity": 1}
         await client.post("/api/cart", json=cart_payload, headers=cust_auth)
         
+        # Add delivery charge for pincode
+        from app.models.daos_flat import DeliveryChargeInternalCreate
+        from app.repositories.delivery_charge_repository import delivery_charge_repository
+        await delivery_charge_repository.storage.create(DeliveryChargeInternalCreate(
+            pincode="123456",
+            state="TS",
+            district="Test",
+            city="Test",
+            charge=50.0,
+            minCartValue=10.0,
+            serviceableForCustomer=True,
+            isActive=True,
+        ))
+
         checkout_payload = {
             "shippingAddress": {"street": "123 Test St", "city": "Test", "state": "TS", "pincode": "123456"},
-            "paymentMethod": "cod"
+            "paymentMethod": "upi"
         }
         res = await client.post("/api/orders", json=checkout_payload, headers=cust_auth)
-        assert res.status_code in (200, 201)
+        assert res.status_code in (200, 201), res.json()
         order_id = res.json()["_id"]
 
         # Mark order as delivered so it can be returned

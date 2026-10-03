@@ -69,3 +69,5 @@ class FeatureFlagRepository:
     async def get_all_by_category(self, category: str) -> List['FeatureFlag']:
         """Get all feature flags in a category"""
         return await self.find_all({"category": category})
+
+feature_flag_repository = FeatureFlagRepository()

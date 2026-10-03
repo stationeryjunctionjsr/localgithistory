@@ -1,8 +1,4 @@
 try:
-    from app.models.daos import CouponInternalCreate
-except ImportError:
-    pass
-try:
     from app.models.daos_flat import CouponInternalCreate
 except ImportError:
     pass
@@ -16,11 +12,15 @@ async def test_shipping_discount_payment_method_and_capping():
     # 1. Cleanup existing coupon if any
     existing_coupon = await coupon_repository.findByCode("SHIPUPI50")
     if existing_coupon:
-        await coupon_repository.storage.delete(existing_coupon["_id"])
+        await coupon_repository.storage.delete(getattr(existing_coupon, "id", None))
 
     # 2. Create a shipping discount coupon: 50% off shipping, UPI payment only
+    class TestCouponCreate(CouponInternalCreate):
+        resolution: str = "overwrite"
+        force: bool = True
+
     ship_coupon = await coupon_repository.create(
-        CouponInternalCreate(
+        TestCouponCreate(
             type_of_discount="shipping_discount",
             method="discount_code",
             code="SHIPUPI50",
@@ -38,23 +38,22 @@ async def test_shipping_discount_payment_method_and_capping():
     # 3. Create a fixed shipping discount coupon: Rs. 100 off shipping, UPI payment only
     existing_fixed = await coupon_repository.findByCode("SHIPFIXED100")
     if existing_fixed:
-        await coupon_repository.storage.delete(existing_fixed["_id"])
+        await coupon_repository.storage.delete(getattr(existing_fixed, "id", None))
 
     fixed_coupon = await coupon_repository.create(
-        CouponInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
-            "typeOfDiscount": "shipping_discount",
-            "method": "discount_code",
-            "code": "SHIPFIXED100",
-            "isActive": True,
-            "validFrom": "2026-01-01T00:00:00",
-            "validUntil": "2026-12-31T23:59:59",
-            "applicableRoles": ["customer"],
-            "discountType": "fixed",
-            "discountValue": 100.0,
-            "applicablePaymentMethods": ["upi"],
-            "appliesToType": "all",
-            "force": True,
-        }})
+        TestCouponCreate(
+            type_of_discount="shipping_discount",
+            method="discount_code",
+            code="SHIPFIXED100",
+            is_active=True,
+            valid_from="2026-01-01T00:00:00",
+            valid_until="2026-12-31T23:59:59",
+            applicable_roles=["customer"],
+            discount_type="fixed",
+            discount_value=100.0,
+            applicable_payment_methods=["upi"],
+            applies_to_type="all",
+        )
     )
 
     mock_address = {
@@ -133,5 +132,5 @@ async def test_shipping_discount_payment_method_and_capping():
 
     finally:
         # Cleanup
-        await coupon_repository.storage.delete(ship_coupon["_id"])
-        await coupon_repository.storage.delete(fixed_coupon["_id"])
+        await coupon_repository.storage.delete(getattr(ship_coupon, "id", None))
+        await coupon_repository.storage.delete(getattr(fixed_coupon, "id", None))

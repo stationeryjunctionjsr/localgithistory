@@ -78,9 +78,9 @@ async def test_orders_optimization_logic():
 
     # 2. Create order
     order = await order_repository.create(OrderInternalCreate(**{"tax": 0.0, "shipping": 0.0, "discount": 0.0, 
-            "user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id),
+            "user": str(user.user_id),
             "userRole": "customer",
-            "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 2, "price": 100.0}],
+            "items": [{"product": str(product.product_id), "quantity": 2, "price": 100.0}],
             "subtotal": 200.0,
             "total": 200.0,
             "tax": 0.0,
@@ -97,17 +97,18 @@ async def test_orders_optimization_logic():
     )
 
     # Create associated payment
-    payment = await payment_repository.create(PaymentInternalCreate(**{'_id': __import__('uuid').uuid4().hex, **{
+    payment = await payment_repository.create(PaymentInternalCreate(**{
             "orderId": order.id,
             "userId": user.id,
             "customerName": "TEST_ORDER_OPT_User",
             "paymentMethod": "cod",
             "totalAmount": 200.0,
             "paymentEntries": [{"entryId": 1, "amount": 200.0, "verified": False}],
-        }})
+        })
     )
 
     # 3. Test populate_orders batch loader
+    order.user = str(user.user_id)
     print("ORDER BEFORE POPULATE:", repr(order.items[0]))
     populated = await populate_orders([order])
     print("ORDER AFTER POPULATE:", repr(order.items[0]))
@@ -142,7 +143,7 @@ async def test_orders_pagination_and_counting_logic():
 
     # 2. Create 3 test orders with unique notes and payment methods
     o1 = await order_repository.create(OrderInternalCreate(**{"tax": 0.0, "shipping": 0.0, "discount": 0.0, 
-            "user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id),
+            "user": str(user.user_id),
             "userRole": "customer",
             "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 1, "price": 100.0}],
             "subtotal": 100.0,
@@ -160,7 +161,7 @@ async def test_orders_pagination_and_counting_logic():
         })
     )
     o2 = await order_repository.create(OrderInternalCreate(**{"tax": 0.0, "shipping": 0.0, "discount": 0.0, 
-            "user": getattr(user, "_id", user.id),
+            "user": str(user.user_id),
             "userRole": "customer",
             "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 2, "price": 100.0}],
             "subtotal": 200.0,
@@ -178,7 +179,7 @@ async def test_orders_pagination_and_counting_logic():
         })
     )
     o3 = await order_repository.create(OrderInternalCreate(**{"tax": 0.0, "shipping": 0.0, "discount": 0.0, 
-            "user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id),
+            "user": str(user.user_id),
             "userRole": "customer",
             "items": [{"product": str(getattr(product, "product_id", getattr(product, "id", "443"))), "quantity": 1, "price": 100.0}],
             "subtotal": 100.0,
@@ -197,25 +198,25 @@ async def test_orders_pagination_and_counting_logic():
     )
 
     # 3. Test count directly
-    total_count = await order_repository.count({"user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id)})
+    total_count = await order_repository.count({"user": str(user.user_id)})
     assert total_count == 3
 
     # Test count by user helper
-    count_by_user = await order_repository.countByUser(user.id)
+    count_by_user = await order_repository.countByUser(user.user_id)
     assert count_by_user == 3
 
     # Test count with filtering by paymentMethod
-    cod_count = await order_repository.count({"user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id), "paymentMethod": "cod"})
+    cod_count = await order_repository.count({"user": str(user.user_id), "payment_method": "cod"})
     assert cod_count == 2
-    upi_count = await order_repository.count({"user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id), "paymentMethod": "upi"})
+    upi_count = await order_repository.count({"user": str(user.user_id), "payment_method": "upi"})
     assert upi_count == 1
 
     # 4. Test database-level pagination in findAll
     # Page 1: limit 2
-    p1 = await order_repository.findAll({"user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id)}, skip=0, limit=2)
+    p1 = await order_repository.findAll({"user": str(user.user_id)}, skip=0, limit=2)
     assert len(p1) == 2
     # Page 2: limit 2
-    p2 = await order_repository.findAll({"user": user.id if str(user.id).isdigit() else getattr(user, "_id", user.id)}, skip=2, limit=2)
+    p2 = await order_repository.findAll({"user": str(user.user_id)}, skip=2, limit=2)
     assert len(p2) == 1
 
     # Verify that the order IDs in pagination correspond to the correct order of created_at desc

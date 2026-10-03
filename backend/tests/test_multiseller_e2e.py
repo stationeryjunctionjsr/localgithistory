@@ -1,15 +1,24 @@
 import pytest
 import uuid
 import logging
+import asyncio
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.repositories.user_repository import user_repository
 from app.models.schemas import UserCreate
 from app.repositories.sub_order_repository import sub_order_repository
 from app.repositories.sub_order_repository import sub_order_repository
+from app.repositories.feature_flag_repository import feature_flag_repository
 
 @pytest.mark.asyncio
 async def test_multiseller_suborder_split():
+    from app.models.feature_flag import FeatureFlag
+    existing = await feature_flag_repository.find_by_flag_id("retail_enable_cod")
+    if existing:
+        existing.enabled = "true"
+        await feature_flag_repository.update(existing.id, existing)
+    else:
+        await feature_flag_repository.create(FeatureFlag(id="retail_enable_cod", name="COD", enabled="true"))
     admin_email = f"admin_{uuid.uuid4().hex[:8]}@test.com"
     seller1_email = f"seller1_{uuid.uuid4().hex[:8]}@test.com"
     seller2_email = f"seller2_{uuid.uuid4().hex[:8]}@test.com"
@@ -17,9 +26,13 @@ async def test_multiseller_suborder_split():
 
     # Create Users
     admin = await user_repository.create(UserCreate(name="Admin", email=admin_email, password="pass", role="super_admin"))
+    await asyncio.sleep(0.5)
     seller1 = await user_repository.create(UserCreate(name="Seller 1", email=seller1_email, password="pass", role="seller", isSellerAdmin=True))
+    await asyncio.sleep(0.5)
     seller2 = await user_repository.create(UserCreate(name="Seller 2", email=seller2_email, password="pass", role="seller", isSellerAdmin=True))
+    await asyncio.sleep(0.5)
     customer = await user_repository.create(UserCreate(name="Customer", email=customer_email, password="pass", role="customer"))
+    await asyncio.sleep(0.5)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         async def login(email):
@@ -48,7 +61,8 @@ async def test_multiseller_suborder_split():
             "stock": 100,
             "pincodes": ["123456"],
             "unit": "pcs",
-            "isGstCharged": False
+            "isGstCharged": False,
+            "images": ["http://test/img"]
         }
         res = await client.post("/api/products/", json=prod1_payload, headers=admin_auth)
         assert res.status_code in [200, 201], res.text
@@ -66,7 +80,8 @@ async def test_multiseller_suborder_split():
             "stock": 100,
             "pincodes": ["123456"],
             "unit": "pcs",
-            "isGstCharged": False
+            "isGstCharged": False,
+            "images": ["http://test/img"]
         }
         res = await client.post("/api/products/", json=prod2_payload, headers=admin_auth)
         assert res.status_code in [200, 201], res.text
@@ -96,6 +111,7 @@ async def test_multiseller_suborder_split():
                 "country": "India",
                 "phone": "9999999999"
             },
+            "paymentMethod": "cod",
             "items": [
                 {"productId": str(prod1_id), "quantity": 1, "sellAsCase": False},
                 {"productId": str(prod2_id), "quantity": 1, "sellAsCase": False}

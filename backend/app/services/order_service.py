@@ -40,7 +40,6 @@ from app.repositories.user_repository import user_repository
 from app.services.email_service import email_service
 from app.db.storage_factory import get_storage
 from app.utils.logger import logger
-from app.utils.metrics import ORDER_FAILURES
 
 # ---------------------------------------------------------------------------
 # Helper models
@@ -255,10 +254,7 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
 
         for item in order.items if order.items else []:
             # ItemSnippet.product holds the product ID reference
-            if 'productId' in item.model_fields:
-                pid = item.product_id
-            else:
-                pid = item.product.id if item.product else None
+            pid = str(item.product) if item.product else (str(item.product_id) if item.product_id else None)
 
             if pid and str(pid).isdigit():
                 product_ids.add(str(pid))
@@ -276,9 +272,21 @@ async def populate_orders(orders: list[Order]) -> list[PopulatedOrderResponse]:
     products_list = await products_task if products_task else []
     payments_list = await payments_task if payments_task else []
 
-    # 3. Build lookup maps — u.id and p.id are declared Pydantic fields
-    users_map = {str(u.id): u for u in users_list if u.id}
-    products_map = {str(p.id): p for p in products_list if p.id}
+    # 3. Build lookup maps
+    users_map = {}
+    for u in users_list:
+        if u.user_id:
+            users_map[str(u.user_id)] = u
+        if u.id:
+            users_map[str(u.id)] = u
+
+    products_map = {}
+    for p in products_list:
+        if p.product_id:
+            products_map[str(p.product_id)] = p
+        if p.id:
+            products_map[str(p.id)] = p
+
     payments_map: dict = {}
     for p in payments_list:
         # Payment.order_id is the declared Pydantic field (alias: orderId)
@@ -561,7 +569,6 @@ async def create_order_service(
     else:
         cart = await cart_repository.findByUser(current_user.id)
         if not cart or not cart.items:
-            ORDER_FAILURES.labels(reason="empty_cart").inc()
             raise HTTPException(status_code=400, detail="Your cart is empty")
         cart_items = (cart.items or [])
     # Pre-load all products referenced in cart items in a single batch query (eliminates N+1)
@@ -987,7 +994,6 @@ async def create_order_service(
                 product.id, exclude_user_id=current_user.id
             )
             if available_pool < quantity:
-                ORDER_FAILURES.labels(reason="insufficient_stock").inc()
                 raise HTTPException(
                     status_code=400,
                     detail=f"Stock is no longer reserved or available for {product.name}. Please check your cart.",
@@ -1181,7 +1187,6 @@ async def create_order_service(
         is_serviceable = await delivery_charge_repository.isPincodeServiceable(shipping_zip, effective_role)
 
         if not is_serviceable:
-            ORDER_FAILURES.labels(reason="pincode_not_serviceable").inc()
             raise HTTPException(
                 status_code=400, detail="Your pincode is not serviceable. Please contact support for assistance."
             )
@@ -1204,8 +1209,6 @@ async def create_order_service(
                     # Empty list = seller hasn't configured zones yet; allow during migration
                     if seller_zone_ids and order_zone_id not in seller_zone_ids:
                         s_name = sdoc.company_name or sdoc.name or "Seller"
-                        ORDER_FAILURES.labels(
-                            reason="seller_zone_not_serviceable").inc()
                         raise HTTPException(
                             status_code=400,
                             detail=f"Products from '{s_name}' are not available for delivery to your area.",
@@ -1353,7 +1356,6 @@ async def create_order_service(
             user.credit_limit = 0
 
         if ((user.credit_used if user.credit_used is not None else 0) + total) > (user.credit_limit if user.credit_limit is not None else 0):
-            ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()
             raise HTTPException(
                 status_code=400, detail="Credit limit exceeded")
 
@@ -1376,7 +1378,6 @@ async def create_order_service(
     if order_data.payment_method == "credit":
         success = await user_repository.add_credit_used_atomic(current_user.id, total)
         if not success:
-            ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()
             raise HTTPException(
                 status_code=400, detail="Insufficient credit limit or user not found.")
         _credit_deducted = True
@@ -1406,8 +1407,7 @@ async def create_order_service(
     # #     async with redis.lock(lock_key, timeout=5, blocking_timeout=4):
     # #         success = await user_repository.add_credit_used_atomic(current_user.id, total)
     # #         if not success:
-    # #             ORDER_FAILURES.labels(reason="credit_limit_exceeded").inc()
-    # #             raise HTTPException(status_code=400, detail="Credit limit exceeded.")
+    # #             # #             raise HTTPException(status_code=400, detail="Credit limit exceeded.")
     # #         _credit_deducted = True
     #
     # TO ACTIVATE:
@@ -1419,8 +1419,11 @@ async def create_order_service(
 
     # Create order
 
+    order_number = await order_repository.generateOrderNumber(effective_role)
     order, _order_created = await order_repository.storage.create_idempotent(
         OrderInternalCreate(
+            order_number=order_number,
+            user_role=effective_role,
             user=current_user.id,
             session_id=current_user.session_id,
             items=[
@@ -1679,40 +1682,44 @@ async def create_order_service(
 
         # Create payment record
         user_for_payment = await user_repository.findById(current_user.id)
-        payment_data = {
-            "orderId": order.id,
-            # Use userId instead of customerId
-            "userId": str(user_for_payment.user_id),
-            "customerName": user_for_payment.name,
-            "orderDate": order.created_at if isinstance(order.created_at, str) else str(order.created_at),
-            "paymentMethod": order_data.payment_method,
-            "totalAmount": total,
-        }
+        from app.models.daos import PaymentInternalCreate, PaymentEntryInternal
+        
+        payment_entries = []
+        amount_paid = 0.0
+        amount_remaining = total
 
         # Set payment amounts and entries based on payment method
         if order_data.payment_method == "upi":
             # UPI: Paid upfront, amount remaining is 0
-            payment_data["amountPaid"] = total
-            payment_data["amountRemaining"] = 0
-            payment_data["paymentEntries"] = [
-                {
-                    "entryId": 1,
-                    "amount": total,
-                    "image": screenshot_path,
-                    "verified": False,
-                    "createdAt": order.created_at.isoformat() if order.created_at else None,
-                }
+            amount_paid = total
+            amount_remaining = 0.0
+            payment_entries = [
+                PaymentEntryInternal(
+                    entry_id=1,
+                    amount=total,
+                    image=screenshot_path,
+                    verified=False,
+                    created_at=order.created_at
+                )
             ]
         elif order_data.payment_method == "credit":
             # Credit: Not paid yet, full amount remaining, no entry until settlement
-            payment_data["amountPaid"] = 0
-            payment_data["amountRemaining"] = total
-            payment_data["paymentEntries"] = []
+            pass
         else:
             # COD: Not paid yet, full amount remaining, no entry until delivery
-            payment_data["amountPaid"] = 0
-            payment_data["amountRemaining"] = total
-            payment_data["paymentEntries"] = []
+            pass
+
+        payment_data = PaymentInternalCreate(
+            order_id=str(order.id),
+            user_id=str(user_for_payment.user_id),
+            customer_name=user_for_payment.name,
+            order_date=order.created_at if isinstance(order.created_at, str) else str(order.created_at),
+            payment_method=order_data.payment_method,
+            total_amount=total,
+            amount_paid=amount_paid,
+            amount_remaining=amount_remaining,
+            payment_entries=payment_entries,
+        )
 
         payment = await payment_repository.create(payment_data)
 
@@ -1935,7 +1942,10 @@ async def create_order_service(
             )
             # Refresh populated_order to include subOrderIds
             updated_parent = await order_repository.findById(str(order.id))
+            updated_parent = await order_repository.findById(str(order.id))
+            print(f"DEBUG: updated_parent={updated_parent}")
             populated_order = await populate_order(updated_parent)
+            print(f"DEBUG: populated_order={populated_order}")
     except Exception as sub_err:
         logger.error(
             "Sub-order creation failed (parent order %s still valid): %s", order.id, str(sub_err), exc_info=True

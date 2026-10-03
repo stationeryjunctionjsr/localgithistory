@@ -7,7 +7,7 @@ try:
 except ImportError:
     pass
 from app.models.daos_flat import CouponInternalCreate
-from app.models.schemas import CouponCreateInternal
+from app.models.schemas import CouponCreateInternal, ItemSnippet
 import pytest
 from app.repositories.product_repository import product_repository
 from app.repositories.coupon_repository import coupon_repository
@@ -58,8 +58,8 @@ async def test_bxgy_deal_sorting_and_allocation():
 
     try:
         cart_items = [
-            {"product": str(p1.id), "quantity": 1},  # 1000
-            {"product": str(p2.id), "quantity": 3},  # 200 * 3
+            ItemSnippet(product_id=str(p1.id), quantity=1),  # 1000
+            ItemSnippet(product_id=str(p2.id), quantity=3),  # 200 * 3
         ]
 
         validation = await coupon_repository.validateCoupon(

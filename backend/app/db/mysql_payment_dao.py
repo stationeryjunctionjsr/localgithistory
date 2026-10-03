@@ -100,12 +100,14 @@ class MySQLPaymentDAO:
         where_clauses = []
         params = {}
         if query:
-            if "orderId" in query and query["orderId"]:
+            oid = query.get("orderId") or query.get("order_id")
+            if oid:
                 where_clauses.append("order_id = :order_id")
-                params["order_id"] = query["orderId"]
-            if "userId" in query and query["userId"]:
+                params["order_id"] = oid
+            uid = query.get("userId") or query.get("user_id")
+            if uid:
                 where_clauses.append("user_id = :user_id")
-                params["user_id"] = query["userId"]
+                params["user_id"] = uid
             if "allowed_order_ids" in query:
                 allowed_order_ids = query["allowed_order_ids"]
                 if not allowed_order_ids:
