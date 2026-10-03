@@ -72,8 +72,12 @@ class AnalyticsRepository:
     @cache.ttl_cache(ttl=300)
     async def get_kpi_metrics(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict:
         """Get KPI metrics: Gross sales, Returning customer rate, Orders fulfilled, Orders"""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         await self.user_storage.findAll()
 
@@ -134,8 +138,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Get sales over time, grouped by hour, day, or month"""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
         orders = self._filter_by_seller(orders, seller_id)
 
 
@@ -176,8 +184,12 @@ class AnalyticsRepository:
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> Dict:
         """Get sales breakdown: Gross sales, Discounts, Returns, Net sales, Shipping, Taxes"""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         gross_sales = 0
         total_discounts = 0
@@ -218,8 +230,12 @@ class AnalyticsRepository:
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, group_by: str = "hour"
     ) -> List[Dict]:
         """Get average order value over time"""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         from pydantic import BaseModel
         class OrderPeriodStats(BaseModel):
@@ -257,8 +273,12 @@ class AnalyticsRepository:
         self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ) -> List[Dict]:
         """Get sales by sales channel"""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
 
         sales_by_channel = {"desktop_web": 0, "mobile_web": 0, "mobile_app": 0}
 
@@ -282,8 +302,12 @@ class AnalyticsRepository:
         seller_id: Optional[str] = None,
     ) -> List[Dict]:
         """Get top products by sales"""
-        orders = await self.order_storage.findAll()
-        orders = self._filter_by_date_range(orders, start_date, end_date)
+        query: Dict = {}
+        if start_date:
+            query["start_date"] = start_date.isoformat()
+        if end_date:
+            query["end_date"] = end_date.isoformat()
+        orders = await self.order_storage.findAll(query or None)
         orders = self._filter_by_seller(orders, seller_id)
 
         products = await self.product_storage.findAll()
