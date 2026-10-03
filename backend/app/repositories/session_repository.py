@@ -57,12 +57,23 @@ class SessionRepository:
         )
 
     async def revoke_other_sessions(self, user_id: str, exclude_session_id: Optional[str] = None) -> List[Session]:
-        sessions = await self.storage.findAll()
-        updated = []
-        for s in sessions:
-            if s.user_id == user_id and s.id != exclude_session_id and s.status == "active":
-                updated.append(await self.revoke_session(s.id, "single_session"))
-        return updated
+        """Revoke all active sessions for a user except the given one.
+
+        Delegates to the DAO's bulk UPDATE when available (MySQL), which runs a
+        single SQL statement instead of findAll() + N individual UPDATEs.
+        """
+        try:
+            # Fast path: single SQL UPDATE (MySQL DAO)
+            await self.storage.revoke_active_for_user(user_id, "single_session", exclude_session_id)
+            return []  # callers only check for exceptions; return value is unused
+        except AttributeError:
+            # Fallback for non-MySQL backends
+            sessions = await self.storage.findAll()
+            updated = []
+            for s in sessions:
+                if s.user_id == user_id and s.id != exclude_session_id and s.status == "active":
+                    updated.append(await self.revoke_session(s.id, "single_session"))
+            return updated
 
     async def touch_last_active(self, session_id: str):
         await self.update_session(session_id, SessionInternalUpdate(last_active_at=datetime.now(timezone.utc).isoformat()))
