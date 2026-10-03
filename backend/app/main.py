@@ -107,6 +107,57 @@ def _try_acquire_scheduler_lock() -> bool:
         return False
 
 
+# ── SINGLE-VM SCHEDULER ELECTION (file-lock) — active ────────────────────────
+# Keeps exactly one uvicorn worker running the scheduler within this VM.
+#
+# WHEN SCALING TO MULTIPLE VMs — replace the entire lifespan() and election
+# block with the commented-out version below:
+#
+# Step 1: Delete _try_acquire_scheduler_lock() and _SCHEDULER_LOCK_FD above.
+# Step 2: Replace lifespan() with the multi-VM version commented out below.
+# Step 3: In scheduler.py call start_recommendation_scheduler_multi_vm()
+#         instead of start_recommendation_scheduler() (see scheduler.py:150).
+#
+# ── MULTI-VM lifespan (commented out — activate when scaling to multiple VMs) ─
+#
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     import asyncio
+#     from app.utils.startup import deferred_segment_seed, warm_critical_caches
+#     from app.utils.cache import cache as _cache
+#
+#     # ── Scheduler ────────────────────────────────────────────────────────────
+#     # All workers call this freely — SQLAlchemyJobStore (MySQL) guarantees
+#     # exactly-once execution per tick via DB row locking across all VMs.
+#     # No file-lock election needed.
+#     from app.jobs.scheduler import start_recommendation_scheduler_multi_vm
+#     start_recommendation_scheduler_multi_vm()
+#
+#     # ── Per-worker startup tasks ─────────────────────────────────────────────
+#     # These are correct to run in every worker on every VM:
+#
+#     # Seed system customer segments (idempotent — safe to run from N workers).
+#     asyncio.create_task(deferred_segment_seed())
+#
+#     # Pre-warm this worker's DB connection pool and in-process caches.
+#     asyncio.create_task(warm_critical_caches())
+#
+#     # ── Redis pub/sub cache invalidation ─────────────────────────────────────
+#     # Each worker subscribes independently so it can clear its own local store.
+#     # Also uncomment the two _redis_publish() lines in cache.py → invalidate().
+#     # Requires: REDIS_URL env var + pip install aioredis
+#     asyncio.create_task(_cache.start_invalidation_listener())
+#
+#     yield
+#     import app.config.database as db_config
+#     engine = db_config.get_async_engine()
+#     if engine:
+#         await engine.dispose()
+#         db_config._async_engine = None
+#     logger.info("Application shutting down")
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
@@ -136,6 +187,17 @@ async def lifespan(app: FastAPI):
     # all four benefit from independent warm-up.
     asyncio.create_task(warm_critical_caches())
 
+    # ── MULTI-VM: Redis pub/sub cache invalidation listener ───────────────────
+    # Uncomment when REDIS_URL is set and multi-VM is active.
+    # Run in EVERY worker (not under _is_elected_worker) so each process can
+    # clear its own local cache when another worker/VM publishes an invalidation.
+    # Also uncomment the two _redis_publish() lines in cache.py → invalidate().
+    #
+    # from app.utils.cache import cache as _cache
+    # asyncio.create_task(_cache.start_invalidation_listener())
+    #
+    # ─────────────────────────────────────────────────────────────────────────
+
     yield
     import app.config.database as db_config
     engine = db_config.get_async_engine()
@@ -144,6 +206,7 @@ async def lifespan(app: FastAPI):
         db_config._async_engine = None
 
     logger.info("Application shutting down")
+
 
 
 app = FastAPI(title="Stationery Junction API", version="1.0.0", lifespan=lifespan)
