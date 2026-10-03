@@ -352,6 +352,18 @@ async def get_recent_searches(
     return await tracking_repository.getRecentUserSearches(user_id, session_id, limit)
 
 
+@router.get("/recent-products")
+async def get_recent_products(
+    session_id: Optional[str] = None,
+    limit: int = Query(10, ge=1, le=20),
+    current_user: Optional[User] = Depends(get_optional_user),
+    req: Request = None,
+):
+    """Return recently viewed products for a user/session — used by search dropdowns and carousels."""
+    user_id = current_user.id if current_user else None
+    return await tracking_repository.getRecentlyViewedProducts(user_id, session_id, limit)
+
+
 @router.delete("/recent", response_model=MessageResponse)
 async def clear_recent_searches(
     session_id: Optional[str] = None,

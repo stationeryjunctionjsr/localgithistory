@@ -338,6 +338,77 @@ class TrackingRepository:
             count += 1
         return count
 
+    async def getRecentlyViewedProducts(
+        self,
+        user_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        limit: int = 10,
+    ) -> list:
+        """
+        Return the most recently viewed distinct products for a user or session.
+        Joins with the products table to pull displayImage and price.
+        Falls back gracefully if the product record is not found.
+        """
+        from app.db.storage_factory import get_storage
+
+        query: dict = {"type": "product_view"}
+        if user_id:
+            query["userId"] = str(user_id)
+        elif session_id:
+            query["sessionId"] = session_id
+        else:
+            return []
+
+        views = await self.findAll(query, limit=500)
+
+        # Sort newest-first, dedupe by product_id keeping first occurrence
+        views_sorted = sorted(
+            views,
+            key=lambda v: v.timestamp if v.timestamp else "",
+            reverse=True,
+        )
+        seen: set = set()
+        unique: list = []
+        for v in views_sorted:
+            pid = v.product_id
+            if pid and pid not in seen:
+                seen.add(pid)
+                unique.append(v)
+            if len(unique) >= limit:
+                break
+
+        if not unique:
+            return []
+
+        # Enrich with product data (image + price)
+        product_ids = [v.product_id for v in unique]
+        product_storage = get_storage("products")
+        try:
+            products = await product_storage.findAll({"_id": {"$in": product_ids}})
+            product_map = {str(p.id): p for p in products}
+        except Exception:
+            product_map = {}
+
+        result = []
+        for v in unique:
+            pid = v.product_id
+            product = product_map.get(str(pid))
+            display_image = None
+            price = None
+            if product:
+                imgs = getattr(product, "images", None) or []
+                if imgs:
+                    display_image = imgs[0] if isinstance(imgs[0], str) else getattr(imgs[0], "url", None)
+                price = getattr(product, "price", None)
+            result.append({
+                "productId": pid,
+                "productName": v.product_name or (product.name if product else ""),
+                "displayImage": display_image,
+                "price": float(price) if price is not None else None,
+            })
+
+        return result
+
     async def getTopProducts(
         self, limit: int = 10, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
     ):

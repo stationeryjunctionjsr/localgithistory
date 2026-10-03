@@ -24,6 +24,7 @@ import { getMinimumQuantity } from '@/utils/priceCalculator';
 import { useShare } from '@/hooks/useShare';
 import Header from '@/components/Header';
 import ProductCarousel from '@/components/ProductCarousel';
+import RecentlyViewed from '@/components/RecentlyViewed';
 import styles from '@/app/customer/product/[id]/ProductDetail.module.css';
 import { toast } from 'react-toastify';
 import AuthModal from '@/components/AuthModal';
@@ -1411,6 +1412,16 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
               />
             </div>
           )}
+
+          {/* Recently Viewed Section */}
+          <div className="mt-12 w-full border-t border-gray-100 pt-8 pb-4">
+            <RecentlyViewed
+              basePath={getListingPath()}
+              limit={8}
+              excludeProductId={id}
+              title="Recently Viewed"
+            />
+          </div>
 
           {/* Bundles Section */}
           {bundles.length > 0 && (

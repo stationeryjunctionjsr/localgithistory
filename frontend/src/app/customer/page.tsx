@@ -42,9 +42,11 @@ export default async function CustomerDashboardPage() {
     googleRatingRes,
   ] = await Promise.all([
     fetch(`${baseURL}/products/public`, fetchOptions).catch(() => null),
-    fetch(`${baseURL}/categories/public?forHomepage=true`, fetchOptions).catch(() => null),
+    // forHomepage flag commented out — all zone-available categories now show on homepage; display is row-limited in the UI
+    fetch(`${baseURL}/categories/public`, fetchOptions).catch(() => null),
     fetch(`${baseURL}/category-tags/active`, fetchOptions).catch(() => null),
-    fetch(`${baseURL}/brands/public?forHomepage=true`, fetchOptions).catch(() => null),
+    // forHomepage flag commented out — all zone-available brands now show on homepage; display is row-limited in the UI
+    fetch(`${baseURL}/brands/public`, fetchOptions).catch(() => null),
     fetch(`${baseURL}/collections/public?visiblePage=Home&pageType=Home`, fetchOptions).catch(
       () => null
     ),
@@ -87,13 +89,14 @@ export default async function CustomerDashboardPage() {
   if (categoriesRaw?.data) categories = categoriesRaw.data;
   else if (Array.isArray(categoriesRaw)) categories = categoriesRaw;
 
-  // Format active categories purely as needed
+  // Format active categories — preserve categoryTag so the frontend can build tag→category lookups for filtering
   categories = categories
     .filter((cat: any) => cat.isActive !== false)
     .map((cat: any) => ({
       name: cat.name,
       images: cat.images && cat.images.length > 0 ? cat.images : [],
       description: cat.description || '',
+      categoryTag: cat.categoryTag || cat.category_tag || '',
     }));
 
   const brands = Array.isArray(brandsRaw) ? brandsRaw : brandsRaw?.brands || [];

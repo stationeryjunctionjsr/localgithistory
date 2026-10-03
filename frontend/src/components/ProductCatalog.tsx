@@ -15,6 +15,7 @@ import { usePincode } from '@/context/PincodeContext';
 import UnserviceableLocationBanner from '@/components/UnserviceableLocationBanner';
 import { logger } from '@/utils/logger';
 import { useSellerAvailability, formatUnavailableUntil } from '@/hooks/useSellerAvailability';
+import RecentlyViewed from '@/components/RecentlyViewed';
 
 
 // pageMode controls what appears as chips (on the page) vs. filters (in sidebar):
@@ -1721,6 +1722,11 @@ export default function ProductCatalog({
                     <PopularProductsFallback />
                   </div>
                 )}
+
+                {/* Recently Viewed Fallback */}
+                <div className="mt-8 border-t border-gray-100 pt-6">
+                  <RecentlyViewed basePath={basePath} limit={8} title="Continue Browsing" />
+                </div>
               </div>
             ) : (
               <>

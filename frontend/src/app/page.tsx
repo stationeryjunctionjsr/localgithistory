@@ -54,9 +54,11 @@ export default async function Home() {
     fetch(`${baseURL}/banners/public?position=homepage_web&userRole=guest`, fetchOptions).catch(
       () => null
     ),
-    fetch(`${baseURL}/categories/public?forHomepage=true`, fetchOptions).catch(() => null),
+    // forHomepage flag commented out — all zone-available categories now show on homepage; display is row-limited in the UI
+    fetch(`${baseURL}/categories/public`, fetchOptions).catch(() => null),
     fetch(`${baseURL}/category-tags/active`, fetchOptions).catch(() => null),
-    fetch(`${baseURL}/brands/public?forHomepage=true`, fetchOptions).catch(() => null),
+    // forHomepage flag commented out — all zone-available brands now show on homepage; display is row-limited in the UI
+    fetch(`${baseURL}/brands/public`, fetchOptions).catch(() => null),
     fetch(`${baseURL}/collections/public?visiblePage=Home&pageType=Home`, fetchOptions).catch(
       () => null
     ),
@@ -99,7 +101,7 @@ export default async function Home() {
   // Format data
   const products = productsRaw?.products || productsRaw || [];
 
-  // Format categories
+  // Format categories — preserve categoryTag so the frontend can build tag→category lookups for filtering
   let categories: any[] = [];
   if (categoriesRaw && Array.isArray(categoriesRaw)) {
     categories = categoriesRaw
@@ -108,6 +110,7 @@ export default async function Home() {
         name: cat.name,
         images: cat.images && cat.images.length > 0 ? cat.images : [],
         description: cat.description || '',
+        categoryTag: cat.categoryTag || cat.category_tag || '',
       }));
   }
 

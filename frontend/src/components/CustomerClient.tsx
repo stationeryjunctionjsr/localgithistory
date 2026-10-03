@@ -122,37 +122,51 @@ export default function CustomerClient({
     return counts;
   }, [products]);
 
-  /** Distinct categories present across ALL recommendation sections combined. */
-  const recoCategoryOptions = useMemo(() => {
-    const cats = new Set<string>();
-    [...newArrivals, ...customerFavourites, ...trendingNow, ...explore].forEach((p: any) => {
-      const cat = typeof p.category === 'object' ? p.category?.name : p.category;
-      if (cat) cats.add(cat);
+  /** tag name → set of category names that belong to that tag (built from loaded categories) */
+  const tagToCategoryNames = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    categories.forEach((cat: any) => {
+      const tag = cat.categoryTag || cat.category_tag;
+      if (tag) {
+        if (!map.has(tag)) map.set(tag, new Set());
+        map.get(tag)!.add(cat.name);
+      }
     });
-    return Array.from(cats).sort();
-  }, [newArrivals, customerFavourites, trendingNow, explore]);
+    return map;
+  }, [categories]);
 
-  /** Distinct subcategories for the currently selected category. */
+  /** Filter pill options — active category tags (e.g. "Stationery", "Toys", "Food") */
+  const recoCategoryOptions = useMemo(() => {
+    return categoryTags
+      .filter((t: any) => t.isActive !== false && t.name)
+      .map((t: any) => t.name as string);
+  }, [categoryTags]);
+
+  /** Distinct subcategories within the products of the selected category tag */
   const recoSubCategoryOptions = useMemo(() => {
     if (!selectedRecoCategory) return [];
+    const catNames = tagToCategoryNames.get(selectedRecoCategory);
+    if (!catNames || catNames.size === 0) return [];
     const subs = new Set<string>();
     [...newArrivals, ...customerFavourites, ...trendingNow, ...explore].forEach((p: any) => {
       const cat = typeof p.category === 'object' ? p.category?.name : p.category;
-      if (cat === selectedRecoCategory && p.sub_category) subs.add(p.sub_category);
+      if (catNames.has(cat) && p.sub_category) subs.add(p.sub_category);
     });
     return Array.from(subs).sort();
-  }, [selectedRecoCategory, newArrivals, customerFavourites, trendingNow, explore]);
+  }, [selectedRecoCategory, tagToCategoryNames, newArrivals, customerFavourites, trendingNow, explore]);
 
-  /** Products filtered by the selected reco category — used for StatsCounter. */
+  /** All products whose category belongs to the selected tag — used for StatsCounter & brand filtering */
   const filteredStatsProducts = useMemo(() => {
     if (!selectedRecoCategory) return products;
+    const catNames = tagToCategoryNames.get(selectedRecoCategory);
+    if (!catNames || catNames.size === 0) return products;
     return products.filter((p: any) => {
       const cat = typeof p.category === 'object' ? p.category?.name : p.category;
-      return cat === selectedRecoCategory;
+      return catNames.has(cat);
     });
-  }, [selectedRecoCategory, products]);
+  }, [selectedRecoCategory, tagToCategoryNames, products]);
 
-  /** Distinct brand count within the filtered product set. */
+  /** Distinct brand count within the filtered product set */
   const filteredStatsBrandCount = useMemo(() => {
     if (!selectedRecoCategory) return brands.length;
     const brandNames = new Set<string>();
@@ -163,16 +177,19 @@ export default function CustomerClient({
     return brandNames.size || brands.length;
   }, [selectedRecoCategory, filteredStatsProducts, brands]);
 
-  /** Filter a list of recommendation products by the active category/subcategory pills. */
+  /** Filter recommendation items by the active category tag (and optional subcategory) */
   const applyRecoFilter = (items: any[]) => {
     if (!selectedRecoCategory) return items;
+    const catNames = tagToCategoryNames.get(selectedRecoCategory);
+    if (!catNames || catNames.size === 0) return items;
     return items.filter((p: any) => {
       const cat = typeof p.category === 'object' ? p.category?.name : p.category;
-      if (cat !== selectedRecoCategory) return false;
+      if (!catNames.has(cat)) return false;
       if (selectedRecoSubCategory && p.sub_category !== selectedRecoSubCategory) return false;
       return true;
     });
   };
+
 
   // Detect mobile view
   useEffect(() => {
@@ -442,9 +459,38 @@ export default function CustomerClient({
       router.push(`/categories/${encodeURIComponent(category)}`);
     }
   };
-  const visibleCategories = availableCatalog ? categories.filter(c => availableCatalog.categoryNames.includes(c.name)) : categories;
+  const visibleCategories = useMemo(() => {
+    let cats = availableCatalog
+      ? categories.filter((c) => availableCatalog.categoryNames.includes(c.name))
+      : categories;
+    // When a category tag filter is active, only show categories belonging to that tag
+    if (selectedRecoCategory) {
+      const catNames = tagToCategoryNames.get(selectedRecoCategory);
+      if (catNames && catNames.size > 0) {
+        cats = cats.filter((c: any) => catNames.has(c.name));
+      }
+    }
+    return cats;
+  }, [availableCatalog, categories, selectedRecoCategory, tagToCategoryNames]);
+
   const visibleCollections = availableCatalog ? collections.filter(c => availableCatalog.collectionNames.includes(c.name)) : collections;
-  const visibleBrands = availableCatalog ? brands.filter((b: any) => availableCatalog.brandNames.includes(b.name || b)) : brands;
+
+  const visibleBrands = useMemo(() => {
+    let brs = availableCatalog
+      ? brands.filter((b: any) => availableCatalog.brandNames.includes(b.name || b))
+      : brands;
+    // When a category tag filter is active, only show brands that have products in that tag
+    if (selectedRecoCategory) {
+      const brandNamesInTag = new Set(
+        filteredStatsProducts
+          .map((p: any) => (typeof p.brand === 'object' ? p.brand?.name : p.brand))
+          .filter(Boolean)
+      );
+      brs = brs.filter((b: any) => brandNamesInTag.has(b.name || b));
+    }
+    return brs;
+  }, [availableCatalog, brands, selectedRecoCategory, filteredStatsProducts]);
+
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
@@ -618,74 +664,6 @@ export default function CustomerClient({
             const ordered = [...(newArrSec && newArrSec.show ? [newArrSec] : []), ...rest];
             return (
               <>
-                {/* ── Category / Subcategory Filter Pills ── */}
-                {recoCategoryOptions.length > 1 && (
-                  <div className="mb-8 -mx-1">
-                    {/* Category pills */}
-                    <div className="flex flex-wrap gap-2 px-1">
-                      <button
-                        onClick={() => {
-                          setSelectedRecoCategory(null);
-                          setSelectedRecoSubCategory(null);
-                        }}
-                        className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${
-                          !selectedRecoCategory
-                            ? 'border-[#1a4d33] bg-[#1a4d33] text-white shadow-sm'
-                            : 'border-gray-200 bg-white text-gray-600 hover:border-[#1a4d33] hover:text-[#1a4d33]'
-                        }`}
-                      >
-                        All
-                      </button>
-                      {recoCategoryOptions.map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={() => {
-                            setSelectedRecoCategory(cat === selectedRecoCategory ? null : cat);
-                            setSelectedRecoSubCategory(null);
-                          }}
-                          className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-all ${
-                            selectedRecoCategory === cat
-                              ? 'border-[#1a4d33] bg-[#1a4d33] text-white shadow-sm'
-                              : 'border-gray-200 bg-white text-gray-600 hover:border-[#1a4d33] hover:text-[#1a4d33]'
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
-                    {/* Subcategory pills — shown only when a category is active */}
-                    {selectedRecoCategory && recoSubCategoryOptions.length > 1 && (
-                      <div className="mt-2 flex flex-wrap gap-2 px-1">
-                        <button
-                          onClick={() => setSelectedRecoSubCategory(null)}
-                          className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-all ${
-                            !selectedRecoSubCategory
-                              ? 'border-amber-500 bg-amber-500 text-white'
-                              : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-400 hover:text-amber-600'
-                          }`}
-                        >
-                          All {selectedRecoCategory}
-                        </button>
-                        {recoSubCategoryOptions.map((sub) => (
-                          <button
-                            key={sub}
-                            onClick={() =>
-                              setSelectedRecoSubCategory(sub === selectedRecoSubCategory ? null : sub)
-                            }
-                            className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-all ${
-                              selectedRecoSubCategory === sub
-                                ? 'border-amber-500 bg-amber-500 text-white'
-                                : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-amber-400 hover:text-amber-600'
-                            }`}
-                          >
-                            {sub}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {/* Empty state when the selected filter yields no results */}
                 {ordered.length === 0 && selectedRecoCategory && (
                   <div className="mb-16 flex flex-col items-center gap-3 py-16 text-center text-gray-400">
@@ -693,7 +671,7 @@ export default function CustomerClient({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z" />
                     </svg>
                     <p className="text-sm font-medium">
-                      No trending items in{' '}
+                      No recommendations in{' '}
                       <span className="font-semibold text-gray-600">
                         {selectedRecoSubCategory || selectedRecoCategory}
                       </span>{' '}
@@ -710,6 +688,7 @@ export default function CustomerClient({
                     </button>
                   </div>
                 )}
+
 
                 {ordered.map((sec) => (
                   <section key={sec.key} ref={sec.ref} className="mb-20">
@@ -934,7 +913,7 @@ export default function CustomerClient({
               </div>
 
               <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-6 md:gap-5 lg:grid-cols-8">
-                {visibleCategories.slice(0, 24).map((cat, index) => (
+                {visibleCategories.slice(0, isMobile ? 9 : 16).map((cat, index) => (
                   <button
                     type="button"
                     key={cat.name}
