@@ -1,0 +1,17 @@
+﻿tests/test_bxgy_deal_rules.py
+tests/test_coupon_mode.py
+tests/test_delivery_zones_and_checkout.py
+tests/test_e2e.py
+tests/test_full_integrated_e2e.py
+tests/test_multiseller_coupon_payout.py
+tests/test_multiseller_e2e.py
+tests/test_notifications_optimization.py
+tests/test_orders_optimization.py
+tests/test_overall_optimization.py
+tests/test_payouts_e2e.py
+tests/test_products_filtering.py
+tests/test_referrals.py
+tests/test_returns_e2e.py
+tests/test_reviews_notifications.py
+tests/test_shipping_discount_logic.py
+tests/test_wholesaler_dues.py
