@@ -150,6 +150,38 @@ class MySQLTrackingDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
 
+    async def find_by_date_range(
+        self,
+        event_type: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List['Tracking']:
+        """Return tracking rows filtered by event_type and/or date range at SQL level.
+        Far more efficient than findAll() + Python filtering for analytics queries."""
+        factory = self._factory()
+        if not factory:
+            return []
+        where_clauses = []
+        params: Dict[str, Any] = {}
+        if event_type:
+            where_clauses.append("event_type = :event_type")
+            params["event_type"] = event_type
+        if start_date:
+            where_clauses.append("event_timestamp >= :start_date")
+            params["start_date"] = start_date
+        if end_date:
+            where_clauses.append("event_timestamp <= :end_date")
+            params["end_date"] = end_date
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        async with factory() as session:
+            res = await session.execute(
+                text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
+                params,
+            )
+            rows = res.fetchall()
+            c_map = await self._fetch_children(session, [r.id for r in rows])
+        return [self._row_to_tracking(r, c_map[r.id]) for r in rows]
+
     async def findOne(self, query: dict) -> Optional['AnalyticsEvent']:
         docs = await self.findAll(query)
         return docs[0] if docs else None
