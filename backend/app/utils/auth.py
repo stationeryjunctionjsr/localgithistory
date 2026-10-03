@@ -246,6 +246,54 @@ async def get_optional_user(
         return None
 
 
+# A minimal stub returned by get_optional_user_lightweight so callers can use
+# the same `.id` attribute pattern as a full User object.
+class _LightweightUser:
+    """Minimal user object populated from JWT claims only (no DB lookup)."""
+    __slots__ = ("id", "session_id", "role")
+
+    def __init__(self, user_id: str, session_id: str):
+        self.id = user_id
+        self.session_id = session_id
+        self.role = None  # role unknown — not fetched from DB
+
+
+async def get_optional_user_lightweight(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_security),
+) -> Optional[_LightweightUser]:
+    """JWT-only auth dependency — NO database queries.
+
+    Decodes the access token and returns a lightweight object with ``id`` and
+    ``session_id`` populated from JWT claims.  Returns ``None`` when no token
+    is present or the token is invalid/expired.
+
+    Use this on high-volume, fire-and-forget endpoints (tracking, beacon, page
+    views) where the user identity is needed only for attribution logging and a
+    full session validation + user row fetch is unnecessary overhead.
+
+    Do NOT use on endpoints that need to enforce session validity, role checks,
+    or that read/write user-specific data.
+    """
+    token = _extract_token(request, credentials)
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "access":
+            return None
+        user_id: Optional[str] = payload.get("userId")
+        session_id: Optional[str] = payload.get("sessionId")
+        if not user_id or not session_id:
+            return None
+        return _LightweightUser(user_id, session_id)
+    except JWTError:
+        return None
+    except Exception as e:
+        logger.warning("Lightweight auth decode failed: %s", str(e))
+        return None
+
+
 async def require_super_admin(current_user: 'User' = Depends(get_current_user)) -> 'User':
     """
     Require super_admin role.
