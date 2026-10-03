@@ -217,7 +217,7 @@ async def unified_request_middleware(request: Request, call_next):
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' https://cdnjs.cloudflare.com; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "style-src 'self' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: blob: https://*.oraclecloud.com https://maps.googleapis.com https://maps.gstatic.com; "
         "connect-src 'self' https://api.msg91.com https://maps.googleapis.com; "
@@ -508,6 +508,14 @@ async def touch_session_middleware(request: Request, call_next):
             algorithms=["HS256"],
             options={"verify_exp": False},
         )
+        # SEC-9: Skip touch() for tokens expired more than 5 minutes ago.
+        # Within the 5-minute grace window the client is mid-refresh cycle;
+        # beyond it the token is genuinely stale and the route's get_current_user()
+        # will reject it anyway — no point writing to the DB.
+        import time as _time
+        exp = payload.get("exp")
+        if exp and (_time.time() - exp) > 300:
+            return await call_next(request)
         session_id = payload.get("sessionId")
         if session_id:
             device = parse_device(request, default_type="web")

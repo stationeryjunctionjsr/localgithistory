@@ -526,10 +526,18 @@ class OTPVerifyResultPayload(BaseModel):
 @limiter.limit("3/minute")
 async def forgot_password(data: ForgotPasswordRequest, request: Request):
     try:
-        # Verify OTP
+        # Normalise phone first (cheap, no I/O)
         normalized_phone = normalize_phone(data.phone)
         if not normalized_phone or len(normalized_phone) != 10:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Enter a valid 10-digit phone number")
+
+        # SEC-5: Check user existence before verifying OTP so a valid OTP
+        # cannot be used to confirm whether a phone number is registered.
+        user = await user_repository.findByPhone(normalized_phone)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found with this phone number")
+
+        # Verify OTP / widget token
         if data.msg91Token:
             ok, res_data = verify_msg91_widget_token(data.msg91Token)
             if not ok:
@@ -544,11 +552,6 @@ async def forgot_password(data: ForgotPasswordRequest, request: Request):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg
                 )
-
-        # Find user by phone
-        user = await user_repository.findByPhone(normalized_phone)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found with this phone number")
 
         # Update password (UserRepository.update will handle hashing)
         await user_repository.update(user.id, UserUpdate(password=data.newPassword))

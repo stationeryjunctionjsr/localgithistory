@@ -24,10 +24,11 @@ class EmailLogHandler(logging.Handler):
                 return
 
             message = self.format(record)
-            # Create a hash of the message (ignoring unique parts like user IDs)
-            # We use the first 100 characters + level
+            # Create a hash of the message (ignoring unique parts like user IDs).
+            # SEC-7: Use SHA-256 instead of MD5 for consistency — this is for
+            # bucketing only (not crypto), but SHA-256 is preferred by convention.
             msg_key = f"{record.levelno}:{record.msg[:100]}"
-            error_hash = hashlib.md5(msg_key.encode()).hexdigest()
+            error_hash = hashlib.sha256(msg_key.encode()).hexdigest()
 
             now = datetime.now()
             error_data = notified_errors_data[error_hash] if error_hash in notified_errors_data else None
@@ -54,8 +55,11 @@ class EmailLogHandler(logging.Handler):
             occurrence_count = error_data["occurrences"]
             is_resource_alert = "System Resource Alert" in message
 
-            # 1. Check Threshold: fire if 5+ unique users OR 20+ occurrences (catches single-user bursts)
-            if not is_resource_alert and user_count < 5 and occurrence_count < 20:
+            # ANA-4: Threshold is per-worker.  With up to 4 Uvicorn workers each
+            # tracking state independently, we lower the per-worker occurrence
+            # threshold from 20 → 5 so that ~20 total occurrences across workers
+            # still triggers an alert (same logical sensitivity as before).
+            if not is_resource_alert and user_count < 5 and occurrence_count < 5:
                 return
 
             # 2. Check Throttling (once per 6 hours)
@@ -122,35 +126,38 @@ def check_system_resources():
         logging.getLogger("stationery_junction").error("Error checking system resources: %s", str(e), exc_info=True)
 
 
-async def check_db_usage(db_session):
-    """DB usage check — currently a no-op (Oracle tablespace query removed)."""
-    return
+async def check_db_usage(db_session) -> None:
+    """ANA-7: Check MySQL connection-pool utilisation and log a warning if it exceeds 80%.
 
+    The previous Oracle tablespace implementation has been replaced with a MySQL
+    INFORMATION_SCHEMA query against the global `Threads_connected` and
+    `max_connections` status variables.
+    """
+    resource_logger = logging.getLogger("stationery_junction")
     try:
-        # Query to check tablespace usage
-        query = text("""
-            SELECT tablespace_name, used_percent
-            FROM dba_tablespace_usage_metrics
-            WHERE used_percent > 80
-        """)
-        result = await db_session.execute(query)
-        for row in result:
-            logging.getLogger("stationery_junction").critical(
-                f"DB Resource Alert: Tablespace '{row.tablespace_name}' is >80% full. Current: {row.used_percent}%"
+        result = await db_session.execute(
+            text(
+                """
+                SELECT
+                    (SELECT VARIABLE_VALUE FROM performance_schema.global_status
+                     WHERE VARIABLE_NAME = 'Threads_connected') AS connected,
+                    (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
+                     WHERE VARIABLE_NAME = 'max_connections')    AS max_conn
+                """
             )
-
-        # Check session count
-        query_sessions = text("""
-            SELECT (SELECT count(*) FROM v$session) /
-                   (SELECT value FROM v$parameter WHERE name = 'sessions') * 100 as pct
-            FROM dual
-        """)
-        res_sessions = await db_session.execute(query_sessions)
-        pct = res_sessions.scalar()
-        if pct and pct > 80:
-            logging.getLogger("stationery_junction").critical(
-                f"DB Resource Alert: Session Limit is >80%. Current: {pct:.1f}%"
-            )
-
+        )
+        row = result.fetchone()
+        if row and row.max_conn:
+            connected = int(row.connected or 0)
+            max_conn = int(row.max_conn)
+            pct = (connected / max_conn) * 100 if max_conn else 0
+            if pct > 80:
+                resource_logger.critical(
+                    "System Resource Alert: MySQL connection pool >80%% utilised. "
+                    "Connected: %d / %d (%.1f%%)",
+                    connected,
+                    max_conn,
+                    pct,
+                )
     except Exception as e:
-        logging.getLogger("stationery_junction").warning(f"Failed to check DB usage: {e}")
+        logging.getLogger("stationery_junction").warning("Failed to check DB usage: %s", e, exc_info=True)
