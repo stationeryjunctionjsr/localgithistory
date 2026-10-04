@@ -329,6 +329,25 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Fetch delivery ETA data when pincode is set
+  useEffect(() => {
+    if (!pincode) { setEtaData(null); return; }
+    api.get('/delivery-charges/check-serviceability', { params: { pincode, userRole: user?.role || 'customer' } })
+      .then(res => {
+        const d = res.data || {};
+        if (d.isServiceable) {
+          setEtaData({
+            availableDates: d.availableDates || [],
+            urgentDeliveryAvailable: Boolean(d.urgentDeliveryAvailable),
+          });
+        } else {
+          setEtaData(null);
+        }
+      })
+      .catch(() => setEtaData(null));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pincode]);
+
   const fetchProduct = async () => {
     try {
       // Use public endpoint for unauthenticated users, private endpoint for authenticated
@@ -994,6 +1013,57 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* ── Delivery ETA ── */}
+              {pincode && isAvailableAtPincode && !isOutOfStock && !isSellerTimeOff && (
+                <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 dark:bg-gray-800/40 dark:border-gray-700 px-4 py-3">
+                  {etaData ? (
+                    <div className="flex flex-col gap-1.5">
+                      {/* Next available date */}
+                      {etaData.availableDates.length > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <svg className="h-4 w-4 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <div>
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                              Delivery by{' '}
+                              <span className="text-green-700 dark:text-green-400">
+                                {new Date(etaData.availableDates[0]).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                              </span>
+                            </span>
+                            <span className="ml-2 text-[10px] text-gray-400">to {pincode}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <svg className="h-4 w-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                          </svg>
+                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                            Deliverable to <span className="font-bold">{pincode}</span>
+                          </span>
+                        </div>
+                      )}
+                      {/* Urgent delivery badge */}
+                      {etaData.urgentDeliveryAvailable && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                            <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
+                            Express delivery available
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Pincode set but ETA not loaded yet — show skeleton */
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 rounded-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                      <div className="h-3 w-40 rounded bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                    </div>
+                  )}
                 </div>
               )}
 
