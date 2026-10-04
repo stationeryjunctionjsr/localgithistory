@@ -116,6 +116,8 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   const [requestAdded, setRequestAdded] = useState(false);
   const [notifyAdded, setNotifyAdded] = useState(false);
   const [pincodeActionLoading, setPincodeActionLoading] = useState<'request' | 'notify' | null>(null);
+  // Delivery ETA state
+  const [etaData, setEtaData] = useState<{ availableDates: string[]; urgentDeliveryAvailable: boolean } | null>(null);
 
   // Seller time-off state — derived from the zone-status map each render
   // (product state may be null on first render; defaults to "available")

@@ -174,6 +174,66 @@ export default function MyReturns() {
 
                 {/* Items */}
                 <div className="p-6">
+                  {/* Return Progress Stepper */}
+                  {(() => {
+                    const RETURN_STEPS = [
+                      { key: 'pending', label: 'Requested' },
+                      { key: 'pending_valet', label: 'Assigning\nPickup' },
+                      { key: 'assigned', label: 'Pickup\nAssigned' },
+                      { key: 'collected', label: 'Item\nCollected' },
+                      { key: 'returned', label: 'Refund\nProcessed' },
+                    ];
+                    const isRejected = req.status === 'rejected';
+                    const currentIdx = isRejected ? 0 : RETURN_STEPS.findIndex(s => s.key === req.status);
+                    const reachedIdx = currentIdx === -1 ? RETURN_STEPS.length - 1 : currentIdx;
+                    return (
+                      <div className="mb-6 pb-6 border-b border-gray-100 overflow-x-auto">
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Return Progress</p>
+                        <div className="flex items-start min-w-max">
+                          {RETURN_STEPS.map((step, idx) => {
+                            const isReached = idx <= reachedIdx;
+                            const isCurrent = idx === reachedIdx && !isRejected;
+                            const isLast = idx === RETURN_STEPS.length - 1;
+                            return (
+                              <div key={step.key} className="flex items-start">
+                                <div className="flex flex-col items-center">
+                                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 border-2 ${
+                                    isCurrent ? 'bg-violet-600 border-violet-600 ring-2 ring-violet-300 ring-offset-1' :
+                                    isReached ? 'bg-green-500 border-green-500' : 'bg-white border-gray-200'
+                                  }`}>
+                                    {isReached && !isCurrent ? (
+                                      <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    ) : isCurrent ? (
+                                      <span className="w-2 h-2 rounded-full bg-white" />
+                                    ) : null}
+                                  </div>
+                                  <p className={`mt-1 text-[10px] font-medium text-center w-16 leading-tight whitespace-pre-line ${
+                                    isCurrent ? 'text-violet-700 font-semibold' : isReached ? 'text-gray-700' : 'text-gray-400'
+                                  }`}>{step.label}</p>
+                                </div>
+                                {!isLast && (
+                                  <div className={`h-0.5 w-8 sm:w-12 mt-3 flex-shrink-0 ${
+                                    idx < reachedIdx ? 'bg-green-400' : 'bg-gray-200'
+                                  }`} />
+                                )}
+                              </div>
+                            );
+                          })}
+                          {isRejected && (
+                            <>
+                              <div className="h-0.5 w-8 sm:w-12 mt-3 flex-shrink-0 bg-red-300" />
+                              <div className="flex flex-col items-center">
+                                <div className="w-7 h-7 rounded-full bg-red-500 border-2 border-red-500 flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </div>
+                                <p className="mt-1 text-[10px] font-semibold text-center w-16 leading-tight text-red-600">Rejected</p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
                     Returned Items
                   </h4>
