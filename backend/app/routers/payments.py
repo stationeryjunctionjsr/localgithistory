@@ -149,7 +149,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
                 orderNumber=order_number,
                 amountRemaining=effective_due,
                 totalAmount=(bill.total_amount if bill.total_amount is not None else 0.0),
-                orderDate=order_date_raw if "order_date_raw" in locals() else (bill.order_date or bill.created_at),
+                orderDate=order_date.isoformat(),
                 dueDate=due_date.isoformat() + "Z",
                 timeRemaining=time_remaining_str,
                 overdue=is_overdue,
@@ -158,7 +158,7 @@ async def get_wholesaler_dues(current_user: User = Depends(require_wholesaler)):
         )
 
     # Sort bills by due date (earliest first)
-    bills_info.sort(key=lambda b: b.due_date)
+    bills_info.sort(key=lambda b: b.dueDate)
 
     nearest_due_amount = 0.0
     nearest_due_date = None

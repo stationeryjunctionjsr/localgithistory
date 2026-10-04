@@ -75,8 +75,8 @@ async def test_shipping_discount_payment_method_and_capping():
             shipping_charge=80.0,
             shipping_address=mock_address,
         )
-        assert validation_cod["valid"] is False
-        assert "payment method" in validation_cod["message"].lower()
+        assert validation_cod.valid is False
+        assert "payment method" in (validation_cod.message or "").lower()
 
         # Test Case B: Validate coupon with correct payment method (upi)
         validation_upi = await coupon_repository.validateCoupon(
@@ -88,8 +88,8 @@ async def test_shipping_discount_payment_method_and_capping():
             shipping_charge=80.0,
             shipping_address=mock_address,
         )
-        assert validation_upi["valid"] is True
-        assert validation_upi["discount"] == 40.0  # 50% of 80.0 shipping
+        assert validation_upi.valid is True
+        assert validation_upi.discount == 40.0  # 50% of 80.0 shipping
 
         # Test Case C: Validate percentage shipping discount with a different shipping charge
         validation_upi_diff = await coupon_repository.validateCoupon(
@@ -101,8 +101,8 @@ async def test_shipping_discount_payment_method_and_capping():
             shipping_charge=40.0,
             shipping_address=mock_address,
         )
-        assert validation_upi_diff["valid"] is True
-        assert validation_upi_diff["discount"] == 20.0  # 50% of 40.0 shipping
+        assert validation_upi_diff.valid is True
+        assert validation_upi_diff.discount == 20.0  # 50% of 40.0 shipping
 
         # Test Case D: Validate fixed shipping discount capping (100.0 discount value but 50.0 shipping charge)
         validation_fixed_capped = await coupon_repository.validateCoupon(
@@ -114,8 +114,8 @@ async def test_shipping_discount_payment_method_and_capping():
             shipping_charge=50.0,
             shipping_address=mock_address,
         )
-        assert validation_fixed_capped["valid"] is True
-        assert validation_fixed_capped["discount"] == 50.0  # Capped at shipping charge of 50.0
+        assert validation_fixed_capped.valid is True
+        assert validation_fixed_capped.discount == 50.0  # Capped at shipping charge of 50.0
 
         # Test Case E: Validate fixed shipping discount undercap (100.0 discount value and 120.0 shipping charge)
         validation_fixed_undercap = await coupon_repository.validateCoupon(
@@ -127,8 +127,8 @@ async def test_shipping_discount_payment_method_and_capping():
             shipping_charge=120.0,
             shipping_address=mock_address,
         )
-        assert validation_fixed_undercap["valid"] is True
-        assert validation_fixed_undercap["discount"] == 100.0
+        assert validation_fixed_undercap.valid is True
+        assert validation_fixed_undercap.discount == 100.0
 
     finally:
         # Cleanup

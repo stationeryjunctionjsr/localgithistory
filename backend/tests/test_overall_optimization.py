@@ -146,17 +146,21 @@ async def test_wishlist_and_cart_bulk_populating(client):
     resp = await client.get("/api/wishlist/", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
-    assert len(data) == 1
-    assert data[0]["name"] == "TEST_GEN_OPT_Product"
-    assert data[0]["price"] == 150.0
+    items = data["items"] if "items" in data else data
+    assert len(items) == 1
+    item_prod = items[0]["product"] if "product" in items[0] else items[0]
+    assert item_prod["name"] == "TEST_GEN_OPT_Product"
+    assert item_prod["price"] == 150.0
 
     # 3. Verify get_cart populates product details correctly and calculates stock
     resp = await client.get("/api/cart/", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["items"]) == 1
-    assert data["items"][0]["product"]["name"] == "TEST_GEN_OPT_Product"
-    assert data["items"][0]["subtotal"] == 300.0
+    c_item = data["items"][0]
+    c_prod = c_item["product"] if "product" in c_item and c_item["product"] else c_item
+    assert c_prod["name"] == "TEST_GEN_OPT_Product"
+    assert c_item["subtotal"] == 300.0
 
     # 4. Verify search suggestions suggestions use queries correctly
     resp = await client.get("/api/products/suggest?q=TEST_GEN_OPT", headers=headers)

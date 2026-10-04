@@ -50,21 +50,26 @@ class MySQLUserDAO:
         if 'phone' in query:
             where_clauses.append('phone = :phone')
             params['phone'] = query['phone']
-        if 'referral_code' in query:
-            where_clauses.append('UPPER(referral_code) = :referralCode')
-            params['referral_code'] = query['referral_code'].upper()
-        if 'is_seller_admin' in query:
-            where_clauses.append('is_seller_admin = :isSellerAdmin')
-            params['is_seller_admin'] = 1 if query['is_seller_admin'] else 0
-        if 'is_on_duty' in query:
-            where_clauses.append('is_on_duty = :isOnDuty')
-            params['is_on_duty'] = 1 if query['is_on_duty'] else 0
-        if 'approvalStatus' in query:
-            where_clauses.append('approval_status = :approvalStatus')
-            params['approvalStatus'] = query['approvalStatus']
-        if 'isActive' in query:
-            where_clauses.append('is_active = :isActive')
-            params['isActive'] = 1 if query['isActive'] else 0
+        if 'referral_code' in query or 'referralCode' in query:
+            ref_val = query['referral_code'] if 'referral_code' in query else query['referralCode']
+            where_clauses.append('UPPER(referral_code) = :referral_code')
+            params['referral_code'] = ref_val.upper()
+        if 'is_seller_admin' in query or 'isSellerAdmin' in query:
+            isa_val = query['is_seller_admin'] if 'is_seller_admin' in query else query['isSellerAdmin']
+            where_clauses.append('is_seller_admin = :is_seller_admin')
+            params['is_seller_admin'] = 1 if isa_val else 0
+        if 'is_on_duty' in query or 'isOnDuty' in query:
+            iod_val = query['is_on_duty'] if 'is_on_duty' in query else query['isOnDuty']
+            where_clauses.append('is_on_duty = :is_on_duty')
+            params['is_on_duty'] = 1 if iod_val else 0
+        if 'approvalStatus' in query or 'approval_status' in query:
+            app_val = query['approvalStatus'] if 'approvalStatus' in query else query['approval_status']
+            where_clauses.append('approval_status = :approval_status')
+            params['approval_status'] = app_val
+        if 'isActive' in query or 'is_active' in query:
+            act_val = query['isActive'] if 'isActive' in query else query['is_active']
+            where_clauses.append('is_active = :is_active')
+            params['is_active'] = 1 if act_val else 0
         if 'allowed_ids' in query:
             allowed_ids = query['allowed_ids']
             if not allowed_ids:

@@ -176,7 +176,7 @@ async def update_ticket_status(
     try:
         from app.utils.notify import notify_user
         from app.utils.logger import logger
-        customer_id = str(ticket.user) if getattr(ticket, "user", None) else None
+        customer_id = str(ticket.user) if ticket.user else None
         new_status = status_data.status or ""
         status_labels = {
             "open": "reopened 🔓",
@@ -184,7 +184,7 @@ async def update_ticket_status(
             "resolved": "resolved ✅",
             "closed": "closed 🔒",
         }
-        label = status_labels.get(new_status, f"updated to {new_status}")
+        label = status_labels[new_status] if new_status in status_labels else f"updated to {new_status}"
         if customer_id and new_status:
             await notify_user(
                 user_id    = customer_id,
@@ -229,7 +229,7 @@ async def add_ticket_response(
     if is_admin_response:
         try:
             from app.utils.notify import notify_user
-            customer_id = str(ticket.user) if getattr(ticket, "user", None) else None
+            customer_id = str(ticket.user) if ticket.user else None
             if customer_id:
                 preview = (response_data.message or "")[:80].strip()
                 await notify_user(

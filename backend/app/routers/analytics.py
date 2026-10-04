@@ -53,8 +53,8 @@ def _resolve_seller_id(current_user: User, requested_seller_id: Optional[str] = 
 
 
 
-from pydantic import BaseModel, Field, ConfigDict, RootModel
-from typing import List, Optional
+from pydantic import BaseModel, Field, ConfigDict, RootModel, AliasChoices
+from typing import List, Optional, Union
 
 class RecordEventResponse(BaseModel):
     status: str
@@ -89,13 +89,13 @@ class TopCustomerResponse(BaseModel):
 
 class MostSearchedResponse(BaseModel):
     term: str
-    searchCount: int
-    resultsCount: int
+    searchCount: int = Field(default=0, validation_alias=AliasChoices("searchCount", "count"))
+    resultsCount: Union[int, float] = Field(default=0, validation_alias=AliasChoices("resultsCount", "avgProductsFound"))
 
 class MostViewedResponse(BaseModel):
     productId: str
     productName: str
-    viewCount: int
+    viewCount: int = Field(default=0, validation_alias=AliasChoices("viewCount", "count"))
 
 class DashboardDataResponse(BaseModel):
     model_config = ConfigDict(extra='forbid')

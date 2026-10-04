@@ -442,13 +442,20 @@ async def test_get_available_slots_capacity_full():
         slots=[
             MagicMock(
                 id="s2",
+                startTime=future_time,
+                endTime=future_time,
                 start_time=future_time,
                 end_time=future_time,
                 is_active=True,
+                isUrgent=False,
                 is_urgent=False,
+                isFullDay=False,
+                is_full_day=False,
                 capacity=1,
                 booked_count=1,
                 cutoff_hours=None,
+                cutoffHours=None,
+                urgentCutoffHours=None,
             )
         ],
         is_active=True,
@@ -482,13 +489,20 @@ async def test_get_available_slots_valid_slot_included():
         slots=[
             MagicMock(
                 id="s3",
+                startTime=start,
+                endTime=end,
                 start_time=start,
                 end_time=end,
                 is_active=True,
+                isUrgent=False,
                 is_urgent=False,
+                isFullDay=False,
+                is_full_day=False,
                 capacity=5,
                 booked_count=0,
                 cutoff_hours=None,
+                cutoffHours=None,
+                urgentCutoffHours=None,
             )
         ],
         is_active=True,

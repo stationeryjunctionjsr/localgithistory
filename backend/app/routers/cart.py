@@ -82,7 +82,7 @@ async def get_cart(current_user: User = Depends(get_current_user)):
 
             cart_items.append(
                 {
-                    "_id": item.id,
+                    "_id": str(item.id_) if item.id_ else item.external_id,
                     "productId": product.id,
                     "name": product.name,
                     "sku": product.sku,
@@ -101,7 +101,7 @@ async def get_cart(current_user: User = Depends(get_current_user)):
                 }
             )
 
-        subtotal = sum(item.subtotal for item in cart_items)
+        subtotal = sum(i["subtotal"] for i in cart_items)
 
         # Get earliest expiry for active reservations to display countdown timer in frontend
         from app.repositories.stock_reservation_repository import stock_reservation_repository

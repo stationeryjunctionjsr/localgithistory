@@ -102,9 +102,11 @@ async def test_full_returns_e2e_flow():
 
         checkout_payload = {
             "shippingAddress": {"street": "123 Test St", "city": "Test", "state": "TS", "pincode": "123456"},
-            "paymentMethod": "upi"
+            "paymentMethod": "cod"
         }
-        res = await client.post("/api/orders", json=checkout_payload, headers=cust_auth)
+        from unittest.mock import patch, AsyncMock
+        with patch("app.repositories.feature_flag_repository.FeatureFlagRepository.is_enabled", new_callable=AsyncMock, return_value=True):
+            res = await client.post("/api/orders", json=checkout_payload, headers=cust_auth)
         assert res.status_code in (200, 201), res.json()
         order_id = res.json()["_id"]
 

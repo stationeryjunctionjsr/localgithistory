@@ -13,6 +13,23 @@ load_dotenv()
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+# Patch AsyncAdapt_aiomysql_connection.ping for compatibility with SQLAlchemy / PyMySQL:
+# In PyMySQL >= 1.1 / 2.0, Connection.ping() defaults to reconnect=False.
+# SQLAlchemy's MySQLDialect_pymysql.do_ping() calls dbapi_connection.ping() without
+# arguments when PyMySQL's default is reconnect=False.
+# However, AsyncAdapt_aiomysql_connection.ping(self, reconnect: bool) omitted the
+# default value (= False), raising a TypeError when pool_pre_ping=True checks out a connection.
+try:
+    from sqlalchemy.dialects.mysql.aiomysql import AsyncAdapt_aiomysql_connection
+    _orig_aiomysql_ping = AsyncAdapt_aiomysql_connection.ping
+
+    def _safe_aiomysql_ping(self, reconnect: bool = False) -> None:
+        return _orig_aiomysql_ping(self, reconnect)
+
+    AsyncAdapt_aiomysql_connection.ping = _safe_aiomysql_ping
+except Exception:
+    pass
+
 
 # DATABASE_URL format: mysql+aiomysql://user:password@host:port/dbname
 def get_database_url() -> str | None:

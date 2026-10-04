@@ -34,9 +34,20 @@ class MySQLNotificationsDAO:
             conditions = []
             params = {}
             
-            query_map = {'user_id': 'user_id', 'type': 'type', 'title': 'title', 'message': 'message', 'is_read': 'is_read', 'is_acknowledged': 'is_acknowledged'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
+            query_map = {
+                'user_id': 'user_id',
+                'userId': 'user_id',
+                'type': 'type',
+                'title': 'title',
+                'message': 'message',
+                'is_read': 'is_read',
+                'isRead': 'is_read',
+                'is_acknowledged': 'is_acknowledged',
+                'isAcknowledged': 'is_acknowledged',
+                '_id': 'id',
+                'externalId': 'external_id',
+                'external_id': 'external_id',
+            }
             
             for k, v in kwargs.items():
                 db_col = query_map[k] if k in query_map else k
@@ -59,9 +70,20 @@ class MySQLNotificationsDAO:
             sql = f"SELECT * FROM {self.TABLE}"
             params = {}
             
-            query_map = {'user_id': 'user_id', 'type': 'type', 'title': 'title', 'message': 'message', 'is_read': 'is_read', 'is_acknowledged': 'is_acknowledged'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
+            query_map = {
+                'user_id': 'user_id',
+                'userId': 'user_id',
+                'type': 'type',
+                'title': 'title',
+                'message': 'message',
+                'is_read': 'is_read',
+                'isRead': 'is_read',
+                'is_acknowledged': 'is_acknowledged',
+                'isAcknowledged': 'is_acknowledged',
+                '_id': 'id',
+                'externalId': 'external_id',
+                'external_id': 'external_id',
+            }
             
             if query:
                 conditions = []
@@ -130,46 +152,25 @@ class MySQLNotificationsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'NotificationsInternalUpdate') -> 'NotificationInternal':
+    async def update(self, id: str, update_data: 'NotificationInternalUpdate') -> 'NotificationInternal':
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.user_id is not None:
-            updates.append("user_id = :s_user_id")
-            params["s_user_id"] = data.user_id
+        if update_data.is_read is not None:
+            updates.append("is_read = :s_is_read")
+            params["s_is_read"] = update_data.is_read
 
-        if data.type is not None:
-            updates.append("type = :s_type")
-            params["s_type"] = data.type
-
-        if data.title is not None:
-            updates.append("title = :s_title")
-            params["s_title"] = data.title
-
-        if data.message is not None:
-            updates.append("message = :s_message")
-            params["s_message"] = data.message
-
-        if data.is_read is not None:
-            updates.append("is_read = :s_isRead")
-            params["s_is_read"] = data.is_read
-
-        if data.is_acknowledged is not None:
-            updates.append("is_acknowledged = :s_isAcknowledged")
-            params["s_is_acknowledged"] = data.is_acknowledged
+        if update_data.is_acknowledged is not None:
+            updates.append("is_acknowledged = :s_is_acknowledged")
+            params["s_is_acknowledged"] = update_data.is_acknowledged
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
             async with factory() as session:
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
                 await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, int(id), data)
-                await session.commit()
-                
+
         return await self.findById(id)
 
     async def delete(self, id: str) -> bool:

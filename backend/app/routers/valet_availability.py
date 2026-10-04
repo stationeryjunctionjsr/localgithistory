@@ -131,8 +131,8 @@ async def mark_availability(
     from app.models.daos import ValetAvailabilityInternalCreate, ValetAvailabilityInternalUpdate
 
     if existing:
-        doc_id = str(existing[0]["_id"])
-        updated = await storage.update(doc_id, ValetAvailabilityInternalUpdate(
+        availability_id = str(existing[0].id)
+        updated = await storage.update(availability_id, ValetAvailabilityInternalUpdate(
             valetId=valet_id,
             date=data.date,
             availabilityType=data.availabilityType,

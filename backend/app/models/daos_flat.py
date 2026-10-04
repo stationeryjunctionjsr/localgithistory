@@ -879,11 +879,11 @@ class ProductNotificationsInternal(BaseModel):
     model_config = ConfigDict(extra='ignore', populate_by_name=True)
     id: int
     external_id: str = Field(..., alias='externalId')
-    email: str = ""
-    phone: str = ""
+    email: Optional[str] = None
+    phone: Optional[str] = None
     product_id: str = Field(..., alias='productId')
-    status: str = ""
-    user_id: str = Field("", alias='userId')
+    status: Optional[str] = "active"
+    user_id: Optional[str] = Field(None, alias='userId')
 
 class ProductNotificationsInternalCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)

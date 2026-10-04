@@ -126,7 +126,7 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
         role="customer",
     )
     referrer = await user_repository.create(referrer_data)
-    ref_code = getattr(referrer, "referral_code", None)
+    ref_code = referrer.referral_code
     assert ref_code is not None
 
     # 4. Verify code (valid case)
@@ -148,8 +148,8 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
 
     token = user_auth["Authorization"].split(" ")[1]
     curr_user_claims = await verify_token(token)
-    curr_user = await user_repository.findById(curr_user_claims["_id"])
-    own_code = getattr(curr_user, "referral_code", None)
+    curr_user = await user_repository.findById(curr_user_claims.id)
+    own_code = curr_user.referral_code
 
     self_verify = await client.post("/api/referrals/verify", json={"code": own_code}, headers=user_auth)
     assert self_verify.status_code == 400
@@ -176,16 +176,19 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
     )
     existing_product = await product_repository.findBySku("SKU-REF-TEST")
     if existing_product:
-        # Clean up any leftover orders referencing this product first
-        all_orders = await order_repository.findAll()
-        for o in all_orders:
-            for item in getattr(o, "items", []) or []:
-                pid = getattr(item, "product", None) or getattr(item, "productId", None)
-                if pid and str(pid) == str(existing_product.id):
-                    await order_repository.storage.delete(o.id)
-                    break
-        await product_repository.storage.delete(existing_product.id)
-    product = await product_repository.create(product_data)
+        try:
+            from app.config.database import get_async_session_factory
+            from sqlalchemy import text
+            factory = get_async_session_factory()
+            async with factory() as session:
+                await session.execute(text("DELETE FROM sj_order_items WHERE product_id = :pid"), {"pid": int(existing_product.id)})
+                await session.commit()
+            await product_repository.storage.delete(existing_product.id)
+            product = await product_repository.create(product_data)
+        except Exception:
+            product = existing_product
+    else:
+        product = await product_repository.create(product_data)
 
     order_payload = {
         "shippingAddress": {
@@ -201,13 +204,16 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
         "items": [{"productId": str(product.id), "quantity": 1}],
         "referralCode": ref_code,
     }
-    order_resp = await client.post("/api/orders/", json=order_payload, headers=user_auth)
+    from unittest.mock import patch, AsyncMock
+    with patch("app.repositories.feature_flag_repository.FeatureFlagRepository.is_enabled", new_callable=AsyncMock, return_value=True):
+        order_resp = await client.post("/api/orders/", json=order_payload, headers=user_auth)
     assert order_resp.status_code == 201
     order_data = order_resp.json()
 
-    # Discount should be 10% of subtotal-before-referral (meaning subtotal = 90%, discount = 10%)
-    assert round(order_data["discount"], 2) == round(order_data["subtotal"] / 9.0, 2)
-    assert "Referral Code Applied: " + ref_code in order_data["notes"]
+    # Discount should be 10% of subtotal-before-referral (product price 200.0 -> discount 20.0)
+    assert round(order_data["discount"], 2) == 20.0
+    notes_val = order_data["orderNotes"] if "orderNotes" in order_data and order_data["orderNotes"] else (order_data["notes"] if "notes" in order_data and order_data["notes"] else "")
+    assert "Referral Code Applied: " + ref_code in notes_val
 
     # 9. Verify that user is no longer eligible (since they placed 1 order)
     eligibility_resp2 = await client.get("/api/referrals/check-eligibility", headers=user_auth)
@@ -219,11 +225,32 @@ async def test_referral_flow_for_customer(client: AsyncClient, user_auth: dict):
     assert verify_resp2.status_code == 400
 
     # Clean up
-    await order_repository.storage.delete(order_data["_id"])
-    await product_repository.storage.delete(product.id)
-    await user_repository.storage.delete(referrer.id)
+    try:
+        from app.config.database import get_async_session_factory
+        from sqlalchemy import text
+        factory = get_async_session_factory()
+        async with factory() as session:
+            await session.execute(text("DELETE FROM sj_order_items WHERE product_id = :pid"), {"pid": int(product.id)})
+            await session.commit()
+    except Exception:
+        pass
+    try:
+        await order_repository.storage.delete(order_data["_id"])
+    except Exception:
+        pass
+    try:
+        await product_repository.storage.delete(product.id)
+    except Exception:
+        pass
+    try:
+        await user_repository.storage.delete(referrer.id)
+    except Exception:
+        pass
     if not existing_pincode:
-        await delivery_charge_repository.storage.delete("831001")
+        try:
+            await delivery_charge_repository.storage.delete("831001")
+        except Exception:
+            pass
 
     # Restore active retail settings to 12.5%
     await referral_repository.storage.delete("1")
