@@ -1,4 +1,5 @@
 from typing import Optional, Dict, List, Any, Union
+from collections import defaultdict
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text
@@ -34,8 +35,8 @@ class MySQLDeliveryChargesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            tiers_by_charge = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, tiers_by_charge.get(int(row.id), []))
 
     async def findByPincode(self, pincode: str, is_active: bool = True) -> Optional[DeliveryChargeInternal]:
         factory = self._factory()
@@ -47,8 +48,8 @@ class MySQLDeliveryChargesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            tiers_by_charge = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, tiers_by_charge.get(int(row.id), []))
 
     async def findByLocation(self, state: str, district: str, city: Optional[str] = None, is_active: bool = True) -> Optional[DeliveryChargeInternal]:
         factory = self._factory()
@@ -80,8 +81,8 @@ class MySQLDeliveryChargesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            tiers_by_charge = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, tiers_by_charge.get(int(row.id), []))
             
     async def findAll(
         self,
@@ -120,8 +121,8 @@ class MySQLDeliveryChargesDAO:
             if not rows:
                 return []
                 
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            tiers_by_charge = await self._fetch_children(session, [int(r.id) for r in rows])
+            return [self._map_to_schema(r, tiers_by_charge.get(int(r.id), [])) for r in rows]
 
     async def create(self, data: DeliveryChargeInternalCreate) -> DeliveryChargeInternal:
         factory = self._factory()
@@ -308,34 +309,57 @@ class MySQLDeliveryChargesDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, children: Dict) -> DeliveryChargeInternal:
-        obj = DeliveryChargeInternal.model_validate(r)
-        for k, v in children.items():
-            setattr(obj, k, v)
-        return obj
+    def _map_to_schema(
+        self,
+        r,
+        tiers: List[DeliveryChargeTierInternal],
+    ) -> DeliveryChargeInternal:
+        return DeliveryChargeInternal(
+            id=str(r.id),
+            external_id=r.external_id,
+            location_id=r.location_id,
+            pincode=r.pincode,
+            state=r.state,
+            city=r.city,
+            district=r.district,
+            apply_default_charge=bool(r.apply_default_charge) if r.apply_default_charge is not None else None,
+            charge=float(r.charge) if r.charge is not None else None,
+            min_cart_value=float(r.min_cart_value) if r.min_cart_value is not None else None,
+            serviceable_for_customer=bool(r.serviceable_for_customer) if r.serviceable_for_customer is not None else None,
+            serviceable_for_wholesaler=bool(r.serviceable_for_wholesaler) if r.serviceable_for_wholesaler is not None else None,
+            is_active=bool(r.is_active) if r.is_active is not None else None,
+            description=r.description,
+            urgent_delivery_available=bool(r.urgent_delivery_available) if r.urgent_delivery_available is not None else None,
+            urgent_delivery_charge=float(r.urgent_delivery_charge) if r.urgent_delivery_charge is not None else None,
+            tiers=tiers,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List[DeliveryChargeTierInternal]]:
+        tiers_by_charge: Dict[int, List[DeliveryChargeTierInternal]] = defaultdict(list)
         if not ids:
-            return c_map
+            return tiers_by_charge
             
         id_list = ",".join(map(str, ids))
 
         q_tiers = text(f"SELECT parent_id, min_order_value, max_order_value, charge FROM sj_delivery_charge_tiers WHERE parent_id IN ({id_list})")
         res_tiers = await session.execute(q_tiers)
         for r in res_tiers.fetchall():
-            if "tiers" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["tiers"] = []
-            max_val = float('inf') if str(r[2]).lower() in ("infinity", "inf") else (float(r[2]) if str(r[2]).replace('.','',1).isdigit() else r[2])
-            c_map[r.parent_id]["tiers"].append(
+            max_val = (
+                float('inf')
+                if str(r.max_order_value).lower() in ("infinity", "inf")
+                else (float(r.max_order_value) if str(r.max_order_value).replace('.', '', 1).isdigit() else r.max_order_value)
+            )
+            tiers_by_charge[int(r.parent_id)].append(
                 DeliveryChargeTierInternal(
-                    min=float(r[1]) if r[1] and str(r[1]).replace('.','',1).isdigit() else 0.0,
+                    min=float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.', '', 1).isdigit() else 0.0,
                     max=max_val,
-                    charge=float(r[3]) if r[3] and str(r[3]).replace('.','',1).isdigit() else 0.0
+                    charge=float(r.charge) if r.charge and str(r.charge).replace('.', '', 1).isdigit() else 0.0,
                 )
             )
 
-        return c_map
+        return tiers_by_charge
 
     async def _replace_children(self, session, row_id: int, data: Union[DeliveryChargeInternalCreate, DeliveryChargeInternalUpdate]):
         if data.tiers is not None:

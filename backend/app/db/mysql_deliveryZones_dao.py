@@ -1,4 +1,5 @@
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, Dict, List, Any, Union, Tuple
+from collections import defaultdict
 from datetime import datetime, timezone
 import secrets
 from sqlalchemy import text
@@ -34,8 +35,12 @@ class MySQLDeliveryZonesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            pincodes_by_zone, tiers_by_zone = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(
+                row,
+                pincodes=pincodes_by_zone.get(int(row.id), []),
+                tiers=tiers_by_zone.get(int(row.id), []),
+            )
 
     async def findByPincode(self, pincode: str, is_active: bool = True) -> Optional[DeliveryZoneInternal]:
         factory = self._factory()
@@ -52,8 +57,12 @@ class MySQLDeliveryZonesDAO:
             row = result.fetchone()
             if not row:
                 return None
-            children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            pincodes_by_zone, tiers_by_zone = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(
+                row,
+                pincodes=pincodes_by_zone.get(int(row.id), []),
+                tiers=tiers_by_zone.get(int(row.id), []),
+            )
             
     async def findAll(self, filter_or_active: Optional[Union[dict, bool]] = None, is_active: Optional[bool] = None) -> List[DeliveryZoneInternal]:
         active_filter = is_active
@@ -79,8 +88,15 @@ class MySQLDeliveryZonesDAO:
             if not rows:
                 return []
                 
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            pincodes_by_zone, tiers_by_zone = await self._fetch_children(session, [int(r.id) for r in rows])
+            return [
+                self._map_to_schema(
+                    r,
+                    pincodes=pincodes_by_zone.get(int(r.id), []),
+                    tiers=tiers_by_zone.get(int(r.id), []),
+                )
+                for r in rows
+            ]
 
     async def create(self, data: DeliveryZoneInternalCreate) -> DeliveryZoneInternal:
         factory = self._factory()
@@ -236,41 +252,63 @@ class MySQLDeliveryZonesDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, children: Dict) -> DeliveryZoneInternal:
-        obj = DeliveryZoneInternal.model_validate(r)
-        for k, v in children.items():
-            setattr(obj, k, v)
-        return obj
+    def _map_to_schema(
+        self,
+        r,
+        pincodes: List[str],
+        tiers: List[DeliveryChargeTierInternal],
+    ) -> DeliveryZoneInternal:
+        return DeliveryZoneInternal(
+            id=str(r.id),
+            external_id=r.external_id,
+            name=r.name,
+            description=r.description,
+            default_capacity=r.default_capacity,
+            urgent_delivery_available=bool(r.urgent_delivery_available) if r.urgent_delivery_available is not None else None,
+            customer_type=r.customer_type,
+            is_active=bool(r.is_active) if r.is_active is not None else None,
+            delivery_charge=float(r.delivery_charge) if r.delivery_charge is not None else None,
+            min_cart_value=float(r.min_cart_value) if r.min_cart_value is not None else None,
+            urgent_delivery_charge=float(r.urgent_delivery_charge) if r.urgent_delivery_charge is not None else None,
+            apply_default_charge=bool(r.apply_default_charge) if r.apply_default_charge is not None else True,
+            pincodes=pincodes,
+            tiers=tiers,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
+    async def _fetch_children(
+        self, session, ids: List[int]
+    ) -> Tuple[Dict[int, List[str]], Dict[int, List[DeliveryChargeTierInternal]]]:
+        pincodes_by_zone: Dict[int, List[str]] = defaultdict(list)
+        tiers_by_zone: Dict[int, List[DeliveryChargeTierInternal]] = defaultdict(list)
         if not ids:
-            return c_map
+            return pincodes_by_zone, tiers_by_zone
             
         id_list = ",".join(map(str, ids))
 
         q_pincodes = text(f"SELECT parent_id, pincode FROM sj_delivery_zone_pincodes WHERE parent_id IN ({id_list})")
         res_pincodes = await session.execute(q_pincodes)
         for r in res_pincodes.fetchall():
-            if "pincodes" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["pincodes"] = []
-            c_map[r.parent_id]["pincodes"].append(r[1])
+            pincodes_by_zone[int(r.parent_id)].append(str(r.pincode))
 
         q_tiers = text(f"SELECT parent_id, min_order_value, max_order_value, charge FROM sj_delivery_zone_tiers WHERE parent_id IN ({id_list})")
         res_tiers = await session.execute(q_tiers)
         for r in res_tiers.fetchall():
-            if "tiers" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["tiers"] = []
-            max_val = float('inf') if str(r.max_order_value).lower() in ("infinity", "inf") else (float(r.max_order_value) if str(r.max_order_value).replace('.','',1).isdigit() else r.max_order_value)
-            c_map[r.parent_id]["tiers"].append(
+            max_val = (
+                float('inf')
+                if str(r.max_order_value).lower() in ("infinity", "inf")
+                else (float(r.max_order_value) if str(r.max_order_value).replace('.', '', 1).isdigit() else r.max_order_value)
+            )
+            tiers_by_zone[int(r.parent_id)].append(
                 DeliveryChargeTierInternal(
-                    min=float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.','',1).isdigit() else 0.0,
+                    min=float(r.min_order_value) if r.min_order_value and str(r.min_order_value).replace('.', '', 1).isdigit() else 0.0,
                     max=max_val,
-                    charge=float(r.charge) if r.charge and str(r.charge).replace('.','',1).isdigit() else 0.0
+                    charge=float(r.charge) if r.charge and str(r.charge).replace('.', '', 1).isdigit() else 0.0,
                 )
             )
 
-        return c_map
+        return pincodes_by_zone, tiers_by_zone
 
     async def _replace_children(self, session, row_id: int, data: Union[DeliveryZoneInternalCreate, DeliveryZoneInternalUpdate]):
         if data.pincodes is not None:
