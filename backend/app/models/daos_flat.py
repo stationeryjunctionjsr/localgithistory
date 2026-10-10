@@ -406,6 +406,8 @@ class DeliveryChargeDefaultInternal(CamelBaseModel):
     charge: Optional[float] = None
     urgent_delivery_available: Optional[bool] = None
     urgent_delivery_charge: Optional[float] = None
+    courier_base_charge: Optional[float] = None
+    courier_free_threshold: Optional[float] = None
     is_active: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
     created_at: Optional[datetime] = None
@@ -419,6 +421,8 @@ class DeliveryChargeDefaultInternalCreate(CamelBaseModel):
     charge: Optional[float] = None
     urgent_delivery_available: Optional[bool] = None
     urgent_delivery_charge: Optional[float] = None
+    courier_base_charge: Optional[float] = None
+    courier_free_threshold: Optional[float] = None
     is_active: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 
@@ -430,6 +434,8 @@ class DeliveryChargeDefaultInternalUpdate(CamelBaseModel):
     charge: Optional[float] = None
     urgent_delivery_available: Optional[bool] = None
     urgent_delivery_charge: Optional[float] = None
+    courier_base_charge: Optional[float] = None
+    courier_free_threshold: Optional[float] = None
     is_active: Optional[bool] = None
     tiers: Optional[List[DeliveryChargeTierInternal]] = None
 

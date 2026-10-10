@@ -140,7 +140,7 @@ class MySQLOrderDAO:
                            ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                            decline_reason, cancelled_at, cancelled_by, turnaround_hours,
-                           idempotency_key,
+                           idempotency_key, fulfillment_type, courier_partner, tracking_id, awb_code, shipping_label_url, estimated_delivery_date,
                            created_at, updated_at
                     FROM {self.TABLE}
                     WHERE {where_sql}
@@ -211,7 +211,7 @@ class MySQLOrderDAO:
                            ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                            shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                            decline_reason, cancelled_at, cancelled_by, turnaround_hours,
-                           idempotency_key,
+                           idempotency_key, fulfillment_type, courier_partner, tracking_id, awb_code, shipping_label_url, estimated_delivery_date,
                            created_at, updated_at
                     FROM {self.TABLE}
                     WHERE id = :id
@@ -300,7 +300,7 @@ class MySQLOrderDAO:
                         ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                         shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                         decline_reason, cancelled_at, cancelled_by, turnaround_hours,
-                        idempotency_key,
+                        idempotency_key, fulfillment_type, courier_partner, tracking_id, awb_code, shipping_label_url, estimated_delivery_date,
                         created_at, updated_at
                     ) VALUES (
                         :external_id, {user_id_subquery}, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
@@ -308,7 +308,7 @@ class MySQLOrderDAO:
                         :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :ship_address, :ship_district, :ship_country, :ship_google_location, :ship_latitude, :ship_longitude, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :bill_address, :bill_district, :bill_country, :bill_google_location, :bill_latitude, :bill_longitude, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :is_urgent_delivery,
                         :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
                         :decline_reason, :cancelled_at, :cancelled_by, :turnaround_hours,
-                        :idempotency_key,
+                        :idempotency_key, :fulfillment_type, :courier_partner, :tracking_id, :awb_code, :shipping_label_url, :estimated_delivery_date,
                         :created_at, :updated_at
                     )
                     """
@@ -367,6 +367,12 @@ class MySQLOrderDAO:
                     "cancelled_by": data.cancelled_by,
                     "turnaround_hours": data.turnaround_hours,
                     "idempotency_key": data.idempotency_key,
+                    "fulfillment_type": getattr(data, "fulfillment_type", "hyperlocal") or "hyperlocal",
+                    "courier_partner": getattr(data, "courier_partner", None),
+                    "tracking_id": getattr(data, "tracking_id", None),
+                    "awb_code": getattr(data, "awb_code", None),
+                    "shipping_label_url": getattr(data, "shipping_label_url", None),
+                    "estimated_delivery_date": _to_ts(getattr(data, "estimated_delivery_date", None)),
                     "created_at": _to_ts(data.created_at) or now,
                     "updated_at": now,
                 },
@@ -415,7 +421,7 @@ class MySQLOrderDAO:
                         ship_name, ship_street, ship_city, ship_state, ship_pincode, ship_phone, ship_address, ship_district, ship_country, ship_google_location, ship_latitude, ship_longitude, bill_name, bill_street, bill_city, bill_state, bill_pincode, bill_phone, bill_address, bill_district, bill_country, bill_google_location, bill_latitude, bill_longitude, notes, printed_bill, assigned_valet, pending_valet_id, valet_assigned_at, valet_cascade_count, is_urgent_delivery,
                         shipped_at, delivered_at, cod_payment_received, cod_payment_received_at,
                         decline_reason, cancelled_at, cancelled_by, turnaround_hours,
-                        idempotency_key,
+                        idempotency_key, fulfillment_type, courier_partner, tracking_id, awb_code, shipping_label_url, estimated_delivery_date,
                         created_at, updated_at
                     ) VALUES (
                         :external_id, {user_id_subquery}, :order_number, :status, :total, :subtotal, :tax, :shipping, :discount,
@@ -423,7 +429,7 @@ class MySQLOrderDAO:
                         :ship_name, :ship_street, :ship_city, :ship_state, :ship_pincode, :ship_phone, :ship_address, :ship_district, :ship_country, :ship_google_location, :ship_latitude, :ship_longitude, :bill_name, :bill_street, :bill_city, :bill_state, :bill_pincode, :bill_phone, :bill_address, :bill_district, :bill_country, :bill_google_location, :bill_latitude, :bill_longitude, :notes, :printed_bill, :assigned_valet, :pending_valet_id, :valet_assigned_at, :valet_cascade_count, :is_urgent_delivery,
                         :shipped_at, :delivered_at, :cod_payment_received, :cod_payment_received_at,
                         :decline_reason, :cancelled_at, :cancelled_by, :turnaround_hours,
-                        :idempotency_key,
+                        :idempotency_key, :fulfillment_type, :courier_partner, :tracking_id, :awb_code, :shipping_label_url, :estimated_delivery_date,
                         :created_at, :updated_at
                     )
                     """
@@ -482,6 +488,12 @@ class MySQLOrderDAO:
                     "cancelled_by": data.cancelled_by,
                     "turnaround_hours": data.turnaround_hours,
                     "idempotency_key": data.idempotency_key,
+                    "fulfillment_type": getattr(data, "fulfillment_type", "hyperlocal") or "hyperlocal",
+                    "courier_partner": getattr(data, "courier_partner", None),
+                    "tracking_id": getattr(data, "tracking_id", None),
+                    "awb_code": getattr(data, "awb_code", None),
+                    "shipping_label_url": getattr(data, "shipping_label_url", None),
+                    "estimated_delivery_date": _to_ts(getattr(data, "estimated_delivery_date", None)),
                     "created_at": _to_ts(data.created_at) or now,
                     "updated_at": now,
                 },
@@ -547,6 +559,12 @@ class MySQLOrderDAO:
                         cancelled_at = :cancelled_at,
                         cancelled_by = :cancelled_by,
                         turnaround_hours = :turnaround_hours,
+                        fulfillment_type = :fulfillment_type,
+                        courier_partner = :courier_partner,
+                        tracking_id = :tracking_id,
+                        awb_code = :awb_code,
+                        shipping_label_url = :shipping_label_url,
+                        estimated_delivery_date = :estimated_delivery_date,
                         updated_at = :updated_at
                     WHERE id = :id
                     """
@@ -605,6 +623,12 @@ class MySQLOrderDAO:
                     "cancelled_at": _to_ts(update_data.cancelled_at if update_data.cancelled_at is not None else existing.cancelled_at),
                     "cancelled_by": update_data.cancelled_by if update_data.cancelled_by is not None else existing.cancelled_by,
                     "turnaround_hours": update_data.turnaround_hours if update_data.turnaround_hours is not None else existing.turnaround_hours,
+                    "fulfillment_type": getattr(update_data, "fulfillment_type", None) or getattr(existing, "fulfillment_type", "hyperlocal"),
+                    "courier_partner": getattr(update_data, "courier_partner", None) if getattr(update_data, "courier_partner", None) is not None else getattr(existing, "courier_partner", None),
+                    "tracking_id": getattr(update_data, "tracking_id", None) if getattr(update_data, "tracking_id", None) is not None else getattr(existing, "tracking_id", None),
+                    "awb_code": getattr(update_data, "awb_code", None) if getattr(update_data, "awb_code", None) is not None else getattr(existing, "awb_code", None),
+                    "shipping_label_url": getattr(update_data, "shipping_label_url", None) if getattr(update_data, "shipping_label_url", None) is not None else getattr(existing, "shipping_label_url", None),
+                    "estimated_delivery_date": _to_ts(getattr(update_data, "estimated_delivery_date", None)) if getattr(update_data, "estimated_delivery_date", None) is not None else getattr(existing, "estimated_delivery_date", None),
                     "updated_at": now,
                 },
             )

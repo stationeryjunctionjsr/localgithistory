@@ -43,6 +43,11 @@ class MySQLProductDAO:
             stock=int(r.stock) if r.stock is not None else 0,
             rating=float(r.rating) if r.rating is not None else 0.0,
             reviews=int(r.reviews) if r.reviews is not None else 0,
+            weight_grams=int(r.weight_grams) if hasattr(r, "weight_grams") and r.weight_grams is not None else 200,
+            length_cm=float(r.length_cm) if hasattr(r, "length_cm") and r.length_cm is not None else None,
+            width_cm=float(r.width_cm) if hasattr(r, "width_cm") and r.width_cm is not None else None,
+            height_cm=float(r.height_cm) if hasattr(r, "height_cm") and r.height_cm is not None else None,
+            hsn_code=str(r.hsn_code) if hasattr(r, "hsn_code") and r.hsn_code is not None else None,
             images=children["images"] if "images" in children else [],
             videos=children["videos"] if "videos" in children else [],
             is_active=bool(r.is_active) if r.is_active is not None else True,
@@ -335,7 +340,8 @@ class MySQLProductDAO:
         count_sql = f"SELECT COUNT(*) FROM {self.TABLE} p {join_sql} WHERE {where_sql}"
         query_sql = f"""
             SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                   p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews, p.created_at, p.updated_at
+                   p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews,
+                   p.weight_grams, p.length_cm, p.width_cm, p.height_cm, p.hsn_code, p.created_at, p.updated_at
             FROM {self.TABLE} p
             {join_sql} WHERE {where_sql} {sort_sql} LIMIT :limit OFFSET :skip
         """
@@ -387,7 +393,8 @@ class MySQLProductDAO:
                 await session.execute(
                     text(f"""
                 SELECT p.id, p.external_id, p.name, p.description, p.sku, p.category, p.sub_category, p.brand,
-                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews, p.created_at, p.updated_at
+                       p.mrp, p.mrp_per_case, p.quantity_per_case, p.stock, p.is_active, p.rating, p.reviews,
+                       p.weight_grams, p.length_cm, p.width_cm, p.height_cm, p.hsn_code, p.created_at, p.updated_at
                 FROM {self.TABLE} p {join_sql} WHERE {where_sql} ORDER BY p.id ASC
             """),
                     params,
@@ -557,10 +564,12 @@ class MySQLProductDAO:
                 text(f"""
                     INSERT INTO {self.TABLE} (
                         external_id, name, description, sku, category, sub_category, brand,
-                        mrp, mrp_per_case, quantity_per_case, stock, is_active, rating, reviews, created_at, updated_at
+                        mrp, mrp_per_case, quantity_per_case, stock, is_active, rating, reviews,
+                        weight_grams, length_cm, width_cm, height_cm, hsn_code, created_at, updated_at
                     ) VALUES (
                         :external_id, :name, :description, :sku, :category, :sub_category, :brand,
-                        :mrp, :mrp_per_case, :quantity_per_case, :stock, :is_active, :rating, :reviews, :created_at, :updated_at
+                        :mrp, :mrp_per_case, :quantity_per_case, :stock, :is_active, :rating, :reviews,
+                        :weight_grams, :length_cm, :width_cm, :height_cm, :hsn_code, :created_at, :updated_at
                     )
                 """),
                 {
@@ -578,6 +587,11 @@ class MySQLProductDAO:
                     "is_active": 1 if data.is_active else 0,
                     "rating": data.rating if data.rating is not None else 0.0,
                     "reviews": data.reviews if data.reviews is not None else 0,
+                    "weight_grams": getattr(data, "weight_grams", 200) or 200,
+                    "length_cm": getattr(data, "length_cm", None),
+                    "width_cm": getattr(data, "width_cm", None),
+                    "height_cm": getattr(data, "height_cm", None),
+                    "hsn_code": getattr(data, "hsn_code", None),
                     "created_at": now,
                     "updated_at": now,
                 },
@@ -620,7 +634,12 @@ class MySQLProductDAO:
             sellers=update_data.sellers if update_data.sellers is not None else existing.sellers,
             details=update_data.details if update_data.details is not None else existing.details,
             variantAttributes=update_data.variant_attributes if update_data.variant_attributes is not None else existing.variant_attributes,
-            variants=update_data.variants if update_data.variants is not None else existing.variants
+            variants=update_data.variants if update_data.variants is not None else existing.variants,
+            weight_grams=update_data.weight_grams if update_data.weight_grams is not None else existing.weight_grams,
+            length_cm=update_data.length_cm if update_data.length_cm is not None else existing.length_cm,
+            width_cm=update_data.width_cm if update_data.width_cm is not None else existing.width_cm,
+            height_cm=update_data.height_cm if update_data.height_cm is not None else existing.height_cm,
+            hsn_code=update_data.hsn_code if update_data.hsn_code is not None else existing.hsn_code
         )
         factory = self._factory()
         now = now_utc()
@@ -631,7 +650,9 @@ class MySQLProductDAO:
                 text(f"""
                 UPDATE {self.TABLE} SET name = :name, description = :description, sku = :sku, category = :category,
                     sub_category = :sub_category, brand = :brand, mrp = :mrp, mrp_per_case = :mrp_per_case,
-                    quantity_per_case = :quantity_per_case, stock = :stock, is_active = :is_active, rating = :rating, reviews = :reviews, updated_at = :updated_at
+                    quantity_per_case = :quantity_per_case, stock = :stock, is_active = :is_active, rating = :rating, reviews = :reviews,
+                    weight_grams = :weight_grams, length_cm = :length_cm, width_cm = :width_cm, height_cm = :height_cm, hsn_code = :hsn_code,
+                    updated_at = :updated_at
                 WHERE id = :id
             """),
                 {
@@ -649,6 +670,11 @@ class MySQLProductDAO:
                     "is_active": 1 if (merged.is_active if merged.is_active is not None else True) else None,
                     "rating": (merged.rating if merged.rating is not None else 0.0),
                     "reviews": (merged.reviews if merged.reviews is not None else 0),
+                    "weight_grams": merged.weight_grams or 200,
+                    "length_cm": merged.length_cm,
+                    "width_cm": merged.width_cm,
+                    "height_cm": merged.height_cm,
+                    "hsn_code": merged.hsn_code,
                     "updated_at": now,
                 },
             )

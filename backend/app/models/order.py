@@ -81,6 +81,12 @@ class Order(CamelBaseModel):
     items: List['OrderItem'] = []
     sub_orders: Optional[List['SubOrder']] = None
     idempotency_key: Optional[str] = None
+    fulfillment_type: str = Field(default="hyperlocal")
+    courier_partner: Optional[str] = None
+    tracking_id: Optional[str] = None
+    awb_code: Optional[str] = None
+    shipping_label_url: Optional[str] = None
+    estimated_delivery_date: Optional[datetime] = None
     valet_decline_history: List[ValetDeclineHistoryEntry] = Field(default=[])
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -156,6 +162,12 @@ class OrderInternalCreate(CamelBaseModel):
     cancelled_by: Optional[str] = None
     created_at: Optional[str] = None
     idempotency_key: Optional[str] = None
+    fulfillment_type: str = "hyperlocal"
+    courier_partner: Optional[str] = None
+    tracking_id: Optional[str] = None
+    awb_code: Optional[str] = None
+    shipping_label_url: Optional[str] = None
+    estimated_delivery_date: Optional[str] = None
 
 class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
 
@@ -226,6 +238,10 @@ class OrderInternalUpdate(CamelBaseModel, extra="forbid"):
     tracking_id: Optional[str] = None
     courier_partner: Optional[str] = None
     tracking_updated_at: Optional[str] = None
+    fulfillment_type: Optional[str] = None
+    awb_code: Optional[str] = None
+    shipping_label_url: Optional[str] = None
+    estimated_delivery_date: Optional[str] = None
 
 from app.models.sub_order import SubOrder
 Order.model_rebuild()

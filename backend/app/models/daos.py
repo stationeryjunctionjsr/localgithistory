@@ -396,6 +396,11 @@ class ProductInternalCreate(CamelBaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     minimum_quantity: Optional[int] = 1
+    weight_grams: Optional[int] = 200
+    length_cm: Optional[float] = None
+    width_cm: Optional[float] = None
+    height_cm: Optional[float] = None
+    hsn_code: Optional[str] = None
     search_tags: Optional[List[str]] = []
     sales_count: Optional[int] = 0
     view_count: Optional[int] = 0
@@ -448,6 +453,11 @@ class ProductInternalUpdate(CamelBaseModel):
     sales_count: Optional[int] = None
     updated_at: Optional[datetime] = None
     seller_id: Optional[str] = None
+    weight_grams: Optional[int] = None
+    length_cm: Optional[float] = None
+    width_cm: Optional[float] = None
+    height_cm: Optional[float] = None
+    hsn_code: Optional[str] = None
 
 class CategoryInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid')

@@ -61,6 +61,10 @@ class MySQLSubOrderDAO:
         # Valet pickup tracking
         "pickupStatus": "pickup_status",
         "assignedValet": "assigned_valet",
+        "fulfillmentType": "fulfillment_type",
+        "courierPartner": "courier_partner",
+        "trackingId": "tracking_id",
+        "awbCode": "awb_code",
     }
 
     @property
@@ -218,6 +222,10 @@ class MySQLSubOrderDAO:
             "billing_pincode": getattr(data, "billing_pincode", None),
             "pickup_status": (data.pickup_status if data.pickup_status is not None else "pending_pickup"),
             "assigned_valet": getattr(data, "assigned_valet", None),
+            "fulfillment_type": getattr(data, "fulfillment_type", "hyperlocal") or "hyperlocal",
+            "courier_partner": getattr(data, "courier_partner", None),
+            "tracking_id": getattr(data, "tracking_id", None),
+            "awb_code": getattr(data, "awb_code", None),
             "created_at": now,
             "updated_at": now,
         }
@@ -232,6 +240,7 @@ class MySQLSubOrderDAO:
                  shipping_name, shipping_phone, shipping_line1, shipping_city, shipping_state, shipping_pincode,
                  billing_name, billing_phone, billing_line1, billing_city, billing_state, billing_pincode,
                  pickup_status, assigned_valet,
+                 fulfillment_type, courier_partner, tracking_id, awb_code,
                  created_at, updated_at)
             VALUES
                 (:external_id, :sub_order_number, :parent_order_id, :parent_order_number,
@@ -242,6 +251,7 @@ class MySQLSubOrderDAO:
                  :shipping_name, :shipping_phone, :shipping_line1, :shipping_city, :shipping_state, :shipping_pincode,
                  :billing_name, :billing_phone, :billing_line1, :billing_city, :billing_state, :billing_pincode,
                  :pickup_status, :assigned_valet,
+                 :fulfillment_type, :courier_partner, :tracking_id, :awb_code,
                  :created_at, :updated_at)
         """)
 
@@ -289,6 +299,7 @@ class MySQLSubOrderDAO:
         now = datetime.now(timezone.utc)
         set_clauses = ["updated_at = :updated_at"]
         params: Dict = {"updated_at": now, "row_id": int(id) if str(id).isdigit() else id}
+        data = update_data
 
         if data.status is not None:
             set_clauses.append("status = :status")
@@ -320,6 +331,18 @@ class MySQLSubOrderDAO:
         if data.assigned_valet is not None:
             set_clauses.append("assigned_valet = :assigned_valet")
             params["assigned_valet"] = data.assigned_valet
+        if data.fulfillment_type is not None:
+            set_clauses.append("fulfillment_type = :fulfillment_type")
+            params["fulfillment_type"] = data.fulfillment_type
+        if data.courier_partner is not None:
+            set_clauses.append("courier_partner = :courier_partner")
+            params["courier_partner"] = data.courier_partner
+        if data.tracking_id is not None:
+            set_clauses.append("tracking_id = :tracking_id")
+            params["tracking_id"] = data.tracking_id
+        if data.awb_code is not None:
+            set_clauses.append("awb_code = :awb_code")
+            params["awb_code"] = data.awb_code
 
         if len(set_clauses) > 1:
             sql = text(f"UPDATE {self.table_name} SET {', '.join(set_clauses)} WHERE id = :row_id")

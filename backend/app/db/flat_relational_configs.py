@@ -279,6 +279,8 @@ FLAT_RELATIONAL_DAOS = {
             "applicableToWholesaler": "applicable_to_wholesaler",
             "applicableToRetailer": "applicable_to_retailer",
             "isActive": "is_active",
+            "courierBaseCharge": "courier_base_charge",
+            "courierFreeThreshold": "courier_free_threshold",
         },
         bool_keys=frozenset({"applicableToWholesaler", "applicableToRetailer", "isActive"}),
         schema_cls=DeliveryChargeDefaultInternal

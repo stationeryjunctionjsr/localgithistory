@@ -891,6 +891,8 @@ class DefaultDeliveryChargeBase(CamelBaseModel):
 
     is_active: bool = True
     urgent_delivery_charge: Optional[float] = None
+    courier_base_charge: Optional[float] = 60.0
+    courier_free_threshold: Optional[float] = 499.0
 
 
 class DefaultDeliveryChargeCreate(DefaultDeliveryChargeBase):

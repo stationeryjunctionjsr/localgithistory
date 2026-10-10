@@ -66,6 +66,10 @@ class SubOrder(CamelBaseModel):
     pickup_status: str = Field(default="pending_pickup")
     assigned_valet: Optional[str] = Field(default=None)
     return_status: Optional[str] = Field(default=None)
+    fulfillment_type: str = Field(default="hyperlocal")
+    courier_partner: Optional[str] = Field(default=None)
+    tracking_id: Optional[str] = Field(default=None)
+    awb_code: Optional[str] = Field(default=None)
     items: List[SubOrderItem] = []
     
     # Dates
@@ -115,6 +119,10 @@ class SubOrderInternalCreate(CamelBaseModel):
     commission_pct: Optional[float] = None
     commission_amount: Optional[float] = None
     commission_status: Optional[str] = None
+    fulfillment_type: str = "hyperlocal"
+    courier_partner: Optional[str] = None
+    tracking_id: Optional[str] = None
+    awb_code: Optional[str] = None
     created_at: Optional[str] = None
 
 class SubOrderInternalUpdate(CamelBaseModel):
@@ -129,6 +137,10 @@ class SubOrderInternalUpdate(CamelBaseModel):
     commission_amount: Optional[float] = None
     commission_status: Optional[str] = None
     assigned_valet: Optional[str] = None
+    fulfillment_type: Optional[str] = None
+    courier_partner: Optional[str] = None
+    tracking_id: Optional[str] = None
+    awb_code: Optional[str] = None
 
 
 

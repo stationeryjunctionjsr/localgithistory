@@ -24,6 +24,11 @@ class Product(CamelBaseModel):
     stock: Optional[int] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
+    weight_grams: Optional[int] = 200
+    length_cm: Optional[float] = None
+    width_cm: Optional[float] = None
+    height_cm: Optional[float] = None
+    hsn_code: Optional[str] = None
     images: List[str] = []
     videos: List[str] = []
     is_active: bool = Field(default=True)
