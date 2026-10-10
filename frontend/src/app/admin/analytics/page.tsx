@@ -31,6 +31,12 @@ import SearchConversionWidget from '@/components/Analytics/SearchConversionWidge
 import TopSearchesNoClicksChart from '@/components/Analytics/TopSearchesNoClicksChart';
 import SalesByChannelDetailedChart from '@/components/Analytics/SalesByChannelDetailedChart';
 import InventoryRunwayChart from '@/components/Analytics/InventoryRunwayChart';
+import MarketingAttribution from '@/components/Analytics/MarketingAttribution';
+import POSStaffSales from '@/components/Analytics/POSStaffSales';
+import SalesByPOSLocation from '@/components/Analytics/SalesByPOSLocation';
+import SalesByReferrer from '@/components/Analytics/SalesByReferrer';
+import SalesBySocialReferrer from '@/components/Analytics/SalesBySocialReferrer';
+import SessionsBySocialReferrer from '@/components/Analytics/SessionsBySocialReferrer';
 
 interface KPIData {
   gross_sales: number;
@@ -345,6 +351,24 @@ export default function AnalyticsDashboard() {
       <h3 className="mb-4 mt-8 border-b px-2 pb-2 text-xl font-bold">Inventory Intelligence</h3>
       <div className="mb-6">
         <InventoryRunwayChart startDate={startDate} endDate={endDate} limit={15} />
+      </div>
+
+      {/* Marketing & Acquisition */}
+      <h3 className="mb-4 mt-8 border-b px-2 pb-2 text-xl font-bold">Marketing &amp; Acquisition</h3>
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <MarketingAttribution startDate={startDate} endDate={endDate} />
+        <SalesByReferrer startDate={startDate} endDate={endDate} currency={currency} />
+      </div>
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <SalesBySocialReferrer startDate={startDate} endDate={endDate} currency={currency} />
+        <SessionsBySocialReferrer startDate={startDate} endDate={endDate} />
+      </div>
+
+      {/* POS & In-Store */}
+      <h3 className="mb-4 mt-8 border-b px-2 pb-2 text-xl font-bold">POS &amp; In-Store</h3>
+      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <POSStaffSales startDate={startDate} endDate={endDate} currency={currency} />
+        <SalesByPOSLocation startDate={startDate} endDate={endDate} currency={currency} />
       </div>
 
       {/* Operational Reports */}
