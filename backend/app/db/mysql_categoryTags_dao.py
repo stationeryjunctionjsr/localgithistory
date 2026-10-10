@@ -1,28 +1,126 @@
-from typing import Optional, Dict, List, Any, Union
+"""
+MySQL DAO for sj_category_tags.
+Supports division_id / category_head_id relationships and category counts.
+"""
+
+from collections import defaultdict
 from datetime import datetime, timezone
 import secrets
-import json
-from sqlalchemy import text
-from app.config.database import get_async_session_factory
-from app.models.daos_flat import CategoryTagInternal
-from app.models.daos_flat import CategoryTagInternalCreate, CategoryTagInternalUpdate
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-def now_utc():
-    return datetime.now(timezone.utc)
+from sqlalchemy import text
+
+from app.config.database import get_async_session_factory
+from app.db.db_utils import now_utc
+from app.models.daos_flat import (
+    CategoryTagInternal,
+    CategoryTagInternalCreate,
+    CategoryTagInternalUpdate,
+)
+
 
 class MySQLCategoryTagsDAO:
     def __init__(self):
         self.table_name = "sj_category_tags"
-    
+
     @property
     def TABLE(self):
-        from app.config.settings import settings
         return self.table_name
 
     def _factory(self):
         return get_async_session_factory()
-        
-    async def findById(self, id: Union[int, str]) -> Optional['CategoryTagInternal']:
+
+    def _map_to_schema(
+        self,
+        r,
+        division_name: Optional[str] = None,
+        category_count: int = 0,
+    ) -> CategoryTagInternal:
+        div_id = getattr(r, "division_id", None) or getattr(r, "category_head_id", None)
+        return CategoryTagInternal(
+            id=str(r.id),
+            external_id=r.external_id,
+            name=r.name,
+            description=r.description,
+            is_active=bool(r.is_active) if r.is_active is not None else True,
+            division_id=div_id,
+            division_name=division_name,
+            category_head_id=div_id,
+            category_head_name=division_name,
+            category_count=category_count,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
+
+    async def _fetch_extra_info(
+        self, session, rows: List[Any]
+    ) -> Tuple[Dict[int, str], Dict[str, int]]:
+        division_name_map: Dict[int, str] = {}
+        category_count_map: Dict[str, int] = defaultdict(int)
+        if not rows:
+            return division_name_map, category_count_map
+
+        # 1. Fetch division / head names
+        div_ids = list({
+            int(getattr(r, "division_id", None) or getattr(r, "category_head_id", None))
+            for r in rows
+            if (getattr(r, "division_id", None) is not None or getattr(r, "category_head_id", None) is not None)
+        })
+        if div_ids:
+            d_placeholders = ", ".join([f":d_{i}" for i in range(len(div_ids))])
+            d_params = {f"d_{i}": did for i, did in enumerate(div_ids)}
+            try:
+                res_divs = await session.execute(
+                    text(f"SELECT id, name FROM sj_divisions WHERE id IN ({d_placeholders})"),
+                    d_params,
+                )
+                for d in res_divs.fetchall():
+                    division_name_map[int(d.id)] = d.name
+            except Exception:
+                # Fallback to sj_category_heads
+                try:
+                    res_heads = await session.execute(
+                        text(f"SELECT id, name FROM sj_category_heads WHERE id IN ({d_placeholders})"),
+                        d_params,
+                    )
+                    for h in res_heads.fetchall():
+                        division_name_map[int(h.id)] = h.name
+                except Exception:
+                    pass
+
+        # 2. Count categories under each tag name
+        tag_names = list({r.name for r in rows if r.name})
+        if tag_names:
+            t_placeholders = ", ".join([f":t_{i}" for i in range(len(tag_names))])
+            t_params = {f"t_{i}": tn for i, tn in enumerate(tag_names)}
+            res_counts = await session.execute(
+                text(f"""
+                    SELECT tag, COUNT(DISTINCT category_id) as cnt
+                    FROM sj_category_category_tags
+                    WHERE tag IN ({t_placeholders})
+                    GROUP BY tag
+                """),
+                t_params,
+            )
+            for c in res_counts.fetchall():
+                category_count_map[c.tag] = int(c.cnt)
+
+            res_cat_col = await session.execute(
+                text(f"""
+                    SELECT category_tag, COUNT(*) as cnt
+                    FROM sj_categories
+                    WHERE category_tag IN ({t_placeholders})
+                    GROUP BY category_tag
+                """),
+                t_params,
+            )
+            for c in res_cat_col.fetchall():
+                if c.category_tag:
+                    category_count_map[c.category_tag] = max(category_count_map[c.category_tag], int(c.cnt))
+
+        return division_name_map, category_count_map
+
+    async def findById(self, id: Union[int, str]) -> Optional[CategoryTagInternal]:
         factory = self._factory()
         if not factory or not id:
             return None
@@ -37,42 +135,45 @@ class MySQLCategoryTagsDAO:
             row = result.fetchone()
             if not row:
                 return None
-            return self._map_to_schema(row)
+            div_map, count_map = await self._fetch_extra_info(session, [row])
+            target_div_id = getattr(row, "division_id", None) or getattr(row, "category_head_id", None)
+            div_name = div_map[int(target_div_id)] if target_div_id and int(target_div_id) in div_map else None
+            count = count_map[row.name] if row.name and row.name in count_map else 0
+            return self._map_to_schema(row, division_name=div_name, category_count=count)
 
     async def findOne(
         self,
-        query: Optional[dict] = None,
-        is_active: Optional[bool] = None,
+        id: Optional[Union[int, str]] = None,
         name: Optional[str] = None,
-    ) -> Optional['CategoryTagInternal']:
-        if query:
-            if "_id" in query or "id" in query:
-                return await self.findById(query.get("_id") or query.get("id"))
-            if "externalId" in query and query["externalId"]:
-                return await self.findById(query["externalId"])
-        results = await self.findAll(query=query, is_active=is_active, name=name)
+        is_active: Optional[bool] = None,
+        division_id: Optional[int] = None,
+        category_head_id: Optional[int] = None,
+    ) -> Optional[CategoryTagInternal]:
+        if id:
+            return await self.findById(id)
+        target_did = division_id if division_id is not None else category_head_id
+        results = await self.findAll(is_active=is_active, name=name, division_id=target_did)
         return results[0] if results else None
 
     async def findAll(
         self,
-        query: Optional[dict] = None,
         is_active: Optional[bool] = None,
         name: Optional[str] = None,
-    ) -> List['CategoryTagInternal']:
-        if query:
-            if is_active is None and "is_active" in query:
-                is_active = query["is_active"]
-            if name is None and "name" in query:
-                name = query["name"]
-
+        division_id: Optional[int] = None,
+        category_head_id: Optional[int] = None,
+    ) -> List[CategoryTagInternal]:
         clauses = []
         params = {}
         if is_active is not None:
             clauses.append("is_active = :act")
             params["act"] = 1 if is_active else 0
         if name is not None:
-            clauses.append("name = :name")
-            params["name"] = name
+            clauses.append("LOWER(name) = LOWER(:name)")
+            params["name"] = name.strip()
+        target_did = division_id if division_id is not None else category_head_id
+        if target_did is not None:
+            clauses.append("(division_id = :did OR category_head_id = :did)")
+            params["did"] = int(target_did)
 
         where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
@@ -83,81 +184,159 @@ class MySQLCategoryTagsDAO:
         async with factory() as session:
             result = await session.execute(text(sql), params)
             rows = result.fetchall()
-            return [self._map_to_schema(r) for r in rows]
+            if not rows:
+                return []
+            div_map, count_map = await self._fetch_extra_info(session, rows)
+            return [
+                self._map_to_schema(
+                    r,
+                    division_name=div_map[int(getattr(r, "division_id", None) or getattr(r, "category_head_id", None))]
+                    if (getattr(r, "division_id", None) or getattr(r, "category_head_id", None)) and
+                       int(getattr(r, "division_id", None) or getattr(r, "category_head_id", None)) in div_map
+                    else None,
+                    category_count=count_map[r.name] if r.name and r.name in count_map else 0,
+                )
+                for r in rows
+            ]
 
-    async def create(self, data: 'CategoryTagInternalCreate') -> 'CategoryTagInternal':
+    async def create(self, data: CategoryTagInternalCreate) -> CategoryTagInternal:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
-        
+
         cols = ["external_id", "created_at", "updated_at"]
         params = {"eid": external_id, "c": now, "u": now}
 
         if data.name is not None:
             cols.append("name")
-            params["s_name"] = data.name
+            params["name"] = data.name.strip()
 
         if data.description is not None:
             cols.append("description")
-            params["s_description"] = data.description
+            params["desc"] = data.description
 
         if data.is_active is not None:
             cols.append("is_active")
-            params["s_is_active"] = data.is_active
+            params["act"] = 1 if data.is_active else 0
+
+        target_did = data.division_id if data.division_id is not None else data.category_head_id
+        if target_did is not None:
+            cols.append("division_id")
+            cols.append("category_head_id")
+            params["did"] = int(target_did)
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['name', 'description', 'isActive'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
-        
+        val_parts = [":eid", ":c", ":u"]
+        if "name" in params: val_parts.append(":name")
+        if "desc" in params: val_parts.append(":desc")
+        if "act" in params: val_parts.append(":act")
+        if "did" in params:
+            val_parts.append(":did")
+            val_parts.append(":did")
+
+        val_sql = ", ".join(val_parts)
+
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
-            new_id = (
-                await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
-                )
-            ).scalar()
-            await self._replace_children(session, new_id, data)
             await session.commit()
-            
+
+            res_id = await session.execute(
+                text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
+            )
+            new_id = res_id.scalar()
+
+            # Sync junction tables
+            if target_did is not None:
+                try:
+                    await session.execute(
+                        text("INSERT IGNORE INTO sj_division_category_tags (division_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
+                        {"did": int(target_did), "tid": int(new_id), "now": now},
+                    )
+                except Exception:
+                    pass
+                try:
+                    await session.execute(
+                        text("INSERT IGNORE INTO sj_category_head_category_tags (category_head_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
+                        {"did": int(target_did), "tid": int(new_id), "now": now},
+                    )
+                except Exception:
+                    pass
+                await session.commit()
+
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'CategoryTagInternalUpdate') -> 'CategoryTagInternal':
+    async def update(self, id: str, update_data: CategoryTagInternalUpdate) -> Optional[CategoryTagInternal]:
+        existing = await self.findById(id)
+        if not existing:
+            return None
+
         factory = self._factory()
+        now = now_utc()
+        tag_id = int(existing.id)
+
         updates = ["updated_at = :u"]
-        params = {"id": id, "u": now_utc()}
+        params = {"id": tag_id, "u": now}
 
-        if data.name is not None:
-            updates.append("name = :s_name")
-            params["s_name"] = data.name
+        if update_data.name is not None:
+            updates.append("name = :name")
+            params["name"] = update_data.name.strip()
 
-        if data.description is not None:
-            updates.append("description = :s_description")
-            params["s_description"] = data.description
+        if update_data.description is not None:
+            updates.append("description = :desc")
+            params["desc"] = update_data.description
 
-        if data.is_active is not None:
-            updates.append("is_active = :s_isActive")
-            params["s_is_active"] = data.is_active
+        if update_data.is_active is not None:
+            updates.append("is_active = :act")
+            params["act"] = 1 if update_data.is_active else 0
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
-                await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, int(id), data)
-                await session.commit()
-                
-        return await self.findById(id)
+        target_did = update_data.division_id if update_data.division_id is not None else update_data.category_head_id
+        if target_did is not None:
+            div_val = int(target_did) if target_did != 0 else None
+            updates.append("division_id = :did")
+            updates.append("category_head_id = :did")
+            params["did"] = div_val
+
+        upd_sql = ", ".join(updates)
+        async with factory() as session:
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+
+            # Sync junction tables
+            if target_did is not None:
+                await session.execute(
+                    text("DELETE FROM sj_division_category_tags WHERE category_tag_id = :tid"),
+                    {"tid": tag_id},
+                )
+                await session.execute(
+                    text("DELETE FROM sj_category_head_category_tags WHERE category_tag_id = :tid"),
+                    {"tid": tag_id},
+                )
+                if target_did != 0:
+                    try:
+                        await session.execute(
+                            text("INSERT INTO sj_division_category_tags (division_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
+                            {"did": int(target_did), "tid": tag_id, "now": now},
+                        )
+                    except Exception:
+                        pass
+                    try:
+                        await session.execute(
+                            text("INSERT INTO sj_category_head_category_tags (category_head_id, category_tag_id, created_at) VALUES (:did, :tid, :now)"),
+                            {"did": int(target_did), "tid": tag_id, "now": now},
+                        )
+                    except Exception:
+                        pass
+
+            await session.commit()
+
+        return await self.findById(str(tag_id))
 
     async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
         if not factory or not id:
             return False
         async with factory() as session:
-            if str(id).isdigit():
-                pk = int(id)
-            else:
+            pk = int(id) if str(id).isdigit() else None
+            if not pk:
                 res = await session.execute(
                     text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
                 )
@@ -165,6 +344,15 @@ class MySQLCategoryTagsDAO:
                 if not pk:
                     return False
 
+            # Delete junction records
+            await session.execute(
+                text("DELETE FROM sj_division_category_tags WHERE category_tag_id = :tid"),
+                {"tid": pk},
+            )
+            await session.execute(
+                text("DELETE FROM sj_category_head_category_tags WHERE category_tag_id = :tid"),
+                {"tid": pk},
+            )
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": pk},
@@ -172,20 +360,56 @@ class MySQLCategoryTagsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, children: Dict = None) -> 'CategoryTagInternal':
-        from app.models.daos_flat import CategoryTagInternal
-        return CategoryTagInternal(
-            id=str(r.id),
-            external_id=r.external_id,
-            name=r.name,
-            description=r.description,
-            is_active=bool(r.is_active) if r.is_active is not None else None,
-            created_at=r.created_at,
-            updated_at=r.updated_at,
-        )
+    async def findCategoriesByTag(self, tag_id_or_name: Union[int, str]) -> List[Dict[str, Any]]:
+        """Get all categories belonging to this category tag"""
+        factory = self._factory()
+        if not factory or not tag_id_or_name:
+            return []
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        return {}
-        
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
-        pass
+        async with factory() as session:
+            tag_name = None
+            tag_id = None
+            if str(tag_id_or_name).isdigit():
+                tag_id = int(tag_id_or_name)
+                r = (await session.execute(text("SELECT name FROM sj_category_tags WHERE id = :id"), {"id": tag_id})).fetchone()
+                if r:
+                    tag_name = r.name
+            else:
+                tag_name = str(tag_id_or_name)
+                r = (await session.execute(text("SELECT id FROM sj_category_tags WHERE name = :name"), {"name": tag_name})).fetchone()
+                if r:
+                    tag_id = int(r.id)
+
+            where_parts = []
+            params: Dict[str, Any] = {}
+            if tag_id is not None:
+                where_parts.append("c.category_tag_id = :tid")
+                params["tid"] = tag_id
+            if tag_name:
+                where_parts.append("c.category_tag = :tname")
+                where_parts.append("cct.tag = :tname")
+                params["tname"] = tag_name
+
+            where_sql = " OR ".join(where_parts) if where_parts else "1=0"
+            sql = f"""
+                SELECT DISTINCT c.id, c.external_id, c.name, c.description, c.is_active, c.category_tag, c.category_tag_id
+                FROM sj_categories c
+                LEFT JOIN sj_category_category_tags cct ON c.id = cct.category_id
+                WHERE {where_sql}
+                ORDER BY c.name ASC
+            """
+            result = await session.execute(text(sql), params)
+            rows = result.fetchall()
+            return [
+                {
+                    "id": str(r.id),
+                    "_id": str(r.id),
+                    "externalId": r.external_id,
+                    "name": r.name,
+                    "description": r.description,
+                    "isActive": bool(r.is_active),
+                    "categoryTag": r.category_tag,
+                    "categoryTagId": r.category_tag_id,
+                }
+                for r in rows
+            ]

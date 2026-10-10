@@ -38,19 +38,15 @@ class MySQLContactsDAO:
             addresses_map, phones_map = await self._fetch_children(session, [int(row.id)])
             return self._map_to_schema(
                 row,
-                addresses=addresses_map.get(int(row.id), []),
-                phone_numbers=phones_map.get(int(row.id), []),
+                addresses=addresses_map[int(row.id)],
+                phone_numbers=phones_map[int(row.id)],
             )
 
     async def findOne(
         self,
         id: Optional[Union[int, str]] = None,
         email: Optional[str] = None,
-        query: Optional[dict] = None,
     ) -> Optional[ContactInternal]:
-        if query:
-            id = query.get("id") or query.get("_id") or id
-            email = query.get("email") or email
         if id:
             return await self.findById(id)
         if email:
@@ -63,8 +59,8 @@ class MySQLContactsDAO:
                 addresses_map, phones_map = await self._fetch_children(session, [int(row.id)])
                 return self._map_to_schema(
                     row,
-                    addresses=addresses_map.get(int(row.id), []),
-                    phone_numbers=phones_map.get(int(row.id), []),
+                    addresses=addresses_map[int(row.id)],
+                    phone_numbers=phones_map[int(row.id)],
                 )
         all_contacts = await self.findAll()
         return all_contacts[0] if all_contacts else None
@@ -72,14 +68,7 @@ class MySQLContactsDAO:
     async def findAll(
         self,
         is_active: Optional[bool] = None,
-        query: Optional[dict] = None,
     ) -> List[ContactInternal]:
-        if query:
-            if is_active is None:
-                val = query.get("isActive") if "isActive" in query else query.get("is_active")
-                if val is not None:
-                    is_active = bool(val)
-
         async with self._factory()() as session:
             clauses = []
             params = {}
@@ -103,8 +92,8 @@ class MySQLContactsDAO:
             return [
                 self._map_to_schema(
                     r,
-                    addresses=addresses_map.get(int(r.id), []),
-                    phone_numbers=phones_map.get(int(r.id), []),
+                    addresses=addresses_map[int(r.id)],
+                    phone_numbers=phones_map[int(r.id)],
                 )
                 for r in rows
             ]

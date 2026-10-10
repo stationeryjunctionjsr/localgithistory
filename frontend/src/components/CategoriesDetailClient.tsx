@@ -12,6 +12,7 @@ import { logger } from '@/utils/logger';
 
 interface CategoryInfo {
   id?: string;
+  _id?: string;
   name: string;
   slug?: string;
   images?: string[];

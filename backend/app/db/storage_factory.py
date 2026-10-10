@@ -34,6 +34,8 @@ from app.db.mysql_collections_dao import MySQLCollectionsDAO
 from app.db.mysql_searchTags_dao import MySQLSearchTagsDAO
 from app.db.mysql_coachMarks_dao import MySQLCoachMarksDAO
 from app.db.mysql_categoryTags_dao import MySQLCategoryTagsDAO
+from app.db.mysql_category_head_dao import MySQLCategoryHeadDAO
+from app.db.mysql_division_dao import MySQLDivisionDAO
 from app.db.mysql_deliveryCharges_dao import MySQLDeliveryChargesDAO
 from app.db.mysql_deliveryChargeDefaults_dao import MySQLDeliveryChargeDefaultsDAO
 from app.db.mysql_deliveryZones_dao import MySQLDeliveryZonesDAO
@@ -119,6 +121,8 @@ _MYSQL_DAO_COLLECTIONS = {
     "searchTags": MySQLSearchTagsDAO,
     "coachMarks": MySQLCoachMarksDAO,
     "categoryTags": MySQLCategoryTagsDAO,
+    "categoryHeads": MySQLCategoryHeadDAO,
+    "divisions": MySQLDivisionDAO,
     "deliveryCharges": MySQLDeliveryChargesDAO,
     "deliveryChargeDefaults": MySQLDeliveryChargeDefaultsDAO,
     "deliveryZones": MySQLDeliveryZonesDAO,

@@ -38,7 +38,7 @@ class MySQLSchemesDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            return self._map_to_schema(row, children_map[int(row.id)])
 
     async def findByCode(self, code: str) -> Optional['SchemeInternal']:
         factory = self._factory()
@@ -51,38 +51,26 @@ class MySQLSchemesDAO:
             if not row:
                 return None
             children_map = await self._fetch_children(session, [int(row.id)])
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+            return self._map_to_schema(row, children_map[int(row.id)])
 
     async def findOne(
         self,
-        query: Optional[dict] = None,
         code: Optional[str] = None,
         is_active: Optional[bool] = None,
+        id: Optional[Union[int, str]] = None,
     ) -> Optional['SchemeInternal']:
         if code:
             return await self.findByCode(code)
-        if query:
-            if "code" in query and query["code"]:
-                return await self.findByCode(query["code"])
-            if "_id" in query or "id" in query:
-                return await self.findById(query.get("_id") or query.get("id"))
-            if "externalId" in query and query["externalId"]:
-                return await self.findById(query["externalId"])
-        results = await self.findAll(query=query, is_active=is_active)
+        if id:
+            return await self.findById(id)
+        results = await self.findAll(is_active=is_active)
         return results[0] if results else None
 
     async def findAll(
         self,
-        query: Optional[dict] = None,
         is_active: Optional[bool] = None,
         code: Optional[str] = None,
     ) -> List['SchemeInternal']:
-        if query:
-            if is_active is None and "is_active" in query:
-                is_active = query["is_active"]
-            if code is None and "code" in query:
-                code = query["code"]
-
         clauses = []
         params = {}
         if is_active is not None:
@@ -104,7 +92,7 @@ class MySQLSchemesDAO:
             if not rows:
                 return []
             children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            return [self._map_to_schema(r, children_map[int(r.id)]) for r in rows]
 
     async def create(self, data: 'SchemesInternalCreate') -> 'SchemeInternal':
         factory = self._factory()
@@ -243,7 +231,7 @@ class MySQLSchemesDAO:
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, children: Dict) -> 'SchemeInternal':
+    def _map_to_schema(self, r, applicable_roles: List[str]) -> 'SchemeInternal':
         from app.models.daos_flat import SchemeInternal
         return SchemeInternal(
             id=str(r.id),
@@ -257,13 +245,13 @@ class MySQLSchemesDAO:
             valid_until=r.valid_until,
             is_active=bool(r.is_active) if r.is_active is not None else None,
             code=r.code,
-            applicable_roles=children.get("applicable_roles", []),
+            applicable_roles=applicable_roles,
             created_at=r.created_at,
             updated_at=r.updated_at,
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List[str]]:
+        c_map: Dict[int, List[str]] = {rid: [] for rid in ids}
         if not ids:
             return c_map
             
@@ -274,9 +262,7 @@ class MySQLSchemesDAO:
         rows_applicableRoles = res_applicableRoles.fetchall()
 
         for r in rows_applicableRoles:
-            if "applicable_roles" not in c_map[r.parent_id]:
-                c_map[r.parent_id]["applicable_roles"] = []
-            c_map[r.parent_id]["applicable_roles"].append(r[1])
+            c_map[r.parent_id].append(r[1])
 
         return c_map
 

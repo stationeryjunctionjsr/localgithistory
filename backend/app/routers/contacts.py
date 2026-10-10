@@ -19,7 +19,7 @@ async def get_contacts(current_user: User = Depends(get_current_user)):
     if current_user.role == "super_admin":
         contacts = await contact_repository.findAll()
     else:
-        contacts = await contact_repository.findAll({"isActive": True})
+        contacts = await contact_repository.findAll(is_active=True)
 
     contacts.sort(key=lambda x: (x.display_order if x.display_order is not None else 0))
     return contacts
@@ -28,7 +28,7 @@ async def get_contacts(current_user: User = Depends(get_current_user)):
 @router.get("/public", response_model=List[ContactResponse])
 @cache.ttl_cache(ttl=3600.0)
 async def get_public_contacts():
-    contacts = await contact_repository.findAll({"isActive": True})
+    contacts = await contact_repository.findAll(is_active=True)
     contacts.sort(key=lambda x: (x.display_order if x.display_order is not None else 0))
     return contacts
 

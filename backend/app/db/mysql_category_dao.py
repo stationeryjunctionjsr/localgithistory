@@ -34,6 +34,7 @@ class MySQLCategoryDAO:
             is_active=bool(r.is_active) if r.is_active is not None else True,
             show_in_mobile_homepage=bool(r.show_in_mobile_homepage) if r.show_in_mobile_homepage is not None else False,
             category_tag=r.category_tag,
+            category_tag_id=r.category_tag_id if hasattr(r, "category_tag_id") else None,
             minimum_quantity=r.minimum_quantity,
             gst=float(r.gst) if r.gst is not None else None,
             is_returnable=bool(r.is_returnable) if r.is_returnable is not None else True,
@@ -104,14 +105,19 @@ class MySQLCategoryDAO:
 
         category_tags = data.category_tags if data.category_tags is not None else []
         for tag in category_tags:
+            tag_id_res = await session.execute(
+                text("SELECT id FROM sj_category_tags WHERE name = :tname LIMIT 1"),
+                {"tname": str(tag).strip()},
+            )
+            tag_id = tag_id_res.scalar()
             await session.execute(
-                text("INSERT INTO sj_category_category_tags (category_id, tag) VALUES (:cid, :tag)"),
-                {"cid": cid, "tag": str(tag)},
+                text("INSERT INTO sj_category_category_tags (category_id, tag, category_tag_id) VALUES (:cid, :tag, :tid)"),
+                {"cid": cid, "tag": str(tag), "tid": tag_id},
             )
 
     async def findAll(
         self,
-        name: Optional[str] = None,
+        name: Optional[Union[str, Dict]] = None,
         category_tag: Optional[str] = None,
         is_active: Optional[bool] = None,
         is_returnable: Optional[bool] = None,
@@ -120,6 +126,10 @@ class MySQLCategoryDAO:
         factory = self._factory()
         if not factory:
             return []
+
+        if isinstance(name, dict):
+            query = name
+            name = None
 
         if query:
             if name is None and "name" in query:
@@ -176,12 +186,15 @@ class MySQLCategoryDAO:
 
     async def findOne(
         self,
-        id: Optional[Union[int, str]] = None,
+        id: Optional[Union[int, str, Dict]] = None,
         name: Optional[str] = None,
         category_tag: Optional[str] = None,
         is_active: Optional[bool] = None,
         query: Optional[Dict] = None,
     ) -> Optional[Category]:
+        if isinstance(id, dict):
+            query = id
+            id = None
         if id:
             return await self.findById(id)
         if query and ("_id" in query or "id" in query):
@@ -220,15 +233,23 @@ class MySQLCategoryDAO:
         now = now_utc()
         external_id = secrets.token_hex(16)
         async with factory() as session:
+            tag_id = data.category_tag_id
+            if tag_id is None and data.category_tag:
+                res_tid = await session.execute(
+                    text("SELECT id FROM sj_category_tags WHERE name = :tname LIMIT 1"),
+                    {"tname": str(data.category_tag).strip()},
+                )
+                tag_id = res_tid.scalar()
+
             await session.execute(
                 text(
                     f"""
                     INSERT INTO {self.TABLE} (
-                        external_id, name, description, is_active, category_tag,
+                        external_id, name, description, is_active, category_tag, category_tag_id,
                         minimum_quantity, gst, is_returnable, show_in_mobile_homepage,
                         created_at, updated_at
                     ) VALUES (
-                        :external_id, :name, :description, :is_active, :category_tag,
+                        :external_id, :name, :description, :is_active, :category_tag, :category_tag_id,
                         :minimum_quantity, :gst, :is_returnable, :show_in_mobile_homepage,
                         :created_at, :updated_at
                     )
@@ -240,6 +261,7 @@ class MySQLCategoryDAO:
                     "description": data.description,
                     "is_active": 1 if data.is_active else 0,
                     "category_tag": data.category_tag,
+                    "category_tag_id": tag_id,
                     "minimum_quantity": data.minimum_quantity,
                     "gst": data.gst,
                     "is_returnable": 1 if data.is_returnable else 0,
@@ -265,6 +287,16 @@ class MySQLCategoryDAO:
         now = now_utc()
         cid = int(id) if str(id).isdigit() else int(existing.id)
         async with factory() as session:
+            new_tag_id = update_data.category_tag_id
+            if new_tag_id is None and update_data.category_tag is not None:
+                res_tid = await session.execute(
+                    text("SELECT id FROM sj_category_tags WHERE name = :tname LIMIT 1"),
+                    {"tname": str(update_data.category_tag).strip()},
+                )
+                new_tag_id = res_tid.scalar()
+            elif new_tag_id is None:
+                new_tag_id = getattr(existing, "category_tag_id", None)
+
             await session.execute(
                 text(
                     f"""
@@ -273,6 +305,7 @@ class MySQLCategoryDAO:
                         description = :description,
                         is_active = :is_active,
                         category_tag = :category_tag,
+                        category_tag_id = :category_tag_id,
                         minimum_quantity = :minimum_quantity,
                         gst = :gst,
                         is_returnable = :is_returnable,
@@ -287,6 +320,7 @@ class MySQLCategoryDAO:
                     "description": update_data.description if update_data.description is not None else existing.description,
                     "is_active": 1 if (update_data.is_active if update_data.is_active is not None else existing.is_active) else 0,
                     "category_tag": update_data.category_tag if update_data.category_tag is not None else existing.category_tag,
+                    "category_tag_id": new_tag_id,
                     "minimum_quantity": update_data.minimum_quantity if update_data.minimum_quantity is not None else existing.minimum_quantity,
                     "gst": update_data.gst if update_data.gst is not None else existing.gst,
                     "is_returnable": 1 if (update_data.is_returnable if update_data.is_returnable is not None else existing.is_returnable) else 0,

@@ -432,6 +432,7 @@ from app.routers import (
     bundles,
     cart,
     categories,
+    category_heads,
     category_tags,
     collections,
     contacts,
@@ -439,6 +440,7 @@ from app.routers import (
     delivery_charges,
     delivery_slots,
     delivery_zones,
+    divisions,
     feature_flags,
     google_reviews,
     health,
@@ -487,6 +489,8 @@ app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(feature_flags.router, prefix="/api/feature-flags", tags=["feature-flags"])
 app.include_router(reviews.router, prefix="/api/reviews", tags=["reviews"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(divisions.router, prefix="/api/divisions", tags=["divisions"])
+app.include_router(category_heads.router, prefix="/api/category-heads", tags=["category-heads"])
 app.include_router(category_tags.router, prefix="/api/category-tags", tags=["category-tags"])
 app.include_router(promo_strips.router, prefix="/api/promo-strips", tags=["promo-strips"])
 app.include_router(page_info.router, prefix="/api/page-info", tags=["page-info"])

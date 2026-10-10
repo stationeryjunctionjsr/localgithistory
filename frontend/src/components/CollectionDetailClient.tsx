@@ -12,6 +12,7 @@ import { logger } from '@/utils/logger';
 
 interface CollectionInfo {
   id?: string;
+  _id?: string;
   name: string;
   description?: string;
   imageUrl?: string;

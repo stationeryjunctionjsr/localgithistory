@@ -471,6 +471,7 @@ class CategoryInternalCreate(CamelBaseModel):
     sub_categories: Optional[List[str]] = []
     minimum_quantity: Optional[int] = 1
     category_tag: Optional[str] = None
+    category_tag_id: Optional[int] = None
     category_tags: Optional[List[str]] = []
     show_in_mobile_homepage: Optional[bool] = False
     gst: Optional[float] = None
@@ -494,6 +495,7 @@ class CategoryInternalUpdate(CamelBaseModel):
     sub_categories: Optional[List[str]] = None
     minimum_quantity: Optional[int] = 1
     category_tag: Optional[str] = None
+    category_tag_id: Optional[int] = None
     category_tags: Optional[List[str]] = None
     show_in_mobile_homepage: Optional[bool] = None
     gst: Optional[float] = None

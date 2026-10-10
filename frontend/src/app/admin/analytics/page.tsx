@@ -356,7 +356,7 @@ export default function AnalyticsDashboard() {
       {/* Marketing & Acquisition */}
       <h3 className="mb-4 mt-8 border-b px-2 pb-2 text-xl font-bold">Marketing &amp; Acquisition</h3>
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <MarketingAttribution startDate={startDate} endDate={endDate} />
+        <MarketingAttribution startDate={startDate} endDate={endDate} currency={currency} />
         <SalesByReferrer startDate={startDate} endDate={endDate} currency={currency} />
       </div>
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">

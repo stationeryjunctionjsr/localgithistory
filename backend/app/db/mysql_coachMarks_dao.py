@@ -48,13 +48,9 @@ class MySQLCoachMarksDAO:
 
     async def findOne(
         self,
-        anchor_id: Optional[str] = None,
         id: Optional[Union[int, str]] = None,
-        query: Optional[dict] = None,
+        anchor_id: Optional[str] = None,
     ) -> Optional[CoachMarkInternal]:
-        if query:
-            anchor_id = query.get("anchor_id") or query.get("anchorId") or anchor_id
-            id = query.get("id") or query.get("_id") or id
         if anchor_id:
             return await self.findByAnchorId(anchor_id)
         if id:
@@ -66,16 +62,7 @@ class MySQLCoachMarksDAO:
         self,
         screen_name: Optional[str] = None,
         is_active: Optional[bool] = None,
-        query: Optional[dict] = None,
     ) -> List[CoachMarkInternal]:
-        if query:
-            if is_active is None:
-                val = query.get("isActive") if "isActive" in query else query.get("is_active")
-                if val is not None:
-                    is_active = bool(val)
-            if screen_name is None:
-                screen_name = query.get("screenName") or query.get("screen_name")
-
         async with self._factory()() as session:
             clauses = []
             params = {}

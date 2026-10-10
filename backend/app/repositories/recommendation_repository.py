@@ -1096,11 +1096,11 @@ class RecommendationRepository:
                 _tag_category_names = set()
                 for cat in all_cats:
                     # Each category carries category_tag (single str) and category_tags (list[str])
-                    cat_tag = getattr(cat, "category_tag", None) or ""
-                    cat_tags = getattr(cat, "category_tags", None) or []
+                    cat_tag = cat.category_tag or ""
+                    cat_tags = cat.category_tags or []
                     all_tags = {t.strip().lower() for t in ([cat_tag] + list(cat_tags)) if t}
                     if category_tag.strip().lower() in all_tags:
-                        cat_name = getattr(cat, "name", None)
+                        cat_name = cat.name
                         if cat_name:
                             _tag_category_names.add(cat_name)
                 logger.debug(
@@ -1173,8 +1173,7 @@ class RecommendationRepository:
                 if p and self._is_available_in_zone(p, seller_id_set):
                     # Apply category-tag filter when requested
                     if _tag_category_names is not None:
-                        raw_cat = p.category if hasattr(p, "category") else None
-                        cat_name = raw_cat.name if hasattr(raw_cat, "name") else (raw_cat or "")
+                        cat_name = p.category or ""
                         if cat_name not in _tag_category_names:
                             continue
                     if not p.display_image and p.images:
@@ -1197,8 +1196,7 @@ class RecommendationRepository:
                 if p:
                     # Apply category-tag filter when requested
                     if _tag_category_names is not None:
-                        raw_cat = p.category if hasattr(p, "category") else None
-                        cat_name = raw_cat.name if hasattr(raw_cat, "name") else (raw_cat or "")
+                        cat_name = p.category or ""
                         if cat_name not in _tag_category_names:
                             continue
                     if not p.display_image and p.images:

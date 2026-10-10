@@ -74,8 +74,12 @@ class SubOrderRepository:
                 try:
                     from app.routers.commission import stamp_commission_on_delivery
                     commission_fields = await stamp_commission_on_delivery(existing)
-                    for k, v in commission_fields.items():
-                        setattr(update_data, k, v)
+                    if "commissionStatus" in commission_fields and commission_fields["commissionStatus"] is not None:
+                        update_data.commissionStatus = commission_fields["commissionStatus"]
+                    if "commissionPct" in commission_fields and commission_fields["commissionPct"] is not None:
+                        update_data.commissionPct = commission_fields["commissionPct"]
+                    if "commissionAmount" in commission_fields and commission_fields["commissionAmount"] is not None:
+                        update_data.commissionAmount = commission_fields["commissionAmount"]
                     if "deliveredAt" not in commission_fields:
                         update_data.deliveredAt = datetime.now(timezone.utc).isoformat()
                 except Exception as e:

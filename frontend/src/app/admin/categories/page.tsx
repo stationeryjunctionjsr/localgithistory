@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/utils/api';
 import { toast } from 'react-toastify';
+import Link from 'next/link';
 import InfoButton from '@/components/InfoButton';
 import RefreshButton from '@/components/Admin/RefreshButton';
 
@@ -44,10 +45,7 @@ export default function CategoryManagement() {
   const [subCategoryInput, setSubCategoryInput] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
-  const [showTagModal, setShowTagModal] = useState(false);
   const [categoryTags, setCategoryTags] = useState<any[]>([]);
-  const [editingTag, setEditingTag] = useState<any | null>(null);
-  const [tagFormData, setTagFormData] = useState({ name: '', description: '', isActive: true });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -272,47 +270,6 @@ export default function CategoryManagement() {
     }
   };
 
-  const handleTagSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editingTag?._id) {
-        await api.put(`/category-tags/${editingTag._id}`, tagFormData);
-        toast.success('Category tag updated successfully');
-      } else {
-        await api.post('/category-tags', tagFormData);
-        toast.success('Category tag created successfully');
-      }
-      setShowTagModal(false);
-      setEditingTag(null);
-      setTagFormData({ name: '', description: '', isActive: true });
-      fetchCategoryTags();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Operation failed');
-    }
-  };
-
-  const handleEditTag = (tag: any) => {
-    setEditingTag(tag);
-    setTagFormData({
-      name: tag.name || '',
-      description: tag.description || '',
-      isActive: tag.isActive !== false,
-    });
-  };
-
-  const handleToggleTagStatus = async (tag: any) => {
-    const newStatus = !tag.isActive;
-    if (!confirm(`Are you sure you want to ${newStatus ? 'unhide' : 'hide'} this category tag?`))
-      return;
-    try {
-      await api.put(`/category-tags/${tag._id}`, { isActive: newStatus });
-      toast.success(`Category tag ${newStatus ? 'unhidden' : 'hidden'} successfully`);
-      fetchCategoryTags();
-    } catch (_error: any) {
-      toast.error(`Failed to ${newStatus ? 'unhide' : 'hide'} category tag`);
-    }
-  };
-
   if (user?.role !== 'super_admin') {
     return <div>Access Denied</div>;
   }
@@ -418,18 +375,15 @@ export default function CategoryManagement() {
               <RefreshButton onRefresh={fetchCategories} />
             </h1>
             <div className="flex gap-2">
-              <button
-            onClick={() => {
-              setShowTagModal(true);
-              fetchCategoryTags();
-            }}
-            className="rounded px-4 py-2 text-white"
+          <Link
+            href="/admin/category-tags"
+            className="rounded px-4 py-2 text-white font-medium flex items-center gap-1.5 transition-all hover:opacity-90"
             style={{
-              background: 'linear-gradient(135deg, #6c757d 0%, #495057 100%)',
+              background: 'linear-gradient(135deg, #17A2B8 0%, #138496 100%)',
             }}
           >
-            Manage Category Tags
-          </button>
+            🏷️ Manage Category Tags &rarr;
+          </Link>
           <button
             onClick={() => {
               fetchCategoryTags(); // Refresh tags when opening add modal
@@ -1041,22 +995,32 @@ export default function CategoryManagement() {
                     categoryTags
                       .filter((tag) => tag.isActive !== false)
                       .map((tag) => (
-                        <label key={tag._id} className="flex cursor-pointer items-center gap-2">
-                          <input
-                            type="radio"
-                            name="categoryTag"
-                            value={tag.name}
-                            checked={formData.categoryTag === tag.name}
-                            onChange={() => setFormData({ ...formData, categoryTag: tag.name })}
-                            className="h-4 w-4 cursor-pointer"
-                          />
-                          <span>{tag.name}</span>
+                        <label
+                          key={tag._id}
+                          className="flex cursor-pointer items-center justify-between rounded-md border border-gray-100 p-2 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="categoryTag"
+                              value={tag.name}
+                              checked={formData.categoryTag === tag.name}
+                              onChange={() => setFormData({ ...formData, categoryTag: tag.name })}
+                              className="h-4 w-4 cursor-pointer text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-sm font-medium text-gray-800">{tag.name}</span>
+                          </div>
+                          {(tag.divisionName || tag.categoryHeadName) && (
+                            <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-200" title="Super Category">
+                              🏛️ {tag.divisionName || tag.categoryHeadName}
+                            </span>
+                          )}
                         </label>
                       ))
                   )}
                 </div>
                 <small className="mt-1 block text-sm text-gray-600">
-                  Select the main category tag this category belongs to (e.g., School)
+                  Select the category tag this category belongs to (e.g., School Notebooks)
                 </small>
               </div>
               <div className="mb-4">
@@ -1286,160 +1250,7 @@ export default function CategoryManagement() {
         </div>
       )}
 
-      {/* Category Tags Management Modal */}
-      {showTagModal && (
-        <div
-          className="fixed inset-0 z-[110] flex items-start justify-center bg-black bg-opacity-50 pt-4 overflow-y-auto pb-4"
-          onClick={() => {
-            setShowTagModal(false);
-            setEditingTag(null);
-            setTagFormData({ name: '', description: '', isActive: true });
-          }}
-        >
-          <div
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="mb-4 text-xl font-bold">Manage Category Tags</h3>
 
-            {/* Add/Edit Tag Form */}
-            <form onSubmit={handleTagSubmit} className="mb-6 border-b pb-4">
-              <div className="mb-4">
-                <label className="mb-1 block text-sm font-medium">Tag Name *</label>
-                <input
-                  type="text"
-                  value={tagFormData.name}
-                  onChange={(e) => setTagFormData({ ...tagFormData, name: e.target.value })}
-                  required
-                  placeholder="e.g., School, Office"
-                  className="w-full rounded border px-3 py-2"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="mb-1 block text-sm font-medium">Description</label>
-                <textarea
-                  value={tagFormData.description}
-                  onChange={(e) => setTagFormData({ ...tagFormData, description: e.target.value })}
-                  rows={2}
-                  placeholder="Tag description (displayed on desktop)"
-                  className="w-full rounded border px-3 py-2"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={tagFormData.isActive}
-                    onChange={(e) => setTagFormData({ ...tagFormData, isActive: e.target.checked })}
-                    className="mr-2"
-                  />
-                  Active
-                </label>
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowTagModal(false);
-                    setEditingTag(null);
-                    setTagFormData({ name: '', description: '', isActive: true });
-                  }}
-                  className="rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded px-4 py-2 text-white"
-                  style={{
-                    background: 'linear-gradient(135deg, #28A745 0%, #20C997 100%)',
-                  }}
-                >
-                  {editingTag ? 'Update Tag' : 'Add Tag'}
-                </button>
-              </div>
-            </form>
-
-            {/* Tags List */}
-            <div>
-              <h4 className="mb-4 text-lg font-semibold">Existing Category Tags</h4>
-              {categoryTags.length === 0 ? (
-                <p className="text-gray-600">No category tags found</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border border-gray-200 bg-white">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                          Name
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                          Description
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                      {categoryTags.map((tag) => (
-                        <tr key={tag._id}>
-                          <td className="whitespace-nowrap px-6 py-4">{tag.name}</td>
-                          <td className="px-6 py-4">{tag.description || '-'}</td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            <span
-                              className={`rounded px-2 py-1 text-xs ${tag.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
-                            >
-                              {tag.isActive !== false ? 'Active' : 'Hidden'}
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleEditTag(tag)}
-                                className="rounded px-3 py-1 text-sm text-white"
-                                style={{
-                                  background: 'linear-gradient(135deg, #FFC107 0%, #FF9800 100%)',
-                                }}
-                              >
-                                Edit
-                              </button>
-                              {tag.isActive !== false ? (
-                                <button
-                                  onClick={() => handleToggleTagStatus(tag)}
-                                  className="rounded bg-red-500 px-3 py-1 text-sm text-white hover:bg-red-600"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #DC3545 0%, #C82333 100%)',
-                                  }}
-                                >
-                                  Hide
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleToggleTagStatus(tag)}
-                                  className="rounded bg-green-500 px-3 py-1 text-sm text-white hover:bg-green-600"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #28A745 0%, #218838 100%)',
-                                  }}
-                                >
-                                  Unhide
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* View Sub-categories Modal */}
       {showSubCategoriesDialog && (

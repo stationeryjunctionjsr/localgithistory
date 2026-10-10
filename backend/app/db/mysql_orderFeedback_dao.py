@@ -48,13 +48,9 @@ class MySQLOrderFeedbackDAO:
 
     async def findOne(
         self,
-        order_id: Optional[str] = None,
         id: Optional[Union[int, str]] = None,
-        query: Optional[dict] = None,
+        order_id: Optional[str] = None,
     ) -> Optional[OrderFeedbackInternal]:
-        if query:
-            order_id = query.get("order_id") or query.get("orderId") or order_id
-            id = query.get("id") or query.get("_id") or id
         if order_id:
             return await self.findByOrderId(order_id)
         if id:
@@ -67,16 +63,7 @@ class MySQLOrderFeedbackDAO:
         order_id: Optional[str] = None,
         user_id: Optional[str] = None,
         feedback_type: Optional[str] = None,
-        query: Optional[dict] = None,
     ) -> List[OrderFeedbackInternal]:
-        if query:
-            if order_id is None:
-                order_id = query.get("order_id") or query.get("orderId")
-            if user_id is None:
-                user_id = query.get("user_id") or query.get("userId")
-            if feedback_type is None:
-                feedback_type = query.get("feedback_type") or query.get("feedbackType")
-
         async with self._factory()() as session:
             clauses = []
             params = {}

@@ -24,6 +24,7 @@ class CategoryBase(CamelBaseModel):
     sub_categories: Optional[List[str]] = None
     minimum_quantity: int = Field(default=0, ge=0)  # Minimum quantity required for category
     category_tag: Optional[str] = None
+    category_tag_id: Optional[int] = None
     is_active: bool = True
     show_in_mobile_homepage: bool = False
     gst: float = Field(default=0, ge=0, le=100)
@@ -37,6 +38,7 @@ class CategoryUpdate(CamelBaseModel):
     sub_categories: Optional[List[str]] = None
     minimum_quantity: Optional[int] = Field(None, ge=0)
     category_tag: Optional[str] = None
+    category_tag_id: Optional[int] = None
     is_active: Optional[bool] = None
     show_in_mobile_homepage: Optional[bool] = None
     gst: Optional[float] = Field(None, ge=0, le=100)
@@ -320,6 +322,7 @@ async def create_category(category: CategoryBase, current_user: User = Depends(r
             sub_categories=category.sub_categories or [],
             minimum_quantity=category.minimum_quantity or 0,
             category_tag=category.category_tag or "",
+            category_tag_id=category.category_tag_id,
             is_active=category.is_active,
             show_in_mobile_homepage=category.show_in_mobile_homepage,
             gst=category.gst,

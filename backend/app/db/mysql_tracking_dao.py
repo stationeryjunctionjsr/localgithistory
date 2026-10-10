@@ -53,7 +53,7 @@ class MySQLTrackingDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _row_to_tracking(self, r, children) -> Tracking:
+    def _row_to_tracking(self, r, cart_items: List) -> Tracking:
         from app.models.tracking import Tracking
         return Tracking(
             id=str(r.id),
@@ -79,11 +79,11 @@ class MySQLTrackingDAO:
             orderValue=float(r.order_value) if r.order_value is not None else None,
             price=float(r.price) if r.price is not None else None,
             category=r.category,
-            cartItems=children.get("cart_items", [])
+            cartItems=cart_items
         )
 
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        c_map = {rid: {} for rid in ids}
+    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, List]:
+        c_map: Dict[int, List] = {rid: [] for rid in ids}
         if not ids:
             return c_map
         chunks = [ids[i : i + 999] for i in range(0, len(ids), 999)]
@@ -97,9 +97,7 @@ class MySQLTrackingDAO:
                 chunk_params
             )
             for r in res.fetchall():
-                if "cart_items" not in c_map[r.tracking_id]:
-                    c_map[r.tracking_id]["cart_items"] = []
-                c_map[r.tracking_id]["cart_items"].append({"productId": r.product_id, "quantity": r.quantity, "price": r.price})
+                c_map[r.tracking_id].append({"productId": r.product_id, "quantity": r.quantity, "price": r.price})
 
         return c_map
 

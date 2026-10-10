@@ -7,17 +7,17 @@ class OrderFeedbackRepository:
     def __init__(self):
         self.storage = get_storage("orderFeedback")
 
-    async def findAll(self, query: Optional[dict] = None) -> List[OrderFeedbackInternal]:
-        return await self.storage.findAll(query or {})
+    async def findAll(self) -> List[OrderFeedbackInternal]:
+        return await self.storage.findAll()
 
     async def findById(self, id: str) -> Optional[OrderFeedbackInternal]:
         return await self.storage.findById(id)
 
     async def findByOrder(self, order_id: str) -> Optional[OrderFeedbackInternal]:
-        return await self.storage.findOne({"orderId": order_id})
+        return await self.storage.findByOrderId(order_id)
 
     async def findByUser(self, user_id: str) -> List[OrderFeedbackInternal]:
-        return await self.storage.findAll({"userId": user_id})
+        return await self.storage.findAll(user_id=user_id)
 
     async def create(self, feedback_data: OrderFeedbackInternalCreate) -> OrderFeedbackInternal:
         if feedback_data.rating is not None:

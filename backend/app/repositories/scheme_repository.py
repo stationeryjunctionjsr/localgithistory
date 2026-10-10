@@ -16,19 +16,20 @@ class SchemeRepository:
         is_active: Optional[bool] = None,
         code: Optional[str] = None
     ) -> List[SchemeInternal]:
-        query = {}
-        if id is not None: query["id"] = id
-        if name is not None: query["name"] = name
-        if is_active is not None: query["is_active"] = is_active
-        if code is not None: query["code"] = code
-        return await self.storage.findAll(query or None)
+        if id is not None:
+            doc = await self.storage.findById(id)
+            return [doc] if doc else []
+        schemes = await self.storage.findAll(is_active=is_active, code=code)
+        if name is not None:
+            schemes = [s for s in schemes if s.name == name]
+        return schemes
 
     async def findById(self, id: str) -> Optional[SchemeInternal]:
         return await self.storage.findById(id)
 
     async def findActiveForBusiness(self) -> List[SchemeInternal]:
         """Return active schemes targeted at business/wholesaler users."""
-        return await self.storage.findAll({"is_active": True})
+        return await self.storage.findAll(is_active=True)
 
     async def findOne(
         self,
@@ -37,12 +38,12 @@ class SchemeRepository:
         is_active: Optional[bool] = None,
         code: Optional[str] = None
     ) -> Optional[SchemeInternal]:
-        query = {}
-        if id is not None: query["id"] = id
-        if name is not None: query["name"] = name
-        if is_active is not None: query["is_active"] = is_active
-        if code is not None: query["code"] = code
-        return await self.storage.findOne(query or None)
+        if id is not None:
+            return await self.storage.findById(id)
+        if code is not None:
+            return await self.storage.findByCode(code)
+        schemes = await self.findAll(name=name, is_active=is_active)
+        return schemes[0] if schemes else None
 
 
 scheme_repository = SchemeRepository()

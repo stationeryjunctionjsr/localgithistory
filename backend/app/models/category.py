@@ -11,6 +11,7 @@ class Category(CamelBaseModel):
     is_active: bool = Field(default=True)
     show_in_mobile_homepage: bool = Field(default=False)
     category_tag: Optional[str] = Field(default=None)
+    category_tag_id: Optional[int] = Field(default=None)
     minimum_quantity: Optional[int] = Field(default=1)
     gst: Optional[float] = None
     is_returnable: bool = Field(default=True)

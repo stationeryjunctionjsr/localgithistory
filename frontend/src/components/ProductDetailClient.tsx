@@ -1670,7 +1670,7 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
             <RecentlyViewed
               basePath={getListingPath()}
               limit={8}
-              excludeProductId={id}
+              excludeProductId={Array.isArray(id) ? id[0] : id}
               title="Recently Viewed"
             />
           </div>

@@ -214,6 +214,7 @@ CREATE TABLE `sj_categories` (
   `description` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `category_tag` varchar(128) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `category_tag_id` int DEFAULT NULL,
   `minimum_quantity` int NOT NULL DEFAULT '0',
   `show_in_mobile_homepage` tinyint(1) NOT NULL DEFAULT '1',
   `gst` decimal(5,2) NOT NULL DEFAULT '0.00',
@@ -222,16 +223,21 @@ CREATE TABLE `sj_categories` (
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_sj_categories_external` (`external_id`),
-  KEY `ix_sj_categories_active` (`is_active`)
+  KEY `ix_sj_categories_active` (`is_active`),
+  KEY `fk_cat_category_tag` (`category_tag_id`),
+  CONSTRAINT `fk_cat_category_tag` FOREIGN KEY (`category_tag_id`) REFERENCES `sj_category_tags` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_category_category_tags` (
   `id` int NOT NULL AUTO_INCREMENT,
   `category_id` int NOT NULL,
   `tag` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `category_tag_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_cat_tag` (`category_id`),
-  CONSTRAINT `fk_cat_tag` FOREIGN KEY (`category_id`) REFERENCES `sj_categories` (`id`) ON DELETE CASCADE
+  KEY `fk_cct_category_tag` (`category_tag_id`),
+  CONSTRAINT `fk_cat_tag` FOREIGN KEY (`category_id`) REFERENCES `sj_categories` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_cct_category_tag` FOREIGN KEY (`category_tag_id`) REFERENCES `sj_category_tags` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_category_images` (
@@ -252,16 +258,80 @@ CREATE TABLE `sj_category_sub_categories` (
   CONSTRAINT `fk_cat_sub_cat` FOREIGN KEY (`category_id`) REFERENCES `sj_categories` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `sj_divisions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `image_url` varchar(1000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `display_order` int NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `external_id` (`external_id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `sj_category_heads` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `image_url` varchar(1000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `display_order` int NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `external_id` (`external_id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `sj_category_tags` (
   `id` int NOT NULL AUTO_INCREMENT,
   `external_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `description` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `division_id` int DEFAULT NULL,
+  `category_head_id` int DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_sj_category_tags_external` (`external_id`)
+  UNIQUE KEY `uq_sj_category_tags_external` (`external_id`),
+  KEY `fk_cat_tags_division` (`division_id`),
+  KEY `fk_cat_tags_head` (`category_head_id`),
+  CONSTRAINT `fk_cat_tags_division` FOREIGN KEY (`division_id`) REFERENCES `sj_divisions` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_cat_tags_head` FOREIGN KEY (`category_head_id`) REFERENCES `sj_category_heads` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `sj_division_category_tags` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `division_id` int NOT NULL,
+  `category_tag_id` int NOT NULL,
+  `display_order` int NOT NULL DEFAULT '0',
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_division_tag` (`division_id`,`category_tag_id`),
+  KEY `fk_div_tag_division` (`division_id`),
+  KEY `fk_div_tag_tag` (`category_tag_id`),
+  CONSTRAINT `fk_div_tag_division` FOREIGN KEY (`division_id`) REFERENCES `sj_divisions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_div_tag_tag` FOREIGN KEY (`category_tag_id`) REFERENCES `sj_category_tags` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `sj_category_head_category_tags` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `category_head_id` int NOT NULL,
+  `category_tag_id` int NOT NULL,
+  `display_order` int NOT NULL DEFAULT '0',
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_head_tag` (`category_head_id`,`category_tag_id`),
+  KEY `fk_chct_head` (`category_head_id`),
+  KEY `fk_chct_tag` (`category_tag_id`),
+  CONSTRAINT `fk_chct_head` FOREIGN KEY (`category_head_id`) REFERENCES `sj_category_heads` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_chct_tag` FOREIGN KEY (`category_tag_id`) REFERENCES `sj_category_tags` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `sj_coach_marks` (

@@ -313,6 +313,11 @@ class CategoryTagInternal(CamelBaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
+    division_id: Optional[int] = None
+    division_name: Optional[str] = None
+    category_head_id: Optional[int] = None
+    category_head_name: Optional[str] = None
+    category_count: Optional[int] = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -322,6 +327,8 @@ class CategoryTagInternalCreate(CamelBaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
+    division_id: Optional[int] = None
+    category_head_id: Optional[int] = None
 
 class CategoryTagInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -329,6 +336,8 @@ class CategoryTagInternalUpdate(CamelBaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
+    division_id: Optional[int] = None
+    category_head_id: Optional[int] = None
 
 class DeliveryChargeTierInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
@@ -626,7 +635,7 @@ class CouponInternal(CamelBaseModel):
     
     quantity_tiers: Optional[List[CouponQuantityTierInternal]] = None
 
-    @field_validator('applies_to_ids', 'bxgy_applies_to_ids', 'bxgy_customer_gets_applies_to_ids', mode='before', check_fields=False)
+    @field_validator('applies_to_ids', 'bxgy_applies_to_ids', 'bxgy_customer_gets_applies_to_ids', 'applicable_payment_methods', mode='before', check_fields=False)
     @classmethod
     def parse_json_lists(cls, v):
         if isinstance(v, str):
@@ -850,6 +859,8 @@ class CategoryTagsInternalCreate(CamelBaseModel):
     description: Optional[str] = None
     is_active: Optional[bool] = None
     name: Optional[str] = None
+    division_id: Optional[int] = None
+    category_head_id: Optional[int] = None
 
 class CategoryTagsInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
@@ -857,6 +868,8 @@ class CategoryTagsInternalUpdate(CamelBaseModel):
     description: Optional[str] = None
     is_active: Optional[bool] = None
     name: Optional[str] = None
+    division_id: Optional[int] = None
+    category_head_id: Optional[int] = None
 
 class Google_reviewsInternal(BaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)

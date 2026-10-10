@@ -534,7 +534,7 @@ export default function ModernProductCard({
       <QuickVariantModal
         isOpen={showVariantModal}
         onClose={() => setShowVariantModal(false)}
-        product={{ ...product, variants: product.variations }}
+        product={{ ...product, id: product._id, variants: product.variations }}
         onAddToCart={handleVariantAddToCart}
       />
       <AuthModal

@@ -392,14 +392,15 @@ class TrackingRepository:
         result = []
         for v in unique:
             pid = v.product_id
-            product = product_map.get(str(pid))
+            product = product_map[str(pid)] if str(pid) in product_map else None
             display_image = None
             price = None
             if product:
-                imgs = getattr(product, "images", None) or []
+                imgs = product.images or []
                 if imgs:
-                    display_image = imgs[0] if isinstance(imgs[0], str) else getattr(imgs[0], "url", None)
-                price = getattr(product, "price", None)
+                    first_img = imgs[0]
+                    display_image = first_img if isinstance(first_img, str) else first_img.url
+                price = product.price
             result.append({
                 "productId": pid,
                 "productName": v.product_name or (product.name if product else ""),

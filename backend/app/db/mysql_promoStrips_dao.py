@@ -1,11 +1,10 @@
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, List, Union
 from datetime import datetime, timezone
 import secrets
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import PromoStripsInternal
-from app.models.daos_flat import PromoStripsInternalCreate, PromoStripsInternalUpdate
+from app.models.daos_flat import PromoStripsInternal, PromoStripsInternalCreate, PromoStripsInternalUpdate
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -16,13 +15,12 @@ class MySQLPromoStripsDAO:
     
     @property
     def TABLE(self):
-        from app.config.settings import settings
         return self.table_name
 
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: Union[int, str]) -> Optional['PromoStripsInternal']:
+    async def findById(self, id: Union[int, str]) -> Optional[PromoStripsInternal]:
         factory = self._factory()
         if not factory or not id:
             return None
@@ -41,30 +39,20 @@ class MySQLPromoStripsDAO:
 
     async def findOne(
         self,
-        query: Optional[dict] = None,
+        id: Optional[Union[int, str]] = None,
         is_active: Optional[bool] = None,
         text_filter: Optional[str] = None,
-    ) -> Optional['PromoStripsInternal']:
-        if query:
-            if "_id" in query or "id" in query:
-                return await self.findById(query.get("_id") or query.get("id"))
-            if "externalId" in query and query["externalId"]:
-                return await self.findById(query["externalId"])
-        results = await self.findAll(query=query, is_active=is_active, text_filter=text_filter)
+    ) -> Optional[PromoStripsInternal]:
+        if id:
+            return await self.findById(id)
+        results = await self.findAll(is_active=is_active, text_filter=text_filter)
         return results[0] if results else None
 
     async def findAll(
         self,
-        query: Optional[dict] = None,
         is_active: Optional[bool] = None,
         text_filter: Optional[str] = None,
-    ) -> List['PromoStripsInternal']:
-        if query:
-            if is_active is None and "is_active" in query:
-                is_active = query["is_active"]
-            if text_filter is None and "text" in query:
-                text_filter = query["text"]
-
+    ) -> List[PromoStripsInternal]:
         clauses = []
         params = {}
         if is_active is not None:
@@ -85,7 +73,7 @@ class MySQLPromoStripsDAO:
             rows = result.fetchall()
             return [self._map_to_schema(r) for r in rows]
 
-    async def create(self, data: 'PromoStripsInternalCreate') -> 'PromoStripsInternal':
+    async def create(self, data: PromoStripsInternalCreate) -> PromoStripsInternal:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
@@ -99,7 +87,7 @@ class MySQLPromoStripsDAO:
 
         if data.is_active is not None:
             cols.append("is_active")
-            params["s_is_active"] = data.is_active
+            params["s_is_active"] = 1 if data.is_active else 0
 
         if data.zone_ids is not None:
             cols.append("zone_ids")
@@ -122,15 +110,14 @@ class MySQLPromoStripsDAO:
                     text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
                 )
             ).scalar()
-            await self._replace_children(session, new_id, data)
             await session.commit()
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'PromoStripsInternalUpdate') -> Optional['PromoStripsInternal']:
+    async def update(self, id: Union[int, str], update_data: PromoStripsInternalUpdate) -> Optional[PromoStripsInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
-        params = {"id": id, "u": now_utc()}
+        params = {"u": now_utc()}
 
         if update_data.text is not None:
             updates.append("text = :s_text")
@@ -138,7 +125,7 @@ class MySQLPromoStripsDAO:
 
         if update_data.is_active is not None:
             updates.append("is_active = :s_is_active")
-            params["s_is_active"] = update_data.is_active
+            params["s_is_active"] = 1 if update_data.is_active else 0
 
         if update_data.zone_ids is not None:
             updates.append("zone_ids = :s_zone_ids")
@@ -147,7 +134,20 @@ class MySQLPromoStripsDAO:
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
             async with factory() as session:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+                if str(id).isdigit():
+                    pk = int(id)
+                    upd_where = "id = :pk"
+                else:
+                    res = await session.execute(
+                        text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                    )
+                    pk = res.scalar()
+                    if not pk:
+                        return None
+                    upd_where = "id = :pk"
+                params["pk"] = pk
+
+                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
                 await session.commit()
                 
         return await self.findById(id)
@@ -158,24 +158,20 @@ class MySQLPromoStripsDAO:
             return False
         async with factory() as session:
             if str(id).isdigit():
-                pk = int(id)
+                del_where = "id = :pk"
+                params = {"pk": int(id)}
             else:
-                res = await session.execute(
-                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
-                )
-                pk = res.scalar()
-                if not pk:
-                    return False
+                del_where = "external_id = :eid"
+                params = {"eid": str(id)}
 
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pk},
+                text(f"DELETE FROM {self.TABLE} WHERE {del_where}"),
+                params,
             )
             await session.commit()
             return result.rowcount > 0
 
-    def _map_to_schema(self, r, children: Dict = None) -> 'PromoStripsInternal':
-        from app.models.daos_flat import PromoStripsInternal
+    def _map_to_schema(self, r) -> PromoStripsInternal:
         zone_ids = None
         raw_zone = r.zone_ids
         if raw_zone:
@@ -196,10 +192,3 @@ class MySQLPromoStripsDAO:
             created_at=r.created_at,
             updated_at=r.updated_at,
         )
-
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        return {}
-        
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
-        pass
-

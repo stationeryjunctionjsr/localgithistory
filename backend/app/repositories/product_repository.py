@@ -163,19 +163,18 @@ class ProductRepository:
         if not tokens:
             return {"products": products, "usedFuzzy": False, "suggestedQuery": None}
 
-        scored = []
+        scored: List[Tuple['Product', float]] = []
         for p in products:
             score = self._score_product(p, tokens)
             if score > 0:
-                p._searchScore = score
-                scored.append(p)
+                scored.append((p, score))
 
         used_fuzzy = False
         suggested_query = None
 
         # Fuzzy fallback if too few exact results — run in thread pool to avoid blocking the event loop
         if len(scored) < 5:
-            already_matched = {p.id for p in scored}
+            already_matched = {p.id for p, _ in scored}
             loop = asyncio.get_running_loop()
             fuzzy_results, suggested_query = await loop.run_in_executor(
                 None, self._fuzzy_search, products, tokens, already_matched
@@ -185,22 +184,19 @@ class ProductRepository:
                 used_fuzzy = True
 
         # Sort by score descending (higher score = more relevant)
-        scored.sort(key=lambda p: (p._searchScore if p._searchScore is not None else 0), reverse=True)
+        scored.sort(key=lambda item: item[1], reverse=True)
+        final_products = [p for p, _ in scored]
 
-        # Clean up internal score field
-        for p in scored:
-            delattr(p, "_searchScore") if hasattr(p, "_searchScore") else None
-
-        return {"products": scored, "usedFuzzy": used_fuzzy, "suggestedQuery": suggested_query}
+        return {"products": final_products, "usedFuzzy": used_fuzzy, "suggestedQuery": suggested_query}
 
     def _fuzzy_search(
         self, products: List['Product'], tokens: List[str], already_matched: set
-    ) -> tuple[List[Dict], Optional[str]]:
+    ) -> tuple[List[Tuple['Product', float]], Optional[str]]:
         """Fuzzy matching fallback using difflib for typo tolerance."""
         from difflib import SequenceMatcher
 
         FUZZY_THRESHOLD = 0.7
-        fuzzy_results = []
+        fuzzy_results: List[Tuple['Product', float]] = []
         best_token_suggestions = {token: {"word": token, "ratio": 1.0} for token in tokens}
 
         for p in products:
@@ -242,8 +238,7 @@ class ProductRepository:
                     break
 
             if all_tokens_fuzzy_match and total_score > 0:
-                p._searchScore = total_score * 0.8  # Slightly lower than exact matches
-                fuzzy_results.append(p)
+                fuzzy_results.append((p, total_score * 0.8))
                 for token, sugg in product_token_suggestions.items():
                     if (
                         sugg["ratio"] > best_token_suggestions[token]["ratio"]

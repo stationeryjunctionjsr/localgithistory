@@ -7,8 +7,8 @@ class ContactRepository:
     def __init__(self):
         self.storage = get_storage("contacts")
 
-    async def findAll(self, query: Optional[dict] = None) -> List[ContactInternal]:
-        return await self.storage.findAll(query or {})
+    async def findAll(self, is_active: Optional[bool] = None) -> List[ContactInternal]:
+        return await self.storage.findAll(is_active=is_active)
 
     async def findById(self, id: str) -> Optional[ContactInternal]:
         return await self.storage.findById(id)

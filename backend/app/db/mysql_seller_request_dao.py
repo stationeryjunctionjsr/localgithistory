@@ -6,8 +6,9 @@ MySQL DAO for sj_seller_requests. Implements FileStorage-like interface.
 
 import secrets
 from datetime import datetime
-from typing import Dict
-from app.models.seller_request import SellerRequest, List, Optional
+from collections import defaultdict
+from typing import List, Optional, Tuple, Union
+from app.models.seller_request import SellerRequest
 
 from sqlalchemy import text
 
@@ -24,17 +25,18 @@ class MySQLSellerRequestDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def _map_row(self, r, children: Dict) -> SellerRequest:
+    def _map_row(self, r, attachments: List[str], responses: List) -> SellerRequest:
         sr = SellerRequest.model_validate(r)
-        sr.user = getattr(r, "user_id", None)
-        sr.attachments = children.get("attachments", [])
-        sr.responses = children.get("responses", [])
+        sr.user = str(r.user_id) if r.user_id is not None else None
+        sr.attachments = attachments
+        sr.responses = responses
         return sr
 
-    async def _fetch_children(self, session, req_ids: List[int]) -> Dict[int, Dict]:
-        children_map = {rid: {"attachments": [], "responses": []} for rid in req_ids}
+    async def _fetch_children(self, session, req_ids: List[int]) -> Tuple[defaultdict[int, List[str]], defaultdict[int, List]]:
+        att_map: defaultdict[int, List[str]] = defaultdict(list)
+        resp_map: defaultdict[int, List] = defaultdict(list)
         if not req_ids:
-            return children_map
+            return att_map, resp_map
         chunks = [req_ids[i : i + 999] for i in range(0, len(req_ids), 999)]
         for chunk in chunks:
             chunk_params = {f"rid_{i}": rid for i, rid in enumerate(chunk)}
@@ -46,7 +48,7 @@ class MySQLSellerRequestDAO:
                 chunk_params,
             )
             for r in att_res.fetchall():
-                children_map[r.request_id]["attachments"].append(r.url)
+                att_map[r.request_id].append(r.url)
 
             # Responses
             resp_res = await session.execute(
@@ -56,16 +58,16 @@ class MySQLSellerRequestDAO:
                 chunk_params,
             )
             for r in resp_res.fetchall():
-                children_map[r.request_id]["responses"].append(
+                resp_map[r.request_id].append(
                     {
                         "adminId": r.admin_id,
                         "response": r.response_text,
                         "createdAt": r.created_at.isoformat() if r.created_at else None,
                     }
                 )
-        return children_map
+        return att_map, resp_map
 
-    async def _replace_children(self, session, req_id: int, data: Dict):
+    async def _replace_children(self, session, req_id: int, data: Union['SellerRequestInternalCreate', 'SellerRequestInternalUpdate']):
         await session.execute(
             text("DELETE FROM sj_seller_request_attachments WHERE request_id = :rid"), {"rid": req_id}
         )
@@ -83,7 +85,7 @@ class MySQLSellerRequestDAO:
                 try:
                     created_at = datetime.fromisoformat(resp["createdAt"].replace("Z", "+00:00"))
                 except Exception as e:
-                    logging.warning("seller_request: could not parse response createdAt %r: %s", resp.get("createdAt"), e, exc_info=e)
+                    logging.warning("seller_request: could not parse response createdAt %r: %s", resp["createdAt"] if "createdAt" in resp else None, e, exc_info=e)
             if not created_at:
                 created_at = now_utc()
             await session.execute(
@@ -98,27 +100,31 @@ class MySQLSellerRequestDAO:
                 },
             )
 
-    async def findAll(self, query: Optional[Dict] = None) -> List[Dict]:
+    async def findAll(
+        self,
+        id: Optional[int] = None,
+        user: Optional[str] = None,
+        status: Optional[str] = None,
+        priority: Optional[str] = None,
+    ) -> List[SellerRequest]:
         factory = self._factory()
         if not factory:
             return []
 
         where_clauses = []
         params = {}
-        if query:
-            for k, v in query.items():
-                if k in ("_id", "id"):
-                    where_clauses.append("id = :id")
-                    params["id"] = int(v) if str(v).isdigit() else None
-                elif k == "user":
-                    where_clauses.append("user_id = :user_id")
-                    params["user_id"] = str(v)
-                elif k == "status":
-                    where_clauses.append("status = :status")
-                    params["status"] = str(v)
-                elif k == "priority":
-                    where_clauses.append("priority = :priority")
-                    params["priority"] = str(v)
+        if id is not None:
+            where_clauses.append("id = :id")
+            params["id"] = int(id)
+        if user is not None:
+            where_clauses.append("user_id = :user_id")
+            params["user_id"] = str(user)
+        if status is not None:
+            where_clauses.append("status = :status")
+            params["status"] = str(status)
+        if priority is not None:
+            where_clauses.append("priority = :priority")
+            params["priority"] = str(priority)
 
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         async with factory() as session:
@@ -131,17 +137,41 @@ class MySQLSellerRequestDAO:
                 params,
             )
             rows = result.fetchall()
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
-        return [self._map_row(r, children_map[int(r.id)]) for r in rows]
+            att_map, resp_map = await self._fetch_children(session, [int(r.id) for r in rows])
+        return [self._map_row(r, att_map[int(r.id)], resp_map[int(r.id)]) for r in rows]
 
-    async def findOne(self, query: Dict) -> Optional[Dict]:
-        docs = await self.findAll(query)
+    async def findOne(
+        self,
+        id: Optional[int] = None,
+        user: Optional[str] = None,
+        status: Optional[str] = None,
+        priority: Optional[str] = None,
+    ) -> Optional[SellerRequest]:
+        docs = await self.findAll(id=id, user=user, status=status, priority=priority)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> Optional[Dict]:
-        return await self.findOne({"_id": id})
+    async def findById(self, id: str) -> Optional[SellerRequest]:
+        if str(id).isdigit():
+            return await self.findOne(id=int(id))
+        factory = self._factory()
+        if not factory:
+            return None
+        async with factory() as session:
+            result = await session.execute(
+                text(f"""
+                    SELECT id, external_id, request_number, user_id, subject, description, category,
+                           priority, status, resolved_at, closed_at, created_at, updated_at
+                    FROM {self.TABLE} WHERE external_id = :eid ORDER BY id ASC LIMIT 1
+                """),
+                {"eid": str(id)},
+            )
+            row = result.fetchone()
+            if not row:
+                return None
+            att_map, resp_map = await self._fetch_children(session, [int(row.id)])
+            return self._map_row(row, att_map[int(row.id)], resp_map[int(row.id)])
 
-    async def create(self, data: 'SellerRequestInternalCreate') -> Dict:
+    async def create(self, data: 'SellerRequestInternalCreate') -> Optional[SellerRequest]:
         factory = self._factory()
         if not factory:
             raise RuntimeError("MySQL not configured")
@@ -193,7 +223,7 @@ class MySQLSellerRequestDAO:
             await session.commit()
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'SellerRequestInternalUpdate') -> Optional[Dict]:
+    async def update(self, id: str, update_data: 'SellerRequestInternalUpdate') -> Optional[SellerRequest]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -257,7 +287,7 @@ class MySQLSellerRequestDAO:
                             "parent_id": params["id"],
                             "user_id": comment.user,
                             "message": comment.message,
-                            "created_at": to_dt(getattr(comment, "created_at", None)) or now,
+                            "created_at": to_dt(comment.created_at) or now,
                         },
                     )
             await session.commit()
@@ -273,15 +303,4 @@ class MySQLSellerRequestDAO:
             )
             await session.commit()
             return result.rowcount > 0
-
-    async def deleteMany(self, query: Dict) -> Dict:
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            if await self.delete(d._id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
-    async def count(self, query: Optional[Dict] = None) -> int:
-        return len(await self.findAll(query))
 

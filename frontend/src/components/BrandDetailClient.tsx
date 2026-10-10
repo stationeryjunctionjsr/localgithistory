@@ -12,6 +12,7 @@ import { logger } from '@/utils/logger';
 
 interface BrandInfo {
   id?: string;
+  _id?: string;
   name: string;
   logoUrl?: string;
   logo?: string;

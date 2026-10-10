@@ -35,15 +35,13 @@ class MySQLReturnSettingsDAO:
                 return None
             return self._map_to_schema(row)
 
-    async def findOne(self, id: Optional[Union[int, str]] = None, query: Optional[dict] = None) -> Optional[ReturnSettingsInternal]:
-        if query:
-            id = query.get("id") or query.get("_id") or id
+    async def findOne(self, id: Optional[Union[int, str]] = None) -> Optional[ReturnSettingsInternal]:
         if id:
             return await self.findById(id)
         all_settings = await self.findAll()
         return all_settings[0] if all_settings else None
             
-    async def findAll(self, query: Optional[dict] = None) -> List[ReturnSettingsInternal]:
+    async def findAll(self) -> List[ReturnSettingsInternal]:
         async with self._factory()() as session:
             q = text(f"SELECT * FROM {self.TABLE} ORDER BY id ASC")
             result = await session.execute(q)

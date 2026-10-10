@@ -18,13 +18,7 @@ class SellerRequestRepository:
         return f"SRQ-{int(datetime.now(timezone.utc).timestamp() * 1000)}-{secrets.token_hex(4).upper()}"
 
     async def findAll(self, user: Optional[str] = None, status: Optional[str] = None, priority: Optional[str] = None, category: Optional[str] = None, subject: Optional[str] = None, request_number: Optional[str] = None):
-        # Push supported filters to storage to avoid a full-table scan.
-        storage_query = {}
-        if user: storage_query["user"] = user
-        if status: storage_query["status"] = status
-        if priority: storage_query["priority"] = priority
-        
-        requests = await self.storage.findAll(storage_query or None)
+        requests = await self.storage.findAll(user=user, status=status, priority=priority)
 
         # Python-side filter for any remaining keys not yet pushed to storage
         if category:

@@ -116,7 +116,7 @@ class ProductNotificationRepository:
                     await asyncio.to_thread(email_service.send_email, notif.email, subject, plain_text_body, html_body=html_body)
 
                 # In-app + push for logged-in users
-                notif_user_id = getattr(notif, "user_id", None) or getattr(notif, "userId", None)
+                notif_user_id = notif.user_id
                 if notif_user_id:
                     try:
                         from app.utils.notify import notify_user
