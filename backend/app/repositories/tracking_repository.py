@@ -718,10 +718,9 @@ class TrackingRepository:
             return []
 
         # Get user details
-        from app.db.storage_factory import get_storage
+        from app.repositories.user_repository import user_repository
 
-        user_storage = get_storage("users")
-        users = await user_storage.findAll({"allowed_ids": list(returning_user_ids)})
+        users = await user_repository.findByIds(list(returning_user_ids))
 
         return [
             {
