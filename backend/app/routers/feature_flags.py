@@ -1,10 +1,11 @@
-from app.models.user import User
-from app.models.schemas import MessageResponse
-from typing import Dict, List, Optional
+from typing import List, Optional
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, ConfigDict
 
+from app.models.user import User
+from app.models.schemas import MessageResponse
+from app.models.feature_flag import FeatureFlag, FeatureFlagCreate, FeatureFlagUpdate
 from app.repositories.feature_flag_repository import FeatureFlagRepository
 from app.utils.auth import require_super_admin
 from app.utils.cache import cache
@@ -13,35 +14,11 @@ from app.utils.logger import logger
 router = APIRouter()
 feature_flag_repository = FeatureFlagRepository()
 
-
-class FeatureFlagItem(BaseModel):
-    db_id: Optional[str] = Field(default=None, alias="_id")
-    id: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = ""
-    enabled: bool = False
-    category: Optional[str] = "features"
-
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+FeatureFlagItem = FeatureFlag
 
 
-class FeatureFlagCreate(BaseModel):
-    id: str
-    name: str
-    description: Optional[str] = ""
-    enabled: Optional[bool] = False
-    category: Optional[str] = "features"
-
-
-class FeatureFlagUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    enabled: Optional[bool] = None
-    category: Optional[str] = None
-
-
-@router.get("", response_model=List[FeatureFlagItem])
-@router.get("/", response_model=List[FeatureFlagItem])
+@router.get("", response_model=List[FeatureFlag])
+@router.get("/", response_model=List[FeatureFlag])
 async def get_all_feature_flags(current_user: User = Depends(require_super_admin)):
     """Get all feature flags (Super Admin only)"""
     try:
@@ -52,7 +29,7 @@ async def get_all_feature_flags(current_user: User = Depends(require_super_admin
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.get("/enabled", response_model=List[FeatureFlagItem])
+@router.get("/enabled", response_model=List[FeatureFlag])
 @cache.ttl_cache(ttl=300.0)
 async def get_enabled_feature_flags():
     """Get all enabled feature flags (Public for frontend)"""
@@ -64,7 +41,7 @@ async def get_enabled_feature_flags():
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.get("/{flag_id}", response_model=FeatureFlagItem)
+@router.get("/{flag_id}", response_model=FeatureFlag)
 async def get_feature_flag(flag_id: str, current_user: User = Depends(require_super_admin)):
     """Get feature flag by ID (Super Admin only)"""
     try:
@@ -79,24 +56,23 @@ async def get_feature_flag(flag_id: str, current_user: User = Depends(require_su
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.get("/check/{flag_id}", response_model=FeatureFlagItem)
+@router.get("/check/{flag_id}", response_model=FeatureFlag)
 @cache.ttl_cache(ttl=300.0)
 async def check_feature_flag(flag_id: str):
     """Check if a feature is enabled (Public endpoint)"""
     try:
         is_enabled = await feature_flag_repository.is_enabled(flag_id)
-        return {"enabled": is_enabled}
+        return FeatureFlag(id=flag_id, flag_id=flag_id, enabled=is_enabled)
     except Exception as e:
         logger.error("Error checking feature flag: %s", str(e), exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.post("", response_model=FeatureFlagItem, status_code=status.HTTP_201_CREATED)
-@router.post("/", response_model=FeatureFlagItem, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=FeatureFlag, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=FeatureFlag, status_code=status.HTTP_201_CREATED)
 async def create_feature_flag(flag_data: FeatureFlagCreate, current_user: User = Depends(require_super_admin)):
     """Create new feature flag (Super Admin only)"""
     try:
-        # Check if flag with same ID already exists
         existing = await feature_flag_repository.find_by_flag_id(flag_data.id)
         if existing:
             raise HTTPException(
@@ -104,13 +80,13 @@ async def create_feature_flag(flag_data: FeatureFlagCreate, current_user: User =
             )
 
         new_flag = await feature_flag_repository.create(
-            {
-                "id": flag_data.id,
-                "name": flag_data.name,
-                "description": flag_data.description,
-                "enabled": flag_data.enabled,
-                "category": flag_data.category,
-            }
+            FeatureFlag(
+                flag_id=flag_data.id,
+                name=flag_data.name,
+                description=flag_data.description,
+                enabled=flag_data.enabled if flag_data.enabled is not None else False,
+                category=flag_data.category,
+            )
         )
 
         return new_flag
@@ -121,7 +97,7 @@ async def create_feature_flag(flag_data: FeatureFlagCreate, current_user: User =
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.put("/{flag_id}", response_model=FeatureFlagItem)
+@router.put("/{flag_id}", response_model=FeatureFlag)
 async def update_feature_flag(
     flag_id: str, update_data: FeatureFlagUpdate, current_user: User = Depends(require_super_admin)
 ):
@@ -131,8 +107,16 @@ async def update_feature_flag(
         if not flag:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
-        
-        updated = await feature_flag_repository.update(flag.id, update_data)
+        updated = await feature_flag_repository.update(
+            flag.id,
+            FeatureFlag(
+                flag_id=flag_id,
+                name=update_data.name,
+                description=update_data.description,
+                enabled=update_data.enabled,
+                category=update_data.category,
+            ),
+        )
         return updated
     except HTTPException:
         raise
@@ -141,7 +125,7 @@ async def update_feature_flag(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
 
-@router.patch("/{flag_id}/toggle", response_model=FeatureFlagItem)
+@router.patch("/{flag_id}/toggle", response_model=FeatureFlag)
 async def toggle_feature_flag(flag_id: str, current_user: User = Depends(require_super_admin)):
     """Toggle feature flag (Super Admin only)"""
     try:
@@ -149,9 +133,10 @@ async def toggle_feature_flag(flag_id: str, current_user: User = Depends(require
         if not flag:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
-        flag_db_id = flag.db_id or flag.id
-        update_data = FeatureFlagUpdate(enabled=not flag.enabled)
-        updated = await feature_flag_repository.update(flag_db_id, update_data)
+        updated = await feature_flag_repository.update(
+            flag.id,
+            FeatureFlag(enabled=not flag.enabled),
+        )
         return updated
     except HTTPException:
         raise
@@ -169,7 +154,7 @@ async def delete_feature_flag(flag_id: str, current_user: User = Depends(require
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feature flag not found")
 
         await feature_flag_repository.delete(flag.id)
-        return {"message": "Feature flag deleted successfully"}
+        return MessageResponse(message="Feature flag deleted successfully")
     except HTTPException:
         raise
     except Exception as e:
