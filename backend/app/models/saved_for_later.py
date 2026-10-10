@@ -1,16 +1,17 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import Field, AliasChoices
+from pydantic import Field
 from app.models.base import CamelBaseModel
 
 class SavedForLaterItem(CamelBaseModel):
-    product: Optional[str] = Field(default=None, validation_alias=AliasChoices("product", "product_id", "productId"))
-    product_id: Optional[str] = Field(default=None, validation_alias=AliasChoices("product_id", "product", "productId"))
-    created_at: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("created_at", "saved_at", "savedAt"))
-    saved_at: Optional[datetime] = Field(default=None, validation_alias=AliasChoices("saved_at", "created_at", "savedAt"))
+    user: Optional[str] = None
+    product_id: Optional[str] = None
+    product: Optional[str] = None
+    saved_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
 
 class SavedForLater(CamelBaseModel):
-    id: Optional[str] = Field(default=None, validation_alias=AliasChoices("id", "_id"))
+    id: Optional[str] = None
     user: Optional[str] = None
     items: List[SavedForLaterItem] = Field(default_factory=list)
     updated_at: Optional[datetime] = None

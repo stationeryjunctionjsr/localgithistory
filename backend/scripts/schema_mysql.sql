@@ -551,7 +551,6 @@ CREATE TABLE `sj_delivery_charges` (
   `charge` decimal(18,2) DEFAULT NULL,
   `min_cart_value` decimal(18,2) DEFAULT NULL,
   `serviceable_for_customer` tinyint(1) NOT NULL DEFAULT '1',
-  `serviceable_for_retailer` tinyint(1) NOT NULL DEFAULT '1',
   `serviceable_for_wholesaler` tinyint(1) NOT NULL DEFAULT '1',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `description` varchar(4000) COLLATE utf8mb4_unicode_ci DEFAULT NULL,

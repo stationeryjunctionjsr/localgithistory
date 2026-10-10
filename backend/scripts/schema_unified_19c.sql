@@ -593,7 +593,6 @@ CREATE TABLE sj_delivery_charges (
   min_cart_value          NUMBER(18,2),
   tiers                   CLOB,
   serviceable_for_customer NUMBER(1) DEFAULT 0,
-  serviceable_for_retailer NUMBER(1) DEFAULT 0,
   serviceable_for_wholesaler NUMBER(1) DEFAULT 0,
   is_active               NUMBER(1) DEFAULT 1,
   description             VARCHAR2(4000),
