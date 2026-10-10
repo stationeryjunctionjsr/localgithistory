@@ -130,9 +130,23 @@ class MySQLCategoryDAO:
             c_map = await self._fetch_children(session, [r.id for r in rows])
         out = []
         for r in rows:
-            cat = Category.model_validate(r)
-            for k, v in c_map[r.id].items():
-                setattr(cat, k, v)
+            child = c_map.get(r.id, {})
+            cat = Category(
+                id=str(r.id),
+                name=r.name,
+                description=r.description,
+                is_active=bool(r.is_active) if r.is_active is not None else True,
+                show_in_mobile_homepage=bool(r.show_in_mobile_homepage) if r.show_in_mobile_homepage is not None else False,
+                category_tag=r.category_tag,
+                minimum_quantity=r.minimum_quantity,
+                gst=float(r.gst) if r.gst is not None else None,
+                is_returnable=bool(r.is_returnable) if r.is_returnable is not None else True,
+                images=child.get("images", []),
+                sub_categories=child.get("sub_categories", []),
+                category_tags=child.get("category_tags", []),
+                created_at=r.created_at,
+                updated_at=r.updated_at,
+            )
             out.append(cat)
         return out
 

@@ -31,18 +31,50 @@ export default function CartOverlay() {
   const { user } = useAuth();
   const router = useRouter();
   const drawerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
 
-  // Close on Escape key press
+  // Close on Escape, trap focus inside drawer while open
   useEffect(() => {
+    const FOCUSABLE = [
+      'a[href]', 'button:not([disabled])', 'input:not([disabled])',
+      'select:not([disabled])', 'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         closeCart();
+        return;
+      }
+      if (e.key === 'Tab' && drawerRef.current) {
+        const focusable = Array.from(
+          drawerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)
+        ).filter(el => !el.closest('[hidden]'));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+        } else {
+          if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
       }
     };
+
     if (isCartOpen) {
+      // Remember what had focus so we can restore it on close
+      triggerRef.current = document.activeElement as HTMLElement;
       document.addEventListener('keydown', handleKeyDown);
-      // Prevent body scrolling when cart is open
       document.body.style.overflow = 'hidden';
+      // Move focus into the drawer
+      requestAnimationFrame(() => {
+        const firstFocusable = drawerRef.current?.querySelector<HTMLElement>(FOCUSABLE);
+        (firstFocusable ?? drawerRef.current)?.focus();
+      });
+    } else {
+      // Restore focus to the element that opened the cart
+      triggerRef.current?.focus();
+      triggerRef.current = null;
     }
     return () => {
       document.removeEventListener('keydown', handleKeyDown);

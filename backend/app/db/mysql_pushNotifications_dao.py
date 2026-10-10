@@ -1,11 +1,13 @@
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Union
 from datetime import datetime, timezone
 import secrets
-import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import PushNotificationsInternal
-from app.models.daos_flat import PushNotificationsInternalCreate, PushNotificationsInternalUpdate
+from app.models.daos_flat import (
+    PushNotificationsInternal,
+    PushNotificationsInternalCreate,
+    PushNotificationsInternalUpdate,
+)
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -16,128 +18,132 @@ class MySQLPushNotificationsDAO:
     
     @property
     def TABLE(self):
-        from app.config.settings import settings
         return self.table_name
 
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional['PushNotificationsInternal']:
-        return await self.findOne({"_id": id})
-
-    async def findOne(self, query=None, **kwargs) -> Optional['PushNotificationsInternal']:
-        if query:
-            kwargs.update(query)
-        if not kwargs:
+    async def findById(self, id: Union[int, str]) -> Optional[PushNotificationsInternal]:
+        if not id:
             return None
-        
         async with self._factory()() as session:
-            conditions = []
-            params = {}
-            
-            query_map = {'title': 'title', 'message': 'message', 'link': 'link', 'image': 'image', 'status': 'status', 'scheduled_for': 'scheduled_for', 'delivered_count': 'delivered_count', 'read_count': 'read_count', 'user_segment': 'user_segment', 'user_behavior': 'user_behavior', 'created_by': 'created_by'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            for k, v in kwargs.items():
-                db_col = query_map[k] if k in query_map else k
-                conditions.append(f"{db_col} = :{k}")
-                params[k] = v
-                
-            where_clause = " AND ".join(conditions)
-            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
+                params = {"id": str(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-                
-            children_map = await self._fetch_children(session, [int(row.id)]) if False else {}
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
-            
-    async def findAll(self, query: Optional[dict] = None) -> List['PushNotificationsInternal']:
-        query = query or {}
-        async with self._factory()() as session:
-            sql = f"SELECT * FROM {self.TABLE}"
-            params = {}
-            
-            query_map = {'title': 'title', 'message': 'message', 'link': 'link', 'image': 'image', 'status': 'status', 'scheduled_for': 'scheduled_for', 'delivered_count': 'delivered_count', 'read_count': 'read_count', 'user_segment': 'user_segment', 'user_behavior': 'user_behavior', 'created_by': 'created_by'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            if query:
-                conditions = []
-                for k, v in query.items():
-                    db_col = query_map[k] if k in query_map else k
-                    conditions.append(f"{db_col} = :{k}")
-                    params[k] = v
-                if conditions:
-                    sql += " WHERE " + " AND ".join(conditions)
-                    
-            q = text(sql)
-            result = await session.execute(q, params)
-            rows = result.fetchall()
-            
-            if not rows:
-                return []
-                
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if False else {}
-            
-            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            return self._map_to_schema(row)
 
-    async def create(self, data: 'PushNotificationsInternalCreate') -> 'PushNotificationsInternal':
+    async def findOne(
+        self,
+        id: Optional[Union[int, str]] = None,
+        status: Optional[str] = None,
+        user_segment: Optional[str] = None,
+    ) -> Optional[PushNotificationsInternal]:
+        if id:
+            return await self.findById(id)
+        results = await self.findAll(status=status, user_segment=user_segment, limit=1)
+        return results[0] if results else None
+
+    async def findAll(
+        self,
+        status: Optional[str] = None,
+        user_segment: Optional[str] = None,
+        user_behavior: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[PushNotificationsInternal]:
+        clauses = []
+        params = {}
+        if status is not None:
+            clauses.append("status = :status")
+            params["status"] = status
+        if user_segment is not None:
+            clauses.append("user_segment = :user_segment")
+            params["user_segment"] = user_segment
+        if user_behavior is not None:
+            clauses.append("user_behavior = :user_behavior")
+            params["user_behavior"] = user_behavior
+
+        where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        limit_sql = f" LIMIT {int(limit)}" if limit else ""
+        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id DESC{limit_sql}"
+
+        async with self._factory()() as session:
+            result = await session.execute(text(sql), params)
+            rows = result.fetchall()
+            return [self._map_to_schema(r) for r in rows]
+
+    async def create(self, data: PushNotificationsInternalCreate) -> PushNotificationsInternal:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
         
         cols = ["external_id", "created_at", "updated_at"]
+        val_placeholders = [":eid", ":c", ":u"]
         params = {"eid": external_id, "c": now, "u": now}
 
         if data.title is not None:
             cols.append("title")
-            params["s_title"] = data.title
+            val_placeholders.append(":title")
+            params["title"] = data.title
 
         if data.message is not None:
             cols.append("message")
-            params["s_message"] = data.message
+            val_placeholders.append(":message")
+            params["message"] = data.message
 
         if data.link is not None:
             cols.append("link")
-            params["s_link"] = data.link
+            val_placeholders.append(":link")
+            params["link"] = data.link
 
         if data.image is not None:
             cols.append("image")
-            params["s_image"] = data.image
+            val_placeholders.append(":image")
+            params["image"] = data.image
 
         if data.status is not None:
             cols.append("status")
-            params["s_status"] = data.status
+            val_placeholders.append(":status")
+            params["status"] = data.status
 
         if data.scheduled_for is not None:
             cols.append("scheduled_for")
-            params["s_scheduled_for"] = data.scheduled_for
+            val_placeholders.append(":scheduled_for")
+            params["scheduled_for"] = data.scheduled_for
 
         if data.delivered_count is not None:
             cols.append("delivered_count")
-            params["s_delivered_count"] = data.delivered_count
+            val_placeholders.append(":delivered_count")
+            params["delivered_count"] = data.delivered_count
 
         if data.read_count is not None:
             cols.append("read_count")
-            params["s_read_count"] = data.read_count
+            val_placeholders.append(":read_count")
+            params["read_count"] = data.read_count
 
         if data.user_segment is not None:
             cols.append("user_segment")
-            params["s_user_segment"] = data.user_segment
+            val_placeholders.append(":user_segment")
+            params["user_segment"] = data.user_segment
 
         if data.user_behavior is not None:
             cols.append("user_behavior")
-            params["s_user_behavior"] = data.user_behavior
+            val_placeholders.append(":user_behavior")
+            params["user_behavior"] = data.user_behavior
 
         if data.created_by is not None:
             cols.append("created_by")
-            params["s_created_by"] = data.created_by
+            val_placeholders.append(":created_by")
+            params["created_by"] = data.created_by
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['title', 'message', 'link', 'image', 'status', 'scheduled_for', 'delivered_count', 'read_count', 'user_segment', 'user_behavior', 'created_by'] if f"s_{k}" in params] + [f":c_{k}" for k in [] if f"c_{k}" in params])
+        val_sql = ", ".join(val_placeholders)
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -146,105 +152,120 @@ class MySQLPushNotificationsDAO:
                     text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": external_id}
                 )
             ).scalar()
-            await self._replace_children(session, new_id, data)
             await session.commit()
             
-        return await self.findById(str(new_id))
+        return await self.findById(int(new_id))
 
-    async def update(self, id: str, update_data: 'PushNotificationsInternalUpdate') -> 'PushNotificationsInternal':
+    async def update(self, id: Union[int, str], update_data: PushNotificationsInternalUpdate) -> Optional[PushNotificationsInternal]:
         factory = self._factory()
         updates = ["updated_at = :u"]
-        params = {"id": id, "u": now_utc()}
+        params = {"u": now_utc()}
 
-        if data.title is not None:
-            updates.append("title = :s_title")
-            params["s_title"] = data.title
+        if update_data.title is not None:
+            updates.append("title = :title")
+            params["title"] = update_data.title
 
-        if data.message is not None:
-            updates.append("message = :s_message")
-            params["s_message"] = data.message
+        if update_data.message is not None:
+            updates.append("message = :message")
+            params["message"] = update_data.message
 
-        if data.link is not None:
-            updates.append("link = :s_link")
-            params["s_link"] = data.link
+        if update_data.link is not None:
+            updates.append("link = :link")
+            params["link"] = update_data.link
 
-        if data.image is not None:
-            updates.append("image = :s_image")
-            params["s_image"] = data.image
+        if update_data.image is not None:
+            updates.append("image = :image")
+            params["image"] = update_data.image
 
-        if data.status is not None:
-            updates.append("status = :s_status")
-            params["s_status"] = data.status
+        if update_data.status is not None:
+            updates.append("status = :status")
+            params["status"] = update_data.status
 
-        if data.scheduled_for is not None:
-            updates.append("scheduled_for = :s_scheduledFor")
-            params["s_scheduled_for"] = data.scheduled_for
+        if update_data.scheduled_for is not None:
+            updates.append("scheduled_for = :scheduled_for")
+            params["scheduled_for"] = update_data.scheduled_for
 
-        if data.delivered_count is not None:
-            updates.append("delivered_count = :s_deliveredCount")
-            params["s_delivered_count"] = data.delivered_count
+        if update_data.delivered_count is not None:
+            updates.append("delivered_count = :delivered_count")
+            params["delivered_count"] = update_data.delivered_count
 
-        if data.read_count is not None:
-            updates.append("read_count = :s_readCount")
-            params["s_read_count"] = data.read_count
+        if update_data.read_count is not None:
+            updates.append("read_count = :read_count")
+            params["read_count"] = update_data.read_count
 
-        if data.user_segment is not None:
-            updates.append("user_segment = :s_userSegment")
-            params["s_user_segment"] = data.user_segment
+        if update_data.user_segment is not None:
+            updates.append("user_segment = :user_segment")
+            params["user_segment"] = update_data.user_segment
 
-        if data.user_behavior is not None:
-            updates.append("user_behavior = :s_userBehavior")
-            params["s_user_behavior"] = data.user_behavior
+        if update_data.user_behavior is not None:
+            updates.append("user_behavior = :user_behavior")
+            params["user_behavior"] = update_data.user_behavior
 
-        if data.created_by is not None:
-            updates.append("created_by = :s_createdBy")
-            params["s_created_by"] = data.created_by
+        if update_data.created_by is not None:
+            updates.append("created_by = :created_by")
+            params["created_by"] = update_data.created_by
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
-                await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, int(id), data)
-                await session.commit()
-                
-        return await self.findById(id)
-
-    async def delete(self, id: str) -> bool:
-        factory = self._factory()
-        if not factory:
-            return False
-        pk = int(id) if str(id).isdigit() else None
+        upd_sql = ", ".join(updates)
         async with factory() as session:
+            if str(id).isdigit():
+                pk = int(id)
+                upd_where = "id = :pk"
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return None
+                upd_where = "id = :pk"
+            params["pk"] = pk
+
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE {upd_where}"), params)
+            await session.commit()
+                
+        return await self.findById(pk)
+
+    async def delete(self, id: Union[int, str]) -> bool:
+        factory = self._factory()
+        if not factory or not id:
+            return False
+        async with factory() as session:
+            if str(id).isdigit():
+                pk = int(id)
+                del_where = "id = :pk"
+                params = {"pk": pk}
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return False
+                del_where = "id = :pk"
+                params = {"pk": pk}
 
             result = await session.execute(
-                text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
-                {"id": pk},
+                text(f"DELETE FROM {self.TABLE} WHERE {del_where}"),
+                params,
             )
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> 'PushNotificationsInternal':
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            # Depending on schema format, id might be _id or id
-            d_id = d.id
-            if d_id and await self.delete(d_id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
-    def _map_to_schema(self, r, children: Dict) -> 'PushNotificationsInternal':
-        obj = PushNotificationsInternal.model_validate(r)
-        for k, v in children.items():
-            setattr(obj, k, v)
-        return obj
-
-    async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
-        return {}
-        
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
-        pass
+    def _map_to_schema(self, r) -> PushNotificationsInternal:
+        return PushNotificationsInternal(
+            id=str(r.id),
+            external_id=r.external_id,
+            title=r.title,
+            message=r.message,
+            link=r.link,
+            image=r.image,
+            status=r.status,
+            scheduled_for=r.scheduled_for,
+            delivered_count=int(r.delivered_count) if r.delivered_count is not None else None,
+            read_count=int(r.read_count) if r.read_count is not None else None,
+            user_segment=r.user_segment,
+            user_behavior=r.user_behavior,
+            created_by=r.created_by,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )

@@ -922,7 +922,8 @@ export default function ProductCatalog({
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8" aria-live="polite" aria-busy="true">
+        <p className="sr-only">Loading products…</p>
         <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {Array.from({ length: 10 }).map((_, i) => (
             <div key={i} className="flex h-[360px] animate-pulse flex-col overflow-hidden rounded-2xl bg-white shadow-sm">
@@ -1679,7 +1680,12 @@ export default function ProductCatalog({
 
         {/* Products Grid */}
         <div className="min-w-0 flex-1 md:overflow-y-auto">
-          <section ref={productsGridRef} className="p-0">
+          <section
+            ref={productsGridRef}
+            className="p-0"
+            aria-live="polite"
+            aria-label={`Products${searchTerm ? ` for "${searchTerm}"` : ''}${totalProducts > 0 ? `, ${totalProducts} results` : ''}`}
+          >
             {usedFuzzy && suggestedQuery && (
               <div className="mb-4 flex items-center justify-between rounded-xl border border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 p-4 text-sm text-amber-800 shadow-sm transition-all hover:shadow">
                 <div className="flex items-center gap-2">
