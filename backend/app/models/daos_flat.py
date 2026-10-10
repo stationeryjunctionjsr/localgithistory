@@ -308,8 +308,8 @@ class CoachMarkInternalUpdate(CamelBaseModel):
 
 class CategoryTagInternal(CamelBaseModel):
     model_config = ConfigDict(populate_by_name=True, extra='forbid')
-    external_id: Optional[str] = Field(None, alias='externalId')
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
+    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -323,7 +323,7 @@ class CategoryTagInternal(CamelBaseModel):
 
 class CategoryTagInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
@@ -332,7 +332,7 @@ class CategoryTagInternalCreate(CamelBaseModel):
 
 class CategoryTagInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None

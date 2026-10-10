@@ -1,5 +1,6 @@
+from datetime import datetime
 import logging
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
@@ -34,7 +35,7 @@ class CategoryTagCreate(CategoryTagBase):
 
 
 class CategoryTagResponse(CamelBaseModel):
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     external_id: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -44,8 +45,8 @@ class CategoryTagResponse(CamelBaseModel):
     category_head_id: Optional[int] = None
     category_head_name: Optional[str] = None
     category_count: Optional[int] = 0
-    created_at: Optional[Any] = None
-    updated_at: Optional[Any] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class CategoryTagUpdate(CamelBaseModel):
@@ -253,7 +254,7 @@ async def delete_category_tag(
 
         await category_tag_repository.hardDelete(tag_id)
         _invalidate_category_tag_caches()
-        return {"message": "Category tag deleted successfully"}
+        return MessageResponse(message="Category tag deleted successfully")
     except HTTPException:
         raise
     except Exception as e:
