@@ -31,6 +31,7 @@ import AuthModal from '@/components/AuthModal';
 import { usePincode } from '@/context/PincodeContext';
 import { logger } from '@/utils/logger';
 import { useSellerAvailability, formatUnavailableUntil } from '@/hooks/useSellerAvailability';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 
 // Icons
@@ -654,8 +655,9 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
   return (
     <>
       <Header />
-      <div className="w-full max-w-full overflow-x-hidden">
-        {/* Breadcrumbs - Consistent with product listing page */}
+      <ErrorBoundary>
+        <div className="w-full max-w-full overflow-x-hidden">
+          {/* Breadcrumbs - Consistent with product listing page */}
         <div className="border-b border-gray-100 bg-white px-4 py-3 text-xs font-medium tracking-wide text-gray-500 md:px-6">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-1.5">
             {breadcrumbParts.map((part, index) => (
@@ -1812,6 +1814,8 @@ export default function ProductDetailClient({ initialProduct, searchParams }: Pr
           }
         }}
       />
+        </div>
+      </ErrorBoundary>
     </>
   );
 }

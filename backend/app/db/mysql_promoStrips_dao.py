@@ -127,32 +127,27 @@ class MySQLPromoStripsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'PromoStripsInternalUpdate') -> 'PromoStripsInternal':
+    async def update(self, id: str, update_data: 'PromoStripsInternalUpdate') -> Optional['PromoStripsInternal']:
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
 
-        if data.text is not None:
+        if update_data.text is not None:
             updates.append("text = :s_text")
-            params["s_text"] = data.text
+            params["s_text"] = update_data.text
 
-        if data.is_active is not None:
+        if update_data.is_active is not None:
             updates.append("is_active = :s_is_active")
-            params["s_is_active"] = data.is_active
+            params["s_is_active"] = update_data.is_active
 
-        if data.zone_ids is not None:
+        if update_data.zone_ids is not None:
             updates.append("zone_ids = :s_zone_ids")
-            params["s_zone_ids"] = json.dumps(data.zone_ids)
+            params["s_zone_ids"] = json.dumps(update_data.zone_ids)
 
         if len(updates) > 1:
             upd_sql = ", ".join(updates)
             async with factory() as session:
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
-                await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, int(id), data)
                 await session.commit()
                 
         return await self.findById(id)
@@ -182,7 +177,7 @@ class MySQLPromoStripsDAO:
     def _map_to_schema(self, r, children: Dict = None) -> 'PromoStripsInternal':
         from app.models.daos_flat import PromoStripsInternal
         zone_ids = None
-        raw_zone = getattr(r, "zone_ids", None)
+        raw_zone = r.zone_ids
         if raw_zone:
             if isinstance(raw_zone, str):
                 try:

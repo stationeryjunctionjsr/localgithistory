@@ -83,10 +83,7 @@ class UserRepository:
         # than count-based allocation which silently produces duplicates when rows
         # are deleted and re-added.
         try:
-            if hasattr(self.storage, "getNextUserId"):
-                user_id = await self.storage.getNextUserId()
-            else:
-                user_id = 1
+            user_id = await self.storage.getNextUserId()
         except Exception:
             logger.error(
                 "Failed to generate next userId; falling back to userId=1.",

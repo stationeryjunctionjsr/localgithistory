@@ -16,6 +16,7 @@ import UnserviceableLocationBanner from '@/components/UnserviceableLocationBanne
 import { logger } from '@/utils/logger';
 import { useSellerAvailability, formatUnavailableUntil } from '@/hooks/useSellerAvailability';
 import RecentlyViewed from '@/components/RecentlyViewed';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 
 // pageMode controls what appears as chips (on the page) vs. filters (in sidebar):
@@ -88,7 +89,8 @@ function PopularProductsFallback() {
           </p>
         </button>
       ))}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
 
@@ -136,6 +138,7 @@ export default function ProductCatalog({
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [page, setPage] = useState(1);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [searchTerm, setSearchTerm] = useState(propSearchTerm);
   const [category, setCategory] = useState(propCategory);
   const [subCategory, setSubCategory] = useState(propSubCategory);
@@ -977,10 +980,26 @@ export default function ProductCatalog({
     if (loading || newPage < 1 || newPage > totalPages) return;
     if (newPage === page) return;
     void fetchProducts(newPage);
-    requestAnimationFrame(() =>
-      productsGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    );
   };
+
+  // Infinite scroll — observe the sentinel div at the bottom of the product grid
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loading && page < totalPages) {
+          handleCatalogPageChange(page + 1);
+        }
+      },
+      { rootMargin: '200px' } // start loading 200px before the sentinel is visible
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, page, totalPages]);
 
   // eslint-disable-next-line unused-imports/no-unused-vars
   const newlyAdded = [...products]
@@ -1043,9 +1062,10 @@ export default function ProductCatalog({
   const { name: pageName, logo: pageLogo } = getPageInfo();
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50">
-      {/* Breadcrumbs - Consistent with product detail page */}
-      {!hideHeader && !hideBreadcrumbs && (
+    <ErrorBoundary>
+      <div className="min-h-screen w-full overflow-x-hidden bg-gray-50">
+        {/* Breadcrumbs - Consistent with product detail page */}
+        {!hideHeader && !hideBreadcrumbs && (
         <div className="border-b border-gray-100 bg-white px-2 py-1.5 text-xs font-medium tracking-wide text-gray-500">
           <div className="flex w-full flex-wrap items-center gap-1.5">
             <Link
@@ -2119,28 +2139,22 @@ export default function ProductCatalog({
                   })}
                 </div>
 
-                {totalPages > 1 && products.length > 0 && (
-                  <div className="mt-6 flex items-center justify-center gap-4">
-                    <button
-                      type="button"
-                      onClick={() => handleCatalogPageChange(page - 1)}
-                      disabled={page === 1 || loading}
-                      className="rounded-lg bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50"
-                    >
-                      Previous
-                    </button>
-                    <span className="text-sm text-gray-600">
-                      Page {page} of {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCatalogPageChange(page + 1)}
-                      disabled={page === totalPages || loading}
-                      className="rounded-lg bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50"
-                    >
-                      Next
-                    </button>
-                  </div>
+                {/* ── Infinite scroll sentinel ── */}
+                {products.length > 0 && (
+                  <>
+                    <div ref={sentinelRef} className="h-4 w-full" aria-hidden />
+                    {loading && page > 1 && (
+                      <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-500">
+                        <span className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-700" />
+                        Loading more products…
+                      </div>
+                    )}
+                    {!loading && page >= totalPages && totalPages > 1 && (
+                      <p className="py-8 text-center text-xs text-gray-400">
+                        You&apos;ve seen all {totalProducts} products
+                      </p>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -2189,5 +2203,6 @@ export default function ProductCatalog({
         }}
       />
     </div>
+    </ErrorBoundary>
   );
 }

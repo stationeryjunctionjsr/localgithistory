@@ -200,6 +200,7 @@ class MySQLSupportTicketsDAO:
         return await self.findById(str(new_id))
 
     async def update(self, id: str, update_data: 'SupportTicketInternalUpdate') -> 'SupportTicketInternal':
+        data = update_data
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
@@ -300,7 +301,7 @@ class MySQLSupportTicketsDAO:
 
     def _map_to_schema(self, r, children: Dict) -> 'SupportTicketInternal':
         from app.models.schemas import SupportTicketInternal
-        user_val = str(r.user_id) if hasattr(r, "user_id") and r.user_id is not None else None
+        user_val = str(r.user_id) if r.user_id is not None else None
         return SupportTicketInternal(
             id=str(r.id),
             external_id=r.external_id,

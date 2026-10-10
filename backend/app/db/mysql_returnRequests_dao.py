@@ -200,43 +200,35 @@ class MySQLReturnRequestsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'ReturnRequestInternalUpdate') -> 'ReturnRequestInternal':
+    async def update(self, id: str, update_data: 'ReturnRequestInternalUpdate') -> Optional['ReturnRequestInternal']:
         factory = self._factory()
         updates = ["updated_at = :u"]
         params = {"id": id, "u": now_utc()}
         
-        field_map = {
-            "return_id": "return_id",
-            "order_id": "order_id",
-            "user_id": "user_id",
-            "payment_method": "payment_method",
-            "upi_payment_screenshot": "upi_payment_screenshot",
-            "notes": "notes",
-            "status": "status",
-            "valet_id": "valet_id",
-            "seller_id": "seller_id",
-            "delivery_slot_id": "delivery_slot_id",
-            "delivery_slot_config_id": "delivery_slot_config_id",
-            "delivery_slot_date": "delivery_slot_date",
-            "pending_valet_id": "pending_valet_id",
-            "valet_assigned_at": "valet_assigned_at",
-            "valet_cascade_count": "valet_cascade_count",
-            "delivery_charge": "delivery_charge"
-        }
-        
-        if hasattr(data, 'model_dump'):
-            dump = data.model_dump(exclude_unset=True)
-            for k, v in dump.items():
-                if k in field_map:
-                    updates.append(f"{field_map[k]} = :s_{k}")
-                    params[f"s_{k}"] = v
-                    
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
-                await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
-                await session.commit()
+        if update_data.status is not None:
+            updates.append("status = :s_status")
+            params["s_status"] = update_data.status
+        if update_data.valet_id is not None:
+            updates.append("valet_id = :s_valet_id")
+            params["s_valet_id"] = update_data.valet_id
+        if update_data.pending_valet_id is not None:
+            updates.append("pending_valet_id = :s_pending_valet_id")
+            params["s_pending_valet_id"] = update_data.pending_valet_id
+        if update_data.valet_assigned_at is not None:
+            updates.append("valet_assigned_at = :s_valet_assigned_at")
+            params["s_valet_assigned_at"] = update_data.valet_assigned_at
+        if update_data.valet_cascade_count is not None:
+            updates.append("valet_cascade_count = :s_valet_cascade_count")
+            params["s_valet_cascade_count"] = update_data.valet_cascade_count
+        if update_data.notes is not None:
+            updates.append("notes = :s_notes")
+            params["s_notes"] = update_data.notes
+
+        upd_sql = ", ".join(updates)
+        async with factory() as session:
+            await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
+            await self._replace_children(session, int(id), update_data)
+            await session.commit()
                 
         return await self.findById(str(id))
 
@@ -327,27 +319,30 @@ class MySQLReturnRequestsDAO:
 
         return c_map
 
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
-        fields = data.model_fields_set if hasattr(data, 'model_fields_set') else set(dir(data))
-        
-        if 'items' in fields:
-            await session.execute(text(f"DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.items if hasattr(data, 'items') else []
-            if child_list:
-                for item in child_list:
-                    p = {"id": row_id}
-                    p["v0"] = getattr(item, 'product_id', None)
-                    p["v1"] = getattr(item, 'quantity', None)
-                    p["v2"] = getattr(item, 'reason', None)
-                    await session.execute(text(f"INSERT INTO sj_return_request_items (parent_id, product_id, quantity, reason) VALUES (:id, :v0, :v1, :v2)"), p)
+    async def _replace_children(self, session, row_id: int, data: Union[ReturnRequestInternalCreate, ReturnRequestInternalUpdate]):
+        if isinstance(data, ReturnRequestInternalCreate) and data.items is not None:
+            await session.execute(text("DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": row_id})
+            for item in data.items:
+                p = {
+                    "id": row_id,
+                    "v0": item.product_id,
+                    "v1": item.quantity,
+                    "v2": item.reason,
+                }
+                await session.execute(
+                    text("INSERT INTO sj_return_request_items (parent_id, product_id, quantity, reason) VALUES (:id, :v0, :v1, :v2)"),
+                    p,
+                )
 
-        if 'valet_decline_history' in fields:
-            await session.execute(text(f"DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.valet_decline_history if hasattr(data, 'valet_decline_history') else []
-            if child_list:
-                for item in child_list:
-                    p = {"id": row_id}
-                    p["v0"] = getattr(item, 'valet_id', None)
-                    p["v1"] = getattr(item, 'reason', None)
-                    p["v2"] = getattr(item, 'declined_at', None)
-                    await session.execute(text(f"INSERT INTO sj_return_valet_declines (parent_id, valet_id, reason) VALUES (:id, :v0, :v1)"), p)
+        if data.valet_decline_history is not None:
+            await session.execute(text("DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": row_id})
+            for item in data.valet_decline_history:
+                p = {
+                    "id": row_id,
+                    "v0": item.valet_id,
+                    "v1": item.reason,
+                }
+                await session.execute(
+                    text("INSERT INTO sj_return_valet_declines (parent_id, valet_id, reason) VALUES (:id, :v0, :v1)"),
+                    p,
+                )

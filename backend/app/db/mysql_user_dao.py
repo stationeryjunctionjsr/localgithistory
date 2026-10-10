@@ -1,5 +1,5 @@
 from typing import Any
-from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserResponse
+from app.models.schemas import UserInternalCreate, UserInternalUpdate, UserResponse, AddressSnippet
 from app.models.user import User
 '\nMySQL DAO for sj_users (Fully Relational).\n'
 import secrets
@@ -16,13 +16,13 @@ def _map_to_schema(r, children: Dict) -> User:
     u.saved_addresses = [a for a in all_addresses if not a.get("isPrimary")]
     u.service_area_zones = children.get("zones", [])
     
-    u.user_id = getattr(r, "id", None)
+    u.user_id = r.id
     if not u.user_id_formatted and u.user_id:
         u.user_id_formatted = f"USER-{r.id}"
     
-    u.password = getattr(r, "password_hash", None)
+    u.password = r.password_hash
     
-    pt = getattr(r, "payment_terms", None)
+    pt = r.payment_terms
     if pt:
         pt_str = str(pt).replace("net_", "")
         u.payment_terms = int(pt_str) if pt_str.isdigit() else None
@@ -125,7 +125,22 @@ class MySQLUserDAO:
         address = data.address
         saved_addresses = data.saved_addresses if data.saved_addresses is not None else []
         if address:
-            params = {'uid': uid, 'st': getattr(address, 'street', None), 'c': getattr(address, 'city', None), 's': getattr(address, 'state', None), 'p': getattr(address, 'pincode', None), 'ph': getattr(address, 'phone', None), 'd': getattr(address, 'district', None), 'co': getattr(address, 'country', None), 'gl': getattr(address, 'googleLocation', None), 'lat': getattr(address, 'latitude', None), 'lon': getattr(address, 'longitude', None), 'at': getattr(address, 'address', None), 'zc': getattr(address, 'zipCode', None)}
+            addr_obj = AddressSnippet.model_validate(address) if isinstance(address, dict) else address
+            params = {
+                'uid': uid,
+                'st': addr_obj.street,
+                'c': addr_obj.city,
+                's': addr_obj.state,
+                'p': addr_obj.pincode,
+                'ph': addr_obj.phone,
+                'd': addr_obj.district,
+                'co': addr_obj.country,
+                'gl': addr_obj.google_location,
+                'lat': addr_obj.latitude,
+                'lon': addr_obj.longitude,
+                'at': addr_obj.address,
+                'zc': addr_obj.zip_code,
+            }
             try:
                 await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 1, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), params)
             except Exception as e:
@@ -135,7 +150,22 @@ class MySQLUserDAO:
                 raise e
         for a in saved_addresses:
             if a != address:
-                a_params = {'uid': uid, 'st': getattr(a, 'street', None), 'c': getattr(a, 'city', None), 's': getattr(a, 'state', None), 'p': getattr(a, 'pincode', None), 'ph': getattr(a, 'phone', None), 'd': getattr(a, 'district', None), 'co': getattr(a, 'country', None), 'gl': getattr(a, 'googleLocation', None), 'lat': getattr(a, 'latitude', None), 'lon': getattr(a, 'longitude', None), 'at': getattr(a, 'address', None), 'zc': getattr(a, 'zipCode', None)}
+                a_obj = AddressSnippet.model_validate(a) if isinstance(a, dict) else a
+                a_params = {
+                    'uid': uid,
+                    'st': a_obj.street,
+                    'c': a_obj.city,
+                    's': a_obj.state,
+                    'p': a_obj.pincode,
+                    'ph': a_obj.phone,
+                    'd': a_obj.district,
+                    'co': a_obj.country,
+                    'gl': a_obj.google_location,
+                    'lat': a_obj.latitude,
+                    'lon': a_obj.longitude,
+                    'at': a_obj.address,
+                    'zc': a_obj.zip_code,
+                }
                 await session.execute(text('INSERT INTO sj_user_addresses (user_id, is_primary, street, city, state, pincode, phone, district, country, google_location, latitude, longitude, address_text, zip_code) VALUES (:uid, 0, :st, :c, :s, :p, :ph, :d, :co, :gl, :lat, :lon, :at, :zc)'), a_params)
         for zone_ext_id in data.service_area_zones if data.service_area_zones is not None else []:
             name_res = await session.execute(text('SELECT name FROM sj_delivery_zones WHERE external_id = :eid LIMIT 1'), {'eid': zone_ext_id})

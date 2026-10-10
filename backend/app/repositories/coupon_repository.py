@@ -440,21 +440,7 @@ class CouponRepository:
 
         # In simple array/json memory we can just filter
         # But motor query logic isn't always fully deterministic here if implemented purely as find
-        if hasattr(self.storage, "getNextDisplayNumber"):
-            display_num = await self.storage.getNextDisplayNumber(prefix)
-        else:
-            all_coupons = await self.storage.findAll({})
-            max_num = 0
-            for doc in all_coupons:
-                did = doc.code or ""
-                if did.startswith(prefix):
-                    try:
-                        num = int(did[len(prefix) :])
-                        if num > max_num:
-                            max_num = num
-                    except ValueError:
-                        continue
-            display_num = max_num + 1
+        display_num = await self.storage.getNextDisplayNumber(prefix)
         display_id = f"{prefix}{display_num}"
 
         from app.models.daos_flat import CouponInternalCreate, CouponQuantityTierInternal
