@@ -1,16 +1,29 @@
 from datetime import datetime
-from typing import Optional, List, Any, Dict
-from pydantic import Field
-from pydantic import BaseModel
+from typing import Optional
 from app.models.base import CamelBaseModel
 
+
 class FeatureFlag(CamelBaseModel):
-    id: str = Field(default=None)
-    name: Optional[str] = Field(default=None)
-    description: Optional[str] = Field(default=None)
-    enabled: Optional[str] = Field(default=None)
-    category: Optional[str] = Field(default=None)
-    created_at: Optional[datetime] = Field(default=None)
-    updated_at: Optional[datetime] = Field(default=None)
-    flag_id: Optional[str] = Field(default=None)
-    deleted_count: int = Field(default=0)
+    id: Optional[str] = None
+    flag_id: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    enabled: Optional[bool] = None
+    category: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class FeatureFlagCreate(CamelBaseModel):
+    id: str
+    name: str
+    description: Optional[str] = ""
+    enabled: Optional[bool] = False
+    category: Optional[str] = "features"
+
+
+class FeatureFlagUpdate(CamelBaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    enabled: Optional[bool] = None
+    category: Optional[str] = None
