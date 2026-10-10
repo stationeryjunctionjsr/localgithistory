@@ -37,66 +37,94 @@ class MySQLCouponsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional['CouponInternal']:
-        return await self.findOne({"_id": id})
-
-    async def findOne(self, query=None, **kwargs) -> Optional['CouponInternal']:
-        if query:
-            kwargs.update(query)
-        if not kwargs:
+    async def findById(self, id: Union[int, str]) -> Optional['CouponInternal']:
+        factory = self._factory()
+        if not factory or not id:
             return None
-        
-        async with self._factory()() as session:
-            conditions = []
-            params = {}
-            
-            query_map = {'code': 'code', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'usage_limit': 'max_uses', 'used_count': 'used_count', 'valid_from': 'start_date', 'valid_until': 'end_date', 'is_active': 'is_active', 'isActive': 'is_active', 'type_of_discount': 'type_of_discount', 'typeOfDiscount': 'type_of_discount', 'method': 'method', 'min_requirement_type': 'min_requirement_type', 'min_quantity_of_eligible_items': 'min_quantity_of_eligible_items', 'max_discount_amount': 'max_discount_amount', 'applies_to_type': 'applies_to_type'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            for k, v in kwargs.items():
-                db_col = query_map[k] if k in query_map else k
-                conditions.append(f"{db_col} = :{k}")
-                params[k] = v
-                
-            where_clause = " AND ".join(conditions)
-            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+        async with factory() as session:
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
+                params = {"id": str(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-                
-            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            children_map = await self._fetch_children(session, [int(row.id)])
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
-            
-    async def findAll(self, query: Optional[dict] = None) -> List['CouponInternal']:
-        query = query or {}
-        async with self._factory()() as session:
-            sql = f"SELECT * FROM {self.TABLE}"
-            params = {}
-            
-            query_map = {'code': 'code', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'usage_limit': 'max_uses', 'used_count': 'used_count', 'valid_from': 'start_date', 'valid_until': 'end_date', 'is_active': 'is_active', 'isActive': 'is_active', 'type_of_discount': 'type_of_discount', 'typeOfDiscount': 'type_of_discount', 'method': 'method', 'min_requirement_type': 'min_requirement_type', 'min_quantity_of_eligible_items': 'min_quantity_of_eligible_items', 'max_discount_amount': 'max_discount_amount', 'applies_to_type': 'applies_to_type'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            if query:
-                conditions = []
-                for k, v in query.items():
-                    db_col = query_map[k] if k in query_map else k
-                    conditions.append(f"{db_col} = :{k}")
-                    params[k] = v
-                if conditions:
-                    sql += " WHERE " + " AND ".join(conditions)
-                    
-            q = text(sql)
-            result = await session.execute(q, params)
+
+    async def findByCode(self, code: str) -> Optional['CouponInternal']:
+        factory = self._factory()
+        if not factory or not code:
+            return None
+        async with factory() as session:
+            q = text(f"SELECT * FROM {self.TABLE} WHERE UPPER(code) = :code LIMIT 1")
+            result = await session.execute(q, {"code": code.upper()})
+            row = result.fetchone()
+            if not row:
+                return None
+            children_map = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+
+    async def findOne(
+        self,
+        query: Optional[dict] = None,
+        code: Optional[str] = None,
+        is_active: Optional[bool] = None,
+    ) -> Optional['CouponInternal']:
+        if code:
+            return await self.findByCode(code)
+        if query:
+            if "code" in query and query["code"]:
+                return await self.findByCode(query["code"])
+            if "_id" in query or "id" in query:
+                return await self.findById(query.get("_id") or query.get("id"))
+            if "externalId" in query and query["externalId"]:
+                return await self.findById(query["externalId"])
+        results = await self.findAll(query=query, is_active=is_active)
+        return results[0] if results else None
+
+    async def findAll(
+        self,
+        query: Optional[dict] = None,
+        is_active: Optional[bool] = None,
+        method: Optional[str] = None,
+        code: Optional[str] = None,
+    ) -> List['CouponInternal']:
+        if query:
+            if is_active is None and ("is_active" in query or "isActive" in query):
+                is_active = query.get("is_active") if "is_active" in query else query.get("isActive")
+            if method is None and "method" in query:
+                method = query["method"]
+            if code is None and "code" in query:
+                code = query["code"]
+
+        clauses = []
+        params = {}
+        if is_active is not None:
+            clauses.append("is_active = :act")
+            params["act"] = 1 if is_active else 0
+        if method is not None:
+            clauses.append("method = :method")
+            params["method"] = method
+        if code is not None:
+            clauses.append("UPPER(code) = :code")
+            params["code"] = code.upper()
+
+        where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
+
+        factory = self._factory()
+        if not factory:
+            return []
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
             rows = result.fetchall()
-            
             if not rows:
                 return []
-                
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
-            
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
     async def create(self, data: 'CouponsInternalCreate') -> 'CouponInternal':
@@ -326,24 +354,27 @@ class MySQLCouponsDAO:
                 
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
+            if str(id).isdigit():
+                pk = int(id)
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return False
 
-            await session.execute(text(f"DELETE FROM sj_coupon_quantity_tiers WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_coupon_roles WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_coupon_users WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_coupon_categories WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_coupon_applies_to_values WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_coupon_excluded_products WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_coupon_quantity_tiers WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_coupon_roles WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_coupon_users WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_coupon_categories WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_coupon_applies_to_values WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_coupon_excluded_products WHERE parent_id = :id"), {"id": pk})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -352,23 +383,69 @@ class MySQLCouponsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> 'CouponInternal':
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            # Depending on schema format, id might be _id or id
-            d_id = d.id
-            if d_id and await self.delete(d_id):
-                deleted += 1
-        return {"deletedCount": deleted}
+    async def getNextDisplayNumber(self, prefix: str) -> int:
+        factory = self._factory()
+        if not factory:
+            return 1
+        async with factory() as session:
+            res = await session.execute(
+                text(f"SELECT code FROM {self.TABLE} WHERE code LIKE :pat"),
+                {"pat": f"{prefix}%"},
+            )
+            rows = res.fetchall()
+            max_num = 0
+            for r in rows:
+                code_str = r[0] or ""
+                if code_str.startswith(prefix):
+                    try:
+                        num = int(code_str[len(prefix):])
+                        if num > max_num:
+                            max_num = num
+                    except ValueError:
+                        continue
+            return max_num + 1
 
     def _map_to_schema(self, r, children: Dict) -> 'CouponInternal':
-        obj = CouponInternal.model_validate(r)
-        for k, v in children.items():
-            setattr(obj, k, v)
-        return obj
+        from app.models.daos_flat import CouponInternal
+        return CouponInternal(
+            id=str(r.id),
+            external_id=r.external_id,
+            code=r.code,
+            discount_type=r.discount_type,
+            discount_value=float(r.discount_value) if r.discount_value is not None else None,
+            min_order_value=float(r.min_order_value) if r.min_order_value is not None else None,
+            max_uses=int(r.max_uses) if r.max_uses is not None else None,
+            used_count=int(r.used_count) if r.used_count is not None else 0,
+            start_date=r.start_date,
+            end_date=r.end_date,
+            is_active=bool(r.is_active) if r.is_active is not None else None,
+            type_of_discount=r.type_of_discount,
+            method=r.method,
+            min_requirement_type=r.min_requirement_type,
+            min_quantity_of_eligible_items=int(r.min_quantity_of_eligible_items) if r.min_quantity_of_eligible_items is not None else None,
+            max_discount_amount=float(r.max_discount_amount) if r.max_discount_amount is not None else None,
+            applies_to_type=r.applies_to_type,
+            display_id=r.display_id,
+            buy_x_get_y_customer_gets_applies_to_type=getattr(r, "bxgy_customer_gets_applies_to_type", None),
+            buy_x_get_y_customer_gets_quantity=getattr(r, "bxgy_customer_gets_quantity", None),
+            bxgy_applies_to_ids=children.get("bxgy_applies_to_ids"),
+            bxgy_discount_type=getattr(r, "bxgy_discount_type", None),
+            bxgy_discount_value=float(r.bxgy_discount_value) if getattr(r, "bxgy_discount_value", None) is not None else None,
+            applicable_item_type=getattr(r, "applicable_item_type", None),
+            coupon_mode=getattr(r, "coupon_mode", None),
+            max_usage_per_user=getattr(r, "max_usage_per_user", None),
+            user_usages=children.get("user_usages"),
+            user_behavior=getattr(r, "user_behavior", None),
+            quantity_tiers=children.get("quantity_tiers", []),
+            applicable_roles=children.get("applicable_roles", []),
+            applicable_user_ids=children.get("applicable_user_ids", []),
+            applicable_categories=children.get("applicable_categories", []),
+            applies_to_value_ids=children.get("applies_to_value_ids", []),
+            excluded_product_ids=children.get("excluded_product_ids", []),
+        )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
+        from app.models.daos_flat import CouponQuantityTierInternal
         c_map = {rid: {} for rid in ids}
         if not ids:
             return c_map
@@ -382,11 +459,12 @@ class MySQLCouponsDAO:
         for r in rows_quantityTiers:
             if "quantity_tiers" not in c_map[r.parent_id]:
                 c_map[r.parent_id]["quantity_tiers"] = []
-            obj = {}
-
-            obj["min_quantity"] = r[1]
-            obj["discount_value"] = r[2]
-            c_map[r.parent_id]["quantity_tiers"].append(obj)
+            c_map[r.parent_id]["quantity_tiers"].append(
+                CouponQuantityTierInternal(
+                    min_quantity=r[1],
+                    discount_value=float(r[2]) if r[2] is not None else None,
+                )
+            )
 
         q_applicableRoles = text(f"SELECT parent_id, role FROM sj_coupon_roles WHERE parent_id IN ({id_list})")
         res_applicableRoles = await session.execute(q_applicableRoles)

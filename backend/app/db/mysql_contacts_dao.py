@@ -4,8 +4,7 @@ import secrets
 import json
 from sqlalchemy import text
 from app.config.database import get_async_session_factory
-from app.models.daos_flat import ContactInternal
-from app.models.daos_flat import ContactInternalCreate, ContactInternalUpdate
+from app.models.daos_flat import ContactInternal, ContactInternalCreate, ContactInternalUpdate, SocialMedia
 
 def now_utc():
     return datetime.now(timezone.utc)
@@ -16,33 +15,54 @@ class MySQLContactsDAO:
     
     @property
     def TABLE(self):
-        from app.config.settings import settings
         return self.table_name
 
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional['ContactInternal']:
-        return await self.findOne({"_id": id})
+    async def findById(self, id: str) -> Optional[ContactInternal]:
+        pk = int(id) if str(id).isdigit() else None
+        if pk is None:
+            return None
+        async with self._factory()() as session:
+            q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+            result = await session.execute(q, {"id": pk})
+            row = result.fetchone()
+            if not row:
+                return None
+            children_map = await self._fetch_children(session, [pk])
+            return self._map_to_schema(row, children_map.get(pk, {}))
 
-    async def findOne(self, query=None, **kwargs) -> Optional['ContactInternal']:
+    async def findOne(self, query: Optional[dict] = None, **kwargs) -> Optional[ContactInternal]:
+        params_dict = {}
         if query:
-            kwargs.update(query)
-        if not kwargs:
+            params_dict.update(query)
+        params_dict.update(kwargs)
+        if not params_dict:
             return None
         
         async with self._factory()() as session:
             conditions = []
-            params = {}
-            
-            query_map = {'email': 'email', 'description': 'description', 'is_active': 'is_active', 'display_order': 'display_order'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            for k, v in kwargs.items():
-                db_col = query_map[k] if k in query_map else k
-                conditions.append(f"{db_col} = :{k}")
-                params[k] = v
+            params: Dict[str, Any] = {}
+            for k, v in params_dict.items():
+                if k in ("_id", "id"):
+                    conditions.append("id = :id")
+                    params["id"] = int(v) if str(v).isdigit() else v
+                elif k in ("externalId", "external_id"):
+                    conditions.append("external_id = :external_id")
+                    params["external_id"] = str(v)
+                elif k in ("isActive", "is_active"):
+                    conditions.append("is_active = :is_active")
+                    params["is_active"] = 1 if v else 0
+                elif k in ("displayOrder", "display_order"):
+                    conditions.append("display_order = :display_order")
+                    params["display_order"] = int(v)
+                elif k == "email":
+                    conditions.append("email = :email")
+                    params["email"] = str(v)
+                else:
+                    conditions.append(f"{k} = :{k}")
+                    params[k] = v
                 
             where_clause = " AND ".join(conditions)
             q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
@@ -50,28 +70,46 @@ class MySQLContactsDAO:
             row = result.fetchone()
             if not row:
                 return None
-                
-            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            children_map = await self._fetch_children(session, [int(row.id)])
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
             
-    async def findAll(self, query: Optional[dict] = None) -> List['ContactInternal']:
-        query = query or {}
+    async def findAll(self, query: Optional[dict] = None, is_active: Optional[bool] = None) -> List[ContactInternal]:
+        if is_active is None and query:
+            val = query.get("isActive") if "isActive" in query else query.get("is_active")
+            if val is not None:
+                is_active = bool(val)
+
         async with self._factory()() as session:
-            sql = f"SELECT * FROM {self.TABLE}"
-            params = {}
-            
-            query_map = {'email': 'email', 'description': 'description', 'is_active': 'is_active', 'display_order': 'display_order'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
+            conditions = []
+            params: Dict[str, Any] = {}
+
+            if is_active is not None:
+                conditions.append("is_active = :is_active")
+                params["is_active"] = 1 if is_active else 0
+
             if query:
-                conditions = []
                 for k, v in query.items():
-                    db_col = query_map[k] if k in query_map else k
-                    conditions.append(f"{db_col} = :{k}")
-                    params[k] = v
-                if conditions:
-                    sql += " WHERE " + " AND ".join(conditions)
+                    if k in ("isActive", "is_active"):
+                        continue
+                    if k in ("_id", "id"):
+                        conditions.append("id = :id")
+                        params["id"] = int(v) if str(v).isdigit() else v
+                    elif k in ("externalId", "external_id"):
+                        conditions.append("external_id = :external_id")
+                        params["external_id"] = str(v)
+                    elif k in ("displayOrder", "display_order"):
+                        conditions.append("display_order = :display_order")
+                        params["display_order"] = int(v)
+                    elif k == "email":
+                        conditions.append("email = :email")
+                        params["email"] = str(v)
+                    else:
+                        conditions.append(f"{k} = :{k}")
+                        params[k] = v
+                        
+            sql = f"SELECT * FROM {self.TABLE}"
+            if conditions:
+                sql += " WHERE " + " AND ".join(conditions)
                     
             q = text(sql)
             result = await session.execute(q, params)
@@ -80,48 +118,45 @@ class MySQLContactsDAO:
             if not rows:
                 return []
                 
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
-            
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
-    async def create(self, data: 'ContactsInternalCreate') -> 'ContactInternal':
+    async def create(self, data: ContactInternalCreate) -> ContactInternal:
         factory = self._factory()
         now = now_utc()
         external_id = secrets.token_hex(16)
         
         cols = ["external_id", "created_at", "updated_at"]
-        params = {"eid": external_id, "c": now, "u": now}
+        val_placeholders = [":eid", ":c", ":u"]
+        params: Dict[str, Any] = {"eid": external_id, "c": now, "u": now}
 
         if data.email is not None:
             cols.append("email")
-            params["s_email"] = data.email
+            val_placeholders.append(":email")
+            params["email"] = data.email
 
         if data.description is not None:
             cols.append("description")
-            params["s_description"] = data.description
+            val_placeholders.append(":description")
+            params["description"] = data.description
 
         if data.is_active is not None:
             cols.append("is_active")
-            params["s_is_active"] = data.is_active
+            val_placeholders.append(":is_active")
+            params["is_active"] = 1 if data.is_active else 0
 
         if data.display_order is not None:
             cols.append("display_order")
-            params["s_display_order"] = data.display_order
+            val_placeholders.append(":display_order")
+            params["display_order"] = data.display_order
 
         if data.social_media is not None:
             cols.append("social_media")
-            import json
-            params["s_social_media"] = json.dumps({
-                "instagram": data.social_media.instagram,
-                "facebook": data.social_media.facebook,
-                "twitter": data.social_media.twitter,
-                "whatsapp": data.social_media.whatsapp,
-                "youtube": data.social_media.youtube,
-                "linkedin": data.social_media.linkedin
-            })
+            val_placeholders.append(":social_media")
+            params["social_media"] = json.dumps(data.social_media.model_dump())
 
         col_sql = ", ".join(cols)
-        val_sql = ", ".join([":eid", ":c", ":u"] + [f":s_{k}" for k in ['email', 'description', 'is_active', 'display_order', 'social_media'] if f"s_{k}" in params])
+        val_sql = ", ".join(val_placeholders)
         
         async with factory() as session:
             await session.execute(text(f"INSERT INTO {self.TABLE} ({col_sql}) VALUES ({val_sql})"), params)
@@ -135,63 +170,51 @@ class MySQLContactsDAO:
             
         return await self.findById(str(new_id))
 
-    async def update(self, id: str, update_data: 'ContactsInternalUpdate') -> 'ContactInternal':
+    async def update(self, id: str, update_data: ContactInternalUpdate) -> ContactInternal:
         factory = self._factory()
         updates = ["updated_at = :u"]
-        params = {"id": id, "u": now_utc()}
+        pk = int(id) if str(id).isdigit() else None
+        params: Dict[str, Any] = {"id": pk, "u": now_utc()}
 
-        if data.email is not None:
-            updates.append("email = :s_email")
-            params["s_email"] = data.email
+        if update_data.email is not None:
+            updates.append("email = :email")
+            params["email"] = update_data.email
 
-        if data.description is not None:
-            updates.append("description = :s_description")
-            params["s_description"] = data.description
+        if update_data.description is not None:
+            updates.append("description = :description")
+            params["description"] = update_data.description
 
-        if data.is_active is not None:
-            updates.append("is_active = :s_isActive")
-            params["s_is_active"] = data.is_active
+        if update_data.is_active is not None:
+            updates.append("is_active = :is_active")
+            params["is_active"] = 1 if update_data.is_active else 0
 
-        if data.display_order is not None:
-            updates.append("display_order = :s_displayOrder")
-            params["s_display_order"] = data.display_order
+        if update_data.display_order is not None:
+            updates.append("display_order = :display_order")
+            params["display_order"] = update_data.display_order
 
-        if data.social_media is not None:
-            updates.append("social_media = :s_socialMedia")
-            import json
-            params["s_social_media"] = json.dumps({
-                "instagram": data.social_media.instagram,
-                "facebook": data.social_media.facebook,
-                "twitter": data.social_media.twitter,
-                "whatsapp": data.social_media.whatsapp,
-                "youtube": data.social_media.youtube,
-                "linkedin": data.social_media.linkedin
-            })
+        if update_data.social_media is not None:
+            updates.append("social_media = :social_media")
+            params["social_media"] = json.dumps(update_data.social_media.model_dump())
 
-        if len(updates) > 1:
-            upd_sql = ", ".join(updates)
-            async with factory() as session:
+        upd_sql = ", ".join(updates)
+        async with factory() as session:
+            if pk is not None:
                 await session.execute(text(f"UPDATE {self.TABLE} SET {upd_sql} WHERE id = :id"), params)
-                await self._replace_children(session, int(id), data)
-                await session.commit()
-        else:
-            async with factory() as session:
-                await self._replace_children(session, int(id), data)
+                await self._replace_children(session, pk, update_data)
                 await session.commit()
                 
-        return await self.findById(id)
+        return await self.findById(str(id))
 
     async def delete(self, id: str) -> bool:
         factory = self._factory()
         if not factory:
             return False
         pk = int(id) if str(id).isdigit() else None
+        if pk is None:
+            return False
         async with factory() as session:
-
-            await session.execute(text(f"DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": pk})
-
+            await session.execute(text("DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": pk})
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
                 {"id": pk},
@@ -199,27 +222,31 @@ class MySQLContactsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> 'ContactInternal':
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            # Depending on schema format, id might be _id or id
-            d_id = d.id
-            if d_id and await self.delete(d_id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
-    def _map_to_schema(self, r, children: Dict) -> 'ContactInternal':
-        import json
-        c = ContactInternal.model_validate(r)
+    def _map_to_schema(self, r, children: Dict) -> ContactInternal:
+        social = None
         if getattr(r, "social_media", None):
             try:
-                c.social_media = json.loads(r.social_media)
-            except:
-                pass
-        for k, v in children.items():
-            setattr(c, k, v)
-        return c
+                raw_social = r.social_media
+                if isinstance(raw_social, str):
+                    raw_social = json.loads(raw_social)
+                if isinstance(raw_social, dict):
+                    social = SocialMedia.model_validate(raw_social)
+            except Exception:
+                social = None
+
+        return ContactInternal(
+            id=str(r.id),
+            external_id=getattr(r, "external_id", None),
+            email=getattr(r, "email", None),
+            description=getattr(r, "description", None),
+            is_active=bool(r.is_active) if getattr(r, "is_active", None) is not None else True,
+            display_order=int(r.display_order) if getattr(r, "display_order", None) is not None else 0,
+            addresses=children.get("addresses", []),
+            phone_numbers=children.get("phone_numbers", []),
+            social_media=social,
+            created_at=getattr(r, "created_at", None),
+            updated_at=getattr(r, "updated_at", None),
+        )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}
@@ -235,7 +262,7 @@ class MySQLContactsDAO:
         for r in rows_addresses:
             if "addresses" not in c_map[r.parent_id]:
                 c_map[r.parent_id]["addresses"] = []
-            c_map[r.parent_id]["addresses"].append(r[1])
+            c_map[r.parent_id]["addresses"].append(r.address)
 
         q_phone_numbers = text(f"SELECT parent_id, phone FROM sj_contact_phones WHERE parent_id IN ({id_list})")
         res_phone_numbers = await session.execute(q_phone_numbers)
@@ -244,25 +271,23 @@ class MySQLContactsDAO:
         for r in rows_phone_numbers:
             if "phone_numbers" not in c_map[r.parent_id]:
                 c_map[r.parent_id]["phone_numbers"] = []
-            c_map[r.parent_id]["phone_numbers"].append(r[1])
+            c_map[r.parent_id]["phone_numbers"].append(r.phone)
 
         return c_map
 
-    async def _replace_children(self, session, row_id: int, data: 'CamelBaseModel'):
+    async def _replace_children(self, session, row_id: int, data: Any):
+        if hasattr(data, "addresses") and data.addresses is not None:
+            await session.execute(text("DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": row_id})
+            for item in data.addresses:
+                await session.execute(
+                    text("INSERT INTO sj_contact_addresses (parent_id, address) VALUES (:id, :v)"),
+                    {"id": row_id, "v": item}
+                )
 
-        if data.addresses is not None:
-            await session.execute(text(f"DELETE FROM sj_contact_addresses WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.addresses or []
-
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_contact_addresses (parent_id, address) VALUES (:id, :v)"), {"id": row_id, "v": item})
-
-        if data.phone_numbers is not None:
-            await session.execute(text(f"DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": row_id})
-            child_list = data.phone_numbers or []
-
-            if child_list:
-                for item in child_list:
-                    await session.execute(text(f"INSERT INTO sj_contact_phones (parent_id, phone) VALUES (:id, :v)"), {"id": row_id, "v": item})
-
+        if hasattr(data, "phone_numbers") and data.phone_numbers is not None:
+            await session.execute(text("DELETE FROM sj_contact_phones WHERE parent_id = :id"), {"id": row_id})
+            for item in data.phone_numbers:
+                await session.execute(
+                    text("INSERT INTO sj_contact_phones (parent_id, phone) VALUES (:id, :v)"),
+                    {"id": row_id, "v": item}
+                )

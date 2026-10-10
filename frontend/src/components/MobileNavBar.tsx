@@ -59,6 +59,8 @@ import CustomerNotificationsModal from './CustomerNotificationsModal';
 import api from '@/utils/api';
 import styles from './MobileNavBar.module.css';
 import { logger } from '@/utils/logger';
+import ModeSwitchToggle from './ModeSwitchToggle';
+import { usePincode } from '@/context/PincodeContext';
 
 interface MobileNavBarProps {
   basePath?: string;
@@ -71,6 +73,7 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
   const { theme } = useTheme();
   // const { items: wishlistItems } = useWishlist();
   const wishlistItems = useWishlistStore((s) => s.items);
+  const { availableModes } = usePincode();
   const [cartCount, setCartCount] = useState(0);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
@@ -214,6 +217,13 @@ export default function MobileNavBar({ basePath = '/' }: MobileNavBarProps) {
           <div className={styles.logo} onClick={() => router.push(userBasePath)}>
             <h1 style={{ color: theme.primary }}>Stationery Junction</h1>
           </div>
+
+          {/* Mode switch pill - only shown when both modes are available */}
+          {availableModes.length === 2 && (
+            <div className="flex items-center">
+              <ModeSwitchToggle />
+            </div>
+          )}
 
           <div className={styles.navIcons}>
             <div className={styles.themeSwitcherWrapper}>

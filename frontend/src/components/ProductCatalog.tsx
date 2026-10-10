@@ -911,9 +911,8 @@ export default function ProductCatalog({
         100
       : 0;
 
-  if (isServiceable === false) {
-    return <UnserviceableLocationBanner />;
-  }
+  // Note: isUnmapped pincodes can still browse - Add-to-Cart buttons are disabled instead of blocking the catalog
+  const isUnmapped = pincode !== null && isServiceable === false;
 
   if (loading) {
     return (
@@ -1871,7 +1870,18 @@ export default function ProductCatalog({
                           )}
 
                            {/* Quick Add Button / Quantity Selector */}
-                           {isSellerUnavailable ? (
+                           {isUnmapped ? (
+                             <div
+                               onClick={(e) => e.stopPropagation()}
+                               className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1.5 bg-gray-100/95 py-2.5 backdrop-blur-sm"
+                             >
+                               <svg className="h-3 w-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                               </svg>
+                               <span className="text-[9px] font-medium text-gray-400 truncate">Not deliverable to {pincode}</span>
+                             </div>
+                           ) : isSellerUnavailable ? (
                              <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center bg-amber-500/90 py-2 backdrop-blur-sm">
                                <span className="text-[10px] font-semibold uppercase tracking-wide text-white">
                                  Temporarily Unavailable
@@ -2034,6 +2044,7 @@ export default function ProductCatalog({
                                </button>
                               );
                            })()}
+
  
                            {(!isBundle && (!product.stock || product.stock <= 0)) && (
                              <button

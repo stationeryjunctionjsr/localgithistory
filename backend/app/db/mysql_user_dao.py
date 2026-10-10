@@ -240,6 +240,14 @@ class MySQLUserDAO:
                 raise e
         return _map_to_schema(row, children_map[int(row.id)])
 
+    async def getNextUserId(self) -> int:
+        factory = self._factory()
+        if not factory:
+            return 1
+        async with factory() as session:
+            val = (await session.execute(text(f"SELECT IFNULL(MAX(id), 0) + 1 FROM {self.TABLE}"))).scalar()
+            return int(val or 1)
+
     async def create(self, data: UserInternalCreate) -> User:
         external_id = secrets.token_hex(16)
         now = datetime.now(timezone.utc)

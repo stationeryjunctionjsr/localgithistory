@@ -83,12 +83,13 @@ class UserRepository:
         # than count-based allocation which silently produces duplicates when rows
         # are deleted and re-added.
         try:
-            all_ids = [u.user_id for u in await self.storage.findAll() if isinstance(u.user_id, int)]
-            user_id = (max(all_ids) + 1) if all_ids else 1
+            if hasattr(self.storage, "getNextUserId"):
+                user_id = await self.storage.getNextUserId()
+            else:
+                user_id = 1
         except Exception:
             logger.error(
-                "Failed to fetch all user IDs to generate next userId; falling back to userId=1. "
-                "This may cause ID collisions if the storage is temporarily unavailable.",
+                "Failed to generate next userId; falling back to userId=1.",
                 exc_info=True,
             )
             user_id = 1
@@ -115,26 +116,26 @@ class UserRepository:
             phone=(user_data.phone if user_data.phone is not None else ""),
             company_name=(user_data.company_name if user_data.company_name is not None else ""),
             address=(user_data.address if user_data.address is not None else {}),
-            saved_addresses=(user_data.saved_addresses if getattr(user_data, "saved_addresses", None) is not None else []),
-            is_active=(user_data.is_active if getattr(user_data, "is_active", None) is not None else True),
-            approval_status=(user_data.approval_status if getattr(user_data, "approval_status", None) is not None else approval_status),
-            is_deactivated=(user_data.is_deactivated if getattr(user_data, "is_deactivated", None) is not None else False),
-            credit_limit=(user_data.credit_limit if getattr(user_data, "credit_limit", None) is not None else 0),
-            credit_used=(user_data.credit_used if getattr(user_data, "credit_used", None) is not None else 0),
-            payment_terms=(user_data.payment_terms if getattr(user_data, "payment_terms", None) is not None else "30"),
-            assigned_salesperson=getattr(user_data, "assigned_salesperson", None),
+            saved_addresses=(user_data.saved_addresses if user_data.saved_addresses is not None else []),
+            is_active=(user_data.is_active if user_data.is_active is not None else True),
+            approval_status=(user_data.approval_status if user_data.approval_status is not None else approval_status),
+            is_deactivated=(user_data.is_deactivated if user_data.is_deactivated is not None else False),
+            credit_limit=(user_data.credit_limit if user_data.credit_limit is not None else 0),
+            credit_used=(user_data.credit_used if user_data.credit_used is not None else 0),
+            payment_terms=(user_data.payment_terms if user_data.payment_terms is not None else "30"),
+            assigned_salesperson=user_data.assigned_salesperson,
             referral_code=referral_code,
-            is_email_verified=(user_data.is_email_verified if getattr(user_data, "is_email_verified", None) is not None else False),
-            is_on_duty=getattr(user_data, 'is_on_duty', False),
-            is_seller_admin=getattr(user_data, 'is_seller_admin', False),
-            service_area_zones=getattr(user_data, 'service_area_zones', []),
-            commission_override_pct=getattr(user_data, 'commission_override_pct', None),
-            upi_id=getattr(user_data, 'upi_id', None),
-            qr_code_url=getattr(user_data, 'qr_code_url', None),
-            gstin=getattr(user_data, 'gstin', None),
+            is_email_verified=(user_data.is_email_verified if user_data.is_email_verified is not None else False),
+            is_on_duty=(user_data.is_on_duty if user_data.is_on_duty is not None else False),
+            is_seller_admin=(user_data.is_seller_admin if user_data.is_seller_admin is not None else False),
+            service_area_zones=(user_data.service_area_zones if user_data.service_area_zones is not None else []),
+            commission_override_pct=user_data.commission_override_pct,
+            upi_id=user_data.upi_id,
+            qr_code_url=user_data.qr_code_url,
+            gstin=user_data.gstin,
         )
 
-        if getattr(user_model, "address", None) and user_model.address not in (getattr(user_model, "saved_addresses", []) or []):
+        if user_model.address and user_model.address not in (user_model.saved_addresses or []):
             if user_model.saved_addresses is None:
                 user_model.saved_addresses = []
             user_model.saved_addresses.append(user_model.address)

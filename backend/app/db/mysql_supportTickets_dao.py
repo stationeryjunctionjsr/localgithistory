@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
 from datetime import datetime, timezone
 import secrets
 import json
@@ -22,66 +22,102 @@ class MySQLSupportTicketsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional['SupportTicketInternal']:
-        return await self.findOne({"_id": id})
-
-    async def findOne(self, query=None, **kwargs) -> Optional['SupportTicketInternal']:
-        if query:
-            kwargs.update(query)
-        if not kwargs:
+    async def findById(self, id: Union[int, str]) -> Optional['SupportTicketInternal']:
+        factory = self._factory()
+        if not factory or not id:
             return None
-        
-        async with self._factory()() as session:
-            conditions = []
-            params = {}
-            
-            query_map = {'ticket_number': 'ticket_number', 'user': 'user_id', 'name': 'name', 'email': 'email', 'phone': 'phone', 'company': 'company', 'subject': 'subject', 'description': 'description', 'category': 'category', 'priority': 'priority', 'status': 'status', 'assigned_to': 'assigned_to', 'resolved_at': 'resolved_at', 'closed_at': 'closed_at'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            for k, v in kwargs.items():
-                db_col = query_map[k] if k in query_map else k
-                conditions.append(f"{db_col} = :{k}")
-                params[k] = v
-                
-            where_clause = " AND ".join(conditions)
-            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+        async with factory() as session:
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
+                params = {"id": str(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-                
-            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            children_map = await self._fetch_children(session, [int(row.id)])
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
-            
-    async def findAll(self, query: Optional[dict] = None) -> List['SupportTicketInternal']:
-        query = query or {}
-        async with self._factory()() as session:
-            sql = f"SELECT * FROM {self.TABLE}"
-            params = {}
-            
-            query_map = {'ticket_number': 'ticket_number', 'user': 'user_id', 'name': 'name', 'email': 'email', 'phone': 'phone', 'company': 'company', 'subject': 'subject', 'description': 'description', 'category': 'category', 'priority': 'priority', 'status': 'status', 'assigned_to': 'assigned_to', 'resolved_at': 'resolved_at', 'closed_at': 'closed_at'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            if query:
-                conditions = []
-                for k, v in query.items():
-                    db_col = query_map[k] if k in query_map else k
-                    conditions.append(f"{db_col} = :{k}")
-                    params[k] = v
-                if conditions:
-                    sql += " WHERE " + " AND ".join(conditions)
-                    
-            q = text(sql)
-            result = await session.execute(q, params)
+
+    async def findByTicketNumber(self, ticket_number: str) -> Optional['SupportTicketInternal']:
+        factory = self._factory()
+        if not factory or not ticket_number:
+            return None
+        async with factory() as session:
+            q = text(f"SELECT * FROM {self.TABLE} WHERE ticket_number = :tn LIMIT 1")
+            result = await session.execute(q, {"tn": str(ticket_number)})
+            row = result.fetchone()
+            if not row:
+                return None
+            children_map = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+
+    async def findOne(
+        self,
+        query: Optional[dict] = None,
+        ticket_number: Optional[str] = None,
+        status: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> Optional['SupportTicketInternal']:
+        if ticket_number:
+            return await self.findByTicketNumber(ticket_number)
+        if query:
+            tn = query.get("ticket_number") or query.get("ticketNumber")
+            if tn:
+                return await self.findByTicketNumber(tn)
+            if "_id" in query or "id" in query:
+                return await self.findById(query.get("_id") or query.get("id"))
+            if "externalId" in query and query["externalId"]:
+                return await self.findById(query["externalId"])
+        results = await self.findAll(query=query, status=status, user_id=user_id)
+        return results[0] if results else None
+
+    async def findAll(
+        self,
+        query: Optional[dict] = None,
+        status: Optional[str] = None,
+        user_id: Optional[str] = None,
+        category: Optional[str] = None,
+        priority: Optional[str] = None,
+    ) -> List['SupportTicketInternal']:
+        if query:
+            if status is None and "status" in query:
+                status = query["status"]
+            if user_id is None:
+                user_id = query.get("user") or query.get("user_id") or query.get("userId")
+            if category is None and "category" in query:
+                category = query["category"]
+            if priority is None and "priority" in query:
+                priority = query["priority"]
+
+        clauses = []
+        params = {}
+        if status is not None:
+            clauses.append("status = :status")
+            params["status"] = status
+        if user_id is not None:
+            clauses.append("user_id = :uid")
+            params["uid"] = str(user_id)
+        if category is not None:
+            clauses.append("category = :cat")
+            params["cat"] = category
+        if priority is not None:
+            clauses.append("priority = :prio")
+            params["prio"] = priority
+
+        where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
+
+        factory = self._factory()
+        if not factory:
+            return []
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
             rows = result.fetchall()
-            
             if not rows:
                 return []
-                
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
-            
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
     async def create(self, data: 'SupportTicketInternalCreate') -> 'SupportTicketInternal':
@@ -237,16 +273,23 @@ class MySQLSupportTicketsDAO:
                 
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
+            if str(id).isdigit():
+                pk = int(id)
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return False
 
-            await session.execute(text(f"DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_ticket_attachments WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_ticket_responses WHERE parent_id = :id"), {"id": pk})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -255,26 +298,31 @@ class MySQLSupportTicketsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> 'SupportTicketInternal':
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            # Depending on schema format, id might be _id or id
-            d_id = d.id
-            if d_id and await self.delete(d_id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
     def _map_to_schema(self, r, children: Dict) -> 'SupportTicketInternal':
-        d = dict(r._mapping)
-        if "user_id" in d:
-            val = d.pop("user_id")
-            d["user"] = str(val) if val is not None else None
-        if "attachments" in children:
-            d["attachments"] = children["attachments"]
-        if "responses" in children:
-            d["responses"] = children["responses"]
-        return SupportTicketInternal.model_validate(d)
+        from app.models.schemas import SupportTicketInternal
+        user_val = str(r.user_id) if hasattr(r, "user_id") and r.user_id is not None else None
+        return SupportTicketInternal(
+            id=str(r.id),
+            external_id=r.external_id,
+            ticket_number=r.ticket_number,
+            user=user_val,
+            name=r.name,
+            email=r.email,
+            phone=r.phone,
+            company=r.company,
+            subject=r.subject,
+            description=r.description,
+            category=r.category,
+            priority=r.priority,
+            status=r.status,
+            assigned_to=r.assigned_to,
+            attachments=children.get("attachments", []),
+            responses=children.get("responses", []),
+            resolved_at=str(r.resolved_at) if r.resolved_at else None,
+            closed_at=str(r.closed_at) if r.closed_at else None,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
 from datetime import datetime, timezone
 import secrets
 import json
@@ -22,66 +22,88 @@ class MySQLSchemesDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional['SchemeInternal']:
-        return await self.findOne({"_id": id})
-
-    async def findOne(self, query=None, **kwargs) -> Optional['SchemeInternal']:
-        if query:
-            kwargs.update(query)
-        if not kwargs:
+    async def findById(self, id: Union[int, str]) -> Optional['SchemeInternal']:
+        factory = self._factory()
+        if not factory or not id:
             return None
-        
-        async with self._factory()() as session:
-            conditions = []
-            params = {}
-            
-            query_map = {'name': 'name', 'description': 'description', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'valid_from': 'valid_from', 'valid_until': 'valid_until', 'is_active': 'is_active', 'code': 'code'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            for k, v in kwargs.items():
-                db_col = query_map[k] if k in query_map else k
-                conditions.append(f"{db_col} = :{k}")
-                params[k] = v
-                
-            where_clause = " AND ".join(conditions)
-            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+        async with factory() as session:
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
+                params = {"id": str(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-                
-            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            children_map = await self._fetch_children(session, [int(row.id)])
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
-            
-    async def findAll(self, query: Optional[dict] = None) -> List['SchemeInternal']:
-        query = query or {}
-        async with self._factory()() as session:
-            sql = f"SELECT * FROM {self.TABLE}"
-            params = {}
-            
-            query_map = {'name': 'name', 'description': 'description', 'discount_type': 'discount_type', 'discount_value': 'discount_value', 'min_purchase_amount': 'min_order_value', 'valid_from': 'valid_from', 'valid_until': 'valid_until', 'is_active': 'is_active', 'code': 'code'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            if query:
-                conditions = []
-                for k, v in query.items():
-                    db_col = query_map[k] if k in query_map else k
-                    conditions.append(f"{db_col} = :{k}")
-                    params[k] = v
-                if conditions:
-                    sql += " WHERE " + " AND ".join(conditions)
-                    
-            q = text(sql)
-            result = await session.execute(q, params)
+
+    async def findByCode(self, code: str) -> Optional['SchemeInternal']:
+        factory = self._factory()
+        if not factory or not code:
+            return None
+        async with factory() as session:
+            q = text(f"SELECT * FROM {self.TABLE} WHERE code = :code LIMIT 1")
+            result = await session.execute(q, {"code": code})
+            row = result.fetchone()
+            if not row:
+                return None
+            children_map = await self._fetch_children(session, [int(row.id)])
+            return self._map_to_schema(row, children_map.get(int(row.id), {}))
+
+    async def findOne(
+        self,
+        query: Optional[dict] = None,
+        code: Optional[str] = None,
+        is_active: Optional[bool] = None,
+    ) -> Optional['SchemeInternal']:
+        if code:
+            return await self.findByCode(code)
+        if query:
+            if "code" in query and query["code"]:
+                return await self.findByCode(query["code"])
+            if "_id" in query or "id" in query:
+                return await self.findById(query.get("_id") or query.get("id"))
+            if "externalId" in query and query["externalId"]:
+                return await self.findById(query["externalId"])
+        results = await self.findAll(query=query, is_active=is_active)
+        return results[0] if results else None
+
+    async def findAll(
+        self,
+        query: Optional[dict] = None,
+        is_active: Optional[bool] = None,
+        code: Optional[str] = None,
+    ) -> List['SchemeInternal']:
+        if query:
+            if is_active is None and "is_active" in query:
+                is_active = query["is_active"]
+            if code is None and "code" in query:
+                code = query["code"]
+
+        clauses = []
+        params = {}
+        if is_active is not None:
+            clauses.append("is_active = :act")
+            params["act"] = 1 if is_active else 0
+        if code is not None:
+            clauses.append("code = :code")
+            params["code"] = code
+
+        where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
+
+        factory = self._factory()
+        if not factory:
+            return []
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
             rows = result.fetchall()
-            
             if not rows:
                 return []
-                
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
-            
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
     async def create(self, data: 'SchemesInternalCreate') -> 'SchemeInternal':
@@ -197,14 +219,22 @@ class MySQLSchemesDAO:
                 
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
+            if str(id).isdigit():
+                pk = int(id)
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return False
 
-            await session.execute(text(f"DELETE FROM sj_scheme_roles WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_scheme_roles WHERE parent_id = :id"), {"id": pk})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -213,23 +243,24 @@ class MySQLSchemesDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> 'SchemeInternal':
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            # Depending on schema format, id might be _id or id
-            d_id = d.id
-            if d_id and await self.delete(d_id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
     def _map_to_schema(self, r, children: Dict) -> 'SchemeInternal':
-        d = dict(r._mapping)
-        if "min_order_value" in d:
-            d["min_purchase_amount"] = d.pop("min_order_value")
-        if "applicable_roles" in children:
-            d["applicable_roles"] = children["applicable_roles"]
-        return SchemeInternal.model_validate(d)
+        from app.models.daos_flat import SchemeInternal
+        return SchemeInternal(
+            id=str(r.id),
+            external_id=r.external_id,
+            name=r.name,
+            description=r.description,
+            discount_type=r.discount_type,
+            discount_value=float(r.discount_value) if r.discount_value is not None else None,
+            min_purchase_amount=float(r.min_order_value) if r.min_order_value is not None else None,
+            valid_from=r.valid_from,
+            valid_until=r.valid_until,
+            is_active=bool(r.is_active) if r.is_active is not None else None,
+            code=r.code,
+            applicable_roles=children.get("applicable_roles", []),
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

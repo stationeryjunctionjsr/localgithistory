@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
 from datetime import datetime, timezone
 import secrets
 import json
@@ -22,66 +22,95 @@ class MySQLReturnRequestsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional['ReturnRequestInternal']:
-        return await self.findOne({"_id": id})
-
-    async def findOne(self, query=None, **kwargs) -> Optional['ReturnRequestInternal']:
-        if query:
-            kwargs.update(query)
-        if not kwargs:
+    async def findById(self, id: Union[int, str]) -> Optional['ReturnRequestInternal']:
+        factory = self._factory()
+        if not factory or not id:
             return None
-        
-        async with self._factory()() as session:
-            conditions = []
-            params = {}
-            
-            query_map = {'returnId': 'return_id', 'orderId': 'order_id', 'userId': 'user_id', 'paymentMethod': 'payment_method', 'upiPaymentScreenshot': 'upi_payment_screenshot', 'notes': 'notes', 'status': 'status', 'valetId': 'valet_id', 'sellerId': 'seller_id', 'deliverySlotId': 'delivery_slot_id', 'deliverySlotConfigId': 'delivery_slot_config_id', 'deliverySlotDate': 'delivery_slot_date', 'pendingValetId': 'pending_valet_id', 'valetAssignedAt': 'valet_assigned_at', 'valetCascadeCount': 'valet_cascade_count', 'deliveryCharge': 'delivery_charge'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            for k, v in kwargs.items():
-                db_col = query_map[k] if k in query_map else k
-                conditions.append(f"{db_col} = :{k}")
-                params[k] = v
-                
-            where_clause = " AND ".join(conditions)
-            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+        async with factory() as session:
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id OR return_id = :id LIMIT 1")
+                params = {"id": str(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-                
-            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            children_map = await self._fetch_children(session, [int(row.id)])
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
-            
-    async def findAll(self, query: Optional[dict] = None) -> List['ReturnRequestInternal']:
-        query = query or {}
-        async with self._factory()() as session:
-            sql = f"SELECT * FROM {self.TABLE}"
-            params = {}
-            
-            query_map = {'returnId': 'return_id', 'orderId': 'order_id', 'userId': 'user_id', 'paymentMethod': 'payment_method', 'upiPaymentScreenshot': 'upi_payment_screenshot', 'notes': 'notes', 'status': 'status', 'valetId': 'valet_id', 'sellerId': 'seller_id', 'deliverySlotId': 'delivery_slot_id', 'deliverySlotConfigId': 'delivery_slot_config_id', 'deliverySlotDate': 'delivery_slot_date', 'pendingValetId': 'pending_valet_id', 'valetAssignedAt': 'valet_assigned_at', 'valetCascadeCount': 'valet_cascade_count', 'deliveryCharge': 'delivery_charge'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            if query:
-                conditions = []
-                for k, v in query.items():
-                    db_col = query_map[k] if k in query_map else k
-                    conditions.append(f"{db_col} = :{k}")
-                    params[k] = v
-                if conditions:
-                    sql += " WHERE " + " AND ".join(conditions)
-                    
-            q = text(sql)
-            result = await session.execute(q, params)
+
+    async def findOne(
+        self,
+        query: Optional[dict] = None,
+        return_id: Optional[str] = None,
+        order_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> Optional['ReturnRequestInternal']:
+        if return_id:
+            return await self.findById(return_id)
+        if query:
+            rid = query.get("returnId") or query.get("return_id")
+            if rid:
+                return await self.findById(rid)
+            if "_id" in query or "id" in query:
+                return await self.findById(query.get("_id") or query.get("id"))
+            if "externalId" in query and query["externalId"]:
+                return await self.findById(query["externalId"])
+        results = await self.findAll(query=query, order_id=order_id, user_id=user_id)
+        return results[0] if results else None
+
+    async def findAll(
+        self,
+        query: Optional[dict] = None,
+        status: Optional[str] = None,
+        user_id: Optional[str] = None,
+        order_id: Optional[str] = None,
+        valet_id: Optional[str] = None,
+        seller_id: Optional[str] = None,
+    ) -> List['ReturnRequestInternal']:
+        if query:
+            if status is None and "status" in query:
+                status = query["status"]
+            if user_id is None:
+                user_id = query.get("userId") or query.get("user_id")
+            if order_id is None:
+                order_id = query.get("orderId") or query.get("order_id")
+            if valet_id is None:
+                valet_id = query.get("valetId") or query.get("valet_id")
+            if seller_id is None:
+                seller_id = query.get("sellerId") or query.get("seller_id")
+
+        clauses = []
+        params = {}
+        if status is not None:
+            clauses.append("status = :status")
+            params["status"] = status
+        if user_id is not None:
+            clauses.append("user_id = :uid")
+            params["uid"] = str(user_id)
+        if order_id is not None:
+            clauses.append("order_id = :oid")
+            params["oid"] = str(order_id)
+        if valet_id is not None:
+            clauses.append("valet_id = :vid")
+            params["vid"] = str(valet_id)
+        if seller_id is not None:
+            clauses.append("seller_id = :sid")
+            params["sid"] = str(seller_id)
+
+        where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
+
+        factory = self._factory()
+        if not factory:
+            return []
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
             rows = result.fetchall()
-            
             if not rows:
                 return []
-                
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
-            
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
     async def create(self, data: 'ReturnRequestInternalCreate') -> 'ReturnRequestInternal':
@@ -211,16 +240,23 @@ class MySQLReturnRequestsDAO:
                 
         return await self.findById(str(id))
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
+            if str(id).isdigit():
+                pk = int(id)
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid OR return_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return False
 
-            await session.execute(text(f"DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_return_request_items WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_return_valet_declines WHERE parent_id = :id"), {"id": pk})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -229,23 +265,31 @@ class MySQLReturnRequestsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> 'ReturnRequestInternal':
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            # Depending on schema format, id might be _id or id
-            d_id = d.id
-            if d_id and await self.delete(d_id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
     def _map_to_schema(self, r, children: Dict) -> 'ReturnRequestInternal':
-        d = dict(r._mapping)
-        if "items" in children:
-            d["items"] = children["items"]
-        if "valetDeclineHistory" in children:
-            d["valet_decline_history"] = children["valetDeclineHistory"]
-        return ReturnRequestInternal.model_validate(d)
+        from app.models.daos_flat import ReturnRequestInternal
+        return ReturnRequestInternal(
+            id=str(r.id),
+            return_id=r.return_id,
+            order_id=r.order_id,
+            user_id=r.user_id,
+            payment_method=r.payment_method,
+            upi_payment_screenshot=r.upi_payment_screenshot,
+            notes=r.notes,
+            status=r.status,
+            valet_id=r.valet_id,
+            seller_id=r.seller_id,
+            delivery_slot_id=r.delivery_slot_id,
+            delivery_slot_config_id=r.delivery_slot_config_id,
+            delivery_slot_date=r.delivery_slot_date,
+            pending_valet_id=r.pending_valet_id,
+            valet_assigned_at=r.valet_assigned_at,
+            valet_cascade_count=int(r.valet_cascade_count) if r.valet_cascade_count is not None else None,
+            delivery_charge=float(r.delivery_charge) if r.delivery_charge is not None else None,
+            items=children.get("items", []),
+            valet_decline_history=children.get("valetDeclineHistory", []),
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

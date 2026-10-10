@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import { toast } from 'react-toastify';
 import OrderTimeline from '@/components/OrderTimeline';
+import CourierTrackingCard from '@/components/CourierTrackingCard';
 
 const PAGE_SIZE = 10;
 
@@ -592,15 +593,24 @@ export default function MyOrders() {
                 <strong>Order Date:</strong> {formatDate(selectedOrderForDetails.createdAt)}
               </p>
 
-              {/* ── Order Status Timeline ── */}
+              {/* ── Order Status / Tracking ── */}
               <div className="mb-6 rounded-2xl border border-gray-100 bg-gray-50 px-5 py-5">
                 <h4 className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500">
-                  Order Progress
+                  {selectedOrderForDetails.fulfillment_type === 'courier' ? 'Courier Tracking' : 'Order Progress'}
                 </h4>
-                <OrderTimeline
-                  orderId={selectedOrderForDetails._id || selectedOrderForDetails.id}
-                  currentStatus={selectedOrderForDetails.status || 'pending'}
-                />
+                {selectedOrderForDetails.fulfillment_type === 'courier' ? (
+                  <CourierTrackingCard
+                    partnerName={selectedOrderForDetails.courier_partner}
+                    awbCode={selectedOrderForDetails.awb_code}
+                    trackingId={selectedOrderForDetails.tracking_id}
+                    estimatedDelivery={selectedOrderForDetails.estimated_delivery_date}
+                  />
+                ) : (
+                  <OrderTimeline
+                    orderId={selectedOrderForDetails._id || selectedOrderForDetails.id}
+                    currentStatus={selectedOrderForDetails.status || 'pending'}
+                  />
+                )}
               </div>
 
               {/* Delivery slot info */}

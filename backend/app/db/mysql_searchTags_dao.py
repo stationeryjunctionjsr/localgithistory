@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
 from datetime import datetime, timezone
 import secrets
 import json
@@ -22,66 +22,84 @@ class MySQLSearchTagsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional['SearchTagInternal']:
-        return await self.findOne({"_id": id})
-
-    async def findOne(self, query=None, **kwargs) -> Optional['SearchTagInternal']:
-        if query:
-            kwargs.update(query)
-        if not kwargs:
+    async def findById(self, id: Union[int, str]) -> Optional['SearchTagInternal']:
+        factory = self._factory()
+        if not factory or not id:
             return None
-        
-        async with self._factory()() as session:
-            conditions = []
-            params = {}
-            
-            query_map = {'tag_id': 'tag_id', 'name': 'name', 'type': 'type', 'is_active': 'is_active'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            for k, v in kwargs.items():
-                db_col = query_map[k] if k in query_map else k
-                conditions.append(f"{db_col} = :{k}")
-                params[k] = v
-                
-            where_clause = " AND ".join(conditions)
-            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+        async with factory() as session:
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
+                params = {"id": str(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-                
-            children_map = await self._fetch_children(session, [int(row.id)]) if True else {}
+            children_map = await self._fetch_children(session, [int(row.id)])
             return self._map_to_schema(row, children_map.get(int(row.id), {}))
-            
-    async def findAll(self, query: Optional[dict] = None) -> List['SearchTagInternal']:
-        query = query or {}
-        async with self._factory()() as session:
-            sql = f"SELECT * FROM {self.TABLE}"
-            params = {}
-            
-            query_map = {'tag_id': 'tag_id', 'name': 'name', 'type': 'type', 'is_active': 'is_active'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            if query:
-                conditions = []
-                for k, v in query.items():
-                    db_col = query_map[k] if k in query_map else k
-                    conditions.append(f"{db_col} = :{k}")
-                    params[k] = v
-                if conditions:
-                    sql += " WHERE " + " AND ".join(conditions)
-                    
-            q = text(sql)
-            result = await session.execute(q, params)
+
+    async def findOne(
+        self,
+        query: Optional[dict] = None,
+        is_active: Optional[bool] = None,
+        tag_id: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> Optional['SearchTagInternal']:
+        if query:
+            if "_id" in query or "id" in query:
+                return await self.findById(query.get("_id") or query.get("id"))
+            if "externalId" in query and query["externalId"]:
+                return await self.findById(query["externalId"])
+        results = await self.findAll(query=query, is_active=is_active, tag_id=tag_id, name=name)
+        return results[0] if results else None
+
+    async def findAll(
+        self,
+        query: Optional[dict] = None,
+        is_active: Optional[bool] = None,
+        tag_id: Optional[str] = None,
+        name: Optional[str] = None,
+        tag_type: Optional[str] = None,
+    ) -> List['SearchTagInternal']:
+        if query:
+            if is_active is None and "is_active" in query:
+                is_active = query["is_active"]
+            if tag_id is None and "tag_id" in query:
+                tag_id = query["tag_id"]
+            if name is None and "name" in query:
+                name = query["name"]
+            if tag_type is None and "type" in query:
+                tag_type = query["type"]
+
+        clauses = []
+        params = {}
+        if is_active is not None:
+            clauses.append("is_active = :act")
+            params["act"] = 1 if is_active else 0
+        if tag_id is not None:
+            clauses.append("tag_id = :tid")
+            params["tid"] = tag_id
+        if name is not None:
+            clauses.append("name = :name")
+            params["name"] = name
+        if tag_type is not None:
+            clauses.append("type = :ttype")
+            params["ttype"] = tag_type
+
+        where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
+
+        factory = self._factory()
+        if not factory:
+            return []
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
             rows = result.fetchall()
-            
             if not rows:
                 return []
-                
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if True else {}
-            
+            children_map = await self._fetch_children(session, [int(r.id) for r in rows])
             return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
 
     async def create(self, data: 'SearchTagInternalCreate') -> 'SearchTagInternal':
@@ -157,24 +175,27 @@ class MySQLSearchTagsDAO:
                 
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
+            if str(id).isdigit():
+                pk = int(id)
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return False
 
-            await session.execute(text(f"DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_search_tag_subcats WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_search_tag_brands WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_search_tag_collections WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_search_tag_products WHERE parent_id = :id"), {"id": pk})
-
-            await session.execute(text(f"DELETE FROM sj_search_tag_ex_products WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_search_tag_categories WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_search_tag_subcats WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_search_tag_brands WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_search_tag_collections WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_search_tag_products WHERE parent_id = :id"), {"id": pk})
+            await session.execute(text("DELETE FROM sj_search_tag_ex_products WHERE parent_id = :id"), {"id": pk})
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -183,31 +204,24 @@ class MySQLSearchTagsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> 'SearchTagInternal':
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            # Depending on schema format, id might be _id or id
-            d_id = d.id
-            if d_id and await self.delete(d_id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
     def _map_to_schema(self, r, children: Dict) -> 'SearchTagInternal':
-        d = dict(r._mapping)
-        if "subCategories" in children:
-            d["sub_categories"] = children["subCategories"]
-        if "productIds" in children:
-            d["product_ids"] = children["productIds"]
-        if "excludedProductIds" in children:
-            d["excluded_product_ids"] = children["excludedProductIds"]
-        if "categories" in children:
-            d["categories"] = children["categories"]
-        if "brands" in children:
-            d["brands"] = children["brands"]
-        if "collections" in children:
-            d["collections"] = children["collections"]
-        return SearchTagInternal.model_validate(d)
+        from app.models.daos_flat import SearchTagInternal
+        return SearchTagInternal(
+            id=str(r.id),
+            external_id=r.external_id,
+            tag_id=r.tag_id,
+            name=r.name,
+            type=r.type,
+            is_active=bool(r.is_active) if r.is_active is not None else None,
+            categories=children.get("categories", []),
+            sub_categories=children.get("subCategories", []),
+            brands=children.get("brands", []),
+            collections=children.get("collections", []),
+            product_ids=children.get("productIds", []),
+            excluded_product_ids=children.get("excludedProductIds", []),
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         c_map = {rid: {} for rid in ids}

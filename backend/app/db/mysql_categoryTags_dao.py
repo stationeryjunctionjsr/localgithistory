@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
 from datetime import datetime, timezone
 import secrets
 import json
@@ -22,67 +22,68 @@ class MySQLCategoryTagsDAO:
     def _factory(self):
         return get_async_session_factory()
         
-    async def findById(self, id: str) -> Optional['CategoryTagInternal']:
-        return await self.findOne({"_id": id})
-
-    async def findOne(self, query=None, **kwargs) -> Optional['CategoryTagInternal']:
-        if query:
-            kwargs.update(query)
-        if not kwargs:
+    async def findById(self, id: Union[int, str]) -> Optional['CategoryTagInternal']:
+        factory = self._factory()
+        if not factory or not id:
             return None
-        
-        async with self._factory()() as session:
-            conditions = []
-            params = {}
-            
-            query_map = {'name': 'name', 'description': 'description', 'is_active': 'is_active'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            for k, v in kwargs.items():
-                db_col = query_map[k] if k in query_map else k
-                conditions.append(f"{db_col} = :{k}")
-                params[k] = v
-                
-            where_clause = " AND ".join(conditions)
-            q = text(f"SELECT * FROM {self.TABLE} WHERE {where_clause} LIMIT 1")
+        async with factory() as session:
+            if str(id).isdigit():
+                q = text(f"SELECT * FROM {self.TABLE} WHERE id = :id LIMIT 1")
+                params = {"id": int(id)}
+            else:
+                q = text(f"SELECT * FROM {self.TABLE} WHERE external_id = :id LIMIT 1")
+                params = {"id": str(id)}
             result = await session.execute(q, params)
             row = result.fetchone()
             if not row:
                 return None
-                
-            children_map = await self._fetch_children(session, [int(row.id)]) if False else {}
-            return self._map_to_schema(row, children_map.get(int(row.id), {}))
-            
-    async def findAll(self, query: Optional[dict] = None) -> List['CategoryTagInternal']:
-        query = query or {}
-        async with self._factory()() as session:
-            sql = f"SELECT * FROM {self.TABLE}"
-            params = {}
-            
-            query_map = {'name': 'name', 'description': 'description', 'is_active': 'is_active'}
-            query_map["_id"] = "id"
-            query_map["externalId"] = "external_id"
-            
-            if query:
-                conditions = []
-                for k, v in query.items():
-                    db_col = query_map[k] if k in query_map else k
-                    conditions.append(f"{db_col} = :{k}")
-                    params[k] = v
-                if conditions:
-                    sql += " WHERE " + " AND ".join(conditions)
-                    
-            q = text(sql)
-            result = await session.execute(q, params)
+            return self._map_to_schema(row)
+
+    async def findOne(
+        self,
+        query: Optional[dict] = None,
+        is_active: Optional[bool] = None,
+        name: Optional[str] = None,
+    ) -> Optional['CategoryTagInternal']:
+        if query:
+            if "_id" in query or "id" in query:
+                return await self.findById(query.get("_id") or query.get("id"))
+            if "externalId" in query and query["externalId"]:
+                return await self.findById(query["externalId"])
+        results = await self.findAll(query=query, is_active=is_active, name=name)
+        return results[0] if results else None
+
+    async def findAll(
+        self,
+        query: Optional[dict] = None,
+        is_active: Optional[bool] = None,
+        name: Optional[str] = None,
+    ) -> List['CategoryTagInternal']:
+        if query:
+            if is_active is None and "is_active" in query:
+                is_active = query["is_active"]
+            if name is None and "name" in query:
+                name = query["name"]
+
+        clauses = []
+        params = {}
+        if is_active is not None:
+            clauses.append("is_active = :act")
+            params["act"] = 1 if is_active else 0
+        if name is not None:
+            clauses.append("name = :name")
+            params["name"] = name
+
+        where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        sql = f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"
+
+        factory = self._factory()
+        if not factory:
+            return []
+        async with factory() as session:
+            result = await session.execute(text(sql), params)
             rows = result.fetchall()
-            
-            if not rows:
-                return []
-                
-            children_map = await self._fetch_children(session, [int(r.id) for r in rows]) if False else {}
-            
-            return [self._map_to_schema(r, children_map.get(int(r.id), {})) for r in rows]
+            return [self._map_to_schema(r) for r in rows]
 
     async def create(self, data: 'CategoryTagInternalCreate') -> 'CategoryTagInternal':
         factory = self._factory()
@@ -149,12 +150,20 @@ class MySQLCategoryTagsDAO:
                 
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
-        if not factory:
+        if not factory or not id:
             return False
-        pk = int(id) if str(id).isdigit() else None
         async with factory() as session:
+            if str(id).isdigit():
+                pk = int(id)
+            else:
+                res = await session.execute(
+                    text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": str(id)}
+                )
+                pk = res.scalar()
+                if not pk:
+                    return False
 
             result = await session.execute(
                 text(f"DELETE FROM {self.TABLE} WHERE id = :id"),
@@ -163,18 +172,17 @@ class MySQLCategoryTagsDAO:
             await session.commit()
             return result.rowcount > 0
 
-    async def deleteMany(self, query: Dict) -> 'CategoryTagInternal':
-        docs = await self.findAll(query)
-        deleted = 0
-        for d in docs:
-            # Depending on schema format, id might be _id or id
-            d_id = d.id
-            if d_id and await self.delete(d_id):
-                deleted += 1
-        return {"deletedCount": deleted}
-
-    def _map_to_schema(self, r, children: Dict) -> 'CategoryTagInternal':
-        return CategoryTagInternal.model_validate(r)
+    def _map_to_schema(self, r, children: Dict = None) -> 'CategoryTagInternal':
+        from app.models.daos_flat import CategoryTagInternal
+        return CategoryTagInternal(
+            id=str(r.id),
+            external_id=r.external_id,
+            name=r.name,
+            description=r.description,
+            is_active=bool(r.is_active) if r.is_active is not None else None,
+            created_at=r.created_at,
+            updated_at=r.updated_at,
+        )
 
     async def _fetch_children(self, session, ids: List[int]) -> Dict[int, Dict]:
         return {}

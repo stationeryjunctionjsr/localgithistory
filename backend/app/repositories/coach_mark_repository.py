@@ -20,11 +20,9 @@ class CoachMarkRepository:
         return await self.storage.findById(id)
 
     async def findByAnchorId(self, anchor_id: str) -> Optional[CoachMarkInternal]:
-        marks = await self.storage.findAll()
-        for mark in marks:
-            if mark.anchor_id == anchor_id:
-                return mark
-        return None
+        if hasattr(self.storage, "findByAnchorId"):
+            return await self.storage.findByAnchorId(anchor_id)
+        return await self.storage.findOne({"anchor_id": anchor_id})
 
     async def create(self, data: CoachMarkInternalCreate) -> CoachMarkInternal:
         if data.is_active is None:

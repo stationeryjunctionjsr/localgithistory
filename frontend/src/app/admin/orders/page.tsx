@@ -117,6 +117,10 @@ export default function OrderManagement() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [declineReason, setDeclineReason] = useState('');
   const [selectedValetId, setSelectedValetId] = useState('');
+  const [courierPartner, setCourierPartner] = useState('');
+  const [courierAwb, setCourierAwb] = useState('');
+  const [courierTrackingId, setCourierTrackingId] = useState('');
+  const [courierEta, setCourierEta] = useState('');
   const [newDeliveryCharge, setNewDeliveryCharge] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -226,6 +230,10 @@ export default function OrderManagement() {
         matchesCategory = !order.isUrgentDelivery && !order.deliverySlot;
       } else if (orderCategoryTab === 'urgent_slot') {
         matchesCategory = !!order.isUrgentDelivery || !!order.deliverySlot;
+      } else if (orderCategoryTab === 'hyperlocal') {
+        matchesCategory = (order as any).fulfillment_type !== 'courier';
+      } else if (orderCategoryTab === 'courier') {
+        matchesCategory = (order as any).fulfillment_type === 'courier';
       }
 
       return matchesSearch && matchesStatus && matchesOrderType && matchesCategory;
@@ -366,21 +374,53 @@ export default function OrderManagement() {
   };
 
   const handleDispatch = async () => {
-    if (!selectedValetId) {
-      toast.error('Please select a delivery valet');
-      return;
-    }
-    try {
-      await api.put(`/orders/${selectedOrder?._id}/dispatch`, { valetId: selectedValetId });
-      toast.success('Order dispatched successfully');
-      setShowDispatchModal(false);
-      setSelectedOrder(null);
-      setSelectedValetId('');
-      fetchOrders();
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || error.response?.data?.detail || 'Failed to dispatch order'
-      );
+    const isCourier = (selectedOrder as any)?.fulfillment_type === 'courier';
+    if (isCourier) {
+      if (!courierPartner) {
+        toast.error('Please select a courier partner');
+        return;
+      }
+      if (!courierAwb) {
+        toast.error('Please enter the AWB / waybill number');
+        return;
+      }
+      try {
+        await api.put(`/orders/${selectedOrder?._id}/dispatch-courier`, {
+          courier_partner: courierPartner,
+          awb_code: courierAwb,
+          tracking_id: courierTrackingId || courierAwb,
+          estimated_delivery_date: courierEta || undefined,
+        });
+        toast.success('Order dispatched via courier successfully');
+        setShowDispatchModal(false);
+        setSelectedOrder(null);
+        setCourierPartner('');
+        setCourierAwb('');
+        setCourierTrackingId('');
+        setCourierEta('');
+        fetchOrders();
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || error.response?.data?.detail || 'Failed to dispatch courier order'
+        );
+      }
+    } else {
+      if (!selectedValetId) {
+        toast.error('Please select a delivery valet');
+        return;
+      }
+      try {
+        await api.put(`/orders/${selectedOrder?._id}/dispatch`, { valetId: selectedValetId });
+        toast.success('Order dispatched successfully');
+        setShowDispatchModal(false);
+        setSelectedOrder(null);
+        setSelectedValetId('');
+        fetchOrders();
+      } catch (error: any) {
+        toast.error(
+          error.response?.data?.message || error.response?.data?.detail || 'Failed to dispatch order'
+        );
+      }
     }
   };
 
@@ -399,6 +439,12 @@ export default function OrderManagement() {
 
   const openDispatchModal = (order: Order) => {
     setSelectedOrder(order);
+    // Reset courier fields
+    setCourierPartner('');
+    setCourierAwb('');
+    setCourierTrackingId('');
+    setCourierEta('');
+    setSelectedValetId('');
     setShowDispatchModal(true);
   };
 
@@ -540,7 +586,7 @@ export default function OrderManagement() {
           {/* Tabs */}
           <div className="mb-6 border-b border-gray-200">
             <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-              {['all', 'regular', 'urgent_slot'].map((tab) => (
+              {['all', 'regular', 'urgent_slot', 'hyperlocal', 'courier'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => {
@@ -554,7 +600,11 @@ export default function OrderManagement() {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
                   `}
                 >
-                  {tab === 'all' ? 'All' : tab === 'regular' ? 'Regular' : 'Urgent/Slot'}
+                  {tab === 'all' ? 'All'
+                    : tab === 'regular' ? 'Regular'
+                    : tab === 'urgent_slot' ? 'Urgent/Slot'
+                    : tab === 'hyperlocal' ? '🟢 Hyperlocal'
+                    : '📦 Courier (3PL)'}
                 </button>
               ))}
             </nav>
@@ -753,6 +803,7 @@ export default function OrderManagement() {
                       Date
                     </InfoButton>
                   </th>
+                  <th className="border p-3 text-left">Type</th>
                   <th className="border p-3 text-left">Delivery</th>
                   <th className="border p-3 text-left">
                     <InfoButton
@@ -865,6 +916,17 @@ export default function OrderManagement() {
                       </td>
                       <td className="border p-3">
                         {order.createdAt ? formatDateIST(order.createdAt) : '-'}
+                      </td>
+                      <td className="border p-3">
+                        {(order as any).fulfillment_type === 'courier' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                            📦 Courier (3PL)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                            🟢 Hyperlocal
+                          </span>
+                        )}
                       </td>
                       <td className="border p-3">
                         {order.deliverySlot?.isUrgent || order.isUrgentDelivery ? (
@@ -1304,45 +1366,113 @@ export default function OrderManagement() {
               className="m-4 w-full max-w-md rounded-lg bg-white p-6"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="mb-4 text-xl font-bold">Dispatch Order</h3>
-              <p>
-                <strong>Order Number:</strong> {selectedOrder.orderNumber}
+              <h3 className="mb-1 text-xl font-bold">
+                {(selectedOrder as any).fulfillment_type === 'courier'
+                  ? '📦 Dispatch via Courier'
+                  : '🟢 Dispatch to Valet'}
+              </h3>
+              <p className="mb-0.5 text-sm text-gray-500">
+                <strong>Order:</strong> {selectedOrder.orderNumber}
               </p>
-              <p className="mb-4">
+              <p className="mb-5 text-sm text-gray-500">
                 <strong>Customer:</strong> {selectedOrder.user?.name || selectedOrder.user?.email}
               </p>
-              <div className="mb-4">
-                <label className="mb-1 block inline-flex items-baseline gap-1">
-                  <InfoButton
-                    info={
-                      user?.role === 'super_admin' && pageInfo.columns?.valet
-                        ? pageInfo.columns.valet
-                        : undefined
-                    }
-                  >
-                    Assign Delivery Valet <span className="text-red-600">*</span>
-                  </InfoButton>
-                </label>
-                <select
-                  value={selectedValetId}
-                  onChange={(e) => setSelectedValetId(e.target.value)}
-                  className="w-full rounded border border-gray-300 px-3 py-2"
-                  required
-                >
-                  <option value="">Select a delivery valet...</option>
-                  {valets.map((valet) => (
-                    <option key={valet._id} value={valet._id}>
-                      {valet.name} ({valet.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {valets.length === 0 && (
-                <p className="mb-4 text-sm text-red-600">
-                  No delivery valets available. Please create valet users first.
-                </p>
+
+              {(selectedOrder as any).fulfillment_type === 'courier' ? (
+                /* ── Courier dispatch fields ── */
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold">
+                      Courier Partner <span className="text-red-600">*</span>
+                    </label>
+                    <select
+                      value={courierPartner}
+                      onChange={(e) => setCourierPartner(e.target.value)}
+                      className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                      required
+                    >
+                      <option value="">Select courier partner…</option>
+                      <option value="delhivery">Delhivery</option>
+                      <option value="shiprocket">Shiprocket</option>
+                      <option value="blue_dart">Blue Dart</option>
+                      <option value="dtdc">DTDC</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold">
+                      AWB / Waybill Number <span className="text-red-600">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={courierAwb}
+                      onChange={(e) => setCourierAwb(e.target.value)}
+                      placeholder="e.g. 1234567890"
+                      className="w-full rounded border border-gray-300 px-3 py-2 text-sm font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold">
+                      Tracking ID <span className="text-xs font-normal text-gray-400">(leave blank to use AWB)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={courierTrackingId}
+                      onChange={(e) => setCourierTrackingId(e.target.value)}
+                      placeholder="Same as AWB by default"
+                      className="w-full rounded border border-gray-300 px-3 py-2 text-sm font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold">
+                      Estimated Delivery Date
+                    </label>
+                    <input
+                      type="date"
+                      value={courierEta}
+                      onChange={(e) => setCourierEta(e.target.value)}
+                      className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* ── Hyperlocal valet dispatch fields ── */
+                <div>
+                  <div className="mb-4">
+                    <label className="mb-1 block inline-flex items-baseline gap-1">
+                      <InfoButton
+                        info={
+                          user?.role === 'super_admin' && pageInfo.columns?.valet
+                            ? pageInfo.columns.valet
+                            : undefined
+                        }
+                      >
+                        Assign Delivery Valet <span className="text-red-600">*</span>
+                      </InfoButton>
+                    </label>
+                    <select
+                      value={selectedValetId}
+                      onChange={(e) => setSelectedValetId(e.target.value)}
+                      className="w-full rounded border border-gray-300 px-3 py-2"
+                      required
+                    >
+                      <option value="">Select a delivery valet...</option>
+                      {valets.map((valet) => (
+                        <option key={valet._id} value={valet._id}>
+                          {valet.name} ({valet.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {valets.length === 0 && (
+                    <p className="mb-4 text-sm text-red-600">
+                      No delivery valets available. Please create valet users first.
+                    </p>
+                  )}
+                </div>
               )}
-              <div className="flex justify-end gap-4">
+
+              <div className="mt-6 flex justify-end gap-4">
                 <button
                   className="rounded bg-gray-600 px-4 py-2 text-white hover:bg-gray-700"
                   onClick={() => {
@@ -1356,7 +1486,11 @@ export default function OrderManagement() {
                 <button
                   className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
                   onClick={handleDispatch}
-                  disabled={!selectedValetId || valets.length === 0}
+                  disabled={
+                    (selectedOrder as any).fulfillment_type === 'courier'
+                      ? !courierPartner || !courierAwb
+                      : !selectedValetId || valets.length === 0
+                  }
                 >
                   Dispatch Order
                 </button>

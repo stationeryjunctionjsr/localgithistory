@@ -1,17 +1,17 @@
 'use client';
 
 /**
- * Zustand-based replacement for CartContext. Provides the same public API
- * (same method names, same state shape) so migration is a drop-in swap.
+ * Zustand-based cart store with dual-cart support for Hyperlocal & Pan-India modes.
  *
- * CartContext.tsx now delegates its useCart() hook to this store, so no
- * consumer components need to change their imports.
+ * - hyperlocalCart: Contains items added while in 'Shop for your area' (hyperlocal zone) mode.
+ * - panIndiaCart: Contains items added while in 'Shop from India' (1P courier) mode.
+ * - activeMode: Mirrors the PincodeContext activeMode, bridged via CartStoreSync.
  *
- * Migration steps applied:
- *   1. <CartStoreSync /> added inside <AuthProvider> in layout.tsx
- *      (bridges AuthContext user → store's setUser)
- *   2. <CartProvider> commented out from layout.tsx
- *   3. CartContext.tsx useCart() now reads from this store
+ * The `useActiveCart` selector always returns the cart for the currently active mode,
+ * preserving backward compatibility with all consumer components.
+ *
+ * Migration note: Consumers that previously used `cart` should use `useActiveCart()` selector.
+ * CartContext.tsx useCart() hook still delegates to this store.
  */
 
 import { useEffect } from 'react';
@@ -28,6 +28,7 @@ import {
 import { trackBackendCartAdd } from '@/utils/analytics';
 import { logger } from '@/utils/logger';
 import { useAuth } from '@/context/AuthContext';
+import { usePincode } from '@/context/PincodeContext';
 
 // Matching the CartItem/Cart shape from CartContext.tsx exactly
 export interface CartItem {
@@ -54,10 +55,23 @@ export interface Cart {
 }
 
 interface CartState {
-  cart: Cart | null;
+  /** Hyperlocal cart: items added while in 'Shop for your area' mode */
+  hyperlocalCart: Cart | null;
+  /** Pan-India cart: items added while in 'Shop from India' mode */
+  panIndiaCart: Cart | null;
+  /** Currently active fulfillment mode, synced from PincodeContext via CartStoreSync */
+  activeMode: 'hyperlocal' | 'pan_india';
   loading: boolean;
   isCartOpen: boolean;
   duesInfo: any;
+
+  /**
+   * Backward-compatible `cart` field — mirrors the active mode's cart.
+   * Existing consumers (Header, ProductCatalog, ProductDetailClient, etc.) can
+   * keep using `useCartStore((s) => s.cart)` without modification.
+   * Updated via set() in fetchCart and setActiveMode.
+   */
+  cart: Cart | null;
 
   /**
    * Auth bridge — set by <CartStoreSync /> component (not from AuthContext
@@ -67,6 +81,7 @@ interface CartState {
 
   // ── Actions ──────────────────────────────────────────────────────────────
   setUser: (user: any | null) => void;
+  setActiveMode: (mode: 'hyperlocal' | 'pan_india') => void;
   setIsCartOpen: (open: boolean) => void;
   openCart: () => void;
   closeCart: () => void;
@@ -85,7 +100,12 @@ interface CartState {
 
 export const useCartStore = create<CartState>()(
   subscribeWithSelector((set, get) => ({
-    cart: null,
+    hyperlocalCart: null,
+    panIndiaCart: null,
+    activeMode: 'hyperlocal',
+    // Backward-compatible `cart` field — mirrors the active mode's cart.
+    // Updated in setActiveMode and fetchCart so existing s.cart consumers work without changes.
+    cart: null as Cart | null,
     loading: true,
     isCartOpen: false,
     duesInfo: null,
@@ -93,6 +113,17 @@ export const useCartStore = create<CartState>()(
 
     setUser: (user) => {
       set({ _user: user });
+      get().fetchCart();
+    },
+
+    setActiveMode: (mode) => {
+      const { hyperlocalCart, panIndiaCart } = get();
+      set({
+        activeMode: mode,
+        // Update backward-compat cart to the new mode's cart (may be null if not yet fetched)
+        cart: mode === 'hyperlocal' ? hyperlocalCart : panIndiaCart,
+      });
+      // Fetch the newly-active mode's cart if not already loaded
       get().fetchCart();
     },
 
@@ -115,16 +146,25 @@ export const useCartStore = create<CartState>()(
     },
 
     fetchCart: async () => {
-      const user = get()._user;
+      const { _user, activeMode } = get();
       try {
-        if (user) {
-          const response = await api.get('/cart');
-          set({ cart: response.data });
+        if (_user) {
+          const response = await api.get('/cart', { params: { fulfillment_type: activeMode } });
+          const cartData = response.data;
+          if (activeMode === 'hyperlocal') {
+            set({ hyperlocalCart: cartData, cart: cartData });
+          } else {
+            set({ panIndiaCart: cartData, cart: cartData });
+          }
           get().fetchDuesInfo();
         } else {
+          // Guest cart: items tagged with fulfillment_type, default to activeMode
           const guestItems = getGuestCart();
+          const modeItems = guestItems.filter(
+            (g: any) => (g.fulfillment_type || 'hyperlocal') === activeMode,
+          );
           const refreshedItems = await Promise.all(
-            guestItems.map(async (g: any) => {
+            modeItems.map(async (g: any) => {
               try {
                 const res = await api.get(`/products/public/${g.productId}`, {
                   params: { role: 'customer' },
@@ -136,27 +176,30 @@ export const useCartStore = create<CartState>()(
               }
             }),
           );
-          saveGuestCart(refreshedItems);
+          saveGuestCart(guestItems); // persist all items (not just the filtered mode)
           const subtotal = refreshedItems.reduce(
             (s: number, g: any) => s + (g.product?.price || 0) * g.quantity,
             0,
           );
-          set({
-            cart: {
-              items: refreshedItems.map((g: any) => {
-                const itemPrice = g.product?.price || 0;
-                const itemQty = g.quantity || 1;
-                return {
-                  id: g.productId,
-                  product: g.product || { id: g.productId, name: 'Product', price: 0 },
-                  price: itemPrice,
-                  quantity: itemQty,
-                  subtotal: itemPrice * itemQty,
-                };
-              }),
-              subtotal,
-            },
-          });
+          const cartData: Cart = {
+            items: refreshedItems.map((g: any) => {
+              const itemPrice = g.product?.price || 0;
+              const itemQty = g.quantity || 1;
+              return {
+                id: g.productId,
+                product: g.product || { id: g.productId, name: 'Product', price: 0 },
+                price: itemPrice,
+                quantity: itemQty,
+                subtotal: itemPrice * itemQty,
+              };
+            }),
+            subtotal,
+          };
+          if (activeMode === 'hyperlocal') {
+            set({ hyperlocalCart: cartData, cart: cartData });
+          } else {
+            set({ panIndiaCart: cartData, cart: cartData });
+          }
         }
       } catch (error) {
         logger.error('Error fetching cart:', error);
@@ -166,25 +209,28 @@ export const useCartStore = create<CartState>()(
     },
 
     addToCart: async (productId, quantity, product, variantAttributes, sellAsCase) => {
-      const user = get()._user;
+      const { _user, activeMode } = get();
 
-      // Optimistic update: add the item immediately
+      // Optimistic update: add the item to the correct mode-cart immediately
       if (product) {
         set((state) => {
-          const existing = state.cart?.items?.find((i) => i.product?.id === productId);
+          const targetCart =
+            activeMode === 'hyperlocal' ? state.hyperlocalCart : state.panIndiaCart;
+          const existing = targetCart?.items?.find((i) => i.product?.id === productId);
           if (existing) {
-            const updatedItems = state.cart!.items.map((i) =>
+            const updatedItems = targetCart!.items.map((i) =>
               i.product?.id === productId
                 ? { ...i, quantity: i.quantity + quantity, subtotal: i.price * (i.quantity + quantity) }
                 : i,
             );
-            return {
-              cart: {
-                ...state.cart!,
-                items: updatedItems,
-                subtotal: updatedItems.reduce((s, i) => s + i.price * i.quantity, 0),
-              },
+            const updatedCart = {
+              ...targetCart!,
+              items: updatedItems,
+              subtotal: updatedItems.reduce((s, i) => s + i.price * i.quantity, 0),
             };
+            return activeMode === 'hyperlocal'
+              ? { hyperlocalCart: updatedCart }
+              : { panIndiaCart: updatedCart };
           }
           const price = product.price || product.mrp || 0;
           const newItem: CartItem = {
@@ -194,23 +240,31 @@ export const useCartStore = create<CartState>()(
             quantity,
             subtotal: price * quantity,
           };
-          const items = [...(state.cart?.items || []), newItem];
-          return {
-            cart: {
-              items,
-              subtotal: (state.cart?.subtotal || 0) + price * quantity,
-            },
+          const items = [...(targetCart?.items || []), newItem];
+          const updatedCart = {
+            items,
+            subtotal: (targetCart?.subtotal || 0) + price * quantity,
           };
+          return activeMode === 'hyperlocal'
+            ? { hyperlocalCart: updatedCart }
+            : { panIndiaCart: updatedCart };
         });
       }
 
       try {
-        if (user) {
+        if (_user) {
           const sessionId =
             typeof window !== 'undefined' ? localStorage.getItem('sessionId') : null;
-          await api.post('/cart', { productId, quantity, variantAttributes, sellAsCase, sessionId });
+          await api.post('/cart', {
+            productId,
+            quantity,
+            variantAttributes,
+            sellAsCase,
+            sessionId,
+            fulfillment_type: activeMode,
+          });
         } else {
-          addGuestCartItem(productId, quantity, product);
+          addGuestCartItem(productId, quantity, { ...product, fulfillment_type: activeMode });
           trackBackendCartAdd(productId, quantity).catch((e) => logger.warn('Background task failed', e));
         }
         await get().fetchCart();
@@ -223,29 +277,32 @@ export const useCartStore = create<CartState>()(
     },
 
     updateQuantity: async (itemId, quantity) => {
-      const user = get()._user;
+      const { _user, activeMode } = get();
 
-      // Optimistic update
+      // Optimistic update on the correct mode-cart
       set((state) => {
-        if (!state.cart?.items) return state;
-        const updatedItems = state.cart.items.map((i) => {
-          const id = user ? i.id : i.product?.id || i.id;
+        const targetCart =
+          activeMode === 'hyperlocal' ? state.hyperlocalCart : state.panIndiaCart;
+        if (!targetCart?.items) return state;
+        const updatedItems = targetCart.items.map((i) => {
+          const id = _user ? i.id : i.product?.id || i.id;
           if (id === itemId) {
             return { ...i, quantity, subtotal: i.price * quantity };
           }
           return i;
         });
-        return {
-          cart: {
-            ...state.cart,
-            items: updatedItems,
-            subtotal: updatedItems.reduce((s, i) => s + i.price * i.quantity, 0),
-          },
+        const updatedCart = {
+          ...targetCart,
+          items: updatedItems,
+          subtotal: updatedItems.reduce((s, i) => s + i.price * i.quantity, 0),
         };
+        return activeMode === 'hyperlocal'
+          ? { hyperlocalCart: updatedCart }
+          : { panIndiaCart: updatedCart };
       });
 
       try {
-        if (user) {
+        if (_user) {
           await api.put(`/cart/${itemId}`, { quantity });
         } else {
           updateGuestCartQty(itemId, quantity); // For guest, itemId is productId
@@ -259,26 +316,29 @@ export const useCartStore = create<CartState>()(
     },
 
     removeFromCart: async (itemId) => {
-      const user = get()._user;
+      const { _user, activeMode } = get();
 
-      // Optimistic update
+      // Optimistic update on the correct mode-cart
       set((state) => {
-        if (!state.cart?.items) return state;
-        const updatedItems = state.cart.items.filter((i) => {
-          const id = user ? i.id : i.product?.id || i.id;
+        const targetCart =
+          activeMode === 'hyperlocal' ? state.hyperlocalCart : state.panIndiaCart;
+        if (!targetCart?.items) return state;
+        const updatedItems = targetCart.items.filter((i) => {
+          const id = _user ? i.id : i.product?.id || i.id;
           return id !== itemId;
         });
-        return {
-          cart: {
-            ...state.cart,
-            items: updatedItems,
-            subtotal: updatedItems.reduce((s, i) => s + i.price * i.quantity, 0),
-          },
+        const updatedCart = {
+          ...targetCart,
+          items: updatedItems,
+          subtotal: updatedItems.reduce((s, i) => s + i.price * i.quantity, 0),
         };
+        return activeMode === 'hyperlocal'
+          ? { hyperlocalCart: updatedCart }
+          : { panIndiaCart: updatedCart };
       });
 
       try {
-        if (user) {
+        if (_user) {
           await api.delete(`/cart/${itemId}`);
         } else {
           removeGuestCartItem(itemId); // For guest, itemId is productId
@@ -294,12 +354,23 @@ export const useCartStore = create<CartState>()(
 );
 
 /**
+ * Selector that returns the cart for the currently active fulfillment mode.
+ * Use this wherever `cart` was previously accessed for full backward compatibility.
+ */
+export const useActiveCart = () =>
+  useCartStore((s) =>
+    s.activeMode === 'hyperlocal' ? s.hyperlocalCart : s.panIndiaCart,
+  );
+
+/**
  * Drop this inside <AuthProvider> in layout.tsx.
- * Bridges AuthContext user → cartStore.setUser(), and replicates
- * the visibility-change polling that CartContext previously owned.
+ * Bridges AuthContext user → cartStore.setUser() and
+ * PincodeContext activeMode → cartStore.setActiveMode().
+ * Also replicates the visibility-change polling that CartContext previously owned.
  */
 export function CartStoreSync() {
   const { user } = useAuth();
+  const { activeMode } = usePincode();
 
   useEffect(() => {
     // Bridge auth state into store (triggers fetchCart internally)
@@ -327,6 +398,11 @@ export function CartStoreSync() {
       if (interval) clearInterval(interval);
     };
   }, [user]);
+
+  useEffect(() => {
+    // Sync active mode changes from PincodeContext into the cart store
+    useCartStore.getState().setActiveMode(activeMode);
+  }, [activeMode]);
 
   return null;
 }

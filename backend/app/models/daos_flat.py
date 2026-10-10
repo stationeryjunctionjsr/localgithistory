@@ -1149,6 +1149,10 @@ class ActivityInternal(CamelBaseModel):
     updated_at: Optional[datetime] = None
     meta: Optional[List[ActivityMetaInternal]] = None
 
+    @property
+    def userId(self) -> Optional[str]:
+        return self.user_id
+
 class ReturnRequestItemInternal(CamelBaseModel):
     product_id: str
     quantity: int

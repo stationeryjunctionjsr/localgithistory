@@ -291,18 +291,7 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
     setShowHamburger(false);
   };
 
-  // Lock body scroll while the mandatory pincode gate is blocking the page
-  useEffect(() => {
-    const gateActive = isMandatory && isPincodeModalOpen && !user;
-    if (gateActive) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isMandatory, isPincodeModalOpen, user]);
+
 
   // Re-fetch recommendations from the server whenever the category tag filter changes.
   // Includes pincode so the server can apply zone filtering for the guest's location.
@@ -329,9 +318,6 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRecoCategory]);
 
-  // Determine if the mandatory pincode gate should blur page content
-  const gateBlur = isMandatory && isPincodeModalOpen && !user;
-
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       {/* Header always visible — contains the pincode picker button */}
@@ -339,8 +325,8 @@ function LandingPageContent({ props }: { props: LandingPageClientProps }) {
 
       {/* Page body: blurred + non-interactive while pincode gate is active */}
       <div
-        className={`transition-all duration-700 ease-out${gateBlur ? ' blur-2xl brightness-[0.35] saturate-[0.15] pointer-events-none select-none' : ''}`}
-        aria-hidden={gateBlur || undefined}
+        className="transition-all duration-700 ease-out"
+        aria-hidden={undefined}
       >
       {!selectedCategory && !selectedCategoryTag && !selectedCollection && !searchTerm && (
         <>

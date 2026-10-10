@@ -25,6 +25,10 @@ export interface PincodeData {
   slotBookingAvailable?: boolean;
   showSellerCount?: boolean;  // false for wholesalers — marketplace model does not apply
   zoneCustomerType?: string;  // "retail" | "business" | "both"
+  hasZone?: boolean;         // pincode maps to a hyperlocal delivery zone
+  hasPanIndia?: boolean;     // pincode is within Pan-India courier serviceability
+  allowedModes?: ('hyperlocal' | 'pan_india')[];  // modes available for this pincode
+  defaultMode?: 'hyperlocal' | 'pan_india';        // API-recommended default mode
 }
 
 interface PincodeContextType {
@@ -47,6 +51,9 @@ interface PincodeContextType {
   openPincodeModal: (mandatory?: boolean) => void;
   closePincodeModal: () => void;
   clearPincode: () => void;
+  activeMode: 'hyperlocal' | 'pan_india';
+  availableModes: ('hyperlocal' | 'pan_india')[];
+  setActiveMode: (mode: 'hyperlocal' | 'pan_india') => void;
 }
 
 const STORAGE_KEY = 'sj_pincode_data';
@@ -63,6 +70,12 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [activeMode, setActiveModeInternal] = useState<'hyperlocal' | 'pan_india'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('sj_active_mode') as 'hyperlocal' | 'pan_india') || 'hyperlocal';
+    }
+    return 'hyperlocal';
+  });
 
   // Exempt routes where store delivery pincode modal should not block user actions
   const isExemptRoute =
@@ -76,7 +89,7 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const savedDataStr = localStorage.getItem(STORAGE_KEY);
       if (savedDataStr) {
         const parsed: PincodeData = JSON.parse(savedDataStr);
-        if (parsed && parsed.pincode && parsed.isServiceable) {
+        if (parsed && parsed.pincode) {
           setPincodeData(parsed);
           setHasInitialized(true);
           return;
@@ -94,11 +107,18 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // If user navigates from an exempt route to a customer route without a pincode, prompt
   useEffect(() => {
-    if (hasInitialized && !isExemptRoute && (!pincodeData || !pincodeData.isServiceable)) {
-      setIsMandatory(true);
+    if (hasInitialized && !isExemptRoute && !pincodeData) {
+      setIsMandatory(false);  // Never block browsing — just invite the user to set a pincode
       setIsPincodeModalOpen(true);
     }
   }, [pathname, hasInitialized, isExemptRoute, pincodeData]);
+
+  // Sync activeMode to the API-recommended default when pincode data loads or changes
+  useEffect(() => {
+    if (pincodeData?.defaultMode) {
+      setActiveModeInternal(pincodeData.defaultMode);
+    }
+  }, [pincodeData?.defaultMode]);
 
   const checkAndSetPincode = useCallback(
     async (
@@ -143,6 +163,10 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           slotBookingAvailable: Boolean(data.slotBookingAvailable),
           showSellerCount: data.showSellerCount !== false, // default true; false only when API explicitly says so
           zoneCustomerType: data.zoneCustomerType || 'retail',
+          hasZone: Boolean(data.hasZone),
+          hasPanIndia: Boolean(data.hasPanIndia),
+          allowedModes: data.allowedModes || (data.hasZone ? ['hyperlocal'] : ['pan_india']),
+          defaultMode: data.defaultMode || (data.hasZone ? 'hyperlocal' : 'pan_india'),
         };
 
         if (isServ) {
@@ -155,7 +179,13 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           setTimeout(() => setIsPincodeModalOpen(false), 900);
           return { success: true, isServiceable: true, data: newPincodeData };
         } else {
-          const errMsg = `Delivery is currently not available to pincode ${cleanPin}. Please try another pincode.`;
+          // Unmapped pincode — store the data so user can browse, but note it's not serviceable
+          setPincodeData(newPincodeData);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(newPincodeData));
+          localStorage.setItem(PINCODE_ONLY_KEY, cleanPin);
+          setIsMandatory(false);  // Never block browsing for unmapped pincodes
+          setTimeout(() => setIsPincodeModalOpen(false), 900);
+          const errMsg = `Delivery is not yet available to PIN ${cleanPin}. You can browse our catalog.`;
           setError(errMsg);
           return { success: true, isServiceable: false, message: errMsg, data: newPincodeData };
         }
@@ -171,6 +201,13 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     []
   );
 
+  const setActiveMode = useCallback((mode: 'hyperlocal' | 'pan_india') => {
+    setActiveModeInternal(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sj_active_mode', mode);
+    }
+  }, []);
+
   const openPincodeModal = useCallback((mandatory = false) => {
     setIsMandatory(mandatory);
     setError(null);
@@ -178,12 +215,10 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const closePincodeModal = useCallback(() => {
-    // Only allow manual close if not mandatory (i.e. user already has a valid serviceable pincode)
-    if (!isMandatory && pincodeData?.isServiceable) {
-      setIsPincodeModalOpen(false);
-      setError(null);
-    }
-  }, [isMandatory, pincodeData]);
+    // Allow dismissal in all cases — unmapped users should be able to browse freely
+    setIsPincodeModalOpen(false);
+    setError(null);
+  }, []);
 
   const clearPincode = useCallback(() => {
     setPincodeData(null);
@@ -212,6 +247,9 @@ export const PincodeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     openPincodeModal,
     closePincodeModal,
     clearPincode,
+    activeMode,
+    availableModes: pincodeData?.allowedModes || (pincodeData?.hasZone ? ['hyperlocal'] : pincodeData?.hasPanIndia ? ['pan_india'] : []),
+    setActiveMode,
   };
 
   return <PincodeContext.Provider value={value}>{children}</PincodeContext.Provider>;

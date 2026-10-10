@@ -19,6 +19,7 @@ import { getImageUrlWithFallback } from '@/utils/imageUrl';
 import CustomerNotificationsModal from './CustomerNotificationsModal';
 import AccessibilityModal from './AccessibilityModal';
 import { logger } from '@/utils/logger';
+import ModeSwitchToggle from './ModeSwitchToggle';
 
 interface CategoryTag {
   id: string;
@@ -65,7 +66,7 @@ export default function Header() {
   const wishlistItems = useWishlistStore((s) => s.items);
   const cart          = useCartStore((s) => s.cart);
   const openCart      = useCartStore((s) => s.openCart);
-  const { pincode, city, openPincodeModal } = usePincode();
+  const { pincode, city, openPincodeModal, availableModes } = usePincode();
   const router = useRouter();
   // eslint-disable-next-line unused-imports/no-unused-vars
   const pathname = usePathname();
@@ -422,6 +423,13 @@ export default function Header() {
               </svg>
             </button>
           </div>
+
+          {/* Mode Switch - only visible when pincode supports both hyperlocal and pan-india */}
+          {availableModes.length === 2 && (
+            <div className="hidden lg:flex items-center shrink-0">
+              <ModeSwitchToggle />
+            </div>
+          )}
 
           {/* Navigation - Category Tags from Super Admin */}
           <nav className={styles.nav} ref={navRef} aria-label="Main navigation">

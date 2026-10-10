@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 // import { useCart, CartItem } from '@/context/CartContext';
 import { useCartStore, CartItem } from '@/store/cartStore';
+import { usePincode } from '@/context/PincodeContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { getImageUrlWithFallback } from '@/utils/imageUrl';
@@ -11,13 +12,21 @@ import styles from './CartOverlay.module.css';
 
 export default function CartOverlay() {
   // const { cart, loading, isCartOpen, closeCart, updateQuantity, removeFromCart, duesInfo } = useCart();
-  const cart           = useCartStore((s) => s.cart);
+  const cart           = useCartStore((s) => s.activeMode === 'hyperlocal' ? s.hyperlocalCart : s.panIndiaCart);
   const loading        = useCartStore((s) => s.loading);
   const isCartOpen     = useCartStore((s) => s.isCartOpen);
   const closeCart      = useCartStore((s) => s.closeCart);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeFromCart = useCartStore((s) => s.removeFromCart);
   const duesInfo       = useCartStore((s) => s.duesInfo);
+  const activeMode = useCartStore((s) => s.activeMode);
+  const hyperlocalCart = useCartStore((s) => s.hyperlocalCart);
+  const panIndiaCart = useCartStore((s) => s.panIndiaCart);
+  const { availableModes } = usePincode();
+  const otherModeHasItems = activeMode === 'hyperlocal'
+    ? (panIndiaCart?.items?.length ?? 0) > 0
+    : (hyperlocalCart?.items?.length ?? 0) > 0;
+  const otherModeLabel = activeMode === 'hyperlocal' ? 'Shop from India' : 'Shop for your area';
   const { theme } = useTheme();
   const { user } = useAuth();
   const router = useRouter();
@@ -99,7 +108,9 @@ export default function CartOverlay() {
       >
         {/* Header */}
         <div className={styles.header}>
-          <h3 id="cart-overlay-title">SHOPPING CART ({items.length})</h3>
+          <h3 id="cart-overlay-title">
+            {activeMode === 'hyperlocal' ? '🟢 Local Cart' : '🇮🇳 India Cart'} ({items.length})
+          </h3>
           <button
             onClick={closeCart}
             className={styles.closeBtn}
@@ -120,6 +131,15 @@ export default function CartOverlay() {
             </svg>
           </button>
         </div>
+
+        {/* Subtle banner when items exist in the other mode's cart */}
+        {otherModeHasItems && availableModes.length === 2 && (
+          <div className="mx-4 mt-2 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">
+            <span>You also have items in your </span>
+            <strong className="text-gray-700">{otherModeLabel}</strong>
+            <span> cart. Switch modes in the header to view them.</span>
+          </div>
+        )}
 
         {/* Body Content */}
         {loading && items.length === 0 ? (
