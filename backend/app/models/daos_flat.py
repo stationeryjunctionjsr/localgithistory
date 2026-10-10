@@ -918,28 +918,30 @@ class StockReservationsInternalUpdate(BaseModel):
     user_id: Optional[str] = None
 
 
-class ProductNotificationsInternal(BaseModel):
+class ProductNotificationsInternal(CamelBaseModel):
     model_config = ConfigDict(extra='ignore', populate_by_name=True)
     id: int
-    external_id: str = Field(..., alias='externalId')
+    external_id: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
-    product_id: str = Field(..., alias='productId')
+    product_id: str
     status: Optional[str] = "active"
-    user_id: Optional[str] = Field(None, alias='userId')
+    user_id: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
-class ProductNotificationsInternalCreate(BaseModel):
+class ProductNotificationsInternalCreate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     product_id: Optional[str] = None
     status: Optional[str] = None
     user_id: Optional[str] = None
 
-class ProductNotificationsInternalUpdate(BaseModel):
+class ProductNotificationsInternalUpdate(CamelBaseModel):
     model_config = ConfigDict(extra='forbid', populate_by_name=True)
-    external_id: Optional[str] = Field(None, alias='externalId')
+    external_id: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     product_id: Optional[str] = None

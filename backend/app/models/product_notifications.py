@@ -1,18 +1,14 @@
 from datetime import datetime
-from typing import Optional, List, Any, Dict
-from pydantic import Field
-from pydantic import BaseModel
+from typing import Optional
+from app.models.base import CamelBaseModel
 
-class ProductNotifications(BaseModel):
-    id: str = Field(default=None, alias='_id')
-    external_id: Optional[str] = Field(default=None, alias='external_id')
-    product_id: Optional[str] = Field(default=None, alias='productId')
-    user_id: Optional[str] = Field(default=None, alias='userId')
-    email: Optional[str] = Field(default=None, alias='email')
-    phone: Optional[str] = Field(default=None, alias='phone')
-    status: Optional[str] = Field(default=None, alias='status')
-    created_at: Optional[datetime] = Field(default=None, alias='createdAt')
-    updated_at: Optional[datetime] = Field(default=None, alias='updatedAt')
-    eid: Optional[str] = Field(default=None, alias='eid')
-    c: Optional[str] = Field(default=None, alias='c')
-    u: Optional[str] = Field(default=None, alias='u')
+class ProductNotifications(CamelBaseModel):
+    id: Optional[int] = None
+    external_id: Optional[str] = None
+    product_id: Optional[str] = None
+    user_id: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    status: Optional[str] = "active"
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

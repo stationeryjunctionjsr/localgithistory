@@ -5,7 +5,7 @@ Strict SQLAlchemy DAOs replacing MySQLTypedDocDAO and DocStore patterns.
 """
 
 import secrets
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from app.models.schemas import PromoStripResponse, OrderFeedbackResponse, ProductReviewResponse, ClassificationTagResponse
 from app.models.availability_requests import AvailabilityRequestResponse
 
@@ -1290,61 +1290,67 @@ class MySQLProductNotificationsDAO:
     def _factory(self):
         return get_async_session_factory()
 
-    def __map_to_schema(self, row) -> Dict:
-        return {
-            "_id": str(row.id),
-            "id": row.id,
-            "external_id": row.external_id,
-            "productId": row.product_id,
-            "userId": row.user_id,
-            "email": row.email,
-            "phone": row.phone,
-            "status": row.status,
+    def _map_to_schema(self, row) -> ProductNotificationsInternal:
+        return ProductNotificationsInternal(
+            id=row.id,
+            external_id=row.external_id,
+            product_id=row.product_id,
+            user_id=row.user_id,
+            email=row.email,
+            phone=row.phone,
+            status=row.status,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
 
-            "createdAt": row.created_at.isoformat() if row.created_at else None,
-            "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
-        }
-
-    async def findAll(self, query: Optional[Dict] = None) -> List[Google_reviewsInternal]:
-        query = query or {}
+    async def findAll(
+        self,
+        product_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        email: Optional[str] = None,
+        phone: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> List[ProductNotificationsInternal]:
         where_clauses = []
         params = {}
-        if "productId" in query:
+        if product_id is not None:
             where_clauses.append("product_id = :productId")
-            params["productId"] = query["productId"]
-        if "userId" in query:
+            params["productId"] = str(product_id)
+        if user_id is not None:
             where_clauses.append("user_id = :userId")
-            params["userId"] = query["userId"]
-        if "email" in query:
+            params["userId"] = str(user_id)
+        if email is not None:
             where_clauses.append("email = :email")
-            params["email"] = query["email"]
-        if "phone" in query:
+            params["email"] = str(email)
+        if phone is not None:
             where_clauses.append("phone = :phone")
-            params["phone"] = query["phone"]
-        if "status" in query:
+            params["phone"] = str(phone)
+        if status is not None:
             where_clauses.append("status = :status")
-            params["status"] = query["status"]
+            params["status"] = str(status)
 
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
         factory = self._factory()
         async with factory() as session:
             rows = (
                 await session.execute(
-                    text(f"SELECT * FROM {self.TABLE} WHERE {where_sql} ORDER BY id ASC"),
+                    text(f"SELECT * FROM {self.TABLE}{where_sql} ORDER BY id ASC"),
                     params,
                 )
             ).fetchall()
-        return [self.__map_to_schema(r) for r in rows]
+        return [self._map_to_schema(r) for r in rows]
 
-    async def findOne(self, query: Dict) -> 'ProductNotificationsInternal':
-        if "_id" in query:
-            return await self.findById(query["_id"])
-        if "id" in query:
-            return await self.findById(query["id"])
-        docs = await self.findAll(query)
+    async def findOne(
+        self,
+        product_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        email: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> Optional[ProductNotificationsInternal]:
+        docs = await self.findAll(product_id=product_id, user_id=user_id, email=email, status=status)
         return docs[0] if docs else None
 
-    async def findById(self, id: str) -> 'ProductNotificationsInternal':
+    async def findById(self, id: Union[int, str]) -> Optional[ProductNotificationsInternal]:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
@@ -1354,10 +1360,9 @@ class MySQLProductNotificationsDAO:
                     {"id": pid},
                 )
             ).fetchone()
-        return self.__map_to_schema(row) if row else None
+        return self._map_to_schema(row) if row else None
 
-    async def create(self, data: ProductNotificationsInternalCreate) -> Dict:
-
+    async def create(self, data: ProductNotificationsInternalCreate) -> Optional[ProductNotificationsInternal]:
         factory = self._factory()
         now = now_utc()
         ext_id = secrets.token_hex(16)
@@ -1395,10 +1400,9 @@ class MySQLProductNotificationsDAO:
             )
             new_id = (await session.execute(text(f"SELECT id FROM {self.TABLE} WHERE external_id = :eid"), {"eid": ext_id})).scalar()
             await session.commit()
-        return await self.findById(str(new_id))
+        return await self.findById(new_id)
 
-    async def update(self, id: str, data: ProductNotificationsInternalUpdate) -> Optional['ProductNotificationsInternal']:
-
+    async def update(self, id: Union[int, str], data: ProductNotificationsInternalUpdate) -> Optional[ProductNotificationsInternal]:
         existing = await self.findById(id)
         if not existing:
             return None
@@ -1433,7 +1437,7 @@ class MySQLProductNotificationsDAO:
             await session.commit()
         return await self.findById(id)
 
-    async def delete(self, id: str) -> bool:
+    async def delete(self, id: Union[int, str]) -> bool:
         factory = self._factory()
         pid = int(id) if str(id).isdigit() else None
         async with factory() as session:
