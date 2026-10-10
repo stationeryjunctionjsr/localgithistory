@@ -1234,6 +1234,7 @@ class SkinnyProductResponse(CamelBaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     user: Optional[UserSnippet] = None
+    is_bundle: Optional[bool] = False
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra='forbid')
 

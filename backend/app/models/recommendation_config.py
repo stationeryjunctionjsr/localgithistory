@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 from pydantic import Field
 from app.models.base import CamelBaseModel
 
@@ -55,3 +56,20 @@ class FavouritesRankedResult(CamelBaseModel):
     ranked_ids: List[Tuple[str, float]] = Field(default_factory=list)
     states: List[str] = Field(default_factory=list)
     cities: List[str] = Field(default_factory=list)
+
+
+class BundleRecommendationItem(CamelBaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    category: Optional[str] = None
+    sub_category: Optional[str] = None
+    mrp: float = 0.0
+    price: float = 0.0
+    display_image: Optional[str] = None
+    images: List[str] = Field(default_factory=list)
+    sales_count: int = 0
+    created_at: Optional[datetime] = None
+    is_active: bool = True
+    is_bundle: bool = True
+    sellers: List[Any] = Field(default_factory=list)
